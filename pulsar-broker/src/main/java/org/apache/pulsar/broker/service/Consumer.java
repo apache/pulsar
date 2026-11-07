@@ -49,7 +49,6 @@ import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.AckSetStateUtil;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.commons.lang3.tuple.MutablePair;
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSubscription;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
@@ -614,8 +613,7 @@ public class Consumer {
      * Handles individual acknowledgments, with or without a transaction.
      *
      * <p>Non-transactional acks defer pending ack state updates until persistence succeeds.
-     * Transactional acks immediately apply pending ack state updates (preserving the original
-     * timing behavior), and additionally schedule per-position cleanup on txn storage completion.
+     * Transactional acks defer consumer pending ack state updates until the transaction outcome is known.
      */
     private CompletableFuture<Long> individualAck(CommandAck ack, Map<String, Long> properties,
                                                   boolean requirePersistedAck) {
@@ -626,8 +624,8 @@ public class Consumer {
                     new BrokerServiceException.NotAllowedException("Server don't support transaction ack!"));
         }
 
-        // Txn path needs consumer+position+batchSize tuples for transactionIndividualAcknowledge.
-        List<Pair<Consumer, MutablePair<Position, Integer>>> txnPositions =
+        // Txn path needs position+batchSize tuples for transactionIndividualAcknowledge.
+        List<MutablePair<Position, Integer>> txnPositions =
                 hasTxn ? new ArrayList<>() : null;
         // Non-txn path needs plain positions for acknowledgeMessageAsync.
         List<Position> nonTxnPositions = hasTxn ? null : new ArrayList<>(ack.getMessageIdsCount());
@@ -666,25 +664,7 @@ public class Consumer {
                 } else {
                     ackedCount = 1;
                 }
-                txnPositions.add(Pair.of(ackOwnerConsumer, MutablePair.of(position, batchSize)));
-
-                // TODO: If the transaction is later aborted, the unacked count is NOT restored, leading
-                // to an incorrect (lower) unacked message count. Fixing this requires coordinating
-                // with PendingAckHandle's commit/abort callbacks to defer consumer-level state
-                // updates until the transaction outcome is determined.
-                if (hasAckSet && ackedCount > 0) {
-                    boolean updated = ackOwnerConsumer.updateRemainingUnacked(
-                            position.getLedgerId(), position.getEntryId(), (int) ackedCount);
-                    if (updated) {
-                        ackOwnerConsumer.decrementUnackedMessagesAndReconcileBlockedState((int) ackedCount);
-                    }
-                } else if (!hasAckSet) {
-                    int removed = ackOwnerConsumer.removePendingAckAndGetRemainingUnacked(
-                            position.getLedgerId(), position.getEntryId());
-                    if (removed != PENDING_ACK_NOT_FOUND) {
-                        ackOwnerConsumer.decrementUnackedMessagesAndReconcileBlockedState(removed);
-                    }
-                }
+                txnPositions.add(MutablePair.of(position, batchSize));
 
                 totalAckCount += ackedCount;
             } else {
@@ -709,20 +689,7 @@ public class Consumer {
         if (hasTxn) {
             CompletableFuture<Void> txnFuture = transactionIndividualAcknowledge(
                     ack.getTxnidMostBits(), ack.getTxnidLeastBits(),
-                    txnPositions.stream().map(Pair::getRight).collect(Collectors.toList()));
-            if (Subscription.isIndividualAckMode(subType)) {
-                txnFuture.whenComplete((v, e) ->
-                        txnPositions.forEach(positionPair -> {
-                            Consumer ackOwnerConsumer = positionPair.getLeft();
-                            MutablePair<Position, Integer> posAndBatch = positionPair.getRight();
-                            if (AckSetStateUtil.hasAckSet(posAndBatch.getLeft())) {
-                                if (((PersistentSubscription) subscription)
-                                        .checkIsCanDeleteConsumerPendingAck(posAndBatch.left)) {
-                                    removePendingAcks(ackOwnerConsumer, posAndBatch.left);
-                                }
-                            }
-                        }));
-            }
+                    txnPositions);
             return txnFuture.thenApply(__ -> finalTotalAckCount);
         }
 
@@ -853,6 +820,34 @@ public class Consumer {
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * Applies a transaction individual acknowledgment after the transaction has committed and the cursor
+     * acknowledgment has completed.
+     *
+     * <p>Transactional acknowledgments keep the consumer pending-ack state and aggregate counters unchanged until
+     * the transaction outcome is known. This method is called by the pending-ack handle only after commit persistence
+     * succeeds.
+     */
+    public void applyTransactionIndividualAck(Position position, int batchSize) {
+        boolean hasAckSet = AckSetStateUtil.hasAckSet(position);
+        long ackedCount = hasAckSet
+                ? getAckedCountForTransactionAck(batchSize, AckSetStateUtil.getAckSetState(position).getAckSet())
+                : 0;
+        PendingAckCompletions completions = new PendingAckCompletions(1);
+        completions.add(this, position, hasAckSet, ackedCount);
+        applyPendingAckCompletions(completions);
+    }
+
+    /**
+     * Clears the old consumer delivery before an aborted transaction's positions are replayed.
+     */
+    public void removePendingAckAndDecrementUnacked(Position position) {
+        int removed = removePendingAckAndGetRemainingUnacked(position.getLedgerId(), position.getEntryId());
+        if (removed != PENDING_ACK_NOT_FOUND) {
+            decrementUnackedMessagesAndReconcileBlockedState(removed);
         }
     }
 

@@ -38,7 +38,9 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
@@ -327,6 +329,173 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         Awaitility.await()
                 .until(() -> (managedCursor.getMarkDeletedPosition())
                         .compareTo(managedCursor.getManagedLedger().getLastConfirmedEntry()) == -1);
+    }
+
+    @Test(timeOut = 60_000)
+    public void testIndividualAckUnackedCountTracksTransactionOutcome() throws Exception {
+        String subName = "transaction-count-" + UUID.randomUUID();
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(PENDING_ACK_REPLAY_TOPIC)
+                .enableBatching(false)
+                .create();
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(PENDING_ACK_REPLAY_TOPIC)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Shared)
+                .receiverQueueSize(10)
+                .subscribe();
+
+        producer.send("abort".getBytes());
+        Message<byte[]> abortMessage = consumer.receive(10, TimeUnit.SECONDS);
+        assertNotNull(abortMessage);
+        awaitBrokerUnackedMessages(PENDING_ACK_REPLAY_TOPIC, subName, 1);
+
+        Transaction abortTxn = pulsarClient.newTransaction()
+                .withTransactionTimeout(30, TimeUnit.SECONDS).build().get();
+        consumer.acknowledgeAsync(abortMessage.getMessageId(), abortTxn).get();
+        awaitBrokerUnackedMessages(PENDING_ACK_REPLAY_TOPIC, subName, 1);
+
+        abortTxn.abort().get();
+        assertNotNull(consumer.receive(10, TimeUnit.SECONDS));
+        awaitBrokerUnackedMessages(PENDING_ACK_REPLAY_TOPIC, subName, 1);
+        consumer.acknowledgeAsync(abortMessage.getMessageId()).get();
+        awaitBrokerUnackedMessages(PENDING_ACK_REPLAY_TOPIC, subName, 0);
+
+        producer.send("commit".getBytes());
+        Message<byte[]> commitMessage = consumer.receive(10, TimeUnit.SECONDS);
+        assertNotNull(commitMessage);
+        awaitBrokerUnackedMessages(PENDING_ACK_REPLAY_TOPIC, subName, 1);
+
+        Transaction commitTxn = pulsarClient.newTransaction()
+                .withTransactionTimeout(30, TimeUnit.SECONDS).build().get();
+        consumer.acknowledgeAsync(commitMessage.getMessageId(), commitTxn).get();
+        awaitBrokerUnackedMessages(PENDING_ACK_REPLAY_TOPIC, subName, 1);
+        commitTxn.commit().get();
+        awaitBrokerUnackedMessages(PENDING_ACK_REPLAY_TOPIC, subName, 0);
+    }
+
+    @Test(timeOut = 60_000)
+    public void testBatchIndexIndividualAckUnackedCountTracksTransactionOutcome() throws Exception {
+        String subName = "transaction-batch-count-" + UUID.randomUUID();
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(PENDING_ACK_REPLAY_TOPIC)
+                .enableBatching(true)
+                .batchingMaxMessages(4)
+                .batchingMaxPublishDelay(1, TimeUnit.HOURS)
+                .create();
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(PENDING_ACK_REPLAY_TOPIC)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Shared)
+                .receiverQueueSize(10)
+                .enableBatchIndexAcknowledgment(true)
+                .subscribe();
+
+        sendBatch(producer, 4);
+        List<Message<byte[]>> abortBatch = receiveBatch(consumer, 4);
+        awaitBrokerUnackedMessages(PENDING_ACK_REPLAY_TOPIC, subName, 4);
+
+        Transaction abortTxn = pulsarClient.newTransaction()
+                .withTransactionTimeout(30, TimeUnit.SECONDS).build().get();
+        consumer.acknowledgeAsync(abortBatch.get(0).getMessageId(), abortTxn).get();
+        awaitBrokerUnackedMessages(PENDING_ACK_REPLAY_TOPIC, subName, 4);
+        abortTxn.abort().get();
+
+        List<Message<byte[]>> redeliveredBatch = receiveBatch(consumer, 4);
+        awaitBrokerUnackedMessages(PENDING_ACK_REPLAY_TOPIC, subName, 4);
+        for (Message<byte[]> message : redeliveredBatch) {
+            consumer.acknowledgeAsync(message).get();
+        }
+        awaitBrokerUnackedMessages(PENDING_ACK_REPLAY_TOPIC, subName, 0);
+
+        sendBatch(producer, 4);
+        List<Message<byte[]>> commitBatch = receiveBatch(consumer, 4);
+        awaitBrokerUnackedMessages(PENDING_ACK_REPLAY_TOPIC, subName, 4);
+
+        Transaction commitTxn = pulsarClient.newTransaction()
+                .withTransactionTimeout(30, TimeUnit.SECONDS).build().get();
+        consumer.acknowledgeAsync(commitBatch.get(0).getMessageId(), commitTxn).get();
+        awaitBrokerUnackedMessages(PENDING_ACK_REPLAY_TOPIC, subName, 4);
+        commitTxn.commit().get();
+        awaitBrokerUnackedMessages(PENDING_ACK_REPLAY_TOPIC, subName, 3);
+
+        List<MessageId> remainingMessageIds = new ArrayList<>();
+        for (int i = 1; i < commitBatch.size(); i++) {
+            remainingMessageIds.add(commitBatch.get(i).getMessageId());
+        }
+        consumer.acknowledgeAsync(remainingMessageIds).get();
+        awaitBrokerUnackedMessages(PENDING_ACK_REPLAY_TOPIC, subName, 0);
+
+        sendBatch(producer, 4);
+        List<Message<byte[]>> concurrentTxnBatch = receiveBatch(consumer, 4);
+        awaitBrokerUnackedMessages(PENDING_ACK_REPLAY_TOPIC, subName, 4);
+
+        Transaction firstTxn = pulsarClient.newTransaction()
+                .withTransactionTimeout(30, TimeUnit.SECONDS).build().get();
+        Transaction secondTxn = pulsarClient.newTransaction()
+                .withTransactionTimeout(30, TimeUnit.SECONDS).build().get();
+        consumer.acknowledgeAsync(concurrentTxnBatch.get(0).getMessageId(), firstTxn).get();
+        consumer.acknowledgeAsync(concurrentTxnBatch.get(1).getMessageId(), secondTxn).get();
+        secondTxn.abort().get();
+
+        List<Message<byte[]>> replayedAfterSecondAbort = receiveBatch(consumer, 3);
+        awaitBrokerUnackedMessages(PENDING_ACK_REPLAY_TOPIC, subName, 3);
+        int firstTxnBatchIndex = ((BatchMessageIdImpl) concurrentTxnBatch.get(0).getMessageId()).getBatchIndex();
+        for (Message<byte[]> message : replayedAfterSecondAbort) {
+            Assert.assertNotEquals(((BatchMessageIdImpl) message.getMessageId()).getBatchIndex(), firstTxnBatchIndex);
+        }
+        firstTxn.commit().get();
+        awaitBrokerUnackedMessages(PENDING_ACK_REPLAY_TOPIC, subName, 3);
+        for (Message<byte[]> message : replayedAfterSecondAbort) {
+            consumer.acknowledgeAsync(message).get();
+        }
+        awaitBrokerUnackedMessages(PENDING_ACK_REPLAY_TOPIC, subName, 0);
+    }
+
+    private void sendBatch(Producer<byte[]> producer, int messageCount) throws Exception {
+        List<CompletableFuture<MessageId>> sendFutures = new ArrayList<>();
+        for (int i = 0; i < messageCount; i++) {
+            sendFutures.add(producer.newMessage().value(("batch-" + i).getBytes()).sendAsync());
+        }
+        producer.flush();
+        FutureUtil.waitForAll(sendFutures).get();
+    }
+
+    private List<Message<byte[]>> receiveBatch(Consumer<byte[]> consumer, int messageCount) throws Exception {
+        List<Message<byte[]>> messages = new ArrayList<>();
+        Set<Integer> batchIndexes = new HashSet<>();
+        BatchMessageIdImpl firstMessageId = null;
+        for (int i = 0; i < messageCount; i++) {
+            Message<byte[]> message = consumer.receive(10, TimeUnit.SECONDS);
+            assertNotNull(message);
+            assertTrue(message.getMessageId() instanceof BatchMessageIdImpl);
+            BatchMessageIdImpl messageId = (BatchMessageIdImpl) message.getMessageId();
+            if (firstMessageId == null) {
+                firstMessageId = messageId;
+            } else {
+                Assert.assertEquals(messageId.getLedgerId(), firstMessageId.getLedgerId());
+                Assert.assertEquals(messageId.getEntryId(), firstMessageId.getEntryId());
+            }
+            assertTrue(batchIndexes.add(messageId.getBatchIndex()));
+            messages.add(message);
+        }
+        return messages;
+    }
+
+    private void awaitBrokerUnackedMessages(String topicName, String subName, int expected) {
+        Awaitility.await().untilAsserted(() -> {
+            PersistentTopic topic = (PersistentTopic) getPulsarServiceList().get(0).getBrokerService()
+                    .getTopic(TopicName.get(topicName).toString(), false).get().get();
+            Assert.assertEquals(topic.getSubscription(subName).getConsumers().get(0).getUnackedMessages(), expected);
+        });
     }
 
     @Test

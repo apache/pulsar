@@ -115,6 +115,12 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     private volatile ConcurrentSkipListMap<Position, MutablePair<Position, Integer>> individualAckPositions;
 
     /**
+     * Positions whose consumer pending-ack state was cleared while aborting another transaction.
+     * Access is protected by this handle's monitor.
+     */
+    private Map<TxnID, List<Position>> transactionConsumerStateCleared;
+
+    /**
      * The map is for transaction with position witch was cumulative acked by this transaction.
      * Only one cumulative ack position was acked by one transaction at the same time.
      */
@@ -610,11 +616,16 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                             HashMap<Position, Position> pendingAckMessageForCurrentTxn =
                                     individualAckOfTransaction.get(txnId);
                             if (pendingAckMessageForCurrentTxn != null) {
-                                    log.debug()
-                                            .attr("txnId", txnId)
-                                            .log("Transaction pending ack store abort individual success");
-                                                                individualAckAbortCommon(txnId,
-                                                                        pendingAckMessageForCurrentTxn);
+                                List<MutablePair<Position, Integer>> transactionPositions =
+                                        getTransactionConsumerPositions(pendingAckMessageForCurrentTxn);
+                                markConsumerStateClearedForOtherTransactions(
+                                        txnId, pendingAckMessageForCurrentTxn.keySet());
+                                log.debug()
+                                        .attr("txnId", txnId)
+                                        .log("Transaction pending ack store abort individual success");
+                                individualAckAbortCommon(txnId, pendingAckMessageForCurrentTxn);
+                                clearConsumerPendingAcks(transactionPositions);
+                                removeConsumerStateCleared(txnId);
                                 persistentSubscription.redeliverUnacknowledgedMessages(consumer,
                                         new ArrayList<>(pendingAckMessageForCurrentTxn.values()));
                                 abortFuture.complete(null);
@@ -809,17 +820,103 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                                                               HashMap<Position, Position> currentTxn,
                                                               Map<String, Long> properties) {
         if (currentTxn != null) {
+            List<MutablePair<Position, Integer>> transactionPositions =
+                    getTransactionConsumerPositions(currentTxn);
             // The cursor completes the ack on its own thread, while other transactions may be updating
             // individualAckOfTransaction, so the removal must go back to the pinned executor and the lock.
             return persistentSubscription.acknowledgeMessageAsync(new ArrayList<>(currentTxn.values()),
                     AckType.Individual, properties).thenRunAsync(() -> {
+                        applyConsumerPendingAcks(txnID, transactionPositions);
                         synchronized (PendingAckHandleImpl.this) {
                             individualAckOfTransaction.remove(txnID);
+                            removeConsumerStateCleared(txnID);
                         }
                     }, internalPinnedExecutor);
         } else {
             return CompletableFuture.completedFuture(null);
         }
+    }
+
+    private List<MutablePair<Position, Integer>> getTransactionConsumerPositions(
+            HashMap<Position, Position> transactionPositions) {
+        List<MutablePair<Position, Integer>> result = new ArrayList<>(transactionPositions.size());
+        for (Position position : transactionPositions.values()) {
+            MutablePair<Position, Integer> positionPair = individualAckPositions == null
+                    ? null : individualAckPositions.get(position);
+            result.add(MutablePair.of(position, positionPair != null ? positionPair.getRight() : 0));
+        }
+        return result;
+    }
+
+    private void applyConsumerPendingAcks(TxnID txnID,
+                                          List<MutablePair<Position, Integer>> transactionPositions) {
+        for (MutablePair<Position, Integer> positionPair : transactionPositions) {
+            if (consumeConsumerStateCleared(txnID, positionPair.getLeft())) {
+                continue;
+            }
+            Consumer consumer = findAckOwnerConsumer(positionPair.getLeft());
+            if (consumer != null) {
+                consumer.applyTransactionIndividualAck(positionPair.getLeft(), positionPair.getRight());
+            }
+        }
+    }
+
+    private synchronized void markConsumerStateClearedForOtherTransactions(TxnID abortedTxnID,
+                                                                              Iterable<Position> positions) {
+        if (individualAckOfTransaction == null) {
+            return;
+        }
+        for (Map.Entry<TxnID, HashMap<Position, Position>> entry : individualAckOfTransaction.entrySet()) {
+            if (entry.getKey().equals(abortedTxnID)) {
+                continue;
+            }
+            for (Position position : positions) {
+                if (entry.getValue().containsKey(position)) {
+                    if (transactionConsumerStateCleared == null) {
+                        transactionConsumerStateCleared = new HashMap<>();
+                    }
+                    transactionConsumerStateCleared
+                            .computeIfAbsent(entry.getKey(), ignored -> new ArrayList<>())
+                            .add(position);
+                }
+            }
+        }
+    }
+
+    private synchronized boolean consumeConsumerStateCleared(TxnID txnID, Position position) {
+        if (transactionConsumerStateCleared == null) {
+            return false;
+        }
+        List<Position> clearedPositions = transactionConsumerStateCleared.get(txnID);
+        if (clearedPositions == null) {
+            return false;
+        }
+        return clearedPositions.remove(position);
+    }
+
+    private synchronized void removeConsumerStateCleared(TxnID txnID) {
+        if (transactionConsumerStateCleared != null) {
+            transactionConsumerStateCleared.remove(txnID);
+        }
+    }
+
+    private void clearConsumerPendingAcks(List<MutablePair<Position, Integer>> transactionPositions) {
+        for (MutablePair<Position, Integer> positionPair : transactionPositions) {
+            Consumer consumer = findAckOwnerConsumer(positionPair.getLeft());
+            if (consumer != null) {
+                consumer.removePendingAckAndDecrementUnacked(positionPair.getLeft());
+            }
+        }
+    }
+
+    private Consumer findAckOwnerConsumer(Position position) {
+        for (Consumer consumer : persistentSubscription.getConsumers()) {
+            if (consumer.getPendingAcks() != null
+                    && consumer.getPendingAcks().contains(position.getLedgerId(), position.getEntryId())) {
+                return consumer;
+            }
+        }
+        return null;
     }
 
     private void handleIndividualAck(TxnID txnID, List<MutablePair<Position, Integer>> positions) {
