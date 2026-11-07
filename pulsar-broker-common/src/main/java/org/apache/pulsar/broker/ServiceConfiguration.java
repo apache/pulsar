@@ -659,7 +659,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "unloaded and the reconnected reader stops making progress), this bounds the wait: the broker "
                     + "fails the initialization, closes the stuck reader and clears the cached state so that loading "
                     + "the namespace's topics can be retried with a fresh reader instead of hanging until the broker "
-                    + "is restarted. Set to 0 or a negative value to disable the timeout (not recommended)."
+                    + "is restarted. The same timeout bounds how long a topic policy update, or a topic deletion "
+                    + "that deletes the topic's policies, waits for the reader to read its event back: when it "
+                    + "expires, the operation fails and the broker replaces the stalled reader. The event that the "
+                    + "operation wrote is not rolled back; it takes effect once the replacement reader has read it. "
+                    + "Set to 0 or a negative value to disable the timeout (not recommended)."
     )
     private long topicPoliciesCacheInitTimeoutSeconds = 60;
 
@@ -2097,7 +2101,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + " topic policies after the namespace's topic-policy cache finishes its initial load. Topics load"
                     + " and apply their own policies when they are loaded, so this broadcast is normally redundant; it"
                     + " is only needed for custom plugins that register TopicPolicyListeners and depend on it for"
-                    + " backwards compatibility. Disabled by default.")
+                    + " backwards compatibility. Disabled by default. Whatever this setting says, the listeners of a"
+                    + " namespace are re-notified once when the broker replaces a __change_events reader that stopped"
+                    + " delivering (see topicPoliciesCacheInitTimeoutSeconds), because the topics that are already"
+                    + " loaded missed the events that reader withheld.")
     private boolean topicPolicyListenerReplayEnabled = false;
 
     @FieldContext(
