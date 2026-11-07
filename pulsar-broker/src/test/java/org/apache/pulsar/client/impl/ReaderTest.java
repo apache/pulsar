@@ -55,6 +55,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.MessageRoutingMode;
+import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -255,8 +256,15 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
                 .create();
 
         while (reader.hasMessageAvailable()) {
-            Message<byte[]> message = reader.readNext();
-            Assert.assertTrue(keys.remove(message.getKey()));
+            if (enableBatch) {
+                Messages<byte[]> messages = reader.batchReadNext();
+                for (Message<byte[]> message : messages) {
+                    Assert.assertTrue(keys.remove(message.getKey()));
+                }
+            } else {
+                Message<byte[]> message = reader.readNext();
+                Assert.assertTrue(keys.remove(message.getKey()));
+            }
         }
         Assert.assertTrue(keys.isEmpty());
 
@@ -320,8 +328,8 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
                 .create();
 
         while (reader.hasMessageAvailable()) {
-            Message<byte[]> message = reader.readNext();
-            Assert.assertTrue(keys.remove(message.getKey()));
+            Messages<byte[]> messages = reader.batchReadNext();
+            messages.forEach((message -> Assert.assertTrue(keys.remove(message.getKey()))));
         }
         Assert.assertTrue(keys.isEmpty());
     }
