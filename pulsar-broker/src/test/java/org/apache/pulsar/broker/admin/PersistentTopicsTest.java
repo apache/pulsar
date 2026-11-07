@@ -104,6 +104,7 @@ import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
@@ -491,6 +492,70 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         } catch (RestException e) {
             Assert.assertEquals(Response.Status.NOT_ACCEPTABLE.getStatusCode(), e.getResponse().getStatus());
         }
+    }
+
+    @Test
+    public void testGetCursorInternalStats() {
+        final String topicName = BrokerTestUtil.newUniqueName("persistent-topic");
+
+        // 1) Create the non-partitioned topic
+        AsyncResponse response = mock(AsyncResponse.class);
+        persistentTopics.createNonPartitionedTopic(response, testTenant, testNamespace, topicName, true, null);
+
+        // 2) Create a subscription
+        response = mock(AsyncResponse.class);
+        persistentTopics.createSubscription(response, testTenant, testNamespace, topicName, "test-sub", true,
+                new ResetCursorData(MessageId.earliest), false);
+        ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
+
+        // 3) Get the internal stats of the cursor backing the subscription
+        response = mock(AsyncResponse.class);
+        persistentTopics.getCursorInternalStats(response, testTenant, testNamespace, topicName, "test-sub", true);
+        ArgumentCaptor<ManagedLedgerInternalStats.CursorStats> statsCaptor =
+                ArgumentCaptor.forClass(ManagedLedgerInternalStats.CursorStats.class);
+        verify(response, timeout(5000).times(1)).resume(statsCaptor.capture());
+        ManagedLedgerInternalStats.CursorStats stats = statsCaptor.getValue();
+        Assert.assertNotNull(stats.markDeletePosition);
+        Assert.assertNotNull(stats.readPosition);
+        Assert.assertNotNull(stats.state);
+
+        // 4) The stats must match the entry reported by the topic internal stats
+        response = mock(AsyncResponse.class);
+        persistentTopics.getInternalStats(response, testTenant, testNamespace, topicName, true, false);
+        ArgumentCaptor<PersistentTopicInternalStats> internalStatsCaptor =
+                ArgumentCaptor.forClass(PersistentTopicInternalStats.class);
+        verify(response, timeout(5000).times(1)).resume(internalStatsCaptor.capture());
+        PersistentTopicInternalStats internalStats = internalStatsCaptor.getValue();
+        ManagedLedgerInternalStats.CursorStats statsFromTopic =
+                internalStats.cursors.get("test-sub");
+        Assert.assertNotNull(statsFromTopic);
+        Assert.assertEquals(statsFromTopic.markDeletePosition, stats.markDeletePosition);
+        Assert.assertEquals(statsFromTopic.readPosition, stats.readPosition);
+        Assert.assertEquals(statsFromTopic.state, stats.state);
+
+        // 5) Getting the stats of a subscription that does not exist fails with 404
+        response = mock(AsyncResponse.class);
+        persistentTopics.getCursorInternalStats(response, testTenant, testNamespace, topicName, "unknown-sub",
+                true);
+        ArgumentCaptor<RestException> errorCaptor = ArgumentCaptor.forClass(RestException.class);
+        verify(response, timeout(5000).times(1)).resume(errorCaptor.capture());
+        Assert.assertEquals(errorCaptor.getValue().getResponse().getStatus(),
+                Response.Status.NOT_FOUND.getStatusCode());
+
+        // 6) A topic that does not exist fails with 404 and does not get auto-created,
+        //    even though this test configuration allows auto topic creation
+        final String nonExistentTopic = BrokerTestUtil.newUniqueName("cursor-stats-not-created");
+        response = mock(AsyncResponse.class);
+        persistentTopics.getCursorInternalStats(response, testTenant, testNamespace, nonExistentTopic,
+                "any-sub", true);
+        errorCaptor = ArgumentCaptor.forClass(RestException.class);
+        verify(response, timeout(5000).times(1)).resume(errorCaptor.capture());
+        Assert.assertEquals(errorCaptor.getValue().getResponse().getStatus(),
+                Response.Status.NOT_FOUND.getStatusCode());
+        Awaitility.await().untilAsserted(() -> Assert.assertFalse(
+                admin.topics().getList(testTenant + "/" + testNamespace).contains(nonExistentTopic)));
     }
 
     @Test
