@@ -87,7 +87,9 @@ public class Producer {
     private static final AtomicLongFieldUpdater<Producer> pendingPublishAcksUpdater = AtomicLongFieldUpdater
             .newUpdater(Producer.class, "pendingPublishAcks");
 
-    private boolean isClosed = false;
+    private volatile boolean isClosed = false;
+    private boolean removeFromTopicOnClose;
+    private boolean cleanupStarted;
     private final CompletableFuture<Void> closeFuture;
 
     private final PublisherStatsImpl stats;
@@ -795,6 +797,7 @@ public class Producer {
 
             if (!isClosed) {
                 isClosed = true;
+                removeFromTopicOnClose = removeFromTopic;
                 log.debug()
                         .attr("isActive", cnx.isActive())
                         .attr("pendingPublishAcks", pendingPublishAcks)
@@ -810,7 +813,16 @@ public class Producer {
     }
 
     public void closeNow(boolean removeFromTopic) {
-        if (removeFromTopic) {
+        boolean removeProducer;
+        synchronized (this) {
+            if (cleanupStarted) {
+                return;
+            }
+            cleanupStarted = true;
+            // The first close request decides: close(false) keeps the producer on the topic for its replacement
+            removeProducer = isClosed ? removeFromTopicOnClose : removeFromTopic;
+        }
+        if (removeProducer) {
             topic.removeProducer(this);
         }
         cnx.removedProducer(this);
