@@ -33,6 +33,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.time.Clock;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -72,6 +73,7 @@ import java.util.function.BooleanSupplier;
 import java.util.function.IntSupplier;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.function.ToLongFunction;
 import java.util.stream.Collectors;
 import lombok.Getter;
 import org.apache.bookkeeper.client.AsyncCallback;
@@ -1577,6 +1579,82 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return 0;
         }
         return estimateBacklogFromPosition(pos);
+    }
+
+    @Override
+    public ToLongFunction<Position> getEstimatedBacklogSizeSnapshot() {
+        // Subclasses can change ledger metadata independently of this implementation's synchronization.
+        if (getClass() != ManagedLedgerImpl.class) {
+            return this::getEstimatedBacklogSize;
+        }
+
+        final long[] ledgerIds;
+        final long[] prefixSizes;
+        final long[] entries;
+        final long totalSize;
+        final Position confirmedPosition;
+        final long currentLedgerId;
+        final long currentSize;
+        final long currentEntries;
+        synchronized (this) {
+            if (currentLedger == null || ledgers.isEmpty()) {
+                return this::getEstimatedBacklogSize;
+            }
+            int count = ledgers.size();
+            ledgerIds = new long[count];
+            prefixSizes = new long[count];
+            entries = new long[count];
+            int i = 0;
+            for (Map.Entry<Long, LedgerInfo> ledger : ledgers.entrySet()) {
+                // The exposed ledger map can also be modified by callers that do not hold this monitor.
+                if (i == count) {
+                    return this::getEstimatedBacklogSize;
+                }
+                LedgerInfo info = ledger.getValue();
+                ledgerIds[i] = ledger.getKey();
+                prefixSizes[i] = info.getSize();
+                entries[i] = info.getEntries();
+                i++;
+            }
+            if (i != count) {
+                return this::getEstimatedBacklogSize;
+            }
+            // The write callback updates the total before publishing lastConfirmedEntry. Reading the
+            // position first ensures the total includes its bytes, although the counters are not atomic.
+            confirmedPosition = lastConfirmedEntry;
+            totalSize = getTotalSize();
+            currentLedgerId = currentLedger.getId();
+            currentSize = currentLedgerSize;
+            currentEntries = currentLedgerEntries;
+        }
+        for (int i = 1; i < prefixSizes.length; i++) {
+            prefixSizes[i] += prefixSizes[i - 1];
+        }
+        return pos -> {
+            if (pos == null) {
+                return 0;
+            }
+            // A later cursor position can refer to an entry whose bytes were not in the captured total.
+            if (confirmedPosition == null || pos.compareTo(confirmedPosition) > 0
+                    || pos.getLedgerId() > ledgerIds[ledgerIds.length - 1]) {
+                return getEstimatedBacklogSize(pos);
+            }
+            if (pos.getLedgerId() == currentLedgerId && pos.getEntryId() >= currentEntries
+                    && pos.getEntryId() >= 0) {
+                return getEstimatedBacklogSize(pos);
+            }
+            int index = Arrays.binarySearch(ledgerIds, pos.getLedgerId());
+            int before = index >= 0 ? index : -index - 1;
+            long size = totalSize - (before == 0 ? 0 : prefixSizes[before - 1]);
+            if (index < 0) {
+                return size;
+            }
+            long ledgerSize = prefixSizes[index] - (index == 0 ? 0 : prefixSizes[index - 1]);
+            if (pos.getLedgerId() == currentLedgerId) {
+                return size - consumedLedgerSize(currentSize, currentEntries, pos.getEntryId());
+            }
+            return size - consumedLedgerSize(ledgerSize, entries[index], pos.getEntryId());
+        };
     }
 
     long estimateBacklogFromPosition(Position pos) {

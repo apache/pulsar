@@ -2561,4 +2561,44 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                 any(AsyncCallbacks.ReadEntryCallback.class), any()); // Now 2 calls
     }
 
+    @Test
+    public void testSubscriptionBacklogSizeSnapshot() throws Exception {
+        doReturn("test-broker-id").when(pulsarTestContext.getPulsarService()).getBrokerId();
+        when(ledgerMock.getLastAddEntryTime()).thenReturn(1L);
+        Position position = PositionFactory.create(1, 2);
+        when(cursorMock.getMarkDeletedPosition()).thenReturn(position);
+        when(ledgerMock.getEstimatedBacklogSizeSnapshot()).thenReturn(p -> p.equals(position) ? 123L : 0L);
+
+        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+        topic.initialize().join();
+        topic.getSubscriptions().put("one", new PersistentSubscription(topic, "one", cursorMock, false));
+        topic.getSubscriptions().put("two", new PersistentSubscription(topic, "two", cursorMock, false));
+        topic.getSubscriptions().put("custom", new PersistentSubscription(topic, "custom", cursorMock, false) {
+            @Override
+            public CompletableFuture<SubscriptionStatsImpl> getStatsAsync(GetStatsOptions options) {
+                SubscriptionStatsImpl stats = new SubscriptionStatsImpl();
+                stats.backlogSize = 456L;
+                return CompletableFuture.completedFuture(stats);
+            }
+        });
+
+        var stats = topic.asyncGetStats(new GetStatsOptions(false, true, false, false, false)).get();
+        assertEquals(stats.subscriptions.get("one").backlogSize, 123L);
+        assertEquals(stats.subscriptions.get("two").backlogSize, 123L);
+        assertEquals(stats.subscriptions.get("custom").backlogSize, 456L);
+        verify(ledgerMock, times(1)).getEstimatedBacklogSizeSnapshot();
+        verify(ledgerMock, times(0)).getEstimatedBacklogSize(any(Position.class));
+
+        stats = topic.asyncGetStats(new GetStatsOptions(false, false, false, false, false)).get();
+        assertEquals(stats.subscriptions.get("one").backlogSize, -1L);
+        verify(ledgerMock, times(1)).getEstimatedBacklogSizeSnapshot();
+
+        topic.getSubscriptions().remove("two");
+        topic.getSubscriptions().remove("custom");
+        when(ledgerMock.getEstimatedBacklogSize(position)).thenReturn(321L);
+        stats = topic.asyncGetStats(new GetStatsOptions(false, true, false, false, false)).get();
+        assertEquals(stats.subscriptions.get("one").backlogSize, 321L);
+        verify(ledgerMock, times(1)).getEstimatedBacklogSizeSnapshot();
+    }
+
 }

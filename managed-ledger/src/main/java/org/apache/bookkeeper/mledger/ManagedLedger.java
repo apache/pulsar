@@ -25,6 +25,7 @@ import java.util.NavigableMap;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Predicate;
+import java.util.function.ToLongFunction;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
@@ -774,6 +775,16 @@ public interface ManagedLedger {
     Position getPreviousPosition(Position position);
 
     long getEstimatedBacklogSize(Position position);
+
+    /**
+     * Create an estimator for a batch of positions. Implementations may use a shared, approximate snapshot.
+     * The returned estimator is intended for a short-lived batch and may not reflect later ledger changes.
+     *
+     * @return an estimator that returns the estimated backlog size for a position
+     */
+    default ToLongFunction<Position> getEstimatedBacklogSizeSnapshot() {
+        return this::getEstimatedBacklogSize;
+    }
 
     Position getPositionAfterN(Position startPosition, long n, PositionBound startRange);
 

@@ -61,6 +61,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
+import java.util.function.ToLongFunction;
 import lombok.Getter;
 import lombok.Value;
 import org.apache.bookkeeper.client.BKException.BKNoSuchLedgerExistsException;
@@ -3266,7 +3267,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         topicStatsStream.writePair("msgThroughputIn", topicStatsHelper.aggMsgThroughputIn);
         topicStatsStream.writePair("msgThroughputOut", topicStatsHelper.aggMsgThroughputOut);
         topicStatsStream.writePair("storageSize", ledger.getTotalSize());
-        topicStatsStream.writePair("backlogSize", ledger.getEstimatedBacklogSize());
+        long backlogSize = ledger.getEstimatedBacklogSize();
+        topicStatsStream.writePair("backlogSize", backlogSize);
         topicStatsStream.writePair("pendingAddEntriesCount", ledger.getPendingAddEntriesCount());
         topicStatsStream.writePair("filteredEntriesCount", getFilteredEntriesCount());
 
@@ -3274,7 +3276,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         nsStats.msgRateOut += topicStatsHelper.aggMsgRateOut;
         nsStats.msgThroughputIn += topicStatsHelper.aggMsgThroughputIn;
         nsStats.msgThroughputOut += topicStatsHelper.aggMsgThroughputOut;
-        nsStats.storageSize += ledger.getEstimatedBacklogSize();
+        nsStats.storageSize += backlogSize;
 
         bundleStats.msgRateIn += topicStatsHelper.aggMsgRateIn;
         bundleStats.msgRateOut += topicStatsHelper.aggMsgRateOut;
@@ -3448,8 +3450,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         });
 
         Map<String, CompletableFuture<SubscriptionStatsImpl>> subscriptionFutures = new HashMap<>();
+        ToLongFunction<Position> backlogSizeSnapshot = getStatsOptions.isSubscriptionBacklogSize()
+                && subscriptions.size() > 1 ? ledger.getEstimatedBacklogSizeSnapshot() : null;
         subscriptions.forEach((name, subscription) -> {
-            subscriptionFutures.put(name, subscription.getStatsAsync(getStatsOptions));
+            // Keep invoking the public method for subclasses that may override the stats calculation.
+            subscriptionFutures.put(name, backlogSizeSnapshot != null
+                    && subscription.getClass() == PersistentSubscription.class
+                    ? subscription.getStatsAsync(getStatsOptions, backlogSizeSnapshot)
+                    : subscription.getStatsAsync(getStatsOptions));
         });
 
         return lastPublishTimeFuture.thenCompose(ignore ->
