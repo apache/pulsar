@@ -791,7 +791,12 @@ public class PulsarTestContext implements AutoCloseable {
                 }
                 registerCloseable(() -> {
                     mockBookKeeper.reallyShutdown();
-                    releaseSpyOrMock(mockBookKeeper);
+                    // The client factory hands this client to the broker and to tests, which may close it (a no-op)
+                    // after the context, so it stays usable. Its settings only reference the executor: dropping its
+                    // invocations and stubs is enough.
+                    if (MockUtil.isMock(mockBookKeeper)) {
+                        Mockito.reset(mockBookKeeper);
+                    }
                 });
                 bookKeeperClient(mockBookKeeper);
             }
@@ -912,7 +917,8 @@ public class PulsarTestContext implements AutoCloseable {
      * constructor arguments, and its invocations. For a broker and its collaborators, these reference the mock
      * again (the compaction service factory, a constructor argument of the PulsarService spy, references the
      * PulsarService, for example), so the entry is never removed and the closed broker would stay in the heap until
-     * the test JVM exits. {@link Mockito#reset(Object[])} doesn't help: it keeps the settings.
+     * the test JVM exits. {@link Mockito#reset(Object[])} doesn't help: it keeps the settings. Mockito disables a
+     * released mock: calling it throws.
      */
     static void releaseSpyOrMock(Object object) {
         if (object != null && MockUtil.isMock(object)) {
