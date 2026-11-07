@@ -56,4 +56,23 @@ public class TxnOp {
      * acks. Always {@code null} for {@link TxnOpKind#WRITE} entries.
      */
     private Boolean cumulative;
+
+    /** Batch size supplied with an ACK; absent on records written before batch-aware recovery. */
+    private Integer batchSize;
+
+    /** The actual pending batch acknowledgement mask, or null for a whole-entry ACK. */
+    private long[] ackSet;
+
+    /**
+     * For {@link TxnOpKind#ACK} entries of a terminal txn only: {@code true} while a subscription cursor reset that
+     * discards this ACK is in progress. The record stays in place, so the txn header is not garbage-collected, until
+     * the reset is persisted (the record is deleted) or fails (the flag is cleared). Recovery never reapplies it.
+     */
+    private Boolean resetPending;
+
+    /** Retain the original constructor for WRITE records and existing callers. */
+    public TxnOp(TxnOpKind kind, String segment, String subscription,
+                 long ledgerId, long entryId, Boolean cumulative) {
+        this(kind, segment, subscription, ledgerId, entryId, cumulative, null, null, null);
+    }
 }

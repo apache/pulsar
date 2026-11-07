@@ -81,4 +81,28 @@ public interface PendingAckStore {
      * @return a future represents the result of this operation
      */
     CompletableFuture<Void> appendAbortMark(TxnID txnID, AckType ackType);
+
+    /**
+     * Prepare for a reset of the subscription cursor, before the reset is persisted. A store that keeps the
+     * records of acknowledgements already applied to the cursor, to reapply them after a restart, must keep them
+     * from being reapplied once the reset is persisted: the reset replaces that cursor state, and reapplying them
+     * would undo the reset. The reset fails if the returned future fails. {@link #afterCursorReset} follows,
+     * whether this succeeds or not.
+     *
+     * @return a future represents the result of this operation
+     */
+    default CompletableFuture<Void> beforeCursorReset() {
+        return CompletableFuture.completedFuture(null);
+    }
+
+    /**
+     * Complete the reset {@link #beforeCursorReset} prepared for. If the reset was not persisted, the cursor
+     * state those records protect still stands, so a store must be able to reapply them again.
+     *
+     * @param persisted whether the cursor reset was persisted
+     * @return a future represents the result of this operation
+     */
+    default CompletableFuture<Void> afterCursorReset(boolean persisted) {
+        return CompletableFuture.completedFuture(null);
+    }
 }

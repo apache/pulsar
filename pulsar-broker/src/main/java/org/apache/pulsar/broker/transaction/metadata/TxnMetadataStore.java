@@ -74,6 +74,9 @@ public class TxnMetadataStore {
      */
     public record OpRecord(String path, String txnId, long version) {}
 
+    /** A collected {@code /txn/op} record with the operation it holds, so {@link #replaceOps} can rewrite it. */
+    public record OpImage(OpRecord record, TxnOp op) {}
+
     public TxnMetadataStore(MetadataStore store) {
         this.store = store;
     }
@@ -133,6 +136,38 @@ public class TxnMetadataStore {
      * {@code path} carries the generated sequence key.
      */
     public CompletableFuture<Stat> appendOp(String txnId, TxnOp op) {
+        return store.put(TxnPaths.opParent(txnId), toJson(op), Optional.empty(), opOptions(txnId, op, true));
+    }
+
+    /**
+     * Rewrite {@code /txn/op} records in place with new contents, each at the version it was collected at and with the
+     * indexes {@link #appendOp} gave it. A record deleted or rewritten since is left alone. {@code onReplaced} receives
+     * each rewritten record at its new version as soon as its rewrite lands, so the caller knows which rewrites landed
+     * even if another fails; the returned future fails if any rewrite failed for another reason.
+     */
+    public CompletableFuture<Void> replaceOps(List<OpImage> replacements, Consumer<OpImage> onReplaced) {
+        return FutureUtil.supplySafely(() -> {
+            List<CompletableFuture<Void>> puts = new ArrayList<>(replacements.size());
+            for (OpImage replacement : replacements) {
+                OpRecord record = replacement.record();
+                puts.add(store.put(record.path(), toJson(replacement.op()), Optional.of(record.version()),
+                                opOptions(record.txnId(), replacement.op(), false))
+                        .thenAccept(stat -> onReplaced.accept(new OpImage(
+                                new OpRecord(record.path(), record.txnId(), stat.getVersion()), replacement.op())))
+                        .exceptionally(ex -> {
+                            Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                            if (cause instanceof MetadataStoreException.NotFoundException
+                                    || cause instanceof MetadataStoreException.BadVersionException) {
+                                return null;
+                            }
+                            throw FutureUtil.wrapToCompletionException(cause);
+                        }));
+            }
+            return FutureUtil.waitForAll(puts);
+        });
+    }
+
+    private static Set<Option> opOptions(String txnId, TxnOp op, boolean append) {
         Option.SecondaryIndex participantIdx = switch (op.getKind()) {
             case WRITE -> new Option.SecondaryIndex(TxnPaths.IDX_WRITES_BY_SEGMENT,
                     TxnPaths.segmentKey(op.getSegment()));
@@ -142,9 +177,9 @@ public class TxnMetadataStore {
         // Also index by txnId so the TC's endTxn can enumerate this txn's ops without scanning
         // the whole /txn/op namespace.
         Option.SecondaryIndex byTxnIdx = new Option.SecondaryIndex(TxnPaths.IDX_OPS_BY_TXN, txnId);
-        Set<Option> opts = Set.of(new Option.PartitionKey(txnId), participantIdx, byTxnIdx,
-                APPEND_DELTAS);
-        return store.put(TxnPaths.opParent(txnId), toJson(op), Optional.empty(), opts);
+        Option.PartitionKey partitionKey = new Option.PartitionKey(txnId);
+        return append ? Set.of(partitionKey, participantIdx, byTxnIdx, APPEND_DELTAS)
+                : Set.of(partitionKey, participantIdx, byTxnIdx);
     }
 
     // ---- Index queries -----------------------------------------------------
@@ -230,7 +265,17 @@ public class TxnMetadataStore {
      */
     public CompletableFuture<List<OpRecord>> collectAckOpsForSegmentSubscription(String segment,
                                                                                 String subscription) {
-        return collectOpsOnSegment(segment,
+        return collectAckOpImagesForSegmentSubscription(segment, subscription)
+                .thenApply(images -> images.stream().map(OpImage::record).toList());
+    }
+
+    /**
+     * Like {@link #collectAckOpsForSegmentSubscription}, with the operation each record holds, so that the records can
+     * be rewritten in place by {@link #replaceOps}.
+     */
+    public CompletableFuture<List<OpImage>> collectAckOpImagesForSegmentSubscription(String segment,
+                                                                                     String subscription) {
+        return collectOpImagesOnSegment(segment,
                 op -> op.getKind() == TxnOpKind.ACK && segment.equals(op.getSegment())
                         && subscription.equals(op.getSubscription()),
                 collector -> listAcksBySegmentSubscription(segment, subscription, collector));
@@ -327,17 +372,24 @@ public class TxnMetadataStore {
      */
     private CompletableFuture<List<OpRecord>> collectOpsOnSegment(
             String segment, Predicate<TxnOp> matches, Function<ScanConsumer, CompletableFuture<Void>> scan) {
-        Map<String, OpRecord> opsByPath = new ConcurrentHashMap<>();
+        return collectOpImagesOnSegment(segment, matches, scan)
+                .thenApply(images -> images.stream().map(OpImage::record).toList());
+    }
+
+    private CompletableFuture<List<OpImage>> collectOpImagesOnSegment(
+            String segment, Predicate<TxnOp> matches, Function<ScanConsumer, CompletableFuture<Void>> scan) {
+        Map<String, OpImage> opsByPath = new ConcurrentHashMap<>();
         ScanConsumer collector = new ScanConsumer() {
             @Override
             public void onNext(GetResult r) {
-                if (!matches.test(fromJson(r.getValue(), TxnOp.class))) {
+                TxnOp op = fromJson(r.getValue(), TxnOp.class);
+                if (!matches.test(op)) {
                     return;
                 }
                 String path = r.getStat().getPath();
                 String txnIdKey = TxnPaths.txnIdFromOpPath(path);
                 if (txnIdKey != null) {
-                    opsByPath.put(path, new OpRecord(path, txnIdKey, r.getStat().getVersion()));
+                    opsByPath.put(path, new OpImage(new OpRecord(path, txnIdKey, r.getStat().getVersion()), op));
                 }
             }
 

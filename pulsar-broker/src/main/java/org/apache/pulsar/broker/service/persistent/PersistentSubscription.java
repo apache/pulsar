@@ -1070,7 +1070,10 @@ public class PersistentSubscription extends AbstractSubscription {
                 });
             }
 
-            forceReset.thenAccept(forceResetValue -> {
+            // Keep recovery from reapplying the transactional ACKs the reset discards, or a restart would undo the
+            // reset. If the reset is not persisted, those ACKs are made recoverable again before the subscription
+            // is unfenced, since the cursor state they protect still stands.
+            pendingAckHandle.beforeCursorReset().thenCompose(__ -> forceReset).thenAccept(forceResetValue -> {
                 cursor.asyncResetCursor(finalPosition, forceResetValue, new AsyncCallbacks.ResetCursorCallback() {
                     @Override
                     public void resetComplete(Object ctx) {
@@ -1081,6 +1084,7 @@ public class PersistentSubscription extends AbstractSubscription {
                             dispatcher.cursorIsReset();
                             dispatcher.afterAckMessages(null, finalPosition);
                         }
+                        pendingAckHandle.afterCursorReset(true);
                         IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
                         inProgressResetCursorFuture = null;
                         future.complete(null);
@@ -1092,26 +1096,31 @@ public class PersistentSubscription extends AbstractSubscription {
                                 .attr("finalPosition", finalPosition)
                                 .exception(exception)
                                 .log("Failed to reset subscription to position");
-                        IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
-                        inProgressResetCursorFuture = null;
-                        // todo - retry on InvalidCursorPositionException
-                        // or should we just ask user to retry one more time?
-                        if (exception instanceof InvalidCursorPositionException) {
-                            future.completeExceptionally(new SubscriptionInvalidCursorPosition(exception.getMessage()));
-                        } else if (exception instanceof ConcurrentFindCursorPositionException) {
-                            future.completeExceptionally(new SubscriptionBusyException(exception.getMessage()));
-                        } else {
-                            future.completeExceptionally(new BrokerServiceException(exception));
-                        }
+                        pendingAckHandle.afterCursorReset(false).whenComplete((ignored, restoreError) -> {
+                            IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
+                            inProgressResetCursorFuture = null;
+                            // todo - retry on InvalidCursorPositionException
+                            // or should we just ask user to retry one more time?
+                            if (exception instanceof InvalidCursorPositionException) {
+                                future.completeExceptionally(
+                                        new SubscriptionInvalidCursorPosition(exception.getMessage()));
+                            } else if (exception instanceof ConcurrentFindCursorPositionException) {
+                                future.completeExceptionally(new SubscriptionBusyException(exception.getMessage()));
+                            } else {
+                                future.completeExceptionally(new BrokerServiceException(exception));
+                            }
+                        });
                     }
                 });
             }).exceptionally((e) -> {
                 log.error()
                         .exception(e)
                         .log("Error while resetting cursor");
-                IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
-                inProgressResetCursorFuture = null;
-                future.completeExceptionally(new BrokerServiceException(e));
+                pendingAckHandle.afterCursorReset(false).whenComplete((ignored, restoreError) -> {
+                    IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
+                    inProgressResetCursorFuture = null;
+                    future.completeExceptionally(new BrokerServiceException(e));
+                });
                 return null;
             });
         });
