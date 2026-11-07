@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.resources;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import lombok.AllArgsConstructor;
@@ -35,7 +37,7 @@ import org.apache.pulsar.common.scalable.SegmentInfo;
  * The epoch is incremented on every layout change (split/merge/prune).
  */
 @Data
-@Builder
+@Builder(toBuilder = true)
 @NoArgsConstructor
 @AllArgsConstructor
 public class ScalableTopicMetadata {
@@ -66,4 +68,32 @@ public class ScalableTopicMetadata {
      * marking the topic leaves it marked, until a retried delete removes it.
      */
     private boolean deleted;
+
+    /** Private identity of this topic record's lifetime, assigned once for records predating it. */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private String incarnationId;
+
+    /**
+     * Durable intent reserved before creating successors or terminating parents. It is kept in the
+     * same record as the published DAG so that publishing the replacement and clearing the intent
+     * are one CAS. Missing on records written before transition recovery was introduced.
+     */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private PendingLayoutTransition pendingLayoutTransition;
+
+    /** The fixed plan of an irreversible layout operation, including its original source fingerprints. */
+    public record PendingLayoutTransition(String id, String incarnationId, String operation, String trigger,
+                                          long baseEpoch, long baseNextSegmentId, long startedAtMs,
+                                          Map<Long, SegmentInfo> sources,
+                                          Map<Long, SegmentInfo> replacements, long nextSegmentId) {
+        public PendingLayoutTransition {
+            sources = Collections.unmodifiableMap(new LinkedHashMap<>(sources));
+            replacements = Collections.unmodifiableMap(new LinkedHashMap<>(replacements));
+        }
+    }
+
+    /** The admin metadata response exposes only the published layout, never a broker's recovery plan. */
+    public ScalableTopicMetadata withoutRecoveryMetadata() {
+        return toBuilder().incarnationId(null).pendingLayoutTransition(null).build();
+    }
 }
