@@ -127,7 +127,6 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
     private static final SchemaData schemaData3 = getSchemaData(schemaJson3);
 
     private SchemaRegistryServiceImpl schemaRegistryService;
-    private boolean runningBroker;
 
     @BeforeMethod
     protected void setup(Method method) throws Exception {
@@ -135,7 +134,6 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         if (List.of(method.getAnnotation(Test.class).groups()).contains(REQUIRES_BROKER)) {
             setup();
         } else {
-            runningBroker = false;
             incrementSetupNumber();
             conf.setSchemaRegistryStorageClassName(
                     "org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorageFactory");
@@ -154,7 +152,6 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
 
     @Override
     protected void setup() throws Exception {
-        runningBroker = true;
         conf.setSchemaRegistryStorageClassName(
                 "org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorageFactory");
         super.internalSetup();
@@ -187,18 +184,14 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
     @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
-        if (runningBroker) {
-            super.internalCleanup();
-            schemaRegistryService.close();
-        } else {
-            try {
-                if (schemaRegistryService != null) {
-                    schemaRegistryService.close();
-                }
-            } finally {
-                schemaRegistryService = null;
-                super.internalCleanup();
+        // The schema registry uses the broker's BookKeeper client: close it before the broker
+        try {
+            if (schemaRegistryService != null) {
+                schemaRegistryService.close();
             }
+        } finally {
+            schemaRegistryService = null;
+            super.internalCleanup();
         }
     }
 
