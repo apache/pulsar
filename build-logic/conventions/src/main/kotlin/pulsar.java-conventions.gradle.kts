@@ -367,6 +367,10 @@ tasks.withType<Test>().configureEach {
         // loopback would otherwise fail to start.
         "-Djava.net.preferIPv4Stack=true",
     )
+    // Don't fsync the transaction log of the ZooKeeper servers that tests start: the requests that arrive
+    // during an fsync wait for it, the clients' pings included, so a slow disk can stall a server long enough
+    // for its clients to drop their connection.
+    systemProperty("zookeeper.forceSync", "no")
     // Deliberately no org.apache.avro.SERIALIZABLE_* system properties here. Avro 1.12.2 (AVRO-4189)
     // only reflects over classes that are explicitly trusted, and Pulsar declares them where the
     // application hands over a class: building a schema from a class trusts it and everything the

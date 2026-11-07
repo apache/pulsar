@@ -2910,6 +2910,14 @@ public class ServerCnxTest {
         verify(ctx).close();
     }
 
+    @Test
+    public void testToStringWithoutChannel() throws Exception {
+        resetChannel();
+        serverCnx.setCtx(mock(ChannelHandlerContext.class));
+
+        assertTrue(serverCnx.toString().startsWith("[channel: null]"), serverCnx.toString());
+    }
+
     @Test(timeOut = 30000)
     public void testSubscribeCommand() throws Exception {
         final String failSubName = "failSub";

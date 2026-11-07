@@ -33,6 +33,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.client.api.ProducerBuilder;
@@ -115,6 +116,7 @@ public class ExclusiveProducerTest extends SharedPulsarBaseTest {
         p1.close();
 
         // Now producer should be allowed to get in
+        @Cleanup
         Producer<String> p2 = pulsarClient.newProducer(Schema.STRING)
                 .topic(topic)
                 .producerName("p2")
@@ -299,6 +301,7 @@ public class ExclusiveProducerTest extends SharedPulsarBaseTest {
     public void producerReconnection(ProducerAccessMode accessMode, boolean partitioned) throws Exception {
         String topic = newTopic("persistent", partitioned);
 
+        @Cleanup
         Producer<String> p1 = pulsarClient.newProducer(Schema.STRING)
                 .topic(topic)
                 .accessMode(accessMode)
@@ -315,6 +318,7 @@ public class ExclusiveProducerTest extends SharedPulsarBaseTest {
     public void producerFenced(ProducerAccessMode accessMode, boolean partitioned) throws Exception {
         String topic = newTopic("persistent", partitioned);
 
+        @Cleanup
         Producer<String> p1 = pulsarClient.newProducer(Schema.STRING)
                 .topic(topic)
                 .accessMode(accessMode)
@@ -471,7 +475,8 @@ public class ExclusiveProducerTest extends SharedPulsarBaseTest {
     public void exclusiveWithConsumers(String type, boolean partitioned) throws Exception {
         String topic = newTopic(type, partitioned);
 
-        pulsarClient.newConsumer(Schema.STRING)
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topic)
                 .subscriptionName("test")
                 .subscribe();

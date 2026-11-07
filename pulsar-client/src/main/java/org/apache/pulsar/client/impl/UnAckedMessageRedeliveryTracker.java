@@ -88,6 +88,12 @@ public class UnAckedMessageRedeliveryTracker extends UnAckedMessageTracker {
                     headPartition.clear();
                     redeliveryTimePartitions.addLast(headPartition);
                     collectMessagesToRedeliver(consumerBase, messageIds);
+                    if (redeliversAllOnAckTimeout && !messageIds.isEmpty()) {
+                        // The consumer redelivers all of its unacked messages and clears this tracker, also the
+                        // ones still waiting out their backoff and the ones that did not time out yet: report
+                        // them to onAckTimeoutSend as well
+                        removeAllMessagesToRedeliver(consumerBase, messageIds);
+                    }
                 } finally {
                     try {
                         timeout = client.timer().newTimeout(this, tickDurationInMs, TimeUnit.MILLISECONDS);
@@ -145,6 +151,25 @@ public class UnAckedMessageRedeliveryTracker extends UnAckedMessageTracker {
                 ackTimeoutMessages.remove(messageId);
             }
         }
+    }
+
+    // Keeps the chunk mappings of these messages, since their redelivery is not due yet: an acknowledgment of one of
+    // them must still cover all its chunks
+    private void removeAllMessagesToRedeliver(ConsumerBase<?> consumerBase, Set<MessageId> messageIds) {
+        ackTimeoutMessages.keySet().forEach(messageId -> {
+            addChunkedMessageIds(messageId, messageIds, consumerBase);
+            messageIds.add(messageId);
+        });
+        ackTimeoutMessages.clear();
+        redeliveryMessageIdPartitionMap.clear();
+        redeliveryTimePartitions.forEach(partition -> {
+            partition.forEach(unackMessageIdWrapper -> {
+                addChunkedMessageIds(unackMessageIdWrapper.getMessageId(), messageIds, consumerBase);
+                messageIds.add(unackMessageIdWrapper.getMessageId());
+                unackMessageIdWrapper.recycle();
+            });
+            partition.clear();
+        });
     }
 
     @Override

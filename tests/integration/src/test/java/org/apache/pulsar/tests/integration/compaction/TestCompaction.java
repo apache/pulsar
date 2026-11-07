@@ -19,14 +19,17 @@
 package org.apache.pulsar.tests.integration.compaction;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.awaitility.Awaitility.await;
 import static org.testng.Assert.assertEquals;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import lombok.CustomLog;
+import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -216,16 +219,17 @@ public class TestCompaction extends PulsarTestSuite {
                 0);
 
 
-            pulsarCluster.runAdminCommandOnAnyBroker("topics",
-                "compact", topic + "-partition-0");
-            pulsarCluster.runAdminCommandOnAnyBroker("topics",
-                "compact", topic + "-partition-1");
-
-            // -w waits until the compaction has completed
-            pulsarCluster.runAdminCommandOnAnyBroker("topics",
-                "compaction-status", "-w", topic + "-partition-0");
-            pulsarCluster.runAdminCommandOnAnyBroker("topics",
-                "compaction-status", "-w", topic + "-partition-1");
+            // The partitions are compacted with the admin client: pulsar-admin in a broker container would start a
+            // JVM for every command, and testPublishCompactAndConsumeRest checks the commands
+            List<String> partitions = List.of(topic + "-partition-0", topic + "-partition-1");
+            for (String partition : partitions) {
+                pulsarAdmin.topics().triggerCompaction(partition);
+            }
+            for (String partition : partitions) {
+                await().atMost(30, TimeUnit.SECONDS).untilAsserted(() -> assertEquals(
+                        pulsarAdmin.topics().compactionStatus(partition).status,
+                        LongRunningProcessStatus.Status.SUCCESS));
+            }
 
             Map<Integer, String> compactedData = consumeCompactedTopic(client, topic, subscriptionName, numKeys);
             assertEquals(compactedData.size(), numKeys);
