@@ -1140,6 +1140,7 @@ public class TransactionTest extends TransactionTestBase {
     @Test
     public void testNoEntryCanBeReadWhenRecovery() throws Exception {
         String topic = BrokerTestUtil.newUniqueName("persistent://" + NAMESPACE1 + "/test-recovery");
+        admin.topics().createNonPartitionedTopic(topic);
         PersistentTopic persistentTopic =
                 (PersistentTopic) pulsarServiceList.get(0).getBrokerService()
                         .getTopic(TopicName.get(topic).toString(), true)
