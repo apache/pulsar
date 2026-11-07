@@ -43,6 +43,19 @@ public interface ResourceLock<T> {
     CompletableFuture<Void> updateValue(T newValue);
 
     /**
+     * Verify ownership against the metadata store, using the lock's normal revalidation rules. This may restore
+     * a missing lock. A foreign owner expires this lock; an unavailable store fails the returned future without
+     * claiming that ownership was verified. Validation must be ordered with value updates and release.
+     *
+     * <p>Implementations that cannot perform this check fail the future rather than trust cached ownership.
+     *
+     * @return a future that succeeds only after ownership has been verified
+     */
+    default CompletableFuture<Void> validate() {
+        return CompletableFuture.failedFuture(new UnsupportedOperationException("Lock validation is unsupported"));
+    }
+
+    /**
      * Release the lock on the resource.
      *
      * @return a future to track when the release operation is complete

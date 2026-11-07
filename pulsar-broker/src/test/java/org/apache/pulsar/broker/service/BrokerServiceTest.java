@@ -41,6 +41,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNotSame;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.expectThrows;
 import static org.testng.Assert.fail;
@@ -79,6 +80,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.bookkeeper.client.api.ReadHandle;
@@ -282,39 +284,86 @@ public class BrokerServiceTest extends BrokerTestBase {
     }
 
     @Test
+    public void testOwnershipValidationStartsAfterTopicCacheInsertion() throws Exception {
+        TopicName topicName = TopicName.get("persistent://prop/ns-abc/ownership-after-insertion-" + UUID.randomUUID());
+        BrokerService brokerService = pulsar.getBrokerService();
+        admin.lookups().lookupTopic(topicName.toString());
+        NamespaceService namespaceService = pulsar.getNamespaceService();
+        CompletableFuture<Void> ownershipCheckStarted = new CompletableFuture<>();
+        doAnswer(invocation -> {
+            Supplier<CompletableFuture<Boolean>> captured =
+                    (Supplier<CompletableFuture<Boolean>>) invocation.callRealMethod();
+            return (Supplier<CompletableFuture<Boolean>>) () -> {
+                // The mapping function has returned before validation can enter the namespace resource lock.
+                assertThat(brokerService.getTopics().get(topicName.toString()))
+                        .as("the pending topic future is published before ownership validation")
+                        .isNotNull();
+                ownershipCheckStarted.complete(null);
+                return captured.get();
+            };
+        }).when(namespaceService).newTopicOwnershipChecker(topicName);
+        try {
+            assertThat(brokerService.getTopic(topicName, true, null).get(10, TimeUnit.SECONDS)).isPresent();
+            ownershipCheckStarted.get(10, TimeUnit.SECONDS);
+        } finally {
+            Mockito.doCallRealMethod().when(namespaceService).newTopicOwnershipChecker(topicName);
+            if (brokerService.getTopicReference(topicName.toString()).isPresent()) {
+                admin.topics().delete(topicName.toString(), true);
+            }
+        }
+    }
+
+    @Test
     public void testTopicLoadDoesNotOpenTheManagedLedgerOfABundleNoLongerServed() throws Exception {
         TopicName topicName = TopicName.get("persistent://prop/ns-abc/no-longer-served-" + UUID.randomUUID());
         BrokerService brokerService = spy(pulsar.getBrokerService());
-        // the bundle stopped being served while the load waited for the steps before opening the managed ledger
-        doReturn(CompletableFuture.failedFuture(new BrokerServiceException.ServiceUnitNotReadyException(
-                "Namespace bundle is not served"))).when(brokerService).checkTopicNsOwnership(topicName.toString());
+        admin.lookups().lookupTopic(topicName.toString());
+        NamespaceBundle bundle = pulsar.getNamespaceService().getBundle(topicName);
+        var ownershipChecker = pulsar.getNamespaceService().newTopicOwnershipChecker(topicName);
+        CompletableFuture<Void> ownershipCheckStarted = new CompletableFuture<>();
+        CompletableFuture<Void> continueOwnershipCheck = new CompletableFuture<>();
         TopicLoadingContext context = new TopicLoadingContext(topicName, true, new CompletableFuture<>(),
                 mock(PulsarStats.class));
+        context.setOwnershipChecker(() -> {
+            ownershipCheckStarted.complete(null);
+            return continueOwnershipCheck.thenCompose(__ -> ownershipChecker.get());
+        });
 
-        brokerService.createPersistentTopic0(context);
+        try {
+            brokerService.createPersistentTopic0(context);
+            ownershipCheckStarted.get(10, TimeUnit.SECONDS);
+            // The real captured generation stops being served before its pre-open ownership check completes.
+            pulsar.getNamespaceService().getOwnershipCache().updateBundleState(bundle, false).get();
+            continueOwnershipCheck.complete(null);
 
-        ExecutionException e = expectThrows(ExecutionException.class,
-                () -> context.getTopicFuture().get(10, TimeUnit.SECONDS));
-        assertTrue(e.getCause() instanceof BrokerServiceException.ServiceUnitNotReadyException, e.toString());
-        assertEquals(context.getTopicLoadFailureReason(), TopicLoadFailureReason.FAILED_CHECK_OWNERSHIP);
-        assertFalse(pulsar.getDefaultManagedLedgerFactory().getManagedLedgers()
-                .containsKey(topicName.getPersistenceNamingEncoding()));
+            ExecutionException e = expectThrows(ExecutionException.class,
+                    () -> context.getTopicFuture().get(10, TimeUnit.SECONDS));
+            assertTrue(e.getCause() instanceof BrokerServiceException.ServiceUnitNotReadyException, e.toString());
+            assertEquals(context.getTopicLoadFailureReason(), TopicLoadFailureReason.FAILED_CHECK_OWNERSHIP);
+            assertFalse(pulsar.getDefaultManagedLedgerFactory().getManagedLedgers()
+                    .containsKey(topicName.getPersistenceNamingEncoding()));
+        } finally {
+            continueOwnershipCheck.complete(null);
+            pulsar.getNamespaceService().getOwnershipCache().updateBundleState(bundle, true).get();
+        }
     }
 
     @Test
     public void testTimedOutTopicLoadDoesNotOpenTheManagedLedger() throws Exception {
         TopicName topicName = TopicName.get("persistent://prop/ns-abc/timed-out-load-" + UUID.randomUUID());
         BrokerService brokerService = spy(pulsar.getBrokerService());
+        admin.lookups().lookupTopic(topicName.toString());
+        var ownershipChecker = pulsar.getNamespaceService().newTopicOwnershipChecker(topicName);
         CompletableFuture<Void> ownershipCheckStarted = new CompletableFuture<>();
         CompletableFuture<Void> ownershipCheck = new CompletableFuture<>();
-        doAnswer(invocation -> {
-            ownershipCheckStarted.complete(null);
-            return ownershipCheck;
-        }).when(brokerService).checkTopicNsOwnership(topicName.toString());
         ManagedLedgerFactory managedLedgerFactory = mock(ManagedLedgerFactory.class);
         doReturn(managedLedgerFactory).when(brokerService).getManagedLedgerFactoryForTopic(eq(topicName), any());
         TopicLoadingContext context = new TopicLoadingContext(topicName, true, new CompletableFuture<>(),
                 mock(PulsarStats.class));
+        context.setOwnershipChecker(() -> {
+            ownershipCheckStarted.complete(null);
+            return ownershipCheck.thenCompose(__ -> ownershipChecker.get());
+        });
         CompletableFuture<Optional<Topic>> topicFuture = context.getTopicFuture();
         brokerService.getTopics().put(topicName.toString(), topicFuture);
 
@@ -342,9 +391,8 @@ public class BrokerServiceTest extends BrokerTestBase {
         CompletableFuture<Optional<Topic>> queuedFuture = queuedContext.getTopicFuture();
         brokerService.getTopics().put(queuedTopicName.toString(), queuedFuture);
         brokerService.getTopics().put(otherTopicName.toString(), otherContext.getTopicFuture());
-        doReturn(CompletableFuture.completedFuture(null)).when(brokerService)
-                .checkTopicNsOwnership(queuedTopicName.toString());
-        // acquire the ownership of the bundle so that the other topic can be loaded
+        // Both loads bind to real owned generations before the permit queue is exercised.
+        admin.lookups().lookupTopic(queuedTopicName.toString());
         admin.lookups().lookupTopic(otherTopicName.toString());
         try {
             // no permits are left, so the load is queued
@@ -367,6 +415,85 @@ public class BrokerServiceTest extends BrokerTestBase {
     }
 
     @Test
+    public void testPendingTopicLoadCanRetryAfterBundleSplit() throws Exception {
+        BrokerService brokerService = pulsar.getBrokerService();
+        NamespaceService namespaceService = pulsar.getNamespaceService();
+        String namespace = "prop/queued-split-" + UUID.randomUUID();
+        TopicName topicName = TopicName.get("persistent://" + namespace + "/topic");
+        String followingTopic = "persistent://prop/ns-abc/following-load-" + UUID.randomUUID();
+        String triggeringTopic = "persistent://prop/ns-abc/triggering-load-" + UUID.randomUUID();
+        admin.namespaces().createNamespace(namespace, 1);
+        admin.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("test"), false);
+        admin.lookups().lookupTopic(topicName.toString());
+        admin.lookups().lookupTopic(followingTopic);
+        admin.lookups().lookupTopic(triggeringTopic);
+        NamespaceBundle parentBundle = namespaceService.getBundle(topicName);
+        Semaphore semaphore = brokerService.topicLoadRequestSemaphore.get();
+        int permits = semaphore.availablePermits();
+        assertThat(permits).isPositive();
+        assertTrue(semaphore.tryAcquire(permits, 10, TimeUnit.SECONDS));
+        boolean permitsHeld = true;
+        Throwable testFailure = null;
+        try {
+            // Use the normal cache insertion and ownership checks, then wait until both loads really are queued.
+            CompletableFuture<Optional<Topic>> queuedFuture = brokerService.getTopic(topicName, true, null);
+            Awaitility.await().untilAsserted(() -> assertEquals(brokerService.getPendingTopicLoadCount(), 1));
+            CompletableFuture<Optional<Topic>> followingFuture = brokerService.getTopic(followingTopic, true);
+            Awaitility.await().untilAsserted(() -> assertEquals(brokerService.getPendingTopicLoadCount(), 2));
+
+            // Splitting without unload leaves the child on this broker, but invalidates the queued parent's check.
+            admin.namespaces().splitNamespaceBundle(namespace, parentBundle.getBundleRange(), false, null);
+            NamespaceBundle childBundle = namespaceService.getBundle(topicName);
+            assertThat(childBundle).isNotEqualTo(parentBundle);
+            assertTrue(namespaceService.newTopicOwnershipChecker(topicName).get().get(10, TimeUnit.SECONDS));
+            assertFalse(queuedFuture.isDone());
+
+            semaphore.release(permits);
+            permitsHeld = false;
+            // Completion of a normal load drains the pending queue.
+            brokerService.getTopic(triggeringTopic, true).get(10, TimeUnit.SECONDS);
+            assertThatThrownBy(() -> queuedFuture.get(10, TimeUnit.SECONDS))
+                    .hasCauseInstanceOf(BrokerServiceException.ServiceUnitNotReadyException.class);
+            assertTrue(followingFuture.get(10, TimeUnit.SECONDS).isPresent());
+            Awaitility.await().untilAsserted(() -> {
+                assertNull(brokerService.getTopics().get(topicName.toString()));
+                assertEquals(brokerService.getPendingTopicLoadCount(), 0);
+                assertEquals(semaphore.availablePermits(), permits);
+            });
+            assertFalse(pulsar.getDefaultManagedLedgerFactory().getManagedLedgers()
+                    .containsKey(topicName.getPersistenceNamingEncoding()));
+
+            CompletableFuture<Optional<Topic>> retryFuture = brokerService.getTopic(topicName, true, null);
+            assertNotSame(retryFuture, queuedFuture);
+            assertTrue(retryFuture.get(10, TimeUnit.SECONDS).isPresent());
+        } catch (Exception | AssertionError e) {
+            testFailure = e;
+            throw e;
+        } finally {
+            try {
+                if (permitsHeld) {
+                    semaphore.release(permits);
+                    brokerService.getTopic(triggeringTopic, true).get(10, TimeUnit.SECONDS);
+                }
+                for (String topic : List.of(topicName.toString(), followingTopic, triggeringTopic)) {
+                    if (brokerService.getTopicReference(topic).isPresent()
+                            || pulsar.getDefaultManagedLedgerFactory().getManagedLedgers()
+                            .containsKey(TopicName.get(topic).getPersistenceNamingEncoding())) {
+                        admin.topics().delete(topic, true);
+                    }
+                }
+                admin.namespaces().deleteNamespace(namespace);
+            } catch (Exception | AssertionError cleanupFailure) {
+                if (testFailure != null) {
+                    testFailure.addSuppressed(cleanupFailure);
+                } else {
+                    throw cleanupFailure;
+                }
+            }
+        }
+    }
+
+    @Test
     public void testPendingTopicLoadsFailWhenTheBrokerShutsDown() throws Exception {
         BrokerService brokerService = spy(pulsar.getBrokerService());
         Semaphore topicLoadSemaphore = brokerService.topicLoadRequestSemaphore.get();
@@ -376,8 +503,6 @@ public class BrokerServiceTest extends BrokerTestBase {
                 mock(PulsarStats.class));
         CompletableFuture<Optional<Topic>> topicFuture = context.getTopicFuture();
         brokerService.getTopics().put(topicName.toString(), topicFuture);
-        doReturn(CompletableFuture.completedFuture(null)).when(brokerService)
-                .checkTopicNsOwnership(topicName.toString());
         // acquire the ownership of the bundle so that the graceful unload unloads it
         admin.lookups().lookupTopic(topicName.toString());
         try {
@@ -400,6 +525,24 @@ public class BrokerServiceTest extends BrokerTestBase {
             brokerService.topicLoadRequestSemaphore.set(topicLoadSemaphore);
             conf.setNamespaceBundleUnloadingTimeoutMs(namespaceBundleUnloadingTimeoutMs);
             resetState();
+        }
+    }
+
+    @Test
+    public void testStaleFencedTopicCannotGateCurrentTopic() throws Exception {
+        TopicName topicName = TopicName.get("persistent://prop/ns-abc/stale-fence-" + UUID.randomUUID());
+        try (Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName.toString()).create()) {
+            Topic current = pulsar.getBrokerService().getTopicReference(topicName.toString()).orElseThrow();
+            PersistentTopic stale = mock(PersistentTopic.class);
+            doReturn(topicName.toString()).when(stale).getName();
+
+            pulsar.getBrokerService().requireFreshOwnershipBeforeTopicReadmission(stale);
+
+            assertTrue(pulsar.getNamespaceService().newTopicOwnershipChecker(topicName)
+                    .get().get(10, TimeUnit.SECONDS));
+            assertSame(pulsar.getBrokerService().getTopicReference(topicName.toString()).orElseThrow(), current);
+        } finally {
+            admin.topics().delete(topicName.toString(), true);
         }
     }
 
