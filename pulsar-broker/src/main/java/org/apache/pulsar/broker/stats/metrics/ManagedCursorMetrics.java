@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.stats.metrics;
 
+import io.netty.buffer.ByteBuf;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -27,6 +28,7 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedCursorMXBean;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
 
@@ -63,35 +65,55 @@ public class ManagedCursorMetrics extends AbstractMetrics {
      */
     public synchronized void generate(SimpleTextOutputStream stream) {
         String cluster = getLocalClusterName();
-        boolean wroteHeaders = false;
-        for (Map.Entry<String, ManagedLedger> entry : getManagedLedgers().entrySet()) {
-            String ledgerName = entry.getKey();
-            String namespace = parseNamespaceFromLedgerName(ledgerName);
-            for (ManagedCursor cursor : entry.getValue().getCursors()) {
-                if (!wroteHeaders) {
-                    for (String name : PROMETHEUS_METRIC_NAMES) {
-                        stream.write("# TYPE ").write(name).write(" gauge\n");
+        ByteBuf[] buffers = new ByteBuf[PROMETHEUS_METRIC_NAMES.length];
+        SimpleTextOutputStream[] metricStreams = new SimpleTextOutputStream[PROMETHEUS_METRIC_NAMES.length];
+        try {
+            for (Map.Entry<String, ManagedLedger> entry : getManagedLedgers().entrySet()) {
+                String ledgerName = entry.getKey();
+                String namespace = parseNamespaceFromLedgerName(ledgerName);
+                for (ManagedCursor cursor : entry.getValue().getCursors()) {
+                    if (metricStreams[0] == null) {
+                        for (int i = 0; i < metricStreams.length; i++) {
+                            // Track buffers before constructing streams to allow cleanup after partial initialization.
+                            buffers[i] = PulsarByteBufAllocator.DEFAULT.directBuffer();
+                            metricStreams[i] = new SimpleTextOutputStream(buffers[i]);
+                            metricStreams[i].write("# TYPE ").write(PROMETHEUS_METRIC_NAMES[i]).write(" gauge\n");
+                        }
                     }
-                    wroteHeaders = true;
+                    ManagedCursorMXBean stats = cursor.getStats();
+                    String cursorName = cursor.getName();
+                    writeSample(metricStreams[0], PROMETHEUS_METRIC_NAMES[0],
+                            cursor.getTotalNonContiguousDeletedMessagesRange(),
+                            cluster, namespace, ledgerName, cursorName);
+                    writeSample(metricStreams[1], PROMETHEUS_METRIC_NAMES[1], stats.getPersistLedgerSucceed(),
+                            cluster, namespace, ledgerName, cursorName);
+                    writeSample(metricStreams[2], PROMETHEUS_METRIC_NAMES[2], stats.getPersistLedgerErrors(),
+                            cluster, namespace, ledgerName, cursorName);
+                    writeSample(metricStreams[3], PROMETHEUS_METRIC_NAMES[3], stats.getPersistZookeeperSucceed(),
+                            cluster, namespace, ledgerName, cursorName);
+                    writeSample(metricStreams[4], PROMETHEUS_METRIC_NAMES[4], stats.getPersistZookeeperErrors(),
+                            cluster, namespace, ledgerName, cursorName);
+                    writeSample(metricStreams[5], PROMETHEUS_METRIC_NAMES[5], stats.getWriteCursorLedgerSize(),
+                            cluster, namespace, ledgerName, cursorName);
+                    writeSample(metricStreams[6], PROMETHEUS_METRIC_NAMES[6], stats.getWriteCursorLedgerLogicalSize(),
+                            cluster, namespace, ledgerName, cursorName);
+                    writeSample(metricStreams[7], PROMETHEUS_METRIC_NAMES[7], stats.getReadCursorLedgerSize(),
+                            cluster, namespace, ledgerName, cursorName);
                 }
-                ManagedCursorMXBean stats = cursor.getStats();
-                String cursorName = cursor.getName();
-                writeSample(stream, PROMETHEUS_METRIC_NAMES[0], cursor.getTotalNonContiguousDeletedMessagesRange(),
-                        cluster, namespace, ledgerName, cursorName);
-                writeSample(stream, PROMETHEUS_METRIC_NAMES[1], stats.getPersistLedgerSucceed(),
-                        cluster, namespace, ledgerName, cursorName);
-                writeSample(stream, PROMETHEUS_METRIC_NAMES[2], stats.getPersistLedgerErrors(),
-                        cluster, namespace, ledgerName, cursorName);
-                writeSample(stream, PROMETHEUS_METRIC_NAMES[3], stats.getPersistZookeeperSucceed(),
-                        cluster, namespace, ledgerName, cursorName);
-                writeSample(stream, PROMETHEUS_METRIC_NAMES[4], stats.getPersistZookeeperErrors(),
-                        cluster, namespace, ledgerName, cursorName);
-                writeSample(stream, PROMETHEUS_METRIC_NAMES[5], stats.getWriteCursorLedgerSize(),
-                        cluster, namespace, ledgerName, cursorName);
-                writeSample(stream, PROMETHEUS_METRIC_NAMES[6], stats.getWriteCursorLedgerLogicalSize(),
-                        cluster, namespace, ledgerName, cursorName);
-                writeSample(stream, PROMETHEUS_METRIC_NAMES[7], stats.getReadCursorLedgerSize(),
-                        cluster, namespace, ledgerName, cursorName);
+            }
+            // A TYPE and all its samples must be contiguous, even when there are multiple cursors.
+            for (int i = 0; i < buffers.length; i++) {
+                if (buffers[i] != null) {
+                    stream.write(buffers[i]);
+                    buffers[i].release();
+                    buffers[i] = null;
+                }
+            }
+        } finally {
+            for (ByteBuf buffer : buffers) {
+                if (buffer != null) {
+                    buffer.release();
+                }
             }
         }
     }
