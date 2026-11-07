@@ -32,6 +32,9 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import io.prometheus.metrics.model.snapshots.CounterSnapshot;
+import io.prometheus.metrics.model.snapshots.DataPointSnapshot;
+import io.prometheus.metrics.model.snapshots.MetricSnapshot;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
@@ -56,8 +59,8 @@ import org.testng.annotations.Test;
 public class MetadataCacheQuietSnapshotTest {
     private static final Duration TIMEOUT = Duration.ofSeconds(5);
     private static final long REFRESH_MILLIS = 50;
-    private static final Set<String> STAT_NAMES = Set.of("caffeine_cache_hit_total", "caffeine_cache_miss_total",
-            "caffeine_cache_loads_total");
+    private static final Set<String> STAT_NAMES = Set.of("caffeine_cache_hit", "caffeine_cache_miss",
+            "caffeine_cache_loads");
     private static final String PATH = "/quiet-snapshot";
     private LocalMemoryMetadataStore store;
     private MetadataCache<String> cache;
@@ -156,10 +159,10 @@ public class MetadataCacheQuietSnapshotTest {
                     .until(() -> System.nanoTime() - loadedAt >= Duration.ofMillis(REFRESH_MILLIS * 2).toNanos());
             assertQuietSnapshot(expected);
             // The existing getIfCached contract must remain untouched: no cold load, but stale hits may refresh.
-            double hitsBeforeLegacyLookup = cacheStats().get("caffeine_cache_hit_total");
+            double hitsBeforeLegacyLookup = cacheStats().get("caffeine_cache_hit");
             assertThat(cache.getIfCached(PATH)).isEqualTo(expected);
             verify(store, times(1)).get(PATH);
-            assertThat(cacheStats().get("caffeine_cache_hit_total")).isEqualTo(hitsBeforeLegacyLookup + 1);
+            assertThat(cacheStats().get("caffeine_cache_hit")).isEqualTo(hitsBeforeLegacyLookup + 1);
             assertThat(reloading).as("refresh is pending, so lookup must return the old cached snapshot").isNotDone();
             assertQuietSnapshot(expected);
         } finally {
@@ -204,16 +207,22 @@ public class MetadataCacheQuietSnapshotTest {
 
     private void awaitLoadCount(long count) {
         await().atMost(TIMEOUT).untilAsserted(() ->
-                assertThat(cacheStats().get("caffeine_cache_loads_total")).isEqualTo((double) count));
+                assertThat(cacheStats().get("caffeine_cache_loads")).isEqualTo((double) count));
     }
 
     private Map<String, Double> cacheStats() {
         Map<String, Double> result = new HashMap<>();
-        CacheMetricsCollector.CAFFEINE.collect().forEach(family -> family.samples.forEach(sample -> {
-            if (STAT_NAMES.contains(sample.name) && sample.labelValues.contains(cacheName)) {
-                result.put(sample.name, sample.value);
+        for (MetricSnapshot snapshot : CacheMetricsCollector.CAFFEINE.collect()) {
+            String name = snapshot.getMetadata().getPrometheusName();
+            if (!STAT_NAMES.contains(name)) {
+                continue;
             }
-        }));
+            for (DataPointSnapshot dataPoint : snapshot.getDataPoints()) {
+                if (cacheName.equals(dataPoint.getLabels().get("cache"))) {
+                    result.put(name, ((CounterSnapshot.CounterDataPointSnapshot) dataPoint).getValue());
+                }
+            }
+        }
         assertThat(result.keySet()).containsExactlyInAnyOrderElementsOf(STAT_NAMES);
         return result;
     }

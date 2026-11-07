@@ -80,7 +80,7 @@ dependencies {
     api(libs.picocli)
     api(libs.simpleclient)
     implementation(libs.simpleclient.hotspot)
-    implementation(libs.simpleclient.caffeine)
+    implementation(libs.prometheus.metrics.instrumentation.caffeine)
     implementation(libs.hdrHistogram)
     implementation(libs.gson)
     api(libs.java.semver)
