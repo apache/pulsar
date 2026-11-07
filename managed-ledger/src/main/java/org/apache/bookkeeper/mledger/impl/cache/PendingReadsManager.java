@@ -323,14 +323,24 @@ public class PendingReadsManager {
                             keepEntries(entriesToReturn, first.startEntry, first.endEntry), first.ctx);
                 }
             } else {
-                for (ReadEntriesCallbackWithContext callback : callbacks) {
-                    callback.callback.readEntriesComplete(
-                            copyEntries(entriesToReturn, callback.startEntry, callback.endEntry), callback.ctx);
-                }
-                for (Entry entry : entriesToReturn) {
-                    // don't decrease the read count when these entries are released
-                    ((EntryImpl) entry).setDecreaseReadCountOnRelease(false);
-                    entry.release();
+                try {
+                    for (ReadEntriesCallbackWithContext callback : callbacks) {
+                        List<Entry> listenerEntries =
+                                copyEntries(entriesToReturn, callback.startEntry, callback.endEntry);
+                        try {
+                            callback.callback.readEntriesComplete(listenerEntries, callback.ctx);
+                        } catch (Throwable callbackError) {
+                            // The listener owns its copies, even if it throws after releasing or retaining them.
+                            log.debug().exception(callbackError)
+                                    .log("Read completion callback failed; continuing other listeners");
+                        }
+                    }
+                } finally {
+                    for (Entry entry : entriesToReturn) {
+                        // don't decrease the read count when these entries are released
+                        ((EntryImpl) entry).setDecreaseReadCountOnRelease(false);
+                        entry.release();
+                    }
                 }
             }
         }
@@ -339,7 +349,12 @@ public class PendingReadsManager {
         private void readEntriesFailed(List<ReadEntriesCallbackWithContext> callbacks, Throwable error) {
             for (ReadEntriesCallbackWithContext callback : callbacks) {
                 ManagedLedgerException mlException = createManagedLedgerException(error);
-                callback.callback.readEntriesFailed(mlException, callback.ctx);
+                try {
+                    callback.callback.readEntriesFailed(mlException, callback.ctx);
+                } catch (Throwable callbackError) {
+                    log.debug().exception(callbackError)
+                            .log("Read failure callback failed; continuing other listeners");
+                }
             }
         }
 
@@ -453,10 +468,13 @@ public class PendingReadsManager {
                         })
                         .whenComplete((finalResult, e) -> {
                             if (e != null) {
-                                callback.readEntriesFailed(createManagedLedgerException(e), ctx);
-                                releaseEntriesSafely(readFromLeftFuture);
-                                releaseEntriesSafely(readFromMidFuture);
-                                releaseEntriesSafely(readFromRightFuture);
+                                try {
+                                    callback.readEntriesFailed(createManagedLedgerException(e), ctx);
+                                } finally {
+                                    releaseEntriesSafely(readFromLeftFuture);
+                                    releaseEntriesSafely(readFromMidFuture);
+                                    releaseEntriesSafely(readFromRightFuture);
+                                }
                             } else {
                                 callback.readEntriesComplete(finalResult, ctx);
                             }
