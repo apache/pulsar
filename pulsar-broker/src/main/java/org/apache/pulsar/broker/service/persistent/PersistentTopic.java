@@ -3450,29 +3450,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     compactionRecord.getLastCompactionDurationTimeInMills();
         });
 
-        Map<String, CompletableFuture<SubscriptionStatsImpl>> subscriptionFutures = new HashMap<>();
-        Map<PersistentSubscription, Position> backlogPositions = Collections.emptyMap();
-        if (getStatsOptions.isSubscriptionBacklogSize() && subscriptions.size() > 1) {
-            // Capture positions before ledger metadata, and keep results tied to each subscription instance.
-            backlogPositions = new IdentityHashMap<>();
-            for (PersistentSubscription subscription : subscriptions.values()) {
-                if (subscription.getClass() == PersistentSubscription.class) {
-                    backlogPositions.put(subscription, subscription.getCursor().getMarkDeletedPosition());
-                }
-            }
-        }
-        Map<Position, Long> backlogSizes = backlogPositions.size() > 1
-                ? ManagedLedgerBacklogSizeEstimator.estimate(ledger, backlogPositions.values())
-                : Collections.emptyMap();
-        for (Map.Entry<String, PersistentSubscription> entry : subscriptions.entrySet()) {
-            PersistentSubscription subscription = entry.getValue();
-            Long backlogSize = backlogPositions.containsKey(subscription)
-                    ? backlogSizes.get(backlogPositions.get(subscription)) : null;
-            // Keep invoking the public method for subclasses that may override the stats calculation.
-            subscriptionFutures.put(entry.getKey(), backlogSize != null
-                    ? subscription.getStatsAsync(getStatsOptions, backlogSize)
-                    : subscription.getStatsAsync(getStatsOptions));
-        }
+        Map<String, CompletableFuture<SubscriptionStatsImpl>> subscriptionFutures =
+                getSubscriptionStats(getStatsOptions);
 
         return lastPublishTimeFuture.thenCompose(ignore ->
             FutureUtil.waitForAll(subscriptionFutures.values()).thenCompose(ignore2 -> {
@@ -3519,6 +3498,34 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 return CompletableFuture.completedFuture(stats);
             }
         }));
+    }
+
+    private Map<String, CompletableFuture<SubscriptionStatsImpl>> getSubscriptionStats(
+            GetStatsOptions getStatsOptions) {
+        Map<PersistentSubscription, Position> backlogPositions = Collections.emptyMap();
+        if (getStatsOptions.isSubscriptionBacklogSize() && subscriptions.size() > 1) {
+            // Capture positions before ledger metadata, and keep results tied to each subscription instance.
+            backlogPositions = new IdentityHashMap<>();
+            for (PersistentSubscription subscription : subscriptions.values()) {
+                if (subscription.getClass() == PersistentSubscription.class) {
+                    backlogPositions.put(subscription, subscription.getCursor().getMarkDeletedPosition());
+                }
+            }
+        }
+        Map<Position, Long> backlogSizes = backlogPositions.size() > 1
+                ? ManagedLedgerBacklogSizeEstimator.estimate(ledger, backlogPositions.values())
+                : Collections.emptyMap();
+        Map<String, CompletableFuture<SubscriptionStatsImpl>> subscriptionFutures = new HashMap<>();
+        for (Map.Entry<String, PersistentSubscription> entry : subscriptions.entrySet()) {
+            PersistentSubscription subscription = entry.getValue();
+            Long backlogSize = backlogPositions.containsKey(subscription)
+                    ? backlogSizes.get(backlogPositions.get(subscription)) : null;
+            // Keep invoking the public method for subclasses that may override the stats calculation.
+            subscriptionFutures.put(entry.getKey(), backlogSize != null
+                    ? subscription.getStatsAsync(getStatsOptions, backlogSize)
+                    : subscription.getStatsAsync(getStatsOptions));
+        }
+        return subscriptionFutures;
     }
 
     private Optional<CompactorMXBean> getCompactorMXBean() {
