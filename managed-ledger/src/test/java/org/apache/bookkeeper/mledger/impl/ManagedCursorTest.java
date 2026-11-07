@@ -4804,6 +4804,64 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     }
 
     @Test(timeOut = 20000)
+    public void testAckSucceedsAfterLostFirstPublicationResponseOfNewlyCreatedCursor() throws Exception {
+        String ledgerName = "cursor_lost_first_publication_response";
+        String cursorName = "c1";
+        String path = "/managed-ledgers/" + ledgerName + "/" + cursorName;
+        AtomicBoolean failNextPut = new AtomicBoolean();
+        AtomicReference<Stat> committed = new AtomicReference<>();
+        FaultInjectionMetadataStore spyStore = cursorStoreWithLostPutResponse(path, failNextPut, committed);
+        // Like ZooKeeper, report no creation timestamp for the cursor node that the put has just created.
+        doAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            CompletableFuture<Stat> real = (CompletableFuture<Stat>) invocation.callRealMethod();
+            return real.thenApply(stat -> new Stat(stat.getPath(), stat.getVersion(), 0, 0, stat.isEphemeral(), true));
+        }).when(spyStore).put(eq(path), any(byte[].class), eq(Optional.of(-1L)));
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl isolatedFactory = new ManagedLedgerFactoryImpl(spyStore, bkc);
+        CompletableFuture<ManagedLedger> opened = new CompletableFuture<>();
+        // Brokers open managed ledgers with an ownership checker.
+        isolatedFactory.asyncOpen(ledgerName, defaultConfig(), new AsyncCallbacks.OpenLedgerCallback() {
+            @Override
+            public void openLedgerComplete(ManagedLedger ledger, Object context) {
+                opened.complete(ledger);
+            }
+
+            @Override
+            public void openLedgerFailed(ManagedLedgerException error, Object context) {
+                opened.completeExceptionally(error);
+            }
+        }, () -> CompletableFuture.completedFuture(true), null);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) opened.get(5, TimeUnit.SECONDS);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor(cursorName);
+        Position first = ledger.addEntry("entry-0".getBytes(Encoding));
+        Position second = ledger.addEntry("entry-1".getBytes(Encoding));
+        // Keep an unacknowledged entry, so the recovered mark-delete position is not moved to the next ledger.
+        ledger.addEntry("entry-2".getBytes(Encoding));
+        Set<Long> ledgersBeforeAcks = new HashSet<>(bkc.getLedgerMap().keySet());
+
+        failNextPut.set(true);
+        try {
+            // The first ACK publishes the cursor's first ledger. The publication commits but its response is lost.
+            cursor.markDelete(first);
+        } catch (ManagedLedgerException ignored) {
+            // The lost response may be reported to this ACK.
+        }
+        assertThat(committed.get()).as("the first publication committed before its response failed").isNotNull();
+
+        cursor.markDelete(second);
+
+        long published = readCursorInfo(ledger, cursorName).getCursorsLedgerId();
+        Set<Long> createdLedgers = new HashSet<>(bkc.getLedgerMap().keySet());
+        createdLedgers.removeAll(ledgersBeforeAcks);
+        assertThat(createdLedgers).as("no unpublished candidate cursor ledger is retained").containsExactly(published);
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl recoveryFactory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        ManagedCursor recovered = recoveryFactory.open(ledgerName, defaultConfig()).openCursor(cursorName);
+        assertThat(recovered.getMarkDeletedPosition()).isEqualTo(second);
+    }
+
+    @Test(timeOut = 20000)
     public void testCursorAckStateSurvivesLostMetadataCommitResponse() throws Exception {
         String ledgerName = "cursor_ack_state_lost_commit_response";
         String cursorName = "c1";

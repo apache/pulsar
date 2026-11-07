@@ -933,14 +933,45 @@ public class ManagedCursorImpl implements ManagedCursor {
                 new MetaStoreCallback<>() {
                     @Override
                     public void operationComplete(Void result, Stat stat) {
-                        changeStateIfNotClosed(State.NoLedger);
-                        callback.operationComplete();
+                        readBackCreatedCursorNodeStat(stat, () -> {
+                            changeStateIfNotClosed(State.NoLedger);
+                            callback.operationComplete();
+                        });
                     }
                     @Override
                     public void operationFailed(MetaStoreException e) {
                         callback.operationFailed(e);
                     }
         }, false);
+    }
+
+    /**
+     * ZooKeeper does not report the creation timestamp of a node that it has just created. Read the cursor node back,
+     * so that a failed cursor ledger publication can later be reconciled against this node. The native Stat is used
+     * only while the node still holds the created version and content.
+     */
+    private void readBackCreatedCursorNodeStat(Stat created, Runnable then) {
+        ManagedCursorInfo createdInfo = managedCursorInfo;
+        if (created == null || created.getCreationTimestamp() > 0 || cursorLedgerStat != created) {
+            then.run();
+            return;
+        }
+        ledger.getStore().asyncGetCursorInfo(ledger.getName(), name, new MetaStoreCallback<>() {
+            @Override
+            public void operationComplete(ManagedCursorInfo info, Stat stat) {
+                if (cursorLedgerStat == created && stat.getVersion() == created.getVersion()
+                        && Arrays.equals(createdInfo.toByteArray(), info.toByteArray())) {
+                    updateCursorLedgerStat(createdInfo, stat);
+                }
+                then.run();
+            }
+
+            @Override
+            public void operationFailed(MetaStoreException e) {
+                log.debug().exceptionMessage(e).log("Could not read back the created cursor node");
+                then.run();
+            }
+        });
     }
 
     @Override
