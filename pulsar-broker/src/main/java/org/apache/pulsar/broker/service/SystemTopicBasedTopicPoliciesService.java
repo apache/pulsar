@@ -846,9 +846,30 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                     }
 
                     CompletableFuture<Void> initNamespacePolicyFuture = new CompletableFuture<>();
-                    CompletableFuture<Void> existingFuture =
-                            policyCacheInitMap.putIfAbsent(namespace, initNamespacePolicyFuture);
-                    if (existingFuture == null) {
+                    MutableObject<CompletableFuture<Void>> existingInit = new MutableObject<>();
+                    MutableObject<CompletableFuture<SystemTopicClient.Reader<PulsarEvent>>> readerSlot =
+                            new MutableObject<>();
+                    AtomicBoolean readerSlotCreated = new AtomicBoolean();
+                    policyCacheInitMap.compute(namespace, (__, currentInitFuture) -> {
+                        if (currentInitFuture != null) {
+                            existingInit.setValue(currentInitFuture);
+                            return currentInitFuture;
+                        }
+                        // The initialization and its reader slot are installed in one step, and a namespace unload or
+                        // a reader replacement removes both in one step (cleanPoliciesCacheInitMap,
+                        // dropInitializationIfCurrent). So an initialization that is dropped before its reader
+                        // exists has already published the slot that the unload removes and closes, and the reader
+                        // created afterwards is closed on arrival instead of staying cached, one event in, for the
+                        // next initialization to inherit. The slot may still hold the reader of a failed
+                        // initialization that was kept for this retry. The reader itself is created after the step:
+                        // that sets up a client consumer, and may create the client.
+                        readerSlot.setValue(readerCaches.computeIfAbsent(namespace, ___ -> {
+                            readerSlotCreated.set(true);
+                            return new CompletableFuture<>();
+                        }));
+                        return initNamespacePolicyFuture;
+                    });
+                    if (existingInit.getValue() == null) {
                         // Topic loading waits on this future, so a system-topic reader that gets stuck (e.g. after
                         // __change_events is unloaded and the reconnected reader stops making progress) would pin the
                         // policy cache for the whole namespace until the broker restarts (issue #25294). Bound the
@@ -856,7 +877,14 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                         // reader.
                         scheduleInitPolicesCacheTimeout(namespace, initNamespacePolicyFuture);
                         final CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerCompletableFuture =
-                                newReader(namespace);
+                                readerSlot.getValue();
+                        if (readerSlotCreated.get()) {
+                            try {
+                                FutureUtil.completeAfter(readerCompletableFuture, createSystemTopicClient(namespace));
+                            } catch (Throwable t) {
+                                readerCompletableFuture.completeExceptionally(t);
+                            }
+                        }
                         readerCompletableFuture
                                 .thenCompose(reader -> {
                                     final CompletableFuture<Void> stageFuture = new CompletableFuture<>();
@@ -902,13 +930,9 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
 
                         return initNamespacePolicyFuture.thenApply(__ -> true);
                     } else {
-                        return existingFuture.thenApply(__ -> true);
+                        return existingInit.getValue().thenApply(__ -> true);
                     }
                 });
-    }
-
-    private CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> newReader(NamespaceName ns) {
-        return readerCaches.computeIfAbsent(ns, __ -> createSystemTopicClient(ns));
     }
 
     protected CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> createSystemTopicClient(
@@ -1231,14 +1255,18 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     void cleanPoliciesCacheInitMap(@NonNull NamespaceName namespace) {
         listenerReplayPending.remove(namespace);
 
-        CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerFuture = readerCaches.remove(namespace);
         MutableObject<CompletableFuture<Void>> removedInitFuture = new MutableObject<>();
+        MutableObject<CompletableFuture<SystemTopicClient.Reader<PulsarEvent>>> removedReader = new MutableObject<>();
         MutableObject<TopicPolicyMessageHandlerTracker> removedTracker = new MutableObject<>();
         policyCacheInitMap.compute(namespace, (k, v) -> {
             removedInitFuture.setValue(v);
-            // In the same step as the initialization, like the cached policies: a delivery of the reader that is
-            // still current up to this step must not record into a tracker that outlives it, and a delivery after
-            // it is dropped (applyEventIfCurrent). See untilMessageIdHasBeenRead for what the pairing guarantees.
+            // The reader and the tracker go in the same step as the initialization, like the cached policies. An
+            // initialization installs its reader slot in one step too (prepareInitPoliciesCacheAsync), so this
+            // either finds that slot and closes it, or runs first and leaves the initialization dropped before it
+            // could publish one. A delivery of the reader that is still current up to this step must not record
+            // into a tracker that outlives it, and a delivery after it is dropped (applyEventIfCurrent). See
+            // untilMessageIdHasBeenRead for what the pairing guarantees.
+            removedReader.setValue(readerCaches.remove(namespace));
             removedTracker.setValue(topicPolicyMessageHandlerTrackers.remove(namespace));
             policiesCache.entrySet().removeIf(entry -> Objects.equals(entry.getKey().getNamespaceObject(), namespace));
             globalPoliciesCache.entrySet()
@@ -1252,6 +1280,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             removedTracker.getValue().close();
         }
         failPendingPolicyCacheInit(namespace, removedInitFuture.get());
+        CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerFuture = removedReader.getValue();
         if (readerFuture != null && !readerFuture.isCompletedExceptionally()) {
             readerFuture
                     .thenCompose(SystemTopicClient.Reader::closeAsync)
