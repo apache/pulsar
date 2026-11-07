@@ -425,6 +425,8 @@ public class PulsarBrokerStarterTest {
         LifecycleComponentStack bookieServer = null;
         try {
             ServerConfiguration bookieConf = new ServerConfiguration();
+            // An explicit id keeps the cookie validation from resolving the host name of the local address.
+            bookieConf.setBookieId("bk-starter-test");
             bookieConf.setStatsProviderClass(PrometheusMetricsProvider.class);
             bookieConf.setProperty(PrometheusMetricsProvider.PROMETHEUS_STATS_HTTP_ENABLE, false);
             bookieConf.setProperty("metadataServiceUri", "zk://127.0.0.1:" + zk.getZookeeperPort() + "/ledgers");
