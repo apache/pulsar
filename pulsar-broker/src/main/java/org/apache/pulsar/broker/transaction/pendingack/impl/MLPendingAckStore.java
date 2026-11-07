@@ -38,6 +38,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -45,6 +46,8 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.BadVersionException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerFencedException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.AckSetStateUtil;
@@ -64,6 +67,7 @@ import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.common.util.Codec;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.transaction.coordinator.impl.TxnBatchedPositionImpl;
 import org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWriter;
 import org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWriterConfig;
@@ -123,6 +127,10 @@ public class MLPendingAckStore implements PendingAckStore {
 
     private TxnLogBufferedWriter<PendingAckMetadataEntry> bufferedWriter;
 
+    private final AtomicReference<CompletableFuture<Void>> closeFuture = new AtomicReference<>();
+
+    private final AtomicReference<CompletableFuture<Void>> bufferedWriterCloseFuture = new AtomicReference<>();
+
     private final Timer timer;
 
     @SuppressWarnings("unchecked")
@@ -166,35 +174,91 @@ public class MLPendingAckStore implements PendingAckStore {
 
     @Override
     public CompletableFuture<Void> closeAsync() {
-        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-        cursor.asyncClose(new AsyncCallbacks.CloseCallback() {
-            @Override
-            public void closeComplete(Object ctx) {
-                managedLedger.asyncClose(new AsyncCallbacks.CloseCallback() {
+        CompletableFuture<Void> result = new CompletableFuture<>();
+        if (!closeFuture.compareAndSet(null, result)) {
+            return closeFuture.get();
+        }
+        // Publish the shared outcome before invoking callbacks, which may run inline or reenter close.
+        try {
+            cursor.asyncClose(new AsyncCallbacks.CloseCallback() {
+                @Override
+                public void closeComplete(Object ctx) {
+                    closeManagedLedger(result, null);
+                }
 
-                    @Override
-                    public void closeComplete(Object ctx) {
-                        log.debug("MLPendingAckStore closed successfully");
-                        bufferedWriter.close();
-                        completableFuture.complete(null);
-                    }
+                @Override
+                public void closeFailed(ManagedLedgerException exception, Object ctx) {
+                    closeManagedLedger(result, exception);
+                }
+            }, null);
+        } catch (Throwable error) {
+            closeManagedLedger(result, error);
+        }
+        return result;
+    }
 
-                    @Override
-                    public void closeFailed(ManagedLedgerException exception, Object ctx) {
-                        log.error()
-                                .exceptionMessage(exception)
-                                .log("MLPendingAckStore close failed");
-                        completableFuture.completeExceptionally(exception);
-                    }
-                }, ctx);
-            }
+    private void closeManagedLedger(CompletableFuture<Void> result, Throwable cursorError) {
+        Throwable failure = FutureUtil.unwrapCompletionException(cursorError);
+        if (failure instanceof BadVersionException || failure instanceof ManagedLedgerFencedException) {
+            // This cursor checkpoints replay progress, not business ACK durability. A stale close must not
+            // overwrite a newer owner's checkpoint; retained log entries can be replayed after reopening.
+            log.debug().exceptionMessage(failure).log("Pending ACK replay cursor was fenced while closing");
+            failure = null;
+        }
+        final Throwable cursorFailure = failure;
+        try {
+            managedLedger.asyncClose(new AsyncCallbacks.CloseCallback() {
+                @Override
+                public void closeComplete(Object ctx) {
+                    closeBufferedWriter(result, cursorFailure);
+                }
 
-            @Override
-            public void closeFailed(ManagedLedgerException exception, Object ctx) {
-                completableFuture.completeExceptionally(exception);
-            }
-        }, null);
-        return completableFuture;
+                @Override
+                public void closeFailed(ManagedLedgerException exception, Object ctx) {
+                    // A fenced managed ledger has already canceled its tasks and evicted its factory entry.
+                    Throwable ledgerFailure = exception instanceof ManagedLedgerFencedException ? null : exception;
+                    closeBufferedWriter(result, retainCloseFailure(cursorFailure, ledgerFailure));
+                }
+            }, null);
+        } catch (Throwable error) {
+            closeBufferedWriter(result, retainCloseFailure(cursorFailure, error));
+        }
+    }
+
+    private void closeBufferedWriter(CompletableFuture<Void> result, Throwable failure) {
+        closeBufferedWriter().whenComplete((ignored, error) ->
+                completeClose(result, retainCloseFailure(failure, FutureUtil.unwrapCompletionException(error))));
+    }
+
+    private CompletableFuture<Void> closeBufferedWriter() {
+        CompletableFuture<Void> result = new CompletableFuture<>();
+        if (!bufferedWriterCloseFuture.compareAndSet(null, result)) {
+            return bufferedWriterCloseFuture.get();
+        }
+        // Replay failure can start cleanup before store close. A second writer.close() would return
+        // immediately while the first cleanup is still queued, so share its actual completion here.
+        FutureUtil.completeAfter(result, FutureUtil.supplySafely(bufferedWriter::close));
+        return result;
+    }
+
+    private static Throwable retainCloseFailure(Throwable primary, Throwable additional) {
+        if (primary == null) {
+            return additional;
+        }
+        if (additional != null && primary != additional) {
+            primary.addSuppressed(additional);
+        }
+        return primary;
+    }
+
+    private void completeClose(CompletableFuture<Void> result, Throwable failure) {
+        if (failure == null) {
+            log.debug("MLPendingAckStore closed successfully");
+            result.complete(null);
+        } else {
+            log.debug().exceptionMessage(failure).log("MLPendingAckStore close failed after cleanup");
+            result.completeExceptionally(failure);
+        }
     }
 
     @Override
@@ -558,7 +622,7 @@ public class MLPendingAckStore implements PendingAckStore {
          */
         private void failReplay(Throwable t) {
             stopReplay();
-            bufferedWriter.close();
+            closeBufferedWriter();
             pendingAckReplyCallBack.replayFailed(t);
         }
     }
