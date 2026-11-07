@@ -23,17 +23,18 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.expectThrows;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.v5.config.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.v5.schema.Schema;
-import org.apache.pulsar.common.util.Murmur3_32Hash;
 import org.testng.annotations.Test;
 
 /**
@@ -56,8 +57,8 @@ public class V5RegularTopicInteropTest extends V5ClientBaseTest {
     public void testV5ProducerToPartitionedRegularTopicRoutesV4Compatibly() throws Exception {
         // V5 producer writes to a 4-partition regular topic. The broker returns a
         // synthetic layout; the V5 router uses mod-N over segment_id, which matches
-        // v4 partitioned-topic routing. Each v4 consumer (one per partition) should
-        // see exactly the keys whose v4 routing puts them in its partition.
+        // v4 partitioned-topic routing. A v4 producer with the default configuration
+        // publishes the same keys: each key must land in the same partition from both.
         String regular = "persistent://" + getNamespace() + "/regular-"
                 + UUID.randomUUID().toString().substring(0, 8);
         admin.topics().createPartitionedTopic(regular, 4);
@@ -77,26 +78,29 @@ public class V5RegularTopicInteropTest extends V5ClientBaseTest {
         Producer<String> producer = v5Client.newProducer(Schema.string())
                 .topic(regular)
                 .create();
+        @Cleanup
+        org.apache.pulsar.client.api.Producer<String> v4Producer = pulsarClient
+                .newProducer(org.apache.pulsar.client.api.Schema.STRING)
+                .topic(regular)
+                .create();
 
         final int n = 64;
         for (int i = 0; i < n; i++) {
-            producer.newMessage().key("k-" + i).value("v-" + i).send();
+            producer.newMessage().key("k-" + i).value("v5-" + i).send();
+            v4Producer.newMessage().key("k-" + i).value("v4-" + i).send();
         }
 
-        Set<String> receivedValues = new HashSet<>();
+        Map<String, Integer> v5Partitions = new HashMap<>();
+        Map<String, Integer> v4Partitions = new HashMap<>();
         for (int k = 0; k < 4; k++) {
             org.apache.pulsar.client.api.Message<String> m;
-            while ((m = v4Consumers.get(k).receive(2, java.util.concurrent.TimeUnit.SECONDS)) != null) {
-                int hash32 = Murmur3_32Hash.getInstance()
-                        .makeHash(m.getKey().getBytes(StandardCharsets.UTF_8));
-                assertEquals(signSafeMod(hash32, 4), k,
-                        "key=" + m.getKey() + " arrived in partition " + k
-                                + " but v4 routing places it in " + signSafeMod(hash32, 4));
-                receivedValues.add(m.getValue());
+            while ((m = v4Consumers.get(k).receive(2, TimeUnit.SECONDS)) != null) {
+                Map<String, Integer> partitions = m.getValue().startsWith("v5-") ? v5Partitions : v4Partitions;
+                assertNull(partitions.put(m.getKey(), k), "key=" + m.getKey() + " received twice");
             }
         }
-        assertEquals(receivedValues.size(), n,
-                "every published message must be received exactly once across all partitions");
+        assertEquals(v5Partitions.size(), n, "every V5 message must be received exactly once");
+        assertEquals(v5Partitions, v4Partitions, "V5 must route every key to the partition v4 routes it to");
     }
 
     @Test
@@ -130,7 +134,7 @@ public class V5RegularTopicInteropTest extends V5ClientBaseTest {
         Set<String> received = new HashSet<>();
         for (int i = 0; i < n; i++) {
             org.apache.pulsar.client.api.Message<String> m =
-                    v4Consumer.receive(5, java.util.concurrent.TimeUnit.SECONDS);
+                    v4Consumer.receive(5, TimeUnit.SECONDS);
             assertNotNull(m, "v4 consumer must receive every V5 send");
             received.add(m.getValue());
         }
@@ -188,10 +192,5 @@ public class V5RegularTopicInteropTest extends V5ClientBaseTest {
         UnsupportedOperationException ex = expectThrows(UnsupportedOperationException.class,
                 () -> v5Client.newProducer(Schema.string()).topic(topic).create());
         assertTrue(ex.getMessage().contains("non-persistent"), ex.getMessage());
-    }
-
-    private static int signSafeMod(int dividend, int divisor) {
-        int mod = dividend % divisor;
-        return mod < 0 ? mod + divisor : mod;
     }
 }

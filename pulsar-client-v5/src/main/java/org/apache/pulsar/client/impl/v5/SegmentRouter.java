@@ -21,9 +21,9 @@ package org.apache.pulsar.client.impl.v5;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.apache.pulsar.client.impl.JavaStringHash;
 import org.apache.pulsar.common.scalable.HashRange;
 import org.apache.pulsar.common.scalable.ScalableTopicHashing;
-import org.apache.pulsar.common.util.Murmur3_32Hash;
 
 /**
  * Routes messages to the correct segment based on key hashing.
@@ -41,9 +41,10 @@ final class SegmentRouter {
      * Route a message key to the segment that owns its hash range.
      *
      * <p>If every active segment is a legacy segment (synthetic layout for a not-yet-migrated
-     * regular topic), the routing switches to {@code signSafeMod(murmurHash3_32(key), N)} over
-     * {@code segment_id} so V5 producers route the same way v4 partitioned-topic producers do
-     * — preserving per-key destinations while clients gradually upgrade.
+     * regular topic), the routing switches to {@code signSafeMod(javaStringHash(key), N)} over
+     * {@code segment_id} so V5 producers route the same way v4 partitioned-topic producers do with
+     * their default {@code JavaStringHash} hashing scheme — preserving per-key destinations while
+     * clients gradually upgrade.
      *
      * @param key the message key
      * @param activeSegments the currently active segments (sorted by hash range)
@@ -88,11 +89,11 @@ final class SegmentRouter {
     }
 
     /**
-     * Mod-N routing over {@code segment_id}, matching v4 partitioned-topic routing
-     * ({@code signSafeMod(murmurHash3_32(key), N)}).
+     * Mod-N routing over {@code segment_id}, matching v4 partitioned-topic routing with the default
+     * hashing scheme ({@code signSafeMod(javaStringHash(key), N)}).
      */
     private static long routeModN(String key, List<ActiveSegment> activeSegments) {
-        int hash32 = Murmur3_32Hash.getInstance().makeHash(key.getBytes(StandardCharsets.UTF_8));
+        int hash32 = JavaStringHash.getInstance().makeHash(key);
         int n = activeSegments.size();
         int partition = signSafeMod(hash32, n);
         for (var segment : activeSegments) {
