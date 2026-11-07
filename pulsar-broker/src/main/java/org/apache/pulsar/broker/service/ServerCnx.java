@@ -36,6 +36,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import io.github.merlimat.slog.Logger;
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOption;
@@ -5140,10 +5141,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         // state: 19.
         // Len = 166.
         StringBuilder buf = new StringBuilder(166);
+        Channel channel = ctx == null ? null : ctx.channel();
         if (ctx == null) {
             buf.append("[ctx: null]");
+        } else if (channel == null) {
+            buf.append("[channel: null]");
         } else {
-            buf.append(ctx.channel().toString());
+            buf.append(channel.toString());
         }
         String clientSourceAddr = clientSourceAddress();
         buf.append(" [SR:").append(clientSourceAddr == null ? "-" : clientSourceAddr)
