@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.metrics.prometheus.zookeeper;
 
-import io.prometheus.client.CollectorRegistry;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import java.util.Properties;
 import org.apache.zookeeper.metrics.MetricsProviderLifeCycleException;
 import org.testng.Assert;
@@ -30,7 +30,7 @@ public class PrometheusMetricsProviderConfigTest {
     @Test
     public void testInvalidPort() {
         Assert.assertThrows(MetricsProviderLifeCycleException.class, () -> {
-            CollectorRegistry.defaultRegistry.clear();
+            PrometheusRegistry.defaultRegistry.clear();
             PrometheusMetricsProvider provider = new PrometheusMetricsProvider();
             Properties configuration = new Properties();
             configuration.setProperty("httpPort", "65536");
@@ -43,7 +43,7 @@ public class PrometheusMetricsProviderConfigTest {
     @Test
     public void testInvalidAddr() {
         Assert.assertThrows(MetricsProviderLifeCycleException.class, () -> {
-            CollectorRegistry.defaultRegistry.clear();
+            PrometheusRegistry.defaultRegistry.clear();
             PrometheusMetricsProvider provider = new PrometheusMetricsProvider();
             Properties configuration = new Properties();
             configuration.setProperty("httpHost", "master");
@@ -54,7 +54,7 @@ public class PrometheusMetricsProviderConfigTest {
 
     @Test
     public void testValidConfig() throws MetricsProviderLifeCycleException {
-        CollectorRegistry.defaultRegistry.clear();
+        PrometheusRegistry.defaultRegistry.clear();
         PrometheusMetricsProvider provider = new PrometheusMetricsProvider();
         try {
             Properties configuration = new Properties();
