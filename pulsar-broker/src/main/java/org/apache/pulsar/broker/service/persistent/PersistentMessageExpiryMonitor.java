@@ -215,12 +215,7 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
             long numMessagesExpired = (long) ctx - cursor.getNumberOfEntriesInBacklog(false);
             msgExpired.recordMultipleEvents(numMessagesExpired, 0 /* no value stats */);
             totalMsgExpired.add(numMessagesExpired);
-            if (subscription != null) {
-                Dispatcher dispatcher = subscription.getDispatcher();
-                if (dispatcher != null) {
-                    dispatcher.markDeletePositionMoveForward();
-                }
-            }
+            notifyMarkDeletePositionMoveForward();
             expirationCheckInProgress = FALSE;
             log.debug()
                     .attr("numMessagesExpired", numMessagesExpired)
@@ -232,8 +227,20 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
             log.warn()
                     .exception(exception)
                     .log("Message expiry failed - mark delete failed");
+            // The cursor keeps its in-memory mark-delete position when persisting it fails, and a later expiry check
+            // for the same position returns early, so this is the only cleanup until the position moves again.
+            notifyMarkDeletePositionMoveForward();
             expirationCheckInProgress = FALSE;
             updateRates();
+        }
+
+        private void notifyMarkDeletePositionMoveForward() {
+            if (subscription != null) {
+                Dispatcher dispatcher = subscription.getDispatcher();
+                if (dispatcher != null) {
+                    dispatcher.markDeletePositionMoveForward();
+                }
+            }
         }
     };
 
