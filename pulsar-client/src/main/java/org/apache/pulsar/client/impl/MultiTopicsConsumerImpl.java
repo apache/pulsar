@@ -44,6 +44,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -1535,9 +1536,15 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     // subscribe increased partitions for a given topic
     private CompletableFuture<Void> subscribeIncreasedTopicPartitions(String topicName) {
-        int oldPartitionNumber = partitionedTopics.get(topicName);
+        Integer oldPartitionNumber = partitionedTopics.get(topicName);
+        if (oldPartitionNumber == null) {
+            return CompletableFuture.completedFuture(null);
+        }
 
         return client.getPartitionsForTopic(topicName, false).thenCompose(list -> {
+            if (getState() != State.Ready || !partitionedTopics.containsKey(topicName)) {
+                return CompletableFuture.completedFuture(null);
+            }
             int currentPartitionNumber = Long.valueOf(list.stream()
                     .filter(t -> TopicName.get(t).isPartitioned()).count()).intValue();
                 log.debug().attr("topic", topicName)
@@ -1545,8 +1552,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         .attr("new", currentPartitionNumber)
                         .log("Topic partitions changed");
 
-            if (oldPartitionNumber == currentPartitionNumber) {
-                // topic partition number not changed
+            if (oldPartitionNumber == currentPartitionNumber
+                    && currentPartitionNumber == PartitionedTopicMetadata.NON_PARTITIONED) {
                 return CompletableFuture.completedFuture(null);
             } else if (currentPartitionNumber == PartitionedTopicMetadata.NON_PARTITIONED) {
                 // The topic was initially partitioned but then it was deleted. We keep it in the topics
@@ -1567,30 +1574,38 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
                 return FutureUtil.waitForAll(futures)
                         .thenRun(() -> removeTopicMessagesFromUnackedTracker(topicName));
-            } else if (oldPartitionNumber < currentPartitionNumber) {
-                allTopicPartitionsNumber.addAndGet(currentPartitionNumber - oldPartitionNumber);
-                partitionedTopics.put(topicName, currentPartitionNumber);
-                List<String> newPartitions = list.subList(oldPartitionNumber, currentPartitionNumber);
-                // subscribe new added partitions
-                List<CompletableFuture<Consumer<T>>> futureList = newPartitions
-                    .stream()
-                    .map(partitionName -> {
-                        int partitionIndex = TopicName.getPartitionIndex(partitionName);
-                        return addNewConsumerIfNotExists(partitionName,
-                                () -> createInternalConsumer(getInternalConsumerConfig(topicName), partitionName,
-                                        partitionIndex, new CompletableFuture<>(), true, schema));
-                    })
-                    .collect(Collectors.toList());
-                // call interceptor
-                onPartitionsChange(topicName, currentPartitionNumber);
-                // wait for all partitions subscribe future complete, then startReceivingMessages
-                return FutureUtil.waitForAll(futureList)
-                    .thenAccept(finalFuture -> {
-                        List<ConsumerImpl<T>> newConsumerList = newPartitions.stream()
-                            .map(partitionTopic -> consumers.get(partitionTopic))
-                            .collect(Collectors.toList());
-                        startReceivingMessages(newConsumerList);
-                    });
+            } else if (oldPartitionNumber <= currentPartitionNumber) {
+                if (oldPartitionNumber < currentPartitionNumber) {
+                    allTopicPartitionsNumber.addAndGet(currentPartitionNumber - oldPartitionNumber);
+                    partitionedTopics.put(topicName, currentPartitionNumber);
+                }
+                // Publish all children before starting any receive loop.
+                CompletableFuture<Void> childrenPublished = new CompletableFuture<>();
+                try {
+                    // Retry failed subscriptions as well as subscribing to newly discovered partitions.
+                    List<CompletableFuture<Consumer<T>>> futureList = list
+                        .stream()
+                        .filter(partitionName -> {
+                            ConsumerImpl<T> existingConsumer = consumers.get(partitionName);
+                            return TopicName.getPartitionIndex(partitionName) >= oldPartitionNumber
+                                    || (existingConsumer != null
+                                    && existingConsumer.subscribeFuture().isCompletedExceptionally());
+                        })
+                        .map(partitionName -> {
+                            int partitionIndex = TopicName.getPartitionIndex(partitionName);
+                            return addNewConsumerIfNotExists(partitionName,
+                                    () -> createInternalConsumer(getInternalConsumerConfig(topicName), partitionName,
+                                            partitionIndex, new CompletableFuture<>(), true, schema),
+                                    childrenPublished);
+                        })
+                        .collect(Collectors.toList());
+                    if (oldPartitionNumber < currentPartitionNumber) {
+                        onPartitionsChange(topicName, currentPartitionNumber);
+                    }
+                    return FutureUtil.waitForAll(futureList);
+                } finally {
+                    childrenPublished.complete(null);
+                }
             } else {
                 log.error().attr("topic", topicName)
                         .attr("old", oldPartitionNumber)
@@ -1608,6 +1623,12 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     private CompletableFuture<Consumer<T>> addNewConsumerIfNotExists(String internalTopicName,
                                                                      Supplier<ConsumerImpl<T>> newConsumerSupplier) {
+        return addNewConsumerIfNotExists(internalTopicName, newConsumerSupplier, null);
+    }
+
+    private CompletableFuture<Consumer<T>> addNewConsumerIfNotExists(String internalTopicName,
+            Supplier<ConsumerImpl<T>> newConsumerSupplier, CompletableFuture<Void> childrenPublished) {
+        AtomicBoolean created = new AtomicBoolean();
         ConsumerImpl<T> consumer = consumers.compute(internalTopicName, (__, existingConsumer) -> {
             if (existingConsumer != null) {
                 if (existingConsumer.subscribeFuture().isCompletedExceptionally()) {
@@ -1615,7 +1636,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                                 .log("Closing and replacing existing consumer"
                                         + " that wasn't completed successfully"
                                         + " for");
-                    existingConsumer.closeAsync();
+                    // Other partitions can still be using the parent's shared schema.
+                    existingConsumer.closeAsync(existingConsumer.schema != schema);
                 } else {
                         log.debug().attr("internalTopicName", internalTopicName)
                                 .log("Reusing existing consumer for");
@@ -1625,11 +1647,19 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             // create the new consumer
                 log.debug().attr("internalTopicName", internalTopicName)
                         .log("Creating consumer for");
+            created.set(true);
             return newConsumerSupplier.get();
         });
         // Reconcile after compute publishes the child, without holding a map lock together with pauseMutex.
         synchronizeConsumerPauseState(consumer);
-        // return the subscribe future
+        if (childrenPublished != null && created.get()) {
+            return consumer.subscribeFuture().thenCombine(childrenPublished, (subscribedConsumer, ignored) -> {
+                if (consumers.get(internalTopicName) == consumer) {
+                    startReceivingMessages(Collections.singletonList(consumer));
+                }
+                return subscribedConsumer;
+            });
+        }
         return consumer.subscribeFuture();
     }
 
@@ -1644,8 +1674,21 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
                 // if last auto update not completed yet, do nothing.
                 if (partitionsAutoUpdateFuture == null || partitionsAutoUpdateFuture.isDone()) {
-                    partitionsAutoUpdateFuture =
-                            topicsPartitionChangedListener.onTopicsExtended(partitionedTopics.keySet());
+                    if (consumers.values().stream()
+                            .anyMatch(consumer -> consumer.subscribeFuture().isCompletedExceptionally())) {
+                        // Spread retries across clients without delaying checks when all consumers are healthy.
+                        long maxDelayMillis = Math.min(5_000,
+                                TimeUnit.SECONDS.toMillis(conf.getAutoUpdatePartitionsIntervalSeconds()));
+                        long delayMillis = ThreadLocalRandom.current().nextLong(Math.max(1, maxDelayMillis + 1));
+                        CompletableFuture<Void> delay = new CompletableFuture<>();
+                        client.timer().newTimeout(ignored -> delay.complete(null), delayMillis, TimeUnit.MILLISECONDS);
+                        partitionsAutoUpdateFuture = delay.thenCompose(ignored -> getState() == State.Ready
+                                ? topicsPartitionChangedListener.onTopicsExtended(partitionedTopics.keySet())
+                                : CompletableFuture.completedFuture(null));
+                    } else {
+                        partitionsAutoUpdateFuture =
+                                topicsPartitionChangedListener.onTopicsExtended(partitionedTopics.keySet());
+                    }
                 }
             } catch (Throwable th) {
                 log.warn().exception(th)
