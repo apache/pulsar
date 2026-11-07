@@ -24,6 +24,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.zip.DataFormatException;
 import java.util.zip.Deflater;
 import java.util.zip.Inflater;
@@ -71,30 +72,40 @@ public class CompressionCodecZLib implements CompressionCodec {
 
     @Override
     public ByteBuf encode(ByteBuf source) {
-        byte[] array;
         int length = source.readableBytes();
-
-        int sizeEstimate = (int) Math.ceil(source.readableBytes() * 1.001) + 14;
-        ByteBuf compressed = allocator.heapBuffer(sizeEstimate);
-
-        int offset = 0;
-        if (source.hasArray()) {
-            array = source.array();
-            offset = source.arrayOffset() + source.readerIndex();
-        } else {
-            // If it's a direct buffer, we need to copy it
-            array = new byte[length];
-            source.getBytes(source.readerIndex(), array);
-        }
-
+        int sizeEstimate = (int) Math.ceil(length * 1.001) + 14;
         Deflater deflater = this.deflater.get();
-        deflater.reset();
-        deflater.setInput(array, offset, length);
-        while (!deflater.needsInput()) {
-            deflate(deflater, compressed);
+        ByteBuf compressed = allocator.heapBuffer(sizeEstimate);
+        try {
+            if (source.hasArray()) {
+                deflater.setInput(source.array(), source.arrayOffset() + source.readerIndex(), length);
+            } else {
+                deflater.setInput(inputBuffer(source));
+            }
+            while (!deflater.needsInput()) {
+                deflate(deflater, compressed);
+            }
+            return compressed;
+        } catch (Throwable t) {
+            compressed.release();
+            throw t;
+        } finally {
+            // Do not retain the input's NIO view in the thread-local compressor.
+            deflater.reset();
         }
+    }
 
-        return compressed;
+    private static ByteBuffer inputBuffer(ByteBuf source) {
+        int readerIndex = source.readerIndex();
+        int length = source.readableBytes();
+        try {
+            return source.nioBuffer(readerIndex, length);
+        } catch (UnsupportedOperationException e) {
+            // Some ByteBuf implementations support getBytes but cannot expose a NIO view.
+            byte[] copy = new byte[length];
+            source.getBytes(readerIndex, copy);
+            return ByteBuffer.wrap(copy);
+        }
     }
 
     private static void deflate(Deflater deflater, ByteBuf out) {
@@ -109,26 +120,17 @@ public class CompressionCodecZLib implements CompressionCodec {
 
     @Override
     public ByteBuf decode(ByteBuf encoded, int uncompressedLength) throws IOException {
+        Inflater inflater = this.inflater.get();
         ByteBuf uncompressed = allocator.heapBuffer(uncompressedLength, uncompressedLength);
         try {
             int len = encoded.readableBytes();
-
-            byte[] array;
-            int offset;
             if (encoded.hasArray()) {
-                array = encoded.array();
-                offset = encoded.arrayOffset() + encoded.readerIndex();
+                inflater.setInput(encoded.array(), encoded.arrayOffset() + encoded.readerIndex(), len);
             } else {
-                array = new byte[len];
-                encoded.getBytes(encoded.readerIndex(), array);
-                offset = 0;
+                inflater.setInput(inputBuffer(encoded));
             }
 
             int resultLength;
-            Inflater inflater = this.inflater.get();
-            inflater.reset();
-            inflater.setInput(array, offset, len);
-
             try {
                 resultLength = inflater.inflate(uncompressed.array(), uncompressed.arrayOffset(), uncompressedLength);
             } catch (DataFormatException e) {
@@ -144,6 +146,9 @@ public class CompressionCodecZLib implements CompressionCodec {
             // and on a decoded size that differs from the advertised one (IllegalArgumentException) alike.
             uncompressed.release();
             throw t;
+        } finally {
+            // Do not retain the input's NIO view in the thread-local decompressor.
+            inflater.reset();
         }
     }
 }
