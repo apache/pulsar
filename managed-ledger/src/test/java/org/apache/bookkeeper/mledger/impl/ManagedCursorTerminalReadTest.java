@@ -28,7 +28,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
+import io.netty.util.concurrent.FastThreadLocalThread;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -127,6 +130,40 @@ public class ManagedCursorTerminalReadTest extends MockedBookKeeperTestCase {
             fixture.checks.get(1).run();
             assertTrue(replacement.failure.get(5, TimeUnit.SECONDS) instanceof NoMoreEntriesToReadException);
             assertEquals(replacement.failed.get(), 1);
+            assertFalse(fixture.cursor.hasPendingReadRequest());
+            assertEquals(fixture.cursor.getPendingReadOpsCount(), 0);
+            assertTrue(fixture.ledger.waitingCursors.isEmpty());
+        }
+    }
+
+    @Test(timeOut = 20000)
+    public void staleTerminalCheckCannotClaimAReplacementThatReusesItsOperation() throws Exception {
+        try (Fixture fixture = fixture("terminal-read-reused-operation", true)) {
+            // OpReadEntry pooling is per thread: register on a Netty thread, like the broker's read threads.
+            ReusedOperation reused = CompletableFuture.supplyAsync(() -> cancelUntilOperationIsReused(fixture),
+                    task -> new FastThreadLocalThread(task).start()).get(10, TimeUnit.SECONDS);
+            assertSame(reused.replacement.op, reused.stale.op);
+            assertNotEquals(reused.replacement.opReadId, reused.stale.opReadId);
+            assertEquals(fixture.checks.size(), reused.cancelled.size() + 1);
+
+            // The stale check targets the same OpReadEntry instance that the replacement now waits with.
+            fixture.checks.get(reused.staleCheck).run();
+            for (int i = 0; i < fixture.checks.size() - 1; i++) {
+                if (i != reused.staleCheck) {
+                    fixture.checks.get(i).run();
+                }
+            }
+            assertSame(ManagedCursorImpl.WAITING_READ_OP_UPDATER.get(fixture.cursor), reused.replacement,
+                    "A stale check cannot clear a later registration of the same OpReadEntry");
+            assertEquals(reused.replacementProbe.failed.get(), 0);
+            for (Probe probe : reused.cancelled) {
+                assertEquals(probe.failed.get(), 0, "Cancelled read cannot be completed by its old delayed task");
+            }
+
+            fixture.checks.get(fixture.checks.size() - 1).run();
+            assertTrue(reused.replacementProbe.failure.get(5, TimeUnit.SECONDS)
+                    instanceof NoMoreEntriesToReadException);
+            assertEquals(reused.replacementProbe.failed.get(), 1);
             assertFalse(fixture.cursor.hasPendingReadRequest());
             assertEquals(fixture.cursor.getPendingReadOpsCount(), 0);
             assertTrue(fixture.ledger.waitingCursors.isEmpty());
@@ -254,6 +291,31 @@ public class ManagedCursorTerminalReadTest extends MockedBookKeeperTestCase {
 
     private static void read(ManagedCursorImpl cursor, Probe probe) {
         cursor.asyncReadEntriesOrWait(1, probe, null, PositionFactory.LATEST);
+    }
+
+    /** Cancels and replaces the waiting read until the pool hands the cancelled OpReadEntry to the replacement. */
+    private static ReusedOperation cancelUntilOperationIsReused(Fixture fixture) {
+        List<Probe> cancelled = new ArrayList<>();
+        ManagedCursorImpl.WaitingRead stale = null;
+        int staleCheck = -1;
+        for (int attempt = 0; attempt < 64; attempt++) {
+            Probe probe = new Probe();
+            read(fixture.cursor, probe);
+            ManagedCursorImpl.WaitingRead registered = ManagedCursorImpl.WAITING_READ_OP_UPDATER.get(fixture.cursor);
+            if (stale != null && registered.op == stale.op) {
+                return new ReusedOperation(stale, staleCheck, registered, probe, cancelled);
+            }
+            assertTrue(fixture.cursor.cancelPendingReadRequest());
+            cancelled.add(probe);
+            stale = registered;
+            staleCheck = fixture.checks.size() - 1;
+        }
+        throw new AssertionError("The replacement read never reused the cancelled read's OpReadEntry");
+    }
+
+    private record ReusedOperation(ManagedCursorImpl.WaitingRead stale, int staleCheck,
+                                   ManagedCursorImpl.WaitingRead replacement, Probe replacementProbe,
+                                   List<Probe> cancelled) {
     }
 
     private record Fixture(ManagedLedgerImpl ledger, ManagedCursorImpl cursor, List<Runnable> checks)
