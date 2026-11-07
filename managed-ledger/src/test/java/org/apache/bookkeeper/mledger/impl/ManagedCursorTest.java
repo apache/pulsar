@@ -82,6 +82,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -4745,15 +4746,17 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             }
         });
 
-        // update cursor-info with data which makes bad-version for existing managed-cursor
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
+        // Advance the version with valid native cursor bytes, still pointing to the already published ledger.
+        // The next candidate is unreferenced and its old-version CAS is definitively fenced.
         String path = "/managed-ledgers/my_test_ledger/c1";
-        metadataStore.put(path, "".getBytes(), Optional.empty()).join();
+        byte[] validCursorInfo = metadataStore.get(path).get(5, TimeUnit.SECONDS).orElseThrow().getValue();
+        metadataStore.put(path, validCursorInfo, Optional.empty()).get(5, TimeUnit.SECONDS);
 
-        // try to create ledger again which will fail because managedCursorInfo znode is already updated with differen
-        // version so, this call will fail with BadVersionException
+        // The cursor's local version is stale, so publishing another candidate fails with BadVersionException.
         CountDownLatch latch2 = new CountDownLatch(1);
-        // create ledger will create ledgerId = 6
-        long ledgerId = 6;
+        Set<Long> existingLedgers = new HashSet<>(bkc.getLedgerMap().keySet());
+        AtomicReference<ManagedLedgerException> publicationFailure = new AtomicReference<>();
         c1.createNewMetadataLedger(new VoidCallback() {
             @Override
             public void operationComplete() {
@@ -4762,20 +4765,531 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
             @Override
             public void operationFailed(ManagedLedgerException exception) {
+                publicationFailure.set(exception);
                 latch2.countDown();
             }
         });
 
-        // Wait until operation is completed and the failed ledger should have been deleted
-        latch2.await();
+        assertTrue(latch2.await(5, TimeUnit.SECONDS));
+        assertThat(publicationFailure.get()).isInstanceOf(MetaStoreException.BadVersionException.class);
+        assertThat(bkc.getLedgerMap().keySet()).as("only the rejected candidate is removed")
+                .containsExactlyInAnyOrderElementsOf(existingLedgers);
+    }
+
+    @Test(timeOut = 20000)
+    public void testCursorLedgerIsRetainedWhenMetadataCommitResponseIsLost() throws Exception {
+        String ledgerName = "cursor_ledger_lost_commit_response";
+        String cursorName = "c1";
+        String path = "/managed-ledgers/" + ledgerName + "/" + cursorName;
+        AtomicBoolean failNextPut = new AtomicBoolean();
+        AtomicReference<Stat> committed = new AtomicReference<>();
+        FaultInjectionMetadataStore spyStore = cursorStoreWithLostPutResponse(path, failNextPut, committed);
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl isolatedFactory = new ManagedLedgerFactoryImpl(spyStore, bkc);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) isolatedFactory.open(ledgerName, defaultConfig());
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor(cursorName);
+        long previousLedger = cursor.getCursorLedger();
+
+        failNextPut.set(true);
+        // The operation may report failure, but a lost response cannot make its committed ledger an orphan.
+        createCursorMetadataLedger(cursor).handle((ignored, error) -> null).get(5, TimeUnit.SECONDS);
+
+        assertThat(committed.get()).as("the real cursor CAS committed before its response failed").isNotNull();
+        ManagedCursorInfo published = readCursorInfo(ledger, cursorName);
+        assertThat(published).as("the native cursor node remains readable").isNotNull();
+        assertThat(published.getCursorsLedgerId()).isNotEqualTo(previousLedger).isGreaterThanOrEqualTo(0);
+        assertThat(metadataStore.get(path).get(5, TimeUnit.SECONDS).orElseThrow().getStat().getVersion())
+                .isEqualTo(committed.get().getVersion());
+        assertThat(bkc.getLedgerMap()).as("a cursor ledger published by the committed CAS is not an orphan")
+                .containsKey(published.getCursorsLedgerId());
+    }
+
+    @Test(timeOut = 20000)
+    public void testAckSucceedsAfterLostFirstPublicationResponseOfNewlyCreatedCursor() throws Exception {
+        String ledgerName = "cursor_lost_first_publication_response";
+        String cursorName = "c1";
+        String path = "/managed-ledgers/" + ledgerName + "/" + cursorName;
+        AtomicBoolean failNextPut = new AtomicBoolean();
+        AtomicReference<Stat> committed = new AtomicReference<>();
+        FaultInjectionMetadataStore spyStore = cursorStoreWithLostPutResponse(path, failNextPut, committed);
+        reportNoCreationTimestampOnCreate(spyStore, path);
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl isolatedFactory = new ManagedLedgerFactoryImpl(spyStore, bkc);
+        ManagedLedgerImpl ledger = openWithOwnershipChecker(isolatedFactory, ledgerName);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor(cursorName);
+        List<Position> positions = addEntriesWithUnacknowledgedTail(ledger, 2);
+        Set<Long> ledgersBeforeAcks = new HashSet<>(bkc.getLedgerMap().keySet());
+
+        failNextPut.set(true);
+        // The first ACK publishes the cursor's first ledger. The publication commits but its response is lost.
+        markDeleteIgnoringFailure(cursor, positions.get(0));
+        assertThat(committed.get()).as("the first publication committed before its response failed").isNotNull();
+
+        cursor.markDelete(positions.get(1));
+
+        assertAckStateIsPublishedWithoutRetainedCandidates(ledger, cursorName, ledgersBeforeAcks, positions.get(1));
+    }
+
+    @Test(timeOut = 20000)
+    public void testAckSucceedsAfterCursorNodeReadFailureAndLostFirstPublicationResponse() throws Exception {
+        String ledgerName = "cursor_node_read_failure_lost_first_publication";
+        String cursorName = "c1";
+        String path = "/managed-ledgers/" + ledgerName + "/" + cursorName;
+        AtomicBoolean failNextPut = new AtomicBoolean();
+        AtomicBoolean failNextRead = new AtomicBoolean();
+        AtomicReference<Stat> committed = new AtomicReference<>();
+        FaultInjectionMetadataStore spyStore = cursorStoreWithLostPutResponse(path, failNextPut, committed);
+        reportNoCreationTimestampOnCreate(spyStore, path);
+        doAnswer(invocation -> {
+            if (failNextRead.compareAndSet(true, false)) {
+                return CompletableFuture.failedFuture(new MetadataStoreException("cursor node read unavailable"));
+            }
+            return invocation.callRealMethod();
+        }).when(spyStore).get(eq(path));
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl isolatedFactory = new ManagedLedgerFactoryImpl(spyStore, bkc);
+        ManagedLedgerImpl ledger = openWithOwnershipChecker(isolatedFactory, ledgerName);
+
+        // The first read of the new cursor node fails, wherever the cursor performs it.
+        failNextRead.set(true);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor(cursorName);
+        List<Position> positions = addEntriesWithUnacknowledgedTail(ledger, 3);
+        Set<Long> ledgersBeforeAcks = new HashSet<>(bkc.getLedgerMap().keySet());
+
+        failNextPut.set(true);
+        markDeleteIgnoringFailure(cursor, positions.get(0));
+        markDeleteIgnoringFailure(cursor, positions.get(1));
+        assertThat(failNextRead.get()).as("the cursor node read failed once").isFalse();
+        assertThat(committed.get()).as("the first publication committed before its response failed").isNotNull();
+
+        cursor.markDelete(positions.get(2));
+
+        assertAckStateIsPublishedWithoutRetainedCandidates(ledger, cursorName, ledgersBeforeAcks, positions.get(2));
+    }
+
+    @Test(timeOut = 20000)
+    public void testAckSucceedsAfterLostCursorPropertiesResponseOfNewlyCreatedCursor() throws Exception {
+        String ledgerName = "cursor_lost_properties_response";
+        String cursorName = "c1";
+        String path = "/managed-ledgers/" + ledgerName + "/" + cursorName;
+        AtomicBoolean failNextPut = new AtomicBoolean();
+        AtomicReference<Stat> committed = new AtomicReference<>();
+        FaultInjectionMetadataStore spyStore = cursorStoreWithLostPutResponse(path, failNextPut, committed);
+        reportNoCreationTimestampOnCreate(spyStore, path);
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl isolatedFactory = new ManagedLedgerFactoryImpl(spyStore, bkc);
+        ManagedLedgerImpl ledger = openWithOwnershipChecker(isolatedFactory, ledgerName);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor(cursorName);
+        List<Position> positions = addEntriesWithUnacknowledgedTail(ledger, 2);
+        Set<Long> ledgersBeforeAcks = new HashSet<>(bkc.getLedgerMap().keySet());
+
+        // The cursor node advances past the version that the new cursor holds, but the cursor does not see it.
+        failNextPut.set(true);
+        cursor.setCursorProperties(Map.of("lost", "response")).handle((ignored, error) -> null)
+                .get(5, TimeUnit.SECONDS);
+        assertThat(committed.get()).as("the properties update committed before its response failed").isNotNull();
+
+        markDeleteIgnoringFailure(cursor, positions.get(0));
+        cursor.markDelete(positions.get(1));
+
+        assertAckStateIsPublishedWithoutRetainedCandidates(ledger, cursorName, ledgersBeforeAcks, positions.get(1));
+    }
+
+    private void reportNoCreationTimestampOnCreate(FaultInjectionMetadataStore spyStore, String path) {
+        // Like ZooKeeper, report no creation timestamp for the node that a put has just created.
+        doAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            CompletableFuture<Stat> real = (CompletableFuture<Stat>) invocation.callRealMethod();
+            return real.thenApply(stat -> new Stat(stat.getPath(), stat.getVersion(), 0, 0, stat.isEphemeral(), true));
+        }).when(spyStore).put(eq(path), any(byte[].class), eq(Optional.of(-1L)));
+    }
+
+    private ManagedLedgerImpl openWithOwnershipChecker(ManagedLedgerFactoryImpl factory, String ledgerName)
+            throws Exception {
+        CompletableFuture<ManagedLedger> opened = new CompletableFuture<>();
+        // Brokers open managed ledgers with an ownership checker.
+        factory.asyncOpen(ledgerName, defaultConfig(), new AsyncCallbacks.OpenLedgerCallback() {
+            @Override
+            public void openLedgerComplete(ManagedLedger ledger, Object context) {
+                opened.complete(ledger);
+            }
+
+            @Override
+            public void openLedgerFailed(ManagedLedgerException error, Object context) {
+                opened.completeExceptionally(error);
+            }
+        }, () -> CompletableFuture.completedFuture(true), null);
+        return (ManagedLedgerImpl) opened.get(5, TimeUnit.SECONDS);
+    }
+
+    private List<Position> addEntriesWithUnacknowledgedTail(ManagedLedgerImpl ledger, int acknowledged)
+            throws Exception {
+        List<Position> positions = new ArrayList<>();
+        // One more entry stays unacknowledged, so a recovered mark-delete position is not moved to the next ledger.
+        for (int index = 0; index <= acknowledged; index++) {
+            positions.add(ledger.addEntry(("entry-" + index).getBytes(Encoding)));
+        }
+        return positions;
+    }
+
+    private static void markDeleteIgnoringFailure(ManagedCursorImpl cursor, Position position)
+            throws InterruptedException {
+        try {
+            cursor.markDelete(position);
+        } catch (ManagedLedgerException ignored) {
+            // An injected metadata failure may be reported to this ACK.
+        }
+    }
+
+    private void assertAckStateIsPublishedWithoutRetainedCandidates(ManagedLedgerImpl ledger, String cursorName,
+            Set<Long> ledgersBeforeAcks, Position acknowledged) throws Exception {
+        long published = readCursorInfo(ledger, cursorName).getCursorsLedgerId();
+        Set<Long> createdLedgers = new HashSet<>(bkc.getLedgerMap().keySet());
+        createdLedgers.removeAll(ledgersBeforeAcks);
+        assertThat(createdLedgers).as("no unpublished candidate cursor ledger is retained").containsExactly(published);
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl recoveryFactory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        ManagedCursor recovered = recoveryFactory.open(ledger.getName(), defaultConfig()).openCursor(cursorName);
+        assertThat(recovered.getMarkDeletedPosition()).isEqualTo(acknowledged);
+    }
+
+    @Test(timeOut = 20000)
+    public void testCursorAckStateSurvivesLostMetadataCommitResponse() throws Exception {
+        String ledgerName = "cursor_ack_state_lost_commit_response";
+        String cursorName = "c1";
+        String path = "/managed-ledgers/" + ledgerName + "/" + cursorName;
+        AtomicBoolean failNextPut = new AtomicBoolean();
+        AtomicReference<Stat> committed = new AtomicReference<>();
+        FaultInjectionMetadataStore spyStore = cursorStoreWithLostPutResponse(path, failNextPut, committed);
+        ManagedLedgerConfig config = defaultConfig();
+        config.setDeletionAtBatchIndexLevelEnabled(true);
+        config.setMetadataMaxEntriesPerLedger(Integer.MAX_VALUE);
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl isolatedFactory = new ManagedLedgerFactoryImpl(spyStore, bkc);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) isolatedFactory.open(ledgerName, config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor(cursorName);
+        List<Position> positions = new ArrayList<>();
+        for (int index = 0; index < 8; index++) {
+            positions.add(ledger.addEntry(("entry-" + index).getBytes(Encoding)));
+        }
+        cursor.markDelete(positions.get(0), Map.of("checkpoint", 31L));
+        cursor.delete(positions.get(2));
+        deleteBatchIndex(cursor, positions.get(4), 10, List.of(new IntRange().setStart(1).setEnd(3)));
+        assertThat(cursor.isMessageDeleted(positions.get(1))).isFalse();
+        assertThat(cursor.isMessageDeleted(positions.get(2))).isTrue();
+        long[] expectedBatchMask = cursor.getDeletedBatchIndexesAsLongArray(positions.get(4));
+        assertThat(expectedBatchMask).as("the fixture contains a partial batch ACK mask").isNotNull();
+        expectedBatchMask = expectedBatchMask.clone();
+        long expectedBacklog = cursor.getNumberOfEntriesInBacklog(false);
+
+        failNextPut.set(true);
+        createCursorMetadataLedger(cursor).handle((ignored, error) -> null).get(5, TimeUnit.SECONDS);
+        assertThat(committed.get()).as("the real cursor CAS committed before its response failed").isNotNull();
+        ManagedCursorInfo published = readCursorInfo(ledger, cursorName);
+        assertThat(published).isNotNull();
+        // Rollover puts the complete ranges and batch masks in the new ledger, not in this node.
+        assertThat(published.getIndividualDeletedMessagesCount()).isZero();
+        assertThat(published.getBatchedEntryDeletionIndexInfosCount()).isZero();
+
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl recoveryFactory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        ManagedLedgerImpl recoveredLedger = (ManagedLedgerImpl) recoveryFactory.open(ledgerName, config);
+        ManagedCursor recovered = recoveredLedger.openCursor(cursorName);
+        assertThat(recovered.getMarkDeletedPosition()).isEqualTo(positions.get(0));
+        assertThat(recovered.getProperties()).containsEntry("checkpoint", 31L);
+        assertThat(recovered.isMessageDeleted(positions.get(1))).as("the original unacknowledged hole survives")
+                .isFalse();
+        assertThat(recovered.isMessageDeleted(positions.get(2))).as("the individual ACK survives recovery").isTrue();
+        assertThat(recovered.isMessageDeleted(positions.get(3))).isFalse();
+        assertThat(recovered.getDeletedBatchIndexesAsLongArray(positions.get(4)))
+                .as("partial batch ACK bits survive recovery from the published cursor ledger")
+                .containsExactly(expectedBatchMask);
+        assertThat(recovered.getNumberOfEntriesInBacklog(false)).isEqualTo(expectedBacklog);
+    }
+
+    @Test(timeOut = 20000)
+    public void testCursorLedgerIsRetainedWhenFailedMetadataWriteCommitsAfterRead() throws Exception {
+        String ledgerName = "cursor_ledger_late_metadata_commit";
+        String cursorName = "c1";
+        String path = "/managed-ledgers/" + ledgerName + "/" + cursorName;
+        AtomicBoolean failNextPut = new AtomicBoolean();
+        AtomicReference<byte[]> delayedValue = new AtomicReference<>();
+        AtomicReference<Optional<Long>> delayedVersion = new AtomicReference<>();
+        FaultInjectionMetadataStore spyStore = spy(metadataStore);
+        doAnswer(invocation -> {
+            if (failNextPut.compareAndSet(true, false)) {
+                delayedValue.set(((byte[]) invocation.getArgument(1)).clone());
+                delayedVersion.set(invocation.getArgument(2));
+                return CompletableFuture.<Stat>failedFuture(new MetadataStoreException("write response was lost"));
+            }
+            return invocation.callRealMethod();
+        }).when(spyStore).put(eq(path), any(byte[].class), any());
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl isolatedFactory = new ManagedLedgerFactoryImpl(spyStore, bkc);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) isolatedFactory.open(ledgerName, defaultConfig());
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor(cursorName);
+        long previousLedger = cursor.getCursorLedger();
+
+        failNextPut.set(true);
+        createCursorMetadataLedger(cursor).handle((ignored, error) -> null).get(5, TimeUnit.SECONDS);
+        assertThat(delayedValue.get()).as("the original CAS remains pending on the server").isNotNull();
+        ManagedCursorInfo intended = ((MetaStoreImpl) ledger.getStore()).parseManagedCursorInfo(delayedValue.get());
+        long candidate = intended.getCursorsLedgerId();
+        assertThat(candidate).isNotEqualTo(previousLedger).isGreaterThanOrEqualTo(0);
+        assertThat(readCursorInfo(ledger, cursorName).getCursorsLedgerId())
+                .as("a read after the failed future can still observe the old pointer").isEqualTo(previousLedger);
 
         try {
-            bkc.openLedgerNoRecovery(ledgerId, DigestType.fromApiDigestType(mlConfig.getDigestType()),
-                    mlConfig.getPassword());
-            fail("ledger should have deleted due to update-cursor failure");
-        } catch (BKException e) {
-            // ok
+            // Run the original server CAS only after the native read above, without changing its expected version.
+            metadataStore.put(path, delayedValue.get(), delayedVersion.get()).get(5, TimeUnit.SECONDS);
+        } catch (ExecutionException error) {
+            // A repair may explicitly fence the old CAS. In that case it must prove version advancement.
+            assertThat(MetadataStoreException.unwrap(error))
+                    .isInstanceOf(MetadataStoreException.BadVersionException.class);
+            assertThat(metadataStore.get(path).get(5, TimeUnit.SECONDS).orElseThrow().getStat().getVersion())
+                    .isGreaterThan(delayedVersion.get().orElseThrow());
+            assertThat(readCursorInfo(ledger, cursorName).getCursorsLedgerId()).isNotEqualTo(candidate);
+            return;
         }
+        assertThat(readCursorInfo(ledger, cursorName).getCursorsLedgerId()).isEqualTo(candidate);
+        assertThat(bkc.getLedgerMap()).as("a late successful CAS must not publish a deleted candidate")
+                .containsKey(candidate);
+    }
+
+    @Test(timeOut = 20000)
+    public void testCursorLedgerIsRetainedWhenPublicationReconciliationReadFails() throws Exception {
+        String ledgerName = "cursor_ledger_reconciliation_read_failure";
+        String cursorName = "c1";
+        String path = "/managed-ledgers/" + ledgerName + "/" + cursorName;
+        AtomicBoolean failNextPut = new AtomicBoolean();
+        AtomicBoolean failNextRead = new AtomicBoolean();
+        AtomicReference<Stat> committed = new AtomicReference<>();
+        FaultInjectionMetadataStore spyStore = cursorStoreWithLostPutResponse(path, failNextPut, committed);
+        doAnswer(invocation -> {
+            if (committed.get() != null && failNextRead.compareAndSet(true, false)) {
+                return CompletableFuture.failedFuture(new MetadataStoreException("reconciliation read unavailable"));
+            }
+            return invocation.callRealMethod();
+        }).when(spyStore).get(eq(path));
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl isolatedFactory = new ManagedLedgerFactoryImpl(spyStore, bkc);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) isolatedFactory.open(ledgerName, defaultConfig());
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor(cursorName);
+
+        failNextRead.set(true);
+        failNextPut.set(true);
+        CompletableFuture<Void> result = createCursorMetadataLedger(cursor);
+        result.handle((ignored, error) -> null).get(5, TimeUnit.SECONDS);
+        assertThat(result.isCompletedExceptionally()).isTrue();
+        assertThat(committed.get()).isNotNull();
+        ManagedCursorInfo published = ((MetaStoreImpl) ledger.getStore()).parseManagedCursorInfo(
+                metadataStore.get(path).get(5, TimeUnit.SECONDS).orElseThrow().getValue());
+        assertThat(bkc.getLedgerMap()).as("an unavailable reconciliation read cannot prove an orphan")
+                .containsKey(published.getCursorsLedgerId());
+        assertThat(bkc.getLedgerMap().get(published.getCursorsLedgerId()).getLedgerMetadata().isClosed()).isTrue();
+        try {
+            result.get(5, TimeUnit.SECONDS);
+            fail("the original publication failure must still be reported");
+        } catch (ExecutionException error) {
+            assertThat(error.getCause()).hasMessageContaining("write response was lost");
+        }
+    }
+
+    @Test(timeOut = 20000)
+    public void testCursorLedgerPublicationRequiresTheCompleteAttemptedInfo() throws Exception {
+        String ledgerName = "cursor_ledger_publication_changed_info";
+        String cursorName = "c1";
+        String path = "/managed-ledgers/" + ledgerName + "/" + cursorName;
+        AtomicBoolean failNextPut = new AtomicBoolean();
+        AtomicReference<MetaStoreImpl> parser = new AtomicReference<>();
+        AtomicReference<ManagedCursorInfo> changedInfo = new AtomicReference<>();
+        FaultInjectionMetadataStore spyStore = spy(metadataStore);
+        doAnswer(invocation -> {
+            if (failNextPut.compareAndSet(true, false)) {
+                byte[] submitted = ((byte[]) invocation.getArgument(1)).clone();
+                @SuppressWarnings("unchecked")
+                CompletableFuture<Stat> real = (CompletableFuture<Stat>) invocation.callRealMethod();
+                ManagedCursorInfo changed = parser.get().parseManagedCursorInfo(submitted);
+                changed.addCursorProperty().setName("concurrent").setValue("preserve");
+                changedInfo.set(changed);
+                return real.thenCompose(stat -> metadataStore.put(path, parser.get().compressCursorInfo(changed),
+                                Optional.of(stat.getVersion())))
+                        .thenCompose(stat -> CompletableFuture.<Stat>failedFuture(
+                                new MetadataStoreException("write response was lost")));
+            }
+            return invocation.callRealMethod();
+        }).when(spyStore).put(eq(path), any(byte[].class), any());
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl isolatedFactory = new ManagedLedgerFactoryImpl(spyStore, bkc);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) isolatedFactory.open(ledgerName, defaultConfig());
+        parser.set((MetaStoreImpl) ledger.getStore());
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor(cursorName);
+        long previousLedger = cursor.getCursorLedger();
+
+        failNextPut.set(true);
+        CompletableFuture<Void> result = createCursorMetadataLedger(cursor);
+        result.handle((ignored, error) -> null).get(5, TimeUnit.SECONDS);
+        assertThat(result.isCompletedExceptionally())
+                .as("matching only the ledger ID must not turn a different publication into success").isTrue();
+        assertThat(cursor.getCursorLedger()).isEqualTo(previousLedger);
+        ManagedCursorInfo published = readCursorInfo(ledger, cursorName);
+        assertThat(published).isEqualTo(changedInfo.get());
+        assertThat(bkc.getLedgerMap()).as("the changed native node still references the candidate")
+                .containsKey(published.getCursorsLedgerId());
+    }
+
+    @Test(timeOut = 20000)
+    public void testCursorLedgerPublicationReconciliationDoesNotReopenClosingCursor() throws Exception {
+        String ledgerName = "cursor_ledger_publication_while_closing";
+        String cursorName = "c1";
+        String path = "/managed-ledgers/" + ledgerName + "/" + cursorName;
+        AtomicBoolean failNextPut = new AtomicBoolean();
+        CompletableFuture<Stat> committed = new CompletableFuture<>();
+        CompletableFuture<Void> failResponse = new CompletableFuture<>();
+        FaultInjectionMetadataStore spyStore = spy(metadataStore);
+        doAnswer(invocation -> {
+            if (failNextPut.compareAndSet(true, false)) {
+                @SuppressWarnings("unchecked")
+                CompletableFuture<Stat> real = (CompletableFuture<Stat>) invocation.callRealMethod();
+                return real.thenCompose(stat -> {
+                    committed.complete(stat);
+                    return failResponse.thenCompose(ignored -> CompletableFuture.<Stat>failedFuture(
+                            new MetadataStoreException("write response was lost")));
+                });
+            }
+            return invocation.callRealMethod();
+        }).when(spyStore).put(eq(path), any(byte[].class), any());
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl isolatedFactory = new ManagedLedgerFactoryImpl(spyStore, bkc);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) isolatedFactory.open(ledgerName, defaultConfig());
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor(cursorName);
+        long previousLedger = cursor.getCursorLedger();
+
+        failNextPut.set(true);
+        CompletableFuture<Void> publication = createCursorMetadataLedger(cursor);
+        try {
+            committed.get(5, TimeUnit.SECONDS);
+            CompletableFuture<Void> closing = new CompletableFuture<>();
+            cursor.asyncClose(new AsyncCallbacks.CloseCallback() {
+                @Override
+                public void closeComplete(Object context) {
+                    closing.complete(null);
+                }
+
+                @Override
+                public void closeFailed(ManagedLedgerException error, Object context) {
+                    closing.completeExceptionally(error);
+                }
+            }, null);
+            closing.handle((ignored, error) -> null).get(5, TimeUnit.SECONDS);
+            assertThat(cursor.isClosed()).isTrue();
+        } finally {
+            failResponse.complete(null);
+        }
+        publication.handle((ignored, error) -> null).get(5, TimeUnit.SECONDS);
+        assertThat(publication.isCompletedExceptionally()).isTrue();
+        assertThat(cursor.isClosed()).as("reconciliation cannot resume a closing cursor").isTrue();
+        assertThat(cursor.getCursorLedger()).isEqualTo(previousLedger);
+        ManagedCursorInfo published = readCursorInfo(ledger, cursorName);
+        assertThat(bkc.getLedgerMap()).as("the committed ledger remains available to a later owner")
+                .containsKey(published.getCursorsLedgerId());
+    }
+
+    @Test(timeOut = 20000)
+    public void testCursorLedgerPublicationReturnsOriginalFailureWhenExecutorRejectsReconciliation() throws Exception {
+        String ledgerName = "cursor_ledger_reconciliation_executor_rejected";
+        String cursorName = "c1";
+        String path = "/managed-ledgers/" + ledgerName + "/" + cursorName;
+        AtomicBoolean failNextPut = new AtomicBoolean();
+        AtomicReference<Stat> committed = new AtomicReference<>();
+        FaultInjectionMetadataStore spyStore = cursorStoreWithLostPutResponse(path, failNextPut, committed);
+        CompletableFuture<Boolean> ownership = new CompletableFuture<>();
+        CountDownLatch ownershipEntered = new CountDownLatch(1);
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl isolatedFactory = new ManagedLedgerFactoryImpl(spyStore, bkc);
+        CompletableFuture<ManagedLedger> opened = new CompletableFuture<>();
+        isolatedFactory.asyncOpen(ledgerName, defaultConfig(), new AsyncCallbacks.OpenLedgerCallback() {
+            @Override
+            public void openLedgerComplete(ManagedLedger ledger, Object context) {
+                opened.complete(ledger);
+            }
+
+            @Override
+            public void openLedgerFailed(ManagedLedgerException error, Object context) {
+                opened.completeExceptionally(error);
+            }
+        }, () -> {
+            ownershipEntered.countDown();
+            return ownership;
+        }, null);
+        // Create the cursor through the spy so that its final ledger field also names the spy.
+        ManagedLedgerImpl ledgerSpy = spy((ManagedLedgerImpl) opened.get(5, TimeUnit.SECONDS));
+        ThreadBoundExecutor realExecutor = ledgerSpy.getExecutor();
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledgerSpy.openCursor(cursorName);
+        ThreadBoundExecutor rejectingExecutor = mock(ThreadBoundExecutor.class);
+        Mockito.doThrow(new RejectedExecutionException("reconciliation executor stopped"))
+                .when(rejectingExecutor).execute(any(Runnable.class));
+        try {
+            failNextPut.set(true);
+            CompletableFuture<Void> publication = createCursorMetadataLedger(cursor);
+            CountDownLatch callbackCompleted = new CountDownLatch(1);
+            publication.whenComplete((ignored, error) -> callbackCompleted.countDown());
+            assertTrue(ownershipEntered.await(5, TimeUnit.SECONDS),
+                    "native publication reconciliation must reach the controlled ownership check");
+            assertThat(committed.get()).isNotNull();
+            Mockito.doReturn(rejectingExecutor).when(ledgerSpy).getExecutor();
+            ownership.complete(true);
+            assertTrue(callbackCompleted.await(5, TimeUnit.SECONDS),
+                    "executor rejection must not swallow the original publication callback");
+            try {
+                publication.get(5, TimeUnit.SECONDS);
+                fail("the original publication error must be returned when reconciliation cannot be scheduled");
+            } catch (ExecutionException error) {
+                assertThat(error.getCause()).isInstanceOf(MetaStoreException.class)
+                        .hasMessageContaining("write response was lost");
+            }
+            ManagedCursorInfo published = ((MetaStoreImpl) ledgerSpy.getStore()).parseManagedCursorInfo(
+                    metadataStore.get(path).get(5, TimeUnit.SECONDS).orElseThrow().getValue());
+            assertThat(bkc.getLedgerMap()).as("an executor rejection cannot prove the committed ledger is an orphan")
+                    .containsKey(published.getCursorsLedgerId());
+            assertThat(bkc.getLedgerMap().get(published.getCursorsLedgerId()).getLedgerMetadata().isClosed()).isTrue();
+        } finally {
+            Mockito.doReturn(realExecutor).when(ledgerSpy).getExecutor();
+            ownership.complete(true);
+        }
+    }
+
+    private FaultInjectionMetadataStore cursorStoreWithLostPutResponse(String path, AtomicBoolean failNextPut,
+                                                                      AtomicReference<Stat> committed) {
+        FaultInjectionMetadataStore spyStore = spy(metadataStore);
+        doAnswer(invocation -> {
+            if (failNextPut.compareAndSet(true, false)) {
+                @SuppressWarnings("unchecked")
+                CompletableFuture<Stat> real = (CompletableFuture<Stat>) invocation.callRealMethod();
+                return real.thenCompose(stat -> {
+                    committed.set(stat);
+                    return CompletableFuture.<Stat>failedFuture(new MetadataStoreException("write response was lost"));
+                });
+            }
+            return invocation.callRealMethod();
+        }).when(spyStore).put(eq(path), any(byte[].class), any());
+        return spyStore;
+    }
+
+    private CompletableFuture<Void> createCursorMetadataLedger(ManagedCursorImpl cursor) {
+        CompletableFuture<Void> result = new CompletableFuture<>();
+        cursor.createNewMetadataLedger(new VoidCallback() {
+            @Override
+            public void operationComplete() {
+                result.complete(null);
+            }
+
+            @Override
+            public void operationFailed(ManagedLedgerException error) {
+                result.completeExceptionally(error);
+            }
+        });
+        return result;
     }
 
     /**
