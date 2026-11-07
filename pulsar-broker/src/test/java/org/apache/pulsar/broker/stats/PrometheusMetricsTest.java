@@ -1335,6 +1335,36 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         c2.close();
     }
 
+    @Test
+    public void testManagedLedgerMetricsAreScraped() throws Exception {
+        // The offloader stats and the managed ledger read limiter live in the Prometheus Java client 1.x
+        // registry; the broker scrape must still expose them under the legacy names with the cluster label. The
+        // offloader families only exist once a topic has recorded something, the limiter gauges are static.
+        String topic = "persistent://my-property/my-ns/offloaded";
+        pulsar.getOffloaderStats().recordOffloadError(topic);
+        pulsar.getOffloaderStats().recordReadLedgerLatency(topic, 5, TimeUnit.MILLISECONDS);
+
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsTestUtil.generate(pulsar, false, false, false, statsOut);
+        String metricsStr = statsOut.toString();
+        assertThat(metricsStr).contains("# TYPE brk_ledgeroffloader_offload_error_total counter\n")
+                .contains("# TYPE brk_ledgeroffloader_read_ledger_latency summary\n")
+                .contains("# TYPE pulsar_ml_reads_inflight_bytes gauge\n");
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+        Metric offloadError = metrics.get("brk_ledgeroffloader_offload_error_total").iterator().next();
+        assertEquals(offloadError.tags.get("cluster"), "test");
+        assertEquals(offloadError.tags.get("namespace"), "my-property/my-ns");
+        assertEquals(offloadError.value, 1.0);
+        Metric latencyCount = metrics.get("brk_ledgeroffloader_read_ledger_latency_count").iterator().next();
+        assertEquals(latencyCount.tags.get("namespace"), "my-property/my-ns");
+        assertEquals(latencyCount.value, 1.0);
+        for (String family : List.of("pulsar_ml_reads_inflight_bytes", "pulsar_ml_reads_available_inflight_bytes")) {
+            Collection<Metric> samples = metrics.get(family);
+            assertEquals(samples.size(), 1, family);
+            assertEquals(samples.iterator().next().tags.get("cluster"), "test", family);
+        }
+    }
+
     /** Checks for duplicate type definitions for a metric in the Prometheus metrics output. If the Prometheus parser
      finds a TYPE definition for the same metric more than once, it errors out:
      https://github.com/prometheus/prometheus/blob/f04b1b5559a80a4fd1745cf891ce392a056460c9/vendor/github.com/

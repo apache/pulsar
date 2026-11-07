@@ -94,7 +94,7 @@ dependencies {
         exclude(group = "org.slf4j")
         exclude(group = "dnsjava", module = "dnsjava")
     }
-    testImplementation(libs.simpleclient)
+    testImplementation(libs.prometheus.metrics.core)
     testImplementation(libs.bcpkix.jdk18on)
     testImplementation(libs.netty.codec.http)
     // Hadoop's MiniDFSCluster embeds a Jetty 9 web UI that needs the legacy javax.ws.rs,

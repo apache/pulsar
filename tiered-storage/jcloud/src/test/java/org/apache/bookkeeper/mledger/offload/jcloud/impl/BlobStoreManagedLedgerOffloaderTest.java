@@ -211,7 +211,7 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
 
         assertEquals(offloaderStats.getOffloadError(topic), 0);
         assertTrue(offloaderStats.getOffloadBytes(topic) > 0);
-        assertTrue(offloaderStats.getReadLedgerLatency(topic).count > 0);
+        assertTrue(offloaderStats.getReadLedgerLatency(topic).getCount() > 0);
         assertEquals(offloaderStats.getWriteStorageError(topic), 0);
 
         Map<String, String> map = new HashMap<>();
@@ -228,8 +228,8 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
 
         assertEquals(offloaderStats.getReadOffloadError(topic), 0);
         assertTrue(offloaderStats.getReadOffloadBytes(topic) > 0);
-        assertTrue(offloaderStats.getReadOffloadDataLatency(topic).count > 0);
-        assertTrue(offloaderStats.getReadOffloadIndexLatency(topic).count > 0);
+        assertTrue(offloaderStats.getReadOffloadDataLatency(topic).getCount() > 0);
+        assertTrue(offloaderStats.getReadOffloadIndexLatency(topic).getCount() > 0);
     }
 
     @Test

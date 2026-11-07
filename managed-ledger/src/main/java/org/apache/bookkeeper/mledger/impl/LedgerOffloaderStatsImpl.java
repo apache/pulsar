@@ -19,10 +19,11 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import com.google.common.annotations.VisibleForTesting;
-import io.prometheus.client.CollectorRegistry;
-import io.prometheus.client.Counter;
-import io.prometheus.client.Gauge;
-import io.prometheus.client.Summary;
+import io.prometheus.metrics.core.datapoints.DistributionDataPoint;
+import io.prometheus.metrics.core.metrics.Counter;
+import io.prometheus.metrics.core.metrics.Gauge;
+import io.prometheus.metrics.core.metrics.Summary;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -44,6 +45,8 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
     private static final String STATUS = "status";
     private static final String SUCCEED = "succeed";
     private static final String FAILED = "failed";
+    /** simpleclient's default sliding window for summary quantiles; the 1.x default is 5 minutes. */
+    private static final long QUANTILE_WINDOW_SECONDS = TimeUnit.MINUTES.toSeconds(10);
 
     private final boolean exposeTopicLevelMetrics;
     private final int interval;
@@ -78,44 +81,39 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
         String[] labels = exposeTopicLevelMetrics
                 ? new String[]{NAMESPACE_LABEL, TOPIC_LABEL} : new String[]{NAMESPACE_LABEL};
 
-        this.offloadError = Counter.build("brk_ledgeroffloader_offload_error", "-")
-                .labelNames(labels).create().register();
-        this.offloadRate = Gauge.build("brk_ledgeroffloader_offload_rate", "-")
-                .labelNames(labels).create().register();
+        this.offloadError = Counter.builder().name("brk_ledgeroffloader_offload_error").help("-")
+                .labelNames(labels).register();
+        this.offloadRate = Gauge.builder().name("brk_ledgeroffloader_offload_rate").help("-")
+                .labelNames(labels).register();
 
-        this.readOffloadError = Counter.build("brk_ledgeroffloader_read_offload_error", "-")
-                .labelNames(labels).create().register();
-        this.readOffloadRate = Gauge.build("brk_ledgeroffloader_read_offload_rate", "-")
-                .labelNames(labels).create().register();
-         this.readOffloadBytes = Counter.build("brk_ledgeroffloader_read_bytes", "-")
-                 .labelNames(labels).create().register();
-        this.writeStorageError = Counter.build("brk_ledgeroffloader_write_storage_error", "-")
-                .labelNames(labels).create().register();
+        this.readOffloadError = Counter.builder().name("brk_ledgeroffloader_read_offload_error").help("-")
+                .labelNames(labels).register();
+        this.readOffloadRate = Gauge.builder().name("brk_ledgeroffloader_read_offload_rate").help("-")
+                .labelNames(labels).register();
+        this.readOffloadBytes = Counter.builder().name("brk_ledgeroffloader_read_bytes").help("-")
+                .labelNames(labels).register();
+        this.writeStorageError = Counter.builder().name("brk_ledgeroffloader_write_storage_error").help("-")
+                .labelNames(labels).register();
 
-        this.readOffloadIndexLatency = Summary.build("brk_ledgeroffloader_read_offload_index_latency", "-")
-                .labelNames(labels).quantile(0.50, 0.01)
-                .quantile(0.95, 0.01)
-                .quantile(0.99, 0.01)
-                .quantile(1, 0.01)
-                .create().register();
-        this.readOffloadDataLatency = Summary.build("brk_ledgeroffloader_read_offload_data_latency", "-")
+        this.readOffloadIndexLatency = latencySummary("brk_ledgeroffloader_read_offload_index_latency", labels);
+        this.readOffloadDataLatency = latencySummary("brk_ledgeroffloader_read_offload_data_latency", labels);
+        this.readLedgerLatency = latencySummary("brk_ledgeroffloader_read_ledger_latency", labels);
+
+        String[] deleteOpsLabels = exposeTopicLevelMetrics
+                ? new String[]{NAMESPACE_LABEL, TOPIC_LABEL, STATUS} : new String[]{NAMESPACE_LABEL, STATUS};
+        this.deleteOffloadOps = Counter.builder().name("brk_ledgeroffloader_delete_offload_ops").help("-")
+                .labelNames(deleteOpsLabels).register();
+    }
+
+    private static Summary latencySummary(String name, String[] labels) {
+        return Summary.builder().name(name).help("-")
                 .labelNames(labels)
                 .quantile(0.50, 0.01)
                 .quantile(0.95, 0.01)
                 .quantile(0.99, 0.01)
                 .quantile(1, 0.01)
-                .create().register();
-        this.readLedgerLatency = Summary.build("brk_ledgeroffloader_read_ledger_latency", "-")
-                .labelNames(labels).quantile(0.50, 0.01)
-                .quantile(0.95, 0.01)
-                .quantile(0.99, 0.01)
-                .quantile(1, 0.01)
-                .create().register();
-
-        String[] deleteOpsLabels = exposeTopicLevelMetrics
-                ? new String[]{NAMESPACE_LABEL, TOPIC_LABEL, STATUS} : new String[]{NAMESPACE_LABEL, STATUS};
-        this.deleteOffloadOps = Counter.build("brk_ledgeroffloader_delete_offload_ops", "-")
-                .labelNames(deleteOpsLabels).create().register();
+                .maxAgeSeconds(QUANTILE_WINDOW_SECONDS)
+                .register();
     }
 
 
@@ -132,7 +130,7 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
     @Override
     public void recordOffloadError(String topic) {
         String[] labelValues = this.labelValues(topic);
-        this.offloadError.labels(labelValues).inc();
+        this.offloadError.labelValues(labelValues).inc();
         this.addOrUpdateTopicAccess(topic);
     }
 
@@ -148,21 +146,21 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
     @Override
     public void recordReadLedgerLatency(String topic, long latency, TimeUnit unit) {
         String[] labelValues = this.labelValues(topic);
-        this.readLedgerLatency.labels(labelValues).observe(unit.toMicros(latency));
+        this.readLedgerLatency.labelValues(labelValues).observe(unit.toMicros(latency));
         this.addOrUpdateTopicAccess(topic);
     }
 
     @Override
     public void recordWriteToStorageError(String topic) {
         String[] labelValues = this.labelValues(topic);
-        this.writeStorageError.labels(labelValues).inc();
+        this.writeStorageError.labelValues(labelValues).inc();
         this.addOrUpdateTopicAccess(topic);
     }
 
     @Override
     public void recordReadOffloadError(String topic) {
         String[] labelValues = this.labelValues(topic);
-        this.readOffloadError.labels(labelValues).inc();
+        this.readOffloadError.labelValues(labelValues).inc();
         this.addOrUpdateTopicAccess(topic);
     }
 
@@ -173,21 +171,21 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
                 .computeIfAbsent(topic, __ -> new ImmutablePair<>(new LongAdder(), new LongAdder()));
         pair.getRight().add(size);
         String[] labelValues = this.labelValues(topic);
-        this.readOffloadBytes.labels(labelValues).inc(size);
+        this.readOffloadBytes.labelValues(labelValues).inc(size);
         this.addOrUpdateTopicAccess(topic);
     }
 
     @Override
     public void recordReadOffloadIndexLatency(String topic, long latency, TimeUnit unit) {
         String[] labelValues = this.labelValues(topic);
-        this.readOffloadIndexLatency.labels(labelValues).observe(unit.toMicros(latency));
+        this.readOffloadIndexLatency.labelValues(labelValues).observe(unit.toMicros(latency));
         this.addOrUpdateTopicAccess(topic);
     }
 
     @Override
     public void recordReadOffloadDataLatency(String topic, long latency, TimeUnit unit) {
         String[] labelValues = this.labelValues(topic);
-        this.readOffloadDataLatency.labels(labelValues).observe(unit.toMicros(latency));
+        this.readOffloadDataLatency.labelValues(labelValues).observe(unit.toMicros(latency));
         this.addOrUpdateTopicAccess(topic);
     }
 
@@ -195,7 +193,7 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
     public void recordDeleteOffloadOps(String topic, boolean succeed) {
         String status = succeed ? SUCCEED : FAILED;
         String[] labelValues = this.labelValues(topic, status);
-        this.deleteOffloadOps.labels(labelValues).inc();
+        this.deleteOffloadOps.labelValues(labelValues).inc();
         this.addOrUpdateTopicAccess(topic);
     }
 
@@ -270,24 +268,24 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
             long offloadBytes = pair.getLeft().sumThenReset();
             long readOffloadBytes = pair.getRight().sumThenReset();
 
-            this.offloadRate.labels(labelValues).set(offloadBytes / interval);
-            this.readOffloadRate.labels(labelValues).set(readOffloadBytes / interval);
+            this.offloadRate.labelValues(labelValues).set(offloadBytes / interval);
+            this.readOffloadRate.labelValues(labelValues).set(readOffloadBytes / interval);
         });
     }
 
     @Override
     public synchronized void close() throws Exception {
         if (instance == this && this.closed.compareAndSet(false, true)) {
-            CollectorRegistry.defaultRegistry.unregister(this.offloadError);
-            CollectorRegistry.defaultRegistry.unregister(this.offloadRate);
-            CollectorRegistry.defaultRegistry.unregister(this.readLedgerLatency);
-            CollectorRegistry.defaultRegistry.unregister(this.writeStorageError);
-            CollectorRegistry.defaultRegistry.unregister(this.readOffloadError);
-            CollectorRegistry.defaultRegistry.unregister(this.readOffloadBytes);
-            CollectorRegistry.defaultRegistry.unregister(this.readOffloadRate);
-            CollectorRegistry.defaultRegistry.unregister(this.readOffloadIndexLatency);
-            CollectorRegistry.defaultRegistry.unregister(this.readOffloadDataLatency);
-            CollectorRegistry.defaultRegistry.unregister(this.deleteOffloadOps);
+            PrometheusRegistry.defaultRegistry.unregister(this.offloadError);
+            PrometheusRegistry.defaultRegistry.unregister(this.offloadRate);
+            PrometheusRegistry.defaultRegistry.unregister(this.readLedgerLatency);
+            PrometheusRegistry.defaultRegistry.unregister(this.writeStorageError);
+            PrometheusRegistry.defaultRegistry.unregister(this.readOffloadError);
+            PrometheusRegistry.defaultRegistry.unregister(this.readOffloadBytes);
+            PrometheusRegistry.defaultRegistry.unregister(this.readOffloadRate);
+            PrometheusRegistry.defaultRegistry.unregister(this.readOffloadIndexLatency);
+            PrometheusRegistry.defaultRegistry.unregister(this.readOffloadDataLatency);
+            PrometheusRegistry.defaultRegistry.unregister(this.deleteOffloadOps);
             instance = null;
         }
     }
@@ -313,19 +311,19 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
     @VisibleForTesting
     public long getOffloadError(String topic) {
         String[] labels = this.labelValues(topic);
-        return (long) this.offloadError.labels(labels).get();
+        return this.offloadError.labelValues(labels).getLongValue();
     }
 
     @VisibleForTesting
     public long getWriteStorageError(String topic) {
         String[] labels = this.labelValues(topic);
-        return (long) this.writeStorageError.labels(labels).get();
+        return this.writeStorageError.labelValues(labels).getLongValue();
     }
 
     @VisibleForTesting
     public long getReadOffloadError(String topic) {
         String[] labels = this.labelValues(topic);
-        return (long) this.readOffloadError.labels(labels).get();
+        return this.readOffloadError.labelValues(labels).getLongValue();
     }
 
     @VisibleForTesting
@@ -347,20 +345,20 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
     }
 
     @VisibleForTesting
-    public Summary.Child.Value getReadLedgerLatency(String topic) {
+    public DistributionDataPoint getReadLedgerLatency(String topic) {
         String[] labels = this.labelValues(topic);
-        return this.readLedgerLatency.labels(labels).get();
+        return this.readLedgerLatency.labelValues(labels);
     }
 
     @VisibleForTesting
-    public Summary.Child.Value getReadOffloadIndexLatency(String topic) {
+    public DistributionDataPoint getReadOffloadIndexLatency(String topic) {
         String[] labels = this.labelValues(topic);
-        return this.readOffloadIndexLatency.labels(labels).get();
+        return this.readOffloadIndexLatency.labelValues(labels);
     }
 
     @VisibleForTesting
-    public Summary.Child.Value getReadOffloadDataLatency(String topic) {
+    public DistributionDataPoint getReadOffloadDataLatency(String topic) {
         String[] labels = this.labelValues(topic);
-        return this.readOffloadDataLatency.labels(labels).get();
+        return this.readOffloadDataLatency.labelValues(labels);
     }
 }

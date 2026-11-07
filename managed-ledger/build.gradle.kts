@@ -32,7 +32,7 @@ dependencies {
     implementation(libs.roaringbitmap)
     implementation(libs.jctools.core.jdk11)
     api(libs.slog)
-    api(libs.simpleclient)
+    api(libs.prometheus.metrics.core)
     api(libs.commons.lang3)
 
     testImplementation(project(":testmocks"))
