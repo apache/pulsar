@@ -228,13 +228,15 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
         setMaxConsumers(timedOutTopic, 5).get(30, TimeUnit.SECONDS);
 
         // The first update must still be waiting when another one reports the stall, however slow the host, so it
-        // gets a timeout longer than the test; only the update that is to report the stall gets the short one. The
-        // wait takes the timeout in force when it starts, so the write is held and released by hand: the update has
-        // registered its wait, under the long timeout, when release() returns.
+        // gets a timeout longer than the test; only the update that is to report the stall gets the short one. A
+        // wait takes the timeout in force when it is registered, so the service itself is asked whether the wait
+        // exists before the timeout is shortened; nothing short of that answers it, not even the write's result.
         stallReaders(KEEP_WAITING_TIMEOUT_SECONDS);
-        final HeldWrite waitingWrite = service.holdNextWrite();
         final CompletableFuture<Void> waiting = setMaxConsumers(otherTopic, 8);
-        waitingWrite.release();
+        Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() ->
+                assertThat(service.pendingReadBackWaits(NamespaceName.get(NAMESPACE)))
+                        .describedAs("the update must have registered its wait for the read-back")
+                        .isEqualTo(1));
         // Queued behind that wait in the per-topic sequencer: it writes its event only once the wait is over.
         final CompletableFuture<Void> queuedBehindWaiting = setMaxConsumers(otherTopic, 9);
         assertThat(waiting)
@@ -334,6 +336,50 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
                         + " __change_events no longer holds, since nothing could remove it again")
                 .succeedsWithin(Duration.ofSeconds(30))
                 .isEqualTo(Optional.empty());
+    }
+
+    @Test(timeOut = 60_000)
+    public void testUnloadBeforeReaderCreationLeavesNoReaderForTheNextInitialization() throws Exception {
+        final TopicName topicName = newTopic();
+        final NamespaceName namespace = NamespaceName.get(NAMESPACE);
+        setMaxConsumers(topicName, 5).get(30, TimeUnit.SECONDS);
+        final List<StallableReader> readersBefore = service.readers();
+
+        // A namespace unload lands on the next initialization after it is installed and before its reader exists.
+        // An initialization that is dropped at that point must not leave the reader it then creates for the next
+        // initialization to inherit: that reader would be past the events it consumed before it found itself
+        // superseded, and the next initialization would miss their policies. The read that starts the interrupted
+        // initialization may fail, as a read that races an unload does; the read after it must see every policy.
+        admin.namespaces().unload(NAMESPACE);
+        Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() ->
+                assertThat(service.getPoliciesCacheInit(namespace))
+                        .describedAs("the unload must have torn the namespace's policy state down")
+                        .isNull());
+        service.unloadBeforeNextReaderIsCreated(namespace);
+        final CompletableFuture<Optional<TopicPolicies>> readDuringUnload =
+                service.getTopicPoliciesAsync(topicName, TopicPoliciesService.GetType.LOCAL_ONLY);
+        Awaitility.await().atMost(Duration.ofSeconds(30)).until(readDuringUnload::isDone);
+        assertThat(service.unloadBeforeNextReaderIsCreatedStillArmed())
+                .describedAs("the initialization created no reader, so the unload was not injected where it belongs")
+                .isFalse();
+
+        assertThat(TopicPolicyTestUtils.getLocalTopicPolicies(service, topicName).getMaxConsumerPerTopic())
+                .describedAs("the initialization after the unload must read __change_events from the start and"
+                        + " find the policy written before it")
+                .isEqualTo(5);
+        final CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> cachedReader =
+                service.getReaderCaches().get(namespace);
+        assertThat(cachedReader).describedAs("the retry's reader must be cached").isNotNull();
+        final List<StallableReader> readersCreatedSince = service.readers();
+        readersCreatedSince.removeAll(readersBefore);
+        assertThat(readersCreatedSince)
+                .describedAs("the interrupted initialization's reader and the retry's reader")
+                .hasSizeGreaterThanOrEqualTo(2);
+        readersCreatedSince.remove(cachedReader.get(30, TimeUnit.SECONDS));
+        Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> assertThat(readersCreatedSince)
+                .describedAs("every reader but the retry's, that of the initialization the unload dropped among them,"
+                        + " must be closed, not handed on")
+                .allMatch(StallableReader::isClosed));
     }
 
     @Test(timeOut = 120_000)
@@ -531,6 +577,7 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
 
         private final List<StallableReader> readers = new CopyOnWriteArrayList<>();
         private final AtomicReference<HeldWrite> nextWriteHold = new AtomicReference<>();
+        private final AtomicReference<NamespaceName> unloadBeforeNextReader = new AtomicReference<>();
         /** The factory the service takes its writers from; its writers consult {@link #nextWriteHold}. */
         private final NamespaceEventsSystemTopicFactory systemTopicFactory;
 
@@ -542,11 +589,26 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
         @Override
         protected CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> createSystemTopicClient(
                 NamespaceName namespace) {
+            if (unloadBeforeNextReader.compareAndSet(namespace, null)) {
+                // The namespace unload's teardown, landing after the initialization was installed and before its
+                // reader exists: what removeOwnedNamespaceBundleAsync runs for the last bundle of the namespace.
+                cleanPoliciesCacheInitMap(namespace);
+            }
             return super.createSystemTopicClient(namespace).thenApply(reader -> {
                 final StallableReader stallable = new StallableReader(reader);
                 readers.add(stallable);
                 return stallable;
             });
+        }
+
+        /** Runs the namespace's unload teardown on the thread that next creates a reader for it, just before. */
+        void unloadBeforeNextReaderIsCreated(NamespaceName namespace) {
+            assertThat(unloadBeforeNextReader.compareAndSet(null, namespace))
+                    .describedAs("an unload is already armed").isTrue();
+        }
+
+        boolean unloadBeforeNextReaderIsCreatedStillArmed() {
+            return unloadBeforeNextReader.get() != null;
         }
 
         @Override
@@ -622,8 +684,8 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
 
         /**
          * Hands the service the message ID of the held write, once the service has made the write and the write is
-         * done, so that the service continues on the calling thread and has started its wait for the read-back when
-         * this returns.
+         * done. The service's wait for the read-back follows on this thread or on the service's own, so this is no
+         * signal that the wait exists; {@code pendingReadBackWaits} is.
          */
         void release() throws Exception {
             written.get(30, TimeUnit.SECONDS);

@@ -575,6 +575,15 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             pendingFutures.get(partitionIndex).add(new PendingMessageFuture(messageId, future));
         }
 
+        /** How many read-back waits are registered and not yet completed. */
+        synchronized int pendingCount() {
+            int count = 0;
+            for (PriorityQueue<PendingMessageFuture> pq : pendingFutures) {
+                count += pq.size();
+            }
+            return count;
+        }
+
         @Override
         public synchronized void close() {
             if (!closed) {
@@ -1505,6 +1514,13 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     @VisibleForTesting
     public CompletableFuture<Void> getPoliciesCacheInit(NamespaceName namespaceName) {
         return policyCacheInitMap.get(namespaceName);
+    }
+
+    /** The topic policy updates of {@code namespace} that are waiting for the reader to read their event back. */
+    @VisibleForTesting
+    int pendingReadBackWaits(NamespaceName namespace) {
+        TopicPolicyMessageHandlerTracker tracker = topicPolicyMessageHandlerTrackers.get(namespace);
+        return tracker == null ? 0 : tracker.pendingCount();
     }
 
     @Deprecated
