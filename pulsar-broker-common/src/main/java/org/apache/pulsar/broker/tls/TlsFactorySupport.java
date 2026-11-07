@@ -28,6 +28,7 @@ import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
@@ -35,10 +36,13 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Supplier;
 import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
+import org.apache.pulsar.common.tls.TlsClientAuthMode;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.tls.JcaProviders;
 import org.apache.pulsar.tls.PulsarTlsFactory;
 import org.apache.pulsar.tls.TlsFactoryInitContext;
+import org.apache.pulsar.tls.TlsPolicy;
 
 /**
  * Shared scaffolding for wiring a server component onto the PIP-478 {@link PulsarTlsFactory} SPI, which
@@ -66,6 +70,88 @@ public final class TlsFactorySupport {
     public static final String DEFAULT_FACTORY = "default";
 
     private TlsFactorySupport() {
+    }
+
+    /**
+     * Resolve a server component's effective {@link TlsClientAuthMode} from its configuration; see
+     * {@link TlsClientAuthMode#resolve}. TLS client-certificate authentication counts as enabled when
+     * authentication is enabled and an {@link AuthenticationProviderTls} (or a subclass) is among the
+     * authentication providers. A custom provider that reads client certificates otherwise needs an explicit
+     * {@code tlsClientAuthMode}.
+     *
+     * @param configured                        the configured {@code tlsClientAuthMode}, or {@code null}
+     * @param requireTrustedClientCertOnConnect the deprecated {@code tlsRequireTrustedClientCertOnConnect} setting
+     * @param authenticationEnabled             the {@code authenticationEnabled} setting
+     * @param authenticationProviders           the {@code authenticationProviders} class names
+     * @return the effective mode
+     * @throws IllegalArgumentException if the settings conflict
+     */
+    public static TlsClientAuthMode resolveClientAuthMode(TlsClientAuthMode configured,
+                                                          boolean requireTrustedClientCertOnConnect,
+                                                          boolean authenticationEnabled,
+                                                          Set<String> authenticationProviders) {
+        boolean clientCertAuthenticationEnabled = authenticationEnabled && authenticationProviders != null
+                && authenticationProviders.stream().anyMatch(TlsFactorySupport::isTlsAuthenticationProvider);
+        return TlsClientAuthMode.resolve(configured, requireTrustedClientCertOnConnect,
+                clientCertAuthenticationEnabled);
+    }
+
+    /**
+     * The trust certificates file for a server-role policy in PEM format. A server's trust anchors only validate
+     * client certificates, so {@code tlsClientAuthTrustCertsFilePath} replaces {@code tlsTrustCertsFilePath} when
+     * set; the outbound policies keep using the general setting.
+     *
+     * @param clientAuthTrustCertsFilePath the {@code tlsClientAuthTrustCertsFilePath} setting
+     * @param trustCertsFilePath           the {@code tlsTrustCertsFilePath} setting
+     * @return the trust certificates file the server validates client certificates against
+     */
+    public static String serverTrustCertsFilePath(String clientAuthTrustCertsFilePath, String trustCertsFilePath) {
+        return StringUtils.isNotBlank(clientAuthTrustCertsFilePath) ? clientAuthTrustCertsFilePath
+                : trustCertsFilePath;
+    }
+
+    /**
+     * Set the trust store of a server-role policy in keystore format. As with
+     * {@link #serverTrustCertsFilePath}, {@code tlsClientAuthTrustStore} replaces {@code tlsTrustStore} when set,
+     * together with its password; its type falls back to {@code tlsTrustStoreType} when blank.
+     *
+     * @param builder                     the server policy builder
+     * @param clientAuthTrustStore        the {@code tlsClientAuthTrustStore} setting
+     * @param clientAuthTrustStoreType    the {@code tlsClientAuthTrustStoreType} setting
+     * @param clientAuthTrustStorePassword the {@code tlsClientAuthTrustStorePassword} setting
+     * @param trustStore                  the {@code tlsTrustStore} setting
+     * @param trustStoreType              the {@code tlsTrustStoreType} setting
+     * @param trustStorePassword          the {@code tlsTrustStorePassword} setting
+     * @return the builder
+     */
+    public static TlsPolicy.Builder applyServerTrustStore(TlsPolicy.Builder builder, String clientAuthTrustStore,
+                                                          String clientAuthTrustStoreType,
+                                                          String clientAuthTrustStorePassword, String trustStore,
+                                                          String trustStoreType, String trustStorePassword) {
+        if (StringUtils.isNotBlank(clientAuthTrustStore)) {
+            return builder.trustStorePath(clientAuthTrustStore)
+                    .trustStoreType(StringUtils.isNotBlank(clientAuthTrustStoreType) ? clientAuthTrustStoreType
+                            : trustStoreType)
+                    .trustStorePassword(clientAuthTrustStorePassword);
+        }
+        return builder.trustStorePath(trustStore).trustStoreType(trustStoreType).trustStorePassword(trustStorePassword);
+    }
+
+    private static boolean isTlsAuthenticationProvider(String className) {
+        if (StringUtils.isBlank(className)) {
+            return false;
+        }
+        String name = className.trim();
+        if (AuthenticationProviderTls.class.getName().equals(name)) {
+            return true;
+        }
+        try {
+            // Loaded like AuthenticationService loads the providers, to recognize a subclass.
+            return AuthenticationProviderTls.class.isAssignableFrom(Class.forName(name));
+        } catch (ClassNotFoundException | LinkageError e) {
+            // AuthenticationService reports the unloadable provider when it starts.
+            return false;
+        }
     }
 
     /**

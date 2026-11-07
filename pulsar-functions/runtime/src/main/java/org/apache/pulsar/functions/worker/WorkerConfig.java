@@ -45,6 +45,7 @@ import lombok.ToString;
 import lombok.experimental.Accessors;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
+import org.apache.pulsar.broker.tls.TlsFactorySupport;
 import org.apache.pulsar.common.configuration.Category;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
@@ -52,6 +53,7 @@ import org.apache.pulsar.common.functions.MemoryLimit;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.sasl.SaslConstants;
+import org.apache.pulsar.common.tls.TlsClientAuthMode;
 import org.apache.pulsar.functions.auth.KubernetesSecretsTokenAuthProvider;
 import org.apache.pulsar.functions.instance.state.BKStateStoreProviderImpl;
 import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactory;
@@ -512,9 +514,39 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     private boolean tlsAllowInsecureConnection = false;
     @FieldContext(
         category = CATEGORY_WORKER_SECURITY,
-        doc = "Require trusted client cert on connect"
+        deprecated = true,
+        doc = "Deprecated: use tlsClientAuthMode=REQUIRE instead. Whether a trusted client certificate "
+            + "is required; the connection is rejected if the client certificate is missing or not "
+            + "trusted. Setting it to true together with tlsClientAuthMode=NONE or OPTIONAL is a "
+            + "configuration error."
     )
+    @Deprecated
     private boolean tlsRequireTrustedClientCertOnConnect = false;
+    @FieldContext(
+        category = CATEGORY_WORKER_SECURITY,
+        doc = "Whether the TLS listeners ask connecting clients for a certificate (TLS client "
+            + "authentication): NONE does not request one, OPTIONAL requests one and accepts a "
+            + "connection without it (a presented certificate must be trusted), REQUIRE requires a "
+            + "trusted certificate.\n\n"
+            + "When unset, it is REQUIRE if the deprecated tlsRequireTrustedClientCertOnConnect is "
+            + "true, OPTIONAL if authentication is enabled with AuthenticationProviderTls among the "
+            + "authenticationProviders, and NONE otherwise. A custom authentication provider that reads "
+            + "the client certificate needs OPTIONAL or REQUIRE.\n\n"
+            + "Requesting a certificate sends the names of all client-auth trust anchors to every "
+            + "client. With a large trust store, such as an operating system CA bundle, the TLS 1.3 "
+            + "handshake then spans several TLS records, which some clients fail to handle."
+    )
+    private TlsClientAuthMode tlsClientAuthMode = null;
+    @FieldContext(
+        category = CATEGORY_WORKER_SECURITY,
+        doc = "Path for the trusted CA certificates that client certificates are validated against (TLS "
+            + "client authentication). When set, it replaces tlsTrustCertsFilePath for the TLS "
+            + "listeners, while outbound connections that use tlsTrustCertsFilePath keep using it.\n\n"
+            + "List only the CAs that issue your client certificates, usually a private CA: the "
+            + "CertificateRequest names every CA in this file, and public CAs stop issuing certificates "
+            + "for client authentication (the clientAuth extended key usage) during 2026 and 2027."
+    )
+    private String tlsClientAuthTrustCertsFilePath = null;
     @FieldContext(
         category = CATEGORY_CLIENT_SECURITY,
         doc = "Whether to enable TLS when clients connect to broker",
@@ -673,6 +705,24 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     )
     @ToString.Exclude
     private String tlsTrustStorePassword = null;
+    @FieldContext(
+        category = CATEGORY_KEYSTORE_TLS,
+        doc = "TLS TrustStore path holding the CAs that client certificates are validated against. When "
+            + "set, it replaces tlsTrustStore for the TLS listeners; see "
+            + "tlsClientAuthTrustCertsFilePath."
+    )
+    private String tlsClientAuthTrustStore = null;
+    @FieldContext(
+        category = CATEGORY_KEYSTORE_TLS,
+        doc = "TLS TrustStore type of tlsClientAuthTrustStore. When blank, tlsTrustStoreType is used."
+    )
+    private String tlsClientAuthTrustStoreType = null;
+    @FieldContext(
+        category = CATEGORY_KEYSTORE_TLS,
+        doc = "TLS TrustStore password of tlsClientAuthTrustStore, null means empty password."
+    )
+    @ToString.Exclude
+    private String tlsClientAuthTrustStorePassword = null;
 
     @FieldContext(
             category = CATEGORY_WORKER_SECURITY,
@@ -1103,5 +1153,19 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
 
     public boolean isMetadataStoreAllowReadOnlyOperations() {
         return zooKeeperAllowReadOnlyOperations || metadataStoreAllowReadOnlyOperations;
+    }
+
+    /**
+     * The effective TLS client-auth mode of the TLS listeners, resolved from {@code tlsClientAuthMode}, the
+     * deprecated {@code tlsRequireTrustedClientCertOnConnect} and the authentication settings; see
+     * {@link TlsFactorySupport#resolveClientAuthMode}.
+     *
+     * @return the effective mode
+     * @throws IllegalArgumentException if the settings conflict
+     */
+    @SuppressWarnings("deprecation")
+    public TlsClientAuthMode resolveTlsClientAuthMode() {
+        return TlsFactorySupport.resolveClientAuthMode(tlsClientAuthMode, tlsRequireTrustedClientCertOnConnect,
+                authenticationEnabled, authenticationProviders);
     }
 }

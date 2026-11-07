@@ -23,11 +23,16 @@ import io.netty.handler.ssl.OpenSsl;
 import io.netty.handler.ssl.SslProvider;
 import io.opentelemetry.api.OpenTelemetry;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
+import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
+import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
+import org.apache.pulsar.common.tls.TlsClientAuthMode;
 import org.apache.pulsar.tls.PulsarTlsFactory;
 import org.apache.pulsar.tls.TlsFactoryInitContext;
 import org.apache.pulsar.tls.TlsHandle;
+import org.apache.pulsar.tls.TlsPolicy;
 import org.apache.pulsar.tls.TlsPurpose;
 import org.testng.annotations.Test;
 
@@ -141,5 +146,59 @@ public class TlsFactorySupportTest {
         @Override
         public void close() {
         }
+    }
+
+    @Test
+    public void resolveClientAuthModeDetectsTlsAuthenticationProvider() {
+        Set<String> tls = Set.of(AuthenticationProviderToken.class.getName(),
+                AuthenticationProviderTls.class.getName());
+        Set<String> tlsSubclass = Set.of(TlsSubclassProvider.class.getName());
+        Set<String> tokenOnly = Set.of(AuthenticationProviderToken.class.getName(), "com.example.Missing");
+        assertThat(TlsFactorySupport.resolveClientAuthMode(null, false, true, tls))
+                .isEqualTo(TlsClientAuthMode.OPTIONAL);
+        assertThat(TlsFactorySupport.resolveClientAuthMode(null, false, true, tlsSubclass))
+                .isEqualTo(TlsClientAuthMode.OPTIONAL);
+        assertThat(TlsFactorySupport.resolveClientAuthMode(null, false, true, tokenOnly))
+                .isEqualTo(TlsClientAuthMode.NONE);
+        assertThat(TlsFactorySupport.resolveClientAuthMode(null, false, false, tls))
+                .as("authentication disabled").isEqualTo(TlsClientAuthMode.NONE);
+        assertThat(TlsFactorySupport.resolveClientAuthMode(null, false, true, null))
+                .isEqualTo(TlsClientAuthMode.NONE);
+        assertThat(TlsFactorySupport.resolveClientAuthMode(null, true, false, Set.of()))
+                .isEqualTo(TlsClientAuthMode.REQUIRE);
+        assertThat(TlsFactorySupport.resolveClientAuthMode(TlsClientAuthMode.OPTIONAL, false, false, tokenOnly))
+                .isEqualTo(TlsClientAuthMode.OPTIONAL);
+    }
+
+    @Test
+    public void clientAuthTrustReplacesServerTrustWhenSet() {
+        assertThat(TlsFactorySupport.serverTrustCertsFilePath("/client-ca.pem", "/bundle.pem"))
+                .isEqualTo("/client-ca.pem");
+        assertThat(TlsFactorySupport.serverTrustCertsFilePath("", "/bundle.pem")).isEqualTo("/bundle.pem");
+        assertThat(TlsFactorySupport.serverTrustCertsFilePath(null, "/bundle.pem")).isEqualTo("/bundle.pem");
+
+        TlsPolicy override = TlsFactorySupport.applyServerTrustStore(keyStorePolicy(),
+                "/client-ca.p12", "", "secret", "/trust.jks", "JKS", "changeit").build();
+        assertThat(override.trustStorePath()).isEqualTo("/client-ca.p12");
+        assertThat(override.trustStoreType()).as("type falls back").isEqualTo("JKS");
+        assertThat(override.trustStorePassword()).isEqualTo("secret");
+
+        TlsPolicy typed = TlsFactorySupport.applyServerTrustStore(keyStorePolicy(),
+                "/client-ca.p12", "PKCS12", null, "/trust.jks", "JKS", "changeit").build();
+        assertThat(typed.trustStoreType()).isEqualTo("PKCS12");
+        assertThat(typed.trustStorePassword()).as("password does not fall back").isNull();
+
+        TlsPolicy fallback = TlsFactorySupport.applyServerTrustStore(keyStorePolicy(),
+                null, "PKCS12", "secret", "/trust.jks", "JKS", "changeit").build();
+        assertThat(fallback.trustStorePath()).isEqualTo("/trust.jks");
+        assertThat(fallback.trustStoreType()).isEqualTo("JKS");
+        assertThat(fallback.trustStorePassword()).isEqualTo("changeit");
+    }
+
+    private static TlsPolicy.Builder keyStorePolicy() {
+        return TlsPolicy.builder().format(TlsPolicy.Format.KEYSTORE).keyStorePath("/key.jks");
+    }
+
+    public static class TlsSubclassProvider extends AuthenticationProviderTls {
     }
 }

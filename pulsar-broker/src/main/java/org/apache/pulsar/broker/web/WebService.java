@@ -607,7 +607,7 @@ public class WebService implements AutoCloseable {
             TlsFactorySupport.initializeBlocking(this.tlsFactory, initContext);
             this.reloadableServerTls = JettyTlsFactory.createReloadingServerFactory(this.tlsFactory, TlsPurpose.WEB,
                     pulsar.getExecutor(),
-                    config.getWebServiceTlsProvider(), config.isTlsRequireTrustedClientCertOnConnect(),
+                    config.getWebServiceTlsProvider(), config.resolveTlsClientAuthMode(),
                     config.isTlsAllowInsecureConnection(), config.getTlsCiphers(), config.getTlsProtocols());
             return this.reloadableServerTls.sslContextFactory();
         } catch (Exception e) {
