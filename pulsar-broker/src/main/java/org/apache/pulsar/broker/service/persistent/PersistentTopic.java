@@ -39,6 +39,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -61,7 +62,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
-import java.util.function.ToLongFunction;
 import lombok.Getter;
 import lombok.Value;
 import org.apache.bookkeeper.client.BKException.BKNoSuchLedgerExistsException;
@@ -93,9 +93,9 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionBound;
 import org.apache.bookkeeper.mledger.PositionFactory;
-import org.apache.bookkeeper.mledger.impl.BacklogSizeSnapshot;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer.CursorInfo;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerBacklogSizeEstimator;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.util.Futures;
@@ -3451,15 +3451,28 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         });
 
         Map<String, CompletableFuture<SubscriptionStatsImpl>> subscriptionFutures = new HashMap<>();
-        ToLongFunction<Position> backlogSizeSnapshot = getStatsOptions.isSubscriptionBacklogSize()
-                && subscriptions.size() > 1 ? BacklogSizeSnapshot.create(ledger) : null;
-        subscriptions.forEach((name, subscription) -> {
+        Map<PersistentSubscription, Position> backlogPositions = Collections.emptyMap();
+        if (getStatsOptions.isSubscriptionBacklogSize() && subscriptions.size() > 1) {
+            // Capture positions before ledger metadata, and keep results tied to each subscription instance.
+            backlogPositions = new IdentityHashMap<>();
+            for (PersistentSubscription subscription : subscriptions.values()) {
+                if (subscription.getClass() == PersistentSubscription.class) {
+                    backlogPositions.put(subscription, subscription.getCursor().getMarkDeletedPosition());
+                }
+            }
+        }
+        Map<Position, Long> backlogSizes = backlogPositions.size() > 1
+                ? ManagedLedgerBacklogSizeEstimator.estimate(ledger, backlogPositions.values())
+                : Collections.emptyMap();
+        for (Map.Entry<String, PersistentSubscription> entry : subscriptions.entrySet()) {
+            PersistentSubscription subscription = entry.getValue();
+            Long backlogSize = backlogPositions.containsKey(subscription)
+                    ? backlogSizes.get(backlogPositions.get(subscription)) : null;
             // Keep invoking the public method for subclasses that may override the stats calculation.
-            subscriptionFutures.put(name, backlogSizeSnapshot != null
-                    && subscription.getClass() == PersistentSubscription.class
-                    ? subscription.getStatsAsync(getStatsOptions, backlogSizeSnapshot)
+            subscriptionFutures.put(entry.getKey(), backlogSize != null
+                    ? subscription.getStatsAsync(getStatsOptions, backlogSize)
                     : subscription.getStatsAsync(getStatsOptions));
-        });
+        }
 
         return lastPublishTimeFuture.thenCompose(ignore ->
             FutureUtil.waitForAll(subscriptionFutures.values()).thenCompose(ignore2 -> {

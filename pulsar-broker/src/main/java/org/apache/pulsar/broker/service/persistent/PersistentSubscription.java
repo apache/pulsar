@@ -35,7 +35,6 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
-import java.util.function.ToLongFunction;
 import java.util.stream.Collectors;
 import lombok.Getter;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -1512,7 +1511,7 @@ public class PersistentSubscription extends AbstractSubscription {
 
     @SuppressWarnings("deprecation")
     CompletableFuture<SubscriptionStatsImpl> getStatsAsync(GetStatsOptions getStatsOptions,
-                                                            ToLongFunction<Position> backlogSizeSnapshot) {
+                                                           Long backlogSize) {
         SubscriptionStatsImpl subStats = new SubscriptionStatsImpl();
         subStats.lastExpireTimestamp = lastExpireTimestamp;
         subStats.lastConsumedFlowTimestamp = lastConsumedFlowTimestamp;
@@ -1602,9 +1601,8 @@ public class PersistentSubscription extends AbstractSubscription {
         subStats.oldestBacklogMessageAgeSeconds =
                 topic.getBestEffortOldestUnacknowledgedMessageAgeSeconds(subName);
         if (getStatsOptions.isSubscriptionBacklogSize()) {
-            Position markDeletedPosition = cursor.getMarkDeletedPosition();
-            subStats.backlogSize = backlogSizeSnapshot != null ? backlogSizeSnapshot.applyAsLong(markDeletedPosition)
-                    : topic.getManagedLedger().getEstimatedBacklogSize(markDeletedPosition);
+            subStats.backlogSize = backlogSize != null ? backlogSize
+                    : topic.getManagedLedger().getEstimatedBacklogSize(cursor.getMarkDeletedPosition());
         } else {
             subStats.backlogSize = -1;
         }

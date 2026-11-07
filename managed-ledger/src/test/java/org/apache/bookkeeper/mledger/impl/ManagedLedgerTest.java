@@ -36,6 +36,7 @@ import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -98,7 +99,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
-import java.util.function.ToLongFunction;
 import lombok.Cleanup;
 import lombok.CustomLog;
 import lombok.Data;
@@ -5612,54 +5612,44 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     }
 
     @Test
-    public void testEstimatedBacklogSizeSnapshot() throws Exception {
+    public void testEstimatedBacklogSizes() throws Exception {
         ManagedLedgerConfig config = defaultConfig();
         initManagedLedgerConfig(config);
         config.setMaxEntriesPerLedger(3);
         config.setRetentionTime(-1, TimeUnit.SECONDS);
         config.setRetentionSizeInMB(-1);
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("backlogSnapshot", config);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("backlogBatch", config);
         List<Position> positions = new ArrayList<>();
         for (int i = 1; i <= 7; i++) {
             positions.add(ledger.addEntry(new byte[i]));
         }
 
-        ToLongFunction<Position> snapshot = BacklogSizeSnapshot.create(ledger);
-        assertEquals(snapshot.applyAsLong(null), 0);
-        assertEquals(snapshot.applyAsLong(PositionFactory.create(-1, -1)),
-                ledger.getEstimatedBacklogSize(PositionFactory.create(-1, -1)));
-        ExecutorService executor = Executors.newSingleThreadExecutor();
-        try {
-            long expected = ledger.getEstimatedBacklogSize(positions.get(0));
-            synchronized (ledger) {
-                assertEquals(CompletableFuture.supplyAsync(() -> snapshot.applyAsLong(positions.get(0)), executor)
-                        .get(5, TimeUnit.SECONDS).longValue(), expected);
-            }
-        } finally {
-            executor.shutdownNow();
-        }
-        for (Position pos : positions) {
-            for (long entryId : new long[]{-1, pos.getEntryId(), 100}) {
-                Position testPos = PositionFactory.create(pos.getLedgerId(), entryId);
-                assertEquals(snapshot.applyAsLong(testPos), ledger.getEstimatedBacklogSize(testPos));
+        List<Position> queries = new ArrayList<>();
+        queries.add(null);
+        queries.add(PositionFactory.create(-1, -1));
+        for (Position position : positions) {
+            for (long entryId : new long[]{-1, position.getEntryId(), 100}) {
+                queries.add(PositionFactory.create(position.getLedgerId(), entryId));
             }
         }
-        // A ledger ID absent from the snapshot uses the same insertion-point semantics as headMap.
-        long missingId = positions.get(0).getLedgerId() - 1;
-        Position missing = PositionFactory.create(missingId, 0);
-        assertEquals(snapshot.applyAsLong(missing), ledger.getEstimatedBacklogSize(missing));
+        // Missing ledger IDs retain the insertion-point semantics of the original headMap calculation.
+        queries.add(PositionFactory.create(positions.get(0).getLedgerId() - 1, 0));
+        Map<Position, Long> estimates = ManagedLedgerBacklogSizeEstimator.estimate(ledger, queries);
+        for (Position position : queries) {
+            assertEquals(estimates.get(position).longValue(), ledger.getEstimatedBacklogSize(position));
+        }
+        assertEquals(ManagedLedgerBacklogSizeEstimator.estimate(ledger, List.of(positions.get(0)))
+                .get(positions.get(0)).longValue(), ledger.getEstimatedBacklogSize(positions.get(0)));
+        assertTrue(ManagedLedgerBacklogSizeEstimator.estimate(ledger, List.of()).isEmpty());
 
         Position current = positions.get(6);
-        long oldEstimate = snapshot.applyAsLong(current);
-        Position appended = ledger.addEntry(new byte[8]);
-        assertEquals(snapshot.applyAsLong(current), oldEstimate);
+        long oldEstimate = estimates.get(current);
+        ledger.addEntry(new byte[8]);
+        assertEquals(estimates.get(current).longValue(), oldEstimate);
         assertEquals(ledger.getEstimatedBacklogSize(current), oldEstimate + 8);
-        assertEquals(snapshot.applyAsLong(appended), ledger.getEstimatedBacklogSize(appended));
         ledger.addEntry(new byte[9]);
         Position nextLedger = ledger.addEntry(new byte[10]);
         assertTrue(nextLedger.getLedgerId() > current.getLedgerId());
-        // Positions in a ledger created after the snapshot fall back to the live estimator.
-        assertEquals(snapshot.applyAsLong(nextLedger), ledger.getEstimatedBacklogSize(nextLedger));
 
         ledger.getConfig().setRetentionTime(0, TimeUnit.SECONDS);
         ledger.getConfig().setRetentionSizeInMB(0);
@@ -5669,19 +5659,92 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             trimmed.join();
             assertFalse(ledger.getLedgersInfo().containsKey(positions.get(0).getLedgerId()));
         });
-        // Existing positions retain the captured estimate even after the underlying ledgers are trimmed.
-        assertEquals(snapshot.applyAsLong(current), oldEstimate);
-        ToLongFunction<Position> afterTrim = BacklogSizeSnapshot.create(ledger);
-        for (Position pos : positions) {
-            assertEquals(afterTrim.applyAsLong(pos), ledger.getEstimatedBacklogSize(pos));
+        // A batch sampled after trimming can still contain positions from ledgers that were removed.
+        Map<Position, Long> afterTrim = ManagedLedgerBacklogSizeEstimator.estimate(ledger, queries);
+        for (Position position : queries) {
+            assertEquals(afterTrim.get(position).longValue(), ledger.getEstimatedBacklogSize(position));
         }
+        assertEquals(estimates.get(current).longValue(), oldEstimate);
+        ledger.close();
+    }
+
+    @Test
+    public void testEstimatedBacklogSizesCopiesOnlyQueriedPrefix() throws Exception {
+        ManagedLedgerConfig config = initManagedLedgerConfig(defaultConfig());
+        config.setMaxEntriesPerLedger(1);
+        config.setRetentionTime(-1, TimeUnit.SECONDS);
+        config.setRetentionSizeInMB(-1);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("backlogBatchPrefix", config);
+        List<Position> positions = new ArrayList<>();
+        for (int i = 0; i < 20; i++) {
+            positions.add(ledger.addEntry(new byte[10]));
+        }
+        Position first = positions.get(0);
+        List<Position> queries = List.of(first, PositionFactory.create(first.getLedgerId(), -1));
+        long lastLedgerId = positions.get(19).getLedgerId();
+        LedgerInfo original = ledger.getLedgersInfo().get(lastLedgerId);
+        LedgerInfo tail = spy(original);
+        ledger.getLedgersInfo().put(lastLedgerId, tail);
+        try {
+            Map<Position, Long> estimates = ManagedLedgerBacklogSizeEstimator.estimate(ledger, queries);
+            for (Position position : queries) {
+                assertEquals(estimates.get(position).longValue(), ledger.getEstimatedBacklogSize(position));
+            }
+            verify(tail, never()).getSize();
+            verify(tail, never()).getEntries();
+        } finally {
+            ledger.getLedgersInfo().put(lastLedgerId, original);
+            ledger.close();
+        }
+    }
+
+    @Test
+    public void testEstimatedBacklogSizesCalculatesOutsideMonitor() throws Exception {
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("backlogBatchMonitor",
+                initManagedLedgerConfig(defaultConfig()));
+        Position first = ledger.addEntry(new byte[10]);
+        ledger.addEntry(new byte[20]);
+        Position query = mock(Position.class);
+        when(query.getLedgerId()).thenReturn(first.getLedgerId());
+        doAnswer(invocation -> {
+            assertFalse(Thread.holdsLock(ledger));
+            return first.getEntryId();
+        }).when(query).getEntryId();
+        Map<Position, Long> estimates = ManagedLedgerBacklogSizeEstimator.estimate(ledger,
+                List.of(query, PositionFactory.create(first.getLedgerId(), -1)));
+        assertEquals(estimates.get(query).longValue(), ledger.getEstimatedBacklogSize(first));
+        verify(query).getEntryId();
+        ledger.close();
+    }
+
+    @Test
+    public void testEstimatedBacklogSizesAtEmptyLedgerAfterRollover() throws Exception {
+        ManagedLedgerConfig config = initManagedLedgerConfig(defaultConfig());
+        config.setMaxEntriesPerLedger(1);
+        config.setMinimumRolloverTime(0, TimeUnit.MILLISECONDS);
+        config.setRetentionTime(-1, TimeUnit.SECONDS);
+        config.setRetentionSizeInMB(-1);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("backlogBatchEmptyLedger", config);
+        Position confirmed = ledger.addEntry(new byte[10]);
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(ledger.currentLedger.getId() > confirmed.getLedgerId());
+            assertEquals(ledger.currentLedgerEntries, 0);
+        });
+        Position emptyLedger = PositionFactory.create(ledger.currentLedger.getId(), -1);
+        assertTrue(emptyLedger.compareTo(ledger.lastConfirmedEntry) > 0);
+        Map<Position, Long> estimates = ManagedLedgerBacklogSizeEstimator.estimate(ledger,
+                List.of(confirmed, emptyLedger));
+        assertEquals(estimates.get(emptyLedger).longValue(), 0);
+        assertEquals(estimates.get(emptyLedger).longValue(), ledger.getEstimatedBacklogSize(emptyLedger));
         ledger.close();
     }
 
     @Test(timeOut = 20000)
-    public void testBacklogSnapshotWithUnconfirmedAdd() throws Exception {
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("backlogSnapshotUnconfirmedAdd",
+    public void testEstimatedBacklogSizesWithUnconfirmedAdd() throws Exception {
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("backlogBatchUnconfirmedAdd",
                 initManagedLedgerConfig(defaultConfig()));
+        Position initial = PositionFactory.create(ledger.currentLedger.getId(), -1);
+        List<Position> queries = Arrays.asList(initial, null);
         CompletableFuture<Void> responseGate = bkc.addEntryResponseGate();
         CompletableFuture<Position> add = new CompletableFuture<>();
         try {
@@ -5696,18 +5759,22 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
                     add.completeExceptionally(exception);
                 }
             }, null);
-            // The live ledger counters include this add before its BookKeeper response is released,
-            // while the total size and last confirmed position do not.
+            // The positions are fixed before sampling metadata. A pending add can change the live
+            // counters without creating a future position that could be paired with the old total.
             Awaitility.await().untilAsserted(() -> {
                 assertEquals(ledger.getCurrentLedgerEntries(), 1);
                 assertEquals(ledger.getTotalSize(), 0);
                 assertFalse(add.isDone());
             });
-            ToLongFunction<Position> snapshot = BacklogSizeSnapshot.create(ledger);
+            Map<Position, Long> estimates = ManagedLedgerBacklogSizeEstimator.estimate(ledger, queries);
+            assertEquals(estimates.get(initial).longValue(), ledger.getEstimatedBacklogSize(initial));
             responseGate.complete(null);
             Position confirmed = add.get(5, TimeUnit.SECONDS);
-            assertEquals(ledger.getEstimatedBacklogSize(confirmed), 0);
-            assertEquals(snapshot.applyAsLong(confirmed), 0);
+            assertEquals(estimates.get(initial).longValue(), 0);
+            Map<Position, Long> afterAdd = ManagedLedgerBacklogSizeEstimator.estimate(ledger,
+                    List.of(initial, confirmed));
+            assertEquals(afterAdd.get(initial).longValue(), 100);
+            assertEquals(afterAdd.get(confirmed).longValue(), 0);
         } finally {
             responseGate.complete(null);
             ledger.close();
