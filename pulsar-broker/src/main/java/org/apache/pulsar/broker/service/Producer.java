@@ -401,10 +401,12 @@ public class Producer {
 
         // Check the close future to avoid grabbing the mutex every time the pending acks goes down to 0
         if (newPendingPublishAcks == 0 && !closeFuture.isDone()) {
+            boolean shouldCloseNow;
             synchronized (this) {
-                if (isClosed && !closeFuture.isDone()) {
-                    closeNow(true);
-                }
+                shouldCloseNow = isClosed && !closeFuture.isDone();
+            }
+            if (shouldCloseNow) {
+                closeNow(true);
             }
         }
     }
@@ -786,18 +788,23 @@ public class Producer {
      *
      * @return completable future indicate completion of close
      */
-    public synchronized CompletableFuture<Void> close(boolean removeFromTopic) {
-        log.debug().attr("isClosed", isClosed).log("Closing producer");
+    public CompletableFuture<Void> close(boolean removeFromTopic) {
+        boolean shouldCloseNow = false;
+        synchronized (this) {
+            log.debug().attr("isClosed", isClosed).log("Closing producer");
 
-        if (!isClosed) {
-            isClosed = true;
-            log.debug()
-                    .attr("isActive", cnx.isActive())
-                    .attr("pendingPublishAcks", pendingPublishAcks)
-                    .log("Trying to close producer");
-            if (!cnx.isActive() || pendingPublishAcks == 0) {
-                closeNow(removeFromTopic);
+            if (!isClosed) {
+                isClosed = true;
+                log.debug()
+                        .attr("isActive", cnx.isActive())
+                        .attr("pendingPublishAcks", pendingPublishAcks)
+                        .log("Trying to close producer");
+                shouldCloseNow = !cnx.isActive() || pendingPublishAcks == 0;
             }
+        }
+        // closeNow acquires the topic lock, so it must not be called with the monitor held
+        if (shouldCloseNow) {
+            closeNow(removeFromTopic);
         }
         return closeFuture;
     }
