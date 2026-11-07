@@ -56,6 +56,26 @@ import org.apache.pulsar.tests.integration.docker.ContainerExecResultBytes;
 @CustomLog
 public class DockerUtils {
 
+    /**
+     * The environment of the commands the tests run in a container. It replaces the container's PULSAR_EXTRA_OPTS and
+     * OPTS, which carry JVM options for its Pulsar service (Netty leak detection, a profiler or coverage agent), so
+     * that they don't interfere with the test.
+     *
+     * <p>The commands are mostly Pulsar tools (pulsar-admin, pulsar-client, pulsar-perf, bin/pulsar commands), which
+     * pass PULSAR_EXTRA_OPTS to their JVM. Such a JVM is short-lived and spends most of its time starting up, so it
+     * runs C1-only: C2 compilations cost CPU that rarely pays off before the JVM exits, which slows the tools down
+     * where CPUs are few, as on the CI runners.
+     */
+    private static final List<String> SHORT_LIVED_COMMAND_ENV =
+            List.of("PULSAR_EXTRA_OPTS=-XX:TieredStopAtLevel=1", "OPTS=");
+
+    /**
+     * Like {@link #SHORT_LIVED_COMMAND_ENV}, but with tiered compilation, for the commands that
+     * {@link #runCommandAsyncWithLogging} runs in the background, such as the profiling tests' pulsar-perf load
+     * generators, which run long enough for C2 to pay off.
+     */
+    private static final List<String> LONG_RUNNING_COMMAND_ENV = List.of("PULSAR_EXTRA_OPTS=", "OPTS=");
+
     private static File getTargetDirectory(String containerId) {
         String base = System.getProperty("buildDirectory");
         if (base == null) {
@@ -210,7 +230,7 @@ public class DockerUtils {
                                                                                DockerClient dockerClient,
                                                                                String containerId,
                                                                                String... cmd) {
-        String execId = createExecCreateCmd(dockerClient, containerId, cmd)
+        String execId = createExecCreateCmd(dockerClient, containerId, cmd, SHORT_LIVED_COMMAND_ENV)
                 .withUser(userId)
                 .exec()
                 .getId();
@@ -220,7 +240,7 @@ public class DockerUtils {
     public static CompletableFuture<ContainerExecResult> runCommandAsync(DockerClient dockerClient,
                                                                          String containerId,
                                                                          String... cmd) {
-        String execId = createExecCreateCmd(dockerClient, containerId, cmd)
+        String execId = createExecCreateCmd(dockerClient, containerId, cmd, SHORT_LIVED_COMMAND_ENV)
                 .exec()
                 .getId();
         return runCommandAsync(execId, dockerClient, containerId, cmd);
@@ -301,7 +321,7 @@ public class DockerUtils {
                                                                    String containerId,
                                                                    String... cmd) throws ContainerExecException {
         CompletableFuture<Boolean> future = new CompletableFuture<>();
-        String execId = createExecCreateCmd(dockerClient, containerId, cmd)
+        String execId = createExecCreateCmd(dockerClient, containerId, cmd, SHORT_LIVED_COMMAND_ENV)
                 .exec()
                 .getId();
         final String containerName = getContainerName(dockerClient, containerId);
@@ -367,7 +387,7 @@ public class DockerUtils {
     public static CompletableFuture<Long> runCommandAsyncWithLogging(DockerClient dockerClient,
                                                                         String containerId, String... cmd) {
         CompletableFuture<Long> future = new CompletableFuture<>();
-        String execId = createExecCreateCmd(dockerClient, containerId, cmd)
+        String execId = createExecCreateCmd(dockerClient, containerId, cmd, LONG_RUNNING_COMMAND_ENV)
                 .exec()
                 .getId();
         final String containerName = getContainerName(dockerClient, containerId);
@@ -412,13 +432,13 @@ public class DockerUtils {
         return future;
     }
 
-    private static ExecCreateCmd createExecCreateCmd(DockerClient dockerClient, String containerId, String[] cmd) {
+    private static ExecCreateCmd createExecCreateCmd(DockerClient dockerClient, String containerId, String[] cmd,
+                                                     List<String> env) {
         return dockerClient.execCreateCmd(containerId)
                 .withCmd(cmd)
                 .withAttachStderr(true)
                 .withAttachStdout(true)
-                // Clear out PULSAR_EXTRA_OPTS and OPTS so that they don't interfere with the test
-                .withEnv(List.of("PULSAR_EXTRA_OPTS=", "OPTS="));
+                .withEnv(env);
     }
 
     private static InspectExecResponse waitForExecCmdToFinish(DockerClient dockerClient, String execId) {

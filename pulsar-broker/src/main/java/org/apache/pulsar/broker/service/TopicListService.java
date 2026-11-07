@@ -31,6 +31,7 @@ import java.util.Set;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
@@ -61,7 +62,6 @@ import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiterUtil;
 import org.apache.pulsar.common.semaphore.AsyncSemaphore;
 import org.apache.pulsar.common.topics.TopicList;
 import org.apache.pulsar.common.topics.TopicsPattern;
-import org.apache.pulsar.common.topics.TopicsPatternFactory;
 import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
@@ -402,6 +402,7 @@ public class TopicListService {
     private final int maxSubscriptionPatternLength;
     private final int topicListUpdateMaxQueueSize;
     private final ConcurrentLongHashMap<WatcherFuture> watchers;
+    private final TopicsPatternCache topicsPatternCache;
     private final Backoff retryBackoff;
 
     public TopicListService(PulsarService pulsar, ServerCnx connection,
@@ -425,6 +426,7 @@ public class TopicListService {
                 .concurrencyLevel(1)
                 .build();
         this.topicResources = pulsar.getPulsarResources().getTopicResources();
+        this.topicsPatternCache = pulsar.getBrokerService().getTopicsPatternCache();
         this.retryBackoff = Backoff.builder()
                 .maxBackoff(Duration.ofSeconds(25))
                 .build();
@@ -510,20 +512,25 @@ public class TopicListService {
             return;
         }
 
-        TopicsPattern topicsPattern;
-        try {
-            topicsPattern = TopicsPatternFactory.create(topicsPatternString, topicsPatternRegexImplementation);
-        } catch (Exception e) {
-            log.warn()
-                    .attr("connection", connection)
-                    .attr("topicsPatternString", topicsPatternString)
-                    .attr("namespace", namespaceName)
-                    .log("Unable to create topic list watcher: Invalid pattern");
-            failWatchTopicListRequest(request, e);
-            connection.getCommandSender().sendErrorResponse(requestId, ServerError.InvalidTopicName,
-                    "Invalid topics pattern: " + e.getMessage());
-            lookupSemaphore.release();
-            return;
+        // Clients reconcile their watchers periodically with watch requests that have the watcher's id and pattern.
+        // Such a request reuses the pattern that the watcher was created with instead of compiling it again.
+        TopicsPattern topicsPattern = getCreatedWatcherTopicsPattern(
+                request != null ? request.watcherFuture() : watchers.get(watcherId), topicsPatternString);
+        if (topicsPattern == null) {
+            try {
+                topicsPattern = topicsPatternCache.get(topicsPatternString, topicsPatternRegexImplementation);
+            } catch (Exception e) {
+                log.warn()
+                        .attr("connection", connection)
+                        .attr("topicsPatternString", topicsPatternString)
+                        .attr("namespace", namespaceName)
+                        .log("Unable to create topic list watcher: Invalid pattern");
+                failWatchTopicListRequest(request, e);
+                connection.getCommandSender().sendErrorResponse(requestId, ServerError.InvalidTopicName,
+                        "Invalid topics pattern: " + e.getMessage());
+                lookupSemaphore.release();
+                return;
+            }
         }
 
         WatchTopicListRequest admitted = request == null ? beginWatchTopicListRequest(watcherId) : request;
@@ -638,6 +645,18 @@ public class TopicListService {
                     lookupSemaphore.release();
                     return null;
                 });
+    }
+
+    /**
+     * Returns the pattern of the created watcher when it's the same as the given pattern, otherwise null.
+     */
+    private static TopicsPattern getCreatedWatcherTopicsPattern(CompletableFuture<TopicListWatcher> watcherFuture,
+                                                                String topicsPatternString) {
+        if (watcherFuture == null || watcherFuture.state() != Future.State.SUCCESS) {
+            return null;
+        }
+        TopicsPattern topicsPattern = watcherFuture.resultNow().topicsPattern;
+        return topicsPattern.inputPattern().equals(topicsPatternString) ? topicsPattern : null;
     }
 
     /**

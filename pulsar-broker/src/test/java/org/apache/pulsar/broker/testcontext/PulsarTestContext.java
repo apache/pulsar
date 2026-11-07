@@ -348,6 +348,13 @@ public class PulsarTestContext implements AutoCloseable {
             if (svcConfig.getTopicLoadTimeoutSeconds() == unconfiguredDefaults.getTopicLoadTimeoutSeconds()) {
                 svcConfig.setTopicLoadTimeoutSeconds(10);
             }
+
+            // With batching, every metadata store operation waits for the store's next flush, which runs every
+            // metadataStoreBatchingMaxDelayMillis: a chain of operations, like an admin call's, waits for one flush
+            // per operation. A test that needs batching enables it with configOverride(...)
+            if (svcConfig.isMetadataStoreBatchingEnabled() == unconfiguredDefaults.isMetadataStoreBatchingEnabled()) {
+                svcConfig.setMetadataStoreBatchingEnabled(false);
+            }
         }
 
         /**

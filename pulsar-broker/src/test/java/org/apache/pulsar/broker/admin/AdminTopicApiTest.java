@@ -19,6 +19,8 @@
 package org.apache.pulsar.broker.admin;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertThrows;
@@ -46,6 +48,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.TopicDomain;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentTopicStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
@@ -192,6 +195,28 @@ public class AdminTopicApiTest extends SharedPulsarBaseTest {
             assertTrue(stats instanceof TopicStatsImpl);
         }
         assertTrue(stats.getSubscriptions().containsKey(subscriptionName));
+    }
+
+    @Test
+    public void testGetLastMessageIdForDeletedPartition() throws Exception {
+        String topic = newTopicName();
+        String partition = TopicName.get(topic).getPartition(0).toString();
+        admin.topics().createPartitionedTopic(topic, 1);
+
+        try (Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(partition).enableBatching(false).create()) {
+            MessageIdImpl lastMessageId = (MessageIdImpl) producer.send("message");
+            assertThat(admin.topics().getLastMessageId(partition)).isEqualTo(
+                    new MessageIdImpl(lastMessageId.getLedgerId(), lastMessageId.getEntryId(), 0));
+        }
+
+        admin.topics().delete(partition);
+        assertThat(admin.topics().getPartitionedTopicMetadata(topic).partitions).isEqualTo(1);
+        assertThat(admin.topics().getList(getNamespace())).doesNotContain(partition);
+
+        assertThatThrownBy(() -> admin.topics().getLastMessageId(partition))
+                .isInstanceOf(PulsarAdminException.NotFoundException.class)
+                .hasMessageContaining("Topic " + partition + " not found");
     }
 
     @Test

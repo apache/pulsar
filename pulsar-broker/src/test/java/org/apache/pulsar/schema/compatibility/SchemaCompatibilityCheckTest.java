@@ -19,23 +19,20 @@
 package org.apache.pulsar.schema.compatibility;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
-import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import com.google.common.collect.Sets;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.stream.Collectors;
+import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.BrokerTestUtil;
-import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
+import org.apache.pulsar.broker.service.SharedPulsarCluster;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
@@ -58,10 +55,8 @@ import org.apache.pulsar.common.api.proto.CommandGetOrCreateSchemaResponse;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
-import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.schema.MockExternalJsonSchema;
@@ -73,31 +68,30 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+/**
+ * Schema compatibility tests on the shared broker, each in a namespace of its own.
+ * {@link SchemaCompatibilityCheckOwnBrokerTest} has the tests that need a broker of their own.
+ */
 @CustomLog
 @Test(groups = "schema")
-public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
-    private static final String CLUSTER_NAME = "test";
+public class SchemaCompatibilityCheckTest extends SharedPulsarBaseTest {
 
-    @BeforeMethod
+    private boolean allowAutoUpdateSchemaEnabled;
+
     @Override
-    public void setup() throws Exception {
-        super.internalSetup();
+    protected boolean checkClientHandlesClosed() {
+        return true;
+    }
 
-        // Setup namespaces
-        admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder()
-                .serviceUrl(pulsar.getWebServiceAddress()).build());
-        TenantInfo tenantInfo = TenantInfo.builder()
-                .allowedClusters(Collections.singleton(CLUSTER_NAME))
-                .build();
-        admin.tenants().createTenant(PUBLIC_TENANT, tenantInfo);
-        String namespaceName = PUBLIC_TENANT + "/" + DEFAULT_NAMESPACE;
-        admin.namespaces().createNamespace(namespaceName, Sets.newHashSet(CLUSTER_NAME));
+    @BeforeMethod(alwaysRun = true)
+    public void saveConfiguration() {
+        allowAutoUpdateSchemaEnabled = getConfig().isAllowAutoUpdateSchemaEnabled();
     }
 
     @AfterMethod(alwaysRun = true)
-    @Override
-    public void cleanup() throws Exception {
-        super.internalCleanup();
+    public void restoreConfiguration() {
+        // testBrokerAllowAutoUpdateSchemaDisabled changes it; the shared broker reads it on every schema update
+        getConfig().setAllowAutoUpdateSchemaEnabled(allowAutoUpdateSchemaEnabled);
     }
 
     @DataProvider(name = "CanReadLastSchemaCompatibilityStrategy")
@@ -133,10 +127,10 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
     @Test(dataProvider =  "CanReadLastSchemaCompatibilityStrategy")
     public void testConsumerCompatibilityCheckCanReadLastTest(SchemaCompatibilityStrategy schemaCompatibilityStrategy)
             throws Exception {
-        final String tenant = PUBLIC_TENANT;
+        final String tenant = SharedPulsarCluster.TENANT_NAME;
         final String topic = "test-consumer-compatibility";
 
-            String namespace = "test-namespace-" + randomName(16);
+            String namespace = NamespaceName.get(getNamespace()).getLocalName();
             String fqtn = TopicName.get(
                     TopicDomain.persistent.value(),
                     tenant,
@@ -145,11 +139,6 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
             ).toString();
 
             NamespaceName namespaceName = NamespaceName.get(tenant, namespace);
-
-            admin.namespaces().createNamespace(
-                    tenant + "/" + namespace,
-                    Sets.newHashSet(CLUSTER_NAME)
-            );
 
             admin.namespaces().setSchemaCompatibilityStrategy(namespaceName.toString(), schemaCompatibilityStrategy);
             admin.schemas().createSchema(fqtn, Schema.AVRO(Schemas.PersonOne.class).getSchemaInfo());
@@ -211,9 +200,9 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
     @Test(dataProvider = "ReadAllCheckSchemaCompatibilityStrategy")
     public void testConsumerCompatibilityReadAllCheckTest(SchemaCompatibilityStrategy schemaCompatibilityStrategy)
             throws Exception {
-        final String tenant = PUBLIC_TENANT;
+        final String tenant = SharedPulsarCluster.TENANT_NAME;
         final String topic = "test-consumer-compatibility";
-        String namespace = "test-namespace-" + randomName(16);
+        String namespace = NamespaceName.get(getNamespace()).getLocalName();
         String fqtn = TopicName.get(
                 TopicDomain.persistent.value(),
                 tenant,
@@ -222,11 +211,6 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         ).toString();
 
         NamespaceName namespaceName = NamespaceName.get(tenant, namespace);
-
-        admin.namespaces().createNamespace(
-                tenant + "/" + namespace,
-                Sets.newHashSet(CLUSTER_NAME)
-        );
 
         admin.namespaces().setSchemaCompatibilityStrategy(namespaceName.toString(), schemaCompatibilityStrategy);
         admin.schemas().createSchema(fqtn, Schema.AVRO(Schemas.PersonOne.class).getSchemaInfo());
@@ -250,9 +234,9 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
     public void testBrokerAllowAutoUpdateSchemaDisabled(SchemaCompatibilityStrategy schemaCompatibilityStrategy)
             throws Exception {
 
-        final String tenant = PUBLIC_TENANT;
+        final String tenant = SharedPulsarCluster.TENANT_NAME;
         final String topic = "test-consumer-compatibility";
-        String namespace = "test-namespace-" + randomName(16);
+        String namespace = NamespaceName.get(getNamespace()).getLocalName();
         String fqtn = TopicName.get(
                 TopicDomain.persistent.value(),
                 tenant,
@@ -262,11 +246,6 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
 
         NamespaceName namespaceName = NamespaceName.get(tenant, namespace);
 
-        admin.namespaces().createNamespace(
-                tenant + "/" + namespace,
-                Sets.newHashSet(CLUSTER_NAME)
-        );
-
         assertEquals(admin.namespaces().getSchemaCompatibilityStrategy(namespaceName.toString()),
                 SchemaCompatibilityStrategy.UNDEFINED);
 
@@ -274,7 +253,7 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         admin.schemas().createSchema(fqtn, Schema.AVRO(Schemas.PersonOne.class).getSchemaInfo());
 
 
-        pulsar.getConfig().setAllowAutoUpdateSchemaEnabled(false);
+        getConfig().setAllowAutoUpdateSchemaEnabled(false);
 
         ProducerBuilder<Schemas.PersonTwo> producerThreeBuilder = pulsarClient
                 .newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonTwo>builder().withAlwaysAllowNull
@@ -282,12 +261,12 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
                         withPojo(Schemas.PersonTwo.class).build()))
                 .topic(fqtn);
         try {
-            producerThreeBuilder.create();
+            producerThreeBuilder.create().close();
         } catch (Exception e) {
             Assert.assertTrue(e.getMessage().contains("Schema not found and schema auto updating is disabled."));
         }
 
-        pulsar.getConfig().setAllowAutoUpdateSchemaEnabled(true);
+        getConfig().setAllowAutoUpdateSchemaEnabled(true);
         Policies policies = admin.namespaces().getPolicies(namespaceName.toString());
         Assert.assertTrue(policies.is_allow_auto_update_schema);
 
@@ -313,7 +292,7 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         producer.close();
         consumerTwo.close();
 
-        pulsar.getConfig().setAllowAutoUpdateSchemaEnabled(false);
+        getConfig().setAllowAutoUpdateSchemaEnabled(false);
 
         producer = producerThreeBuilder.create();
         consumerTwo = comsumerBuilder.subscribe();
@@ -333,10 +312,10 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
 
     @Test(dataProvider =  "AllCheckSchemaCompatibilityStrategy")
     public void testIsAutoUpdateSchema(SchemaCompatibilityStrategy schemaCompatibilityStrategy) throws Exception {
-        final String tenant = PUBLIC_TENANT;
+        final String tenant = SharedPulsarCluster.TENANT_NAME;
         final String topic = "test-consumer-compatibility";
 
-        String namespace = "test-namespace-" + randomName(16);
+        String namespace = NamespaceName.get(getNamespace()).getLocalName();
         String fqtn = TopicName.get(
                 TopicDomain.persistent.value(),
                 tenant,
@@ -345,11 +324,6 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         ).toString();
 
         NamespaceName namespaceName = NamespaceName.get(tenant, namespace);
-
-        admin.namespaces().createNamespace(
-                tenant + "/" + namespace,
-                Sets.newHashSet(CLUSTER_NAME)
-        );
 
         assertEquals(admin.namespaces().getSchemaCompatibilityStrategy(namespaceName.toString()),
                 SchemaCompatibilityStrategy.UNDEFINED);
@@ -364,7 +338,7 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
                         withPojo(Schemas.PersonTwo.class).build()))
                 .topic(fqtn);
         try {
-            producerThreeBuilder.create();
+            producerThreeBuilder.create().close();
         } catch (Exception e) {
             Assert.assertTrue(e.getMessage().contains("Schema not found and schema auto updating is disabled."));
         }
@@ -412,10 +386,10 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testSchemaComparison() throws Exception {
-        final String tenant = PUBLIC_TENANT;
+        final String tenant = SharedPulsarCluster.TENANT_NAME;
         final String topic = "test-schema-comparison";
 
-        String namespace = "test-namespace-" + randomName(16);
+        String namespace = NamespaceName.get(getNamespace()).getLocalName();
         String fqtn = TopicName.get(
                 TopicDomain.persistent.value(),
                 tenant,
@@ -424,11 +398,6 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         ).toString();
 
         NamespaceName namespaceName = NamespaceName.get(tenant, namespace);
-
-        admin.namespaces().createNamespace(
-                tenant + "/" + namespace,
-                Sets.newHashSet(CLUSTER_NAME)
-        );
 
         assertEquals(admin.namespaces().getSchemaCompatibilityStrategy(namespaceName.toString()),
                 SchemaCompatibilityStrategy.UNDEFINED);
@@ -460,9 +429,9 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
     @Test(dataProvider = "AllCheckSchemaCompatibilityStrategy")
     public void testProducerSendWithOldSchemaAndConsumerCanRead(SchemaCompatibilityStrategy schemaCompatibilityStrategy)
             throws Exception {
-        final String tenant = PUBLIC_TENANT;
+        final String tenant = SharedPulsarCluster.TENANT_NAME;
         final String topic = "test-consumer-compatibility";
-        String namespace = "test-namespace-" + randomName(16);
+        String namespace = NamespaceName.get(getNamespace()).getLocalName();
         String fqtn = TopicName.get(
                 TopicDomain.persistent.value(),
                 tenant,
@@ -471,11 +440,6 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         ).toString();
 
         NamespaceName namespaceName = NamespaceName.get(tenant, namespace);
-
-        admin.namespaces().createNamespace(
-                tenant + "/" + namespace,
-                Sets.newHashSet(CLUSTER_NAME)
-        );
 
         admin.namespaces().setSchemaCompatibilityStrategy(namespaceName.toString(), schemaCompatibilityStrategy);
         admin.schemas().createSchema(fqtn, Schema.AVRO(Schemas.PersonOne.class).getSchemaInfo());
@@ -509,44 +473,8 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
-    public void testSchemaLedgerAutoRelease() throws Exception {
-        String namespaceName = PUBLIC_TENANT + "/" + DEFAULT_NAMESPACE;
-        String topicName = BrokerTestUtil.newUniqueName("persistent://" + namespaceName + "/tp");
-        admin.namespaces().setSchemaCompatibilityStrategy(namespaceName,
-                SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
-        // Update schema 100 times.
-        for (int i = 0; i < 100; i++){
-            Schema schema = Schema.JSON(SchemaDefinition.builder()
-                    .withJsonDef(String.format("""
-                            {
-                                "type": "record",
-                                "name": "Test_Pojo",
-                                "namespace": "org.apache.pulsar.schema.compatibility",
-                                "fields": [{
-                                    "name": "prop_%s",
-                                    "type": ["null", "string"],
-                                    "default": null
-                                }]
-                            }
-                            """, i))
-                    .build());
-            Producer producer = pulsarClient
-                    .newProducer(schema)
-                    .topic(topicName)
-                    .create();
-            producer.close();
-        }
-        // The other ledgers are about 5.
-        Assert.assertTrue(pulsarTestContext.getMockBookKeeper().getLedgerMap().values().stream()
-                .filter(ledger -> !ledger.isFenced())
-                .collect(Collectors.toList()).size() < 20);
-        admin.topics().delete(topicName, true);
-    }
-
-    @Test
     public void testAddUnionAvroSchema() throws Exception {
-        String namespaceName = PUBLIC_TENANT + "/" + DEFAULT_NAMESPACE;
+        String namespaceName = getNamespace();
         String topicName = BrokerTestUtil.newUniqueName(namespaceName + "/tp");
         admin.topics().createNonPartitionedTopic(topicName);
 
@@ -586,14 +514,13 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testAutoProduceSchemaAlwaysCompatible() throws Exception {
-        final String tenant = PUBLIC_TENANT;
+        final String tenant = SharedPulsarCluster.TENANT_NAME;
         final String topic = "topic" + randomName(16);
 
-        String namespace = "test-namespace-" + randomName(16);
+        String namespace = NamespaceName.get(getNamespace()).getLocalName();
         String topicName = TopicName.get(
                 TopicDomain.persistent.value(), tenant, namespace, topic).toString();
         NamespaceName namespaceName = NamespaceName.get(tenant, namespace);
-        admin.namespaces().createNamespace(tenant + "/" + namespace, Sets.newHashSet(CLUSTER_NAME));
 
         // set ALWAYS_COMPATIBLE
         admin.namespaces().setSchemaCompatibilityStrategy(namespaceName.toString(),
@@ -611,10 +538,10 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
     @Test(dataProvider =  "CanReadLastSchemaCompatibilityStrategy")
     public void testConsumerWithNotCompatibilitySchema(SchemaCompatibilityStrategy schemaCompatibilityStrategy)
             throws Exception {
-        final String tenant = PUBLIC_TENANT;
+        final String tenant = SharedPulsarCluster.TENANT_NAME;
         final String topic = "test-consumer-compatibility";
 
-        String namespace = "test-namespace-" + randomName(16);
+        String namespace = NamespaceName.get(getNamespace()).getLocalName();
         String fqtn = TopicName.get(
                 TopicDomain.persistent.value(),
                 tenant,
@@ -623,11 +550,6 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         ).toString();
 
         NamespaceName namespaceName = NamespaceName.get(tenant, namespace);
-
-        admin.namespaces().createNamespace(
-                tenant + "/" + namespace,
-                Sets.newHashSet(CLUSTER_NAME)
-        );
 
         admin.namespaces().setSchemaCompatibilityStrategy(namespaceName.toString(), schemaCompatibilityStrategy);
         admin.schemas().createSchema(fqtn, Schema.AVRO(Schemas.PersonOne.class).getSchemaInfo());
@@ -650,9 +572,8 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testCloseProducerWhenRegisteringNewSchema() throws Exception {
-        final String ns = BrokerTestUtil.newUniqueName(PUBLIC_TENANT + "/ns");
+        final String ns = getNamespace();
         final String topic = "persistent://" + BrokerTestUtil.newUniqueName(ns + "/tp");
-        admin.namespaces().createNamespace(ns);
         admin.namespaces().setSchemaCompatibilityStrategy(ns, SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE);
         Awaitility.await().untilAsserted(() -> {
             assertEquals(admin.namespaces().getSchemaCompatibilityStrategy(ns),
@@ -662,7 +583,7 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         // Injection: Let the handling response of registering schema delay, then we have enough time to close producer
         // when it's state is registering schema.
         CountDownLatch handleErrorSignal = new CountDownLatch(1);
-        ClientBuilderImpl clientBuilder = (ClientBuilderImpl) PulsarClient.builder().serviceUrl(lookupUrl.toString());
+        ClientBuilderImpl clientBuilder = (ClientBuilderImpl) PulsarClient.builder().serviceUrl(getWebServiceUrl());
         PulsarClient injectedReplClient = InjectedClientCnxClientBuilder.create(clientBuilder,
             (conf, eventLoopGroup) -> {
                 return new ClientCnx(InstrumentProvider.NOOP, conf, eventLoopGroup) {
@@ -686,7 +607,7 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         Consumer consumer = injectedReplClient.newConsumer(Schema.AUTO_CONSUME()).subscriptionName("s1")
                 .topic(topic).subscribe();
         PersistentTopic persistentTopic =
-                (PersistentTopic) pulsar.getBrokerService().getTopic(topic, false).join().get();
+                (PersistentTopic) getTopic(topic, false).join().get();
         assertEquals(persistentTopic.getProducers().size(), 1);
         producer.newMessage(Schema.AVRO(Schemas.PersonOne.class)).value(new Schemas.PersonOne(1)).send();
         CompletableFuture<MessageId> send2 = producer.newMessage(Schema.AVRO(Schemas.PersonTwo.class))
@@ -708,16 +629,12 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testExternalSchemaTypeCompatibility() throws Exception {
-        String namespace = "test-namespace-" + randomName(16);
-        admin.namespaces().createNamespace(
-                PUBLIC_TENANT + "/" + namespace,
-                Sets.newHashSet(CLUSTER_NAME)
-        );
+        String namespace = NamespaceName.get(getNamespace()).getLocalName();
 
-        NamespaceName namespaceName = NamespaceName.get(PUBLIC_TENANT, namespace);
+        NamespaceName namespaceName = NamespaceName.get(getNamespace());
         admin.namespaces().setSchemaCompatibilityStrategy(namespaceName.toString(), SchemaCompatibilityStrategy.FULL);
 
-        final String topic = "persistent://" + PUBLIC_TENANT + "/" + namespace + "/testExternalSchemaTypeCompatibility";
+        final String topic = "persistent://" + getNamespace() + "/testExternalSchemaTypeCompatibility";
 
         MockExternalJsonSchema<Schemas.PersonThree> externalJsonSchema =
                 new MockExternalJsonSchema<>(Schemas.PersonThree.class);
@@ -725,8 +642,9 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         Map<String, String> schemaConfigs = new HashMap<>();
         schemaConfigs.put("schema.registry.url", "http://localhost:8080");
 
+        @Cleanup
         PulsarClient client = PulsarClient.builder()
-                .serviceUrl(lookupUrl.toString())
+                .serviceUrl(getWebServiceUrl())
                 .build();
 
         // Existing topic schema is JSON, new schema can't be EXTERNAL

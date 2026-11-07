@@ -29,6 +29,10 @@ import static org.testng.Assert.fail;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -47,6 +51,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
 import lombok.CustomLog;
+import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -71,7 +76,6 @@ import org.apache.pulsar.common.functions.MessagePayloadProcessorConfig;
 import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.common.policies.data.FunctionStatsImpl;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
-import org.apache.pulsar.common.policies.data.FunctionStatusUtil;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
@@ -79,7 +83,6 @@ import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.api.examples.AutoSchemaFunction;
 import org.apache.pulsar.functions.api.examples.AvroSchemaTestFunction;
 import org.apache.pulsar.functions.api.examples.InitializableFunction;
@@ -88,14 +91,12 @@ import org.apache.pulsar.functions.api.examples.RecordFunction;
 import org.apache.pulsar.functions.api.examples.pojo.AvroTestObject;
 import org.apache.pulsar.functions.api.examples.pojo.Users;
 import org.apache.pulsar.functions.api.examples.serde.CustomObject;
-import org.apache.pulsar.tests.integration.docker.ContainerExecException;
-import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator;
 import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator.Runtime;
 import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
-import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.assertj.core.api.Assertions;
 import org.awaitility.Awaitility;
+import org.awaitility.core.ThrowingRunnable;
 
 /**
  * A test base for testing functions.
@@ -105,10 +106,12 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    // The checks read the function state through this admin client: every pulsar-admin command starts a JVM in a
-    // container, which takes seconds. The Java run of testFunctionNegAck runs the read commands through the CLI to
-    // cover them.
+    // The tests create, update, delete and check their functions through this admin client: every pulsar-admin command
+    // starts a JVM in a container, which takes seconds (~4 s each on CI).
     private PulsarAdmin workerAdmin;
+
+    // Local copies of the functions' code files, by their path in the worker containers
+    private final Map<String, String> localCodeFiles = new HashMap<>();
 
     public PulsarFunctionsTest(FunctionRuntimeType functionRuntimeType) {
         super(functionRuntimeType);
@@ -123,13 +126,60 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         super.teardownFunctionWorkers();
     }
 
-    private PulsarAdmin workerAdmin() throws PulsarClientException {
+    protected PulsarAdmin workerAdmin() throws PulsarClientException {
         if (workerAdmin == null) {
             workerAdmin = PulsarAdmin.builder()
                     .serviceHttpUrl(pulsarCluster.getAnyWorker().getHttpServiceUrl())
                     .build();
         }
         return workerAdmin;
+    }
+
+    // Creates the function through the admin client, uploading the code file that pulsar-admin uploads
+    private void createFunction(CommandGenerator generator, String codeFile) throws Exception {
+        FunctionConfig config = generator.generateFunctionConfig(codeFile);
+        String file = localCodeFile(ObjectUtils.firstNonNull(config.getJar(), config.getPy(), config.getGo()));
+        retryRejectedWrite(() -> workerAdmin().functions().createFunction(config, file));
+    }
+
+    // Runs a create, update or delete, retrying it while the workers reject it before applying it:
+    // - with 503 "Leader not yet ready. Please retry again": the workers apply writes through their leader, and the
+    //   leadership can move to the second worker of a class a moment after both have started; the new leader rejects
+    //   writes until it has taken over.
+    // - with 400 "... request ignored because it is out of date. Please try again.": a worker that isn't the leader
+    //   numbers the function's next version from its own copy of the metadata, which can still miss the previous write,
+    //   such as the code update right before a delete.
+    private static void retryRejectedWrite(ThrowingRunnable write) {
+        Awaitility.await()
+                .atMost(Duration.ofSeconds(30))
+                .ignoreExceptionsMatching(PulsarFunctionsTest::isRejectedWrite)
+                .untilAsserted(write);
+    }
+
+    private static boolean isRejectedWrite(Throwable e) {
+        if (!(e instanceof PulsarAdminException adminException)) {
+            return false;
+        }
+        String message = String.valueOf(adminException.getMessage());
+        return adminException.getStatusCode() == 503
+                || (adminException.getStatusCode() == 400 && message.contains("is out of date"));
+    }
+
+    // Copies a code file out of the worker containers, keeping its name: the worker names the function's package after
+    // the uploaded file, which for a Python function must be the name of its module
+    private String localCodeFile(String path) throws IOException {
+        String localPath = localCodeFiles.get(path);
+        if (localPath == null) {
+            Path dir = Files.createTempDirectory("pulsar-functions-test-");
+            dir.toFile().deleteOnExit();
+            Path file = dir.resolve(Path.of(path).getFileName());
+            file.toFile().deleteOnExit();
+            pulsarCluster.getAnyWorker().copyFileFromContainer(path,
+                    in -> Files.copy(in, file, StandardCopyOption.REPLACE_EXISTING));
+            localPath = file.toString();
+            localCodeFiles.put(path, localPath);
+        }
+        return localPath;
     }
 
     protected Map<String, String> produceMessagesToInputTopic(String inputTopicName,
@@ -304,13 +354,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             generator.setSlidingIntervalCount(slidingIntervalCount);
         }
 
-
-        String[] commands = {
-                "sh", "-c", generator.generateCreateFunctionCommand()
-        };
-
-        ContainerExecResult containerExecResult = pulsarCluster.getAnyWorker().execCmd(commands);
-        assertTrue(containerExecResult.getStdout().contains("Created successfully"));
+        createFunction(generator, null);
 
         // get function info
         getFunctionInfoSuccess(functionName);
@@ -446,16 +490,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                     setTimeout);
         }
 
-        // The CLI's read commands work the same whatever the runtime, so the Java run covers them; the other runtimes
-        // read through the admin client, which is faster.
-        boolean withCli = runtime == Runtime.JAVA;
-
         // get function info
-        if (withCli) {
-            getFunctionInfoSuccessWithCli(functionName);
-        } else {
-            getFunctionInfoSuccess(functionName);
-        }
+        getFunctionInfoSuccess(functionName);
 
         // get function stats
         getFunctionStatsEmpty(functionName);
@@ -528,25 +564,10 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             assertEquals(expectedMessages.size(), 0);
         }
 
-        // get function status
-        FunctionStatus functionStatus;
-        if (withCli) {
-            ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
-                    PulsarCluster.ADMIN_SCRIPT,
-                    "functions",
-                    "status",
-                    "--tenant", "public",
-                    "--namespace", "default",
-                    "--name", functionName
-            );
-
-            functionStatus = FunctionStatusUtil.decode(result.getStdout());
-        } else {
-            // the instance counts a message as processed once the function has published its result
-            functionStatus = Awaitility.await().ignoreExceptions().until(
-                    () -> workerAdmin().functions().getFunctionStatus("public", "default", functionName),
-                    status -> status.getInstances().get(0).getStatus().getNumSuccessfullyProcessed() == numMessages);
-        }
+        // get function status: the instance counts a message as processed once the function has published its result
+        FunctionStatus functionStatus = Awaitility.await().ignoreExceptions().until(
+                () -> workerAdmin().functions().getFunctionStatus("public", "default", functionName),
+                status -> status.getInstances().get(0).getStatus().getNumSuccessfullyProcessed() == numMessages);
 
         assertEquals(functionStatus.getNumInstances(), 1);
         assertEquals(functionStatus.getNumRunning(), 1);
@@ -564,24 +585,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         assertEquals(functionStatus.getInstances().get(0).getStatus().getLatestSystemExceptions().size(), 0);
 
         // get function stats
-        FunctionStatsImpl functionStats;
-        if (withCli) {
-            ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
-                    PulsarCluster.ADMIN_SCRIPT,
-                    "functions",
-                    "stats",
-                    "--tenant", "public",
-                    "--namespace", "default",
-                    "--name", functionName
-            );
-
-            log.info().attr("stats", result.getStdout()).log("FUNCTION STATS");
-
-            functionStats = FunctionStatsImpl.decode(result.getStdout());
-        } else {
-            functionStats = (FunctionStatsImpl) workerAdmin().functions()
-                    .getFunctionStats("public", "default", functionName);
-        }
+        FunctionStatsImpl functionStats = (FunctionStatsImpl) workerAdmin().functions()
+                .getFunctionStats("public", "default", functionName);
         assertEquals(functionStats.getReceivedTotal(), numMessages + 2);
         assertEquals(functionStats.getProcessedSuccessfullyTotal(), numMessages);
         assertEquals(functionStats.getSystemExceptionsTotal(), 0);
@@ -601,13 +606,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         deleteFunction(functionName);
 
         // get function info, and make sure subscriptions are cleanup
-        if (withCli) {
-            getFunctionInfoNotFoundWithCli(functionName);
-            checkSubscriptionsCleanupWithCli(inputTopicName);
-        } else {
-            getFunctionInfoNotFound(functionName);
-            checkSubscriptionsCleanup(inputTopicName);
-        }
+        getFunctionInfoNotFound(functionName);
+        checkSubscriptionsCleanup(inputTopicName);
     }
 
     public void testGoPublishFunction() throws Exception {
@@ -872,7 +872,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         }
 
         // check subscription type
-        checkSubscriptionType(inputTopicName, config);
+        checkSubscriptionType(inputTopicName, commandGeneratorConsumer);
 
         // delete function
         deleteFunction(functionName);
@@ -885,7 +885,15 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
     }
 
-    private void checkSubscriptionType(String topic, FunctionConfig config) throws Exception {
+    // The subscription has the type of the ordering that the test asks for: the one it sets on the generator of the
+    // function, rather than the one the worker returns, which a create that lost the option would match too
+    private void checkSubscriptionType(String topic,
+                                       java.util.function.Consumer<CommandGenerator> commandGeneratorConsumer)
+            throws Exception {
+        CommandGenerator generator = new CommandGenerator();
+        if (commandGeneratorConsumer != null) {
+            commandGeneratorConsumer.accept(generator);
+        }
         List<String> topics = new ArrayList<>();
         if (topic.endsWith(".*")) {
             topics.add(topic.substring(0, topic.length() - 2) + "1");
@@ -900,9 +908,9 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             assertEquals(topicStats.getSubscriptions().size(), 1);
             final SubscriptionStats sub = topicStats.getSubscriptions().values().iterator()
                     .next();
-            if (config.getRetainOrdering()) {
+            if (generator.getRetainOrdering() != null) {
                 assertEquals(sub.getType(), "Failover");
-            } else if (config.getRetainKeyOrdering()) {
+            } else if (generator.getRetainKeyOrdering() != null) {
                 assertEquals(sub.getType(), "Key_Shared");
             } else {
                 assertEquals(sub.getType(), "Shared");
@@ -1120,62 +1128,28 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         if (commandGeneratorConsumer != null) {
             commandGeneratorConsumer.accept(generator);
         }
-        String command = "";
-
-        switch (runtime) {
-            case JAVA:
-                command = generator.generateCreateFunctionCommand();
-                break;
-            case PYTHON:
-            case GO:
-                generator.setRuntime(runtime);
-                command = generator.generateCreateFunctionCommand(functionFile);
-                break;
-            default:
-                throw new IllegalArgumentException("Unsupported runtime : " + runtime);
-        }
-
-        log.info().attr("command", command).log("---------- Function command");
-        String[] commands = {
-                "sh", "-c", command
-        };
-        ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
-                commands);
-        log.info().attr("is", result.getStdout()).log("---------- stdout is");
-        log.info().attr("is", result.getStderr()).log("---------- stderr is");
-        assertTrue(result.getStdout().contains("Created successfully"));
+        generator.setRuntime(runtime);
+        createFunction(generator, functionFile);
     }
 
     private void updateFunctionParallelism(String functionName, int parallelism) throws Exception {
-
-        CommandGenerator generator = new CommandGenerator();
-        generator.setFunctionName(functionName);
-        generator.setParallelism(parallelism);
-        String command = generator.generateUpdateFunctionCommand();
-
-        log.info().attr("command", command).log("---------- Function command");
-        String[] commands = {
-                "sh", "-c", command
-        };
-        ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
-                commands);
-        assertTrue(result.getStdout().contains("Updated successfully"));
+        // what pulsar-admin functions update --parallelism sends
+        FunctionConfig config = new FunctionConfig();
+        config.setTenant("public");
+        config.setNamespace("default");
+        config.setName(functionName);
+        config.setParallelism(parallelism);
+        retryRejectedWrite(() -> workerAdmin().functions().updateFunction(config, null));
     }
 
     private void updateFunctionCodeFile(String functionName, Runtime runtime, String codeFile) throws Exception {
-
         CommandGenerator generator = new CommandGenerator();
         generator.setFunctionName(functionName);
         generator.setRuntime(runtime);
-        String command = generator.generateUpdateFunctionCommand(codeFile);
-
-        log.info().attr("command", command).log("---------- Function command");
-        String[] commands = {
-                "sh", "-c", command
-        };
-        ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
-                commands);
-        assertTrue(result.getStdout().contains("Updated successfully"));
+        // the name and the code, which pulsar-admin functions update --jar, --py or --go sends
+        FunctionConfig config = generator.generateFunctionConfig(codeFile);
+        String file = localCodeFile(ObjectUtils.firstNonNull(config.getJar(), config.getPy(), config.getGo()));
+        retryRejectedWrite(() -> workerAdmin().functions().updateFunction(config, file));
     }
 
     protected <T> void submitFunction(Runtime runtime,
@@ -1204,23 +1178,12 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         if (userConfigs != null) {
             generator.setUserConfig(userConfigs);
         }
-        String command;
-        if (Runtime.JAVA == runtime) {
-            command = generator.generateCreateFunctionCommand();
-        } else if (Runtime.PYTHON == runtime) {
+        if (Runtime.PYTHON == runtime) {
             generator.setRuntime(runtime);
-            command = generator.generateCreateFunctionCommand(functionFile);
-        } else {
+        } else if (Runtime.JAVA != runtime) {
             throw new IllegalArgumentException("Unsupported runtime : " + runtime);
         }
-
-        log.info().attr("command", command).log("---------- Function command");
-        String[] commands = {
-                "sh", "-c", command
-        };
-        ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
-                commands);
-        assertTrue(result.getStdout().contains("Created successfully"));
+        createFunction(generator, functionFile);
     }
 
     @SuppressWarnings("try")
@@ -1260,20 +1223,6 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         log.info().attr("config", config).log("FUNCTION CONFIG");
         assertEquals(config.getName(), functionName);
         return config;
-    }
-
-    private void getFunctionInfoSuccessWithCli(String functionName) throws Exception {
-        ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
-                PulsarCluster.ADMIN_SCRIPT,
-                "functions",
-                "get",
-                "--tenant", "public",
-                "--namespace", "default",
-                "--name", functionName
-        );
-
-        log.info().attr("state", result.getStdout()).log("FUNCTION STATE");
-        assertTrue(result.getStdout().contains("\"name\": \"" + functionName + "\""));
     }
 
 
@@ -1360,28 +1309,6 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         });
     }
 
-    private void getFunctionInfoNotFoundWithCli(String functionName) throws Exception {
-        retryStrategically(aVoid -> {
-            try {
-                pulsarCluster.getAnyWorker().execCmd(
-                        PulsarCluster.ADMIN_SCRIPT,
-                        "functions",
-                        "get",
-                        "--tenant", "public",
-                        "--namespace", "default",
-                        "--name", functionName);
-            } catch (ContainerExecException e) {
-                if (e.getResult().getStderr().contains("Reason: Function " + functionName + " doesn't exist")) {
-                    return true;
-                }
-
-            } catch (Exception e) {
-
-            }
-            return false;
-        }, 5, 100, true);
-    }
-
     private void checkSubscriptionsCleanup(String topic) {
         List<String> topics = new ArrayList<>();
         if (topic.endsWith(".*")) {
@@ -1396,32 +1323,6 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
             for (String t : topics) {
                 assertEquals(pulsarAdmin.topics().getStats(t).getSubscriptions().size(), 0);
-            }
-        });
-    }
-
-    private void checkSubscriptionsCleanupWithCli(String topic) throws Exception {
-        List<String> topics = new ArrayList<>();
-        if (topic.endsWith(".*")) {
-            topics.add(topic.substring(0, topic.length() - 2) + "1");
-            topics.add(topic.substring(0, topic.length() - 2) + "2");
-        } else if (topic.contains(",")) {
-            topics.addAll(Arrays.asList(topic.split(",")));
-        } else {
-            topics.add(topic);
-        }
-        topics.stream().forEach(t -> {
-            try {
-                ContainerExecResult result = pulsarCluster.getAnyBroker().execCmd(
-                        PulsarCluster.ADMIN_SCRIPT,
-                        "topics",
-                        "stats",
-                        t);
-                TopicStats topicStats = ObjectMapperFactory.getMapper().reader()
-                        .readValue(result.getStdout(), TopicStats.class);
-                assertEquals(topicStats.getSubscriptions().size(), 0);
-            } catch (Exception e) {
-                fail("Command should have exited with non-zero");
             }
         });
     }
@@ -1606,16 +1507,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     }
 
     protected void deleteFunction(String functionName) throws Exception {
-        ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
-                PulsarCluster.ADMIN_SCRIPT,
-                "functions",
-                "delete",
-                "--tenant", "public",
-                "--namespace", "default",
-                "--name", functionName
-        );
-        assertTrue(result.getStdout().contains("Deleted successfully"));
-        result.assertNoStderr();
+        retryRejectedWrite(() -> workerAdmin().functions().deleteFunction("public", "default", functionName));
     }
 
     protected void testAutoSchemaFunction() throws Exception {
@@ -1931,15 +1823,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         }
         generator.setLogTopic(logTopicName);
         generator.setFunctionName(functionName);
-        String command = generator.generateCreateFunctionCommand();
-
-        log.info().attr("command", command).log("---------- Function command");
-        String[] commands = {
-                "sh", "-c", command
-        };
-        ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
-                commands);
-        assertTrue(result.getStdout().contains("Created successfully"));
+        createFunction(generator, null);
     }
 
     private void publishAndConsumeLogMessages(String inputTopic,

@@ -45,6 +45,7 @@ import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter.AsyncDualMemory
 import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter.LimitType;
 import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiterImpl;
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -123,8 +124,7 @@ public class TopicListRestMemoryLimitTest extends MockedPulsarServiceBaseTest {
         assertThat(admin.scalableTopics().listScalableTopics(NAMESPACE)).contains(scalableTopic);
         assertThat(admin.scalableTopics().listScalableTopicsByProperties(NAMESPACE, Map.of("team", "a")))
                 .isEqualTo(List.of(scalableTopic));
-        // the permits are released after the responses have been written
-        assertThat(limiter.getLimiter(LimitType.HEAP_MEMORY).getAcquiredPermits()).isZero();
+        assertPermitsReleased(limiter);
     }
 
     /**
@@ -162,7 +162,7 @@ public class TopicListRestMemoryLimitTest extends MockedPulsarServiceBaseTest {
                         .as(mode.name()).contains(nonPersistentTopic);
             }
         }
-        assertThat(limiter.getLimiter(LimitType.HEAP_MEMORY).getAcquiredPermits()).isZero();
+        assertPermitsReleased(limiter);
     }
 
     /**
@@ -204,6 +204,16 @@ public class TopicListRestMemoryLimitTest extends MockedPulsarServiceBaseTest {
         } finally {
             doCallRealMethod().when(namespaceService).getListOfPersistentTopics(any());
         }
-        assertThat(limiter.getLimiter(LimitType.HEAP_MEMORY).getAcquiredPermits()).isZero();
+        assertPermitsReleased(limiter);
+    }
+
+    /**
+     * Waits until the responses have released their permits. Jersey commits a response, which lets the client read
+     * it, before it calls the completion callback that releases the response's permits, so the release can happen
+     * after the admin call has returned. Permits that are never released still fail the assertion.
+     */
+    private static void assertPermitsReleased(AsyncDualMemoryLimiterImpl limiter) {
+        Awaitility.await().untilAsserted(() ->
+                assertThat(limiter.getLimiter(LimitType.HEAP_MEMORY).getAcquiredPermits()).isZero());
     }
 }
