@@ -2573,12 +2573,15 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         Position secondPosition = PositionFactory.create(2, 3);
         when(secondCursor.getMarkDeletedPosition()).thenReturn(secondPosition);
         when(ledgerMock.getEstimatedBacklogSize(secondPosition)).thenReturn(234L);
+        ManagedCursor customCursor = mock(ManagedCursor.class);
+        when(customCursor.getName()).thenReturn("custom");
+        when(customCursor.getMarkDeletedPosition()).thenThrow(new AssertionError("Custom stats owns its position"));
 
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
         topic.initialize().join();
         topic.getSubscriptions().put("one", new PersistentSubscription(topic, "one", cursorMock, false));
         topic.getSubscriptions().put("two", new PersistentSubscription(topic, "two", secondCursor, false));
-        topic.getSubscriptions().put("custom", new PersistentSubscription(topic, "custom", cursorMock, false) {
+        topic.getSubscriptions().put("custom", new PersistentSubscription(topic, "custom", customCursor, false) {
             @Override
             public CompletableFuture<SubscriptionStatsImpl> getStatsAsync(GetStatsOptions options) {
                 SubscriptionStatsImpl stats = new SubscriptionStatsImpl();
@@ -2650,6 +2653,40 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         stats = topic.asyncGetStats(new GetStatsOptions(false, false, false, false, false)).get();
         assertEquals(stats.subscriptions.get("one").backlogSize, -1L);
         assertEquals(stats.subscriptions.get("two").backlogSize, -1L);
+        verify(ledgerSpy, times(0)).getEstimatedBacklogSize(any(Position.class));
+
+        ManagedCursor replacementCursor = ledger.openCursor("replacement", InitialPosition.Earliest);
+        replacementCursor.markDelete(positions.get(10));
+        long replacementBacklogSize = ledger.getEstimatedBacklogSize(replacementCursor.getMarkDeletedPosition());
+        assertTrue(replacementBacklogSize < firstBacklogSize);
+        PersistentSubscription replacement = new PersistentSubscription(topic, "one", replacementCursor, false);
+        ManagedCursor capturedCursor = spy(firstCursor);
+        Position originalPosition = firstCursor.getMarkDeletedPosition();
+        Position capturedPosition = mock(Position.class);
+        doReturn(capturedPosition).when(capturedCursor).getMarkDeletedPosition();
+        when(capturedPosition.getEntryId()).thenReturn(originalPosition.getEntryId());
+        AtomicBoolean replaced = new AtomicBoolean();
+        // The estimator reads the position only after the complete subscription list has been captured.
+        when(capturedPosition.getLedgerId()).thenAnswer(invocation -> {
+            if (replaced.compareAndSet(false, true)) {
+                assertFalse(Thread.holdsLock(ledgerSpy));
+                topic.getSubscriptions().put("one", replacement);
+            }
+            return originalPosition.getLedgerId();
+        });
+        PersistentSubscription captured = new PersistentSubscription(topic, "one", capturedCursor, false);
+        topic.getSubscriptions().put("one", captured);
+
+        stats = topic.asyncGetStats(new GetStatsOptions(false, true, false, false, false)).get();
+        assertTrue(replaced.get());
+        assertSame(topic.getSubscriptions().get("one"), replacement);
+        assertEquals(stats.subscriptions.get("one").backlogSize, firstBacklogSize);
+        assertEquals(stats.subscriptions.get("two").backlogSize, secondBacklogSize);
+        verify(ledgerSpy, times(0)).getEstimatedBacklogSize(any(Position.class));
+
+        stats = topic.asyncGetStats(new GetStatsOptions(false, true, false, false, false)).get();
+        assertEquals(stats.subscriptions.get("one").backlogSize, replacementBacklogSize);
+        assertEquals(stats.subscriptions.get("two").backlogSize, secondBacklogSize);
         verify(ledgerSpy, times(0)).getEstimatedBacklogSize(any(Position.class));
     }
 

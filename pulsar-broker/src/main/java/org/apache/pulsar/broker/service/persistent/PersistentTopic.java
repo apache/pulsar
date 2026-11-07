@@ -39,7 +39,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
-import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -3502,30 +3501,40 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     private Map<String, CompletableFuture<SubscriptionStatsImpl>> getSubscriptionStats(
             GetStatsOptions getStatsOptions) {
-        Map<PersistentSubscription, Position> backlogPositions = Collections.emptyMap();
-        if (getStatsOptions.isSubscriptionBacklogSize() && subscriptions.size() > 1) {
-            // Capture positions before ledger metadata, and keep results tied to each subscription instance.
-            backlogPositions = new IdentityHashMap<>();
-            for (PersistentSubscription subscription : subscriptions.values()) {
-                if (subscription.getClass() == PersistentSubscription.class) {
-                    backlogPositions.put(subscription, subscription.getCursor().getMarkDeletedPosition());
-                }
-            }
-        }
-        Map<Position, Long> backlogSizes = backlogPositions.size() > 1
-                ? ManagedLedgerBacklogSizeEstimator.estimate(ledger, backlogPositions.values())
-                : Collections.emptyMap();
         Map<String, CompletableFuture<SubscriptionStatsImpl>> subscriptionFutures = new HashMap<>();
+        if (!getStatsOptions.isSubscriptionBacklogSize() || subscriptions.size() <= 1) {
+            for (Map.Entry<String, PersistentSubscription> entry : subscriptions.entrySet()) {
+                subscriptionFutures.put(entry.getKey(), entry.getValue().getStatsAsync(getStatsOptions));
+            }
+            return subscriptionFutures;
+        }
+        // Keep using the captured subscription instances if a name is removed or replaced during sampling.
+        List<SubscriptionStatsRequest> requests = new ArrayList<>(subscriptions.size());
+        List<Position> positions = new ArrayList<>();
         for (Map.Entry<String, PersistentSubscription> entry : subscriptions.entrySet()) {
             PersistentSubscription subscription = entry.getValue();
-            Long backlogSize = backlogPositions.containsKey(subscription)
-                    ? backlogSizes.get(backlogPositions.get(subscription)) : null;
+            Position position = null;
+            if (subscription.getClass() == PersistentSubscription.class) {
+                position = subscription.getCursor().getMarkDeletedPosition();
+                positions.add(position);
+            }
+            requests.add(new SubscriptionStatsRequest(entry.getKey(), subscription, position));
+        }
+        boolean useBatchEstimate = positions.size() > 1;
+        Map<Position, Long> backlogSizes = useBatchEstimate
+                ? ManagedLedgerBacklogSizeEstimator.estimate(ledger, positions) : Collections.emptyMap();
+        for (SubscriptionStatsRequest request : requests) {
+            PersistentSubscription subscription = request.subscription();
             // Keep invoking the public method for subclasses that may override the stats calculation.
-            subscriptionFutures.put(entry.getKey(), backlogSize != null
-                    ? subscription.getStatsAsync(getStatsOptions, backlogSize)
+            subscriptionFutures.put(request.name(), useBatchEstimate
+                    && subscription.getClass() == PersistentSubscription.class
+                    ? subscription.getStatsAsync(getStatsOptions, backlogSizes.get(request.position()))
                     : subscription.getStatsAsync(getStatsOptions));
         }
         return subscriptionFutures;
+    }
+
+    private record SubscriptionStatsRequest(String name, PersistentSubscription subscription, Position position) {
     }
 
     private Optional<CompactorMXBean> getCompactorMXBean() {

@@ -18,9 +18,10 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -36,6 +37,7 @@ public final class ManagedLedgerBacklogSizeEstimator {
     /**
      * Estimate a batch of positions captured before calling this method.
      * The results have the same approximate semantics as {@link ManagedLedger#getEstimatedBacklogSize(Position)}.
+     * Results are keyed by their input positions; duplicate positions share one result.
      */
     public static Map<Position, Long> estimate(ManagedLedger ledger, Collection<Position> positions) {
         Map<Position, Long> estimates = new HashMap<>();
@@ -61,10 +63,7 @@ public final class ManagedLedgerBacklogSizeEstimator {
         }
 
         ManagedLedgerImpl impl = (ManagedLedgerImpl) ledger;
-        long[] ledgerIds = new long[8];
-        long[] prefixSizes = new long[8];
-        long[] entries = new long[8];
-        int count = 0;
+        List<LedgerMetadata> metadata = new ArrayList<>();
         final long totalSize;
         final long currentLedgerId;
         final boolean hasCurrentLedger;
@@ -72,17 +71,8 @@ public final class ManagedLedgerBacklogSizeEstimator {
         final long currentEntries;
         synchronized (impl) {
             for (Map.Entry<Long, LedgerInfo> entry : impl.ledgers.headMap(lastLedgerId, true).entrySet()) {
-                if (count == ledgerIds.length) {
-                    int capacity = count * 2;
-                    ledgerIds = Arrays.copyOf(ledgerIds, capacity);
-                    prefixSizes = Arrays.copyOf(prefixSizes, capacity);
-                    entries = Arrays.copyOf(entries, capacity);
-                }
                 LedgerInfo info = entry.getValue();
-                ledgerIds[count] = entry.getKey();
-                prefixSizes[count] = info.getSize();
-                entries[count] = info.getEntries();
-                count++;
+                metadata.add(new LedgerMetadata(entry.getKey(), info.getSize(), info.getEntries()));
             }
             totalSize = impl.getTotalSize();
             hasCurrentLedger = impl.currentLedger != null;
@@ -91,28 +81,44 @@ public final class ManagedLedgerBacklogSizeEstimator {
             currentEntries = impl.currentLedgerEntries;
         }
 
-        for (int i = 1; i < count; i++) {
-            prefixSizes[i] += prefixSizes[i - 1];
+        long[] prefixSizes = new long[metadata.size() + 1];
+        for (int i = 0; i < metadata.size(); i++) {
+            prefixSizes[i + 1] = prefixSizes[i] + metadata.get(i).size();
         }
         for (Position position : positions) {
             if (position == null) {
                 estimates.put(null, 0L);
                 continue;
             }
-            int index = Arrays.binarySearch(ledgerIds, 0, count, position.getLedgerId());
-            int before = index >= 0 ? index : -index - 1;
-            long sizeBefore = before == 0 ? 0 : prefixSizes[before - 1];
-            long size = totalSize - sizeBefore;
-            if (index >= 0) {
-                long ledgerSize = prefixSizes[index] - sizeBefore;
+            int index = lowerBound(metadata, position.getLedgerId());
+            long size = totalSize - prefixSizes[index];
+            if (index < metadata.size() && metadata.get(index).ledgerId() == position.getLedgerId()) {
+                LedgerMetadata info = metadata.get(index);
                 if (hasCurrentLedger && position.getLedgerId() == currentLedgerId) {
                     size -= ManagedLedgerImpl.consumedLedgerSize(currentSize, currentEntries, position.getEntryId());
                 } else {
-                    size -= ManagedLedgerImpl.consumedLedgerSize(ledgerSize, entries[index], position.getEntryId());
+                    size -= ManagedLedgerImpl.consumedLedgerSize(info.size(), info.entries(), position.getEntryId());
                 }
             }
             estimates.put(position, size);
         }
         return estimates;
+    }
+
+    private static int lowerBound(List<LedgerMetadata> metadata, long ledgerId) {
+        int low = 0;
+        int high = metadata.size();
+        while (low < high) {
+            int mid = low + (high - low) / 2;
+            if (metadata.get(mid).ledgerId() < ledgerId) {
+                low = mid + 1;
+            } else {
+                high = mid;
+            }
+        }
+        return low;
+    }
+
+    private record LedgerMetadata(long ledgerId, long size, long entries) {
     }
 }

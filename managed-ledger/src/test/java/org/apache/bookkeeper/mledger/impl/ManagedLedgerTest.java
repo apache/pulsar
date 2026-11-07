@@ -5641,6 +5641,19 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertEquals(ManagedLedgerBacklogSizeEstimator.estimate(ledger, List.of(positions.get(0)))
                 .get(positions.get(0)).longValue(), ledger.getEstimatedBacklogSize(positions.get(0)));
         assertTrue(ManagedLedgerBacklogSizeEstimator.estimate(ledger, List.of()).isEmpty());
+        Map<Position, Long> nullEstimates = ManagedLedgerBacklogSizeEstimator.estimate(ledger,
+                Arrays.asList(null, null));
+        assertEquals(nullEstimates.size(), 1);
+        assertEquals(nullEstimates.get(null).longValue(), 0);
+
+        Map<Position, Long> repeatedEstimates = ManagedLedgerBacklogSizeEstimator.estimate(ledger,
+                Arrays.asList(positions.get(6), null, positions.get(0), positions.get(6), null));
+        assertEquals(repeatedEstimates.size(), 3);
+        assertEquals(repeatedEstimates.get(positions.get(6)).longValue(),
+                ledger.getEstimatedBacklogSize(positions.get(6)));
+        assertEquals(repeatedEstimates.get(positions.get(0)).longValue(),
+                ledger.getEstimatedBacklogSize(positions.get(0)));
+        assertEquals(repeatedEstimates.get(null).longValue(), 0);
 
         Position current = positions.get(6);
         long oldEstimate = estimates.get(current);
@@ -5666,6 +5679,23 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         }
         assertEquals(estimates.get(current).longValue(), oldEstimate);
         ledger.close();
+    }
+
+    @Test
+    public void testEstimatedBacklogSizesFallback() {
+        ManagedLedger ledger = mock(ManagedLedger.class);
+        Position first = PositionFactory.create(1, 0);
+        Position second = PositionFactory.create(2, 0);
+        when(ledger.getEstimatedBacklogSize(first)).thenReturn(10L);
+        when(ledger.getEstimatedBacklogSize(second)).thenReturn(30L);
+
+        Map<Position, Long> estimates = ManagedLedgerBacklogSizeEstimator.estimate(ledger,
+                Arrays.asList(first, null, second, first));
+
+        assertEquals(estimates.size(), 3);
+        assertEquals(estimates.get(first).longValue(), 10);
+        assertEquals(estimates.get(second).longValue(), 30);
+        assertEquals(estimates.get(null).longValue(), 0);
     }
 
     @Test
