@@ -350,6 +350,9 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
         // initialization to inherit: that reader would be past the events it consumed before it found itself
         // superseded, and the next initialization would miss their policies. The read that starts the interrupted
         // initialization may fail, as a read that races an unload does; the read after it must see every policy.
+        // This guards the shape in which the initialization and its reader slot are installed in one step and the
+        // reader is created after it: with the reader created inside readerCaches.computeIfAbsent instead, as it
+        // was, the unload cannot be injected at all (it would re-enter the map) and the test dies by its timeout.
         admin.namespaces().unload(NAMESPACE);
         Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() ->
                 assertThat(service.getPoliciesCacheInit(namespace))
@@ -370,11 +373,13 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
         final CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> cachedReader =
                 service.getReaderCaches().get(namespace);
         assertThat(cachedReader).describedAs("the retry's reader must be cached").isNotNull();
+        // The interrupted initialization's reader may still be on its way: its creation was started, not awaited.
+        Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() ->
+                assertThat(service.readers().size() - readersBefore.size())
+                        .describedAs("the interrupted initialization's reader and the retry's reader")
+                        .isGreaterThanOrEqualTo(2));
         final List<StallableReader> readersCreatedSince = service.readers();
         readersCreatedSince.removeAll(readersBefore);
-        assertThat(readersCreatedSince)
-                .describedAs("the interrupted initialization's reader and the retry's reader")
-                .hasSizeGreaterThanOrEqualTo(2);
         readersCreatedSince.remove(cachedReader.get(30, TimeUnit.SECONDS));
         Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> assertThat(readersCreatedSince)
                 .describedAs("every reader but the retry's, that of the initialization the unload dropped among them,"
