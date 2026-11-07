@@ -157,6 +157,9 @@ public class SinkConfigUtils {
                 if (spec.getReceiverQueueSize() != null) {
                     bldr.setReceiverQueueSize().setValue(spec.getReceiverQueueSize());
                 }
+                if (spec.getSchemaProperties() != null) {
+                    spec.getSchemaProperties().forEach(bldr::putSchemaProperties);
+                }
                 if (spec.getCryptoConfig() != null) {
                     bldr.setCryptoSpec().copyFrom(CryptoUtils.convert(spec.getCryptoConfig()));
                 }
@@ -309,6 +312,9 @@ public class SinkConfigUtils {
                         input.getMessagePayloadProcessorSpec()));
             }
             consumerConfig.setRegexPattern(input.isIsRegexPattern());
+            Map<String, String> schemaProps = new HashMap<>();
+            input.forEachSchemaProperties(schemaProps::put);
+            consumerConfig.setSchemaProperties(schemaProps);
             Map<String, String> consumerProps = new HashMap<>();
             input.forEachConsumerProperties(consumerProps::put);
             consumerConfig.setConsumerProperties(consumerProps);
