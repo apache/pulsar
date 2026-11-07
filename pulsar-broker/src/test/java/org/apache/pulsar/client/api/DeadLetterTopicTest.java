@@ -983,6 +983,7 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
     public void testDeadLetterWithoutConsumerReceiveImmediately() throws PulsarClientException, InterruptedException {
         final String topic = newTopicName();
 
+        @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic(topic)
                 .subscriptionType(SubscriptionType.Shared)
@@ -991,6 +992,7 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
                 .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(1).build())
                 .subscribe();
 
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(topic)
                 .create();

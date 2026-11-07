@@ -231,6 +231,7 @@ public class ProducerConsumerInternalTest extends SharedPulsarBaseTest {
         admin.topics().createNonPartitionedTopic(topicName);
 
         // Create producer using default producerName.
+        @Cleanup
         ProducerImpl producer = (ProducerImpl) pulsarClient.newProducer().topic(topicName).create();
         ServiceProducer serviceProducer = getServiceProducer(producer, topicName);
 
@@ -255,6 +256,7 @@ public class ProducerConsumerInternalTest extends SharedPulsarBaseTest {
         admin.topics().createNonPartitionedTopic(topicName);
 
         // Create producer using default producerName.
+        @Cleanup
         ProducerImpl producer = (ProducerImpl) pulsarClient.newProducer().producerName(pName).topic(topicName).create();
         ServiceProducer serviceProducer = getServiceProducer(producer, topicName);
 
