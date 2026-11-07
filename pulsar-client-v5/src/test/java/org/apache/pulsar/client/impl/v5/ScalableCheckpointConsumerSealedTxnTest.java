@@ -297,6 +297,33 @@ public class ScalableCheckpointConsumerSealedTxnTest {
     }
 
     @Test
+    public void aDelayedTrueAvailabilityCannotRetireTheProbeTheLoopCoalescedInto() throws Exception {
+        try (Fixture fixture = new Fixture(layout(0, false))) {
+            ControlledReader parent = fixture.latest(0);
+            CompletableFuture<Boolean> staleTrue = new CompletableFuture<>();
+            parent.availability.add(staleTrue);
+            fixture.update(layout(1, true));
+            assertThat(staleTrue).isNotDone();
+            fixture.assertChildrenNotReading();
+
+            // The loop drains the newly visible tail, sees an empty frontier without EOS, and its
+            // probe request is coalesced into the still outstanding one before re-arming its read.
+            List<Message<String>> tail = transactionTail();
+            parent.publish(tail);
+            fixture.expectParentMessages(tail);
+            fixture.assertChildrenNotReading();
+
+            // The outstanding query's true result was computed before the loop consumed the tail.
+            staleTrue.complete(true);
+            parent.endOfTopic = true;
+            fixture.timer.fireNext();
+            assertThat(parent.closed).as("EOS after the drained tail must still wake the pending read").isTrue();
+            assertThat(fixture.latest(1).readCalls).isEqualTo(1);
+            assertThat(fixture.latest(2).readCalls).isEqualTo(1);
+        }
+    }
+
+    @Test
     public void partialBatchCheckpointDropsOnlyTheProcessedPrefix() throws Exception {
         MessageId boundary = new BatchMessageIdImpl(509, 30, -1, 1, 4, null);
         try (Fixture fixture = new Fixture(layout(0, false), checkpoint(boundary), (segment, reader) -> { })) {

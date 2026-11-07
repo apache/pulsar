@@ -160,6 +160,8 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
         private final Reader<T> reader;
         private Timeout timeout;
         private long generation;
+        /** A probe request arrived after the current query started. */
+        private boolean coalesced;
 
         private SealedProbe(Reader<T> reader) {
             this.reader = reader;
@@ -602,7 +604,14 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
         synchronized (this) {
             HeldReader<T> held = heldReaders.get(segmentId);
             if (!isAttachedReader(reader, segmentId) || held != null && held.reader() == reader
-                    || drainedSegments.contains(segmentId) || sealedProbes.containsKey(segmentId)) {
+                    || drainedSegments.contains(segmentId)) {
+                return;
+            }
+            SealedProbe current = sealedProbes.get(segmentId);
+            if (current != null) {
+                // The outstanding query may hold a true snapshot taken before this empty observation:
+                // make that result check again instead of retiring the only probe.
+                current.coalesced = true;
                 return;
             }
             probe = new SealedProbe(reader);
@@ -624,6 +633,7 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
                 return;
             }
             probe.timeout = null;
+            probe.coalesced = false;
             generation = ++probe.generation;
         }
         // A false availability result can be queued on the v4 pinned executor. Do not combine an old empty
@@ -646,7 +656,8 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
                 if (end) {
                     sealedProbes.remove(segmentId);
                     exhaustedSegments.put(segmentId, probe.reader);
-                } else if (Boolean.TRUE.equals(available) || cause instanceof AlreadyClosedException) {
+                } else if (cause instanceof AlreadyClosedException
+                        || Boolean.TRUE.equals(available) && !probe.coalesced) {
                     sealedProbes.remove(segmentId);
                     return;
                 }
