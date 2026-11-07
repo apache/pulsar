@@ -433,6 +433,7 @@ public class MLTransactionMetadataStore
                                     this.transactionTimeoutCount.increment();
                                 }
                                 if (newStatus == TxnStatus.COMMITTED || newStatus == TxnStatus.ABORTED) {
+                                    timeoutTracker.removeTransaction(txnID.getLeastSigBits());
                                     this.transactionMetadataStoreStats
                                             .addTransactionExecutionLatencySample(System.currentTimeMillis()
                                                     - txnMetaListPair.getLeft().getOpenTimestamp());

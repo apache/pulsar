@@ -18,109 +18,146 @@
  */
 package org.apache.pulsar.broker.transaction.timeout;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.Timeout;
 import io.netty.util.Timer;
 import io.netty.util.TimerTask;
 import java.time.Clock;
 import java.util.concurrent.TimeUnit;
-import lombok.CustomLog;
 import org.apache.pulsar.broker.TransactionMetadataStoreService;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.common.util.collections.TripleLongPriorityQueue;
 import org.apache.pulsar.transaction.coordinator.TransactionTimeoutTracker;
 
 /**
- * An timer-task implementation of {@link TransactionTimeoutTracker}.
+ * A timer-task implementation of {@link TransactionTimeoutTracker}.
  */
-@CustomLog
 public class TransactionTimeoutTrackerImpl implements TransactionTimeoutTracker, TimerTask {
 
     private final Timer timer;
-    private final TripleLongPriorityQueue priorityQueue = new TripleLongPriorityQueue();
+    private final TransactionTimeoutQueue priorityQueue = new TransactionTimeoutQueue();
     private final long tickTimeMillis;
     private final Clock clock;
-    private Timeout currentTimeout;
-    private static final long INITIAL_TIMEOUT = 1L;
-
-    private volatile long nowTaskTimeoutTime = INITIAL_TIMEOUT;
     private final long tcId;
     private final TransactionMetadataStoreService transactionMetadataStoreService;
 
+    // All mutable state is guarded by this tracker, including replay and close.
+    private Timeout currentTimeout;
+    private long nowTaskTimeoutTime;
+    private boolean closed;
+
     TransactionTimeoutTrackerImpl(long tcId, Timer timer, long tickTimeMillis,
                                   TransactionMetadataStoreService transactionMetadataStoreService) {
+        this(tcId, timer, tickTimeMillis, transactionMetadataStoreService, Clock.systemUTC());
+    }
+
+    @VisibleForTesting
+    TransactionTimeoutTrackerImpl(long tcId, Timer timer, long tickTimeMillis,
+                                  TransactionMetadataStoreService transactionMetadataStoreService, Clock clock) {
         this.tcId = tcId;
         this.transactionMetadataStoreService = transactionMetadataStoreService;
         this.timer = timer;
-        this.tickTimeMillis  = tickTimeMillis;
-        this.clock = Clock.systemUTC();
+        this.tickTimeMillis = tickTimeMillis;
+        this.clock = clock;
     }
 
     @Override
     public void addTransaction(long sequenceId, long timeout) {
-        if (timeout < tickTimeMillis) {
-            this.transactionMetadataStoreService.endTransactionForTimeout(new TxnID(tcId, sequenceId));
+        synchronized (this) {
+            if (closed) {
+                return;
+            }
+            if (timeout >= tickTimeMillis) {
+                priorityQueue.add(sequenceId, clock.millis() + timeout);
+                scheduleTimeout();
+                return;
+            }
+        }
+        transactionMetadataStoreService.endTransactionForTimeout(new TxnID(tcId, sequenceId));
+    }
+
+    @Override
+    public synchronized void removeTransaction(long sequenceId) {
+        if (!closed && priorityQueue.remove(sequenceId)) {
+            scheduleTimeout();
+        }
+    }
+
+    @Override
+    public synchronized void replayAddTransaction(long sequenceId, long timeout) {
+        if (!closed) {
+            priorityQueue.add(sequenceId, timeout);
+        }
+    }
+
+    @Override
+    public synchronized void start() {
+        if (!closed) {
+            scheduleTimeout();
+        }
+    }
+
+    @Override
+    public synchronized void close() {
+        closed = true;
+        cancelTimeout();
+        priorityQueue.clear();
+    }
+
+    /** Called with the tracker lock held. Keep an earlier timer to avoid rescheduling on every completion. */
+    private void scheduleTimeout() {
+        if (priorityQueue.isEmpty()) {
+            // Keep one coordinator-level wakeup to reuse if another transaction arrives. It retains no txn record.
             return;
         }
-        synchronized (this){
-            long nowTime = clock.millis();
-            long transactionTimeoutTime = nowTime + timeout;
-            priorityQueue.add(transactionTimeoutTime, tcId, sequenceId);
-            if (this.currentTimeout == null) {
-                currentTimeout = timer.newTimeout(this, timeout, TimeUnit.MILLISECONDS);
-                nowTaskTimeoutTime = transactionTimeoutTime;
-            } else if (nowTaskTimeoutTime > transactionTimeoutTime) {
-                if (currentTimeout.cancel() || currentTimeout.isExpired()) {
-                    currentTimeout = timer.newTimeout(this, timeout, TimeUnit.MILLISECONDS);
-                    nowTaskTimeoutTime = transactionTimeoutTime;
-                }
-            } else if (currentTimeout.isExpired()) {
-                currentTimeout = timer.newTimeout(this, timeout, TimeUnit.MILLISECONDS);
-                nowTaskTimeoutTime = transactionTimeoutTime;
-            }
+        long nextTimeoutTime = priorityQueue.peekTimeout();
+        // An expired timer may be waiting for this lock or draining due transactions outside it.
+        if (currentTimeout != null && !currentTimeout.isCancelled()
+                && nowTaskTimeoutTime <= nextTimeoutTime) {
+            return;
         }
+        cancelTimeout();
+        nowTaskTimeoutTime = nextTimeoutTime;
+        currentTimeout = timer.newTimeout(this, Math.max(0, nextTimeoutTime - clock.millis()), TimeUnit.MILLISECONDS);
     }
 
-    @Override
-    public void replayAddTransaction(long sequenceId, long timeout) {
-        priorityQueue.add(timeout, tcId, sequenceId);
-    }
-
-    @Override
-    public void start() {
-        synchronized (this) {
-            if (currentTimeout == null && !priorityQueue.isEmpty()) {
-                this.currentTimeout = this.timer.newTimeout(this,
-                        priorityQueue.peekN1() - this.clock.millis(), TimeUnit.MILLISECONDS);
-                this.nowTaskTimeoutTime = priorityQueue.peekN1();
-            }
-        }
-    }
-
-    @Override
-    public void close() {
-        priorityQueue.close();
-        if (this.currentTimeout != null) {
-            this.currentTimeout.cancel();
+    private void cancelTimeout() {
+        if (currentTimeout != null) {
+            currentTimeout.cancel();
+            currentTimeout = null;
         }
     }
 
     @Override
     public void run(Timeout timeout) {
-        synchronized (this){
-            while (!priorityQueue.isEmpty()){
-                long timeoutTime = priorityQueue.peekN1();
-                long nowTime = clock.millis();
-                if (timeoutTime < nowTime){
-                    transactionMetadataStoreService.endTransactionForTimeout(new TxnID(priorityQueue.peekN2(),
-                            priorityQueue.peekN3()));
+        try {
+            while (true) {
+                long sequenceId;
+                synchronized (this) {
+                    // A cancelled timer may already be running when a new timer replaces it.
+                    if (closed || timeout != currentTimeout || priorityQueue.isEmpty()
+                            || priorityQueue.peekTimeout() > clock.millis()) {
+                        return;
+                    }
+                    sequenceId = priorityQueue.peekSequenceId();
                     priorityQueue.pop();
-                } else {
-                    currentTimeout = timer
-                            .newTimeout(this, timeoutTime - clock.millis(), TimeUnit.MILLISECONDS);
-                    nowTaskTimeoutTime = timeoutTime;
-                    break;
+                }
+                // Completion can synchronously cancel another transaction. Remove first and call outside the lock.
+                transactionMetadataStoreService.endTransactionForTimeout(new TxnID(tcId, sequenceId));
+            }
+        } finally {
+            synchronized (this) {
+                if (timeout == currentTimeout) {
+                    currentTimeout = null;
+                    if (!closed) {
+                        scheduleTimeout();
+                    }
                 }
             }
         }
+    }
+
+    @VisibleForTesting
+    synchronized int getTrackedTransactionCount() {
+        return priorityQueue.size();
     }
 }

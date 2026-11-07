@@ -19,18 +19,16 @@
 package org.apache.pulsar.broker.transaction.recover;
 
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertFalse;
 import static org.testng.AssertJUnit.assertTrue;
-import io.netty.util.HashedWheelTimer;
 import java.lang.reflect.Field;
 import java.util.Map;
 import java.util.Set;
 import org.apache.pulsar.broker.TransactionMetadataStoreService;
-import org.apache.pulsar.broker.transaction.timeout.TransactionTimeoutTrackerFactoryImpl;
 import org.apache.pulsar.broker.transaction.timeout.TransactionTimeoutTrackerImpl;
-import org.apache.pulsar.common.util.collections.TripleLongPriorityQueue;
-import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionTimeoutTracker;
 import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
 import org.testng.annotations.Test;
@@ -41,8 +39,7 @@ public class TransactionRecoverTrackerTest {
     @Test
     public void openStatusRecoverTrackerTest() throws Exception {
         TransactionMetadataStoreService transactionMetadataStoreService = mock(TransactionMetadataStoreService.class);
-        TransactionTimeoutTracker timeoutTracker = new TransactionTimeoutTrackerFactoryImpl(
-                transactionMetadataStoreService, new HashedWheelTimer()).newTracker(TransactionCoordinatorID.get(1));
+        TransactionTimeoutTracker timeoutTracker = mock(TransactionTimeoutTracker.class);
         TransactionRecoverTrackerImpl recoverTracker =
                 new TransactionRecoverTrackerImpl(transactionMetadataStoreService, timeoutTracker, 1);
 
@@ -57,13 +54,11 @@ public class TransactionRecoverTrackerTest {
         assertEquals(map.get(1L).longValue(), 200L);
         assertEquals(map.get(2L).longValue(), 300L);
 
-        field = TransactionTimeoutTrackerImpl.class.getDeclaredField("priorityQueue");
-        field.setAccessible(true);
-        TripleLongPriorityQueue priorityQueue = (TripleLongPriorityQueue) field.get(timeoutTracker);
-        assertEquals(priorityQueue.size(), 0);
+        verifyNoInteractions(timeoutTracker);
 
         recoverTracker.appendOpenTransactionToTimeoutTracker();
-        assertEquals(priorityQueue.size(), 2);
+        verify(timeoutTracker).replayAddTransaction(1, 200);
+        verify(timeoutTracker).replayAddTransaction(2, 300);
     }
 
     @SuppressWarnings("unchecked")
