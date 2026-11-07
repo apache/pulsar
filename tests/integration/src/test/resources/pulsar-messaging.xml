@@ -36,6 +36,9 @@
             <class name="org.apache.pulsar.tests.integration.messaging.MessagingSmokeTest" />
 
             <class name="org.apache.pulsar.tests.integration.oxia.OxiaSmokeTest" />
+
+            <!-- Run fault scenarios last so a failure does not skip the other messaging classes. -->
+            <class name="org.apache.pulsar.tests.integration.messaging.ProcessFailureDurabilityTest" />
         </classes>
     </test>
 </suite>
