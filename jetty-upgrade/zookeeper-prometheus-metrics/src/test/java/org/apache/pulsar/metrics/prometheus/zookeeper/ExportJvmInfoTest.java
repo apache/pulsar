@@ -40,8 +40,7 @@ public class ExportJvmInfoTest {
     }
 
     private void runTest(boolean exportJvmInfo) throws Exception {
-        PrometheusRegistry.defaultRegistry.clear();
-        PrometheusMetricsProvider provider = new PrometheusMetricsProvider();
+        PrometheusMetricsProvider provider = new PrometheusMetricsProvider(new PrometheusRegistry());
         try {
             Properties configuration = new Properties();
             configuration.setProperty("httpPort", "0"); // ephemeral port

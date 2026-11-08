@@ -30,8 +30,7 @@ public class PrometheusMetricsProviderConfigTest {
     @Test
     public void testInvalidPort() {
         Assert.assertThrows(MetricsProviderLifeCycleException.class, () -> {
-            PrometheusRegistry.defaultRegistry.clear();
-            PrometheusMetricsProvider provider = new PrometheusMetricsProvider();
+            PrometheusMetricsProvider provider = new PrometheusMetricsProvider(new PrometheusRegistry());
             Properties configuration = new Properties();
             configuration.setProperty("httpPort", "65536");
             configuration.setProperty("exportJvmInfo", "false");
@@ -43,8 +42,7 @@ public class PrometheusMetricsProviderConfigTest {
     @Test
     public void testInvalidAddr() {
         Assert.assertThrows(MetricsProviderLifeCycleException.class, () -> {
-            PrometheusRegistry.defaultRegistry.clear();
-            PrometheusMetricsProvider provider = new PrometheusMetricsProvider();
+            PrometheusMetricsProvider provider = new PrometheusMetricsProvider(new PrometheusRegistry());
             Properties configuration = new Properties();
             configuration.setProperty("httpHost", "master");
             provider.configure(configuration);
@@ -54,8 +52,7 @@ public class PrometheusMetricsProviderConfigTest {
 
     @Test
     public void testValidConfig() throws MetricsProviderLifeCycleException {
-        PrometheusRegistry.defaultRegistry.clear();
-        PrometheusMetricsProvider provider = new PrometheusMetricsProvider();
+        PrometheusMetricsProvider provider = new PrometheusMetricsProvider(new PrometheusRegistry());
         try {
             Properties configuration = new Properties();
             configuration.setProperty("httpHost", "0.0.0.0");

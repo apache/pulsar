@@ -26,6 +26,7 @@ import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertSame;
 import static org.testng.AssertJUnit.assertTrue;
 import static org.testng.AssertJUnit.fail;
+import io.prometheus.client.CollectorRegistry;
 import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -72,8 +73,8 @@ public class PrometheusMetricsProviderTest {
 
     @BeforeMethod
     public void setup() throws Exception {
-        PrometheusRegistry.defaultRegistry.clear();
-        provider = new PrometheusMetricsProvider();
+        CollectorRegistry.defaultRegistry.clear();
+        provider = new PrometheusMetricsProvider(new PrometheusRegistry());
         Properties configuration = new Properties();
         configuration.setProperty("numWorkerThreads", "0"); // sync behavior for test
         configuration.setProperty("httpHost", "127.0.0.1"); // local host for test
@@ -88,7 +89,7 @@ public class PrometheusMetricsProviderTest {
         if (provider != null) {
             provider.stop();
         }
-        PrometheusRegistry.defaultRegistry.clear();
+        CollectorRegistry.defaultRegistry.clear();
     }
 
     @Test
@@ -436,7 +437,7 @@ public class PrometheusMetricsProviderTest {
 
         PrometheusMetricsProvider metricsProvider = null;
         try {
-            metricsProvider = new PrometheusMetricsProvider();
+            metricsProvider = new PrometheusMetricsProvider(new PrometheusRegistry());
             metricsProvider.configure(config);
             metricsProvider.start();
             final Summary summary =
@@ -501,7 +502,78 @@ public class PrometheusMetricsProviderTest {
         }
     }
 
+    /**
+     * conf/log4j2.yaml still configures the simpleclient 0.x Prometheus appender. Its samples
+     * must remain visible in both /metrics and the 4lw dump until that appender is migrated
+     * as part of #27045, without re-exposing the old JVM/process samples.
+     */
+    @Test
+    public void testLegacyCollectorSamplesAreExposed() throws Exception {
+        io.prometheus.client.Counter.build("log4j2_appender_total", "log4j2 appender events")
+                .labelNames("level")
+                .register(CollectorRegistry.defaultRegistry)
+                .labels("error").inc();
+        io.prometheus.client.Gauge.build("jvm_dummy_bytes_used", "legacy jvm sample")
+                .register(CollectorRegistry.defaultRegistry).set(1);
+        io.prometheus.client.Gauge.build("process_dummy_seconds", "legacy process sample")
+                .register(CollectorRegistry.defaultRegistry).set(1);
+
+        String response = callServlet();
+        assertThat(response).contains("log4j2_appender_total{level=\"error\",} 1.0");
+        assertThat(response).doesNotContain("jvm_dummy_bytes_used");
+        assertThat(response).doesNotContain("process_dummy_seconds");
+
+        Map<String, Object> dumped = new HashMap<>();
+        provider.dump(dumped::put);
+        assertThat(dumped).containsEntry("log4j2_appender_total{level=\"error\"}", 1.0);
+        assertThat(dumped.keySet()).noneMatch(key -> key.startsWith("jvm_dummy_")
+                || key.startsWith("process_dummy_"));
+    }
+
+    /**
+     * JvmMetrics exposes an Info snapshot (jvm_runtime_info). The 4lw/AdminServer dump used to
+     * include jvm_info from simpleclient, so Info snapshots have to be dumped as well.
+     */
+    @Test
+    public void testJvmRuntimeInfoIsExposedInServletAndDump() throws Exception {
+        PrometheusMetricsProvider jvmProvider = new PrometheusMetricsProvider(new PrometheusRegistry());
+        try {
+            Properties configuration = new Properties();
+            configuration.setProperty("numWorkerThreads", "0");
+            configuration.setProperty("httpPort", "0");
+            configuration.setProperty("exportJvmInfo", "true");
+            jvmProvider.configure(configuration);
+            jvmProvider.start();
+
+            String response = callServlet(jvmProvider);
+            assertThat(response).contains("# TYPE jvm_runtime_info gauge");
+            assertThat(response).contains("jvm_runtime_info{");
+
+            Map<String, Object> dumped = new HashMap<>();
+            jvmProvider.dump(dumped::put);
+            assertThat(dumped).anySatisfy((key, value) -> {
+                assertThat(key).startsWith("jvm_runtime_info{");
+                assertThat(key).contains("version=");
+                assertThat(value).isEqualTo(1.0);
+            });
+        } finally {
+            jvmProvider.stop();
+        }
+    }
+
+    @Test
+    public void testSummaryQuantileWindowIsPreserved() {
+        // simpleclient 0.16.0 ages quantiles over 10 minutes in 5 buckets; client_java 1.x
+        // defaults to 5 minutes, so the provider overrides the window explicitly.
+        assertEquals(600L, PrometheusMetricsProvider.SUMMARY_MAX_AGE_SECONDS);
+        assertEquals(5, PrometheusMetricsProvider.SUMMARY_AGE_BUCKETS);
+    }
+
     private String callServlet() throws ServletException, IOException {
+        return callServlet(provider);
+    }
+
+    private String callServlet(PrometheusMetricsProvider metricsProvider) throws ServletException, IOException {
         // we are not performing an HTTP request
         // but we are calling directly the servlet
         ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -523,7 +595,7 @@ public class PrometheusMetricsProviderTest {
             }
         });
         HttpServletRequest req = mock(HttpServletRequest.class);
-        provider.getServlet().doGet(req, response);
+        metricsProvider.getServlet().doGet(req, response);
         return new String(out.toByteArray(), StandardCharsets.UTF_8);
     }
 
