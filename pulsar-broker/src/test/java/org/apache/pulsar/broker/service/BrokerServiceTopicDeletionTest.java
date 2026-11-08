@@ -26,6 +26,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -297,7 +298,6 @@ public class BrokerServiceTopicDeletionTest {
             fixture.setup();
             fixture.acquireOwnership(name);
             fixture.acquireOwnership(followingName);
-            fixture.acquireOwnership(triggerName);
             BrokerService realBroker = fixture.service().getBrokerService();
             // Retain real unloaded metadata so deletion after the failed reload has actual work to do.
             PersistentTopic seeded = (PersistentTopic) realBroker.getTopic(name, true)
@@ -319,6 +319,13 @@ public class BrokerServiceTopicDeletionTest {
                 return invocation.callRealMethod();
             }).when(realBroker).checkTopicNsOwnership(name);
             doReturn(CompletableFuture.completedFuture(null)).when(realBroker).checkTopicNsOwnership(followingName);
+            // The trigger load only holds the permit. Completing it on this thread dequeues the failing load here,
+            // so its ownership callbacks are attached before this thread fails the check and tracks the cleanup.
+            CompletableFuture<Optional<Topic>> trigger = new CompletableFuture<>();
+            TopicLoadingContext triggerContext = new TopicLoadingContext(TopicName.get(triggerName), true, trigger,
+                    mock(PulsarStats.class));
+            doReturn(CompletableFuture.completedFuture(null)).when(realBroker).checkTopicNsOwnership(triggerName);
+            doNothing().when(realBroker).createPersistentTopic0(triggerContext);
             CompletableFuture<Void> queued = new CompletableFuture<>();
             CompletableFuture<Void> followingQueued = new CompletableFuture<>();
             doAnswer(invocation -> {
@@ -344,8 +351,11 @@ public class BrokerServiceTopicDeletionTest {
                 assertThat(loading).isNotDone();
                 assertThat(following).isNotDone();
                 permits.release();
-                realBroker.getTopic(triggerName, true).get(10, TimeUnit.SECONDS);
-                dequeued.get(10, TimeUnit.SECONDS);
+                realBroker.loadOrCreatePersistentTopic(triggerContext);
+                assertThat(permits.availablePermits()).as("the trigger load holds the released permit").isZero();
+                trigger.complete(Optional.empty());
+                assertThat(dequeued).as("completing the trigger load dequeues the failing load on this thread")
+                        .isDone();
                 assertThat(permits.availablePermits()).as("dequeued ownership check precedes permit acquisition")
                         .isEqualTo(1);
                 CompletableFuture<Optional<Topic>> replacement = null;

@@ -17,6 +17,6 @@
  * under the License.
  */
 /**
- * Benchmarks for broker Prometheus metric serialization.
+ * Benchmarks for Prometheus metrics generation.
  */
 package org.apache.pulsar.broker.stats.prometheus;

@@ -82,6 +82,7 @@ public class CreateSubscriptionTest extends SharedPulsarBaseTest {
 
         assertEquals(admin.topics().getSubscriptions(topic), List.of("sub-1"));
 
+        @Cleanup
         Producer<byte[]> p1 = pulsarClient.newProducer().topic(topic).create();
         p1.send("test-1".getBytes());
         p1.send("test-2".getBytes());
@@ -216,8 +217,9 @@ public class CreateSubscriptionTest extends SharedPulsarBaseTest {
         Map<String, String> map = new HashMap<>();
         map.put("test-topic", "tag1");
         String subName = "my-sub";
-        pulsarClient.newConsumer().subscriptionMode(subscriptionMode).topic(topic).receiverQueueSize(1)
-                .subscriptionProperties(map).subscriptionName(subName).subscribe();
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().subscriptionMode(subscriptionMode).topic(topic)
+                .receiverQueueSize(1).subscriptionProperties(map).subscriptionName(subName).subscribe();
         TopicStats stats = admin.topics().getStats(topic);
         Map<String, String> subProperties = stats.getSubscriptions().get(subName).getSubscriptionProperties();
         assertEquals(subProperties, map);
@@ -230,8 +232,10 @@ public class CreateSubscriptionTest extends SharedPulsarBaseTest {
         pMap.put("topic2", "tag2");
         pMap.put("topic3", "tag3");
         String pSubName = "my-sub-1";
-        pulsarClient.newConsumer().subscriptionMode(subscriptionMode).topic(partitionedTopic).receiverQueueSize(1)
-                .subscriptionProperties(pMap).subscriptionName(pSubName).subscribe();
+        @Cleanup
+        Consumer<byte[]> partitionedConsumer = pulsarClient.newConsumer().subscriptionMode(subscriptionMode)
+                .topic(partitionedTopic).receiverQueueSize(1).subscriptionProperties(pMap).subscriptionName(pSubName)
+                .subscribe();
 
         PartitionedTopicStats pStats = admin.topics().getPartitionedStats(partitionedTopic, false);
         Map<String, String> pSubProperties = pStats.getSubscriptions().get(pSubName)

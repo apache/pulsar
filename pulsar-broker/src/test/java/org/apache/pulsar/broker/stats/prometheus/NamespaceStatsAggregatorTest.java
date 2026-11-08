@@ -35,6 +35,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Consumer;
+import org.apache.pulsar.broker.service.GetStatsOptions;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -111,7 +112,8 @@ public class NamespaceStatsAggregatorTest {
         topicStats.bytesOutCounter = 9007199254740993L;
         topicStats.bucketDelayedIndexStats.put("bucket", new TopicMetricBean(
                 "pulsar_test_delayed_bucket", 2.5, new String[]{"bucket", "bucket-a"}));
-        when(topic.getStats(false, false, false)).thenReturn(topicStats);
+        GetStatsOptions statsOptions = GetStatsOptions.builder().excludeLastPublishTime(true).build();
+        when(topic.getStats(statsOptions)).thenReturn(topicStats);
         when(topic.getBrokerService()).thenReturn(broker);
         when(topic.getSubscriptions()).thenReturn(subscriptionsMaps);
         when(topic.getReplicators()).thenReturn(new ConcurrentHashMap<>());
@@ -138,6 +140,7 @@ public class NamespaceStatsAggregatorTest {
                 true, true, metricStreams);
 
         // then
+        Mockito.verify(topic).getStats(statsOptions);
         ByteBuf buffer = Unpooled.buffer();
         try {
             metricStreams.flushAllToStream(new SimpleTextOutputStream(buffer));
