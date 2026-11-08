@@ -49,6 +49,7 @@ import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.commons.io.FileUtils;
 import org.apache.pulsar.PulsarBrokerStarter.BrokerStarter;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.metadata.bookkeeper.BookieStatsProviders;
 import org.apache.pulsar.metrics.prometheus.bookkeeper.PrometheusMetricsProvider;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.testng.annotations.Test;
@@ -443,9 +444,9 @@ public class PulsarBrokerStarterTest {
             bookieConf.setAllowEphemeralPorts(true);
             bookieConf.setAllocatorPoolingPolicy(PoolingPolicy.UnpooledHeap);
 
-            provider = PulsarBrokerStarter.newBookieStatsProvider(bookieConf.getStatsProviderClass());
+            provider = BookieStatsProviders.create(bookieConf);
             provider.start(bookieConf);
-            bookieServer = PulsarBrokerStarter.newBookieServer(bookieConf, provider);
+            bookieServer = BookieStatsProviders.buildBookieServer(bookieConf, provider);
             bookieServer.start();
 
             // The bookie's own stats endpoint serves the JVM metrics and the bookie's metrics.
@@ -468,7 +469,8 @@ public class PulsarBrokerStarterTest {
             FileUtils.deleteDirectory(bookieDir);
         }
         // Any other provider still comes from its no-arg constructor.
-        assertThat(PulsarBrokerStarter.newBookieStatsProvider(NullStatsProvider.class))
-                .isInstanceOf(NullStatsProvider.class);
+        ServerConfiguration nullProviderConf = new ServerConfiguration();
+        nullProviderConf.setStatsProviderClass(NullStatsProvider.class);
+        assertThat(BookieStatsProviders.create(nullProviderConf)).isInstanceOf(NullStatsProvider.class);
     }
 }

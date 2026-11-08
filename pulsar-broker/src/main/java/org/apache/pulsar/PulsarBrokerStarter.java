@@ -24,7 +24,6 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.common.configuration.PulsarConfigurationLoader.create;
 import static org.apache.pulsar.common.configuration.PulsarConfigurationLoader.isComplete;
 import com.google.common.annotations.VisibleForTesting;
-import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
@@ -40,12 +39,8 @@ import java.util.concurrent.CompletableFuture;
 import lombok.CustomLog;
 import org.apache.bookkeeper.common.component.ComponentStarter;
 import org.apache.bookkeeper.common.component.LifecycleComponent;
-import org.apache.bookkeeper.common.component.LifecycleComponentStack;
-import org.apache.bookkeeper.common.util.ReflectionUtils;
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.replication.AutoRecoveryMain;
-import org.apache.bookkeeper.server.EmbeddedServer;
-import org.apache.bookkeeper.server.conf.BookieConfiguration;
 import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.apache.logging.log4j.LogManager;
@@ -62,6 +57,7 @@ import org.apache.pulsar.docs.tools.CmdGenerateDocs;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.service.WorkerServiceLoader;
+import org.apache.pulsar.metadata.bookkeeper.BookieStatsProviders;
 import picocli.CommandLine;
 import picocli.CommandLine.ArgGroup;
 import picocli.CommandLine.Command;
@@ -238,7 +234,7 @@ public class PulsarBrokerStarter {
                 final String filepath = Path.of(starterArguments.bookieConfigFile)
                         .toAbsolutePath().normalize().toString();
                 bookieConfig = readBookieConfFile(filepath);
-                bookieStatsProvider = newBookieStatsProvider(bookieConfig.getStatsProviderClass());
+                bookieStatsProvider = BookieStatsProviders.create(bookieConfig);
             } else {
                 bookieConfig = null;
                 bookieStatsProvider = null;
@@ -248,7 +244,7 @@ public class PulsarBrokerStarter {
             if (starterArguments.runBookie) {
                 Objects.requireNonNull(bookieConfig, "No ServerConfiguration for Bookie");
                 Objects.requireNonNull(bookieStatsProvider, "No Stats Provider for Bookie");
-                bookieServer = newBookieServer(bookieConfig, bookieStatsProvider);
+                bookieServer = BookieStatsProviders.buildBookieServer(bookieConfig, bookieStatsProvider);
             } else {
                 bookieServer = null;
             }
@@ -379,37 +375,5 @@ public class PulsarBrokerStarter {
         } finally {
             starter.join();
         }
-    }
-
-    /**
-     * The broker's /metrics reads the Prometheus Java client 1.x default registry. A bookie or autorecovery
-     * running in this process must not register into it: its JVM metrics would be a second copy of the
-     * broker's and the bookie metrics belong to the bookie's own stats endpoint. A provider that can take a
-     * registry, like Pulsar's, therefore gets one of its own. The provider is loaded by name from the bookie
-     * configuration, so the constructor is looked up the same way.
-     */
-    static StatsProvider newBookieStatsProvider(Class<? extends StatsProvider> statsProviderClass) {
-        try {
-            return statsProviderClass.getConstructor(PrometheusRegistry.class).newInstance(new PrometheusRegistry());
-        } catch (NoSuchMethodException e) {
-            return ReflectionUtils.newInstance(statsProviderClass);
-        } catch (ReflectiveOperationException e) {
-            throw new RuntimeException("Could not create the bookie stats provider " + statsProviderClass.getName(),
-                    e);
-        }
-    }
-
-    /**
-     * Builds the in-process bookie around the provider from {@link #newBookieStatsProvider}. Without an explicit
-     * provider {@code EmbeddedServer} creates a second one from the same configuration through its no-arg
-     * constructor, which for Pulsar's provider is the 1.x default registry again. The caller owns the provider's
-     * lifecycle, so it has to outlive the returned server.
-     */
-    static LifecycleComponentStack newBookieServer(ServerConfiguration bookieConfig, StatsProvider statsProvider)
-            throws Exception {
-        return EmbeddedServer.builder(new BookieConfiguration(bookieConfig))
-                .statsProvider(statsProvider)
-                .build()
-                .getLifecycleComponentStack();
     }
 }

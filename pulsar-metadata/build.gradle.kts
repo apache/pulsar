@@ -33,6 +33,7 @@ dependencies {
     implementation(libs.caffeine)
     implementation(libs.simpleclient)
     implementation(libs.simpleclient.caffeine)
+    implementation(libs.prometheus.metrics.model)
 
     testImplementation(project(":buildtools"))
     testImplementation(project(":testmocks"))

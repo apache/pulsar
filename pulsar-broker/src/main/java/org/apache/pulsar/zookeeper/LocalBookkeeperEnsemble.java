@@ -64,6 +64,7 @@ import org.apache.bookkeeper.proto.BookieServer;
 import org.apache.bookkeeper.server.conf.BookieConfiguration;
 import org.apache.bookkeeper.server.service.BookieService;
 import org.apache.bookkeeper.stats.NullStatsLogger;
+import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.bookkeeper.stream.proto.NamespaceConfiguration;
 import org.apache.bookkeeper.stream.proto.NamespaceProperties;
 import org.apache.bookkeeper.stream.server.StreamStorageLifecycleComponent;
@@ -71,6 +72,7 @@ import org.apache.bookkeeper.stream.storage.api.cluster.ClusterInitializer;
 import org.apache.bookkeeper.stream.storage.impl.cluster.ZkClusterInitializer;
 import org.apache.commons.configuration2.CompositeConfiguration;
 import org.apache.commons.io.FileUtils;
+import org.apache.pulsar.metadata.bookkeeper.BookieStatsProviders;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.NoNodeException;
@@ -146,6 +148,7 @@ public class LocalBookkeeperEnsemble {
     // BookKeeper variables
     String bkDataDirName;
     LifecycleComponentStack[] bookieComponents;
+    StatsProvider[] bookieStatsProviders;
     ServerConfiguration[] bsConfs;
 
     // Stream/Table Storage
@@ -264,6 +267,7 @@ public class LocalBookkeeperEnsemble {
         // Create Bookie Servers (B1, B2, B3)
 
         bookieComponents = new LifecycleComponentStack[numberOfBookies];
+        bookieStatsProviders = new StatsProvider[numberOfBookies];
         bsConfs = new ServerConfiguration[numberOfBookies];
 
         for (int i = 0; i < numberOfBookies; i++) {
@@ -433,23 +437,35 @@ public class LocalBookkeeperEnsemble {
     }
 
     public void stopBK(int i) {
-        bookieComponents[i].close();
+        try {
+            bookieComponents[i].close();
+        } finally {
+            bookieStatsProviders[i].stop();
+        }
     }
 
     public void stopBK() {
         log.debug("Local ZK/BK stopping ...");
-        for (LifecycleComponent bookie : bookieComponents) {
-            bookie.close();
+        for (int i = 0; i < bookieComponents.length; i++) {
+            stopBK(i);
         }
     }
 
+    /**
+     * Starts bookie {@code i} around a stats provider of its own. With Pulsar's provider that is a private
+     * Prometheus registry, so a bookie running in the broker's JVM (standalone) stays out of the registry the
+     * broker's /metrics reads. {@code EmbeddedServer} neither starts nor stops an injected provider, so the
+     * provider is started here and stopped in {@link #stopBK(int)}.
+     */
     public void startBK(int i) throws Exception {
         File bkDataDir = new File(bsConfs[i].getLedgerDirNames()[0]);
+        // A failed (re)start must not leave the slot pointing at a bookie that stop() would close again.
+        bookieComponents[i] = null;
+        bookieStatsProviders[i] = null;
 
+        RunningBookie bookie;
         try {
-            bookieComponents[i] = org.apache.bookkeeper.server.Main
-                    .buildBookieServer(new BookieConfiguration(bsConfs[i]));
-            bookieComponents[i].start();
+            bookie = startBookie(bsConfs[i]);
         } catch (BookieException.InvalidCookieException ice) {
             log.warn().attr("bookie", i).exception(ice).log("Invalid cookie found for bookie");
 
@@ -467,16 +483,47 @@ public class LocalBookkeeperEnsemble {
             log.info().attr("directory", bkDataDir).log("Recursively deleting data directory");
             FileUtils.deleteDirectory(bkDataDir);
 
-            bookieComponents[i] = org.apache.bookkeeper.server.Main
-                    .buildBookieServer(new BookieConfiguration(bsConfs[i]));
-            bookieComponents[i].start();
+            bookie = startBookie(bsConfs[i]);
         }
+        bookieComponents[i] = bookie.server();
+        bookieStatsProviders[i] = bookie.statsProvider();
 
         log.info()
                 .attr("bk", i)
                 .attr("port", bsConfs[i].getBookiePort())
                 .attr("directory", bkDataDir.getAbsolutePath())
                 .log("Local BK started");
+    }
+
+    private record RunningBookie(LifecycleComponentStack server, StatsProvider statsProvider) {
+    }
+
+    /**
+     * Builds and starts a bookie around a provider of its own. The provider is fresh for every attempt: the
+     * first build already bound gauges (ledger directory usage, writable directory counts) to the components it
+     * created, and the stats logger keeps the first registration, so the cookie retry must not reuse it. On
+     * failure the built bookie is closed and the provider stopped before the exception is rethrown.
+     */
+    private static RunningBookie startBookie(ServerConfiguration conf) throws Exception {
+        StatsProvider statsProvider = BookieStatsProviders.create(conf);
+        statsProvider.start(conf);
+        LifecycleComponentStack server = null;
+        try {
+            server = BookieStatsProviders.buildBookieServer(conf, statsProvider);
+            server.start();
+            return new RunningBookie(server, statsProvider);
+        } catch (Exception e) {
+            try {
+                if (server != null) {
+                    server.close();
+                }
+            } catch (Exception closeException) {
+                e.addSuppressed(closeException);
+            } finally {
+                statsProvider.stop();
+            }
+            throw e;
+        }
     }
 
     public void startBK() throws Exception {
@@ -497,13 +544,17 @@ public class LocalBookkeeperEnsemble {
 
         log.debug("Local ZK/BK stopping ...");
         if (bookieComponents != null) {
-            for (LifecycleComponent bookie : bookieComponents) {
+            for (int i = 0; i < bookieComponents.length; i++) {
                 try {
-                    if (bookie != null) {
-                        bookie.close();
+                    if (bookieComponents[i] != null) {
+                        bookieComponents[i].close();
                     }
                 } catch (Exception e) {
                     log.warn().exception(e).log("failed to shutdown bookie");
+                } finally {
+                    if (bookieStatsProviders[i] != null) {
+                        bookieStatsProviders[i].stop();
+                    }
                 }
             }
         }
