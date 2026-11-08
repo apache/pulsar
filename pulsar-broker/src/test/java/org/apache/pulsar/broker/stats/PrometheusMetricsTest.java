@@ -100,6 +100,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.SystemTopicNames;
+import org.apache.pulsar.common.policies.data.ResourceGroup;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.compaction.Compactor;
@@ -1333,6 +1334,50 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         p2.close();
         c1.close();
         c2.close();
+    }
+
+    @Test
+    public void testWebExecutorAndResourceGroupMetricsAreScraped() throws Exception {
+        // The web executor gauges and the resource group counters live in the Prometheus Java client 1.x registry;
+        // the broker scrape must still expose them under the legacy names with the cluster label.
+        // WebExecutorStats is a JVM-wide singleton whose gauges are unregistered by the first WebService close and
+        // never re-registered, so like WebServiceTest the web executor families are only checked when present.
+        String rgName = "metrics-rg-" + UUID.randomUUID();
+        ResourceGroup rgConfig = new ResourceGroup();
+        rgConfig.setPublishRateInMsgs(1000);
+        admin.resourcegroups().createResourceGroup(rgName, rgConfig);
+        Awaitility.await().untilAsserted(() ->
+                assertThat(pulsar.getResourceGroupServiceManager().resourceGroupGet(rgName)).isNotNull());
+        try {
+            rgConfig.setPublishRateInMsgs(2000);
+            admin.resourcegroups().updateResourceGroup(rgName, rgConfig);
+            // The update is applied by the metadata listener asynchronously.
+            Awaitility.await().untilAsserted(() -> {
+                ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+                PrometheusMetricsTestUtil.generate(pulsar, false, false, false, statsOut);
+                String metricsStr = statsOut.toString();
+                assertThat(metricsStr).contains("# TYPE pulsar_resource_group_updates_total counter\n");
+                Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+                // The counters are static, so groups touched by earlier tests in this JVM keep their series.
+                List<Metric> updates = metrics.get("pulsar_resource_group_updates_total").stream()
+                        .filter(m -> rgName.equals(m.tags.get("ResourceGroup")))
+                        .collect(Collectors.toList());
+                assertEquals(updates.size(), 1);
+                assertEquals(updates.get(0).tags.get("cluster"), "test");
+                assertEquals(updates.get(0).value, 1.0);
+                for (String family : List.of("pulsar_web_executor_max_threads",
+                        "pulsar_web_executor_current_threads")) {
+                    for (Metric m : metrics.get(family)) {
+                        assertEquals(m.tags.get("cluster"), "test", family);
+                        assertTrue(m.value > 0, family);
+                    }
+                }
+            });
+        } finally {
+            admin.resourcegroups().deleteResourceGroup(rgName);
+            Awaitility.await().untilAsserted(() ->
+                    assertThat(pulsar.getResourceGroupServiceManager().resourceGroupGet(rgName)).isNull());
+        }
     }
 
     /** Checks for duplicate type definitions for a metric in the Prometheus metrics output. If the Prometheus parser
