@@ -22,8 +22,11 @@ import io.prometheus.metrics.core.datapoints.CounterDataPoint;
 import io.prometheus.metrics.core.datapoints.DistributionDataPoint;
 import io.prometheus.metrics.core.metrics.Counter;
 import io.prometheus.metrics.core.metrics.Histogram;
+import io.prometheus.metrics.model.registry.Collector;
 import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import java.io.Closeable;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.Getter;
 
@@ -57,28 +60,25 @@ public class TxnLogBufferedWriterMetricsStats implements Closeable {
 
     private final String[] labelValues;
 
+    /** Every collector registered by this instance, unregistered together in {@link #close()}. **/
+    private final List<Collector> collectors = new ArrayList<>();
+
     /** Count of records in per transaction log batch. **/
-    private final Histogram recordsPerBatchMetric;
     private final DistributionDataPoint recordsPerBatchHistogram;
 
     /** Bytes size per transaction log batch. **/
-    private final Histogram batchSizeBytesMetric;
     private final DistributionDataPoint batchSizeBytesHistogram;
 
     /** The time of the oldest transaction log spent in the buffer before being sent. **/
-    private final Histogram oldestRecordInBatchDelayTimeSecondsMetric;
     private final DistributionDataPoint oldestRecordInBatchDelayTimeSecondsHistogram;
 
     /** The count of the triggering transaction log batch flush actions by "batchedWriteMaxRecords". **/
-    private final Counter batchFlushTriggeredByMaxRecordsMetric;
     private final CounterDataPoint batchFlushTriggeredByMaxRecordsCounter;
 
     /** The count of the triggering transaction log batch flush actions by "batchedWriteMaxSize". **/
-    private final Counter batchFlushTriggeredByMaxSizeMetric;
     private final CounterDataPoint batchFlushTriggeredByMaxSizeCounter;
 
     /** The count of the triggering transaction log batch flush actions by "batchedWriteMaxDelayInMillis". **/
-    private final Counter batchFlushTriggeredByMaxDelayMetric;
     private final CounterDataPoint batchFlushTriggeredByMaxDelayCounter;
 
     /**
@@ -88,7 +88,6 @@ public class TxnLogBufferedWriterMetricsStats implements Closeable {
      *    2. Direct write the large data to BK.
      * This ensures the sequential nature of multiple writes to BK.
      */
-    private final Counter batchFlushTriggeredByLargeSingleDataMetric;
     private final CounterDataPoint batchFlushTriggeredByLargeSingleDataCounter;
 
     private final AtomicBoolean closed;
@@ -105,77 +104,78 @@ public class TxnLogBufferedWriterMetricsStats implements Closeable {
         this.labelValues = labelValues.clone();
 
         // Classic buckets only, as before: a native histogram would add a second representation of each metric.
-        recordsPerBatchMetric = Histogram.builder()
+        recordsPerBatchHistogram = owned(Histogram.builder()
                         .name(metricsPrefix + "_bufferedwriter_batch_records")
                         .labelNames(this.labelNames)
                         .help("Records per batch histogram")
                         .classicOnly()
                         .classicUpperBounds(RECORD_COUNT_PER_ENTRY_BUCKETS)
-                        .register(registry);
-        recordsPerBatchHistogram = recordsPerBatchMetric.labelValues(this.labelValues);
+                        .register(registry))
+                .labelValues(this.labelValues);
 
-        batchSizeBytesMetric = Histogram.builder()
+        batchSizeBytesHistogram = owned(Histogram.builder()
                         .name(metricsPrefix + "_bufferedwriter_batch_size_bytes")
                         .labelNames(this.labelNames)
                         .help("Batch size in bytes histogram")
                         .classicOnly()
                         .classicUpperBounds(BYTES_SIZE_PER_ENTRY_BUCKETS)
-                        .register(registry);
-        batchSizeBytesHistogram = batchSizeBytesMetric.labelValues(this.labelValues);
+                        .register(registry))
+                .labelValues(this.labelValues);
 
-        oldestRecordInBatchDelayTimeSecondsMetric = Histogram.builder()
+        oldestRecordInBatchDelayTimeSecondsHistogram = owned(Histogram.builder()
                         .name(metricsPrefix + "_bufferedwriter_batch_oldest_record_delay_seconds")
                         .labelNames(this.labelNames)
                         .help("Max record latency in batch histogram")
                         .classicOnly()
                         .classicUpperBounds(MAX_DELAY_TIME_BUCKETS)
-                        .register(registry);
-        oldestRecordInBatchDelayTimeSecondsHistogram =
-                oldestRecordInBatchDelayTimeSecondsMetric.labelValues(this.labelValues);
+                        .register(registry))
+                .labelValues(this.labelValues);
 
-        batchFlushTriggeredByMaxRecordsMetric = Counter.builder()
+        batchFlushTriggeredByMaxRecordsCounter = owned(Counter.builder()
                         .name(metricsPrefix + "_bufferedwriter_flush_trigger_max_records")
                         .labelNames(this.labelNames)
                         .help("Event count of batch flush triggered by max records count")
-                        .register(registry);
-        batchFlushTriggeredByMaxRecordsCounter = batchFlushTriggeredByMaxRecordsMetric.labelValues(this.labelValues);
+                        .register(registry))
+                .labelValues(this.labelValues);
 
-        batchFlushTriggeredByMaxSizeMetric = Counter.builder()
+        batchFlushTriggeredByMaxSizeCounter = owned(Counter.builder()
                         .name(metricsPrefix + "_bufferedwriter_flush_trigger_max_size")
                         .labelNames(this.labelNames)
                         .help("Event count of batch flush triggered by max bytes size")
-                        .register(registry);
-        batchFlushTriggeredByMaxSizeCounter = batchFlushTriggeredByMaxSizeMetric.labelValues(this.labelValues);
+                        .register(registry))
+                .labelValues(this.labelValues);
 
-        batchFlushTriggeredByMaxDelayMetric = Counter.builder()
+        batchFlushTriggeredByMaxDelayCounter = owned(Counter.builder()
                         .name(metricsPrefix + "_bufferedwriter_flush_trigger_max_delay")
                         .labelNames(this.labelNames)
                         .help("Event count of batch flush triggered by max delay time")
-                        .register(registry);
-        batchFlushTriggeredByMaxDelayCounter = batchFlushTriggeredByMaxDelayMetric.labelValues(this.labelValues);
+                        .register(registry))
+                .labelValues(this.labelValues);
 
-        batchFlushTriggeredByLargeSingleDataMetric = Counter.builder()
+        batchFlushTriggeredByLargeSingleDataCounter = owned(Counter.builder()
                         .name(metricsPrefix + "_bufferedwriter_flush_trigger_large_data")
                         .labelNames(this.labelNames)
                         .help("Event count of batch flush triggered by the single large data write")
-                        .register(registry);
-        batchFlushTriggeredByLargeSingleDataCounter =
-                batchFlushTriggeredByLargeSingleDataMetric.labelValues(this.labelValues);
+                        .register(registry))
+                .labelValues(this.labelValues);
 
         this.closed = new AtomicBoolean(false);
+    }
+
+    /**
+     * Keeps an already registered collector so that {@link #close()} unregisters it. The registration itself
+     * still throws on a duplicate name, as documented on the constructor.
+     */
+    private <T extends Collector> T owned(T collector) {
+        collectors.add(collector);
+        return collector;
     }
 
     public void close() {
         if (!closed.compareAndSet(false, true)){
             return;
         }
-        registry.unregister(recordsPerBatchMetric);
-        registry.unregister(batchSizeBytesMetric);
-        registry.unregister(oldestRecordInBatchDelayTimeSecondsMetric);
-        registry.unregister(batchFlushTriggeredByMaxRecordsMetric);
-        registry.unregister(batchFlushTriggeredByMaxSizeMetric);
-        registry.unregister(batchFlushTriggeredByMaxDelayMetric);
-        registry.unregister(batchFlushTriggeredByLargeSingleDataMetric);
+        collectors.forEach(registry::unregister);
     }
 
     public void triggerFlushByRecordsCount(int recordCount, long bytesSize, long delayMillis) {
