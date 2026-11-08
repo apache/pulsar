@@ -247,7 +247,10 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
                             Awaitility.await().until(() -> {
                                 return batchDeletedIndexes.size() == 1;
                             });
-                            assertEquals(testPersistentSubscription.getConsumers().get(0).getPendingAcks().size(), 1);
+                            // the broker removes the consumer pending ack once the acknowledgement completes, after
+                            // the cursor has updated its batch deleted indexes, so await it as well
+                            Awaitility.await().untilAsserted(() -> assertEquals(
+                                    testPersistentSubscription.getConsumers().get(0).getPendingAcks().size(), 1));
 
                             // this test is for the last message has been cleared in this consumer pending acks
                             // and it won't clear the last message in cursor batch index ack set

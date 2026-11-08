@@ -22,7 +22,9 @@ package org.apache.pulsar.broker.testcontext;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdkBuilder;
 import java.io.IOException;
+import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.BookKeeperClientFactory;
@@ -47,6 +49,7 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 @CustomLog
 abstract class AbstractTestPulsarService extends PulsarService {
     protected final SpyConfig spyConfig;
+    private final List<Object> collaboratorMocks = new CopyOnWriteArrayList<>();
 
     public AbstractTestPulsarService(SpyConfig spyConfig, ServiceConfiguration config,
                                      MetadataStoreExtended localMetadataStore,
@@ -69,6 +72,20 @@ abstract class AbstractTestPulsarService extends PulsarService {
         super.setCompactionServiceFactory(compactionServiceFactory);
         setBrokerInterceptor(brokerInterceptor);
         setBkClientFactory(bookKeeperClientFactory);
+    }
+
+    /**
+     * Registers a Mockito mock or spy that this broker created for one of its collaborators, for
+     * {@link PulsarTestContext} to release after closing the broker.
+     */
+    protected <T> T registerCollaboratorMock(T mock) {
+        collaboratorMocks.add(mock);
+        return mock;
+    }
+
+    void releaseCollaboratorMocks() {
+        collaboratorMocks.forEach(PulsarTestContext::releaseSpyOrMock);
+        collaboratorMocks.clear();
     }
 
     @Override
