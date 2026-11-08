@@ -23,7 +23,9 @@ import io.prometheus.metrics.core.datapoints.DistributionDataPoint;
 import io.prometheus.metrics.core.metrics.Counter;
 import io.prometheus.metrics.core.metrics.Gauge;
 import io.prometheus.metrics.core.metrics.Summary;
+import io.prometheus.metrics.model.registry.Collector;
 import io.prometheus.metrics.model.registry.PrometheusRegistry;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -61,6 +63,8 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
     private final Gauge readOffloadRate;
     private final Summary readOffloadIndexLatency;
     private final Summary readOffloadDataLatency;
+    /** Every collector registered by this instance, unregistered together in {@link #close()}. */
+    private final List<Collector> collectors = new ArrayList<>();
 
     private final Map<String, Long> topicAccess;
     private final Map<String, Pair<LongAdder, LongAdder>> offloadAndReadOffloadBytesMap;
@@ -81,19 +85,19 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
         String[] labels = exposeTopicLevelMetrics
                 ? new String[]{NAMESPACE_LABEL, TOPIC_LABEL} : new String[]{NAMESPACE_LABEL};
 
-        this.offloadError = Counter.builder().name("brk_ledgeroffloader_offload_error").help("-")
-                .labelNames(labels).register();
-        this.offloadRate = Gauge.builder().name("brk_ledgeroffloader_offload_rate").help("-")
-                .labelNames(labels).register();
+        this.offloadError = owned(Counter.builder().name("brk_ledgeroffloader_offload_error").help("-")
+                .labelNames(labels).register());
+        this.offloadRate = owned(Gauge.builder().name("brk_ledgeroffloader_offload_rate").help("-")
+                .labelNames(labels).register());
 
-        this.readOffloadError = Counter.builder().name("brk_ledgeroffloader_read_offload_error").help("-")
-                .labelNames(labels).register();
-        this.readOffloadRate = Gauge.builder().name("brk_ledgeroffloader_read_offload_rate").help("-")
-                .labelNames(labels).register();
-        this.readOffloadBytes = Counter.builder().name("brk_ledgeroffloader_read_bytes").help("-")
-                .labelNames(labels).register();
-        this.writeStorageError = Counter.builder().name("brk_ledgeroffloader_write_storage_error").help("-")
-                .labelNames(labels).register();
+        this.readOffloadError = owned(Counter.builder().name("brk_ledgeroffloader_read_offload_error").help("-")
+                .labelNames(labels).register());
+        this.readOffloadRate = owned(Gauge.builder().name("brk_ledgeroffloader_read_offload_rate").help("-")
+                .labelNames(labels).register());
+        this.readOffloadBytes = owned(Counter.builder().name("brk_ledgeroffloader_read_bytes").help("-")
+                .labelNames(labels).register());
+        this.writeStorageError = owned(Counter.builder().name("brk_ledgeroffloader_write_storage_error").help("-")
+                .labelNames(labels).register());
 
         this.readOffloadIndexLatency = latencySummary("brk_ledgeroffloader_read_offload_index_latency", labels);
         this.readOffloadDataLatency = latencySummary("brk_ledgeroffloader_read_offload_data_latency", labels);
@@ -101,19 +105,25 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
 
         String[] deleteOpsLabels = exposeTopicLevelMetrics
                 ? new String[]{NAMESPACE_LABEL, TOPIC_LABEL, STATUS} : new String[]{NAMESPACE_LABEL, STATUS};
-        this.deleteOffloadOps = Counter.builder().name("brk_ledgeroffloader_delete_offload_ops").help("-")
-                .labelNames(deleteOpsLabels).register();
+        this.deleteOffloadOps = owned(Counter.builder().name("brk_ledgeroffloader_delete_offload_ops").help("-")
+                .labelNames(deleteOpsLabels).register());
     }
 
-    private static Summary latencySummary(String name, String[] labels) {
-        return Summary.builder().name(name).help("-")
+    private Summary latencySummary(String name, String[] labels) {
+        return owned(Summary.builder().name(name).help("-")
                 .labelNames(labels)
                 .quantile(0.50, 0.01)
                 .quantile(0.95, 0.01)
                 .quantile(0.99, 0.01)
                 .quantile(1, 0.01)
                 .maxAgeSeconds(QUANTILE_WINDOW_SECONDS)
-                .register();
+                .register());
+    }
+
+    /** Remembers an already registered collector so that {@link #close()} unregisters it. */
+    private <T extends Collector> T owned(T collector) {
+        collectors.add(collector);
+        return collector;
     }
 
 
@@ -276,16 +286,7 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
     @Override
     public synchronized void close() throws Exception {
         if (instance == this && this.closed.compareAndSet(false, true)) {
-            PrometheusRegistry.defaultRegistry.unregister(this.offloadError);
-            PrometheusRegistry.defaultRegistry.unregister(this.offloadRate);
-            PrometheusRegistry.defaultRegistry.unregister(this.readLedgerLatency);
-            PrometheusRegistry.defaultRegistry.unregister(this.writeStorageError);
-            PrometheusRegistry.defaultRegistry.unregister(this.readOffloadError);
-            PrometheusRegistry.defaultRegistry.unregister(this.readOffloadBytes);
-            PrometheusRegistry.defaultRegistry.unregister(this.readOffloadRate);
-            PrometheusRegistry.defaultRegistry.unregister(this.readOffloadIndexLatency);
-            PrometheusRegistry.defaultRegistry.unregister(this.readOffloadDataLatency);
-            PrometheusRegistry.defaultRegistry.unregister(this.deleteOffloadOps);
+            collectors.forEach(PrometheusRegistry.defaultRegistry::unregister);
             instance = null;
         }
     }
