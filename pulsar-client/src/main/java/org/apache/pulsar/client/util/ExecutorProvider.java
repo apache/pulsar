@@ -62,6 +62,16 @@ public class ExecutorProvider {
         }
     }
 
+    /**
+     * A task that {@link #shutdownNow()} doesn't discard. If it was given to an executor with {@code execute()} and
+     * is still queued when the executor is shut down, it runs on the thread calling {@code shutdownNow()} once the
+     * executor has terminated, so never concurrently with the executor's other tasks. For cleanup that must happen
+     * even if the executor is busy when it is shut down. A {@link ScheduledExecutorProvider} doesn't support it:
+     * its executors wrap the tasks they queue.
+     */
+    public interface CleanupTask extends Runnable {
+    }
+
     public ExecutorProvider(int numThreads, String poolName) {
         this(numThreads, poolName, Thread.currentThread().isDaemon());
     }
@@ -112,9 +122,11 @@ public class ExecutorProvider {
         executors.forEach(entry -> {
             ExecutorService executor = entry.getKey();
             ExtendedThreadFactory threadFactory = entry.getValue();
-            executor.shutdownNow();
+            List<Runnable> discardedTasks = executor.shutdownNow();
             try {
-                if (!executor.awaitTermination(10, TimeUnit.SECONDS)) {
+                if (executor.awaitTermination(10, TimeUnit.SECONDS)) {
+                    runCleanupTasks(discardedTasks);
+                } else {
                     log.warn("Failed to terminate executor with pool name {} within timeout. The following are stack"
                             + " traces of still running threads.\n{}",
                             poolName, getThreadDump(threadFactory.getThread()));
@@ -124,6 +136,19 @@ public class ExecutorProvider {
             }
         });
         isShutdown = true;
+    }
+
+    // Only called once the executor that discarded the tasks has terminated.
+    private void runCleanupTasks(List<Runnable> discardedTasks) {
+        for (Runnable task : discardedTasks) {
+            if (task instanceof CleanupTask) {
+                try {
+                    task.run();
+                } catch (Throwable t) {
+                    log.warn("Cleanup task failed after the executor with pool name {} was shut down", poolName, t);
+                }
+            }
+        }
     }
 
     public boolean isShutdown() {
