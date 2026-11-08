@@ -79,6 +79,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
+import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.AbstractReplicator;
 import org.apache.pulsar.broker.service.AnalyzeBacklogResult;
 import org.apache.pulsar.broker.service.BrokerServiceException.AlreadyRunningException;
@@ -3883,7 +3884,10 @@ public class PersistentTopicsBase extends AdminResource {
             ret = CompletableFuture.completedFuture(null);
         }
         return ret
-                .thenCompose(__ -> internalCheckTopicExists(topicName))
+                // Like NamespaceService#checkTopicExists since #24225, treat the topics of the heartbeat namespace as
+                // existing, so that the topic policies service refuses their policy updates with a conflict.
+                .thenCompose(__ -> NamespaceService.isHeartbeatNamespace(topicName.getNamespaceObject())
+                        ? CompletableFuture.<Void>completedFuture(null) : internalCheckTopicExists(topicName))
                 .thenCompose(__ -> getPartitionedTopicMetadataAsync(topicName, false, false))
                 .thenCompose(metadata -> {
                     if (metadata.partitions > 0) {
