@@ -32,6 +32,7 @@ import io.prometheus.metrics.core.metrics.GaugeWithCallback;
 import io.prometheus.metrics.core.metrics.Summary;
 import io.prometheus.metrics.model.registry.Collector;
 import io.prometheus.metrics.model.registry.PrometheusRegistry;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import lombok.CustomLog;
@@ -59,6 +60,8 @@ public class TopicListMemoryLimiter extends AsyncDualMemoryLimiterImpl {
     private final Summary directWaitTimeMs;
     private final Counter heapTimeoutTotal;
     private final Counter directTimeoutTotal;
+    /** The collectors this instance actually registered, unregistered together in {@link #close()}. */
+    private final List<Collector> registeredCollectors = new ArrayList<>();
     private final ObservableDoubleGauge otelHeapMemoryUsedGauge;
     private final DoubleGauge otelHeapMemoryLimitGauge;
     private final ObservableDoubleGauge otelDirectMemoryUsedGauge;
@@ -225,9 +228,14 @@ public class TopicListMemoryLimiter extends AsyncDualMemoryLimiterImpl {
                 .build();
     }
 
+    /**
+     * Registers the collector and remembers it for {@link #close()}. A duplicate registration (two brokers in one
+     * JVM) is ignored and the collector is not remembered, so closing this instance leaves the other one's alone.
+     */
     private <T extends Collector> T register(T collector) {
         try {
             prometheusRegistry.register(collector);
+            registeredCollectors.add(collector);
         } catch (Exception e) {
             // ignore exception when registering a collector that is already registered
             log.debug().attr("collector", collector).exception(e).log("Failed to register Prometheus collector");
@@ -270,18 +278,7 @@ public class TopicListMemoryLimiter extends AsyncDualMemoryLimiterImpl {
     @Override
     public void close() {
         super.close();
-        unregister(heapMemoryUsedBytes);
-        unregister(heapMemoryLimitBytes);
-        unregister(directMemoryUsedBytes);
-        unregister(directMemoryLimitBytes);
-        unregister(heapQueueSize);
-        unregister(heapQueueMaxSize);
-        unregister(directQueueSize);
-        unregister(directQueueMaxSize);
-        unregister(heapWaitTimeMs);
-        unregister(directWaitTimeMs);
-        unregister(heapTimeoutTotal);
-        unregister(directTimeoutTotal);
+        registeredCollectors.forEach(this::unregister);
         otelHeapMemoryUsedGauge.close();
         otelDirectMemoryUsedGauge.close();
         otelHeapQueueSize.close();
