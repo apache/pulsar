@@ -658,6 +658,8 @@ public class BrokerServiceTest extends BrokerTestBase {
         assertTrue(System.currentTimeMillis() - startTime < 20 * 1000);
         cleanClient(clients);
         clients.clear();
+
+        resetState();
     }
 
     @Test
@@ -977,6 +979,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         conf.setAuthenticationEnabled(false);
         restartBroker();
+        assertNull(brokerUrlTls);
 
         // Case 1: Access without TLS
         try {
@@ -993,7 +996,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         // Case 2: Access with TLS
         try {
-            pulsarClient = PulsarClient.builder().serviceUrl(brokerUrlTls.toString()).enableTls(true)
+            pulsarClient = PulsarClient.builder().serviceUrl("https://" + brokerUrl.getAuthority()).enableTls(true)
                     .statsInterval(0, TimeUnit.SECONDS)
                     .operationTimeout(1000, TimeUnit.MILLISECONDS).build();
 
@@ -1089,6 +1092,8 @@ public class BrokerServiceTest extends BrokerTestBase {
         } finally {
             pulsarClient.close();
         }
+
+        resetState();
     }
     @SuppressWarnings("deprecation")
 
@@ -1188,6 +1193,8 @@ public class BrokerServiceTest extends BrokerTestBase {
         } finally {
             pulsarClient.close();
         }
+
+        resetState();
     }
 
     @SuppressWarnings("deprecation")
@@ -1250,6 +1257,8 @@ public class BrokerServiceTest extends BrokerTestBase {
         } finally {
             pulsarClient.close();
         }
+
+        resetState();
     }
 
     @SuppressWarnings("deprecation")
@@ -1311,6 +1320,8 @@ public class BrokerServiceTest extends BrokerTestBase {
         } finally {
             pulsarClient.close();
         }
+
+        resetState();
     }
 
     /**
@@ -1679,6 +1690,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         // check if the subscription exist.
         assertNotNull(topic.getSubscription(Compactor.COMPACTION_SUBSCRIPTION));
 
+        resetState();
     }
 
     @Test
@@ -2095,24 +2107,26 @@ public class BrokerServiceTest extends BrokerTestBase {
     }
 
     @Test
-    public void testMetricsProvider() throws IOException {
+    public void testMetricsProvider() throws Exception {
         PrometheusRawMetricsProvider rawMetricsProvider = stream -> stream.write("test_metrics{label1=\"xyz\"} 10 \n");
         getPulsar().addPrometheusRawMetricsProvider(rawMetricsProvider);
-        @Cleanup
-        CloseableHttpClient httpClient = HttpClientBuilder.create().build();
-        final String metricsEndPoint = getPulsar().getWebServiceAddress() + "/metrics";
-        HttpResponse response = httpClient.execute(new HttpGet(metricsEndPoint));
-        assertEquals(response.getEntity().getContentType().getValue(),
-                PrometheusMetricsServlet.PROMETHEUS_CONTENT_TYPE_004);
-        InputStream inputStream = response.getEntity().getContent();
-        InputStreamReader isReader = new InputStreamReader(inputStream);
-        BufferedReader reader = new BufferedReader(isReader);
-        StringBuffer sb = new StringBuffer();
-        String str;
-        while ((str = reader.readLine()) != null){
-            sb.append(str);
+        try (CloseableHttpClient httpClient = HttpClientBuilder.create().build()) {
+            final String metricsEndPoint = getPulsar().getWebServiceAddress() + "/metrics";
+            HttpResponse response = httpClient.execute(new HttpGet(metricsEndPoint));
+            assertEquals(response.getEntity().getContentType().getValue(),
+                    PrometheusMetricsServlet.PROMETHEUS_CONTENT_TYPE_004);
+            InputStream inputStream = response.getEntity().getContent();
+            InputStreamReader isReader = new InputStreamReader(inputStream);
+            BufferedReader reader = new BufferedReader(isReader);
+            StringBuffer sb = new StringBuffer();
+            String str;
+            while ((str = reader.readLine()) != null) {
+                sb.append(str);
+            }
+            Assert.assertTrue(sb.toString().contains("test_metrics"));
         }
-        Assert.assertTrue(sb.toString().contains("test_metrics"));
+
+        resetState();
     }
 
     @Test
@@ -2206,6 +2220,8 @@ public class BrokerServiceTest extends BrokerTestBase {
         Awaitility.await().untilAsserted(()->{
             assertTrue(conf.isForceDeleteNamespaceAllowed());
         });
+
+        resetState();
     }
 
     @Test
@@ -2218,6 +2234,8 @@ public class BrokerServiceTest extends BrokerTestBase {
         Awaitility.await().untilAsserted(()->{
             assertTrue(conf.isForceDeleteTenantAllowed());
         });
+
+        resetState();
     }
 
     @Test
