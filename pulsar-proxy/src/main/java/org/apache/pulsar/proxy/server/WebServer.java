@@ -21,6 +21,7 @@ package org.apache.pulsar.proxy.server;
 import static org.apache.pulsar.proxy.server.AdminProxyHandler.INIT_PARAM_REQUEST_BUFFER_SIZE;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.opentelemetry.api.OpenTelemetry;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import jakarta.servlet.DispatcherType;
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
@@ -343,7 +344,7 @@ public class WebServer {
         StatisticsHandler stats = new StatisticsHandler();
         stats.setHandler(handlerCollection);
         try {
-            new JettyStatisticsCollector(stats).register();
+            PrometheusRegistry.defaultRegistry.register(new JettyStatisticsCollector(stats));
         } catch (IllegalArgumentException e) {
             // Already registered. Eg: in unit tests
         }

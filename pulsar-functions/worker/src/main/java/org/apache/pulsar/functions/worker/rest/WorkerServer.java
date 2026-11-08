@@ -19,6 +19,7 @@
 package org.apache.pulsar.functions.worker.rest;
 
 import io.opentelemetry.api.OpenTelemetry;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import jakarta.servlet.DispatcherType;
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -162,7 +163,7 @@ public class WorkerServer {
         StatisticsHandler stats = new StatisticsHandler();
         stats.setHandler(handlerCollection);
         try {
-            new JettyStatisticsCollector(stats).register();
+            PrometheusRegistry.defaultRegistry.register(new JettyStatisticsCollector(stats));
         } catch (IllegalArgumentException e) {
             // Already registered. Eg: in unit tests
         }

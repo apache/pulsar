@@ -37,9 +37,9 @@ import io.netty.resolver.dns.DnsAddressResolverGroup;
 import io.netty.resolver.dns.DnsNameResolverBuilder;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.util.concurrent.Future;
-import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Gauge;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -267,7 +267,7 @@ public class ProxyService implements Closeable {
 
         // Initialize topic list memory limiter
         this.maxTopicListInFlightLimiter = new TopicListMemoryLimiter(
-                CollectorRegistry.defaultRegistry, "pulsar_proxy_", openTelemetry.getMeter(),
+                PrometheusRegistry.defaultRegistry, "pulsar_proxy_", openTelemetry.getMeter(),
                 proxyConfig.getMaxTopicListInFlightHeapMemSizeMB() * 1024L * 1024L,
                 proxyConfig.getMaxTopicListInFlightHeapMemSizePermitsAcquireQueueSize(),
                 proxyConfig.getMaxTopicListInFlightHeapMemSizePermitsAcquireTimeoutMillis(),
