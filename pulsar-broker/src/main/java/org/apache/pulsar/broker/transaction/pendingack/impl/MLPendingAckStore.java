@@ -257,6 +257,10 @@ public class MLPendingAckStore implements PendingAckStore {
             result.complete(null);
         } else {
             log.debug().exceptionMessage(failure).log("MLPendingAckStore close failed after cleanup");
+            // A failed subscription delete keeps this store and retries the close, so let the next caller start a
+            // new attempt; the closing cursor and closed ledger complete it. Reset before completing so a retry
+            // from a failure callback does not get this attempt. The writer cleanup outcome stays shared.
+            closeFuture.compareAndSet(result, null);
             result.completeExceptionally(failure);
         }
     }

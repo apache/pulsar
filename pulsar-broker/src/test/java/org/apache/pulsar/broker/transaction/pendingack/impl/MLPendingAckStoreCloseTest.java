@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.transaction.pendingack.impl;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
@@ -46,6 +47,7 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.BadVersionException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerFencedException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -140,6 +142,39 @@ public class MLPendingAckStoreCloseTest {
     }
 
     @Test(timeOut = 10_000)
+    public void testFailedCloseCanBeRetried() throws Exception {
+        try (TestContext context = new TestContext()) {
+            CompletableFuture<Void> append = context.bufferAppend();
+            CompletableFuture<Void> first = context.store.closeAsync();
+            assertThat(context.store.closeAsync()).as("an in-flight close is still shared").isSameAs(first);
+            AtomicReference<CompletableFuture<Void>> retriedOnFailure = new AtomicReference<>();
+            first.exceptionally(ignored -> {
+                retriedOnFailure.set(context.store.closeAsync());
+                return null;
+            });
+            MetaStoreException failure = new MetaStoreException("Transient metadata failure");
+            context.completeCursorClose(failure);
+            context.completeLedgerClose(null);
+            context.writerExecutor.runAll();
+            assertCloseResult(first, failure);
+            context.assertWriterClosed(append);
+
+            // A subscription delete keeps this store after a failed close and retries the close once the
+            // metadata store recovers, which the closing cursor and closed managed ledger then complete.
+            CompletableFuture<Void> retried = retriedOnFailure.get();
+            assertThat(retried).as("a retry from the failure callback must start a new attempt")
+                    .isNotNull().isNotSameAs(first);
+            assertThat(context.store.closeAsync()).as("the retry is shared while in flight").isSameAs(retried);
+            verify(context.cursor, times(2)).asyncClose(any(), any());
+            context.completeCursorClose(null);
+            context.completeLedgerClose(null);
+            retried.get(1, TimeUnit.SECONDS);
+            assertThat(context.store.closeAsync()).as("a successful close is final").isSameAs(retried);
+            verify(context.ledger, times(2)).asyncClose(any(), any());
+        }
+    }
+
+    @Test(timeOut = 10_000)
     public void testCloseWaitsForWriterCleanupStartedByReplayFailure() throws Exception {
         try (TestContext context = new TestContext()) {
             CompletableFuture<Void> append = context.bufferAppend();
@@ -181,6 +216,31 @@ public class MLPendingAckStoreCloseTest {
             closed.get(1, TimeUnit.SECONDS);
             assertThat(handle.getState()).isEqualTo(PendingAckHandleState.State.Close);
             verify(subscription, never()).resumeAfterFence();
+        }
+    }
+
+    @Test(timeOut = 10_000)
+    public void testSubscriptionDeleteSucceedsOnRetryAfterCloseFailure() throws Exception {
+        try (TestContext context = new TestContext()) {
+            PersistentSubscription subscription = context.newSubscription();
+            PendingAckHandleImpl handle = (PendingAckHandleImpl) subscription.getPendingAckHandle();
+            handle.pendingAckHandleFuture().get(1, TimeUnit.SECONDS);
+            PersistentTopic topic = (PersistentTopic) subscription.getTopic();
+            when(topic.unsubscribe("business")).thenReturn(CompletableFuture.completedFuture(null));
+
+            CompletableFuture<Void> failedDelete = subscription.delete();
+            MetaStoreException failure = new MetaStoreException("Transient metadata failure");
+            context.completeCursorClose(failure);
+            context.completeLedgerClose(null);
+            context.writerExecutor.runAll();
+            assertThatThrownBy(() -> failedDelete.get(1, TimeUnit.SECONDS)).rootCause().isSameAs(failure);
+            verify(topic, never()).unsubscribe(any());
+
+            CompletableFuture<Void> retriedDelete = subscription.delete();
+            context.completeCursorClose(null);
+            context.completeLedgerClose(null);
+            retriedDelete.get(1, TimeUnit.SECONDS);
+            verify(topic).unsubscribe("business");
         }
     }
 
