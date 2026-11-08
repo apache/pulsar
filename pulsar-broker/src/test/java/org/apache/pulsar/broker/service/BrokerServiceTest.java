@@ -1632,6 +1632,8 @@ public class BrokerServiceTest extends BrokerTestBase {
                 }
             }
         }
+
+        resetState();
     }
 
     @Test
