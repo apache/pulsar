@@ -823,6 +823,24 @@ public class ConsumerImplTest {
     }
 
     @Test
+    public void testCloseRetainsSharedSchema() throws Exception {
+        Schema<byte[]> schema = mock();
+        when(schema.closeAsync()).thenReturn(CompletableFuture.completedFuture(null));
+        ConsumerInterceptor<byte[]> interceptor = mock();
+        createConsumer(new ConsumerConfigurationData<>(), topic, interceptor, schema);
+
+        consumer.closeAsync(false).get(5, TimeUnit.SECONDS);
+
+        assertThat(consumer.getState()).isEqualTo(HandlerState.State.Closed);
+        verify(interceptor).close();
+        verify(schema, never()).closeAsync();
+
+        consumer.closeAsync().get(5, TimeUnit.SECONDS);
+        verify(schema).closeAsync();
+        verify(interceptor).close();
+    }
+
+    @Test
     public void testMessageEnqueuedAfterCloseIsDiscarded() {
         consumerConf = new ConsumerConfigurationData<>();
         consumerConf.setAutoScaledReceiverQueueSizeEnabled(true);

@@ -25,6 +25,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -39,8 +40,11 @@ import com.google.common.collect.Sets;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.HashedWheelTimer;
+import io.netty.util.Timeout;
 import io.netty.util.Timer;
+import io.netty.util.TimerTask;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
@@ -181,6 +185,74 @@ public class MultiTopicsConsumerImplTest {
                 clientMock, consumerConfData, executorProvider,
                 new CompletableFuture<>(), schema, null, true);
         return impl;
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testPartitionUpdateJittersFailedSubscriptionsOnly() throws Exception {
+        String topic = "persistent://public/default/partition-update";
+        String partition = topic + "-partition-0";
+        PulsarClientImpl clientMock = createPulsarClientMockWithMockedClientCnx(executorProvider, internalExecutor);
+        Timer timer = mock(Timer.class);
+        List<Timeout> scheduled = new ArrayList<>();
+        List<Long> delays = new ArrayList<>();
+        List<TimeUnit> units = new ArrayList<>();
+        when(clientMock.timer()).thenReturn(timer);
+        when(timer.newTimeout(any(), anyLong(), any())).thenAnswer(invocation -> {
+            TimerTask task = invocation.getArgument(0);
+            Timeout timeout = mock(Timeout.class);
+            when(timeout.task()).thenReturn(task);
+            scheduled.add(timeout);
+            delays.add(invocation.getArgument(1));
+            units.add(invocation.getArgument(2));
+            return timeout;
+        });
+
+        ConsumerConfigurationData<byte[]> conf = new ConsumerConfigurationData<>();
+        conf.setSubscriptionName("subscription");
+        conf.setAutoUpdatePartitions(true);
+        conf.setAutoUpdatePartitionsIntervalSeconds(60);
+        MultiTopicsConsumerImpl<byte[]> impl = new MultiTopicsConsumerImpl<>(clientMock, conf, executorProvider,
+                new CompletableFuture<>(), Schema.BYTES, null, true);
+        impl.partitionedTopics.put(topic, 1);
+        ConsumerImpl<byte[]> child = mock(ConsumerImpl.class);
+        when(child.subscribeFuture()).thenReturn(CompletableFuture.completedFuture(child));
+        impl.consumers.put(partition, child);
+        CompletableFuture<List<String>> healthyLookup = new CompletableFuture<>();
+        CompletableFuture<List<String>> failedLookup = new CompletableFuture<>();
+        when(clientMock.getPartitionsForTopic(topic, false)).thenReturn(healthyLookup, failedLookup);
+
+        // Healthy children start the metadata check immediately and only schedule the next periodic check.
+        scheduled.get(0).task().run(scheduled.get(0));
+        verify(clientMock, times(1)).getPartitionsForTopic(topic, false);
+        assertEquals(scheduled.size(), 2);
+        assertEquals(units.get(1), TimeUnit.SECONDS);
+        scheduled.get(1).task().run(scheduled.get(1));
+        verify(clientMock, times(1)).getPartitionsForTopic(topic, false);
+        assertEquals(scheduled.size(), 3);
+        healthyLookup.complete(List.of(partition));
+        assertTrue(impl.partitionsAutoUpdateFuture.isDone());
+
+        // A failed child schedules one short delay, and further ticks cannot overlap it.
+        when(child.subscribeFuture()).thenReturn(CompletableFuture.failedFuture(new RuntimeException("failed")));
+        scheduled.get(2).task().run(scheduled.get(2));
+        verify(clientMock, times(1)).getPartitionsForTopic(topic, false);
+        assertEquals(scheduled.size(), 5);
+        assertEquals(units.get(3), TimeUnit.MILLISECONDS);
+        assertTrue(delays.get(3) >= 0 && delays.get(3) <= 5_000);
+        assertEquals(units.get(4), TimeUnit.SECONDS);
+        scheduled.get(4).task().run(scheduled.get(4));
+        assertEquals(scheduled.size(), 6);
+        assertEquals(units.get(5), TimeUnit.SECONDS);
+        scheduled.get(3).task().run(scheduled.get(3));
+        verify(clientMock, times(2)).getPartitionsForTopic(topic, false);
+        assertFalse(impl.partitionsAutoUpdateFuture.isDone());
+        scheduled.get(5).task().run(scheduled.get(5));
+        verify(clientMock, times(2)).getPartitionsForTopic(topic, false);
+        assertEquals(scheduled.size(), 7);
+        impl.setState(HandlerState.State.Closed);
+        failedLookup.complete(List.of(partition));
+        assertTrue(impl.partitionsAutoUpdateFuture.isDone());
     }
 
     @Test
