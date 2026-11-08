@@ -347,17 +347,10 @@ public class ClusterMigrationTest extends TestRetrySupport {
         admin1.clusters().updateClusterMigration("r1", true, migratedUrl);
         assertEquals(admin1.clusters().getClusterMigration("r1").getMigratedClusterUrl(), migratedUrl);
 
-        retryStrategically((test) -> {
-            try {
-                topic1.checkClusterMigration().get();
-                return true;
-            } catch (Exception e) {
-                // ok
-            }
-            return false;
-        }, 10, 500);
-
-        topic1.checkClusterMigration().get();
+        Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() -> {
+            topic1.checkClusterMigration().get();
+            assertTrue(topic1.shouldProducerMigrate(), "Source topic should be ready to redirect producers");
+        });
 
         log.info("before sending message");
         sleep(1000);
