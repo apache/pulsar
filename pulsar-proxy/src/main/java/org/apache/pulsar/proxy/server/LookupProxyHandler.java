@@ -22,7 +22,7 @@ import static org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiterUtil.acqu
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.ReferenceCountUtil;
-import io.prometheus.client.Counter;
+import io.prometheus.metrics.core.metrics.Counter;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
@@ -74,35 +74,40 @@ public class LookupProxyHandler {
     private final SocketAddress clientAddress;
     private final String brokerServiceURL;
 
-    private static final Counter LOOKUP_REQUESTS = Counter
-            .build("pulsar_proxy_lookup_requests", "Counter of topic lookup requests").create().register();
-
-    private static final Counter PARTITIONS_METADATA_REQUESTS = Counter
-            .build("pulsar_proxy_partitions_metadata_requests", "Counter of partitions metadata requests").create()
+    private static final Counter LOOKUP_REQUESTS = Counter.builder()
+            .name("pulsar_proxy_lookup_requests")
+            .help("Counter of topic lookup requests")
             .register();
 
-    private static final Counter GET_TOPICS_OF_NAMESPACE_REQUESTS = Counter
-            .build("pulsar_proxy_get_topics_of_namespace_requests", "Counter of getTopicsOfNamespace requests")
-            .create()
+    private static final Counter PARTITIONS_METADATA_REQUESTS = Counter.builder()
+            .name("pulsar_proxy_partitions_metadata_requests")
+            .help("Counter of partitions metadata requests")
             .register();
 
-    private static final Counter GET_SCHEMA_REQUESTS = Counter
-            .build("pulsar_proxy_get_schema_requests", "Counter of schema requests")
-            .create()
+    private static final Counter GET_TOPICS_OF_NAMESPACE_REQUESTS = Counter.builder()
+            .name("pulsar_proxy_get_topics_of_namespace_requests")
+            .help("Counter of getTopicsOfNamespace requests")
             .register();
 
-    static final Counter REJECTED_LOOKUP_REQUESTS = Counter.build("pulsar_proxy_rejected_lookup_requests",
-            "Counter of topic lookup requests rejected due to throttling").create().register();
+    private static final Counter GET_SCHEMA_REQUESTS = Counter.builder()
+            .name("pulsar_proxy_get_schema_requests")
+            .help("Counter of schema requests")
+            .register();
 
-    static final Counter REJECTED_PARTITIONS_METADATA_REQUESTS = Counter
-            .build("pulsar_proxy_rejected_partitions_metadata_requests",
-                    "Counter of partitions metadata requests rejected due to throttling")
-            .create().register();
+    static final Counter REJECTED_LOOKUP_REQUESTS = Counter.builder()
+            .name("pulsar_proxy_rejected_lookup_requests")
+            .help("Counter of topic lookup requests rejected due to throttling")
+            .register();
 
-    static final Counter REJECTED_GET_TOPICS_OF_NAMESPACE_REQUESTS = Counter
-            .build("pulsar_proxy_rejected_get_topics_of_namespace_requests",
-                    "Counter of getTopicsOfNamespace requests rejected due to throttling")
-            .create().register();
+    static final Counter REJECTED_PARTITIONS_METADATA_REQUESTS = Counter.builder()
+            .name("pulsar_proxy_rejected_partitions_metadata_requests")
+            .help("Counter of partitions metadata requests rejected due to throttling")
+            .register();
+
+    static final Counter REJECTED_GET_TOPICS_OF_NAMESPACE_REQUESTS = Counter.builder()
+            .name("pulsar_proxy_rejected_get_topics_of_namespace_requests")
+            .help("Counter of getTopicsOfNamespace requests rejected due to throttling")
+            .register();
     private final Semaphore lookupRequestSemaphore;
     private final AsyncDualMemoryLimiterImpl maxTopicListInFlightLimiter;
     private final TopicListSizeResultCache topicListSizeResultCache;
