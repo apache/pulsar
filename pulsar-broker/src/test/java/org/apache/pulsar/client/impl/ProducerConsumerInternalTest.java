@@ -24,6 +24,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -32,9 +33,10 @@ import lombok.AllArgsConstructor;
 import lombok.Cleanup;
 import lombok.CustomLog;
 import lombok.Data;
-import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
+import org.apache.pulsar.broker.service.SharedPulsarCluster;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.CompressionType;
@@ -49,6 +51,8 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.common.api.proto.CommandCloseProducer;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
+import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
 import org.testng.annotations.DataProvider;
@@ -407,33 +411,38 @@ public class ProducerConsumerInternalTest extends SharedPulsarBaseTest {
 
     @Test
     public void testRetentionPolicyByProducingMessages() throws Exception {
-        // Disable dedup so the pulsar.dedup cursor doesn't block ledger trimming
-        admin.namespaces().setDeduplicationStatus(getNamespace(), false);
-        // Setup: configure the entries per ledger and retention polices.
         final int maxEntriesPerLedger = 10, messagesCount = 10;
-        final String topicName = newTopicName();
-        ServiceConfiguration config = getConfig();
-        int originalMaxEntries = config.getManagedLedgerMaxEntriesPerLedger();
-        int originalMinRolloverMinutes = config.getManagedLedgerMinLedgerRolloverTimeMinutes();
-        int originalRetentionMinutes = config.getDefaultRetentionTimeInMinutes();
-        int originalRetentionSize = config.getDefaultRetentionSizeInMB();
+        final String namespace = getNamespace() + "-retention";
+        final String topicName = "persistent://" + namespace + "/topic";
+        // Create the namespace with its final policies: later policy updates replace the topic's ledger config.
+        Policies policies = new Policies();
+        policies.replication_clusters = Set.of(SharedPulsarCluster.CLUSTER_NAME);
+        // The deduplication cursor must not hold back trimming.
+        policies.deduplicationEnabled = false;
+        policies.retention_policies = new RetentionPolicies(0, 0);
+        admin.namespaces().createNamespace(namespace, policies);
         try {
-            config.setManagedLedgerMaxEntriesPerLedger(maxEntriesPerLedger);
-            config.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
-            config.setDefaultRetentionTimeInMinutes(0);
-            config.setDefaultRetentionSizeInMB(0);
-
             @Cleanup
             Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
                     .sendTimeout(1, TimeUnit.SECONDS)
                     .enableBatching(false)
                     .create();
 
+            // These rollover settings have no namespace policy; change only this topic's managed ledger.
+            PersistentTopic topic = (PersistentTopic) getTopic(topicName, false).join().orElseThrow();
+            ManagedLedgerConfig config = topic.getManagedLedger().getConfig();
+            config.setMaxEntriesPerLedger(maxEntriesPerLedger);
+            config.setMinimumRolloverTime(0, TimeUnit.MINUTES);
+            // Persist ACKs without throttling so trimming can observe the consumed ledger immediately.
+            config.setThrottleMarkDelete(0);
+
             @Cleanup
             Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
                     .subscriptionName("my-sub")
+                    .isAckReceiptEnabled(true)
                     .subscribe();
-            // Act: prepare a full ledger data and ack them.
+
+            // Act: fill a ledger and acknowledge all messages.
             for (int i = 0; i < messagesCount; i++) {
                 producer.newMessage().sendAsync();
             }
@@ -442,8 +451,7 @@ public class ProducerConsumerInternalTest extends SharedPulsarBaseTest {
                 assertNotNull(message);
                 consumer.acknowledge(message);
             }
-            // Verify: a new empty ledger will be created after the current ledger is fulled.
-            // And the previous consumed ledgers will be deleted
+            // Verify that only the new empty ledger remains after trimming the consumed ledger.
             Awaitility.await().untilAsserted(() -> {
                 admin.topics().trimTopic(topicName);
                 PersistentTopicInternalStats internalStats = admin.topics().getInternalStatsAsync(topicName).get();
@@ -451,10 +459,7 @@ public class ProducerConsumerInternalTest extends SharedPulsarBaseTest {
                 assertEquals(internalStats.ledgers.size(), 1);
             });
         } finally {
-            config.setManagedLedgerMaxEntriesPerLedger(originalMaxEntries);
-            config.setManagedLedgerMinLedgerRolloverTimeMinutes(originalMinRolloverMinutes);
-            config.setDefaultRetentionTimeInMinutes(originalRetentionMinutes);
-            config.setDefaultRetentionSizeInMB(originalRetentionSize);
+            admin.namespaces().deleteNamespace(namespace, true);
         }
     }
 
