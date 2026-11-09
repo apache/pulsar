@@ -421,7 +421,7 @@ vertx-core = { module = "io.vertx:vertx-core", version.ref = "vertx" }
 vertx-web = { module = "io.vertx:vertx-web", version.ref = "vertx" }
 avro = { module = "org.apache.avro:avro", version.ref = "avro" }
 avro-protobuf = { module = "org.apache.avro:avro-protobuf", version.ref = "avro" }
-joda-time = "joda-time:joda-time:2.14.3"
+joda-time = "joda-time:joda-time:2.14.4"
 java-semver = { module = "com.github.zafarkhaja:java-semver", version.ref = "java-semver" }
 oshi-core = { module = "com.github.oshi:oshi-core-java11", version.ref = "oshi" }
 jna = { module = "net.java.dev.jna:jna", version.ref = "jna" }
