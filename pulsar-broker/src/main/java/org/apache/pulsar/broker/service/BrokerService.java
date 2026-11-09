@@ -136,6 +136,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
+import org.apache.pulsar.broker.service.BrokerServiceException.TopicFencedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicMigratedException;
 import org.apache.pulsar.broker.service.TopicEventsListener.EventStage;
 import org.apache.pulsar.broker.service.TopicEventsListener.TopicEvent;
@@ -1751,7 +1752,20 @@ public class BrokerService implements Closeable {
         if (optTopic.isPresent()) {
             Topic t = optTopic.get();
             if (forceDelete) {
-                return t.deleteForcefully();
+                return t.deleteForcefully().exceptionallyCompose(ex -> {
+                    Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                    CompletableFuture<Void> closeFuture = cause instanceof TopicFencedException
+                            && t instanceof PersistentTopic persistentTopic ? persistentTopic.getCloseFuture() : null;
+                    if (closeFuture == null) {
+                        return CompletableFuture.failedFuture(cause);
+                    }
+                    // A close fenced the topic, for example after its transaction buffer failed. Once the closed
+                    // topic has left the cache, delete it as an unloaded topic. A failed close unfences it.
+                    return closeFuture.handle((ignored, closeError) ->
+                                    closeError != null || topics.get(topic) != cachedFuture)
+                            .thenCompose(retry -> retry ? deleteTopicInternal(topic, true)
+                                    : CompletableFuture.failedFuture(cause));
+                });
             }
 
             // v2 topics have a global name so check if the topic is replicated.

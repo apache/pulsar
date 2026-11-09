@@ -416,6 +416,52 @@ public class PersistentTopicOwnBrokerTest extends BrokerTestBase {
         }
     }
 
+    /**
+     * A forced delete that finds the topic fenced by a close, such as the one the segmented transaction buffer
+     * starts when it cannot create its snapshot writers in a namespace being deleted, waits for the close and then
+     * deletes the unloaded topic instead of failing with "Topic is already fenced".
+     */
+    @Test(timeOut = 60000)
+    public void testForcedDeleteWaitsForInProgressClose() throws Exception {
+        String topicName = "persistent://prop/ns-abc/delete-during-close-" + UUID.randomUUID();
+        TopicName parsedTopic = TopicName.get(topicName);
+        BrokerService brokerService = pulsar.getBrokerService();
+        PersistentTopic topic = (PersistentTopic) brokerService.getTopic(topicName, true)
+                .get(10, TimeUnit.SECONDS).orElseThrow();
+        NamespaceService namespaceService = pulsar.getNamespaceService();
+        NamespaceBundle bundle = namespaceService.getBundleAsync(parsedTopic).get(10, TimeUnit.SECONDS);
+        // Hold the close where it removes the closed topic from the broker cache
+        CompletableFuture<NamespaceBundle> cacheRemoval = new CompletableFuture<>();
+        CompletableFuture<Void> cacheRemovalStarted = new CompletableFuture<>();
+        AtomicBoolean interceptCacheRemoval = new AtomicBoolean(true);
+        when(namespaceService.getBundleAsync(parsedTopic)).thenAnswer(invocation -> {
+            if (!interceptCacheRemoval.get()) {
+                return invocation.callRealMethod();
+            }
+            cacheRemovalStarted.complete(null);
+            return cacheRemoval;
+        });
+        try {
+            CompletableFuture<Void> closing = topic.close();
+            cacheRemovalStarted.get(10, TimeUnit.SECONDS);
+            assertThat(closing).isNotDone();
+
+            CompletableFuture<Void> deletion = brokerService.deleteTopic(topicName, true);
+            assertThat(deletion).as("the forced delete must wait for the close").isNotDone();
+
+            interceptCacheRemoval.set(false);
+            cacheRemoval.complete(bundle);
+            closing.get(10, TimeUnit.SECONDS);
+            deletion.get(10, TimeUnit.SECONDS);
+            assertThat(brokerService.getTopics()).doesNotContainKey(topicName);
+            assertThat(pulsar.getPulsarResources().getTopicResources().persistentTopicExists(parsedTopic)
+                    .get(10, TimeUnit.SECONDS)).isFalse();
+        } finally {
+            interceptCacheRemoval.set(false);
+            cacheRemoval.complete(bundle);
+        }
+    }
+
     @DataProvider(name = "topicLevelPolicy")
     public static Object[][] topicLevelPolicy() {
         return new Object[][] { { true }, { false } };

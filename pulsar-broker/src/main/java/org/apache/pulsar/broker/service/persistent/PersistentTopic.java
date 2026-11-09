@@ -2196,6 +2196,23 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return closeFuture;
     }
 
+    /**
+     * The future of the close that fenced this topic, which completes once the closed topic has left the broker
+     * cache, or null when no such close has started: the topic is open, being deleted, or closed for a transfer.
+     */
+    public CompletableFuture<Void> getCloseFuture() {
+        lock.readLock().lock();
+        try {
+            CloseFutures futures = closeFutures;
+            if (futures == null || futures.notWaitDisconnectClients == deletionFuture) {
+                return null;
+            }
+            return futures.notWaitDisconnectClients;
+        } finally {
+            lock.readLock().unlock();
+        }
+    }
+
     @VisibleForTesting
     boolean isClosed() {
         if (closeFutures == null) {
