@@ -350,8 +350,9 @@ public class PulsarClientImplTest {
     @DataProvider
     public Object[][] subscriptionsFailingAtOnce() {
         return new Object[][]{
-                {"consumer", "subscribe request"}, {"consumer", "connection"},
-                {"reader", "subscribe request"}, {"reader", "connection"},
+                {"consumer", 0, "subscribe request"}, {"consumer", 0, "connection"},
+                {"reader", 0, "subscribe request"}, {"reader", 0, "connection"},
+                {"consumer", 2, "subscribe request"}, {"reader", 2, "subscribe request"},
         };
     }
 
@@ -359,13 +360,15 @@ public class PulsarClientImplTest {
      * A subscription whose connection is already open and whose subscribe request has already failed when the
      * consumer attaches its callbacks (the broker's error arrived first), or whose connection fails at once, fails
      * inside the consumer's constructor, before the client has registered the consumer: the consumer removes itself
-     * from the client while it is not there yet. The client must not keep it afterwards.
+     * from the client while it is not there yet. The client must not keep it afterwards. On a partitioned topic, the
+     * partitions' failures reach the parent consumer through the client's executors, which run tasks at once here.
      */
     @Test(dataProvider = "subscriptionsFailingAtOnce")
-    public void testConsumerFailedBeforeItIsRegisteredIsNotKept(String kind, String failing) throws Exception {
+    public void testConsumerFailedBeforeItIsRegisteredIsNotKept(String kind, int partitions, String failing)
+            throws Exception {
         LookupService lookup = mock(LookupService.class);
         when(lookup.getPartitionedTopicMetadata(any(TopicName.class), anyBoolean(), anyBoolean()))
-                .thenReturn(CompletableFuture.completedFuture(new PartitionedTopicMetadata()));
+                .thenReturn(CompletableFuture.completedFuture(new PartitionedTopicMetadata(partitions)));
         when(lookup.getBroker(any()))
                 .thenReturn(CompletableFuture.completedFuture(new LookupTopicResult(
                         mock(InetSocketAddress.class), mock(InetSocketAddress.class), false)));
@@ -386,9 +389,11 @@ public class PulsarClientImplTest {
                     .thenReturn(CompletableFuture.failedFuture(
                             new PulsarClientException.AuthorizationException("not allowed")));
         }
+        ExecutorProvider executors = mock(ExecutorProvider.class);
+        when(executors.getExecutor()).thenReturn(ImmediateEventExecutor.INSTANCE);
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setServiceUrl("pulsar://localhost:6650");
-        PulsarClientImpl client = new PulsarClientImpl(conf, eventLoopGroup, pool);
+        PulsarClientImpl client = new PulsarClientImpl(conf, eventLoopGroup, pool, null, executors, executors, null);
         client.setLookup(lookup);
         try {
             String topic = "persistent://public/default/failed-before-registered";
@@ -397,8 +402,8 @@ public class PulsarClientImplTest {
                     : client.newReader().topic(topic).startMessageId(MessageId.earliest).createAsync();
 
             assertThat(subscription).isCompletedExceptionally();
-            assertEquals(client.consumersCount(), 0,
-                    "A " + kind + " whose " + failing + " failed before it was registered must not be kept");
+            assertEquals(client.consumersCount(), 0, "A " + kind + " on " + partitions + " partitions whose "
+                    + failing + " failed before it was registered must not be kept");
         } finally {
             client.close();
         }
