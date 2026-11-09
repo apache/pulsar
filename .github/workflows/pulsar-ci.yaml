@@ -178,7 +178,7 @@ jobs:
           limit-access-to-actor: true
 
       - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           distribution: ${{ env.JDK_DISTRIBUTION }}
           java-version: |
@@ -303,7 +303,7 @@ jobs:
           limit-access-to-actor: true
 
       - name: Set up JDK ${{ matrix.jdk || env.CI_JDK_MAJOR_VERSION }}
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           distribution: ${{ env.JDK_DISTRIBUTION }}
           java-version: ${{ matrix.jdk || env.CI_JDK_MAJOR_VERSION }}
@@ -411,7 +411,7 @@ jobs:
         uses: ./.github/actions/tune-runner-vm
 
       - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           distribution: ${{ env.JDK_DISTRIBUTION }}
           java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
@@ -447,7 +447,7 @@ jobs:
           limit-access-to-actor: true
 
       - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           distribution: ${{ env.JDK_DISTRIBUTION }}
           java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
@@ -574,7 +574,7 @@ jobs:
 
       - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}${{ matrix.runtime_jdk && matrix.runtime_jdk != env.CI_JDK_MAJOR_VERSION && format(' and {0}', matrix.runtime_jdk) || '' }}
         if: ${{ matrix.group != 'NATIVE_IMAGE' }}
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           distribution: ${{ env.JDK_DISTRIBUTION }}
           java-version: |
@@ -694,7 +694,7 @@ jobs:
           limit-access-to-actor: true
 
       - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           distribution: ${{ env.JDK_DISTRIBUTION }}
           java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
@@ -806,7 +806,7 @@ jobs:
           limit-access-to-actor: true
 
       - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           distribution: ${{ env.JDK_DISTRIBUTION }}
           java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
@@ -915,7 +915,7 @@ jobs:
           limit-access-to-actor: true
 
       - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           distribution: ${{ env.JDK_DISTRIBUTION }}
           java-version: ${{ env.CI_JDK_MAJOR_VERSION }}

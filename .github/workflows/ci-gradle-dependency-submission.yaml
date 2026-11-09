@@ -55,7 +55,7 @@ jobs:
         uses: ./.github/actions/tune-runner-vm
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           distribution: ${{ env.JDK_DISTRIBUTION }}
           java-version: 21
