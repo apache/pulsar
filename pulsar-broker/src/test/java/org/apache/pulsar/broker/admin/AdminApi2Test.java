@@ -187,6 +187,14 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
     // A client that owns its event loop waits out the loop's 2 s shutdown quiet period on close, at every
     // broker restart and in every test that closes its own client. Clients sharing a loop skip that wait.
     private PulsarClientSharedResources clientSharedResources;
+    // Topic spies that reference the running broker, which Mockito's inline mock maker would keep, with the broker,
+    // until the JVM exits: released once the broker is closed.
+    private final List<Object> ownedMocks = new ArrayList<>();
+
+    private <T> T ownMock(T mock) {
+        ownedMocks.add(mock);
+        return mock;
+    }
 
     @BeforeClass
     @Override
@@ -268,6 +276,8 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
+        ownedMocks.forEach(mock -> Mockito.framework().clearInlineMock(mock));
+        ownedMocks.clear();
         if (clientSharedResources != null) {
             clientSharedResources.close();
             clientSharedResources = null;
@@ -3519,7 +3529,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
     private AtomicInteger injectSchemaCheckCounterForTopic(String topicName) {
         final var topics = pulsar.getBrokerService().getTopics();
         AbstractTopic topic = (AbstractTopic) topics.get(topicName).join().get();
-        AbstractTopic spyTopic = Mockito.spy(topic);
+        AbstractTopic spyTopic = ownMock(Mockito.spy(topic));
         AtomicInteger counter = new AtomicInteger();
         doAnswer(new Answer<Object>() {
             @Override
@@ -3659,7 +3669,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         TopicName topicName = TopicName.get(topic);
         PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
                 .getTopicIfExists(topic).get().get();
-        PersistentTopic mockTopic = spy(persistentTopic);
+        PersistentTopic mockTopic = ownMock(spy(persistentTopic));
         doReturn(CompletableFuture.completedFuture(null))
                 .when(mockTopic).triggerCompactionWithCheckHasMoreMessages();
         mockTopic.checkCompaction();
