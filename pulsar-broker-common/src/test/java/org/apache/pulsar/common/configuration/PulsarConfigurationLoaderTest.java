@@ -20,6 +20,7 @@ package org.apache.pulsar.common.configuration;
 
 import static org.apache.pulsar.common.configuration.PulsarConfigurationLoader.isComplete;
 import static org.apache.pulsar.common.configuration.PulsarConfigurationLoader.runtimeConfigurationOverrides;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
@@ -370,6 +371,64 @@ public class PulsarConfigurationLoaderTest {
         // Unchanged fields must not appear.
         assertFalse(overrides.containsKey("numIOThreads"));
         assertFalse(overrides.containsKey("metadataStoreUrl"));
+    }
+
+    @Test
+    public void testRuntimeConfigurationOverridesMasksSensitiveValues() {
+        ServiceConfiguration config = new ServiceConfiguration();
+        config.setClusterName("my-cluster");
+        config.setTlsKeyStorePassword("keystore-secret");
+        config.setBrokerClientTlsTrustStorePassword("truststore-secret");
+        config.setBrokerClientAuthenticationParameters("token:client-secret");
+        config.setBookkeeperClientAuthenticationParameters("bk-secret");
+        config.setManagedLedgerPassword("ml-secret");
+        config.setTlsFactoryConfig("{\"keyStorePassword\":\"factory-secret\"}");
+        Properties props = config.getProperties();
+        // Keys that are not declared fields are passed through to plugins and internal clients.
+        props.setProperty("tokenSecretKey", "data:;base64,token-secret");
+        props.setProperty("brokerClient_authParams", "client-param-secret");
+        props.setProperty("bookkeeper_tlsKeyStorePassword", "bk-tls-secret");
+        props.setProperty("s3ManagedLedgerOffloadCredentialSecret", "s3-secret");
+        props.setProperty("custom.plugin.option", "enabled");
+        // Blank undeclared keys are equivalent to unset.
+        props.setProperty("brokerClient_tlsTrustStorePassword", "");
+
+        Map<String, Object> overrides = runtimeConfigurationOverrides(config);
+
+        assertThat(overrides)
+                .containsEntry("clusterName", "my-cluster")
+                .containsEntry("custom.plugin.option", "enabled")
+                .containsEntry("tlsKeyStorePassword", PulsarConfigurationLoader.MASKED_VALUE)
+                .containsEntry("brokerClientTlsTrustStorePassword", PulsarConfigurationLoader.MASKED_VALUE)
+                .containsEntry("brokerClientAuthenticationParameters", PulsarConfigurationLoader.MASKED_VALUE)
+                .containsEntry("bookkeeperClientAuthenticationParameters", PulsarConfigurationLoader.MASKED_VALUE)
+                .containsEntry("managedLedgerPassword", PulsarConfigurationLoader.MASKED_VALUE)
+                .containsEntry("tlsFactoryConfig", PulsarConfigurationLoader.MASKED_VALUE)
+                .containsEntry("tokenSecretKey", PulsarConfigurationLoader.MASKED_VALUE)
+                .containsEntry("brokerClient_authParams", PulsarConfigurationLoader.MASKED_VALUE)
+                .containsEntry("bookkeeper_tlsKeyStorePassword", PulsarConfigurationLoader.MASKED_VALUE)
+                .containsEntry("s3ManagedLedgerOffloadCredentialSecret", PulsarConfigurationLoader.MASKED_VALUE);
+        assertThat(overrides).doesNotContainKey("brokerClient_tlsTrustStorePassword");
+        assertThat(overrides.toString()).doesNotContain("secret");
+    }
+
+    @Test
+    public void testRuntimeConfigurationOverridesOfShippedConfigFiles() throws IOException {
+        for (String confFile : new String[]{"broker.conf", "standalone.conf"}) {
+            File file = new File("../conf/" + confFile);
+            if (!file.exists()) {
+                file = new File("conf/" + confFile);
+            }
+            ServiceConfiguration config = PulsarConfigurationLoader.create(file.getPath(),
+                    ServiceConfiguration.class);
+            Map<String, Object> overrides = runtimeConfigurationOverrides(config);
+            // The shipped files leave the sensitive keys (e.g. tokenSecretKey) and many plugin keys empty, which
+            // is equivalent to unset and must not be reported.
+            assertThat(overrides).as(confFile)
+                    .doesNotContainKeys("tokenSecretKey", "tokenPublicKey", "athenzDomainNames")
+                    .doesNotContainValue("")
+                    .doesNotContainValue(PulsarConfigurationLoader.MASKED_VALUE);
+        }
     }
 
     static class TestCompleteObject {
