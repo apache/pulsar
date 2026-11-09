@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.namespace;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -36,24 +37,33 @@ import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class NamespaceServiceLookupOptionsTest extends BrokerTestBase {
 
-    @BeforeMethod
+    @BeforeClass(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         super.baseSetup();
     }
 
-    @AfterMethod(alwaysRun = true)
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @AfterMethod(alwaysRun = true)
+    public void resetNamespaceService() {
+        // the tests stub the broker's NamespaceService spy
+        if (pulsar != null) {
+            reset(pulsar.getNamespaceService());
+        }
     }
 
     @DataProvider(name = "differentLookupOptions")
