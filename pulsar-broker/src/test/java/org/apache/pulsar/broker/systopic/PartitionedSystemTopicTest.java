@@ -381,7 +381,8 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         Awaitility.await().untilAsserted(() -> assertEquals(admin.topicPolicies().getMaxConsumers(topicName), 2));
         CompletableFuture<Optional<Topic>> topic = pulsar.getBrokerService().getTopic(topicName, false);
         PersistentTopic persistentTopic = (PersistentTopic) topic.join().get();
-        persistentTopic.close();
+        // the close completes once the topic has left the broker's cache, so that the delete finds it not loaded
+        persistentTopic.close().join();
         admin.topics().delete(topicName);
         TopicPolicies topicPolicies = TopicPolicyTestUtils.getTopicPolicies(pulsar.getTopicPoliciesService(),
                 TopicName.get(topicName));
