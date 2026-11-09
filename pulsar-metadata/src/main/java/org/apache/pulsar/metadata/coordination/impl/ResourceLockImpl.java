@@ -107,30 +107,60 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
             revalidateTask.cancel(true);
         }
 
-        CompletableFuture<Void> result = new CompletableFuture<>();
+        // Serialize the deletion with an in-flight revalidation: without this, a
+        // revalidation whose read or write lands after the deletion would re-create the
+        // path and resurrect the resource.
+        return sequencer.sequential(() -> {
+            synchronized (ResourceLockImpl.this) {
+                if (state == State.Released) {
+                    return CompletableFuture.completedFuture(null);
+                }
 
-        store.delete(path, Optional.of(version))
-                .thenRun(() -> {
-                    synchronized (ResourceLockImpl.this) {
-                        state = State.Released;
-                    }
-                    expiredFuture.complete(null);
-                    result.complete(null);
-                }).exceptionally(ex -> {
-                    if (ex.getCause() instanceof MetadataStoreException.NotFoundException) {
-                        // The lock is not there on release. We can anyway proceed
-                        synchronized (ResourceLockImpl.this) {
-                            state = State.Released;
-                        }
-                        expiredFuture.complete(null);
-                        result.complete(null);
-                    } else {
-                        result.completeExceptionally(ex);
-                    }
-                    return null;
-                });
+                long versionAtRelease = version;
+                CompletableFuture<Void> result = new CompletableFuture<>();
 
-        return result;
+                store.delete(path, Optional.of(versionAtRelease))
+                        .thenRun(() -> {
+                            synchronized (ResourceLockImpl.this) {
+                                state = State.Released;
+                            }
+                            expiredFuture.complete(null);
+                            result.complete(null);
+                        }).exceptionally(ex -> {
+                            if (ex.getCause() instanceof MetadataStoreException.NotFoundException) {
+                                // The lock is not there on release. We can anyway proceed
+                                synchronized (ResourceLockImpl.this) {
+                                    state = State.Released;
+                                }
+                                expiredFuture.complete(null);
+                                result.complete(null);
+                            } else {
+                                result.completeExceptionally(ex);
+                            }
+                            return null;
+                        });
+                return result;
+            }
+        });
+    }
+
+    /**
+     * Marks the lock as released without touching the store, and cancels its pending
+     * revalidation. Used when the lock manager replaces this handle with a newer one for the
+     * same path: a revalidation of the superseded handle that is still scheduled or in flight
+     * would otherwise re-create the path and resurrect a torn-down resource. A create that is
+     * already in flight is retracted by its own completion, which finds the lock released.
+     */
+    synchronized void retire() {
+        if (state == State.Released) {
+            return;
+        }
+        state = State.Released;
+        if (revalidateTask != null) {
+            revalidateTask.cancel(true);
+            revalidateTask = null;
+        }
+        expiredFuture.complete(null);
     }
 
     @Override
@@ -172,6 +202,13 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
     // Simple operation of acquiring the lock with no retries, or checking for the lock content
     private CompletableFuture<Void> acquireWithNoRevalidation(T newValue) {
         log.debug().attr("newValue", newValue).attr("version", version).log("acquireWithNoRevalidation");
+        synchronized (ResourceLockImpl.this) {
+            if (state == State.Releasing || state == State.Released) {
+                // The lock was released or retired while a previous step of the chain was in
+                // flight: do not issue a create that would resurrect the path.
+                return CompletableFuture.completedFuture(null);
+            }
+        }
         byte[] payload;
         try {
             payload = serde.serialize(path, newValue);
@@ -183,12 +220,19 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
         store.put(path, payload, Optional.of(version), EnumSet.of(CreateOption.Ephemeral))
                 .thenAccept(stat -> {
                     synchronized (ResourceLockImpl.this) {
-                        state = State.Valid;
-                        version = stat.getVersion();
-                        value = newValue;
+                        if (state != State.Releasing && state != State.Released) {
+                            state = State.Valid;
+                            version = stat.getVersion();
+                            value = newValue;
+                            log.info().attr("path", path).log("Acquired resource lock");
+                            result.complete(null);
+                            return;
+                        }
                     }
-                    log.info().attr("path", path).log("Acquired resource lock");
-                    result.complete(null);
+                    // The lock was released or retired while this create was in flight: the
+                    // write landed on the store, so retract what it wrote instead of letting
+                    // the path come back to life with nobody tracking it.
+                    retractCreateAfterRelease(stat.getVersion(), result);
                 }).exceptionally(ex -> {
             if (ex.getCause() instanceof BadVersionException) {
                 result.completeExceptionally(
@@ -200,6 +244,29 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
         });
 
         return result;
+    }
+
+    /**
+     * Removes the record that a create of this lock wrote after the lock was already released
+     * or retired: the write landed on the store, and the path it resurrected belongs to whoever
+     * tore the lock down. The delete is version-compared with the version the write returned,
+     * so a concurrent registration that adopted the record in the meantime bumps the version
+     * and the delete backs off; NotFound and BadVersion therefore both mean nothing of this
+     * write remains to retract. The cleanup is best effort: any residue is an ephemeral record
+     * bound to this session, swept when the session ends.
+     */
+    private void retractCreateAfterRelease(long writtenVersion, CompletableFuture<Void> result) {
+        store.delete(path, Optional.of(writtenVersion)).whenComplete((__, ex) -> {
+            if (ex == null) {
+                log.info().attr("path", path)
+                        .log("Retracted the lock record written after the lock was released");
+            } else if (!(ex.getCause() instanceof MetadataStoreException.NotFoundException)
+                    && !(ex.getCause() instanceof BadVersionException)) {
+                log.warn().attr("path", path).exception(ex.getCause())
+                        .log("Cannot retract the lock record written after the lock was released");
+            }
+            result.complete(null);
+        });
     }
 
     synchronized void lockWasInvalidated() {
@@ -258,15 +325,33 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
     }
 
     private synchronized CompletableFuture<Void> revalidate(T newValue) {
+        return revalidate(newValue, true);
+    }
+
+    /**
+     * One revalidation attempt. A {@code BadVersion} from any of its version-compared writes
+     * means a concurrent revalidation or acquire moved the record between the read and the
+     * write, not a conflict: with {@code retryOnBadVersion} the decision is made again from a
+     * fresh read, once, instead of failing or expiring the lock. A genuine foreign holder
+     * surfaces as a {@code LockBusy}, which is not retried.
+     */
+    private synchronized CompletableFuture<Void> revalidate(T newValue, boolean retryOnBadVersion) {
         // Since the distributed lock has been expired, we don't need to revalidate it.
         if (state != State.Valid && state != State.Init) {
             return CompletableFuture.failedFuture(
                     new IllegalStateException("Lock was not in valid state: " + state));
         }
-        log.debug().attr("newValue", newValue).attr("version", version).log("doRevalidate");
         return store.get(path)
                 .thenCompose(optGetResult -> {
                     if (!optGetResult.isPresent()) {
+                        synchronized (ResourceLockImpl.this) {
+                            if (state == State.Releasing || state == State.Released) {
+                                // The lock was released while the read was in flight: the
+                                // path is gone because the release deleted it, and it must
+                                // not be resurrected by this revalidation.
+                                return CompletableFuture.completedFuture(null);
+                            }
+                        }
                         // The lock just disappeared, try to acquire it again
                         // Reset the expectation on the version
                         setVersion(-1L);
@@ -290,16 +375,57 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
                     }
 
                     synchronized (ResourceLockImpl.this) {
+                        if (state == State.Releasing || state == State.Released) {
+                            // The lock was released while the read was in flight: the
+                            // release's sequenced deletion owns the record now, and this
+                            // revalidation must not rewrite or re-create it behind the
+                            // release.
+                            return CompletableFuture.completedFuture(null);
+                        }
                         if (newValue.equals(existingValue)) {
                             // The lock value is still the same, that means that we're the
                             // logical "owners" of the lock.
 
                             if (res.getStat().isCreatedBySelf()) {
-                                // If the new lock belongs to the same session, there's no
-                                // need to recreate it.
-                                version = res.getStat().getVersion();
-                                value = newValue;
-                                return CompletableFuture.completedFuture(null);
+                                if (store.isCreatorIdentitySessionScoped()) {
+                                    // A self-created record already belongs to the live
+                                    // session on this store: adopt it without a write. The
+                                    // lock must still be left valid, so that future
+                                    // revalidations keep watching it.
+                                    version = res.getStat().getVersion();
+                                    value = newValue;
+                                    state = State.Valid;
+                                    return CompletableFuture.completedFuture(null);
+                                }
+                                // The record was created by this client, but the creator
+                                // identity outlives the session on this store (the oxia
+                                // backend scopes it to the client identity), so it may still
+                                // be bound to an expired session. Re-writing it with the
+                                // expected version re-binds the record to the live session,
+                                // and leaves the lock valid, also when it was adopted during
+                                // an acquire.
+                                byte[] payload;
+                                try {
+                                    payload = serde.serialize(path, newValue);
+                                } catch (Throwable t) {
+                                    return FutureUtils.exception(t);
+                                }
+                                return store.put(path, payload, Optional.of(res.getStat().getVersion()),
+                                                EnumSet.of(CreateOption.Ephemeral))
+                                        .thenAccept(putStat -> {
+                                            synchronized (ResourceLockImpl.this) {
+                                                // Record the fresh version even when the lock
+                                                // was released while the write was in flight:
+                                                // the write landed on the store, and the
+                                                // release deletes the record with this
+                                                // expectation.
+                                                version = putStat.getVersion();
+                                                value = newValue;
+                                                if (state != State.Releasing && state != State.Released) {
+                                                    state = State.Valid;
+                                                }
+                                            }
+                                        });
                             } else {
                                 // The lock needs to get recreated since it belong to an earlier
                                 // session which maybe expiring soon
@@ -323,15 +449,21 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
                             return FutureUtils.exception(
                                     new LockBusyException("Resource at " + path + " is already locked"));
                         }
-
                         return store.delete(path, Optional.of(res.getStat().getVersion()))
                                 .thenRun(() ->
-                                    // Reset the expectation that the key is not there anymore
-                                    setVersion(-1L)
+                                        // Reset the expectation that the key is not there anymore
+                                        setVersion(-1L)
                                 )
                                 .thenCompose(__ -> acquireWithNoRevalidation(newValue))
                                 .thenRun(() -> log.info().attr("path", path).log("Successfully re-acquired lock"));
                     }
+                })
+                .exceptionallyCompose(ex -> {
+                    Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                    if (retryOnBadVersion && cause instanceof BadVersionException) {
+                        return revalidate(newValue, false);
+                    }
+                    return CompletableFuture.failedFuture(cause);
                 });
     }
 
