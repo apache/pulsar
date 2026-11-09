@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.loadbalance.extensions.reporter;
 
 import com.google.common.annotations.VisibleForTesting;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -210,15 +211,30 @@ public class BrokerLoadDataReporter implements LoadDataReporter<BrokerLoadData>,
         switch (state) {
             case Releasing, Splitting -> {
                 if (StringUtils.equals(data.sourceBroker(), brokerId)) {
-                    localData.clear();
-                    tombstone();
+                    scheduleTombstone();
                 }
             }
             case Owned -> {
                 if (StringUtils.equals(data.dstBroker(), brokerId)) {
-                    localData.clear();
-                    tombstone();
+                    scheduleTombstone();
                 }
+            }
+        }
+    }
+
+    // The channel calls its listeners on the thread that completes its table view's reads: with the metadata store
+    // table view, the store's single worker thread. tombstone() blocks while the store restarts a closed producer,
+    // and the producer's topic lookup needs such a read, so run it on the load manager executor, which also sends
+    // the reports: no report goes out between the clear and the tombstone.
+    private void scheduleTombstone() {
+        try {
+            pulsar.getLoadManagerExecutor().execute(() -> {
+                localData.clear();
+                tombstone();
+            });
+        } catch (RejectedExecutionException e) {
+            if (log.isDebugEnabled()) {
+                log.debug("Skipped the load data tombstone of broker {}: the broker is closing", brokerId);
             }
         }
     }
