@@ -158,6 +158,17 @@ public class ModularLoadManagerImplTest {
 
     private ExecutorService executor;
 
+    // These tests use the first broker only (testLoadSheddingPassesBundleNameAndCompletesAttempt starts pulsar3 as
+    // the second one), so the setup doesn't start the second broker for them.
+    private static final Set<String> TESTS_WITHOUT_SECONDARY_BROKER = Set.of(
+            "testBundleDataAggregationDoesNotDeleteAfterLeadershipLoss",
+            "testBundleDataDefaultValue",
+            "testBundleDataWriteStopsWhenLeadershipChangesBeforeMetadataWrite",
+            "testLoadSheddingPassesBundleNameAndCompletesAttempt",
+            "testNamespaceIsolationPoliciesForPrimaryAndSecondaryBrokers",
+            "testNeedBrokerDataUpdate",
+            "testOwnBrokerZnodeByMultipleBroker");
+
     public static class RecordingLoadSheddingStrategy implements LoadSheddingStrategy, ModularLoadManagerStrategy {
         private static final AtomicReference<RecordingLoadSheddingStrategy> INSTANCE = new AtomicReference<>();
 
@@ -251,7 +262,7 @@ public class ModularLoadManagerImplTest {
     }
 
     @BeforeMethod
-    void setup() throws Exception {
+    void setup(Method method) throws Exception {
         executor = new ThreadPoolExecutor(1, 20, 30, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
 
         // Start local bookkeeper ensemble: the brokers write their ledgers to a single bookie
@@ -304,8 +315,18 @@ public class ModularLoadManagerImplTest {
         config2.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
         config2.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
         config2.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
-        pulsar2 = new PulsarService(config2);
-        pulsar2.start();
+        if (TESTS_WITHOUT_SECONDARY_BROKER.contains(method.getName())) {
+            secondaryBrokerId = null;
+            url2 = null;
+            secondaryLoadManager = null;
+        } else {
+            pulsar2 = new PulsarService(config2);
+            pulsar2.start();
+            secondaryBrokerId = pulsar2.getBrokerId();
+            url2 = URI.create(pulsar2.getWebServiceAddress()).toURL();
+            admin2 = PulsarAdmin.builder().serviceHttpUrl(url2.toString()).build();
+            secondaryLoadManager = (ModularLoadManagerImpl) getField(pulsar2.getLoadManager().get(), "loadManager");
+        }
 
         ServiceConfiguration config = new ServiceConfiguration();
         config.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
@@ -327,12 +348,7 @@ public class ModularLoadManagerImplTest {
         config.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
         pulsar3 = new PulsarService(config);
 
-        secondaryBrokerId = pulsar2.getBrokerId();
-        url2 = URI.create(pulsar2.getWebServiceAddress()).toURL();
-        admin2 = PulsarAdmin.builder().serviceHttpUrl(url2.toString()).build();
-
         primaryLoadManager = (ModularLoadManagerImpl) getField(pulsar1.getLoadManager().get(), "loadManager");
-        secondaryLoadManager = (ModularLoadManagerImpl) getField(pulsar2.getLoadManager().get(), "loadManager");
         nsFactory = new NamespaceBundleFactory(pulsar1, Hashing.crc32());
         sleep(100);
     }
@@ -1180,7 +1196,7 @@ public class ModularLoadManagerImplTest {
         final String namespace = "my-ns";
         String broker1Host = pulsar1.getAdvertisedAddress() + "0";
         final String broker1Address = broker1Host + ":8080";
-        String broker2Host = pulsar2.getAdvertisedAddress() + "1";
+        String broker2Host = pulsar1.getAdvertisedAddress() + "1";
         final String broker2Address = broker2Host + ":8080";
         final String sharedBroker = "broker3:8080";
         admin1.clusters().createCluster(cluster, ClusterData.builder()
