@@ -38,7 +38,6 @@ import lombok.CustomLog;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.InjectedClientCnxClientBuilder;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
@@ -47,10 +46,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.RegexSubscriptionMode;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
-import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
-import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.awaitility.Awaitility;
@@ -638,58 +634,6 @@ public class PatternTopicsConsumerImplTest extends SharedPulsarBaseTest {
         producer3.close();
     }
 
-    @DataProvider(name = "delayTypesOfWatchingTopics")
-    public Object[][] delayTypesOfWatchingTopics(){
-        return new Object[][]{
-            {true},
-            {false}
-        };
-    }
-
-    @Test(timeOut = testTimeout, dataProvider = "delayTypesOfWatchingTopics")
-    public void testAutoSubscribePatterConsumerFromBrokerWatcher(boolean delayWatchingTopics) throws Exception {
-        final String key = "AutoSubscribePatternConsumer";
-        final String subscriptionName = "my-ex-subscription-" + key;
-        final Pattern pattern = Pattern.compile("persistent://" + getNamespace() + "/pattern-topic.*");
-
-        PulsarClient patternClient = null;
-        if (delayWatchingTopics) {
-            patternClient = createDelayWatchTopicsClient();
-        } else {
-            patternClient = client;
-        }
-
-        Consumer<byte[]> consumer = patternClient.newConsumer()
-                .topicsPattern(pattern)
-                // Disable automatic discovery.
-                .patternAutoDiscoveryPeriod(1000)
-                .subscriptionName(subscriptionName)
-                .subscriptionType(SubscriptionType.Shared)
-                .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
-                .receiverQueueSize(4)
-                .subscribe();
-
-        // 1. create partition
-        String topicName = "persistent://" + getNamespace() + "/pattern-topic-1-" + key;
-        admin.topics().createPartitionedTopic(topicName, 4);
-
-        // 2. verify consumer get methods. There is no need to trigger discovery, because the broker will push the
-        // changes to update(CommandWatchTopicUpdate).
-        assertSame(pattern.pattern(), ((PatternMultiTopicsConsumerImpl<?>) consumer).getPattern().inputPattern());
-        Awaitility.await().untilAsserted(() -> {
-            assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitions().size(), 4);
-            assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getConsumers().size(), 4);
-            assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitionedTopics().size(), 1);
-        });
-
-        // cleanup.
-        consumer.close();
-        admin.topics().deletePartitionedTopic(topicName);
-        if (delayWatchingTopics) {
-            patternClient.close();
-        }
-    }
-
     @Test(timeOut = testTimeout)
     public void testSubscribePatterWithOutTopicDomain() throws Exception {
         final String key = "testSubscribePatterWithOutTopicDomain";
@@ -837,18 +781,8 @@ public class PatternTopicsConsumerImplTest extends SharedPulsarBaseTest {
         client.close();
     }
 
-    @DataProvider(name = "regexpConsumerArgs")
-    public Object[][] regexpConsumerArgs(){
-        return new Object[][]{
-                {true, true},
-                {true, false},
-                {false, true},
-                {false, false}
-        };
-    }
-
     @SuppressWarnings("unchecked")
-    private void waitTopicListWatcherCreation(Consumer<?> consumer) {
+    static void waitTopicListWatcherCreation(Consumer<?> consumer) {
         Awaitility.await().untilAsserted(() -> {
             CompletableFuture<TopicListWatcher> completableFuture =
                     ((PatternMultiTopicsConsumerImpl) consumer).getWatcherFuture();
@@ -858,54 +792,6 @@ public class PatternTopicsConsumerImplTest extends SharedPulsarBaseTest {
                     .log("Future completed successfully");
             assertTrue(completableFuture.isDone() && !completableFuture.isCompletedExceptionally());
         });
-    }
-
-    @Test(timeOut = testTimeout, dataProvider = "regexpConsumerArgs")
-    public void testPreciseRegexpSubscribe(boolean partitioned, boolean createTopicAfterWatcherStarted)
-            throws Exception {
-        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + getNamespace() + "/tp");
-        final String subscriptionName = "s1";
-        final Pattern pattern = Pattern.compile(String.format("%s$", topicName));
-
-        Consumer<byte[]> consumer = client.newConsumer()
-                .topicsPattern(pattern)
-                // Disable automatic discovery.
-                .patternAutoDiscoveryPeriod(1000)
-                .subscriptionName(subscriptionName)
-                .subscriptionType(SubscriptionType.Shared)
-                .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
-                .receiverQueueSize(4)
-                .subscribe();
-        if (createTopicAfterWatcherStarted) {
-            waitTopicListWatcherCreation(consumer);
-        }
-
-        // 1. create topic.
-        if (partitioned) {
-            admin.topics().createPartitionedTopic(topicName, 1);
-        } else {
-            admin.topics().createNonPartitionedTopic(topicName);
-        }
-
-        // 2. verify consumer can subscribe the topic.
-        assertSame(pattern.pattern(), ((PatternMultiTopicsConsumerImpl<?>) consumer).getPattern().inputPattern());
-        Awaitility.await().untilAsserted(() -> {
-            assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitions().size(), 1);
-            assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getConsumers().size(), 1);
-            if (partitioned) {
-                assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitionedTopics().size(), 1);
-            } else {
-                assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitionedTopics().size(), 0);
-            }
-        });
-
-        // cleanup.
-        consumer.close();
-        if (partitioned) {
-            admin.topics().deletePartitionedTopic(topicName);
-        } else {
-            admin.topics().delete(topicName);
-        }
     }
 
     @DataProvider(name = "partitioned")
@@ -961,37 +847,6 @@ public class PatternTopicsConsumerImplTest extends SharedPulsarBaseTest {
             admin.topics().deletePartitionedTopic(topicName);
         } else {
             admin.topics().delete(topicName);
-        }
-    }
-
-    private PulsarClient createDelayWatchTopicsClient() throws Exception {
-        ClientBuilderImpl clientBuilder = (ClientBuilderImpl) PulsarClient.builder().serviceUrl(getBrokerServiceUrl());
-        return connect(InjectedClientCnxClientBuilder.create(clientBuilder,
-            (conf, eventLoopGroup) -> new ClientCnx(InstrumentProvider.NOOP, conf, eventLoopGroup) {
-                public CompletableFuture<CommandWatchTopicListSuccess> newWatchTopicList(
-                        BaseCommand command, long requestId) {
-                    // Inject 2 seconds delay when sending command New Watch Topics.
-                    CompletableFuture<CommandWatchTopicListSuccess> res = new CompletableFuture<>();
-                    new Thread(() -> {
-                        sleepSeconds(2);
-                        super.newWatchTopicList(command, requestId).whenComplete((v, ex) -> {
-                            if (ex != null) {
-                                res.completeExceptionally(ex);
-                            } else {
-                                res.complete(v);
-                            }
-                        });
-                    }).start();
-                    return res;
-                }
-            }), true);
-    }
-
-    private static void sleepSeconds(int seconds) {
-        try {
-            Thread.sleep(1000L * seconds);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
         }
     }
 
