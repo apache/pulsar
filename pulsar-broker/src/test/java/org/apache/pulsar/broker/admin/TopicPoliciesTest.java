@@ -214,6 +214,11 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.brokers().updateDynamicConfiguration("maxPublishRatePerTopicInMessages", "0");
         admin.brokers().updateDynamicConfiguration("maxPublishRatePerTopicInBytes", "0");
         clearTopicPoliciesCache();
+        // Test methods set these broker-level limits on the running broker's configuration, which the broker reads
+        // when it loads a topic: restore the defaults (no limit)
+        conf.setMaxProducersPerTopic(0);
+        conf.setMaxConsumersPerSubscription(0);
+        conf.setMaxSubscriptionsPerTopic(0);
     }
 
     @Test
