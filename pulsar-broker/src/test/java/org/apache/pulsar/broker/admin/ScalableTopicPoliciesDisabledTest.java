@@ -18,7 +18,8 @@
  */
 package org.apache.pulsar.broker.admin;
 
-import static org.testng.Assert.assertThrows;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.expectThrows;
 import java.util.UUID;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -50,7 +51,8 @@ public class ScalableTopicPoliciesDisabledTest extends MockedPulsarServiceBaseTe
     public void testTopicPoliciesDisabledReturns405() throws Exception {
         String topic = "topic://public/default/" + UUID.randomUUID();
         admin.scalableTopics().createScalableTopic(topic, 1);
-        assertThrows(PulsarAdminException.NotAllowedException.class,
+        PulsarAdminException.NotAllowedException e = expectThrows(PulsarAdminException.NotAllowedException.class,
                 () -> admin.topicPolicies().getRetention(topic));
+        assertTrue(e.getMessage().contains("Topic level policies is disabled"), e.getMessage());
     }
 }

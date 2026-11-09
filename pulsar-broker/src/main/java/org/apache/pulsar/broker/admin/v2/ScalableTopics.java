@@ -889,14 +889,16 @@ public class ScalableTopics extends AdminResource {
                             .thenCompose(__ -> releaseController(tn))
                             .thenCompose(__ -> resources().getScalableTopicMetadataAsync(tn, true))
                             .thenCompose(latest -> getAuthorizationService().removePermissionsAsync(tn)
-                                    .thenCompose(__ -> pulsar().getTopicPoliciesService()
-                                            .deleteTopicPoliciesAsync(tn)
-                                            .exceptionally(ex -> {
-                                                log.warn().attr("topic", tn).exceptionMessage(ex)
-                                                        .log("Failed to delete topic policies of "
-                                                                + "scalable topic");
-                                                return null;
-                                            }))
+                                    // Skip -partition-N names: the policies service would delete the base topic's
+                                    .thenCompose(__ -> tn.isPartitioned()
+                                            ? CompletableFuture.<Void>completedFuture(null)
+                                            : pulsar().getTopicPoliciesService().deleteTopicPoliciesAsync(tn)
+                                                    .exceptionally(ex -> {
+                                                        log.warn().attr("topic", tn).exceptionMessage(ex)
+                                                                .log("Failed to delete topic policies of "
+                                                                        + "scalable topic");
+                                                        return null;
+                                                    }))
                                     .thenCompose(__ -> resources().deleteScalableTopicAsync(tn))
                                     .thenCompose(__ -> deleteSegmentTopics(tn, latest.orElse(optMd.get()),
                                             force)))

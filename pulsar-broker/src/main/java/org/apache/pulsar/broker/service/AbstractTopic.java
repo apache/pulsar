@@ -634,10 +634,9 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
      */
     protected CompletableFuture<Void> initTopicPolicy() {
         final var topicPoliciesService = brokerService.getPulsar().getTopicPoliciesService();
-        final var partitionedTopicName = topicPoliciesName;
 
         CompletableFuture<Void> initTopicPolicyFuture =
-                topicPoliciesService.registerListenerAsync(partitionedTopicName, topicPolicyListener)
+                topicPoliciesService.registerListenerAsync(topicPoliciesName, topicPolicyListener)
                         .thenCompose(registered -> {
                             if (!registered) {
                                 return CompletableFuture.completedFuture(null);
@@ -648,11 +647,11 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
                             }
                             // future for fetching global topic policies
                             CompletableFuture<Optional<TopicPolicies>> globalPoliciesFuture =
-                                    topicPoliciesService.getTopicPoliciesAsync(partitionedTopicName,
+                                    topicPoliciesService.getTopicPoliciesAsync(topicPoliciesName,
                                             TopicPoliciesService.GetType.GLOBAL_ONLY);
                             // future for fetching local topic policies
                             CompletableFuture<Optional<TopicPolicies>> localPoliciesFuture =
-                                    topicPoliciesService.getTopicPoliciesAsync(partitionedTopicName,
+                                    topicPoliciesService.getTopicPoliciesAsync(topicPoliciesName,
                                             TopicPoliciesService.GetType.LOCAL_ONLY);
                             return globalPoliciesFuture.thenCombine(localPoliciesFuture, (global, local) -> {
                                 // finally update the topic policies with the latest value or loaded value

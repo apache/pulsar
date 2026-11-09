@@ -31,7 +31,9 @@ import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.DefaultValue;
 import jakarta.ws.rs.Encoded;
 import jakarta.ws.rs.GET;
+import jakarta.ws.rs.HttpMethod;
 import jakarta.ws.rs.POST;
+import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
@@ -57,8 +59,10 @@ import org.apache.pulsar.common.util.FutureUtil;
 /**
  * Topic-level policies of scalable topics ({@code topic://} domain).
  *
- * <p>A policy set on a scalable topic is applied by every one of its segments, so only the policies whose
- * per-segment meaning equals their whole-topic meaning are supported: {@link #SUPPORTED_POLICIES}. Every other
+ * <p>A policy set on a scalable topic is applied by every one of its segments, so only the policies that act per
+ * message or per ledger are supported: {@link #SUPPORTED_POLICIES}. Their per-segment meaning equals their
+ * whole-topic meaning, except for the retention size, which each segment counts on its own: a topic with N
+ * segments may retain up to N times the size. Retention is a floor, so this only keeps more data. Every other
  * topic policy, and every other topic operation, under this path is rejected with 405. The endpoints mirror
  * those of {@link PersistentTopics} and delegate to the same {@link PersistentTopicsBase} implementations.
  */
@@ -76,10 +80,11 @@ public class ScalableTopicPolicies extends PersistentTopicsBase {
     }
 
     /**
-     * Checks that topic-level policies are enabled, that the name is not a partition name (the policies service
-     * keys policies by the partitioned topic name) and that the scalable topic exists, then redirects to the
-     * broker owning the bundle of the {@code topic://} name, like {@link PersistentTopicsBase} does for the
-     * name of a regular topic.
+     * Checks, in the order {@link PersistentTopicsBase} does for a regular topic, that topic-level policies are
+     * enabled, that the name is not a partition name (the policies service keys policies by the partitioned topic
+     * name), the global namespace ownership, and that the scalable topic exists and is not being deleted. Then
+     * redirects to the broker owning the bundle of the {@code topic://} name, like {@link PersistentTopicsBase}
+     * does for the name of a regular topic.
      */
     @Override
     protected CompletableFuture<Void> preValidation(boolean authoritative) {
@@ -91,14 +96,15 @@ public class ScalableTopicPolicies extends PersistentTopicsBase {
             return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
                     "Not allowed to set/get topic policy for a partition"));
         }
-        return getPulsarResources().getScalableTopicResources().getScalableTopicMetadataAsync(topicName)
+        return validateGlobalNamespaceOwnershipAsync(namespaceName)
+                .thenCompose(__ -> getPulsarResources().getScalableTopicResources()
+                        .getScalableTopicMetadataAsync(topicName))
                 .thenCompose(metadata -> {
-                    if (metadata.isEmpty()) {
+                    if (metadata.isEmpty() || metadata.get().isDeleted()) {
                         throw new RestException(Status.NOT_FOUND, "Scalable topic not found: " + topicName);
                     }
-                    return validateGlobalNamespaceOwnershipAsync(namespaceName);
-                })
-                .thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative));
+                    return validateTopicOwnershipAsync(topicName, authoritative);
+                });
     }
 
     // --- Retention ---
@@ -136,7 +142,10 @@ public class ScalableTopicPolicies extends PersistentTopicsBase {
 
     @POST
     @Path("/{tenant}/{namespace}/{topic}/retention")
-    @Operation(summary = "Set retention configuration for specified topic.")
+    @Operation(summary = "Set retention configuration for specified topic.",
+            description = "On a scalable topic, retentionSizeInMB applies to each segment, so the total retained"
+                    + " size can reach N times the value for a topic with N segments. The retention time also"
+                    + " drives the garbage collection of sealed segments.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "Operation successful"),
             @ApiResponse(responseCode = "403", description = "Don't have admin permission"),
@@ -287,8 +296,8 @@ public class ScalableTopicPolicies extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @Parameter(description = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @Parameter(description = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         validateTopicPolicyOperationAsync(topicName, PolicyName.TTL, PolicyOperation.WRITE)
@@ -454,7 +463,7 @@ public class ScalableTopicPolicies extends PersistentTopicsBase {
             @ApiResponse(responseCode = "405",
                     description = "Topic level policy is disabled, to enable the topic level policy and retry"),
             @ApiResponse(responseCode = "409", description = "Concurrent modification"),
-            @ApiResponse(responseCode = "412", description = "Invalid value of maxConsumers")})
+            @ApiResponse(responseCode = "412", description = "Invalid value of maxMessageSize")})
     public void setMaxMessageSize(@Suspended final AsyncResponse asyncResponse,
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
@@ -580,7 +589,7 @@ public class ScalableTopicPolicies extends PersistentTopicsBase {
 
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/delayedDelivery")
-    @Operation(summary = "Set delayed delivery messages config on a topic.")
+    @Operation(summary = "Remove delayed delivery messages config on a topic.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "Operation successful"),
             @ApiResponse(responseCode = "403", description = "Don't have admin permission"),
@@ -694,12 +703,59 @@ public class ScalableTopicPolicies extends PersistentTopicsBase {
 
     // --- Everything else: not supported on scalable topics ---
     // A literal path segment wins the JAX-RS match, so these only take the operations not declared above, also
-    // the ones further down the path, like {subName}/dispatchRate.
+    // the ones further down the path, like {subName}/dispatchRate, and the ones on the topic path itself, like
+    // deleting the topic. The latter are named after their HTTP method in the response.
+
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}")
+    @Operation(hidden = true)
+    public void getUnsupportedTopicOperation(@PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") @Encoded String encodedTopic) {
+        rejectUnsupportedOperation(tenant, namespace, encodedTopic, HttpMethod.GET);
+    }
+
+    @PUT
+    @Path("/{tenant}/{namespace}/{topic}")
+    @Operation(hidden = true)
+    public void putUnsupportedTopicOperation(@PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") @Encoded String encodedTopic) {
+        rejectUnsupportedOperation(tenant, namespace, encodedTopic, HttpMethod.PUT);
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/{topic}")
+    @Operation(hidden = true)
+    public void postUnsupportedTopicOperation(@PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") @Encoded String encodedTopic) {
+        rejectUnsupportedOperation(tenant, namespace, encodedTopic, HttpMethod.POST);
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/{topic}")
+    @Operation(hidden = true)
+    public void deleteUnsupportedTopicOperation(@PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") @Encoded String encodedTopic) {
+        rejectUnsupportedOperation(tenant, namespace, encodedTopic, HttpMethod.DELETE);
+    }
 
     @GET
     @Path("/{tenant}/{namespace}/{topic}/{operation: .+}")
     @Operation(hidden = true)
     public void getUnsupportedOperation(@PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") @Encoded String encodedTopic,
+            @PathParam("operation") String operation) {
+        rejectUnsupportedOperation(tenant, namespace, encodedTopic, operation);
+    }
+
+    @PUT
+    @Path("/{tenant}/{namespace}/{topic}/{operation: .+}")
+    @Operation(hidden = true)
+    public void putUnsupportedOperation(@PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
             @PathParam("operation") String operation) {

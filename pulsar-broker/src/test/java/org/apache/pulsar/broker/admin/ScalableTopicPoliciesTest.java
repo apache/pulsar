@@ -23,17 +23,21 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.expectThrows;
 import java.time.Duration;
+import java.util.Map;
 import java.util.UUID;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.service.scalable.ScalableTopicController;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.TopicPolicies;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AutoScalePolicyOverride;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
@@ -190,11 +194,24 @@ public class ScalableTopicPoliciesTest extends SharedPulsarBaseTest {
     @Test(timeOut = 60_000)
     public void testPartitionSuffixedNameRejected() throws Exception {
         String topic = "topic://" + getNamespace() + "/x-partition-0";
-        // Creating such a scalable topic fails already: its segment topics get invalid names
-        expectThrows(PulsarAdminException.class, () -> admin.scalableTopics().createScalableTopic(topic, 1));
         // The policies service keys policies by the partitioned topic name, so these would be the ones of "x"
         expectThrows(PulsarAdminException.PreconditionFailedException.class,
                 () -> admin.topicPolicies().getRetention(topic));
+    }
+
+    @Test(timeOut = 60_000)
+    public void testDeletingPartitionSuffixedRecordKeepsSiblingPolicies() throws Exception {
+        String topic = newScalableTopic();
+        TopicPolicies tp = admin.topicPolicies();
+        tp.setMessageTTL(topic, 120);
+        Awaitility.await().untilAsserted(() -> assertEquals(tp.getMessageTTL(topic), Integer.valueOf(120)));
+        // A scalable topic record under a "-partition-N" name of the topic, seeded directly in the metadata store
+        String sibling = topic + "-partition-0";
+        getPulsar().getPulsarResources().getScalableTopicResources().createScalableTopicAsync(TopicName.get(sibling),
+                ScalableTopicController.createInitialMetadata(1, 4, Map.of())).get();
+        admin.scalableTopics().deleteScalableTopic(sibling, true);
+        // The delete returns once the policies service applied it, so policies it removed would be gone already
+        Awaitility.await().untilAsserted(() -> assertEquals(tp.getMessageTTL(topic), Integer.valueOf(120)));
     }
 
     @Test(timeOut = 60_000)
@@ -203,6 +220,15 @@ public class ScalableTopicPoliciesTest extends SharedPulsarBaseTest {
         PulsarAdminException.NotAllowedException e = expectThrows(PulsarAdminException.NotAllowedException.class,
                 () -> admin.topics().getStats(topic));
         assertTrue(e.getMessage().contains("pulsar-admin scalable-topics"), e.getMessage());
+        // A PUT, here a policy that is not supported
+        PulsarAdminException.NotAllowedException put = expectThrows(PulsarAdminException.NotAllowedException.class,
+                () -> admin.topicPolicies().setSchemaCompatibilityStrategy(topic,
+                        SchemaCompatibilityStrategy.FULL));
+        assertTrue(put.getMessage().contains("pulsar-admin scalable-topics"), put.getMessage());
+        // An operation on the topic path itself
+        PulsarAdminException.NotAllowedException delete = expectThrows(
+                PulsarAdminException.NotAllowedException.class, () -> admin.topics().delete(topic));
+        assertTrue(delete.getMessage().contains("pulsar-admin scalable-topics"), delete.getMessage());
     }
 
     @Test(timeOut = 60_000)
