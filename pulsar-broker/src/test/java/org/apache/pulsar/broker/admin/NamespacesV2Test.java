@@ -55,6 +55,7 @@ import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
+import org.mockito.Mockito;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
@@ -128,6 +129,13 @@ public class NamespacesV2Test extends MockedPulsarServiceBaseTest {
     public void cleanup() throws Exception {
         super.internalCleanup();
         conf.setClusterName(testLocalCluster);
+        // The spy's recorded invocations reference it again, so Mockito's inline mock maker would keep it, and the
+        // closed broker it references, until the JVM exits; TestNG keeps this test instance until the run ends.
+        if (namespaces != null) {
+            Mockito.framework().clearInlineMock(namespaces);
+            namespaces = null;
+        }
+        nsSvc = null;
     }
 
     private void createTestNamespaces(List<NamespaceName> nsnames) throws Exception {
