@@ -96,9 +96,11 @@ import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
+import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.broker.service.PulsarMetadataEventSynchronizer.State;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -524,36 +526,19 @@ public class BrokerServiceTest extends BrokerTestBase {
 
     @Test
     public void testOwnedNsCheck() throws Exception {
-        final String topic = "persistent://prop/ns-abc/successTopic";
+        final String namespace = BrokerTestUtil.newUniqueName("prop/owned-ns-check");
+        admin.namespaces().createNamespace(namespace);
+        final String topic = "persistent://" + namespace + "/successTopic";
         BrokerService service = pulsar.getBrokerService();
 
-        final CountDownLatch latch1 = new CountDownLatch(1);
-        service.getOrCreateTopic(topic).thenAccept(t -> {
-            latch1.countDown();
-            fail("should fail as NS is not owned");
-        }).exceptionally(exception -> {
-            assertTrue(exception.getCause() instanceof IOException);
-            latch1.countDown();
-            return null;
-        });
-        latch1.await();
+        assertThatThrownBy(() -> service.getOrCreateTopic(topic).get(10, TimeUnit.SECONDS))
+                .isInstanceOf(ExecutionException.class)
+                .hasCauseInstanceOf(ServiceUnitNotReadyException.class);
 
         admin.lookups().lookupTopic(topic);
 
-        final CountDownLatch latch2 = new CountDownLatch(1);
-        service.getOrCreateTopic(topic).thenAccept(t -> {
-            try {
-                assertNotNull(service.getTopicReference(topic));
-            } catch (Exception e) {
-                fail("should not fail");
-            }
-            latch2.countDown();
-        }).exceptionally(exception -> {
-            latch2.countDown();
-            fail("should not fail");
-            return null;
-        });
-        latch2.await();
+        assertThat(service.getOrCreateTopic(topic).get(10, TimeUnit.SECONDS)).isNotNull();
+        assertThat(service.getTopicReference(topic)).isPresent();
     }
 
     @Test
