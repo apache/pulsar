@@ -856,6 +856,18 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
 
         if (canAddToBatch(msg) && totalChunks <= 1) {
+            final State state = getState();
+            if (state == State.Terminated || state == State.Closed || state == State.ProducerFenced) {
+                // sendAsync checked the state before it took the producer lock, and the producer has reached a
+                // terminal state since: it fails the messages it holds as it ends, and never flushes or fails its
+                // batch afterwards, so a message added now would never complete. Fail it, as processOpSendMsg fails
+                // a message sent on its own.
+                payload.release();
+                PulsarClientException failure = getTerminalException(state);
+                failure.setSequenceId(sequenceId);
+                completeCallbackAndReleaseSemaphore(msg.getUncompressedSize(), callback, failure);
+                return;
+            }
             if (canAddToCurrentBatch(msg)) {
                 // should trigger complete the batch message, new message will add to a new batch and new batch
                 // sequence id use the new message, so that broker can handle the message duplication
