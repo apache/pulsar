@@ -103,6 +103,31 @@ tasks.register("checkBinaryLicense") {
     )
 }
 
+tasks.register("updateBinaryLicense") {
+    group = "build"
+    description = "Update the jar versions in the LICENSE/NOTICE files of all binary distributions after a dependency upgrade"
+    dependsOn(
+        ":distribution:pulsar-server-distribution:updateBinaryLicense",
+        ":distribution:pulsar-shell-distribution:updateBinaryLicense",
+    )
+}
+
+// ── OpenTelemetry version alignment ────────────────────────────────────────
+// OpenTelemetry releases each *-alpha artifact together with its stable line, at the same version
+// plus "-alpha". The version catalog holds the two as separate versions, which Dependabot could
+// update independently, so fail fast when they drift apart.
+val versionCatalog = extensions.getByType<VersionCatalogsExtension>().named("libs")
+for (versionLine in listOf("opentelemetry", "opentelemetry-instrumentation")) {
+    val stableVersion = versionCatalog.findVersion(versionLine).get().requiredVersion
+    val alphaVersion = versionCatalog.findVersion("$versionLine-alpha").get().requiredVersion
+    if (alphaVersion != "$stableVersion-alpha") {
+        throw GradleException(
+            "gradle/libs.versions.toml: $versionLine-alpha = \"$alphaVersion\" must be " +
+                "\"$stableVersion-alpha\" to match $versionLine = \"$stableVersion\"",
+        )
+    }
+}
+
 tasks.register("docker") {
     description = "Build the Pulsar Docker image"
     group = "docker"

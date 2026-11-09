@@ -1464,6 +1464,9 @@ public class PulsarClientImpl implements PulsarClient {
 
     @Override
     public void shutdown() throws PulsarClientException {
+        // Fail the producers, consumers and readers created from now on, as closeAsync() does before it gets here:
+        // they would wait for ever on the resources released below.
+        state.compareAndSet(State.Open, State.Closing);
         try {
             // We will throw the last thrown exception only, though logging all of them.
             Throwable throwable = null;
@@ -1642,6 +1645,8 @@ public class PulsarClientImpl implements PulsarClient {
         } catch (Throwable t) {
             log.warn().exception(t).log("Failed to shutdown Pulsar client");
             throw PulsarClientException.unwrap(t);
+        } finally {
+            state.set(State.Closed);
         }
     }
 
