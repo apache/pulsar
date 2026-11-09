@@ -3102,7 +3102,11 @@ public class BrokerService implements Closeable {
     }
 
     public void checkClusterMigration() {
-        forEachTopic(Topic::checkClusterMigration);
+        forEachTopic(topic -> topic.checkClusterMigration().whenComplete((ignored, error) -> {
+            if (error != null) {
+                log.warn().attr("topic", topic.getName()).exception(error).log("Failed to check cluster migration");
+            }
+        }));
     }
 
     public void checkMessageExpiry() {
