@@ -68,6 +68,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
 import lombok.Cleanup;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -341,6 +342,63 @@ public class PulsarClientImplTest {
 
             assertEquals(client.producersCount(), 0,
                     "A producer " + how + " before it was registered must not be kept");
+        } finally {
+            client.close();
+        }
+    }
+
+    @DataProvider
+    public Object[][] subscriptionsFailingAtOnce() {
+        return new Object[][]{
+                {"consumer", "subscribe request"}, {"consumer", "connection"},
+                {"reader", "subscribe request"}, {"reader", "connection"},
+        };
+    }
+
+    /**
+     * A subscription whose connection is already open and whose subscribe request has already failed when the
+     * consumer attaches its callbacks (the broker's error arrived first), or whose connection fails at once, fails
+     * inside the consumer's constructor, before the client has registered the consumer: the consumer removes itself
+     * from the client while it is not there yet. The client must not keep it afterwards.
+     */
+    @Test(dataProvider = "subscriptionsFailingAtOnce")
+    public void testConsumerFailedBeforeItIsRegisteredIsNotKept(String kind, String failing) throws Exception {
+        LookupService lookup = mock(LookupService.class);
+        when(lookup.getPartitionedTopicMetadata(any(TopicName.class), anyBoolean(), anyBoolean()))
+                .thenReturn(CompletableFuture.completedFuture(new PartitionedTopicMetadata()));
+        when(lookup.getBroker(any()))
+                .thenReturn(CompletableFuture.completedFuture(new LookupTopicResult(
+                        mock(InetSocketAddress.class), mock(InetSocketAddress.class), false)));
+        ConnectionPool pool = mock(ConnectionPool.class);
+        if (failing.equals("subscribe request")) {
+            ClientCnx cnx = mock(ClientCnx.class);
+            Channel channel = mock(Channel.class);
+            when(cnx.channel()).thenReturn(channel);
+            when(cnx.sendRequestWithId(any(ByteBuf.class), anyLong())).thenAnswer(invocation -> {
+                invocation.getArgument(0, ByteBuf.class).release();
+                return CompletableFuture.failedFuture(
+                        new PulsarClientException.IncompatibleSchemaException("incompatible schema"));
+            });
+            when(pool.getConnection(any(InetSocketAddress.class), any(InetSocketAddress.class), anyInt()))
+                    .thenReturn(CompletableFuture.completedFuture(cnx));
+        } else {
+            when(pool.getConnection(any(InetSocketAddress.class), any(InetSocketAddress.class), anyInt()))
+                    .thenReturn(CompletableFuture.failedFuture(
+                            new PulsarClientException.AuthorizationException("not allowed")));
+        }
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setServiceUrl("pulsar://localhost:6650");
+        PulsarClientImpl client = new PulsarClientImpl(conf, eventLoopGroup, pool);
+        client.setLookup(lookup);
+        try {
+            String topic = "persistent://public/default/failed-before-registered";
+            CompletableFuture<?> subscription = kind.equals("consumer")
+                    ? client.newConsumer().topic(topic).subscriptionName("sub").subscribeAsync()
+                    : client.newReader().topic(topic).startMessageId(MessageId.earliest).createAsync();
+
+            assertThat(subscription).isCompletedExceptionally();
+            assertEquals(client.consumersCount(), 0,
+                    "A " + kind + " whose " + failing + " failed before it was registered must not be kept");
         } finally {
             client.close();
         }
