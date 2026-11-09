@@ -42,6 +42,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
 import org.apache.bookkeeper.client.BKException;
+import org.apache.bookkeeper.client.PulsarMockLedgerHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.TerminateCallback;
 import org.apache.bookkeeper.mledger.Entry;
@@ -184,10 +185,11 @@ public class ManagedLedgerTerminationTest extends MockedBookKeeperTestCase {
     }
 
     @Test(timeOut = 20000)
-    public void duplicateTerminateSharesLedgerCloseFailureAndCanRetry() throws Exception {
+    public void duplicateTerminateSharesLedgerCloseFailureAndRecoversOnRetry() throws Exception {
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my_test_ledger",
                 initManagedLedgerConfig(defaultConfig()));
         Position lastPosition = ledger.addEntry("entry-0".getBytes());
+        PulsarMockLedgerHandle writeHandle = bkc.getLedgerMap().get(lastPosition.getLedgerId());
         CompletableFuture<Void> closeGate = bkc.promiseAfter(0);
         CompletableFuture<Position> terminated = terminateAsync(ledger);
         CompletableFuture<Position> duplicate = terminateAsync(ledger);
@@ -204,8 +206,18 @@ public class ManagedLedgerTerminationTest extends MockedBookKeeperTestCase {
         assertThat(duplicate.handle((position, error) -> error).get(5, TimeUnit.SECONDS)).isSameAs(failure);
         assertThat(factory.getManagedLedgerInfo(ledger.getName()).terminatedPosition).isNull();
 
+        // Like a BookKeeper write handle, the mock replays its failed close, so a retry has to recover the ledger
+        // instead. A failure to recover it can be retried as well.
+        bkc.failNow(BKException.Code.BookieHandleNotAvailableException);
+        assertThat(terminateAsync(ledger).handle((position, error) -> error).get(5, TimeUnit.SECONDS))
+                .isInstanceOf(ManagedLedgerException.class);
+        assertThat(factory.getManagedLedgerInfo(ledger.getName()).terminatedPosition).isNull();
         assertThat(terminateAsync(ledger).get(5, TimeUnit.SECONDS)).isEqualTo(lastPosition);
+        assertThat(writeHandle.getAsyncCloseCount()).as("Retries recover the ledger instead of closing it again")
+                .hasValue(1);
         assertTerminatedAt(factory, ledger, lastPosition);
+        // The recovered handle replaced the write handle, whose close would still fail
+        ledger.close();
     }
 
     @Test(timeOut = 20000)

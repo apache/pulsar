@@ -277,6 +277,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     // Guarded by this. State.Terminated rejects writes immediately, but termination is only durable when this
     // future succeeds. A null future with State.Terminated means the terminated position was recovered from metadata.
     private CompletableFuture<Position> terminationFuture;
+    // Guarded by this. Set when closing the current ledger to terminate failed: a BookKeeper write handle replays the
+    // failure of its first close, so a retry recovers the ledger instead of closing that handle again.
+    private boolean terminationLedgerCloseFailed;
 
     private long lastOffloadLedgerId = 0;
     private volatile long lastOffloadSuccessTimestamp = 0;
@@ -1715,6 +1718,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     public void asyncTerminate(TerminateCallback callback, Object ctx) {
         CompletableFuture<Position> result;
         LedgerHandle ledgerToClose = null;
+        boolean recoverLedger = false;
         synchronized (this) {
             if (state.isFenced()) {
                 result = CompletableFuture.failedFuture(new ManagedLedgerFencedException());
@@ -1728,6 +1732,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 result = terminationFuture = new CompletableFuture<>();
                 state = State.Terminated;
                 ledgerToClose = currentLedger;
+                recoverLedger = terminationLedgerCloseFailed;
             }
         }
         result.whenComplete((position, error) -> {
@@ -1743,6 +1748,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         log.info("Terminating managed ledger");
         LedgerHandle lh = ledgerToClose;
+        if (recoverLedger) {
+            recoverLedgerToTerminate(lh, result);
+            return;
+        }
         log.debug().attr("ledgerId", lh.getId()).log("Closing current writing ledger");
 
         mbean.startDataLedgerCloseOp();
@@ -1750,6 +1759,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             log.debug().attr("ledgerId", lh.getId()).attr("rc", rc).log("Close complete for ledger");
             mbean.endDataLedgerCloseOp();
             if (rc != BKException.Code.OK) {
+                synchronized (ManagedLedgerImpl.this) {
+                    terminationLedgerCloseFailed = true;
+                }
                 result.completeExceptionally(createManagedLedgerException(rc));
             } else {
                 synchronized (ManagedLedgerImpl.this) {
@@ -1759,6 +1771,57 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 storeTerminatedPosition(result);
             }
         }, null);
+    }
+
+    /**
+     * Recovers the current ledger after its close failed while terminating. The write handle would only replay that
+     * failure, while opening the ledger with recovery fences it and closes its metadata. Like for a terminated managed
+     * ledger reopened from its metadata, the recovered handle becomes the current ledger, so that closing the managed
+     * ledger does not replay the failed close either.
+     */
+    private void recoverLedgerToTerminate(LedgerHandle failedLedger, CompletableFuture<Position> result) {
+        long ledgerId = failedLedger.getId();
+        log.info().attr("ledgerId", ledgerId)
+                .log("Recovering the current ledger, whose close failed while terminating");
+        OpenCallback opencb = (rc, recovered, ignoredCtx) -> {
+            if (rc != BKException.Code.OK) {
+                log.warn().attr("ledgerId", ledgerId).attr("status", BKException.getMessage(rc))
+                        .log("Failed to recover the current ledger while terminating");
+                result.completeExceptionally(createManagedLedgerException(rc));
+                return;
+            }
+            boolean adopted = false;
+            synchronized (ManagedLedgerImpl.this) {
+                if (state == State.Terminated) {
+                    adopted = true;
+                    currentLedger = recovered;
+                    terminationLedgerCloseFailed = false;
+                    long lastAddConfirmed = recovered.getLastAddConfirmed();
+                    lastConfirmedEntry = PositionFactory.create(ledgerId, lastAddConfirmed);
+                    updateClosedLedgerInfo(recovered, lastAddConfirmed, false);
+                }
+            }
+            if (!adopted) {
+                // Closed or fenced meanwhile, which storing the terminated position reports
+                recovered.closeAsync().whenComplete((ignore, e) -> {
+                    if (e != null) {
+                        log.debug().attr("ledgerId", ledgerId).exceptionMessage(e)
+                                .log("Error when closing the recovered handle of the current ledger");
+                    }
+                });
+            }
+            storeTerminatedPosition(result);
+        };
+        bookKeeper.newOpenLedgerOp()
+                .withRecovery(true)
+                .withLedgerId(ledgerId)
+                .withDigestType(config.getDigestType())
+                .withPassword(config.getPassword())
+                .withKeepUpdateMetadata(true)
+                .withLoggerContext(log)
+                .withOrderingKey(name)
+                .execute()
+                .whenComplete((rh, ex) -> completeOpenCallback(log, ledgerId, opencb, rh, ex));
     }
 
     /**
