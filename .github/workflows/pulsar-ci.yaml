@@ -585,7 +585,7 @@ jobs:
       # which requires a GraalVM JDK. This overrides JAVA_HOME for that matrix entry only.
       - name: Set up GraalVM
         if: ${{ matrix.group == 'NATIVE_IMAGE' }}
-        uses: graalvm/setup-graalvm@0426e2e191540e8514dff98dc52a5f5146a2a276 # v1.6.6
+        uses: graalvm/setup-graalvm@f70bc8032f90a104502824a54bcb94b6f01715bc # v1.6.8
         with:
           distribution: 'graalvm-community'
           java-version: 25 # always use GraalVM 25.x
