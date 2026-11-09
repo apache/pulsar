@@ -34,7 +34,6 @@ import org.apache.pulsar.security.MockedPulsarStandalone;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 
 public abstract class AuthZTest extends MockedPulsarStandalone {
@@ -111,24 +110,16 @@ public abstract class AuthZTest extends MockedPulsarStandalone {
 
     protected AtomicBoolean setAuthorizationTopicOperationChecker(String role, Object operation) {
         AtomicBoolean execFlag = new AtomicBoolean(false);
+        Consumer<InvocationOnMock> checker = invocation -> {
+            String clientRole = invocation.getArgument(3);
+            if (role.equals(clientRole) && operation.equals(invocation.getArgument(1))) {
+                execFlag.set(true);
+            }
+        };
         if (operation instanceof TopicOperation) {
-            allowTopicOperationAsyncHandler = invocationOnMock -> {
-                String role1 = invocationOnMock.getArgument(2);
-                if (role.equals(role1)) {
-                    TopicOperation operation1 = invocationOnMock.getArgument(1);
-                    Assert.assertEquals(operation1, operation);
-                }
-                execFlag.set(true);
-            };
+            allowTopicOperationAsyncHandler = checker;
         } else if (operation instanceof NamespaceOperation) {
-            allowNamespaceOperationAsyncHandler = invocationOnMock -> {
-                String role1 = invocationOnMock.getArgument(2);
-                if (role.equals(role1)) {
-                    TopicOperation operation1 = invocationOnMock.getArgument(1);
-                    Assert.assertEquals(operation1, operation);
-                }
-                execFlag.set(true);
-            };
+            allowNamespaceOperationAsyncHandler = checker;
         } else {
             throw new IllegalArgumentException("");
         }

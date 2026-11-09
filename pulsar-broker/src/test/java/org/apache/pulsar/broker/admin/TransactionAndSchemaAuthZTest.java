@@ -89,8 +89,23 @@ public class TransactionAndSchemaAuthZTest extends AuthZTest {
                         new PartitionedTopicMetadata(numPartitionsOfTC));
     }
 
+    @Test
+    public void testCompatibilityChecksMetadataForCallingRole() throws Exception {
+        String topic = "persistent://public/default/" + UUID.randomUUID();
+        createTopic(topic, false);
+        AtomicBoolean metadataChecked = setAuthorizationTopicOperationChecker(TENANT_ADMIN_SUBJECT,
+                TopicOperation.GET_METADATA);
+        SchemaInfo schema = Schema.STRING.getSchemaInfo();
+        superUserAdmin.schemas().testCompatibility(topic, schema);
+        Assert.assertFalse(metadataChecked.get(), "A different role should not satisfy the check");
+        tenantManagerAdmin.topics().getStats(topic);
+        Assert.assertFalse(metadataChecked.get(), "GET_STATS should not satisfy the check");
+        tenantManagerAdmin.schemas().testCompatibility(topic, schema);
+        Assert.assertTrue(metadataChecked.get());
+    }
+
     public enum OperationAuthType {
-        Lookup,
+        GetMetadata,
         Produce,
         Consume,
         AdminOrSuperUser,
@@ -130,28 +145,27 @@ public class TransactionAndSchemaAuthZTest extends AuthZTest {
                 // SCHEMA
                 new Object[] {
                         (ThrowingBiConsumer<PulsarAdmin>) (admin) -> admin.schemas().getSchemaInfo(testTopic),
-                        OperationAuthType.Lookup
+                        OperationAuthType.GetMetadata
                 },
                 new Object[] {
                         (ThrowingBiConsumer<PulsarAdmin>) (admin) -> admin.schemas().getSchemaInfo(
                                 testTopic, 0),
-                        OperationAuthType.Lookup
+                        OperationAuthType.GetMetadata
                 },
                 new Object[] {
                         (ThrowingBiConsumer<PulsarAdmin>) (admin) -> admin.schemas().getAllSchemas(
                                 testTopic),
-                        OperationAuthType.Lookup
+                        OperationAuthType.GetMetadata
                 },
                 new Object[] {
                         (ThrowingBiConsumer<PulsarAdmin>) (admin) -> admin.schemas().createSchema(testTopic,
                                 SchemaInfo.builder().type(SchemaType.STRING).build()),
                         OperationAuthType.Produce
                 },
-                // TODO: improve the authorization check for testCompatibility and deleteSchema
                 new Object[] {
                         (ThrowingBiConsumer<PulsarAdmin>) (admin) -> admin.schemas().testCompatibility(
                                 testTopic, SchemaInfo.builder().type(SchemaType.STRING).build()),
-                        OperationAuthType.AdminOrSuperUser
+                        OperationAuthType.GetMetadata
                 },
                 new Object[] {
                         (ThrowingBiConsumer<PulsarAdmin>) (admin) -> admin.schemas().deleteSchema(
@@ -287,8 +301,8 @@ public class TransactionAndSchemaAuthZTest extends AuthZTest {
                 () -> adminConsumer.accept(subAdmin));
 
         AtomicBoolean execFlag = null;
-        if (topicOpType == OperationAuthType.Lookup) {
-            execFlag = setAuthorizationTopicOperationChecker(subject, TopicOperation.LOOKUP);
+        if (topicOpType == OperationAuthType.GetMetadata) {
+            execFlag = setAuthorizationTopicOperationChecker(subject, TopicOperation.GET_METADATA);
         } else if (topicOpType == OperationAuthType.Produce) {
             execFlag = setAuthorizationTopicOperationChecker(subject, TopicOperation.PRODUCE);
         } else if (topicOpType == OperationAuthType.Consume) {
@@ -317,7 +331,7 @@ public class TransactionAndSchemaAuthZTest extends AuthZTest {
 
     private boolean authActionMatchOperation(OperationAuthType operationAuthType, AuthAction action) {
         switch (operationAuthType) {
-            case Lookup, Stats -> {
+            case GetMetadata, Stats -> {
                 if (AuthAction.consume == action || AuthAction.produce == action) {
                     return true;
                 }

@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.admin.v2;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -325,16 +326,18 @@ public class SchemasResource extends SchemasResourceBase {
             @ApiResponse(responseCode = "307",
                     description = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(responseCode = "401",
-                    description = "Client is not authorized or Don't have admin permission"),
+                    description = "Client lacks permission to produce or consume on this topic"),
             @ApiResponse(responseCode = "403", description = "Client is not authenticated"),
             @ApiResponse(responseCode = "404", description = "Tenant or Namespace or Topic doesn't exist"),
-            @ApiResponse(responseCode = "412", description = "Failed to find the ownership for the topic"),
+            @ApiResponse(responseCode = "412", description = "Invalid topic name or domain, or topic owner not found"),
             @ApiResponse(responseCode = "500", description = "Internal Server Error"),
     })
     public void testCompatibility(
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
-            @PathParam("topic") String topic,
+            @PathParam("topic") @Encoded String encodedTopic,
+            @Parameter(description = "Topic domain. Defaults to persistent when omitted.")
+            @QueryParam("domain") @DefaultValue("persistent") String domain,
             @RequestBody(description = "A JSON value presenting a schema payload."
                             + " An example of the expected schema can be found down here.",
              content = @Content(mediaType = MediaType.APPLICATION_JSON, examples = @ExampleObject(
@@ -342,7 +345,7 @@ public class SchemasResource extends SchemasResourceBase {
             PostSchemaPayload payload,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @Suspended final AsyncResponse response) {
-        validateTopicName(tenant, namespace, topic);
+        validateTopicName(domain, tenant, namespace, encodedTopic);
         testCompatibilityAsync(payload, authoritative)
                 .thenAccept(pair -> response.resume(Response.accepted()
                         .entity(IsCompatibilityResponse.builder().isCompatibility(pair.getLeft())

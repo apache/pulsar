@@ -150,7 +150,7 @@ public class SchemasResourceBase extends AdminResource {
 
     public CompletableFuture<Pair<Boolean, SchemaCompatibilityStrategy>> testCompatibilityAsync(
             PostSchemaPayload payload, boolean authoritative) {
-        return validateDestinationAndAdminOperationAsync(authoritative)
+        return validateOwnershipAndOperationAsync(authoritative, TopicOperation.GET_METADATA)
                 .thenCompose(__ -> getSchemaCompatibilityStrategyAsync())
                 .thenCompose(strategy -> {
                     String schemaId = getSchemaId();

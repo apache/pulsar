@@ -352,7 +352,7 @@ public class TopicAuthZTest extends AuthZTest {
                 .getLocalName(), "test-sub", Optional.empty());
 
         // test nobody
-        AtomicBoolean execFlag = setAuthorizationTopicOperationChecker(subject, TopicOperation.CONSUME);
+        AtomicBoolean execFlag = setAuthorizationTopicOperationChecker(subject, TopicOperation.SUBSCRIBE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topics().updateSubscriptionProperties(topic, "test-sub", properties));
         Assert.assertTrue(execFlag.get());
@@ -411,7 +411,8 @@ public class TopicAuthZTest extends AuthZTest {
 
         // test tenant manager
 
-        AtomicBoolean execFlag = setAuthorizationTopicOperationChecker(subject, NamespaceOperation.CREATE_TOPIC);
+        AtomicBoolean execFlag = setAuthorizationTopicOperationChecker(TENANT_ADMIN_SUBJECT,
+                NamespaceOperation.CREATE_TOPIC);
         tenantManagerAdmin.topics().createMissedPartitions(topic);
         Assert.assertTrue(execFlag.get());
 
@@ -1115,7 +1116,8 @@ public class TopicAuthZTest extends AuthZTest {
         superUserAdmin.topics().expireMessages(topic, subName, 1);
 
         // test tenant manager
-        AtomicBoolean execFlag = setAuthorizationTopicOperationChecker(subject, TopicOperation.EXPIRE_MESSAGES);
+        AtomicBoolean execFlag = setAuthorizationTopicOperationChecker(TENANT_ADMIN_SUBJECT,
+                TopicOperation.EXPIRE_MESSAGES);
         tenantManagerAdmin.topics().expireMessages(topic, subName, 1);
         Assert.assertTrue(execFlag.get());
 

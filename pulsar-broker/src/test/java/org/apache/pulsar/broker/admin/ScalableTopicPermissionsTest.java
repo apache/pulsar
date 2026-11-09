@@ -46,6 +46,7 @@ import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.ScalableSubscriptionType;
 import org.apache.pulsar.common.policies.data.ScalableTopicMetadata;
 import org.apache.pulsar.common.policies.data.ScalableTopicStats.SegmentSubscriptionStats;
+import org.apache.pulsar.common.protocol.schema.PostSchemaPayload;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -120,6 +121,21 @@ public class ScalableTopicPermissionsTest extends AuthZTest {
         assertThatThrownBy(call::run)
                 .isInstanceOf(PulsarClientException.class)
                 .hasStackTraceContaining("is not authorized");
+    }
+
+    @Test
+    public void testSchemaCompatibilityWithScalableTopicPermission() throws Exception {
+        String topic = newScalableTopic();
+        superUserAdmin.scalableTopics().grantPermission(topic, CLIENT_ROLE, Set.of(AuthAction.produce));
+        @Cleanup PulsarAdmin writer = PulsarAdmin.builder()
+                .serviceHttpUrl(getPulsarService().getWebServiceAddress())
+                .authentication(new AuthenticationToken(CLIENT_TOKEN)).build();
+        var schema = new PostSchemaPayload("STRING", "", Map.of());
+        assertThat(writer.schemas().testCompatibility(topic, schema).isCompatibility()).isTrue();
+        String segment = topic.replace("topic://", "segment://") + "/0000-7fff-0";
+        assertThat(writer.schemas().testCompatibility(segment, schema).isCompatibility()).isTrue();
+        assertThatThrownBy(() -> writer.schemas().testCompatibility(topic.replace("topic://", "persistent://"), schema))
+                .isInstanceOf(PulsarAdminException.NotAuthorizedException.class);
     }
 
     @Test
