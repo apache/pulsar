@@ -1396,10 +1396,15 @@ public class ScalableTopicController {
                         PendingLayoutTransition pending = new PendingLayoutTransition(UUID.randomUUID().toString(),
                                 md.getIncarnationId(), operation.operation, operation.trigger,
                                 base.getEpoch(), base.getNextSegmentId(),
-                                nowMs, sources, replacements, planned.getNextSegmentId());
+                                nowMs, sources, replacements, planned.getNextSegmentId(), false);
                         return resources.reserveLayoutTransitionAsync(topicName, pending,
                                         () -> isCurrentTerm(operationTerm))
                                 .thenCompose(__ -> replayLayoutTransition(pending, operationTerm, operation))
+                                // Failed before sealing a source: give the plan up, so that the published
+                                // layout keeps serving, and report the failure.
+                                .exceptionallyCompose(ex -> cancelUnsealedLayoutTransition(pending, operationTerm, ex)
+                                        .thenCompose(__ -> CompletableFuture.<Void>failedFuture(
+                                                FutureUtil.unwrapCompletionException(ex))))
                                 .thenCompose(__ -> refreshCommittedLayout(operationTerm, planned));
                     })
                     .whenComplete((__, ex) -> {
@@ -1410,6 +1415,11 @@ public class ScalableTopicController {
         });
     }
 
+    /**
+     * Settle the plan a previous attempt or leader left pending, then make sure the installed layout is
+     * the published one: a lane entry acting on the layout must never start from an older DAG, e.g.
+     * after a commit whose readback failed.
+     */
     private CompletableFuture<Void> recoverPendingLayoutTransition(long operationTerm) {
         return readTopicRecord().thenCompose(optMd -> {
             ScalableTopicMetadata md = optMd.orElseThrow();
@@ -1418,14 +1428,78 @@ public class ScalableTopicController {
                         new IllegalStateException("Lost scalable topic leadership: " + topicName));
             }
             PendingLayoutTransition pending = md.getPendingLayoutTransition();
-            return pending == null ? CompletableFuture.completedFuture(null)
-                    : replayLayoutTransition(pending, operationTerm, null)
-                            .thenCompose(__ -> refreshLayout(operationTerm, isLeader()))
-                            .thenApply(__ -> null);
+            if (pending == null) {
+                return installLayoutIfChanged(operationTerm, md);
+            }
+            log.debug().attr("transition", pending.id()).attr("operation", pending.operation())
+                    .attr("sealing", pending.sealing()).log("Recovering a pending layout transition");
+            return replayLayoutTransition(pending, operationTerm, null)
+                    // A plan that cannot complete before sealing must not block takeover or subscription
+                    // changes: once it is cancelled, the published layout is still the one to serve.
+                    .exceptionallyCompose(ex -> cancelUnsealedLayoutTransition(pending, operationTerm, ex)
+                            .thenCompose(cancelled -> cancelled ? CompletableFuture.<Void>completedFuture(null)
+                                    : CompletableFuture.<Void>failedFuture(FutureUtil.unwrapCompletionException(ex))))
+                    .thenCompose(__ -> readTopicRecord())
+                    .thenCompose(latest -> installLayoutIfChanged(operationTerm, latest.orElseThrow()));
         });
     }
 
-    /** Idempotent on every broker: create cursors, durably seal every source, then publish once. */
+    /**
+     * Cancel {@code pending} if none of its sources can have been sealed yet, and delete the successor
+     * topics it may have created. Completes with whether it was cancelled: a plan that started sealing,
+     * or that is no longer current, is left to be completed.
+     */
+    private CompletableFuture<Boolean> cancelUnsealedLayoutTransition(PendingLayoutTransition pending,
+                                                                      long operationTerm, Throwable failure) {
+        if (pending.sealing()) {
+            return CompletableFuture.completedFuture(false);
+        }
+        return resources.cancelLayoutTransitionAsync(topicName, pending, () -> isCurrentTerm(operationTerm))
+                .thenApply(__ -> {
+                    log.warn().attr("transition", pending.id()).attr("operation", pending.operation())
+                            .attr("trigger", pending.trigger()).exceptionMessage(failure)
+                            .log("Cancelled a layout transition that failed before sealing a segment");
+                    deleteCancelledSuccessors(pending);
+                    return true;
+                })
+                .exceptionally(ex -> {
+                    log.debug().attr("transition", pending.id()).exceptionMessage(ex)
+                            .log("Kept the layout transition: it started sealing or is no longer current");
+                    return false;
+                });
+    }
+
+    /** Best effort: the successor IDs of a cancelled plan are never published nor reused. */
+    private void deleteCancelledSuccessors(PendingLayoutTransition pending) {
+        PulsarAdmin admin;
+        try {
+            admin = brokerService.getPulsar().getAdminClient();
+        } catch (PulsarServerException e) {
+            log.warn().attr("transition", pending.id()).exceptionMessage(e)
+                    .log("Failed to delete the successors of a cancelled layout transition");
+            return;
+        }
+        for (SegmentInfo successor : pending.replacements().values()) {
+            if (pending.sources().containsKey(successor.segmentId())) {
+                continue;
+            }
+            String segmentTopicName = toSegmentPersistentName(successor);
+            FutureUtil.supplySafely(() -> admin.scalableTopics().deleteSegmentAsync(segmentTopicName, true))
+                    .exceptionally(ex -> {
+                        Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                        if (!(cause instanceof PulsarAdminException.NotFoundException)) {
+                            log.warn().attr("segment", segmentTopicName).exceptionMessage(cause)
+                                    .log("Failed to delete a successor of a cancelled layout transition");
+                        }
+                        return null;
+                    });
+        }
+    }
+
+    /**
+     * Idempotent on every broker: create cursors, mark the plan as sealing, durably seal every source,
+     * then publish once.
+     */
     private CompletableFuture<Void> replayLayoutTransition(PendingLayoutTransition pending, long operationTerm,
                                                            LayoutOperation operation) {
         return validatePendingLayoutTransition(pending, operationTerm)
@@ -1440,26 +1514,48 @@ public class ScalableTopicController {
                     }
                     return created;
                 })
-                .thenCompose(__ -> {
+                // The irreversible step starts here: from now on the plan can no longer be cancelled.
+                .thenCompose(__ -> pending.sealing() ? CompletableFuture.completedFuture(pending)
+                        : resources.markLayoutTransitionSealingAsync(topicName, pending,
+                                () -> isCurrentTerm(operationTerm)))
+                .thenCompose(sealing -> {
                     CompletableFuture<Void> sealed = CompletableFuture.completedFuture(null);
-                    for (SegmentInfo source : pending.sources().values()) {
-                        sealed = sealed.thenCompose(___ -> validatePendingLayoutTransition(pending, operationTerm))
-                                .thenCompose(___ -> terminateSegmentTopic(toSegmentPersistentName(source)))
+                    for (SegmentInfo source : sealing.sources().values()) {
+                        sealed = sealed.thenCompose(___ -> validatePendingLayoutTransition(sealing, operationTerm))
+                                .thenCompose(___ -> sealSource(source))
                                 .thenRun(() -> {
                                     if (operation != null) {
                                         operation.sealed();
                                     }
                                 });
                     }
-                    return sealed;
+                    return sealed.thenCompose(___ -> resources.commitLayoutTransitionAsync(topicName, sealing,
+                            () -> isCurrentTerm(operationTerm)));
                 })
-                .thenCompose(__ -> resources.commitLayoutTransitionAsync(topicName, pending,
-                        () -> isCurrentTerm(operationTerm)))
                 .thenRun(() -> {
                     if (operation != null) {
                         operation.committed();
                     }
                 });
+    }
+
+    /**
+     * Terminate a source of a plan that started sealing. A source whose backing topic is missing, e.g.
+     * force-deleted, is created again empty first, as the active-segment healer would: the plan can only
+     * complete once every source is durably terminated.
+     */
+    private CompletableFuture<Void> sealSource(SegmentInfo source) {
+        String segmentTopicName = toSegmentPersistentName(source);
+        return terminateSegmentTopic(segmentTopicName).exceptionallyCompose(ex -> {
+            Throwable cause = FutureUtil.unwrapCompletionException(ex);
+            if (source.isLegacy() || !(cause instanceof PulsarAdminException.NotFoundException)) {
+                return CompletableFuture.failedFuture(cause);
+            }
+            log.warn().attr("segment", segmentTopicName)
+                    .log("Source segment topic of a layout transition is missing, creating it again to seal it");
+            return createSegmentTopic(source, List.of())
+                    .thenCompose(__ -> terminateSegmentTopic(segmentTopicName));
+        });
     }
 
     /** A stale callback must not act on a replacement intent or a deleted/re-created topic. */
@@ -1496,25 +1592,40 @@ public class ScalableTopicController {
     }
 
     private CompletableFuture<SegmentLayout> refreshLayout(long operationTerm, boolean notify) {
-        return readTopicRecord().thenCompose(optMd -> {
-            ScalableTopicMetadata md = optMd.orElseThrow();
-            SegmentLayout layout = SegmentLayout.fromMetadata(md);
-            List<SubscriptionCoordinator> coordinators;
-            synchronized (this) {
-                if (!isCurrentTerm(operationTerm) || md.isDeleted() || md.getPendingLayoutTransition() != null) {
-                    throw new IllegalStateException("Scalable topic layout is not ready: " + topicName);
-                }
-                currentLayout = layout;
-                seedAutoScaleCooldownsFromLayout();
-                // A term change closes these coordinators; a delayed callback must never look up
-                // and update the replacement term's sessions with its old layout.
-                coordinators = notify ? List.copyOf(subscriptions.values()) : List.of();
+        return readTopicRecord().thenCompose(optMd -> installLayout(operationTerm, optMd.orElseThrow(), notify));
+    }
+
+    /**
+     * Install the published layout of {@code md} if its epoch moved past the installed one, notifying the
+     * sessions when serving. Every layout change advances the epoch, so an equal epoch is the same DAG.
+     */
+    private CompletableFuture<Void> installLayoutIfChanged(long operationTerm, ScalableTopicMetadata md) {
+        if (isCurrentTerm(operationTerm) && !md.isDeleted() && md.getPendingLayoutTransition() == null
+                && md.getEpoch() == currentLayout.getEpoch()) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return installLayout(operationTerm, md, isLeader()).thenApply(__ -> null);
+    }
+
+    private CompletableFuture<SegmentLayout> installLayout(long operationTerm, ScalableTopicMetadata md,
+                                                           boolean notify) {
+        SegmentLayout layout = SegmentLayout.fromMetadata(md);
+        List<SubscriptionCoordinator> coordinators;
+        synchronized (this) {
+            if (!isCurrentTerm(operationTerm) || md.isDeleted() || md.getPendingLayoutTransition() != null) {
+                return CompletableFuture.failedFuture(
+                        new IllegalStateException("Scalable topic layout is not ready: " + topicName));
             }
-            CompletableFuture<?>[] notifications = coordinators.stream()
-                    .map(coordinator -> coordinator.onLayoutChange(layout))
-                    .toArray(CompletableFuture[]::new);
-            return CompletableFuture.allOf(notifications).thenApply(__ -> layout);
-        });
+            currentLayout = layout;
+            seedAutoScaleCooldownsFromLayout();
+            // A term change closes these coordinators; a delayed callback must never look up
+            // and update the replacement term's sessions with its old layout.
+            coordinators = notify ? List.copyOf(subscriptions.values()) : List.of();
+        }
+        CompletableFuture<?>[] notifications = coordinators.stream()
+                .map(coordinator -> coordinator.onLayoutChange(layout))
+                .toArray(CompletableFuture[]::new);
+        return CompletableFuture.allOf(notifications).thenApply(__ -> layout);
     }
 
     /** Transient failures must recover even when auto scaling is disabled and leadership stays put. */
@@ -1538,7 +1649,10 @@ public class ScalableTopicController {
                                 layoutRecoveryBackoff.reset();
                             }
                         } else if (isCurrentTerm(operationTerm)) {
-                            log.debug().exceptionMessage(ex).log("Pending layout recovery failed, retrying");
+                            // A plan that started sealing can only complete: an operator must see one
+                            // that keeps failing, since subscription changes wait for it.
+                            log.warn().exceptionMessage(ex)
+                                    .log("Failed to recover the pending layout transition, retrying");
                             scheduleLayoutRecovery(operationTerm);
                         }
                     });

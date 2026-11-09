@@ -150,6 +150,72 @@ public class ScalableTopicLayoutTransitionTest {
     }
 
     @Test
+    public void testUnsealedPlanCanBeCancelledWithoutReusingItsSuccessorIds() throws Exception {
+        @Cleanup
+        Fixture fixture = new Fixture(initialMetadata());
+        PendingLayoutTransition plan = plan(fixture.initial, UUID.randomUUID().toString());
+        fixture.reserve(plan);
+        fixture.resources.cancelLayoutTransitionAsync(fixture.topic, plan, () -> true).get(10, TimeUnit.SECONDS);
+
+        ScalableTopicMetadata cancelled = fixture.read();
+        assertThat(cancelled.getPendingLayoutTransition()).isNull();
+        assertThat(cancelled.getEpoch()).as("the published DAG is unchanged").isEqualTo(fixture.initial.getEpoch());
+        assertThat(cancelled.getSegments()).isEqualTo(fixture.initial.getSegments());
+        assertThat(cancelled.getNextSegmentId())
+                .as("successor topics of the cancelled plan may exist: their IDs are not reused")
+                .isEqualTo(plan.nextSegmentId());
+        // A replay of the cancelled plan by an older leader can neither seal nor publish it.
+        assertRejected(fixture.resources.markLayoutTransitionSealingAsync(fixture.topic, plan, () -> true));
+        assertRejected(fixture.resources.commitLayoutTransitionAsync(fixture.topic, plan, () -> true));
+        assertRejected(fixture.resources.reserveLayoutTransitionAsync(fixture.topic, plan, () -> true));
+        assertThat(fixture.read()).isEqualTo(cancelled);
+
+        PendingLayoutTransition next = plan(cancelled, UUID.randomUUID().toString());
+        assertThat(next.replacements().keySet()).as("successor IDs of the next plan")
+                .doesNotContainAnyElementsOf(plan.replacements().keySet().stream()
+                        .filter(id -> !plan.sources().containsKey(id)).toList());
+        fixture.reserve(next);
+        fixture.commit(next);
+        assertThat(fixture.read().getEpoch()).isEqualTo(fixture.initial.getEpoch() + 1);
+    }
+
+    @Test
+    public void testPlanThatStartedSealingCannotBeCancelled() throws Exception {
+        @Cleanup
+        Fixture fixture = new Fixture(initialMetadata());
+        PendingLayoutTransition plan = plan(fixture.initial, UUID.randomUUID().toString());
+        fixture.reserve(plan);
+        PendingLayoutTransition sealing = fixture.resources.markLayoutTransitionSealingAsync(fixture.topic, plan,
+                () -> true).get(10, TimeUnit.SECONDS);
+        assertThat(sealing).isEqualTo(plan.withSealing());
+        assertThat(sealing.sealing()).isTrue();
+        assertThat(fixture.resources.markLayoutTransitionSealingAsync(fixture.topic, plan, () -> true)
+                .get(10, TimeUnit.SECONDS)).as("marking is idempotent").isEqualTo(sealing);
+        ScalableTopicMetadata marked = fixture.read();
+        assertThat(marked.getPendingLayoutTransition()).isEqualTo(sealing);
+        assertThat(marked.getEpoch()).isEqualTo(fixture.initial.getEpoch());
+
+        assertRejected(fixture.resources.cancelLayoutTransitionAsync(fixture.topic, plan, () -> true));
+        assertRejected(fixture.resources.cancelLayoutTransitionAsync(fixture.topic, sealing, () -> true));
+        assertThat(fixture.read()).as("a source may be sealed: only completing the plan is safe").isEqualTo(marked);
+        fixture.commit(sealing);
+        assertThat(fixture.read().getEpoch()).isEqualTo(plan.baseEpoch() + 1);
+        assertThat(fixture.read().getPendingLayoutTransition()).isNull();
+    }
+
+    @Test
+    public void testEndedLeadershipCannotMarkOrCancel() throws Exception {
+        @Cleanup
+        Fixture fixture = new Fixture(initialMetadata());
+        PendingLayoutTransition plan = plan(fixture.initial, UUID.randomUUID().toString());
+        fixture.reserve(plan);
+        ScalableTopicMetadata reserved = fixture.read();
+        assertRejected(fixture.resources.markLayoutTransitionSealingAsync(fixture.topic, plan, () -> false));
+        assertRejected(fixture.resources.cancelLayoutTransitionAsync(fixture.topic, plan, () -> false));
+        assertThat(fixture.read()).isEqualTo(reserved);
+    }
+
+    @Test
     public void testLegacyRecordGetsOneStableIncarnationBeforeServing() throws Exception {
         @Cleanup
         Fixture fixture = new Fixture(initialMetadata().toBuilder().incarnationId(null).build());
@@ -214,7 +280,7 @@ public class ScalableTopicLayoutTransitionTest {
         });
         return new PendingLayoutTransition(id, original.getIncarnationId(), "split", "manual", original.getEpoch(),
                 original.getNextSegmentId(), now, Map.of(0L, original.getSegments().get(0L)), changed,
-                planned.getNextSegmentId());
+                planned.getNextSegmentId(), false);
     }
 
     private static void assertRejected(CompletableFuture<?> result) {

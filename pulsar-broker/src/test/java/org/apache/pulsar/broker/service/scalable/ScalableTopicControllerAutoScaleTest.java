@@ -687,10 +687,11 @@ public class ScalableTopicControllerAutoScaleTest {
         // the next evaluation splits immediately instead of waiting out the hour.
         when(scalableTopics.createSegmentAsync(anyString(), any()))
                 .thenReturn(CompletableFuture.completedFuture(null));
-        Awaitility.await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
-            assertEquals(activeSegmentCount(), 3, "the persisted split retry is not cooldown-blocked");
-            assertThat(controller.getStats().get().getAutoScale().getLastSplitAt())
-                    .as("the recovered durable commit starts the cooldown").isNotNull();
-        });
+        assertThat(resources.getScalableTopicMetadataAsync(topicName, true).get().orElseThrow()
+                .getPendingLayoutTransition()).as("the split failed before sealing: it was cancelled").isNull();
+        controller.evaluateAutoScaleForTest().get();
+        assertEquals(activeSegmentCount(), 3, "retry after a failed split is not cooldown-blocked");
+        assertThat(controller.getStats().get().getAutoScale().getLastSplitAt())
+                .as("the committed retry starts the cooldown").isNotNull();
     }
 }

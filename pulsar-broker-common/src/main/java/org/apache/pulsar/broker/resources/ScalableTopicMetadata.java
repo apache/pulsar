@@ -81,14 +81,27 @@ public class ScalableTopicMetadata {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private PendingLayoutTransition pendingLayoutTransition;
 
-    /** The fixed plan of an irreversible layout operation, including its original source fingerprints. */
+    /**
+     * The fixed plan of a layout operation, including its original source fingerprints.
+     *
+     * <p>{@code sealing} is set durably before the first source is terminated. Until then no source
+     * can have been sealed, so the plan may still be cancelled and the published layout keeps serving.
+     * Once it is set, the plan is irreversible and must be completed.
+     */
     public record PendingLayoutTransition(String id, String incarnationId, String operation, String trigger,
                                           long baseEpoch, long baseNextSegmentId, long startedAtMs,
                                           Map<Long, SegmentInfo> sources,
-                                          Map<Long, SegmentInfo> replacements, long nextSegmentId) {
+                                          Map<Long, SegmentInfo> replacements, long nextSegmentId,
+                                          boolean sealing) {
         public PendingLayoutTransition {
             sources = Collections.unmodifiableMap(new LinkedHashMap<>(sources));
             replacements = Collections.unmodifiableMap(new LinkedHashMap<>(replacements));
+        }
+
+        /** The same plan, marked as having started to terminate its sources. */
+        public PendingLayoutTransition withSealing() {
+            return sealing ? this : new PendingLayoutTransition(id, incarnationId, operation, trigger, baseEpoch,
+                    baseNextSegmentId, startedAtMs, sources, replacements, nextSegmentId, true);
         }
     }
 

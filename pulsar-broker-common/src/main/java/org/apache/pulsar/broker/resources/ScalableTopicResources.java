@@ -477,6 +477,39 @@ public class ScalableTopicResources extends BaseResources<ScalableTopicMetadata>
         });
     }
 
+    /**
+     * Mark the reserved plan as sealing before its first source is terminated, and return the marked
+     * plan. Idempotent. Fails if the plan was cancelled or replaced: its sources must then not be sealed.
+     */
+    public CompletableFuture<PendingLayoutTransition> markLayoutTransitionSealingAsync(TopicName tn,
+            PendingLayoutTransition pending, BooleanSupplier currentTerm) {
+        PendingLayoutTransition sealing = pending.withSealing();
+        return updateTopicRecordAsync(tn, md -> {
+            validateTransitionBase(tn, md, pending, currentTerm);
+            PendingLayoutTransition stored = md.getPendingLayoutTransition();
+            if (!pending.equals(stored) && !sealing.equals(stored)) {
+                throw new IllegalStateException("Scalable topic layout transition was replaced: " + tn);
+            }
+            return md.toBuilder().pendingLayoutTransition(sealing).build();
+        }).thenApply(__ -> sealing);
+    }
+
+    /**
+     * Cancel a reserved plan that has not started sealing: the published layout stays as it is. The
+     * successor IDs of the plan are not reused, since its successor topics may already exist.
+     */
+    public CompletableFuture<Void> cancelLayoutTransitionAsync(TopicName tn, PendingLayoutTransition pending,
+                                                               BooleanSupplier currentTerm) {
+        return updateTopicRecordAsync(tn, md -> {
+            validateTransitionBase(tn, md, pending, currentTerm);
+            if (pending.sealing() || !pending.equals(md.getPendingLayoutTransition())) {
+                throw new IllegalStateException(
+                        "Scalable topic layout transition was replaced or started sealing: " + tn);
+            }
+            return md.toBuilder().nextSegmentId(pending.nextSegmentId()).pendingLayoutTransition(null).build();
+        });
+    }
+
     /** Publish exactly the reserved plan and remove its intent atomically in the topic record. */
     public CompletableFuture<Void> commitLayoutTransitionAsync(TopicName tn, PendingLayoutTransition pending,
                                                                BooleanSupplier currentTerm) {
