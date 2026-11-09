@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.tls;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import io.netty.handler.ssl.OpenSsl;
 import io.netty.handler.ssl.SslProvider;
 import io.opentelemetry.api.OpenTelemetry;
@@ -32,7 +33,6 @@ import org.apache.pulsar.common.tls.TlsClientAuthMode;
 import org.apache.pulsar.tls.PulsarTlsFactory;
 import org.apache.pulsar.tls.TlsFactoryInitContext;
 import org.apache.pulsar.tls.TlsHandle;
-import org.apache.pulsar.tls.TlsPolicy;
 import org.apache.pulsar.tls.TlsPurpose;
 import org.testng.annotations.Test;
 
@@ -168,35 +168,25 @@ public class TlsFactorySupportTest {
                 .isEqualTo(TlsClientAuthMode.REQUIRE);
         assertThat(TlsFactorySupport.resolveClientAuthMode(TlsClientAuthMode.OPTIONAL, false, false, tokenOnly))
                 .isEqualTo(TlsClientAuthMode.OPTIONAL);
+        assertThat(TlsFactorySupport.resolveClientAuthMode(TlsClientAuthMode.NONE, false, true, tokenOnly))
+                .isEqualTo(TlsClientAuthMode.NONE);
+        assertThatThrownBy(() -> TlsFactorySupport.resolveClientAuthMode(TlsClientAuthMode.NONE, false, true,
+                tlsSubclass)).isInstanceOf(IllegalArgumentException.class);
+        assertThat(TlsFactorySupport.resolveClientAuthMode(TlsClientAuthMode.NONE, false, false, tls))
+                .as("authentication disabled").isEqualTo(TlsClientAuthMode.NONE);
     }
 
     @Test
-    public void clientAuthTrustReplacesServerTrustWhenSet() {
-        assertThat(TlsFactorySupport.serverTrustCertsFilePath("/client-ca.pem", "/bundle.pem"))
-                .isEqualTo("/client-ca.pem");
-        assertThat(TlsFactorySupport.serverTrustCertsFilePath("", "/bundle.pem")).isEqualTo("/bundle.pem");
-        assertThat(TlsFactorySupport.serverTrustCertsFilePath(null, "/bundle.pem")).isEqualTo("/bundle.pem");
-
-        TlsPolicy override = TlsFactorySupport.applyServerTrustStore(keyStorePolicy(),
-                "/client-ca.p12", "", "secret", "/trust.jks", "JKS", "changeit").build();
-        assertThat(override.trustStorePath()).isEqualTo("/client-ca.p12");
-        assertThat(override.trustStoreType()).as("type falls back").isEqualTo("JKS");
-        assertThat(override.trustStorePassword()).isEqualTo("secret");
-
-        TlsPolicy typed = TlsFactorySupport.applyServerTrustStore(keyStorePolicy(),
-                "/client-ca.p12", "PKCS12", null, "/trust.jks", "JKS", "changeit").build();
-        assertThat(typed.trustStoreType()).isEqualTo("PKCS12");
-        assertThat(typed.trustStorePassword()).as("password does not fall back").isNull();
-
-        TlsPolicy fallback = TlsFactorySupport.applyServerTrustStore(keyStorePolicy(),
-                null, "PKCS12", "secret", "/trust.jks", "JKS", "changeit").build();
-        assertThat(fallback.trustStorePath()).isEqualTo("/trust.jks");
-        assertThat(fallback.trustStoreType()).isEqualTo("JKS");
-        assertThat(fallback.trustStorePassword()).isEqualTo("changeit");
-    }
-
-    private static TlsPolicy.Builder keyStorePolicy() {
-        return TlsPolicy.builder().format(TlsPolicy.Format.KEYSTORE).keyStorePath("/key.jks");
+    public void logClientAuthModeResolvesLikeResolveClientAuthMode() {
+        Set<String> tls = Set.of(AuthenticationProviderTls.class.getName());
+        assertThat(TlsFactorySupport.logClientAuthMode("test", null, false, true, tls))
+                .isEqualTo(TlsClientAuthMode.OPTIONAL);
+        assertThat(TlsFactorySupport.logClientAuthMode("test", null, false, false, tls))
+                .isEqualTo(TlsClientAuthMode.NONE);
+        assertThat(TlsFactorySupport.logClientAuthMode("test", null, true, false, Set.of()))
+                .isEqualTo(TlsClientAuthMode.REQUIRE);
+        assertThatThrownBy(() -> TlsFactorySupport.logClientAuthMode("test", TlsClientAuthMode.NONE, false, true,
+                tls)).isInstanceOf(IllegalArgumentException.class);
     }
 
     public static class TlsSubclassProvider extends AuthenticationProviderTls {

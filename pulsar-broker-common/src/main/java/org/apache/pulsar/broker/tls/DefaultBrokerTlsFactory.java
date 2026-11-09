@@ -187,15 +187,14 @@ public class DefaultBrokerTlsFactory extends FileBasedTlsFactory {
         if (conf.isTlsEnabledWithKeyStore()) {
             builder.format(TlsPolicy.Format.KEYSTORE)
                     .keyStoreType(conf.getTlsKeyStoreType())
+                    .trustStoreType(conf.getTlsTrustStoreType())
                     .keyStorePath(conf.getTlsKeyStore())
-                    .keyStorePassword(conf.getTlsKeyStorePassword());
-            TlsFactorySupport.applyServerTrustStore(builder, conf.getTlsClientAuthTrustStore(),
-                    conf.getTlsClientAuthTrustStoreType(), conf.getTlsClientAuthTrustStorePassword(),
-                    conf.getTlsTrustStore(), conf.getTlsTrustStoreType(), conf.getTlsTrustStorePassword());
+                    .keyStorePassword(conf.getTlsKeyStorePassword())
+                    .trustStorePath(conf.getTlsTrustStore())
+                    .trustStorePassword(conf.getTlsTrustStorePassword());
         } else {
             builder.format(TlsPolicy.Format.PEM)
-                    .trustCertsFilePath(TlsFactorySupport.serverTrustCertsFilePath(
-                            conf.getTlsClientAuthTrustCertsFilePath(), conf.getTlsTrustCertsFilePath()))
+                    .trustCertsFilePath(conf.getTlsTrustCertsFilePath())
                     .certificateFilePath(conf.getTlsCertificateFilePath())
                     .keyFilePath(conf.getTlsKeyFilePath());
         }

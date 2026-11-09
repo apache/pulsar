@@ -42,7 +42,6 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.tls.JcaProviders;
 import org.apache.pulsar.tls.PulsarTlsFactory;
 import org.apache.pulsar.tls.TlsFactoryInitContext;
-import org.apache.pulsar.tls.TlsPolicy;
 
 /**
  * Shared scaffolding for wiring a server component onto the PIP-478 {@link PulsarTlsFactory} SPI, which
@@ -90,51 +89,52 @@ public final class TlsFactorySupport {
                                                           boolean requireTrustedClientCertOnConnect,
                                                           boolean authenticationEnabled,
                                                           Set<String> authenticationProviders) {
-        boolean clientCertAuthenticationEnabled = authenticationEnabled && authenticationProviders != null
-                && authenticationProviders.stream().anyMatch(TlsFactorySupport::isTlsAuthenticationProvider);
         return TlsClientAuthMode.resolve(configured, requireTrustedClientCertOnConnect,
+                isClientCertAuthenticationEnabled(authenticationEnabled, authenticationProviders));
+    }
+
+    /**
+     * Resolve the effective {@link TlsClientAuthMode} like {@link #resolveClientAuthMode} and log it together with
+     * where it came from. A component with a TLS listener calls this once when it starts, so the log explains why
+     * a client certificate is or is not requested.
+     *
+     * @param component                         the component name for the log, such as {@code broker}
+     * @param configured                        the configured {@code tlsClientAuthMode}, or {@code null}
+     * @param requireTrustedClientCertOnConnect the deprecated {@code tlsRequireTrustedClientCertOnConnect} setting
+     * @param authenticationEnabled             the {@code authenticationEnabled} setting
+     * @param authenticationProviders           the {@code authenticationProviders} class names
+     * @return the effective mode
+     * @throws IllegalArgumentException if the settings conflict
+     */
+    public static TlsClientAuthMode logClientAuthMode(String component, TlsClientAuthMode configured,
+                                                      boolean requireTrustedClientCertOnConnect,
+                                                      boolean authenticationEnabled,
+                                                      Set<String> authenticationProviders) {
+        boolean clientCertAuthenticationEnabled =
+                isClientCertAuthenticationEnabled(authenticationEnabled, authenticationProviders);
+        TlsClientAuthMode mode = TlsClientAuthMode.resolve(configured, requireTrustedClientCertOnConnect,
                 clientCertAuthenticationEnabled);
-    }
-
-    /**
-     * The trust certificates file for a server-role policy in PEM format. A server's trust anchors only validate
-     * client certificates, so {@code tlsClientAuthTrustCertsFilePath} replaces {@code tlsTrustCertsFilePath} when
-     * set; the outbound policies keep using the general setting.
-     *
-     * @param clientAuthTrustCertsFilePath the {@code tlsClientAuthTrustCertsFilePath} setting
-     * @param trustCertsFilePath           the {@code tlsTrustCertsFilePath} setting
-     * @return the trust certificates file the server validates client certificates against
-     */
-    public static String serverTrustCertsFilePath(String clientAuthTrustCertsFilePath, String trustCertsFilePath) {
-        return StringUtils.isNotBlank(clientAuthTrustCertsFilePath) ? clientAuthTrustCertsFilePath
-                : trustCertsFilePath;
-    }
-
-    /**
-     * Set the trust store of a server-role policy in keystore format. As with
-     * {@link #serverTrustCertsFilePath}, {@code tlsClientAuthTrustStore} replaces {@code tlsTrustStore} when set,
-     * together with its password; its type falls back to {@code tlsTrustStoreType} when blank.
-     *
-     * @param builder                     the server policy builder
-     * @param clientAuthTrustStore        the {@code tlsClientAuthTrustStore} setting
-     * @param clientAuthTrustStoreType    the {@code tlsClientAuthTrustStoreType} setting
-     * @param clientAuthTrustStorePassword the {@code tlsClientAuthTrustStorePassword} setting
-     * @param trustStore                  the {@code tlsTrustStore} setting
-     * @param trustStoreType              the {@code tlsTrustStoreType} setting
-     * @param trustStorePassword          the {@code tlsTrustStorePassword} setting
-     * @return the builder
-     */
-    public static TlsPolicy.Builder applyServerTrustStore(TlsPolicy.Builder builder, String clientAuthTrustStore,
-                                                          String clientAuthTrustStoreType,
-                                                          String clientAuthTrustStorePassword, String trustStore,
-                                                          String trustStoreType, String trustStorePassword) {
-        if (StringUtils.isNotBlank(clientAuthTrustStore)) {
-            return builder.trustStorePath(clientAuthTrustStore)
-                    .trustStoreType(StringUtils.isNotBlank(clientAuthTrustStoreType) ? clientAuthTrustStoreType
-                            : trustStoreType)
-                    .trustStorePassword(clientAuthTrustStorePassword);
+        String source;
+        if (configured != null) {
+            source = "configured";
+        } else if (requireTrustedClientCertOnConnect) {
+            source = "derived: deprecated tlsRequireTrustedClientCertOnConnect=true";
+        } else if (clientCertAuthenticationEnabled) {
+            source = "derived: AuthenticationProviderTls enabled";
+        } else if (!authenticationEnabled) {
+            source = "derived: authentication disabled";
+        } else {
+            source = "derived: AuthenticationProviderTls not among authenticationProviders";
         }
-        return builder.trustStorePath(trustStore).trustStoreType(trustStoreType).trustStorePassword(trustStorePassword);
+        log.info().attr("component", component).attr("mode", mode).attr("source", source)
+                .log("TLS client auth mode");
+        return mode;
+    }
+
+    private static boolean isClientCertAuthenticationEnabled(boolean authenticationEnabled,
+                                                             Set<String> authenticationProviders) {
+        return authenticationEnabled && authenticationProviders != null
+                && authenticationProviders.stream().anyMatch(TlsFactorySupport::isTlsAuthenticationProvider);
     }
 
     private static boolean isTlsAuthenticationProvider(String className) {

@@ -179,6 +179,7 @@ public class WorkerServer {
         if (this.workerConfig.getTlsEnabled()) {
             log.info().attr("port", this.workerConfig.getWorkerPortTls())
                     .log("Configuring https server");
+            this.workerConfig.logTlsClientAuthMode("functions-worker");
             try {
                 this.scheduledExecutorService = Executors
                         .newSingleThreadScheduledExecutor(new ExecutorProvider
@@ -365,7 +366,7 @@ public class WorkerServer {
     }
 
     @VisibleForTesting
-    static TlsPolicy webPolicy(WorkerConfig config) {
+    static PulsarTlsFactory buildDefaultWebTlsFactory(WorkerConfig config) {
         TlsPolicy.Builder policyBuilder = TlsPolicy.builder()
                 .allowInsecureConnection(config.isTlsAllowInsecureConnection())
                 .protocols(toList(config.getWebServiceTlsProtocols()))
@@ -380,24 +381,18 @@ public class WorkerServer {
         if (config.isTlsEnabledWithKeyStore()) {
             policyBuilder.format(TlsPolicy.Format.KEYSTORE)
                     .keyStoreType(config.getTlsKeyStoreType())
+                    .trustStoreType(config.getTlsTrustStoreType())
                     .keyStorePath(config.getTlsKeyStore())
-                    .keyStorePassword(config.getTlsKeyStorePassword());
-            TlsFactorySupport.applyServerTrustStore(policyBuilder, config.getTlsClientAuthTrustStore(),
-                    config.getTlsClientAuthTrustStoreType(), config.getTlsClientAuthTrustStorePassword(),
-                    config.getTlsTrustStore(), config.getTlsTrustStoreType(), config.getTlsTrustStorePassword());
+                    .keyStorePassword(config.getTlsKeyStorePassword())
+                    .trustStorePath(config.getTlsTrustStore())
+                    .trustStorePassword(config.getTlsTrustStorePassword());
         } else {
             policyBuilder.format(TlsPolicy.Format.PEM)
-                    .trustCertsFilePath(TlsFactorySupport.serverTrustCertsFilePath(
-                            config.getTlsClientAuthTrustCertsFilePath(), config.getTlsTrustCertsFilePath()))
+                    .trustCertsFilePath(config.getTlsTrustCertsFilePath())
                     .certificateFilePath(config.getTlsCertificateFilePath())
                     .keyFilePath(config.getTlsKeyFilePath());
         }
-        return policyBuilder.build();
-    }
-
-    @VisibleForTesting
-    static PulsarTlsFactory buildDefaultWebTlsFactory(WorkerConfig config) {
-        Map<TlsPurpose, TlsPolicy> policies = Map.of(TlsPurpose.WEB, webPolicy(config));
+        Map<TlsPurpose, TlsPolicy> policies = Map.of(TlsPurpose.WEB, policyBuilder.build());
         // The Jetty web path uses a JDK SSLContext, so the Netty engine selection is irrelevant here.
         FileBasedTlsFactorySettings settings = FileBasedTlsFactorySettings.builder()
                 .clientAuthMode(config.resolveTlsClientAuthMode())

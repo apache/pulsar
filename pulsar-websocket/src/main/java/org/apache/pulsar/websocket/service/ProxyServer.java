@@ -112,6 +112,7 @@ public class ProxyServer {
         }
         // TLS enabled connector
         if (config.getWebServicePortTls().isPresent()) {
+            config.logTlsClientAuthMode("websocket");
             try {
                 // PIP-478: the websocket proxy web listener uses the PulsarTlsFactory SPI (the built-in
                 // file-based factory by default, or a custom tlsFactoryClassName). It owns the refresh
@@ -284,7 +285,7 @@ public class ProxyServer {
     }
 
     @VisibleForTesting
-    static TlsPolicy webPolicy(WebSocketProxyConfiguration config) {
+    static PulsarTlsFactory buildDefaultWebTlsFactory(WebSocketProxyConfiguration config) {
         TlsPolicy.Builder policyBuilder = TlsPolicy.builder()
                 .allowInsecureConnection(config.isTlsAllowInsecureConnection())
                 .protocols(toList(config.getWebServiceTlsProtocols()))
@@ -299,24 +300,18 @@ public class ProxyServer {
         if (config.isTlsEnabledWithKeyStore()) {
             policyBuilder.format(TlsPolicy.Format.KEYSTORE)
                     .keyStoreType(config.getTlsKeyStoreType())
+                    .trustStoreType(config.getTlsTrustStoreType())
                     .keyStorePath(config.getTlsKeyStore())
-                    .keyStorePassword(config.getTlsKeyStorePassword());
-            TlsFactorySupport.applyServerTrustStore(policyBuilder, config.getTlsClientAuthTrustStore(),
-                    config.getTlsClientAuthTrustStoreType(), config.getTlsClientAuthTrustStorePassword(),
-                    config.getTlsTrustStore(), config.getTlsTrustStoreType(), config.getTlsTrustStorePassword());
+                    .keyStorePassword(config.getTlsKeyStorePassword())
+                    .trustStorePath(config.getTlsTrustStore())
+                    .trustStorePassword(config.getTlsTrustStorePassword());
         } else {
             policyBuilder.format(TlsPolicy.Format.PEM)
-                    .trustCertsFilePath(TlsFactorySupport.serverTrustCertsFilePath(
-                            config.getTlsClientAuthTrustCertsFilePath(), config.getTlsTrustCertsFilePath()))
+                    .trustCertsFilePath(config.getTlsTrustCertsFilePath())
                     .certificateFilePath(config.getTlsCertificateFilePath())
                     .keyFilePath(config.getTlsKeyFilePath());
         }
-        return policyBuilder.build();
-    }
-
-    @VisibleForTesting
-    static PulsarTlsFactory buildDefaultWebTlsFactory(WebSocketProxyConfiguration config) {
-        Map<TlsPurpose, TlsPolicy> policies = Map.of(TlsPurpose.WEB, webPolicy(config));
+        Map<TlsPurpose, TlsPolicy> policies = Map.of(TlsPurpose.WEB, policyBuilder.build());
         // The Jetty web path uses a JDK SSLContext, so the Netty engine selection is irrelevant here; the
         // FileBasedTlsFactorySettings default (JDK engine) applies and keeps netty-handler off this module's
         // compile classpath.

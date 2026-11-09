@@ -82,25 +82,6 @@ public class ProxyTlsFactoriesTest {
         assertThat(clientAuthMode(config)).isEqualTo(TlsClientAuthMode.REQUIRE);
     }
 
-    @Test
-    public void clientAuthTrustReplacesServerTrustButNotBrokerClientTrust() {
-        ProxyConfiguration config = new ProxyConfiguration();
-        config.setTlsTrustCertsFilePath("/bundle.pem");
-        config.setBrokerClientTrustCertsFilePath("/broker-ca.pem");
-        config.setTlsClientAuthTrustCertsFilePath("/client-ca.pem");
-        assertThat(ProxyTlsFactories.serverPolicy(config, Set.of(), Set.of()).trustCertsFilePath())
-                .isEqualTo("/client-ca.pem");
-        assertThat(ProxyTlsFactories.serverPolicy(config, TlsPurpose.WEB, Set.of(), Set.of()).trustCertsFilePath())
-                .isEqualTo("/client-ca.pem");
-        assertThat(ProxyTlsFactories.brokerClientPolicy(config).trustCertsFilePath()).isEqualTo("/broker-ca.pem");
-
-        config.setTlsEnabledWithKeyStore(true);
-        config.setTlsTrustStore("/trust.jks");
-        config.setTlsClientAuthTrustStore("/client-ca.p12");
-        assertThat(ProxyTlsFactories.serverPolicy(config, Set.of(), Set.of()).trustStorePath())
-                .isEqualTo("/client-ca.p12");
-    }
-
     private static TlsClientAuthMode clientAuthMode(ProxyConfiguration config) {
         return ((FileBasedTlsFactory) ProxyTlsFactories.serverFactory(config, TlsPurpose.PROXY, Set.of(), Set.of()))
                 .settings().clientAuthMode();

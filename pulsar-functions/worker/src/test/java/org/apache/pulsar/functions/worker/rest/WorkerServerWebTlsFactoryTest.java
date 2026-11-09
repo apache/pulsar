@@ -19,6 +19,7 @@
 package org.apache.pulsar.functions.worker.rest;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.util.Set;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.common.tls.TlsClientAuthMode;
@@ -40,22 +41,10 @@ public class WorkerServerWebTlsFactoryTest {
         assertThat(clientAuthMode(config)).isEqualTo(TlsClientAuthMode.REQUIRE);
         config.setTlsRequireTrustedClientCertOnConnect(false);
         config.setTlsClientAuthMode(TlsClientAuthMode.NONE);
+        assertThatThrownBy(() -> clientAuthMode(config)).as("TLS authentication needs a client certificate")
+                .isInstanceOf(IllegalArgumentException.class);
+        config.setAuthenticationProviders(Set.of());
         assertThat(clientAuthMode(config)).isEqualTo(TlsClientAuthMode.NONE);
-    }
-
-    @Test
-    public void clientAuthTrustReplacesWebListenerTrust() {
-        WorkerConfig config = new WorkerConfig();
-        config.setTlsTrustCertsFilePath("/bundle.pem");
-        assertThat(WorkerServer.webPolicy(config).trustCertsFilePath()).isEqualTo("/bundle.pem");
-        config.setTlsClientAuthTrustCertsFilePath("/client-ca.pem");
-        assertThat(WorkerServer.webPolicy(config).trustCertsFilePath()).isEqualTo("/client-ca.pem");
-
-        config.setTlsEnabledWithKeyStore(true);
-        config.setTlsTrustStore("/trust.jks");
-        assertThat(WorkerServer.webPolicy(config).trustStorePath()).isEqualTo("/trust.jks");
-        config.setTlsClientAuthTrustStore("/client-ca.p12");
-        assertThat(WorkerServer.webPolicy(config).trustStorePath()).isEqualTo("/client-ca.p12");
     }
 
     private static TlsClientAuthMode clientAuthMode(WorkerConfig config) {

@@ -35,9 +35,12 @@ public class TlsClientAuthModeTest {
     @Test
     public void explicitModeWins() {
         for (TlsClientAuthMode mode : TlsClientAuthMode.values()) {
-            assertThat(TlsClientAuthMode.resolve(mode, false, true)).isEqualTo(mode);
             assertThat(TlsClientAuthMode.resolve(mode, false, false)).isEqualTo(mode);
         }
+        assertThat(TlsClientAuthMode.resolve(TlsClientAuthMode.OPTIONAL, false, true))
+                .isEqualTo(TlsClientAuthMode.OPTIONAL);
+        assertThat(TlsClientAuthMode.resolve(TlsClientAuthMode.REQUIRE, false, true))
+                .isEqualTo(TlsClientAuthMode.REQUIRE);
         assertThat(TlsClientAuthMode.resolve(TlsClientAuthMode.REQUIRE, true, false))
                 .isEqualTo(TlsClientAuthMode.REQUIRE);
     }
@@ -48,5 +51,12 @@ public class TlsClientAuthModeTest {
                 .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("tlsClientAuthMode=NONE");
         assertThatThrownBy(() -> TlsClientAuthMode.resolve(TlsClientAuthMode.OPTIONAL, true, true))
                 .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("tlsClientAuthMode=OPTIONAL");
+    }
+
+    @Test
+    public void explicitNoneConflictsWithTlsAuthentication() {
+        assertThatThrownBy(() -> TlsClientAuthMode.resolve(TlsClientAuthMode.NONE, false, true))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("tlsClientAuthMode=NONE")
+                .hasMessageContaining("AuthenticationProviderTls");
     }
 }

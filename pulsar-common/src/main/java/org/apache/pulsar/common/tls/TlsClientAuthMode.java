@@ -50,7 +50,8 @@ public enum TlsClientAuthMode {
      *                                          their TLS certificate is enabled
      * @return the effective mode
      * @throws IllegalArgumentException if {@code requireTrustedClientCertOnConnect} is {@code true} while the
-     *                                  configured mode is {@link #NONE} or {@link #OPTIONAL}
+     *                                  configured mode is {@link #NONE} or {@link #OPTIONAL}, or if the configured
+     *                                  mode is {@link #NONE} while client-certificate authentication is enabled
      */
     public static TlsClientAuthMode resolve(TlsClientAuthMode configured, boolean requireTrustedClientCertOnConnect,
                                             boolean clientCertAuthenticationEnabled) {
@@ -64,6 +65,11 @@ public enum TlsClientAuthMode {
             throw new IllegalArgumentException("tlsRequireTrustedClientCertOnConnect=true conflicts with "
                     + "tlsClientAuthMode=" + configured + "; set tlsClientAuthMode=REQUIRE and remove the "
                     + "deprecated tlsRequireTrustedClientCertOnConnect setting");
+        }
+        if (configured == NONE && clientCertAuthenticationEnabled) {
+            throw new IllegalArgumentException("tlsClientAuthMode=NONE conflicts with AuthenticationProviderTls "
+                    + "in authenticationProviders, which needs a client certificate; set tlsClientAuthMode=OPTIONAL "
+                    + "or REQUIRE, or remove AuthenticationProviderTls");
         }
         return configured;
     }

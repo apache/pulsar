@@ -111,15 +111,14 @@ final class ProxyTlsFactories {
         if (config.isTlsEnabledWithKeyStore()) {
             builder.format(TlsPolicy.Format.KEYSTORE)
                     .keyStoreType(config.getTlsKeyStoreType())
+                    .trustStoreType(config.getTlsTrustStoreType())
                     .keyStorePath(config.getTlsKeyStore())
-                    .keyStorePassword(config.getTlsKeyStorePassword());
-            TlsFactorySupport.applyServerTrustStore(builder, config.getTlsClientAuthTrustStore(),
-                    config.getTlsClientAuthTrustStoreType(), config.getTlsClientAuthTrustStorePassword(),
-                    config.getTlsTrustStore(), config.getTlsTrustStoreType(), config.getTlsTrustStorePassword());
+                    .keyStorePassword(config.getTlsKeyStorePassword())
+                    .trustStorePath(config.getTlsTrustStore())
+                    .trustStorePassword(config.getTlsTrustStorePassword());
         } else {
             builder.format(TlsPolicy.Format.PEM)
-                    .trustCertsFilePath(TlsFactorySupport.serverTrustCertsFilePath(
-                            config.getTlsClientAuthTrustCertsFilePath(), config.getTlsTrustCertsFilePath()))
+                    .trustCertsFilePath(config.getTlsTrustCertsFilePath())
                     .certificateFilePath(config.getTlsCertificateFilePath())
                     .keyFilePath(config.getTlsKeyFilePath());
         }

@@ -176,24 +176,6 @@ public class DefaultBrokerTlsPolicyTest {
         assertThatThrownBy(() -> clientAuthMode(conf)).isInstanceOf(IllegalArgumentException.class);
     }
 
-    @Test
-    public void clientAuthTrustReplacesServerTrustButNotBrokerClientTrust() {
-        ServiceConfiguration conf = conf();
-        conf.setTlsClientAuthTrustCertsFilePath("/tls/client-ca.pem");
-        assertThat(DefaultBrokerTlsFactory.webPolicy(conf).trustCertsFilePath()).isEqualTo("/tls/client-ca.pem");
-        assertThat(DefaultBrokerTlsFactory.serverPolicy(conf).trustCertsFilePath()).isEqualTo("/tls/client-ca.pem");
-        conf.setBrokerClientTrustCertsFilePath("/tls/broker-ca.pem");
-        assertThat(DefaultBrokerTlsFactory.brokerClientPolicy(conf).trustCertsFilePath())
-                .isEqualTo("/tls/broker-ca.pem");
-
-        conf.setTlsEnabledWithKeyStore(true);
-        conf.setTlsTrustStore("/tls/trust.jks");
-        assertThat(DefaultBrokerTlsFactory.serverPolicy(conf).trustStorePath()).isEqualTo("/tls/trust.jks");
-        conf.setTlsClientAuthTrustStore("/tls/client-ca.p12");
-        assertThat(DefaultBrokerTlsFactory.serverPolicy(conf).trustStorePath()).isEqualTo("/tls/client-ca.p12");
-        assertThat(DefaultBrokerTlsFactory.webPolicy(conf).trustStorePath()).isEqualTo("/tls/client-ca.p12");
-    }
-
     private static TlsClientAuthMode clientAuthMode(ServiceConfiguration conf) {
         return DefaultBrokerTlsFactory.fromServiceConfiguration(conf).settings().clientAuthMode();
     }

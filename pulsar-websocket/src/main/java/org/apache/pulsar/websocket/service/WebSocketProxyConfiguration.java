@@ -231,22 +231,15 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
             + "When unset, it is REQUIRE if the deprecated tlsRequireTrustedClientCertOnConnect is "
             + "true, OPTIONAL if authentication is enabled with AuthenticationProviderTls among the "
             + "authenticationProviders, and NONE otherwise. A custom authentication provider that reads "
-            + "the client certificate needs OPTIONAL or REQUIRE.\n\n"
-            + "Requesting a certificate sends the names of all client-auth trust anchors to every "
-            + "client. With a large trust store, such as an operating system CA bundle, the TLS 1.3 "
-            + "handshake then spans several TLS records, which some clients fail to handle."
+            + "the client certificate needs OPTIONAL or REQUIRE. Setting NONE while "
+            + "AuthenticationProviderTls is enabled is a configuration error.\n\n"
+            + "Requesting a certificate sends every client the names of all CAs in "
+            + "tlsTrustCertsFilePath or tlsTrustStore, or of the JVM default trust store when neither is "
+            + "set. With a large trust store, the TLS 1.3 handshake then spans several TLS records, which "
+            + "some clients fail to handle, so the trust store should hold only the CAs that issue client "
+            + "certificates."
     )
     private TlsClientAuthMode tlsClientAuthMode = null;
-
-    @FieldContext(
-        doc = "Path for the trusted CA certificates that client certificates are validated against (TLS "
-            + "client authentication). When set, it replaces tlsTrustCertsFilePath for the TLS "
-            + "listeners, while outbound connections that use tlsTrustCertsFilePath keep using it.\n\n"
-            + "List only the CAs that issue your client certificates, usually a private CA: the "
-            + "CertificateRequest names every CA in this file, and public CAs stop issuing certificates "
-            + "for client authentication (the clientAuth extended key usage) during 2026 and 2027."
-    )
-    private String tlsClientAuthTrustCertsFilePath = null;
 
     @FieldContext(doc = "TLS cert refresh duration (in seconds). Set 0 to disable the background rotation "
             + "check, so the TLS material loaded at startup is kept until restart.")
@@ -365,24 +358,6 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     private String tlsTrustStorePassword = null;
 
     @FieldContext(
-        doc = "TLS TrustStore path holding the CAs that client certificates are validated against. When "
-            + "set, it replaces tlsTrustStore for the TLS listeners; see "
-            + "tlsClientAuthTrustCertsFilePath."
-    )
-    private String tlsClientAuthTrustStore = null;
-
-    @FieldContext(
-        doc = "TLS TrustStore type of tlsClientAuthTrustStore. When blank, tlsTrustStoreType is used."
-    )
-    private String tlsClientAuthTrustStoreType = null;
-
-    @FieldContext(
-        doc = "TLS TrustStore password of tlsClientAuthTrustStore, null means empty password."
-    )
-    @ToString.Exclude
-    private String tlsClientAuthTrustStorePassword = null;
-
-    @FieldContext(
             doc = "Specify the tls protocols the proxy's web service will use to negotiate during TLS Handshake.\n\n"
                     + "Example:- [TLSv1.3, TLSv1.2]"
     )
@@ -421,6 +396,21 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     @SuppressWarnings("deprecation")
     public TlsClientAuthMode resolveTlsClientAuthMode() {
         return TlsFactorySupport.resolveClientAuthMode(tlsClientAuthMode, tlsRequireTrustedClientCertOnConnect,
+                authenticationEnabled, authenticationProviders);
+    }
+
+    /**
+     * Resolve the effective TLS client-auth mode like {@link #resolveTlsClientAuthMode()} and log it with where it
+     * came from; see {@link TlsFactorySupport#logClientAuthMode}. Called once when a component with a TLS listener
+     * starts.
+     *
+     * @param component the component name for the log
+     * @return the effective mode
+     * @throws IllegalArgumentException if the settings conflict
+     */
+    @SuppressWarnings("deprecation")
+    public TlsClientAuthMode logTlsClientAuthMode(String component) {
+        return TlsFactorySupport.logClientAuthMode(component, tlsClientAuthMode, tlsRequireTrustedClientCertOnConnect,
                 authenticationEnabled, authenticationProviders);
     }
 }
