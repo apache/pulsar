@@ -217,7 +217,7 @@ shadow = "9.6.1"
 # Tooling: libraries that only tools use, such as the performance test tooling, and that are neither in Pulsar's
 # distributions nor used by its tests
 jonoffcpu = "0.8.0"
-commonmark = "0.30.0"
+commonmark = "0.30.1"
 xchart = "4.0.4"
 vectorgraphics2d = "0.13"
 
