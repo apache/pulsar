@@ -62,7 +62,7 @@ bouncycastle = "1.86"
 # Keep provider and TLS versions independent to support module-specific patch releases.
 bouncycastle-bcprov = "1.86"
 # The TLS-only 1.86.1 patch was not published for bcpkix-jdk18on or bcprov-jdk18on.
-bouncycastle-bctls = "1.86.1"
+bouncycastle-bctls = "1.86.2"
 # BouncyCastle FIPS. Test-only in this build (tests/pulsar-client-test-bcfips): the server distribution
 # excludes bc-fips and ships the non-FIPS provider, so a FIPS deployment assembles its own classpath.
 #
