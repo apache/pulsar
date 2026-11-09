@@ -30,7 +30,7 @@ import com.google.common.hash.Hashing;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.DoubleHistogram;
-import io.prometheus.client.Counter;
+import io.prometheus.metrics.core.metrics.Counter;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -171,13 +171,16 @@ public class NamespaceService implements AutoCloseable {
             .build();
 
     @PulsarDeprecatedMetric(newMetricName = LOOKUP_REQUEST_DURATION_METRIC_NAME)
-    private static final Counter lookupRedirects = Counter.build("pulsar_broker_lookup_redirects", "-").register();
+    private static final Counter lookupRedirects = Counter.builder()
+            .name("pulsar_broker_lookup_redirects").help("-").register();
 
     @PulsarDeprecatedMetric(newMetricName = LOOKUP_REQUEST_DURATION_METRIC_NAME)
-    private static final Counter lookupFailures = Counter.build("pulsar_broker_lookup_failures", "-").register();
+    private static final Counter lookupFailures = Counter.builder()
+            .name("pulsar_broker_lookup_failures").help("-").register();
 
     @PulsarDeprecatedMetric(newMetricName = LOOKUP_REQUEST_DURATION_METRIC_NAME)
-    private static final Counter lookupAnswers = Counter.build("pulsar_broker_lookup_answers", "-").register();
+    private static final Counter lookupAnswers = Counter.builder()
+            .name("pulsar_broker_lookup_answers").help("-").register();
 
     @PulsarDeprecatedMetric(newMetricName = LOOKUP_REQUEST_DURATION_METRIC_NAME)
     private static final Summary lookupLatency = Summary.build("pulsar_broker_lookup", "-")

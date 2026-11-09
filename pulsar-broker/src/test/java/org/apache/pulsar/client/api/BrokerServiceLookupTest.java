@@ -35,7 +35,9 @@ import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
-import io.prometheus.client.CollectorRegistry;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
+import io.prometheus.metrics.model.snapshots.CounterSnapshot;
+import io.prometheus.metrics.model.snapshots.MetricSnapshot;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
@@ -1043,11 +1045,15 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
     }
 
     private int calculateLookupRequestCount() throws Exception {
-        int failures = CollectorRegistry.defaultRegistry.getSampleValue("pulsar_broker_lookup_failures_total")
-                .intValue();
-        int answers = CollectorRegistry.defaultRegistry.getSampleValue("pulsar_broker_lookup_answers_total")
-                .intValue();
-        return failures + answers;
+        return counterValue("pulsar_broker_lookup_failures") + counterValue("pulsar_broker_lookup_answers");
+    }
+
+    /** Reads an unlabeled counter from the Prometheus Java client 1.x default registry. */
+    private static int counterValue(String name) {
+        for (MetricSnapshot snapshot : PrometheusRegistry.defaultRegistry.scrape(name::equals)) {
+            return (int) ((CounterSnapshot) snapshot).getDataPoints().get(0).getValue();
+        }
+        throw new AssertionError("Counter " + name + " is not registered");
     }
 
     @Test(timeOut = 10000)

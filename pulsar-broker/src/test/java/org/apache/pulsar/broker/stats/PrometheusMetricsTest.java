@@ -98,6 +98,7 @@ import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
@@ -2214,6 +2215,89 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertEquals(subCountLines.get(0),
                 "pulsar_subscriptions_count{cluster=\"test\",namespace=\"prop/ns-abc1\","
                         + "topic=\"persistent://prop/ns-abc1/\\\"mytopic\"} 1");
+    }
+
+    @Test
+    public void testLookupAndSchemaMetricsAreScraped() throws Exception {
+        // The lookup counters, the schema registry counters and summaries, the unload latency histograms and the
+        // pending dispatch bytes gauge live in the Prometheus Java client 1.x registry; the broker scrape must
+        // still expose them under the legacy names with the cluster label.
+        String namespace = "my-property/my-ns";
+        String topic = "persistent://" + namespace + "/lookup-schema-metrics-" + UUID.randomUUID();
+        Multimap<String, Metric> before = parseMetrics(scrape());
+        double answersBefore = singleValue(before, "pulsar_broker_lookup_answers_total", null);
+        double putsBefore = singleValue(before, "pulsar_schema_put_ops_latency_count", namespace);
+        double compatibleBefore = singleValue(before, "pulsar_schema_compatible_total", namespace);
+
+        // The producer looks the topic up and registers its schema; the consumer looks it up again and has its
+        // schema checked against the stored one, which lists the stored schemas and records the result.
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topic)
+                .subscriptionName("sub").subscribe();
+        producer.send("schema-metrics");
+        assertEquals(consumer.receive(10, TimeUnit.SECONDS).getValue(), "schema-metrics");
+        // The latency histograms are static, so other tests in the same JVM leave their broker's samples behind;
+        // a broker label unique to this test keeps the assertions on the samples recorded here.
+        String broker = "lookup-schema-metrics-" + UUID.randomUUID();
+        for (var latencyMetric : UnloadManager.LatencyMetric.values()) {
+            var serviceUnitStateData = mock(ServiceUnitStateData.class);
+            when(serviceUnitStateData.sourceBroker()).thenReturn(broker);
+            when(serviceUnitStateData.dstBroker()).thenReturn(broker);
+            latencyMetric.beginMeasurement("serviceUnit", broker, serviceUnitStateData);
+            latencyMetric.endMeasurement("serviceUnit");
+        }
+
+        String metricsStr = scrape();
+        for (String family : List.of("pulsar_broker_lookup_redirects_total counter",
+                "pulsar_broker_lookup_failures_total counter",
+                "pulsar_broker_lookup_answers_total counter",
+                "pulsar_schema_put_ops_latency summary",
+                "pulsar_schema_get_ops_latency summary",
+                "pulsar_schema_compatible_total counter",
+                "brk_lb_unload_latency_ms histogram",
+                "brk_lb_assign_latency_ms histogram",
+                "brk_lb_release_latency_ms histogram",
+                "brk_lb_disconnect_latency_ms histogram",
+                "pulsar_broker_pending_bytes_to_dispatch gauge")) {
+            assertTrue(metricsStr.contains("# TYPE " + family + "\n"), family);
+        }
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+        assertTrue(singleValue(metrics, "pulsar_broker_lookup_answers_total", null) > answersBefore);
+        assertEquals(singleValue(metrics, "pulsar_schema_put_ops_latency_count", namespace), putsBefore + 1);
+        assertEquals(singleValue(metrics, "pulsar_schema_compatible_total", namespace), compatibleBefore + 1);
+        List<Metric> quantiles = metrics.get("pulsar_schema_put_ops_latency").stream()
+                .filter(m -> namespace.equals(m.tags.get("namespace")))
+                .collect(Collectors.toList());
+        assertEquals(quantiles.stream().map(m -> m.tags.get("quantile")).collect(Collectors.toList()),
+                List.of("0.5", "0.75", "0.95", "0.99", "0.999", "0.9999", "1.0"));
+        List<Metric> buckets = metrics.get("brk_lb_unload_latency_ms_bucket").stream()
+                .filter(m -> broker.equals(m.tags.get("broker")) && "bundleUnloading".equals(m.tags.get("metric")))
+                .collect(Collectors.toList());
+        assertEquals(buckets.stream().map(m -> m.tags.get("le")).collect(Collectors.toList()),
+                List.of("1.0", "10.0", "100.0", "200.0", "1000.0", "+Inf"));
+        assertEquals(buckets.get(0).tags.get("cluster"), "test");
+        assertTrue(singleValue(metrics, "pulsar_broker_pending_bytes_to_dispatch", null) >= 0);
+    }
+
+    private String scrape() throws IOException {
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsTestUtil.generate(pulsar, false, false, false, statsOut);
+        return statsOut.toString();
+    }
+
+    /** The value of the only sample of {@code name} with the cluster label and, when given, the namespace. */
+    private static double singleValue(Multimap<String, Metric> metrics, String name, String namespace) {
+        List<Metric> samples = metrics.get(name).stream()
+                .filter(m -> namespace == null || namespace.equals(m.tags.get("namespace")))
+                .collect(Collectors.toList());
+        if (samples.isEmpty()) {
+            return 0;
+        }
+        assertEquals(samples.size(), 1, name);
+        assertEquals(samples.get(0).tags.get("cluster"), "test", name);
+        return samples.get(0).value;
     }
 
 }

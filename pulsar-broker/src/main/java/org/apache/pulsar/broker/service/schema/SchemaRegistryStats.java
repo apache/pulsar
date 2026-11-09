@@ -23,8 +23,8 @@ import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.DoubleHistogram;
 import io.opentelemetry.api.metrics.LongCounter;
-import io.prometheus.client.Counter;
-import io.prometheus.client.Summary;
+import io.prometheus.metrics.core.metrics.Counter;
+import io.prometheus.metrics.core.metrics.Summary;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
@@ -38,6 +38,8 @@ import org.apache.pulsar.opentelemetry.annotations.PulsarDeprecatedMetric;
 class SchemaRegistryStats implements AutoCloseable, Runnable {
     private static final String NAMESPACE = "namespace";
     private static final double[] QUANTILES = {0.50, 0.75, 0.95, 0.99, 0.999, 0.9999, 1};
+    /** simpleclient's default sliding window for summary quantiles; the 1.x default is 5 minutes. */
+    private static final long QUANTILE_WINDOW_SECONDS = TimeUnit.MINUTES.toSeconds(10);
 
     public static final AttributeKey<String> REQUEST_TYPE_KEY =
             AttributeKey.stringKey("pulsar.schema_registry.request");
@@ -79,22 +81,19 @@ class SchemaRegistryStats implements AutoCloseable, Runnable {
             "pulsar.broker.operation.schema_registry.compatibility_check.count";
     private final LongCounter schemaCompatibilityCounter;
 
+    // The 1.x client appends _total to counter names, so these are declared without the suffix
+    // and are still exposed as pulsar_schema_*_total.
     @PulsarDeprecatedMetric(newMetricName = SCHEMA_REGISTRY_REQUEST_DURATION_METRIC_NAME)
-    private static final Counter getOpsFailedCounter =
-            Counter.build("pulsar_schema_get_ops_failed_total", "-").labelNames(NAMESPACE).create().register();
+    private static final Counter getOpsFailedCounter = buildCounter("pulsar_schema_get_ops_failed");
     @PulsarDeprecatedMetric(newMetricName = SCHEMA_REGISTRY_REQUEST_DURATION_METRIC_NAME)
-    private static final Counter putOpsFailedCounter =
-            Counter.build("pulsar_schema_put_ops_failed_total", "-").labelNames(NAMESPACE).create().register();
+    private static final Counter putOpsFailedCounter = buildCounter("pulsar_schema_put_ops_failed");
     @PulsarDeprecatedMetric(newMetricName = SCHEMA_REGISTRY_REQUEST_DURATION_METRIC_NAME)
-    private static final Counter deleteOpsFailedCounter =
-            Counter.build("pulsar_schema_del_ops_failed_total", "-").labelNames(NAMESPACE).create().register();
+    private static final Counter deleteOpsFailedCounter = buildCounter("pulsar_schema_del_ops_failed");
 
     @PulsarDeprecatedMetric(newMetricName = COMPATIBLE_COUNTER_METRIC_NAME)
-    private static  final Counter compatibleCounter =
-            Counter.build("pulsar_schema_compatible_total", "-").labelNames(NAMESPACE).create().register();
+    private static final Counter compatibleCounter = buildCounter("pulsar_schema_compatible");
     @PulsarDeprecatedMetric(newMetricName = COMPATIBLE_COUNTER_METRIC_NAME)
-    private static final Counter incompatibleCounter =
-            Counter.build("pulsar_schema_incompatible_total", "-").labelNames(NAMESPACE).create().register();
+    private static final Counter incompatibleCounter = buildCounter("pulsar_schema_incompatible");
 
     @PulsarDeprecatedMetric(newMetricName = SCHEMA_REGISTRY_REQUEST_DURATION_METRIC_NAME)
     private static final Summary deleteOpsLatency = buildSummary("pulsar_schema_del_ops_latency", "-");
@@ -122,53 +121,58 @@ class SchemaRegistryStats implements AutoCloseable, Runnable {
                 .build();
     }
 
+    private static Counter buildCounter(String name) {
+        return Counter.builder().name(name).help("-").labelNames(NAMESPACE).register();
+    }
+
     private static Summary buildSummary(String name, String help) {
-        Summary.Builder builder = Summary.build(name, help).labelNames(NAMESPACE);
+        Summary.Builder builder = Summary.builder().name(name).help(help).labelNames(NAMESPACE)
+                .maxAgeSeconds(QUANTILE_WINDOW_SECONDS);
 
         for (double quantile : QUANTILES) {
             builder.quantile(quantile, 0.01D);
         }
 
-        return builder.create().register();
+        return builder.register();
     }
 
     void recordDelFailed(String schemaId, long millis) {
-        deleteOpsFailedCounter.labels(getNamespace(schemaId)).inc();
+        deleteOpsFailedCounter.labelValues(getNamespace(schemaId)).inc();
         recordOperationLatency(schemaId, millis, RequestType.DELETE, ResponseType.FAILURE);
     }
 
     void recordGetFailed(String schemaId, long millis) {
-        getOpsFailedCounter.labels(getNamespace(schemaId)).inc();
+        getOpsFailedCounter.labelValues(getNamespace(schemaId)).inc();
         recordOperationLatency(schemaId, millis, RequestType.GET, ResponseType.FAILURE);
     }
 
     void recordListFailed(String schemaId, long millis) {
-        getOpsFailedCounter.labels(getNamespace(schemaId)).inc();
+        getOpsFailedCounter.labelValues(getNamespace(schemaId)).inc();
         recordOperationLatency(schemaId, millis, RequestType.LIST, ResponseType.FAILURE);
     }
 
     void recordPutFailed(String schemaId, long millis) {
-        putOpsFailedCounter.labels(getNamespace(schemaId)).inc();
+        putOpsFailedCounter.labelValues(getNamespace(schemaId)).inc();
         recordOperationLatency(schemaId, millis, RequestType.PUT, ResponseType.FAILURE);
     }
 
     void recordDelLatency(String schemaId, long millis) {
-        deleteOpsLatency.labels(getNamespace(schemaId)).observe(millis);
+        deleteOpsLatency.labelValues(getNamespace(schemaId)).observe(millis);
         recordOperationLatency(schemaId, millis, RequestType.DELETE, ResponseType.SUCCESS);
     }
 
     void recordGetLatency(String schemaId, long millis) {
-        getOpsLatency.labels(getNamespace(schemaId)).observe(millis);
+        getOpsLatency.labelValues(getNamespace(schemaId)).observe(millis);
         recordOperationLatency(schemaId, millis, RequestType.GET, ResponseType.SUCCESS);
     }
 
     void recordListLatency(String schemaId, long millis) {
-        getOpsLatency.labels(getNamespace(schemaId)).observe(millis);
+        getOpsLatency.labelValues(getNamespace(schemaId)).observe(millis);
         recordOperationLatency(schemaId, millis, RequestType.LIST, ResponseType.SUCCESS);
     }
 
     void recordPutLatency(String schemaId, long millis) {
-        putOpsLatency.labels(getNamespace(schemaId)).observe(millis);
+        putOpsLatency.labelValues(getNamespace(schemaId)).observe(millis);
         recordOperationLatency(schemaId, millis, RequestType.PUT, ResponseType.SUCCESS);
     }
 
@@ -186,13 +190,13 @@ class SchemaRegistryStats implements AutoCloseable, Runnable {
 
     void recordSchemaIncompatible(String schemaId) {
         var namespace = getNamespace(schemaId);
-        incompatibleCounter.labels(namespace).inc();
+        incompatibleCounter.labelValues(namespace).inc();
         recordSchemaCompabilityResult(namespace, CompatibilityCheckResponse.INCOMPATIBLE);
     }
 
     void recordSchemaCompatible(String schemaId) {
         var namespace = getNamespace(schemaId);
-        compatibleCounter.labels(namespace).inc();
+        compatibleCounter.labelValues(namespace).inc();
         recordSchemaCompabilityResult(namespace, CompatibilityCheckResponse.COMPATIBLE);
     }
 
