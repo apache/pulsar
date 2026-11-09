@@ -21,9 +21,9 @@ index 8803f5c..6152b3d 100644
  find_package(Protobuf REQUIRED)
  find_package(Threads)
 -find_package(ZLIB)
--find_package(AWSSDK REQUIRED COMPONENTS kinesis monitoring sts)
+-find_package(AWSSDK REQUIRED COMPONENTS kinesis monitoring)
 +find_package(ZLIB REQUIRED)
-+find_package(AWSSDK REQUIRED COMPONENTS kinesis monitoring sts)
++find_package(AWSSDK REQUIRED COMPONENTS kinesis monitoring)
 +find_package(OpenSSL REQUIRED)
 +find_package(CURL REQUIRED)
  

@@ -26,8 +26,8 @@ This directory includes the Docker scripts to build an image with `kinesis_produ
 
 This image only needs to be re-created when we want to upgrade to a newer version of `kinesis_producer`.
 
-The current version is **1.0.4**, matching the existing `apachepulsar/pulsar-io-kinesis-sink-kinesis_producer:1.0.4`
-image already published to Docker Hub. No new image build is required to use this.
+The current version is **1.0.6**, published as `quay.io/datastax/pulsar-io-kinesis-sink-kinesis_producer:1.0.6`.
+The previous version, 1.0.4, is available as `apachepulsar/pulsar-io-kinesis-sink-kinesis_producer:1.0.4` on Docker Hub.
 
 # Building locally (for testing)
 
@@ -37,18 +37,15 @@ cd docker/kinesis-producer-alpine
 docker build -t kinesis-producer-alpine-test:1.0.6 .
 ```
 
-# Steps to publish to Docker Hub
+# Steps to publish to Quay
 
 1. Change `KINESIS_PRODUCER_LIB_VERSION` in the Dockerfile if upgrading.
-2. Update `AWS_SDK_CPP_VERSION` in `build-alpine.sh` to match the version used by the new KPL release's `bootstrap.sh`.
-3. Rebuild the image and push it to Docker Hub (requires write access to `apachepulsar`):
-```
-IMAGE=apachepulsar/pulsar-io-kinesis-sink-kinesis_producer
-KINESIS_PRODUCER_VERSION=1.0.4
-docker buildx build --platform=linux/amd64,linux/arm64 \
- -t "$IMAGE:$KINESIS_PRODUCER_VERSION" -t "$IMAGE:${KINESIS_PRODUCER_VERSION}-$(date -I)" \
- . --push
-```
+2. Update `AWS_SDK_CPP_VERSION` and the `BUILD_ONLY` components in `build-alpine.sh` to match the new KPL release's `bootstrap.sh`.
+   Check that `kinesis_producer_alpine.patch` still applies to the new KPL tag.
+3. Run the **Build KPL Alpine image** GitHub Actions workflow (`.github/workflows/build-kpl-alpine-image.yaml`)
+   with `push` enabled. It builds `linux/amd64` and `linux/arm64` on native runners, smoke tests them, and publishes a multi-arch
+   manifest to `quay.io/datastax/pulsar-io-kinesis-sink-kinesis_producer` as `<version>` and `<version>-<date>`.
+   The workflow needs the `QUAY_USERNAME` and `QUAY_PASSWORD` repository secrets (a Quay robot account with write access).
 
 The image tag is then used in `docker/pulsar-all/Dockerfile` via the `PULSAR_IO_KINESIS_KPL_IMAGE` build argument.
 The `kinesis_producer` binary is copied from the image to the `pulsar-all` image, and `PULSAR_IO_KINESIS_KPL_PATH`

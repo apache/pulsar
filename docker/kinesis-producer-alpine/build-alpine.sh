@@ -33,7 +33,7 @@ silence() {
 BOOST_VERSION="1.88.0"
 BOOST_VERSION_UNDERSCORED="${BOOST_VERSION//\./_}" # convert from 1.76.0 to 1_76_0
 PROTOBUF_VERSION="21.12"
-AWS_SDK_CPP_VERSION="1.11.615"
+AWS_SDK_CPP_VERSION="1.11.676"
 
 LIB_BOOST="https://archives.boost.io/release/${BOOST_VERSION}/source/boost_${BOOST_VERSION_UNDERSCORED}.tar.gz"
 LIB_PROTOBUF="https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOBUF_VERSION}/protobuf-all-${PROTOBUF_VERSION}.tar.gz"
@@ -109,7 +109,7 @@ if [ ! -d "aws-sdk-cpp" ]; then
   cd aws-sdk-cpp-build
 
   silence $CMAKE \
-    -DBUILD_ONLY="kinesis;monitoring;sts" \
+    -DBUILD_ONLY="kinesis;monitoring" \
     -DCMAKE_BUILD_TYPE=RelWithDebInfo \
     -DSTATIC_LINKING=1 \
     -DCMAKE_PREFIX_PATH="$INSTALL_DIR" \
@@ -141,8 +141,8 @@ mkdir -p $FINAL_DIR/bin
 cp kinesis_producer $FINAL_DIR/bin/kinesis_producer.original
 
 # capture version information
-echo "v${KINESIS_PRODUCER_LIB_VERSION:-1.0.4}" > $FINAL_DIR/bin/.version
-echo "v${KINESIS_PRODUCER_LIB_VERSION:-1.0.4}" > $FINAL_DIR/bin/.revision
+echo "v${KINESIS_PRODUCER_LIB_VERSION:-1.0.6}" > $FINAL_DIR/bin/.version
+echo "v${KINESIS_PRODUCER_LIB_VERSION:-1.0.6}" > $FINAL_DIR/bin/.revision
 uname -a > $FINAL_DIR/bin/.system_info
 cat /etc/os-release > $FINAL_DIR/bin/.os_info
 date > $FINAL_DIR/bin/.build_time
