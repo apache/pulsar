@@ -390,6 +390,7 @@ public class PendingAckPersistentTest extends TransactionTestBase {
                 .subscriptionType(SubscriptionType.Shared)
                 .receiverQueueSize(10)
                 .enableBatchIndexAcknowledgment(true)
+                .negativeAckRedeliveryDelay(0, TimeUnit.SECONDS)
                 .subscribe();
 
         sendBatch(producer, 4);
@@ -445,11 +446,59 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         for (Message<byte[]> message : replayedAfterSecondAbort) {
             Assert.assertNotEquals(((BatchMessageIdImpl) message.getMessageId()).getBatchIndex(), firstTxnBatchIndex);
         }
+        consumer.acknowledgeAsync(replayedAfterSecondAbort.get(0).getMessageId(), firstTxn).get();
         firstTxn.commit().get();
-        awaitBrokerUnackedMessages(PENDING_ACK_REPLAY_TOPIC, subName, 3);
-        for (Message<byte[]> message : replayedAfterSecondAbort) {
+        awaitBrokerUnackedMessages(PENDING_ACK_REPLAY_TOPIC, subName, 2);
+        for (int i = 1; i < replayedAfterSecondAbort.size(); i++) {
+            Message<byte[]> message = replayedAfterSecondAbort.get(i);
             consumer.acknowledgeAsync(message).get();
         }
+        awaitBrokerUnackedMessages(PENDING_ACK_REPLAY_TOPIC, subName, 0);
+
+        sendBatch(producer, 4);
+        List<Message<byte[]>> fullRedeliveryBatch = receiveBatch(consumer, 4);
+        awaitBrokerUnackedMessages(PENDING_ACK_REPLAY_TOPIC, subName, 4);
+        Transaction fullRedeliveryTxn = pulsarClient.newTransaction()
+                .withTransactionTimeout(30, TimeUnit.SECONDS).build().get();
+        consumer.acknowledgeAsync(fullRedeliveryBatch.get(0).getMessageId(), fullRedeliveryTxn).get();
+        consumer.redeliverUnacknowledgedMessages();
+        List<Message<byte[]>> fullRedeliveredBatch = receiveBatch(consumer, 3);
+        awaitBrokerUnackedMessages(PENDING_ACK_REPLAY_TOPIC, subName, 3);
+        fullRedeliveryTxn.commit().get();
+        awaitBrokerUnackedMessages(PENDING_ACK_REPLAY_TOPIC, subName, 3);
+        for (Message<byte[]> message : fullRedeliveredBatch) {
+            consumer.acknowledgeAsync(message).get();
+        }
+        awaitBrokerUnackedMessages(PENDING_ACK_REPLAY_TOPIC, subName, 0);
+
+        sendBatch(producer, 4);
+        List<Message<byte[]>> negativeRedeliveryBatch = receiveBatch(consumer, 4);
+        awaitBrokerUnackedMessages(PENDING_ACK_REPLAY_TOPIC, subName, 4);
+        Transaction negativeRedeliveryTxn = pulsarClient.newTransaction()
+                .withTransactionTimeout(30, TimeUnit.SECONDS).build().get();
+        consumer.acknowledgeAsync(negativeRedeliveryBatch.get(0).getMessageId(), negativeRedeliveryTxn).get();
+        consumer.negativeAcknowledge(negativeRedeliveryBatch.get(0));
+        List<Message<byte[]>> negativeRedeliveredBatch = receiveBatch(consumer, 3);
+        awaitBrokerUnackedMessages(PENDING_ACK_REPLAY_TOPIC, subName, 3);
+        negativeRedeliveryTxn.commit().get();
+        awaitBrokerUnackedMessages(PENDING_ACK_REPLAY_TOPIC, subName, 3);
+        for (Message<byte[]> message : negativeRedeliveredBatch) {
+            consumer.acknowledgeAsync(message).get();
+        }
+        awaitBrokerUnackedMessages(PENDING_ACK_REPLAY_TOPIC, subName, 0);
+
+        sendBatch(producer, 2);
+        List<Message<byte[]>> fullyTransactionalBatch = receiveBatch(consumer, 2);
+        awaitBrokerUnackedMessages(PENDING_ACK_REPLAY_TOPIC, subName, 2);
+        Transaction firstCommitTxn = pulsarClient.newTransaction()
+                .withTransactionTimeout(30, TimeUnit.SECONDS).build().get();
+        Transaction secondCommitTxn = pulsarClient.newTransaction()
+                .withTransactionTimeout(30, TimeUnit.SECONDS).build().get();
+        consumer.acknowledgeAsync(fullyTransactionalBatch.get(0).getMessageId(), firstCommitTxn).get();
+        consumer.acknowledgeAsync(fullyTransactionalBatch.get(1).getMessageId(), secondCommitTxn).get();
+        firstCommitTxn.commit().get();
+        awaitBrokerUnackedMessages(PENDING_ACK_REPLAY_TOPIC, subName, 1);
+        secondCommitTxn.commit().get();
         awaitBrokerUnackedMessages(PENDING_ACK_REPLAY_TOPIC, subName, 0);
     }
 

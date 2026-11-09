@@ -825,11 +825,8 @@ public class Consumer {
      * the transaction outcome is known. This method is called by the pending-ack handle only after commit persistence
      * succeeds.
      */
-    public void applyTransactionIndividualAck(Position position, int batchSize) {
+    public void applyTransactionIndividualAck(Position position, long ackedCount) {
         boolean hasAckSet = AckSetStateUtil.hasAckSet(position);
-        long ackedCount = hasAckSet
-                ? getAckedCountForTransactionAck(batchSize, AckSetStateUtil.getAckSetState(position).getAckSet())
-                : 0;
         PendingAckCompletions completions = new PendingAckCompletions(1);
         completions.add(this, position, hasAckSet, ackedCount);
         applyPendingAckCompletions(completions);
@@ -842,6 +839,13 @@ public class Consumer {
         int removed = removePendingAckAndGetRemainingUnacked(position.getLedgerId(), position.getEntryId());
         if (removed != PENDING_ACK_NOT_FOUND) {
             decrementUnackedMessagesAndReconcileBlockedState(removed);
+        }
+    }
+
+    private void recordTransactionAckForRedelivery(Position position) {
+        if (subscription instanceof PersistentSubscription persistentSubscription
+                && persistentSubscription.getPendingAckHandle() != null) {
+            persistentSubscription.getPendingAckHandle().onConsumerRedelivery(position);
         }
     }
 
@@ -1486,9 +1490,11 @@ public class Consumer {
             List<Position> pendingPositions = new ArrayList<>((int) pendingAcks.size());
             MutableInt totalRedeliveryMessages = new MutableInt(0);
             pendingAcks.forEachAndClear((ledgerId, entryId, remainingUnacked, stickyKeyHash) -> {
+                Position position = PositionFactory.create(ledgerId, entryId);
                 totalRedeliveryMessages.add(remainingUnacked);
-                pendingPositions.add(PositionFactory.create(ledgerId, entryId));
+                pendingPositions.add(position);
             });
+            pendingPositions.forEach(this::recordTransactionAckForRedelivery);
 
             if (totalRedeliveryMessages.intValue() > 0) {
                 addAndGetUnackedMessages(-totalRedeliveryMessages.intValue());
@@ -1516,6 +1522,7 @@ public class Consumer {
             int remainingUnacked = pendingAcks.removeAndGetRemainingUnacked(
                     position.getLedgerId(), position.getEntryId());
             if (remainingUnacked != PENDING_ACK_NOT_FOUND) {
+                recordTransactionAckForRedelivery(position);
                 totalRedeliveryMessages += remainingUnacked;
                 pendingPositions.add(position);
             }

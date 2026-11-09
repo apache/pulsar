@@ -41,6 +41,7 @@ import java.util.concurrent.FutureTask;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.impl.AckSetStateUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
@@ -300,10 +301,19 @@ public class ConsumerBlockedPermitAccountingTest {
             ack.setTxnidMostBits(1).setTxnidLeastBits(2);
         }
         assertThat(consumer.messageAcked(ack, true)).isCompletedWithValue(null);
-        assertThat(consumer.getUnackedMessages()).isEqualTo(individualAckMode ? 2 : 0);
+        assertThat(consumer.getUnackedMessages()).isEqualTo(
+                individualAckMode ? (transactional ? 4 : 2) : 0);
         assertThat(consumer.isBlocked()).isFalse();
         assertThat(zeroDispatcherFlowCalls).hasValue(0);
         assertThat(positiveDispatcherFlowCalls).hasValue(0);
+        if (individualAckMode && transactional) {
+            consumer.applyTransactionIndividualAck(
+                    AckSetStateUtil.createPositionWithAckSet(LEDGER_ID, ENTRY_ID, new long[] {0b11L}), 2);
+            assertThat(consumer.getUnackedMessages()).isEqualTo(2);
+            assertThat(consumer.isBlocked()).isFalse();
+            assertThat(zeroDispatcherFlowCalls).hasValue(0);
+            assertThat(positiveDispatcherFlowCalls).hasValue(0);
+        }
     }
 
     @DataProvider(name = "partialAckFailureVariants")
@@ -495,7 +505,7 @@ public class ConsumerBlockedPermitAccountingTest {
         assertThat(consumer.isBlocked()).isTrue();
         assertThat(consumer.getAvailablePermits()).isZero();
         assertThat(consumer.getAvailablePermitsForDispatcherRemoval()).isZero();
-        assertThat(dispatcherFlowPermits).isZero();
+        assertThat(dispatcherFlowPermits).hasValue(0);
         assertThat(positiveDispatcherFlowCalls).hasValue(0);
     }
 
