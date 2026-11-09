@@ -73,6 +73,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.TopicTerminatedEx
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.plugin.EntryFilter;
+import org.apache.pulsar.broker.service.scalable.SegmentTopicPolicies;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.service.schema.exceptions.SchemaException;
@@ -208,6 +209,9 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
 
     protected Set<String> additionalSystemCursorNames = new TreeSet<>();
     private final ExecutorService topicPoliciesNotifyThread;
+    // The topic whose policies this topic reads: the partitioned topic for a partition, the parent topic:// for
+    // a scalable topic segment, otherwise the topic itself.
+    private final TopicName topicPoliciesName;
 
     public AbstractTopic(String topic, BrokerService brokerService) {
         this.topic = topic;
@@ -217,8 +221,8 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
         // Pin the per-topic policies-notify thread once. BrokerService#getTopicPoliciesNotifyThread centralizes
         // the topic-to-thread mapping so it stays consistent with SystemTopicBasedTopicPoliciesService. In unit
         // tests that construct topics with a mock BrokerService this returns null (the thread is unused there).
-        this.topicPoliciesNotifyThread =
-                brokerService.getTopicPoliciesNotifyThread(TopicName.getPartitionedTopicName(topic));
+        this.topicPoliciesName = SegmentTopicPolicies.topicPoliciesName(TopicName.get(topic));
+        this.topicPoliciesNotifyThread = brokerService.getTopicPoliciesNotifyThread(topicPoliciesName);
         this.clock = brokerService.getClock();
         this.brokerService = brokerService;
         this.producers = new ConcurrentHashMap<>();
@@ -603,13 +607,18 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
                 && maxProducers <= USER_CREATED_PRODUCER_COUNTER_UPDATER.get(this);
     }
 
+    @VisibleForTesting
+    public TopicName getTopicPoliciesName() {
+        return topicPoliciesName;
+    }
+
     protected TopicPolicyListener getTopicPolicyListener() {
         return topicPolicyListener;
     }
 
     protected void unregisterTopicPolicyListener() {
         brokerService.getPulsar().getTopicPoliciesService()
-                .unregisterListener(TopicName.getPartitionedTopicName(topic), getTopicPolicyListener());
+                .unregisterListener(topicPoliciesName, getTopicPolicyListener());
     }
 
     /**
@@ -625,7 +634,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
      */
     protected CompletableFuture<Void> initTopicPolicy() {
         final var topicPoliciesService = brokerService.getPulsar().getTopicPoliciesService();
-        final var partitionedTopicName = TopicName.getPartitionedTopicName(topic);
+        final var partitionedTopicName = topicPoliciesName;
 
         CompletableFuture<Void> initTopicPolicyFuture =
                 topicPoliciesService.registerListenerAsync(partitionedTopicName, topicPolicyListener)
@@ -1441,6 +1450,10 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
 
     public CompletableFuture<Void> deleteTopicPolicies() {
         if (TopicName.get(getName()).isPartitioned()) {
+            return CompletableFuture.completedFuture(null);
+        }
+        if (TopicName.get(getName()).isSegment()) {
+            // a segment owns no policies; they belong to its parent topic://
             return CompletableFuture.completedFuture(null);
         }
         return brokerService.pulsar().getTopicPoliciesService().deleteTopicPoliciesAsync(TopicName.get(topic));

@@ -153,6 +153,7 @@ import org.apache.pulsar.broker.service.scalable.SegmentLoadReporter;
 import org.apache.pulsar.broker.service.scalable.SegmentOwnerMetrics;
 import org.apache.pulsar.broker.service.scalable.SegmentOwnerMetrics.LoadReportResult;
 import org.apache.pulsar.broker.service.scalable.SegmentOwnerState;
+import org.apache.pulsar.broker.service.scalable.SegmentTopicPolicies;
 import org.apache.pulsar.broker.stats.BrokerOperabilityMetrics.TopicLoadFailureReason;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.prometheus.metrics.ObserverGauge;
@@ -1702,7 +1703,8 @@ public class BrokerService implements Closeable {
         if (ExtensibleLoadManagerImpl.isInternalTopic(topicName.toString())) {
             return CompletableFuture.completedFuture(Optional.empty());
         }
-        return pulsar.getTopicPoliciesService().getTopicPoliciesAsync(topicName, type);
+        return pulsar.getTopicPoliciesService()
+                .getTopicPoliciesAsync(SegmentTopicPolicies.topicPoliciesName(topicName), type);
     }
 
     public CompletableFuture<Void> deleteTopic(String topic, boolean forceDelete) {
@@ -1815,7 +1817,7 @@ public class BrokerService implements Closeable {
         deleteTopicAuthenticationFuture
         .thenCompose(__ -> deleteSchema(tn))
         .thenCompose(__ -> {
-            if (tn.isPartitioned()) {
+            if (tn.isPartitioned() || tn.isSegment()) {
                 return CompletableFuture.completedFuture(null);
             }
             return pulsar.getTopicPoliciesService().deleteTopicPoliciesAsync(tn);
@@ -3702,7 +3704,8 @@ public class BrokerService implements Closeable {
         if (t instanceof AbstractTopic abstractTopic) {
             policiesNotifyThread = abstractTopic.getPoliciesNotifyThread();
         } else {
-            policiesNotifyThread = getTopicPoliciesNotifyThread(TopicName.getPartitionedTopicName(t.getName()));
+            policiesNotifyThread = getTopicPoliciesNotifyThread(
+                    SegmentTopicPolicies.topicPoliciesName(TopicName.get(t.getName())));
         }
         policiesNotifyThread.execute(runnable);
     }
