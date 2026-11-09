@@ -164,14 +164,29 @@ When editing `build-logic/`, `settings.gradle.kts`, a module `build.gradle.kts`,
   build degrades to running without the cache instead of failing.
 - **Published modules must not depend on internal modules** at compile/runtime scope — the artifact
   would be unresolvable from Maven Central. A module is published only when it applies
-  `pulsar.public-java-library-conventions`.
+  `pulsar.public-java-library-conventions`, `pulsar.public-shaded-library-conventions` (a shaded jar
+  with its dependency-reduced POM) or `pulsar.nar-conventions` (only the `.nar`). Each of them adds
+  its own contents to the publication, so the order in which a module applies plugins doesn't matter.
+- **Don't reach into other projects.** No `evaluationDependsOn`, `project(":x").tasks` /
+  `.layout` / `.plugins`, `subprojects {}` or `afterEvaluate {}`, and no `dependsOn(":x:task")` for a
+  task whose files you need. Share a build output through configurations instead:
+  `shareBuildArtifact` / `sharedBuildArtifact` (`SharedBuildArtifacts.kt`) for files such as Docker
+  image IDs or installed distributions, `projectJars` / `projectNars` / `runtimeJars`
+  (`ProjectArtifacts.kt`) for other projects' archives, and `testJar(":x")` (`TestJars.kt`) for a
+  module's test classes. Use them as task inputs (`inputs.files(...)`, `from(...)`), which also
+  builds them first. A lifecycle task, such as the root `docker` or `serverDistTar`, may still
+  depend on another project's task by path. A project that applies the Shadow plugin must be listed
+  in `PulsarShadedProjects.paths`, which `sanityCheck` uses.
 - **After a dependency change**, run `./gradlew checkBinaryLicense` and update the distribution
   `LICENSE`/`NOTICE`; justify any genuinely new dependency (see
   [`CODING.md` → Dependencies](CODING.md#dependencies)).
 - **Follow the [Gradle best practices](https://docs.gradle.org/current/userguide/best_practices_index.html)**
   — AI agents should read the
-  [AsciiDoc source](https://github.com/gradle/gradle/blob/master/platforms/documentation/docs/src/docs/userguide/best-practices/best_practices_index.adoc),
-  which is plain text and cheaper to parse than the rendered HTML.
+  [Markdown rendering](https://docs.gradle.org/current/userguide/best_practices_index.md)
+  (replace `.html` with `.md` in any user guide URL), which is plain text and cheaper to parse
+  than the rendered HTML. The
+  [AsciiDoc source](https://github.com/gradle/gradle/blob/master/platforms/documentation/docs/src/docs/userguide/best-practices/best_practices_index.adoc)
+  is an alternative.
 
 Before finishing a build change, confirm the affected task and `./gradlew help` run clean with
 `--configuration-cache`, and that `assemble` and `quickCheck` (license headers + checkstyle across

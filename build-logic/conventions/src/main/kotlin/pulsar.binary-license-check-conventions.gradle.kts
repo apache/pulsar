@@ -17,6 +17,8 @@
  * under the License.
  */
 
+import org.gradle.api.file.RegularFileProperty
+
 // Convention plugin: registers the `checkBinaryLicense` task for a distribution module.
 //
 // Consumers wire the produced tarball lazily, e.g.:
@@ -26,7 +28,7 @@
 // configure-on-demand happy.
 
 interface BinaryLicenseCheckExtension {
-    val archive: org.gradle.api.file.RegularFileProperty
+    val archive: RegularFileProperty
 }
 
 val extension = extensions.create<BinaryLicenseCheckExtension>("binaryLicenseCheck")
