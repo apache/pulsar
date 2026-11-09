@@ -107,6 +107,21 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
             revalidateTask.cancel(true);
         }
 
+        // Delete after the update or revalidation in flight completes: the store may have applied it already, and
+        // the delete has to expect the version it produced.
+        return sequencer.sequential(() -> {
+            synchronized (ResourceLockImpl.this) {
+                if (state == State.Released) {
+                    return CompletableFuture.completedFuture(null);
+                }
+                // The operation that completed may have marked the lock valid again
+                state = State.Releasing;
+                return deleteLock();
+            }
+        });
+    }
+
+    private CompletableFuture<Void> deleteLock() {
         CompletableFuture<Void> result = new CompletableFuture<>();
 
         store.delete(path, Optional.of(version))
