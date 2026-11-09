@@ -334,6 +334,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     public void cleanup() throws Exception {
         pulsar.getConfiguration().setBrokerShutdownTimeoutMs(0);
         super.internalCleanup();
+        // TestNG keeps this test instance until the run ends, and the factory references the closed broker
+        bundleFactory = null;
     }
 
     @DataProvider(name = "numBundles")

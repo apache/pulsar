@@ -23,6 +23,8 @@ import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.SneakyThrows;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
@@ -31,6 +33,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.common.policies.data.BrokerOperation;
 import org.apache.pulsar.security.MockedPulsarStandalone;
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
@@ -42,6 +45,9 @@ import org.testng.annotations.Test;
 public class BrokerEndpointsAuthorizationTest extends MockedPulsarStandalone {
     private AuthorizationService orignalAuthorizationService;
     private AuthorizationService spyAuthorizationService;
+    // Each method's spy, which Mockito's inline mock maker would keep, with the broker its spied instance references,
+    // until the JVM exits: released once the broker is closed.
+    private final List<AuthorizationService> ownedSpies = new ArrayList<>();
 
     private PulsarAdmin superUserAdmin;
     private PulsarAdmin nobodyAdmin;
@@ -66,6 +72,7 @@ public class BrokerEndpointsAuthorizationTest extends MockedPulsarStandalone {
     public void before() throws IllegalAccessException {
         orignalAuthorizationService = getPulsarService().getBrokerService().getAuthorizationService();
         spyAuthorizationService = spy(orignalAuthorizationService);
+        ownedSpies.add(spyAuthorizationService);
         FieldUtils.writeField(getPulsarService().getBrokerService(), "authorizationService",
                 spyAuthorizationService, true);
     }
@@ -92,6 +99,8 @@ public class BrokerEndpointsAuthorizationTest extends MockedPulsarStandalone {
         spyAuthorizationService = null;
         orignalAuthorizationService = null;
         super.close();
+        ownedSpies.forEach(ownedSpy -> Mockito.framework().clearInlineMock(ownedSpy));
+        ownedSpies.clear();
     }
 
     @Test
