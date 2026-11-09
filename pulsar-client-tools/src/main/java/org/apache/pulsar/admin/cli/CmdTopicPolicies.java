@@ -354,7 +354,7 @@ public class CmdTopicPolicies extends CmdBase {
 
         @Override
         void run() throws PulsarAdminException {
-            String persistentTopic = validatePersistentTopic(topicName);
+            String persistentTopic = validatePersistentOrScalableTopic(topicName);
             print(getTopicPolicies(isGlobal).getMessageTTL(persistentTopic, applied));
         }
     }
@@ -376,7 +376,7 @@ public class CmdTopicPolicies extends CmdBase {
 
         @Override
         void run() throws PulsarAdminException {
-            String persistentTopic = validatePersistentTopic(topicName);
+            String persistentTopic = validatePersistentOrScalableTopic(topicName);
             getTopicPolicies(isGlobal).setMessageTTL(persistentTopic, messageTTLInSecond.intValue());
         }
     }
@@ -393,7 +393,7 @@ public class CmdTopicPolicies extends CmdBase {
 
         @Override
         void run() throws PulsarAdminException {
-            String persistentTopic = validatePersistentTopic(topicName);
+            String persistentTopic = validatePersistentOrScalableTopic(topicName);
             getTopicPolicies(isGlobal).removeMessageTTL(persistentTopic);
         }
     }
@@ -585,7 +585,7 @@ public class CmdTopicPolicies extends CmdBase {
 
         @Override
         void run() throws PulsarAdminException {
-            String persistentTopic = validatePersistentTopic(topicName);
+            String persistentTopic = validatePersistentOrScalableTopic(topicName);
             print(getTopicPolicies(isGlobal).getRetention(persistentTopic, applied));
         }
     }
@@ -618,7 +618,7 @@ public class CmdTopicPolicies extends CmdBase {
 
         @Override
         void run() throws PulsarAdminException {
-            String persistentTopic = validatePersistentTopic(topicName);
+            String persistentTopic = validatePersistentOrScalableTopic(topicName);
             final int retentionTimeInMin = retentionTimeInSec != -1
                     ? (int) TimeUnit.SECONDS.toMinutes(retentionTimeInSec)
                     : retentionTimeInSec.intValue();
@@ -642,7 +642,7 @@ public class CmdTopicPolicies extends CmdBase {
 
         @Override
         void run() throws PulsarAdminException {
-            String persistentTopic = validatePersistentTopic(topicName);
+            String persistentTopic = validatePersistentOrScalableTopic(topicName);
             getTopicPolicies(isGlobal).removeRetention(persistentTopic);
         }
     }
@@ -843,7 +843,7 @@ public class CmdTopicPolicies extends CmdBase {
 
         @Override
         void run() throws PulsarAdminException {
-            String persistentTopic = validatePersistentTopic(topicName);
+            String persistentTopic = validatePersistentOrScalableTopic(topicName);
             print(getTopicPolicies(isGlobal).getMaxMessageSize(persistentTopic));
         }
     }
@@ -861,7 +861,7 @@ public class CmdTopicPolicies extends CmdBase {
 
         @Override
         void run() throws PulsarAdminException {
-            String persistentTopic = validatePersistentTopic(topicName);
+            String persistentTopic = validatePersistentOrScalableTopic(topicName);
             getTopicPolicies(isGlobal).setMaxMessageSize(persistentTopic, maxMessageSize);
         }
     }
@@ -876,7 +876,7 @@ public class CmdTopicPolicies extends CmdBase {
 
         @Override
         void run() throws PulsarAdminException {
-            String persistentTopic = validatePersistentTopic(topicName);
+            String persistentTopic = validatePersistentOrScalableTopic(topicName);
             getTopicPolicies(isGlobal).removeMaxMessageSize(persistentTopic);
         }
     }
@@ -1229,7 +1229,7 @@ public class CmdTopicPolicies extends CmdBase {
 
         @Override
         void run() throws PulsarAdminException {
-            String persistentTopic = validatePersistentTopic(topicName);
+            String persistentTopic = validatePersistentOrScalableTopic(topicName);
             print(getTopicPolicies(isGlobal).getPersistence(persistentTopic));
         }
     }
@@ -1269,7 +1269,7 @@ public class CmdTopicPolicies extends CmdBase {
 
         @Override
         void run() throws PulsarAdminException {
-            String persistentTopic = validatePersistentTopic(topicName);
+            String persistentTopic = validatePersistentOrScalableTopic(topicName);
             if (bookkeeperEnsemble <= 0 || bookkeeperWriteQuorum <= 0 || bookkeeperAckQuorum <= 0) {
                 throw new ParameterException("[--bookkeeper-ensemble], [--bookkeeper-write-quorum] "
                         + "and [--bookkeeper-ack-quorum] must greater than 0.");
@@ -1292,7 +1292,7 @@ public class CmdTopicPolicies extends CmdBase {
 
         @Override
         void run() throws PulsarAdminException {
-            String persistentTopic = validatePersistentTopic(topicName);
+            String persistentTopic = validatePersistentOrScalableTopic(topicName);
             getTopicPolicies(isGlobal).removePersistence(persistentTopic);
         }
     }
@@ -1750,7 +1750,7 @@ public class CmdTopicPolicies extends CmdBase {
 
         @Override
         void run() throws PulsarAdminException {
-            String persistentTopic = validatePersistentTopic(topicName);
+            String persistentTopic = validatePersistentOrScalableTopic(topicName);
             print(getTopicPolicies(isGlobal).getOffloadPolicies(persistentTopic, applied));
         }
     }
@@ -1766,7 +1766,7 @@ public class CmdTopicPolicies extends CmdBase {
 
         @Override
         void run() throws PulsarAdminException {
-            String persistentTopic = validatePersistentTopic(topicName);
+            String persistentTopic = validatePersistentOrScalableTopic(topicName);
             getTopicPolicies(isGlobal).removeOffloadPolicies(persistentTopic);
         }
     }
@@ -1859,7 +1859,7 @@ public class CmdTopicPolicies extends CmdBase {
 
         @Override
         void run() throws PulsarAdminException {
-            String persistentTopic = validatePersistentTopic(topicName);
+            String persistentTopic = validatePersistentOrScalableTopic(topicName);
 
             if (!driverSupported(driver)) {
                 throw new ParameterException("The driver " + driver + " is not supported, "
