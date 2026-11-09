@@ -320,3 +320,4 @@ The following table lists all current PIPs in this directory, sorted by PIP numb
 | PIP-492 | [Add subscription-level storage backlog age metric and stats field](pip-492.md) |
 | PIP-494 | [Scalable Topics Client Specification — authoritative reference and change process](pip-494.md) |
 | PIP-496 | [Pulsar Functions and IO support for the V5 client and scalable topics](pip-496.md) |
+| PIP-502 | [Diagnose geo-replication backlogs with the Admin API](pip-502.md) |
