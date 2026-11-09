@@ -880,7 +880,8 @@ public class ScalableTopics extends AdminResource {
                     // don't take the lock over once it is released. Then remove the permissions
                     // granted on the topic, as deleting a regular topic does, so a topic created
                     // again with the same name doesn't inherit them (a failure leaves the topic
-                    // marked, for a retried delete). Then delete metadata, then best-effort clean
+                    // marked, for a retried delete). The topic policies are removed for the same
+                    // reason, best-effort. Then delete metadata, then best-effort clean
                     // up segment topics and the schema they share (deleting a segment topic
                     // leaves the schema in place). The segments are read again after the
                     // release, to include those of a split that was still in flight.
@@ -888,6 +889,14 @@ public class ScalableTopics extends AdminResource {
                             .thenCompose(__ -> releaseController(tn))
                             .thenCompose(__ -> resources().getScalableTopicMetadataAsync(tn, true))
                             .thenCompose(latest -> getAuthorizationService().removePermissionsAsync(tn)
+                                    .thenCompose(__ -> pulsar().getTopicPoliciesService()
+                                            .deleteTopicPoliciesAsync(tn)
+                                            .exceptionally(ex -> {
+                                                log.warn().attr("topic", tn).exceptionMessage(ex)
+                                                        .log("Failed to delete topic policies of "
+                                                                + "scalable topic");
+                                                return null;
+                                            }))
                                     .thenCompose(__ -> resources().deleteScalableTopicAsync(tn))
                                     .thenCompose(__ -> deleteSegmentTopics(tn, latest.orElse(optMd.get()),
                                             force)))

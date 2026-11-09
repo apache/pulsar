@@ -204,4 +204,20 @@ public class ScalableTopicPoliciesTest extends SharedPulsarBaseTest {
                 () -> admin.topics().getStats(topic));
         assertTrue(e.getMessage().contains("pulsar-admin scalable-topics"), e.getMessage());
     }
+
+    @Test(timeOut = 60_000)
+    public void testDeleteScalableTopicRemovesItsPolicies() throws Exception {
+        String topic = newScalableTopic();
+        TopicPolicies tp = admin.topicPolicies();
+        tp.setMessageTTL(topic, 120);
+        tp.setRetention(topic, new RetentionPolicies(60, 100));
+        Awaitility.await().untilAsserted(() -> assertEquals(tp.getMessageTTL(topic), Integer.valueOf(120)));
+        admin.scalableTopics().deleteScalableTopic(topic, true);
+        admin.scalableTopics().createScalableTopic(topic, 1);
+        // A topic created again with the same name doesn't inherit the policies of the deleted one
+        Awaitility.await().untilAsserted(() -> {
+            assertNull(tp.getMessageTTL(topic));
+            assertNull(tp.getRetention(topic));
+        });
+    }
 }
