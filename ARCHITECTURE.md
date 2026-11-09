@@ -166,7 +166,7 @@ When editing `build-logic/`, `settings.gradle.kts`, a module `build.gradle.kts`,
   would be unresolvable from Maven Central. A module is published only when it applies
   `pulsar.public-java-library-conventions`.
 - **After a dependency change**, run `./gradlew checkBinaryLicense` and update the distribution
-  `LICENSE`/`NOTICE`; justify any genuinely new dependency (see
+  `LICENSE`/`NOTICE` (`./gradlew updateBinaryLicense` updates the versions of the jars they reference); justify any genuinely new dependency (see
   [`CODING.md` → Dependencies](CODING.md#dependencies)).
 - **Follow the [Gradle best practices](https://docs.gradle.org/current/userguide/best_practices_index.html)**
   — AI agents should read the

@@ -1165,6 +1165,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         .attr("numPartitions", numPartitions)
                         .exceptionMessage(e)
                         .log("Failed subscription for createPartitionedConsumer");
+                // Failed before it leaves the client, so that the client doesn't keep it if it registers it later
+                consumer.setState(State.Failed);
                 consumer.cleanupMultiConsumer();
                 subscribeFuture.completeExceptionally(
                     PulsarClientException.wrap(((Throwable) e).getCause(),
