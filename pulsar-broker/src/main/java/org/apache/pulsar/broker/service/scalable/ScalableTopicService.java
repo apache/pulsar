@@ -264,6 +264,20 @@ public class ScalableTopicService {
     // --- Admin operations ---
 
     /**
+     * Rejects a scalable topic name ending with {@code -partition-<index>}. {@link TopicName} parses that
+     * suffix as a partition index in every domain, so the topic's {@code segment://} topics would be resolved
+     * as partitions of a partitioned topic that does not exist, and they could never be created.
+     *
+     * @throws IllegalArgumentException if the name ends with {@code -partition-<index>}
+     */
+    public static void validateScalableTopicName(TopicName topic) {
+        if (topic.isPartitioned()) {
+            throw new IllegalArgumentException("Scalable topic name must not end with '"
+                    + TopicName.PARTITIONED_TOPIC_SUFFIX + "<index>': " + topic);
+        }
+    }
+
+    /**
      * Create a new scalable topic with the given number of initial segments.
      */
     public CompletableFuture<Void> createScalableTopic(TopicName topic, int numInitialSegments) {
@@ -279,6 +293,11 @@ public class ScalableTopicService {
         if (numInitialSegments < 1) {
             return CompletableFuture.failedFuture(
                     new IllegalArgumentException("numInitialSegments must be >= 1"));
+        }
+        try {
+            validateScalableTopicName(topic);
+        } catch (IllegalArgumentException e) {
+            return CompletableFuture.failedFuture(e);
         }
 
         ScalableTopicMetadata metadata = ScalableTopicController.createInitialMetadata(
