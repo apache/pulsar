@@ -22,16 +22,23 @@ import static org.apache.pulsar.common.stats.JvmMetrics.getJvmDirectMemoryUsed;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.metrics.Meter;
 import io.prometheus.client.CollectorRegistry;
-import io.prometheus.client.Gauge;
-import io.prometheus.client.Summary;
 import io.prometheus.client.hotspot.DefaultExports;
+import io.prometheus.metrics.core.datapoints.DistributionDataPoint;
+import io.prometheus.metrics.core.datapoints.GaugeDataPoint;
+import io.prometheus.metrics.core.metrics.Gauge;
+import io.prometheus.metrics.core.metrics.Summary;
+import io.prometheus.metrics.expositionformats.PrometheusTextFormatWriter;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.StringWriter;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import lombok.Setter;
 import org.apache.pulsar.common.util.DirectMemoryUtils;
-import org.apache.pulsar.functions.instance.stats.PrometheusTextFormat;
 import org.apache.pulsar.functions.proto.FunctionMetaData;
 import org.apache.pulsar.opentelemetry.annotations.PulsarDeprecatedMetric;
 
@@ -58,6 +65,10 @@ public class WorkerStatsManager implements AutoCloseable {
   @PulsarDeprecatedMetric(newMetricName = OpenTelemetryWorkerStats.LEADER)
   private static final String IS_LEADER = "is_leader";
 
+  /** simpleclient kept quantiles over a 10 minute window; the 1.x default is 5 minutes. */
+  private static final long QUANTILE_WINDOW_SECONDS = TimeUnit.MINUTES.toSeconds(10);
+  private static final PrometheusTextFormatWriter TEXT_WRITER = PrometheusTextFormatWriter.builder()
+      .setIncludeCreatedTimestamps(false).build();
 
   private static final String[] metricsLabelNames = {"cluster"};
   private final String[] metricsLabels;
@@ -71,7 +82,7 @@ public class WorkerStatsManager implements AutoCloseable {
 
   private Supplier<Boolean> isLeader;
 
-  private CollectorRegistry collectorRegistry = new CollectorRegistry();
+  private final PrometheusRegistry registry = new PrometheusRegistry();
 
   private final OpenTelemetryWorkerStats openTelemetryWorkerStats;
 
@@ -95,15 +106,15 @@ public class WorkerStatsManager implements AutoCloseable {
   private final Summary drainTotalExecutionTime;
 
   // As an optimization
-  private final Summary.Child statWorkerStartupTimeChild;
-  private final Gauge.Child statNumInstancesChild;
-  private final Summary.Child scheduleTotalExecutionTimeChild;
-  private final Summary.Child scheduleStrategyExecutionTimeChild;
-  private final Summary.Child rebalanceTotalExecutionTimeChild;
-  private final Summary.Child rebalanceStrategyExecutionTimeChild;
-  private final Summary.Child stopInstanceProcessTimeChild;
-  private final Summary.Child startInstanceProcessTimeChild;
-  private final Summary.Child drainTotalExecutionTimeChild;
+  private final DistributionDataPoint statWorkerStartupTimeChild;
+  private final GaugeDataPoint statNumInstancesChild;
+  private final DistributionDataPoint scheduleTotalExecutionTimeChild;
+  private final DistributionDataPoint scheduleStrategyExecutionTimeChild;
+  private final DistributionDataPoint rebalanceTotalExecutionTimeChild;
+  private final DistributionDataPoint rebalanceStrategyExecutionTimeChild;
+  private final DistributionDataPoint stopInstanceProcessTimeChild;
+  private final DistributionDataPoint startInstanceProcessTimeChild;
+  private final DistributionDataPoint drainTotalExecutionTimeChild;
 
   public WorkerStatsManager(WorkerConfig workerConfig, boolean runAsStandalone) {
     this(workerConfig, runAsStandalone,
@@ -115,105 +126,80 @@ public class WorkerStatsManager implements AutoCloseable {
     metricsLabels = new String[]{workerConfig.getPulsarFunctionsCluster()};
     this.openTelemetryWorkerStats = new OpenTelemetryWorkerStats(meter);
 
-    statWorkerStartupTime = Summary.build()
+    statWorkerStartupTime = Summary.builder()
       .name(PULSAR_FUNCTION_WORKER_METRICS_PREFIX + START_UP_TIME)
       .help("Worker service startup time in milliseconds.")
       .labelNames(metricsLabelNames)
-      .register(collectorRegistry);
-    statWorkerStartupTimeChild = statWorkerStartupTime.labels(metricsLabels);
+      .maxAgeSeconds(QUANTILE_WINDOW_SECONDS)
+      .register(registry);
+    statWorkerStartupTimeChild = statWorkerStartupTime.labelValues(metricsLabels);
 
-    statNumInstances = Gauge.build()
+    statNumInstances = Gauge.builder()
       .name(PULSAR_FUNCTION_WORKER_METRICS_PREFIX + INSTANCE_COUNT)
       .help("Number of instances run by this worker.")
       .labelNames(metricsLabelNames)
-      .register(collectorRegistry);
-    statNumInstancesChild = statNumInstances.labels(metricsLabels);
+      .register(registry);
+    statNumInstancesChild = statNumInstances.labelValues(metricsLabels);
 
-    scheduleTotalExecutionTime = Summary.build()
-      .name(PULSAR_FUNCTION_WORKER_METRICS_PREFIX + SCHEDULE_TOTAL_EXEC_TIME)
-      .help("Total execution time of schedule in milliseconds.")
-      .labelNames(metricsLabelNames)
-      .quantile(0.5, 0.01)
-      .quantile(0.9, 0.01)
-      .quantile(1, 0.01)
-      .register(collectorRegistry);
-    scheduleTotalExecutionTimeChild = scheduleTotalExecutionTime.labels(metricsLabels);
+    scheduleTotalExecutionTime = durationSummary(SCHEDULE_TOTAL_EXEC_TIME,
+        "Total execution time of schedule in milliseconds.");
+    scheduleTotalExecutionTimeChild = scheduleTotalExecutionTime.labelValues(metricsLabels);
 
-    scheduleStrategyExecutionTime = Summary.build()
-      .name(PULSAR_FUNCTION_WORKER_METRICS_PREFIX + SCHEDULE_STRATEGY_EXEC_TIME)
-      .help("Execution time of schedule strategy in milliseconds.")
-      .labelNames(metricsLabelNames)
-      .quantile(0.5, 0.01)
-      .quantile(0.9, 0.01)
-      .quantile(1, 0.01)
-      .register(collectorRegistry);
-    scheduleStrategyExecutionTimeChild = scheduleStrategyExecutionTime.labels(metricsLabels);
+    scheduleStrategyExecutionTime = durationSummary(SCHEDULE_STRATEGY_EXEC_TIME,
+        "Execution time of schedule strategy in milliseconds.");
+    scheduleStrategyExecutionTimeChild = scheduleStrategyExecutionTime.labelValues(metricsLabels);
 
-    rebalanceTotalExecutionTime = Summary.build()
-      .name(PULSAR_FUNCTION_WORKER_METRICS_PREFIX + REBALANCE_TOTAL_EXEC_TIME)
-      .help("Total execution time of a rebalance in milliseconds.")
-      .labelNames(metricsLabelNames)
-      .quantile(0.5, 0.01)
-      .quantile(0.9, 0.01)
-      .quantile(1, 0.01)
-      .register(collectorRegistry);
-    rebalanceTotalExecutionTimeChild = rebalanceTotalExecutionTime.labels(metricsLabels);
+    rebalanceTotalExecutionTime = durationSummary(REBALANCE_TOTAL_EXEC_TIME,
+        "Total execution time of a rebalance in milliseconds.");
+    rebalanceTotalExecutionTimeChild = rebalanceTotalExecutionTime.labelValues(metricsLabels);
 
-    rebalanceStrategyExecutionTime = Summary.build()
-      .name(PULSAR_FUNCTION_WORKER_METRICS_PREFIX + REBALANCE_STRATEGY_EXEC_TIME)
-      .help("Execution time of rebalance strategy in milliseconds.")
-      .labelNames(metricsLabelNames)
-      .quantile(0.5, 0.01)
-      .quantile(0.9, 0.01)
-      .quantile(1, 0.01)
-      .register(collectorRegistry);
-    rebalanceStrategyExecutionTimeChild = rebalanceStrategyExecutionTime.labels(metricsLabels);
+    rebalanceStrategyExecutionTime = durationSummary(REBALANCE_STRATEGY_EXEC_TIME,
+        "Execution time of rebalance strategy in milliseconds.");
+    rebalanceStrategyExecutionTimeChild = rebalanceStrategyExecutionTime.labelValues(metricsLabels);
 
-    stopInstanceProcessTime = Summary.build()
-      .name(PULSAR_FUNCTION_WORKER_METRICS_PREFIX + STOPPING_INSTANCE_PROCESS_TIME)
-      .help("Stopping instance process time in milliseconds.")
-      .labelNames(metricsLabelNames)
-      .quantile(0.5, 0.01)
-      .quantile(0.9, 0.01)
-      .quantile(1, 0.01)
-      .register(collectorRegistry);
-    stopInstanceProcessTimeChild = stopInstanceProcessTime.labels(metricsLabels);
+    stopInstanceProcessTime = durationSummary(STOPPING_INSTANCE_PROCESS_TIME,
+        "Stopping instance process time in milliseconds.");
+    stopInstanceProcessTimeChild = stopInstanceProcessTime.labelValues(metricsLabels);
 
-    startInstanceProcessTime = Summary.build()
-      .name(PULSAR_FUNCTION_WORKER_METRICS_PREFIX + STARTING_INSTANCE_PROCESS_TIME)
-      .help("Starting instance process time in milliseconds.")
-      .labelNames(metricsLabelNames)
-      .quantile(0.5, 0.01)
-      .quantile(0.9, 0.01)
-      .quantile(1, 0.01)
-      .register(collectorRegistry);
-    startInstanceProcessTimeChild = startInstanceProcessTime.labels(metricsLabels);
+    startInstanceProcessTime = durationSummary(STARTING_INSTANCE_PROCESS_TIME,
+        "Starting instance process time in milliseconds.");
+    startInstanceProcessTimeChild = startInstanceProcessTime.labelValues(metricsLabels);
 
-    drainTotalExecutionTime = Summary.build()
-            .name(PULSAR_FUNCTION_WORKER_METRICS_PREFIX + DRAIN_TOTAL_EXEC_TIME)
-            .help("Total execution time of a drain in milliseconds.")
-            .labelNames(metricsLabelNames)
-            .quantile(0.5, 0.01)
-            .quantile(0.9, 0.01)
-            .quantile(1, 0.01)
-            .register(collectorRegistry);
-    drainTotalExecutionTimeChild = drainTotalExecutionTime.labels(metricsLabels);
+    drainTotalExecutionTime = durationSummary(DRAIN_TOTAL_EXEC_TIME,
+        "Total execution time of a drain in milliseconds.");
+    drainTotalExecutionTimeChild = drainTotalExecutionTime.labelValues(metricsLabels);
 
     if (runAsStandalone) {
-      Gauge.build("jvm_memory_direct_bytes_used", "-").create().setChild(new Gauge.Child() {
-        @Override
-        public double get() {
-          return getJvmDirectMemoryUsed();
-        }
-      }).register(CollectorRegistry.defaultRegistry);
+      // JVM gauges stay on the simpleclient default registry until the JVM metrics move as one.
+      io.prometheus.client.Gauge.build("jvm_memory_direct_bytes_used", "-").create()
+          .setChild(new io.prometheus.client.Gauge.Child() {
+            @Override
+            public double get() {
+              return getJvmDirectMemoryUsed();
+            }
+          }).register(CollectorRegistry.defaultRegistry);
 
-      Gauge.build("jvm_memory_direct_bytes_max", "-").create().setChild(new Gauge.Child() {
-        @Override
-        public double get() {
-          return DirectMemoryUtils.jvmMaxDirectMemory();
-        }
-      }).register(CollectorRegistry.defaultRegistry);
+      io.prometheus.client.Gauge.build("jvm_memory_direct_bytes_max", "-").create()
+          .setChild(new io.prometheus.client.Gauge.Child() {
+            @Override
+            public double get() {
+              return DirectMemoryUtils.jvmMaxDirectMemory();
+            }
+          }).register(CollectorRegistry.defaultRegistry);
     }
+  }
+
+  /** Millisecond duration summary with the median, p90 and max over the quantile window. */
+  private Summary durationSummary(String name, String help) {
+    return Summary.builder()
+      .name(PULSAR_FUNCTION_WORKER_METRICS_PREFIX + name)
+      .help(help)
+      .labelNames(metricsLabelNames)
+      .quantile(0.5, 0.01)
+      .quantile(0.9, 0.01)
+      .quantile(1, 0.01)
+      .maxAgeSeconds(QUANTILE_WINDOW_SECONDS)
+      .register(registry);
   }
 
   public void setFunctionRuntimeManager(FunctionRuntimeManager functionRuntimeManager) {
@@ -344,15 +330,16 @@ public class WorkerStatsManager implements AutoCloseable {
 
     statNumInstancesChild.set(functionRuntimeManager.getMyInstances());
 
-    StringWriter outputWriter = new StringWriter();
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    TEXT_WRITER.write(out, registry.scrape());
 
-    PrometheusTextFormat.write004(outputWriter, collectorRegistry.metricFamilySamples());
-
-    generateLeaderMetrics(outputWriter);
-    return outputWriter.toString();
+    Writer writer = new OutputStreamWriter(out, StandardCharsets.UTF_8);
+    generateLeaderMetrics(writer);
+    writer.flush();
+    return out.toString(StandardCharsets.UTF_8);
   }
 
-  private void generateLeaderMetrics(StringWriter stream) {
+  private void generateLeaderMetrics(Writer stream) throws IOException {
     if (isLeader.get()) {
 
       List<FunctionMetaData> metadata = functionMetaDataManager.getAllFunctionMetaData();
@@ -372,7 +359,7 @@ public class WorkerStatsManager implements AutoCloseable {
     }
   }
 
-  private void writeMetric(String metricName, long value, StringWriter stream) {
+  private void writeMetric(String metricName, long value, Writer stream) throws IOException {
     stream.write("# TYPE ");
     stream.write(PULSAR_FUNCTION_WORKER_METRICS_PREFIX);
     stream.write(metricName);
