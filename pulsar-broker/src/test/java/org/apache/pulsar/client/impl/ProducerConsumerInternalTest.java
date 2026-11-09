@@ -32,9 +32,9 @@ import lombok.AllArgsConstructor;
 import lombok.Cleanup;
 import lombok.CustomLog;
 import lombok.Data;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
-import org.apache.pulsar.broker.service.SharedPulsarCluster;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.CompressionType;
@@ -412,42 +412,50 @@ public class ProducerConsumerInternalTest extends SharedPulsarBaseTest {
         // Setup: configure the entries per ledger and retention polices.
         final int maxEntriesPerLedger = 10, messagesCount = 10;
         final String topicName = newTopicName();
-        SharedPulsarCluster.get().getPulsarService().getConfiguration()
-                .setManagedLedgerMaxEntriesPerLedger(maxEntriesPerLedger);
-        SharedPulsarCluster.get().getPulsarService().getConfiguration()
-                .setManagedLedgerMinLedgerRolloverTimeMinutes(0);
-        SharedPulsarCluster.get().getPulsarService().getConfiguration()
-                .setDefaultRetentionTimeInMinutes(0);
-        SharedPulsarCluster.get().getPulsarService().getConfiguration()
-                .setDefaultRetentionSizeInMB(0);
+        ServiceConfiguration config = getConfig();
+        int originalMaxEntries = config.getManagedLedgerMaxEntriesPerLedger();
+        int originalMinRolloverMinutes = config.getManagedLedgerMinLedgerRolloverTimeMinutes();
+        int originalRetentionMinutes = config.getDefaultRetentionTimeInMinutes();
+        int originalRetentionSize = config.getDefaultRetentionSizeInMB();
+        try {
+            config.setManagedLedgerMaxEntriesPerLedger(maxEntriesPerLedger);
+            config.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
+            config.setDefaultRetentionTimeInMinutes(0);
+            config.setDefaultRetentionSizeInMB(0);
 
-        @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
-                .sendTimeout(1, TimeUnit.SECONDS)
-                .enableBatching(false)
-                .create();
+            @Cleanup
+            Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+                    .sendTimeout(1, TimeUnit.SECONDS)
+                    .enableBatching(false)
+                    .create();
 
-        @Cleanup
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
-                .subscriptionName("my-sub")
-                .subscribe();
-        // Act: prepare a full ledger data and ack them.
-        for (int i = 0; i < messagesCount; i++) {
-            producer.newMessage().sendAsync();
+            @Cleanup
+            Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
+                    .subscriptionName("my-sub")
+                    .subscribe();
+            // Act: prepare a full ledger data and ack them.
+            for (int i = 0; i < messagesCount; i++) {
+                producer.newMessage().sendAsync();
+            }
+            for (int i = 0; i < messagesCount; i++) {
+                Message<byte[]> message = consumer.receive();
+                assertNotNull(message);
+                consumer.acknowledge(message);
+            }
+            // Verify: a new empty ledger will be created after the current ledger is fulled.
+            // And the previous consumed ledgers will be deleted
+            Awaitility.await().untilAsserted(() -> {
+                admin.topics().trimTopic(topicName);
+                PersistentTopicInternalStats internalStats = admin.topics().getInternalStatsAsync(topicName).get();
+                assertEquals(internalStats.currentLedgerEntries, 0);
+                assertEquals(internalStats.ledgers.size(), 1);
+            });
+        } finally {
+            config.setManagedLedgerMaxEntriesPerLedger(originalMaxEntries);
+            config.setManagedLedgerMinLedgerRolloverTimeMinutes(originalMinRolloverMinutes);
+            config.setDefaultRetentionTimeInMinutes(originalRetentionMinutes);
+            config.setDefaultRetentionSizeInMB(originalRetentionSize);
         }
-        for (int i = 0; i < messagesCount; i++) {
-            Message<byte[]> message = consumer.receive();
-            assertNotNull(message);
-            consumer.acknowledge(message);
-        }
-        // Verify: a new empty ledger will be created after the current ledger is fulled.
-        // And the previous consumed ledgers will be deleted
-        Awaitility.await().untilAsserted(() -> {
-            admin.topics().trimTopic(topicName);
-            PersistentTopicInternalStats internalStats = admin.topics().getInternalStatsAsync(topicName).get();
-            assertEquals(internalStats.currentLedgerEntries, 0);
-            assertEquals(internalStats.ledgers.size(), 1);
-        });
     }
 
 
