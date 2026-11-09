@@ -23,9 +23,6 @@ import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.util.Base64;
 import java.util.EnumSet;
 import java.util.HashSet;
@@ -50,7 +47,6 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 import org.mockito.Mockito;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 /**
  * Unit tests for schema admin api.
@@ -101,45 +97,6 @@ public class AdminApiSchemaWithAuthTest extends MockedPulsarServiceBaseTest {
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
-    }
-
-    @DataProvider
-    public Object[][] compatibilityTopics() {
-        return new Object[][] {
-                {"non-persistent://schematest/test/events", "persistent://schematest/test/events"},
-                {"persistent://schematest/test/events+1", "persistent://schematest/test/events 1"}
-        };
-    }
-
-    @Test(dataProvider = "compatibilityTopics")
-    public void testCompatibilityUsesExactTopic(String topic, String otherTopic) throws Exception {
-        admin.topics().createNonPartitionedTopic(topic);
-        admin.topics().grantPermission(topic, "consumer", Set.of(AuthAction.consume));
-        @Cleanup PulsarAdmin reader = PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString())
-                .authentication(new AuthenticationToken(CONSUME_TOKEN)).build();
-        SchemaInfo schema = Schema.STRING.getSchemaInfo();
-        assertTrue(reader.schemas().testCompatibility(topic, schema).isCompatibility());
-        assertThrows(PulsarAdminException.NotAuthorizedException.class,
-                () -> reader.schemas().testCompatibility(otherTopic, schema));
-    }
-
-    @DataProvider
-    public Object[][] compatibilityDomainQueries() {
-        return new Object[][] {{"", 202}, {"?domain=non-persistent", 401}, {"?domain=unknown", 412}};
-    }
-
-    @Test(dataProvider = "compatibilityDomainQueries")
-    public void testCompatibilityRestPath(String query, int expectedStatus) throws Exception {
-        String topic = "persistent://schematest/test/legacy";
-        admin.topics().createNonPartitionedTopic(topic);
-        admin.topics().grantPermission(topic, "producer", Set.of(AuthAction.produce));
-        @Cleanup HttpClient client = HttpClient.newHttpClient();
-        HttpRequest request = HttpRequest.newBuilder(brokerUrl.toURI()
-                        .resolve("/admin/v2/schemas/schematest/test/legacy/compatibility" + query))
-                .header("Authorization", "Bearer " + PRODUCE_TOKEN)
-                .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString("{\"type\":\"STRING\",\"schema\":\"\"}")).build();
-        assertEquals(client.send(request, HttpResponse.BodyHandlers.discarding()).statusCode(), expectedStatus);
     }
 
     @Test

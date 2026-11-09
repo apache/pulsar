@@ -30,7 +30,6 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Schemas;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.internal.DefaultImplementation;
-import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.SchemaMetadata;
 import org.apache.pulsar.common.protocol.schema.DeleteSchemaResponse;
@@ -39,7 +38,6 @@ import org.apache.pulsar.common.protocol.schema.GetSchemaResponse;
 import org.apache.pulsar.common.protocol.schema.IsCompatibilityResponse;
 import org.apache.pulsar.common.protocol.schema.LongSchemaVersionResponse;
 import org.apache.pulsar.common.protocol.schema.PostSchemaPayload;
-import org.apache.pulsar.common.scalable.SegmentTopicName;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaInfoWithVersion;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -303,10 +301,7 @@ public class SchemasImpl extends BaseResource implements Schemas {
     }
 
     private WebTarget compatibilityPath(TopicName topicName) {
-        TopicName topic = topicName.isSegment() ? SegmentTopicName.getParentTopicName(topicName) : topicName;
-        WebTarget path = topicPath(topic, "compatibility");
-        return topic.getDomain() == TopicDomain.persistent
-                ? path : path.queryParam("domain", topic.getDomain().value());
+        return topicPath(topicName, "compatibility");
     }
 
     private WebTarget metadata(TopicName topicName) {

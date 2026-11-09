@@ -238,17 +238,13 @@ public abstract class AdminResource extends PulsarWebResource {
         }
     }
     protected void validateTopicName(String tenant, String namespace, String encodedTopic) {
-        validateTopicName(domain(), tenant, namespace, encodedTopic);
-    }
-
-    protected void validateTopicName(String domain, String tenant, String namespace, String encodedTopic) {
         String topic = Codec.decode(encodedTopic);
         try {
             this.namespaceName = NamespaceName.get(tenant, namespace);
-            this.topicName = TopicName.get(TopicDomain.getEnum(domain).value(), namespaceName, topic);
+            this.topicName = TopicName.get(domain(), namespaceName, topic);
         } catch (IllegalArgumentException e) {
             log.warn()
-                    .attr("domain", domain)
+                    .attr("domain", domain())
                     .attr("tenant", tenant)
                     .attr("namespace", namespace)
                     .attr("topic", topic)
