@@ -697,7 +697,11 @@ public class ProducerImplTest {
         synchronized (producer) {
             sender.start();
             // The sender has checked the state, and waits for the lock to add its message to the batch.
-            Awaitility.await().until(() -> sender.getState() == Thread.State.BLOCKED);
+            Awaitility.await().until(() -> {
+                StackTraceElement[] stack = sender.getStackTrace();
+                return sender.getState() == Thread.State.BLOCKED && stack.length > 0
+                        && stack[0].getMethodName().equals("sendAsync");
+            });
             if (terminalState == HandlerState.State.Closed) {
                 producer.closeAsync().get(5, TimeUnit.SECONDS);
             } else {
