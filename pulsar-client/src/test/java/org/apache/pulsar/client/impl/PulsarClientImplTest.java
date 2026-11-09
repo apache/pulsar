@@ -46,11 +46,13 @@ import io.netty.util.concurrent.ImmediateEventExecutor;
 import java.lang.reflect.Field;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ThreadFactory;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
@@ -106,6 +108,41 @@ public class PulsarClientImplTest {
         assertFalse(client.isClosed());
         client.close();
         assertTrue(client.isClosed());
+    }
+
+    @DataProvider
+    public Object[][] sharedEventLoop() {
+        return new Object[][]{{false}, {true}};
+    }
+
+    /**
+     * A lookup on a closed client fails without asking for a new connection: once the client's own event loop has
+     * terminated, a new connection never completes, and a shared event loop would still open one.
+     */
+    @Test(dataProvider = "sharedEventLoop", timeOut = 30_000)
+    public void testLookupsFailOnClosedClient(boolean sharedEventLoop) throws Exception {
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setServiceUrl("pulsar://localhost:6650");
+        PulsarClientImpl client;
+        if (sharedEventLoop) {
+            // an event loop group passed in by the caller is not shut down when the client closes
+            initializeEventLoopGroup(conf);
+            client = new PulsarClientImpl(conf, eventLoopGroup);
+        } else {
+            client = new PulsarClientImpl(conf);
+        }
+        client.close();
+
+        String topic = "persistent://public/default/test";
+        assertFailsAsClosed(client.getSchema(topic));
+        assertFailsAsClosed(client.getConnection(topic));
+        assertFailsAsClosed(client.getConnectionToServiceUrl());
+    }
+
+    private static void assertFailsAsClosed(CompletableFuture<?> future) {
+        assertThat(future).failsWithin(Duration.ofSeconds(10))
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(PulsarClientException.AlreadyClosedException.class);
     }
 
     @DataProvider
