@@ -264,8 +264,9 @@ public class AuthenticationOAuth2 implements Authentication, EncodedAuthenticati
         if (log.isDebugEnabled()) {
             log.debug("Attempting to retrieve OAuth2 token now.");
         }
+        Instant requestedAt = this.clock.instant();
         TokenResult tr = this.flow.authenticate();
-        this.cachedToken = new CachedToken(tr);
+        this.cachedToken = new CachedToken(tr, requestedAt);
         handleSuccessfulTokenRefresh();
     }
 
@@ -350,9 +351,15 @@ public class AuthenticationOAuth2 implements Authentication, EncodedAuthenticati
         private final Instant expiresAt;
         private final AuthenticationDataOAuth2 authData;
 
-        public CachedToken(TokenResult latest) {
+        /**
+         * @param requestedAt when the token was requested. The identity provider issued it later, and the
+         *                    token's exp claim, in whole seconds, can be up to a second before that issue time
+         *                    plus expires_in. Expiring the token one second before requestedAt plus expires_in
+         *                    stops it being served after the broker sees it expired.
+         */
+        public CachedToken(TokenResult latest, Instant requestedAt) {
             this.latest = latest;
-            this.expiresAt = AuthenticationOAuth2.this.clock.instant().plusSeconds(latest.getExpiresIn());
+            this.expiresAt = requestedAt.plusSeconds(latest.getExpiresIn()).minusSeconds(1);
             this.authData = new AuthenticationDataOAuth2(latest.getAccessToken());
         }
 
