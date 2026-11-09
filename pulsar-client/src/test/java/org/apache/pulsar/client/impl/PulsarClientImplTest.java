@@ -150,6 +150,35 @@ public class PulsarClientImplTest {
                 .withCauseInstanceOf(PulsarClientException.AlreadyClosedException.class);
     }
 
+    @DataProvider
+    public Object[][] sharedEventLoop() {
+        return new Object[][]{{false}, {true}};
+    }
+
+    /**
+     * A lookup on a closed client fails without asking for a new connection: once the client's own event loop has
+     * terminated, a new connection never completes, and a shared event loop would still open one.
+     */
+    @Test(dataProvider = "sharedEventLoop", timeOut = 30_000)
+    public void testLookupsFailOnClosedClient(boolean sharedEventLoop) throws Exception {
+        @Cleanup
+        PulsarClientSharedResources sharedResources = sharedEventLoop
+                ? PulsarClientSharedResources.builder()
+                        .resourceTypes(PulsarClientSharedResources.SharedResource.EventLoopGroup)
+                        .build()
+                : null;
+        PulsarClientImpl client = (PulsarClientImpl) PulsarClient.builder()
+                .serviceUrl("pulsar://localhost:6650")
+                .sharedResources(sharedResources)
+                .build();
+        client.close();
+
+        String topic = "persistent://public/default/test";
+        assertFailsAsClosed(client.getSchema(topic));
+        assertFailsAsClosed(client.getConnection(topic));
+        assertFailsAsClosed(client.getConnectionToServiceUrl());
+    }
+
     @Test(timeOut = 30_000)
     public void testCloseDoesNotWaitForEventLoopQuietPeriod() throws Exception {
         PulsarClientImpl client = (PulsarClientImpl) PulsarClient.builder()
