@@ -117,7 +117,7 @@ final class PulsarClientBuilderV5 implements PulsarClientBuilder {
             var v4Client = new PulsarClientImpl(clientConf);
             return new PulsarClientV5(v4Client, description, transactionTimeout);
         } catch (org.apache.pulsar.client.api.PulsarClientException e) {
-            throw new PulsarClientException(e.getMessage(), e);
+            throw V5ExceptionMappings.toV5Exception(e);
         } finally {
             // Whether the factory was consumed is read off the copy the client was given rather than
             // inferred from how the build ended: a build that failed after the framework took the instance
@@ -222,7 +222,7 @@ final class PulsarClientBuilderV5 implements PulsarClientBuilder {
         try {
             this.v5Authentication = V5AuthenticationLoader.create(authPluginClassName, authParamsString);
         } catch (org.apache.pulsar.client.api.PulsarClientException e) {
-            throw new PulsarClientException(e.getMessage(), e);
+            throw V5ExceptionMappings.toV5Exception(e);
         }
         return this;
     }

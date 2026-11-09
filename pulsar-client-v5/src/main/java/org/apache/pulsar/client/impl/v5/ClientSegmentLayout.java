@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl.v5;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.pulsar.client.impl.v5.SegmentRouter.ActiveSegment;
@@ -40,6 +41,7 @@ final class ClientSegmentLayout {
     private final long epoch;
     private final List<ActiveSegment> activeSegments;
     private final List<ActiveSegment> sealedSegments;
+    private final Map<Long, List<Long>> segmentParents;
     private final Map<Long, String> segmentBrokerUrls;
     private final String controllerBrokerUrl;
     private final String controllerBrokerUrlTls;
@@ -47,12 +49,14 @@ final class ClientSegmentLayout {
     private ClientSegmentLayout(long epoch,
                                 List<ActiveSegment> activeSegments,
                                 List<ActiveSegment> sealedSegments,
+                                Map<Long, List<Long>> segmentParents,
                                 Map<Long, String> segmentBrokerUrls,
                                 String controllerBrokerUrl,
                                 String controllerBrokerUrlTls) {
         this.epoch = epoch;
         this.activeSegments = Collections.unmodifiableList(activeSegments);
         this.sealedSegments = Collections.unmodifiableList(sealedSegments);
+        this.segmentParents = Map.copyOf(segmentParents);
         this.segmentBrokerUrls = Map.copyOf(segmentBrokerUrls);
         this.controllerBrokerUrl = controllerBrokerUrl;
         this.controllerBrokerUrlTls = controllerBrokerUrlTls;
@@ -74,8 +78,14 @@ final class ClientSegmentLayout {
         // Partition segments into active and sealed lists.
         List<ActiveSegment> activeSegments = new ArrayList<>();
         List<ActiveSegment> sealedSegments = new ArrayList<>();
+        Map<Long, List<Long>> segmentParents = new HashMap<>();
         for (int i = 0; i < dag.getSegmentsCount(); i++) {
             SegmentInfoProto seg = dag.getSegmentAt(i);
+            List<Long> parents = new ArrayList<>(seg.getParentIdsCount());
+            for (int j = 0; j < seg.getParentIdsCount(); j++) {
+                parents.add(seg.getParentIdAt(j));
+            }
+            segmentParents.put(seg.getSegmentId(), List.copyOf(parents));
             HashRange range = HashRange.of((int) seg.getHashStart(), (int) seg.getHashEnd());
             String segTopicName = SegmentTopicName.fromParent(
                     parentTopic, range, seg.getSegmentId()).toString();
@@ -106,8 +116,8 @@ final class ClientSegmentLayout {
         String controllerUrl = dag.hasControllerBrokerUrl() ? dag.getControllerBrokerUrl() : null;
         String controllerUrlTls = dag.hasControllerBrokerUrlTls() ? dag.getControllerBrokerUrlTls() : null;
 
-        return new ClientSegmentLayout(epoch, activeSegments, sealedSegments, brokerUrls,
-                controllerUrl, controllerUrlTls);
+        return new ClientSegmentLayout(epoch, activeSegments, sealedSegments, segmentParents,
+                brokerUrls, controllerUrl, controllerUrlTls);
     }
 
     long epoch() {
@@ -120,11 +130,20 @@ final class ClientSegmentLayout {
 
     /**
      * Sealed segments still present in the DAG. These have finite (eventually drained)
-     * data and a v4 consumer subscribing to one of them will receive any remaining
-     * messages and then a {@code TopicTerminatedException}.
+     * data: a v4 consumer subscribing to one of them receives any remaining messages and
+     * then has nothing more to receive (its pending receive does not complete).
      */
     List<ActiveSegment> sealedSegments() {
         return sealedSegments;
+    }
+
+    /**
+     * The parent segment ids of every segment in the DAG, keyed by segment id (an empty list
+     * for an initial segment). A parent holds the older messages of the keys its children
+     * now cover.
+     */
+    Map<Long, List<Long>> segmentParents() {
+        return segmentParents;
     }
 
     Map<Long, String> segmentBrokerUrls() {

@@ -19,14 +19,23 @@
 package org.apache.pulsar.broker;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import static org.testng.AssertJUnit.assertSame;
+import io.prometheus.client.CollectorRegistry;
 import java.io.IOException;
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadInfo;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -35,14 +44,20 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.logging.log4j.Level;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
+import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateMetadataStoreTableViewImpl;
+import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.broker.namespace.OwnershipCache;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -58,7 +73,10 @@ import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
 import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore.OperationType;
+import org.apache.pulsar.metadata.impl.LocalMemoryMetadataStore;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
+import org.apache.pulsar.packages.management.core.MockedPackagesStorageProvider;
+import org.apache.pulsar.packages.management.core.PackagesManagement;
 import org.apache.pulsar.utils.TestLogAppender;
 import org.apache.pulsar.zookeeper.ZookeeperServerTest;
 import org.apache.zookeeper.CreateMode;
@@ -92,7 +110,7 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
         conf.setBrokerServicePortTls(Optional.of(0));
         conf.setWebServicePortTls(Optional.of(0));
         conf.setTopicNameCacheMaxCapacity(5000);
-        conf.setMaxSecondsToClearTopicNameCache(5);
+        conf.setMaxSecondsToClearTopicNameCache(1);
         if (useStaticPorts) {
             conf.setBrokerServicePortTls(Optional.of(6651));
             conf.setBrokerServicePort(Optional.of(6660));
@@ -119,6 +137,36 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
 
         WorkerService actualWorkerService = pulsarService.getWorkerService();
         assertSame(expectedWorkerService, actualWorkerService);
+    }
+
+    /**
+     * Verifies that the packages management service is available when the function worker service starts, so the
+     * function instances the worker schedules right after a broker restart can download their package URLs.
+     */
+    @Test
+    public void testPackagesManagementStartsBeforeWorkerService() throws Exception {
+        AtomicReference<PulsarService> pulsarRef = new AtomicReference<>();
+        AtomicReference<PackagesManagement> packagesManagementAtWorkerStart = new AtomicReference<>();
+        WorkerService workerService = mock(WorkerService.class);
+        doAnswer(invocation -> {
+            packagesManagementAtWorkerStart.set(pulsarRef.get().getPackagesManagement());
+            return null;
+        }).when(workerService).start(any(), any(), any());
+
+        @Cleanup
+        PulsarTestContext context = PulsarTestContext.builder()
+                .configCustomizer(config -> {
+                    config.setEnablePackagesManagement(true);
+                    config.setPackagesManagementStorageProvider(MockedPackagesStorageProvider.class.getName());
+                })
+                .functionWorkerService(workerService)
+                .pulsarServiceCustomizer(pulsarRef::set)
+                .build();
+
+        verify(workerService).start(any(), any(), any());
+        assertThat(packagesManagementAtWorkerStart.get())
+                .isNotNull()
+                .isSameAs(context.getPulsarService().getPackagesManagement());
     }
 
     /**
@@ -184,6 +232,20 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testScalableConsumerMetricsReleasedOnBrokerShutdown() throws Exception {
+        restartBroker(config -> config.setScalableTopicsEnabled(true));
+        assertThat(pulsar.getBrokerService().getScalableTopicService()).isNotNull();
+        String name = "pulsar_scalable_topic_consumer_count";
+        String[] labels = {"cluster", "consumer_state"};
+        String[] values = {conf.getClusterName(), "active"};
+        assertThat(CollectorRegistry.defaultRegistry.getSampleValue(name, labels, values)).isEqualTo(0.0);
+
+        pulsar.closeAsync().get(30, TimeUnit.SECONDS);
+
+        assertThat(CollectorRegistry.defaultRegistry.getSampleValue(name, labels, values)).isNull();
+    }
+
+    @Test
     public void testAdvertisedAddress() throws Exception {
         cleanup();
         useStaticPorts = true;
@@ -236,15 +298,15 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
         cleanup();
         setup();
         assertEquals(conf.getTopicNameCacheMaxCapacity(), 5000);
-        assertEquals(conf.getMaxSecondsToClearTopicNameCache(), 5);
+        assertEquals(conf.getMaxSecondsToClearTopicNameCache(), 1);
 
         List<TopicName> topicNameCached = new ArrayList<>();
         for (int i = 0; i < 20; i++) {
             topicNameCached.add(TopicName.get("public/default/tp_" + i));
         }
 
-        // Verify: the cache does not clear since it is not larger than max capacity.
-        Thread.sleep(10 * 1000);
+        // Verify: the cache does not clear since it is not larger than max capacity, in two runs of the clearing.
+        Thread.sleep(2500);
         for (int i = 0; i < 20; i++) {
             assertTrue(topicNameCached.get(i) == TopicName.get("public/default/tp_" + i));
         }
@@ -253,10 +315,11 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
         admin.brokers().updateDynamicConfiguration("topicNameCacheMaxCapacity", "10");
 
         // Verify: the cache were cleared.
-        Thread.sleep(10 * 1000);
-        for (int i = 0; i < 20; i++) {
-            assertFalse(topicNameCached.get(i) == TopicName.get("public/default/tp_" + i));
-        }
+        Awaitility.await().untilAsserted(() -> {
+            for (int i = 0; i < 20; i++) {
+                assertFalse(topicNameCached.get(i) == TopicName.get("public/default/tp_" + i));
+            }
+        });
     }
 
     @Test
@@ -368,6 +431,91 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
         }
     }
 
+    @Test
+    public void testCloseDoesNotWaitForInternalAdminClientConnections() throws Exception {
+        setup();
+        // a request through the broker's own admin client leaves its connection to the web service open
+        pulsar.getAdminClient().clusters().getClusters();
+
+        long startNanos = System.nanoTime();
+        pulsar.close();
+
+        // the graceful web service stop would wait until that connection had been idle for 1 s
+        assertThat(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos))
+                .as("broker close time in ms")
+                .isLessThan(500);
+    }
+
+    @Test
+    public void testCloseClosesInternalAdminClientBeingCreated() throws Exception {
+        setup();
+        PulsarAdmin adminClient = mock(PulsarAdmin.class);
+        PulsarAdminBuilder adminClientBuilder = mock(PulsarAdminBuilder.class);
+        doReturn(adminClientBuilder).when(pulsar).getCreateAdminClientBuilder();
+        Thread closingThread = new Thread(pulsar::closeAsync, "closing-broker");
+        // The broker starts closing while getAdminClient() creates the client under the service's lock, and the
+        // creation ends once the close waits for that lock
+        doAnswer(invocation -> {
+            Thread creatingThread = Thread.currentThread();
+            closingThread.start();
+            Awaitility.await().until(() -> {
+                ThreadInfo threadInfo = ManagementFactory.getThreadMXBean().getThreadInfo(closingThread.threadId());
+                return threadInfo != null
+                        && threadInfo.getThreadState() == Thread.State.BLOCKED
+                        && threadInfo.getLockOwnerId() == creatingThread.threadId();
+            });
+            return adminClient;
+        }).when(adminClientBuilder).build();
+
+        assertThat(pulsar.getAdminClient()).isSameAs(adminClient);
+        assertThat(closingThread.join(Duration.ofSeconds(30))).as("close finished").isTrue();
+        verify(adminClient).close();
+    }
+
+    @Test
+    public void testNoInternalAdminClientCreatedOnceClosed() throws Exception {
+        setup();
+        pulsar.close();
+
+        // The close has closed the client it found, so nothing would close a new one
+        assertThatThrownBy(() -> pulsar.getAdminClient()).isInstanceOf(PulsarServerException.class);
+    }
+
+    @DataProvider
+    public Object[][] loadManagers() {
+        return new Object[][] {{ModularLoadManagerImpl.class.getName()}, {ExtensibleLoadManagerImpl.class.getName()}};
+    }
+
+    @Test(dataProvider = "loadManagers")
+    public void testCloseUnregistersMetadataStoreListeners(String loadManagerClassName) throws Exception {
+        // Like the tests that restart brokers on a shared metadata store: the brokers that are closed must not
+        // stay registered with the store
+        @Cleanup
+        LocalMemoryMetadataStore store =
+                new LocalMemoryMetadataStore("memory:local", MetadataStoreConfig.builder().build());
+        int listenerCount = store.getListenerCount();
+        int sessionListenerCount = store.getSessionListenerCount();
+        for (int i = 0; i < 2; i++) {
+            PulsarTestContext context = PulsarTestContext.builder()
+                    .localMetadataStore(store)
+                    .configurationMetadataStore(store)
+                    .configCustomizer(config -> {
+                        config.setLoadManagerClassName(loadManagerClassName);
+                        // The tableview that is kept in the metadata store, which the store must not keep reachable
+                        config.setLoadManagerServiceUnitStateTableViewClassName(
+                                ServiceUnitStateMetadataStoreTableViewImpl.class.getName());
+                    })
+                    .build();
+            assertThat(store.getListenerCount()).as("listeners of a running broker").isGreaterThan(listenerCount);
+            context.close();
+
+            assertThat(store.getListenerCount()).as("listeners after closing broker %d", i)
+                    .isEqualTo(listenerCount);
+            assertThat(store.getSessionListenerCount()).as("session listeners after closing broker %d", i)
+                    .isEqualTo(sessionListenerCount);
+        }
+    }
+
     @DataProvider
     public Object[][] ownershipLockExpiryScenarios() {
         return new Object[][] {{true}, {false}};
@@ -433,6 +581,15 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
                 && event.getLoggerName().equals(OwnershipCache.class.getName())
                 && event.getMessage().getFormattedMessage().contains("Resource lock has expired"));
         assertThat(expiryLogged).as("INFO expiry while shuttingDown=%s", shuttingDown).isEqualTo(!shuttingDown);
+    }
+
+    @Test
+    public void testWebSocketServiceSharesBrokerConfigurationStore() throws Exception {
+        // Only the broker's own (here mocked) client reaches the configuration store, as with a TLS store set up
+        // through configurationStoreConfigPath; a WebSocket service opening its own client fails the startup.
+        conf.setWebSocketServiceEnabled(true);
+        setup();
+        assertThat(pulsar.getWebSocketService()).as("embedded WebSocket service").isNotNull();
     }
 
     @Test

@@ -194,7 +194,7 @@ public final class PulsarClientProviderV5 implements PulsarClientProvider {
         try {
             return V5AuthenticationLoader.create(className, params);
         } catch (org.apache.pulsar.client.api.PulsarClientException e) {
-            throw new PulsarClientException(e.getMessage(), e);
+            throw V5ExceptionMappings.toV5Exception(e);
         }
     }
 
@@ -204,7 +204,7 @@ public final class PulsarClientProviderV5 implements PulsarClientProvider {
         try {
             return V5AuthenticationLoader.create(className, params);
         } catch (org.apache.pulsar.client.api.PulsarClientException e) {
-            throw new PulsarClientException(e.getMessage(), e);
+            throw V5ExceptionMappings.toV5Exception(e);
         }
     }
 }

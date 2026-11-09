@@ -60,6 +60,10 @@ public abstract class AbstractDispatcherMultipleConsumers extends AbstractBaseDi
         consumerPrioritySelector.remove(consumer);
     }
 
+    protected final synchronized void removeConsumerInstanceFromList(Consumer consumer) {
+        consumerPrioritySelector.removeInstance(consumer);
+    }
+
     protected final synchronized void removeConsumersFromList(Predicate<Consumer> predicate) {
         consumerPrioritySelector.removeIf(predicate);
     }
@@ -86,6 +90,17 @@ public abstract class AbstractDispatcherMultipleConsumers extends AbstractBaseDi
     protected final boolean containsConsumerInstance(Consumer consumer) {
         int index = consumerSetImpl.indexOf(consumer);
         return consumerSetImpl.indexExists(index) && consumerSetImpl.indexGet(index) == consumer;
+    }
+
+    /**
+     * Removes only the exact registered instance. The caller must hold the dispatcher monitor.
+     */
+    protected final boolean removeConsumerInstance(Consumer consumer) {
+        if (!containsConsumerInstance(consumer)) {
+            return false;
+        }
+        consumerSet.removeAll(consumer);
+        return true;
     }
 
     public boolean isClosed() {

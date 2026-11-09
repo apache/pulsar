@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -40,31 +41,46 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.MultiThreadIoEventLoopGroup;
+import io.netty.channel.nio.NioIoHandler;
 import io.netty.resolver.AddressResolver;
 import io.netty.resolver.dns.DefaultDnsServerAddressStreamProvider;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import io.netty.util.concurrent.ImmediateEventExecutor;
 import java.lang.reflect.Field;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.net.SocketAddress;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.regex.Pattern;
 import lombok.Cleanup;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageRoutingMode;
+import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientSharedResources;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.client.util.ScheduledExecutorProvider;
@@ -74,8 +90,10 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
+import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.testng.annotations.AfterMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
@@ -106,6 +124,253 @@ public class PulsarClientImplTest {
         assertFalse(client.isClosed());
         client.close();
         assertTrue(client.isClosed());
+    }
+
+    @Test(timeOut = 30_000)
+    public void testShutdownClosesClient() throws Exception {
+        PulsarClientImpl client = (PulsarClientImpl) PulsarClient.builder()
+                .serviceUrl("pulsar://localhost:6650")
+                .build();
+        client.shutdown();
+
+        // Unless they fail on the client's state, these wait for ever on the lookup that shutdown() released
+        String topic = "persistent://public/default/test";
+        assertFailsAsClosed(client.newProducer().topic(topic).createAsync());
+        assertFailsAsClosed(client.newConsumer().topic(topic).subscriptionName("sub").subscribeAsync());
+        assertFailsAsClosed(client.newReader().topic(topic).startMessageId(MessageId.earliest).createAsync());
+        assertFailsAsClosed(client.newTableView().topic(topic).createAsync());
+        assertTrue(client.isClosed());
+        // Nothing is left to close
+        client.close();
+    }
+
+    private static void assertFailsAsClosed(CompletableFuture<?> future) {
+        assertThat(future).failsWithin(Duration.ofSeconds(10))
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(PulsarClientException.AlreadyClosedException.class);
+    }
+
+    @Test(timeOut = 30_000)
+    public void testCloseDoesNotWaitForEventLoopQuietPeriod() throws Exception {
+        PulsarClientImpl client = (PulsarClientImpl) PulsarClient.builder()
+                .serviceUrl("pulsar://localhost:6650")
+                .build();
+        EventLoopGroup clientEventLoopGroup = client.eventLoopGroup();
+
+        long startNanos = System.nanoTime();
+        client.close();
+        long closeMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
+
+        assertThat(clientEventLoopGroup.isTerminated()).as("event loop terminated").isTrue();
+        // Netty's default quiet period would hold close() for at least 2 s
+        assertThat(closeMillis).as("close() time in ms").isLessThan(1000);
+    }
+
+    @Test(timeOut = 60_000)
+    public void testCloseClosesConnectionWhenShutdownStartsDuringEventLoopTask() throws Exception {
+        // A peer that accepts the connection but never answers the Pulsar handshake
+        @Cleanup
+        ServerSocket server = new ServerSocket(0, 1, InetAddress.getLoopbackAddress());
+        server.setSoTimeout(10_000);
+        PulsarClientImpl client = (PulsarClientImpl) PulsarClient.builder()
+                .serviceUrl("pulsar://" + InetAddress.getLoopbackAddress().getHostAddress() + ":"
+                        + server.getLocalPort())
+                .ioThreads(1)
+                .build();
+        client.getPartitionsForTopic("persistent://public/default/test", false);
+        @Cleanup
+        Socket connection = server.accept();
+
+        // Keep the client's only event loop running a task until the client has started shutting the loop down
+        CountDownLatch taskStarted = new CountDownLatch(1);
+        CountDownLatch releaseTask = new CountDownLatch(1);
+        client.eventLoopGroup().execute(() -> {
+            taskStarted.countDown();
+            try {
+                releaseTask.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+        taskStarted.await();
+        CompletableFuture<Void> closeFuture = client.closeAsync();
+        Awaitility.await().until(() -> client.eventLoopGroup().isShuttingDown());
+        releaseTask.countDown();
+        closeFuture.get(30, TimeUnit.SECONDS);
+
+        // Reaches the end of the stream only if the client closed its end of the connection
+        connection.setSoTimeout(10_000);
+        connection.getInputStream().readAllBytes();
+    }
+
+    @Test(timeOut = 60_000)
+    public void testPoolCloseClosesChannelRegisteredAfterIt() throws Exception {
+        // Pauses the connection attempt right after it has queued the registration of its channel
+        CompletableFuture<Channel> registeringChannel = new CompletableFuture<>();
+        CountDownLatch resumeConnectionAttempt = new CountDownLatch(1);
+        @Cleanup("shutdownGracefully")
+        EventLoopGroup group = new MultiThreadIoEventLoopGroup(1, new DefaultThreadFactory("pool-close-test"),
+                NioIoHandler.newFactory()) {
+            @Override
+            public ChannelFuture register(Channel channel) {
+                ChannelFuture registerFuture = super.register(channel);
+                registeringChannel.complete(channel);
+                try {
+                    resumeConnectionAttempt.await();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                return registerFuture;
+            }
+        };
+        // Resolves on the calling thread, so that the connection attempt registers its channel from outside the loop
+        @SuppressWarnings("unchecked")
+        AddressResolver<InetSocketAddress> resolver = mock(AddressResolver.class);
+        when(resolver.resolveAll(any())).thenAnswer(invocation -> ImmediateEventExecutor.INSTANCE
+                .newSucceededFuture(List.of((InetSocketAddress) invocation.getArgument(0))));
+        ConnectionPool pool = ConnectionPool.builder()
+                .instrumentProvider(InstrumentProvider.NOOP)
+                .conf(new ClientConfigurationData())
+                .eventLoopGroup(group)
+                .addressResolverSupplier(Optional.of(() -> resolver))
+                .build();
+
+        // Keep the only event loop running a task until it has been asked to shut down, so that it registers the
+        // channel after the pool has been closed
+        CountDownLatch taskStarted = new CountDownLatch(1);
+        CountDownLatch releaseTask = new CountDownLatch(1);
+        group.execute(() -> {
+            taskStarted.countDown();
+            try {
+                releaseTask.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+        taskStarted.await();
+        CompletableFuture<Void> connectionAttempt = CompletableFuture.runAsync(
+                () -> pool.getConnection(new InetSocketAddress(InetAddress.getLoopbackAddress(), 6650)));
+        Channel channel = registeringChannel.get(10, TimeUnit.SECONDS);
+
+        pool.close();
+        group.shutdownGracefully(0, 10, TimeUnit.SECONDS);
+        releaseTask.countDown();
+        assertTrue(group.awaitTermination(10, TimeUnit.SECONDS));
+        // The connection attempt only goes on once the event loop has terminated
+        resumeConnectionAttempt.countDown();
+        connectionAttempt.get(10, TimeUnit.SECONDS);
+
+        assertThat(channel.isOpen()).as("channel open").isFalse();
+    }
+
+    @DataProvider
+    public Object[][] partitions() {
+        return new Object[][]{{0}, {2}};
+    }
+
+    /**
+     * Cancelling the creation future does not stop the creation: the producer still comes up, and the client keeps
+     * owning it, so it is closed with the client.
+     */
+    @Test(dataProvider = "partitions")
+    @SuppressWarnings("unchecked")
+    public void testCancelledCreationLeavesTheProducerOwnedByTheClient(int partitions) throws Exception {
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setServiceUrl("pulsar://localhost:6650");
+        initializeEventLoopGroup(conf);
+        LookupService lookup = mock(LookupService.class);
+        CompletableFuture<PartitionedTopicMetadata> metadata = new CompletableFuture<>();
+        when(lookup.getPartitionedTopicMetadata(any(TopicName.class), anyBoolean(), anyBoolean()))
+                .thenReturn(metadata);
+        when(lookup.getBroker(any()))
+                .thenReturn(CompletableFuture.completedFuture(new LookupTopicResult(
+                        mock(InetSocketAddress.class), mock(InetSocketAddress.class), false)));
+        ConnectionPool pool = mock(ConnectionPool.class);
+        ClientCnx cnx = mock(ClientCnx.class);
+        ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
+        Channel channel = mock(Channel.class);
+        when(channel.remoteAddress()).thenReturn(mock(SocketAddress.class));
+        when(channel.eventLoop()).thenReturn(eventLoopGroup.next());
+        when(ctx.channel()).thenReturn(channel);
+        when(ctx.writeAndFlush(any(), any(ChannelPromise.class))).thenReturn(mock(ChannelFuture.class));
+        when(ctx.voidPromise()).thenReturn(mock(ChannelPromise.class));
+        when(cnx.channel()).thenReturn(channel);
+        when(cnx.ctx()).thenReturn(ctx);
+        ProducerResponse response = mock(ProducerResponse.class);
+        when(response.getProducerName()).thenReturn("cancelled-creation-producer");
+        when(cnx.sendRequestWithId(any(ByteBuf.class), anyLong()))
+                .thenReturn(CompletableFuture.completedFuture(response));
+        when(pool.getConnection(any(InetSocketAddress.class), any(InetSocketAddress.class), anyInt()))
+                .thenReturn(CompletableFuture.completedFuture(cnx));
+        PulsarClientImpl client = new PulsarClientImpl(conf, eventLoopGroup, pool);
+        client.setLookup(lookup);
+        try {
+            ProducerConfigurationData producerConf = new ProducerConfigurationData();
+            producerConf.setTopicName("persistent://public/default/cancelled-creation");
+            producerConf.setMessageRoutingMode(MessageRoutingMode.RoundRobinPartition);
+            CompletableFuture<Producer<byte[]>> creation = client.createProducerAsync(producerConf, Schema.BYTES);
+
+            // Cancelled before the metadata is known, which is before the producer exists.
+            creation.cancel(true);
+            metadata.complete(new PartitionedTopicMetadata(partitions));
+
+            assertEquals(client.producersCount(), 1, "The client must keep owning the producer");
+        } finally {
+            client.close();
+        }
+        assertEquals(client.producersCount(), 0, "Closing the client must close the producer it kept");
+    }
+
+    @DataProvider
+    public Object[][] endedBeforeRegistration() {
+        return new Object[][]{
+                {"closed", (Consumer<ProducerImpl<?>>) ProducerImpl::closeAsync},
+                {"failed", (Consumer<ProducerImpl<?>>) producer ->
+                        producer.connectionFailed(new PulsarClientException.AuthorizationException("not allowed"))},
+        };
+    }
+
+    /**
+     * A producer whose creation fails before the client has registered it, from another thread or from a
+     * connection that fails at once, removes itself from the client while it is not there yet. The client must not
+     * keep it afterwards.
+     */
+    @Test(dataProvider = "endedBeforeRegistration")
+    @SuppressWarnings("unchecked")
+    public void testProducerEndedBeforeItIsRegisteredIsNotKept(String how, Consumer<ProducerImpl<?>> end)
+            throws Exception {
+        LookupService lookup = mock(LookupService.class);
+        when(lookup.getPartitionedTopicMetadata(any(TopicName.class), anyBoolean(), anyBoolean()))
+                .thenReturn(CompletableFuture.completedFuture(new PartitionedTopicMetadata()));
+        when(lookup.getBroker(any())).thenReturn(new CompletableFuture<>());
+        ConnectionPool pool = mock(ConnectionPool.class);
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setServiceUrl("pulsar://localhost:6650");
+        PulsarClientImpl client = new PulsarClientImpl(conf, eventLoopGroup, pool) {
+            @Override
+            protected <T> ProducerImpl<T> newProducerImpl(String topic, int partitionIndex,
+                                                          ProducerConfigurationData producerConf, Schema<T> schema,
+                                                          ProducerInterceptors interceptors,
+                                                          CompletableFuture<Producer<T>> producerCreatedFuture,
+                                                          Optional<String> overrideProducerName) {
+                ProducerImpl<T> producer = super.newProducerImpl(topic, partitionIndex, producerConf, schema,
+                        interceptors, producerCreatedFuture, overrideProducerName);
+                // Before createProducerAsync() has added the producer.
+                end.accept(producer);
+                return producer;
+            }
+        };
+        client.setLookup(lookup);
+        try {
+            ProducerConfigurationData producerConf = new ProducerConfigurationData();
+            producerConf.setTopicName("persistent://public/default/closed-before-registered");
+            client.createProducerAsync(producerConf, Schema.BYTES);
+
+            assertEquals(client.producersCount(), 0,
+                    "A producer " + how + " before it was registered must not be kept");
+        } finally {
+            client.close();
+        }
     }
 
     @Test

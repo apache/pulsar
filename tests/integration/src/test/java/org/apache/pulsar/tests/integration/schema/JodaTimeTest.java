@@ -47,6 +47,11 @@ public class JodaTimeTest extends PulsarTestSuite {
     private PulsarClient client;
     private PulsarAdmin admin;
 
+    @Override
+    protected boolean isClusterShared() {
+        return true;
+    }
+
     public void setupCluster() throws Exception {
         super.setupCluster();
         this.client = PulsarClient.builder()

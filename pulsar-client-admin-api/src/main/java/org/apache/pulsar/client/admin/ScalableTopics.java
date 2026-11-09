@@ -20,7 +20,9 @@ package org.apache.pulsar.client.admin;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.AutoScalePolicyOverride;
 import org.apache.pulsar.common.policies.data.ScalableSubscriptionType;
 import org.apache.pulsar.common.policies.data.ScalableTopicMetadata;
@@ -194,6 +196,87 @@ public interface ScalableTopics {
      * @param topic Topic name in the format "tenant/namespace/topic"
      */
     CompletableFuture<Void> removeAutoScalePolicyAsync(String topic);
+
+    /**
+     * Get permissions on a scalable topic.
+     *
+     * <p>Retrieve the effective permissions for a scalable topic. These permissions are defined by the
+     * permissions set at the namespace level combined (union) with any eventual specific permission set on
+     * the topic, and apply to every segment of the topic.
+     *
+     * <p>Response Example:
+     *
+     * <pre>
+     * <code>{
+     *   "role-1" : [ "produce" ],
+     *   "role-2" : [ "consume" ]
+     * }</code>
+     * </pre>
+     *
+     * @param topic Topic name in the format "tenant/namespace/topic"
+     * @return a map of roles and their permissions
+     * @throws PulsarAdminException.NotAuthorizedException Don't have admin permission
+     * @throws PulsarAdminException.NotFoundException Scalable topic does not exist
+     * @throws PulsarAdminException Unexpected error
+     */
+    Map<String, Set<AuthAction>> getPermissions(String topic) throws PulsarAdminException;
+
+    /**
+     * Get permissions on a scalable topic asynchronously.
+     *
+     * @param topic Topic name in the format "tenant/namespace/topic"
+     * @return a map of roles and their permissions
+     */
+    CompletableFuture<Map<String, Set<AuthAction>>> getPermissionsAsync(String topic);
+
+    /**
+     * Grant a new permission to a client role on a scalable topic. The permission applies to every segment
+     * of the topic.
+     *
+     * <p>Request parameter example:
+     *
+     * <pre>
+     * <code>["produce", "consume"]</code>
+     * </pre>
+     *
+     * @param topic   Topic name in the format "tenant/namespace/topic"
+     * @param role    Client role to which grant permission
+     * @param actions Auth actions (produce and consume)
+     * @throws PulsarAdminException.NotAuthorizedException Don't have admin permission
+     * @throws PulsarAdminException.NotFoundException Scalable topic does not exist
+     * @throws PulsarAdminException.ConflictException Concurrent modification
+     * @throws PulsarAdminException Unexpected error
+     */
+    void grantPermission(String topic, String role, Set<AuthAction> actions) throws PulsarAdminException;
+
+    /**
+     * Grant a new permission to a client role on a scalable topic asynchronously.
+     *
+     * @param topic   Topic name in the format "tenant/namespace/topic"
+     * @param role    Client role to which grant permission
+     * @param actions Auth actions (produce and consume)
+     */
+    CompletableFuture<Void> grantPermissionAsync(String topic, String role, Set<AuthAction> actions);
+
+    /**
+     * Revoke the permissions granted to a client role on a scalable topic. Permissions granted at the
+     * namespace level are not affected.
+     *
+     * @param topic Topic name in the format "tenant/namespace/topic"
+     * @param role  Client role to which remove permission
+     * @throws PulsarAdminException.NotAuthorizedException Don't have admin permission
+     * @throws PulsarAdminException.NotFoundException Scalable topic does not exist
+     * @throws PulsarAdminException Unexpected error
+     */
+    void revokePermissions(String topic, String role) throws PulsarAdminException;
+
+    /**
+     * Revoke the permissions granted to a client role on a scalable topic asynchronously.
+     *
+     * @param topic Topic name in the format "tenant/namespace/topic"
+     * @param role  Client role to which remove permission
+     */
+    CompletableFuture<Void> revokePermissionsAsync(String topic, String role);
 
     /**
      * Delete a scalable topic and all its underlying segment topics.

@@ -128,6 +128,9 @@ import org.slf4j.LoggerFactory;
 @CustomLog
 public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
+    // How long the close waits for the log topic's appender to receive the events logged before it
+    private static final long LOG_TOPIC_DRAIN_TIMEOUT_MS = 5000;
+
     private final InstanceConfig instanceConfig;
 
     // input topic consumer & output topic producer
@@ -715,8 +718,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         producerCache.close();
 
         if (logAppender != null) {
-            removeLogTopicAppender(LoggerContext.getContext());
-            removeLogTopicAppender(LoggerContext.getContext(false));
+            removeLogTopicAppender(LoggerContext.getContext(), logAppender);
+            removeLogTopicAppender(LoggerContext.getContext(false), logAppender);
             logAppender.stop();
             logAppender = null;
         }
@@ -860,12 +863,13 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     ? new LogAppender(clientV5, logTopic, fqn, instanceConfig.getInstanceName())
                     : new LogAppender(client, logTopic, fqn, instanceConfig.getInstanceName());
             logAppender.start();
-            setupLogTopicAppender(LoggerContext.getContext());
-            setupLogTopicAppender(LoggerContext.getContext(false));
+            setupLogTopicAppender(LoggerContext.getContext(), logAppender);
+            setupLogTopicAppender(LoggerContext.getContext(false), logAppender);
         }
     }
 
-    private void setupLogTopicAppender(LoggerContext context) {
+    @VisibleForTesting
+    static void setupLogTopicAppender(LoggerContext context, LogAppender logAppender) {
         Configuration config = context.getConfiguration();
         config.addAppender(logAppender);
         for (final LoggerConfig loggerConfig : config.getLoggers().values()) {
@@ -875,7 +879,16 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         context.updateLoggers();
     }
 
-    private void removeLogTopicAppender(LoggerContext context) {
+    @VisibleForTesting
+    static void removeLogTopicAppender(LoggerContext context, LogAppender logAppender) {
+        // With async loggers, the events logged before the close may still be queued: let them reach the log topic
+        // before the loggers stop handing events to the appender
+        if (!logAppender.drain(context, LOG_TOPIC_DRAIN_TIMEOUT_MS)) {
+            log.warn()
+                    .attr("function", logAppender.getName())
+                    .attr("timeoutMs", LOG_TOPIC_DRAIN_TIMEOUT_MS)
+                    .log("Removing the log topic appender before it received every event logged before the close");
+        }
         Configuration config = context.getConfiguration();
         for (final LoggerConfig loggerConfig : config.getLoggers().values()) {
             loggerConfig.removeAppender(logAppender.getName());

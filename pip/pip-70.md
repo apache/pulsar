@@ -3,7 +3,7 @@
 - Status: Approved
 - Author: Dawei Zhang/Yunze Xu/Penghui Li/Jia Zhai
 - Pull Request: https://github.com/apache/pulsar/pull/8618
-- Mailing List discussion: https://lists.apache.org/thread.html/r980cbe4a5e8304c7cf47aabfe8282b86a82051694d339706c0408bd4%40%3Cdev.pulsar.apache.org%3E
+- Mailing List discussion: https://lists.apache.org/thread/wj0obgo3j1j1gxhlx53h4o86x97b1pcz
 - Release: 2.8.0
 
 

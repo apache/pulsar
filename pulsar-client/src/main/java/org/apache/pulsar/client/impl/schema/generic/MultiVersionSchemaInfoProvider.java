@@ -22,9 +22,9 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 import lombok.CustomLog;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
@@ -44,7 +44,7 @@ public class MultiVersionSchemaInfoProvider implements SchemaInfoProvider {
 
     private final LoadingCache<BytesSchemaVersion, CompletableFuture<SchemaInfo>> cache = CacheBuilder.newBuilder()
         .maximumSize(100000)
-        .expireAfterAccess(30, TimeUnit.MINUTES)
+        .expireAfterAccess(Duration.ofMinutes(30))
         .build(new CacheLoader<BytesSchemaVersion, CompletableFuture<SchemaInfo>>() {
             @Override
             public CompletableFuture<SchemaInfo> load(BytesSchemaVersion schemaVersion) {

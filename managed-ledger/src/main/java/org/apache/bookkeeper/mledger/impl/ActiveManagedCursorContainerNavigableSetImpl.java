@@ -253,6 +253,23 @@ public class ActiveManagedCursorContainerNavigableSetImpl implements ActiveManag
     }
 
     @Override
+    public int getNumberOfCursorsAtPositionOrBefore(ManagedCursor from, Position position) {
+        long stamp = rwLock.readLock();
+        try {
+            int count = 0;
+            for (Item o : sortedByPosition) {
+                if (o.position.compareTo(position) > 0) {
+                    break;
+                }
+                count++;
+            }
+            return count;
+        } finally {
+            rwLock.unlockRead(stamp);
+        }
+    }
+
+    @Override
     public int size() {
         long stamp = rwLock.tryOptimisticRead();
         int size = cursors.size();

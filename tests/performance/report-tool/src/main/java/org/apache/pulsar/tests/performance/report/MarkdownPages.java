@@ -71,7 +71,7 @@ public final class MarkdownPages {
      * @param root the run directory: absolute paths inside it become relative links
      * @return the HTML page
      */
-    static Path renderHtml(Path markdown, Path root, String title) throws IOException {
+    public static Path renderHtml(Path markdown, Path root, String title) throws IOException {
         return renderHtml(markdown, root, title, false);
     }
 

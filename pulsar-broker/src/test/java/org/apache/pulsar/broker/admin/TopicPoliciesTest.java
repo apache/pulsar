@@ -49,11 +49,13 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorTestUtil;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.ConfigHelper;
@@ -170,6 +172,10 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
     @BeforeMethod
     void setupTestTopic() throws Exception {
+        // A producer or a consumer that the previous test left open would reconnect to the recreated namespace and
+        // create its topic again: close them with the client
+        pulsarClient.shutdown();
+        pulsarClient = newPulsarClient(lookupUrl.toString(), 0);
         // Recreate namespace to clear any policies set by previous tests
         try {
             admin.topics().deletePartitionedTopic(testTopic, true);
@@ -179,10 +185,13 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         // Use deleteNamespaceWithRetry since the forced namespace deletion can fail transiently with HTTP 422 when a
         // topic deletion in the cascade races with concurrent topic loading; the helper retries and treats an
         // already-deleted namespace as success.
-        deleteNamespaceWithRetry(myNamespace, true);
-        deleteNamespaceWithRetry(myNamespaceV1, true);
-        admin.namespaces().createNamespace(testTenant + "/" + testNamespace, Set.of("test"));
-        admin.namespaces().createNamespace(myNamespaceV1);
+        // Deleting a namespace takes many metadata updates, each waiting for the metadata store's next batch, so
+        // delete and create the two namespaces concurrently.
+        FutureUtil.waitForAll(List.of(deleteNamespaceWithRetryAsync(myNamespace),
+                deleteNamespaceWithRetryAsync(myNamespaceV1))).get();
+        FutureUtil.waitForAll(List.of(
+                admin.namespaces().createNamespaceAsync(testTenant + "/" + testNamespace, Set.of("test")),
+                admin.namespaces().createNamespaceAsync(myNamespaceV1))).get();
         admin.topics().createPartitionedTopic(testTopic, testTopicPartitions);
         // Acquire namespace bundle ownership so tests that call getOrCreateTopic() directly succeed.
         // Without this, services that don't create a __change_events reader (e.g. MetadataStoreTopicPoliciesService)
@@ -190,11 +199,26 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.lookups().lookupTopic(testTopic + "-partition-0");
     }
 
+    private CompletableFuture<Void> deleteNamespaceWithRetryAsync(String namespace) {
+        return CompletableFuture.runAsync(() -> {
+            try {
+                deleteNamespaceWithRetry(namespace, true);
+            } catch (Exception e) {
+                throw new CompletionException(e);
+            }
+        });
+    }
+
     @AfterMethod(alwaysRun = true)
     void afterMethodCleanup() throws Exception{
         admin.brokers().updateDynamicConfiguration("maxPublishRatePerTopicInMessages", "0");
         admin.brokers().updateDynamicConfiguration("maxPublishRatePerTopicInBytes", "0");
         clearTopicPoliciesCache();
+        // Test methods set these broker-level limits on the running broker's configuration, which the broker reads
+        // when it loads a topic: restore the defaults (no limit)
+        conf.setMaxProducersPerTopic(0);
+        conf.setMaxConsumersPerSubscription(0);
+        conf.setMaxSubscriptionsPerTopic(0);
     }
 
     @Test
@@ -2355,14 +2379,12 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
                 .getTopicIfExists(topic).get().get();
         ManagedCursorImpl cursor = (ManagedCursorImpl) persistentTopic.getSubscription(subName).getCursor();
-        Field cursorLastActiveField = ManagedCursorImpl.class.getDeclaredField("lastActive");
-        cursorLastActiveField.setAccessible(true);
 
         admin.namespaces().setSubscriptionExpirationTime(myNamespace, 1);
         waitTopicPoliciesApplied(topic, 0, hierarchyTopicPolicies -> assertEquals(
                 hierarchyTopicPolicies.getSubscriptionExpirationTimeInMinutes().get(), Integer.valueOf(1)));
 
-        cursorLastActiveField.set(cursor, 0L);
+        ManagedCursorTestUtil.setLastActive(cursor, 0L);
         persistentTopic.checkInactiveSubscriptions();
         Awaitility.await().untilAsserted(() -> assertEquals(admin.topics().getSubscriptions(topic).size(), 0));
 
@@ -2375,7 +2397,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
         persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topic).get().get();
         cursor = (ManagedCursorImpl) persistentTopic.getSubscription(subName).getCursor();
-        cursorLastActiveField.set(cursor, 0L);
+        ManagedCursorTestUtil.setLastActive(cursor, 0L);
         persistentTopic.checkInactiveSubscriptions();
         Awaitility.await().during(2, TimeUnit.SECONDS).atMost(5, TimeUnit.SECONDS)
                 .untilAsserted(() -> assertEquals(admin.topics().getSubscriptions(topic).size(), 1));
@@ -3810,10 +3832,11 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         CompletableFuture<Long> future2 = (CompletableFuture<Long>) field.get(persistentTopic);
         Awaitility.await().untilAsserted(() -> assertTrue(future2.isDone()));
 
+        // A new subscription, since "sub" has already acknowledged the remaining message
         consumer = pulsarClient.newConsumer()
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .readCompacted(true)
-                .topic(topicPoliciesTopic).subscriptionName("sub").subscribe();
+                .topic(topicPoliciesTopic).subscriptionName("sub2").subscribe();
         count = 0;
         while (true) {
             Message<?> message = consumer.receive(1, TimeUnit.SECONDS);
@@ -3979,7 +4002,15 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
         Map<NamespaceName, CompletableFuture<SystemTopicClient.Reader<PulsarEvent>>> readerCaches =
                 ((SystemTopicBasedTopicPoliciesService) topicPoliciesService).getReaderCaches();
+        // Close the dropped readers: an open one keeps reading into the caches, and once the next test's setup
+        // deletes its namespace, it reconnects to the re-created namespace in the background
+        List<CompletableFuture<Void>> readerCloseFutures = new ArrayList<>();
+        readerCaches.values().forEach(readerFuture -> readerCloseFutures.add(
+                readerFuture.thenCompose(SystemTopicClient.Reader::closeAsync)
+                        // a reader that failed to be created has nothing to close
+                        .exceptionally(__ -> null)));
         readerCaches.clear();
+        FutureUtil.waitForAll(readerCloseFutures).join();
     }
 
     @DataProvider(name = "reloadPolicyTypes")

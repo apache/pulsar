@@ -61,9 +61,18 @@ public class EntryFilterSupport {
 
     public EntryFilter.FilterResult runFiltersForEntry(Entry entry, MessageMetadata msgMetadata,
                                                        Consumer consumer) {
+        return runFiltersForEntry(filterContext, entry, msgMetadata, consumer);
+    }
+
+    /**
+     * Run the filters with a caller-owned context, for callers outside the dispatch thread
+     * (e.g. backlog analysis), which must not reuse the dispatcher's {@link #filterContext}.
+     */
+    public EntryFilter.FilterResult runFiltersForEntry(FilterContext context, Entry entry,
+                                                       MessageMetadata msgMetadata, Consumer consumer) {
         if (hasFilter) {
-            fillContext(filterContext, msgMetadata, subscription, consumer);
-            return getFilterResult(filterContext, entry, entryFilters);
+            fillContext(context, msgMetadata, subscription, consumer);
+            return getFilterResult(context, entry, entryFilters);
         } else {
             return EntryFilter.FilterResult.ACCEPT;
         }

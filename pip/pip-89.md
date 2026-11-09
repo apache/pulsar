@@ -2,9 +2,7 @@
 
 * **Status**: 'Under Discussion'
 * **Author**: Ivan Kelly (ivank@apache.org)
-* **Pull Request**: -
 * **Mailing List discussion**: http://mail-archives.apache.org/mod_mbox/pulsar-dev/202108.mbox/browser
-* **Release**: -
 
 # Motivation
 

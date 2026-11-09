@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service.scalable;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -38,7 +39,6 @@ import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import org.apache.pulsar.broker.service.PulsarCommandSender;
 import org.apache.pulsar.broker.service.TransportCnx;
 import org.apache.pulsar.common.api.proto.ScalableConsumerAssignment;
 import org.apache.pulsar.common.scalable.HashRange;
@@ -182,10 +182,9 @@ public class ConsumerSessionTest {
         // startGraceTimer cancels any prior timer before scheduling a new one; a double
         // markDisconnected (edge case) should leave only the latest timer armed.
         TestContext ctx = new TestContext();
-        @SuppressWarnings({"unchecked", "rawtypes"})
         ScheduledFuture<?> second = mock(ScheduledFuture.class);
-        when(ctx.scheduler.schedule(any(Runnable.class), anyLong(), any(TimeUnit.class)))
-                .thenReturn((ScheduledFuture) ctx.future, (ScheduledFuture) second);
+        doReturn(ctx.future, second).when(ctx.scheduler)
+                .schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
 
         ConsumerSession session = ctx.session("c1", 10L, mock(TransportCnx.class));
 
@@ -212,18 +211,16 @@ public class ConsumerSessionTest {
     // --- sendAssignmentUpdate ---
 
     @Test
-    public void testSendAssignmentUpdateWritesViaCommandSender() {
+    public void testSendAssignmentUpdateWritesToConnection() {
         TestContext ctx = new TestContext();
         TransportCnx cnx = mock(TransportCnx.class);
-        PulsarCommandSender sender = mock(PulsarCommandSender.class);
-        when(cnx.getCommandSender()).thenReturn(sender);
         ConsumerSession session = ctx.session("c1", 42L, cnx);
 
         session.sendAssignmentUpdate(buildAssignment(5L, 0L, 1L));
 
         ArgumentCaptor<ScalableConsumerAssignment> captor =
                 ArgumentCaptor.forClass(ScalableConsumerAssignment.class);
-        verify(sender).sendScalableTopicAssignmentUpdate(eq(42L), captor.capture());
+        verify(cnx).sendScalableConsumerAssignment(eq(42L), captor.capture());
         ScalableConsumerAssignment proto = captor.getValue();
         assertEquals(proto.getLayoutEpoch(), 5L);
         assertEquals(proto.getSegmentsCount(), 2);
@@ -244,25 +241,12 @@ public class ConsumerSessionTest {
     public void testSendAssignmentUpdateIsNoopAfterMarkDisconnected() {
         TestContext ctx = new TestContext();
         TransportCnx cnx = mock(TransportCnx.class);
-        PulsarCommandSender sender = mock(PulsarCommandSender.class);
-        when(cnx.getCommandSender()).thenReturn(sender);
         ConsumerSession session = ctx.session("c1", 10L, cnx);
 
         session.markDisconnected();
         session.sendAssignmentUpdate(buildAssignment(0L, 0L));
 
-        verify(sender, never()).sendScalableTopicAssignmentUpdate(anyLong(), any());
-    }
-
-    @Test
-    public void testSendAssignmentUpdateIsNoopWhenCommandSenderNull() {
-        TestContext ctx = new TestContext();
-        TransportCnx cnx = mock(TransportCnx.class);
-        when(cnx.getCommandSender()).thenReturn(null); // connection tearing down
-        ConsumerSession session = ctx.session("c1", 10L, cnx);
-
-        // no exception, no interaction
-        session.sendAssignmentUpdate(buildAssignment(0L, 0L));
+        verify(cnx, never()).sendScalableConsumerAssignment(anyLong(), any());
     }
 
     // --- toProto ---

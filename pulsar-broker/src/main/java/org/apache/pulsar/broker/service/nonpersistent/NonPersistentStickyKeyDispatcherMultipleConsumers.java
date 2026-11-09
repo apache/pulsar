@@ -154,8 +154,7 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumers extends NonPersis
         consumerStickyKeyHashesMap.clear();
 
         for (Entry entry : entries) {
-            byte[] stickyKey = peekStickyKey(entry);
-            int stickyKeyHash = selector.makeStickyKeyHash(stickyKey);
+            int stickyKeyHash = selector.makeStickyKeyHashOfKeyHash(peekStickyKeyHash(entry));
 
             Consumer consumer = selector.select(stickyKeyHash);
             if (consumer != null) {

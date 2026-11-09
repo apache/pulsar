@@ -42,9 +42,9 @@ public class BrokerVersionFilterTest {
         BrokerVersionFilter filter = new BrokerVersionFilter();
         try {
             Version latestVersion = filter.getLatestVersionNumber(brokers, loadData);
-            Assert.assertEquals(latestVersion.getMajorVersion(), 1);
-            Assert.assertEquals(latestVersion.getMinorVersion(), 2);
-            Assert.assertEquals(latestVersion.getPatchVersion(), 0);
+            Assert.assertEquals(latestVersion.majorVersion(), 1);
+            Assert.assertEquals(latestVersion.minorVersion(), 2);
+            Assert.assertEquals(latestVersion.patchVersion(), 0);
         } catch (BrokerFilterBadVersionException bad) {
             Assert.fail(bad.getMessage(), bad);
         }

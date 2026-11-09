@@ -58,7 +58,7 @@ public class CacheEvictionCycleBenchmark {
         cache = new RangeCache(queue);
         entries = new EntryImpl[batchSize];
         for (int i = 0; i < batchSize; i++) {
-            entries[i] = EntryImpl.create(0, i, new byte[1], requeue ? 1 : 0);
+            entries[i] = EntryImpl.create(0, i, new byte[1], requeue ? 1 : EntryImpl.NO_EXPECTED_READ_COUNT);
         }
     }
 

@@ -24,6 +24,8 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
+import java.util.List;
+import java.util.Map;
 import org.apache.pulsar.client.impl.v5.SegmentRouter.ActiveSegment;
 import org.apache.pulsar.common.api.proto.ScalableTopicDAG;
 import org.apache.pulsar.common.api.proto.SegmentState;
@@ -114,6 +116,30 @@ public class ClientSegmentLayoutTest {
         assertTrue(seg.segmentTopicName().contains("tenant"));
         assertTrue(seg.segmentTopicName().contains("ns"));
         assertTrue(seg.segmentTopicName().contains("my-topic"));
+    }
+
+    // --- lineage ---
+
+    @Test
+    public void testSegmentParentsFromDag() {
+        // Segment 0 split into 1 and 2, which were then merged into 3.
+        ScalableTopicDAG dag = buildDag(2L);
+        addSegment(dag, 0L, 0x0000, 0xFFFF, SegmentState.SEALED);
+        addSegment(dag, 1L, 0x0000, 0x7FFF, SegmentState.SEALED);
+        addSegment(dag, 2L, 0x8000, 0xFFFF, SegmentState.SEALED);
+        addSegment(dag, 3L, 0x0000, 0xFFFF, SegmentState.ACTIVE);
+        dag.getSegmentAt(1).addParentId(0L);
+        dag.getSegmentAt(2).addParentId(0L);
+        dag.getSegmentAt(3).addParentId(1L);
+        dag.getSegmentAt(3).addParentId(2L);
+
+        ClientSegmentLayout layout = ClientSegmentLayout.fromProto(dag, PARENT);
+
+        assertEquals(layout.segmentParents(), Map.of(
+                0L, List.of(),
+                1L, List.of(0L),
+                2L, List.of(0L),
+                3L, List.of(1L, 2L)));
     }
 
     // --- immutability ---

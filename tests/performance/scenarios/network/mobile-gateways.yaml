@@ -1,0 +1,36 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# The gateways reach the cluster over a cellular network: 50 ms one way, varying by up to 20 ms, and 1 % of the packets
+# lost, in bursts of 2 packets on average, for the whole run. The applications are in the cluster's region.
+#
+# Look for: the publish latency's tail from the retransmissions, against a run without the loss, whether the producers
+# keep the rate, and reconnections.
+
+network:
+  impairments:
+    gateways-cellular:
+      between: [gateways, brokers]
+      delay: 50ms
+      jitter: 20ms
+      loss: 1%
+      lossBurst: 2
+workloads:
+  iotTelemetry:
+    gateways:
+      producer:
+        precreate: true

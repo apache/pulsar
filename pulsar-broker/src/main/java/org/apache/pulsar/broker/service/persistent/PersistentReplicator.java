@@ -26,6 +26,7 @@ import static org.apache.pulsar.broker.service.AbstractReplicator.State.Terminat
 import static org.apache.pulsar.broker.service.AbstractReplicator.State.Terminating;
 import static org.apache.pulsar.broker.service.persistent.PersistentTopic.MESSAGE_RATE_BACKOFF_MS;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.util.concurrent.ExecutionError;
 import io.github.merlimat.slog.Logger;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
@@ -169,20 +170,22 @@ public abstract class PersistentReplicator extends AbstractReplicator
     @Override
     protected void setProducerAndTriggerReadEntries(Producer<byte[]> producer) {
         /**
-         * 1. Try change state to {@link Started}.
-         * 2. Atoms modify multiple properties if change state success, to avoid another thread get a null value
-         *    producer when the state is {@link Started}.
+         * 1. Set the producer before changing the state to {@link Started}: {@link #terminate()} and
+         *    {@link #closeProducerAsync(boolean)} change the state from {@link Started} and then close the producer
+         *    they read, so another thread must not get a null value producer when the state is {@link Started}.
+         * 2. Try change state to {@link Started}. Clear the producer and close it if change the state fail.
          */
+        ProducerImpl producerImpl = producer instanceof ProducerImpl ? (ProducerImpl) producer : null;
+        this.producer = producerImpl;
         Pair<Boolean, State> changeStateRes;
         changeStateRes = compareSetAndGetState(Starting, Started);
         if (changeStateRes.getLeft()) {
-            if (!(producer instanceof ProducerImpl)) {
+            if (producerImpl == null) {
                 log.error("The partitions count between two clusters is not the same, "
                         + "the replicator can not be created successfully");
                 doCloseProducerAsync(producer, () -> {});
                 throw new ClassCastException(producer.getClass().getName() + " can not be cast to ProducerImpl");
             }
-            this.producer = (ProducerImpl) producer;
             // Trigger a new read.
             log.info("Created replicator producer");
             backOff.reset();
@@ -202,7 +205,8 @@ public abstract class PersistentReplicator extends AbstractReplicator
             } else {
                 log.error("Replicator state is not expected, closing the producer");
             }
-            // Close the producer if change the state fail.
+            // Clear the producer set above and close it if change the state fail.
+            this.producer = null;
             doCloseProducerAsync(producer, () -> {});
         }
     }
@@ -280,8 +284,9 @@ public abstract class PersistentReplicator extends AbstractReplicator
             readLimitOnByte = readMaxSizeBytes;
         }
 
-        // limit messages to current read batch size
-        readLimitOnMsg = Math.min(readLimitOnMsg, readBatchSize);
+        // Limit messages by the adaptive batch size and the current dynamic maximum.
+        int maxReadBatchSize = Math.min(readBatchSize, getMaxReadBatchSize());
+        readLimitOnMsg = Math.min(readLimitOnMsg, maxReadBatchSize);
 
         return new ReadLimits((int) readLimitOnMsg, readLimitOnByte);
     }
@@ -614,12 +619,16 @@ public abstract class PersistentReplicator extends AbstractReplicator
 
     protected abstract boolean replicateEntries(List<Entry> entries, InFlightTask inFlightTask);
 
-    protected CompletableFuture<SchemaInfo> getSchemaInfo(MessageImpl msg) throws ExecutionException {
-        if (msg.getSchemaVersion() == null || msg.getSchemaVersion().length == 0) {
-            return CompletableFuture.completedFuture(null);
+    protected CompletableFuture<SchemaInfo> getSchemaInfo(MessageImpl msg) {
+        try {
+            if (msg.getSchemaVersion() == null || msg.getSchemaVersion().length == 0) {
+                return CompletableFuture.completedFuture(null);
+            }
+            return client.getSchemaProviderLoadingCache().get(localSchemaTopicName)
+                    .getSchemaByVersion(msg.getSchemaVersion());
+        } catch (ExecutionException | RuntimeException | ExecutionError e) {
+            return CompletableFuture.failedFuture(e);
         }
-        return client.getSchemaProviderLoadingCache().get(localSchemaTopicName)
-                .getSchemaByVersion(msg.getSchemaVersion());
     }
 
     public void updateCursorState() {

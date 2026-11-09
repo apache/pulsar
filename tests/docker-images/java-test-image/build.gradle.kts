@@ -79,6 +79,9 @@ val prepareBuildContext = tasks.register<Sync>("prepareBuildContext") {
     into("${projectDir}/target")
 }
 
+// Whether the test image installs the offloader of a 4.x release image, which only the scenarios that offload need
+val installOffloaders = providers.gradleProperty("performance.installOffloaders").getOrElse("false")
+
 /**
  * Registers a `docker build` of the test image on [pulsarImage]. With [pulsarImageTask], the Pulsar image is the one
  * that task builds from this repository, and the test image is rebuilt only when it or the build context changes.
@@ -105,6 +108,9 @@ fun registerDockerBuild(taskName: String, imageTag: String, installAsyncProfiler
             "--iidfile", imageIdFile.absolutePath,
             "--build-arg", "PULSAR_IMAGE=${pulsarImage}",
             "--build-arg", "INSTALL_ASYNC_PROFILER=${installAsyncProfiler}",
+            // The offloader of a 4.x release image, which -Pperformance.installOffloaders=true installs for the
+            // scenarios that offload
+            "--build-arg", "INSTALL_OFFLOADERS=${installOffloaders}",
             "--build-arg", "ASYNC_PROFILER_VERSION=${asyncProfilerVersion}"
         )
 
@@ -173,3 +179,17 @@ if (clusterPulsarImage != null) {
         description = "Build the java-test-image Docker image on the performance.clusterPulsarImage Pulsar image"
     }
 }
+
+// The clusters' images for :tests:performance:launcher:compareImages and compareImageWithCheckout, which compare two
+// released Pulsar images, -Pperformance.compare.baselineImage and -Pperformance.compare.candidateImage, or a released
+// image and this checkout: the test image built on each, named as dockerBuildCluster names its image.
+listOf("Baseline" to "performance.compare.baselineImage", "Candidate" to "performance.compare.candidateImage")
+    .forEach { (side, property) ->
+        providers.gradleProperty(property).orNull?.let { image ->
+            registerDockerBuild("dockerBuildCompare$side",
+                "cluster-" + image.replace(Regex("[^A-Za-z0-9_.-]"), "-").takeLast(120), "false", image, null)
+                .configure {
+                    description = "Build the java-test-image Docker image on the $property Pulsar image"
+                }
+        }
+    }

@@ -18,18 +18,25 @@
  */
 package org.apache.pulsar.client.impl.v5;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.github.merlimat.slog.Logger;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException.AlreadyClosedException;
 import org.apache.pulsar.client.api.Reader;
+import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.client.api.v5.Checkpoint;
 import org.apache.pulsar.client.api.v5.CheckpointConsumer;
 import org.apache.pulsar.client.api.v5.Message;
@@ -38,7 +45,10 @@ import org.apache.pulsar.client.api.v5.PulsarClientException;
 import org.apache.pulsar.client.api.v5.async.AsyncCheckpointConsumer;
 import org.apache.pulsar.client.api.v5.schema.Schema;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
 import org.apache.pulsar.client.impl.v5.SegmentRouter.ActiveSegment;
+import org.apache.pulsar.common.util.Backoff;
+import org.apache.pulsar.common.util.FutureUtil;
 
 /**
  * V5 CheckpointConsumer implementation for scalable topics.
@@ -79,10 +89,62 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
      * Per-segment v4 readers. Stores futures so concurrent operations (seek, close)
      * can chain on in-flight reader creation without racing against completion.
      */
-    private final ConcurrentHashMap<Long, CompletableFuture<Reader<T>>> segmentReaders = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<Long, org.apache.pulsar.client.api.MessageId> lastReceivedPositions =
-            new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Long, SegmentReaderFuture<T>> segmentReaders = new ConcurrentHashMap<>();
+    /**
+     * One position tracker per reader attachment. A pending latest-start lookup has no message id yet.
+     * Seed, receive, and removal use per-key computations, so revocation cannot race a seed or receive
+     * into restoring an old attachment. The volatile message id is read by checkpoint snapshots.
+     */
+    private static final class SegmentPosition {
+        private final Object attachment = new Object();
+        private volatile MessageId messageId;
+    }
+
+    /** The reader owns its position, so a retained checkpoint tracker cannot retain a reader or its future. */
+    private static final class SegmentReaderFuture<T> extends CompletableFuture<Reader<T>> {
+        private final SegmentPosition position = new SegmentPosition();
+    }
+
+    private final ConcurrentHashMap<Long, SegmentPosition> lastReceivedPositions = new ConcurrentHashMap<>();
     private final V5ReceiveQueue<T> receiveQueue;
+
+    /**
+     * Per-key order across a split or merge, for the unmanaged consumer, which reads the whole DAG:
+     * a segment is read only once every parent still in the layout has been read to its end, since
+     * the parents hold the older messages of its keys. A managed assignment carries no lineage, so
+     * its segments are read independently. Both are replaced on every layout, under {@code this}.
+     */
+    private volatile Map<Long, List<Long>> segmentParents = Map.of();
+    /** Segments sealed in the latest layout: once read to their end, they have nothing more. */
+    private volatile Set<Long> sealedSegments = Set.of();
+    /** Sealed segments whose last message is in the receive queue. Guarded by {@code this}. */
+    private final Set<Long> drainedSegments = new HashSet<>();
+    /** Readers held back until their parents are drained. Guarded by {@code this}. */
+    private final Map<Long, HeldReader<T>> heldReaders = new HashMap<>();
+
+    /** A held reader retains its original reader future, even across reassignment. */
+    private record HeldReader<T>(Reader<T> reader, SegmentReaderFuture<T> readerFuture) {
+    }
+    /** Sealed segments found read to their end while their read loop waited for a message. */
+    private final Set<Long> exhaustedSegments = ConcurrentHashMap.newKeySet();
+
+    /** A segment assignment, with the layout it comes from for the unmanaged consumer (else null). */
+    private record Assignment(List<ActiveSegment> segments, ClientSegmentLayout layout) {
+    }
+
+    /** The latest assignment update, which {@link #reconcile()} converges the readers onto. */
+    private volatile Assignment latestAssignment;
+    /** Set when the readers must be converged onto {@link #latestAssignment} again. */
+    private final AtomicBoolean reconcileRequested = new AtomicBoolean(false);
+    /** Held while an assignment is applied, so only one is applied at a time. */
+    private final AtomicBoolean reconcileInProgress = new AtomicBoolean(false);
+    /** Whether a retry of the readers that failed to attach is scheduled. Guarded by {@code this}. */
+    private boolean retryScheduled = false;
+    /** Paces the retries. Guarded by {@code this}. */
+    private final Backoff reconcileBackoff = Backoff.builder()
+            .initialDelay(Duration.ofMillis(100))
+            .maxBackoff(Duration.ofSeconds(30))
+            .build();
 
     private volatile boolean closed = false;
     private final AsyncCheckpointConsumerV5<T> asyncView;
@@ -115,13 +177,21 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
     static <T> CompletableFuture<CheckpointConsumer<T>> createUnmanagedAsync(
             PulsarClientV5 client, Schema<T> v5Schema, DagWatchClient dagWatch,
             ClientSegmentLayout initialLayout, Checkpoint startPosition, String consumerName) {
+        if (startPosition == CheckpointV5.LATEST) {
+            // A segment that a split or merge creates later holds only messages published after the
+            // consumer started, so start at the end of the segments in the layout now instead: like
+            // a restored checkpoint, this has no position for a later segment, which is then read
+            // from the earliest.
+            startPosition = CheckpointV5.latestOf(allSegmentsOf(initialLayout).stream()
+                    .map(ActiveSegment::segmentId)
+                    .toList());
+        }
         ScalableCheckpointConsumer<T> consumer = new ScalableCheckpointConsumer<>(
                 client, v5Schema, dagWatch.topicName().toString(), dagWatch, startPosition, consumerName);
-        return consumer.applyAssignment(allSegmentsOf(initialLayout))
+        return consumer.applyAssignment(allSegmentsOf(initialLayout), initialLayout)
                 .thenApply(__ -> {
                     dagWatch.setListener((newLayout, oldLayout) -> consumer.onAssignmentChange(
-                            allSegmentsOf(newLayout),
-                            oldLayout != null ? allSegmentsOf(oldLayout) : List.of()));
+                            allSegmentsOf(newLayout), newLayout));
                     return (CheckpointConsumer<T>) consumer;
                 })
                 .exceptionallyCompose(ex -> consumer.closeAsync().handle((__, ___) -> {
@@ -133,8 +203,7 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
      * Active + sealed segments. The unmanaged checkpoint consumer needs to subscribe
      * to sealed segments too so a {@link Checkpoint} taken before a split or merge
      * still resumes correctly: the reader on each sealed parent picks up from the
-     * saved position and drains its remaining backlog before naturally exiting on
-     * {@code TopicTerminated}.
+     * saved position and drains its remaining backlog before its children are read.
      */
     private static List<ActiveSegment> allSegmentsOf(ClientSegmentLayout layout) {
         List<ActiveSegment> all = new ArrayList<>(
@@ -155,9 +224,10 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
             Checkpoint startPosition, String consumerName) {
         ScalableCheckpointConsumer<T> consumer = new ScalableCheckpointConsumer<>(
                 client, v5Schema, topicName, session, startPosition, consumerName);
-        return consumer.applyAssignment(initialAssignment)
+        return consumer.applyAssignment(initialAssignment, null)
                 .thenApply(__ -> {
-                    session.setListener(consumer::onAssignmentChange);
+                    session.setListener((newSegments, oldSegments) ->
+                            consumer.onAssignmentChange(newSegments, null));
                     return (CheckpointConsumer<T>) consumer;
                 })
                 .exceptionallyCompose(ex -> consumer.closeAsync().handle((__, ___) -> {
@@ -197,16 +267,38 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
      * caller can pass through the receive result without an extra null-check.
      */
     private Message<T> advanceCheckpoint(Message<T> msg) {
-        if (msg != null && msg.id() instanceof MessageIdV5 id) {
-            lastReceivedPositions.put(id.segmentId(), id.v4MessageId());
+        if (msg instanceof MessageV5<?> message && msg.id() instanceof MessageIdV5 id) {
+            lastReceivedPositions.computeIfPresent(id.segmentId(), (__, position) -> {
+                if (position.attachment == message.checkpointAttachment()) {
+                    position.messageId = id.v4MessageId();
+                }
+                return position;
+            });
         }
         return msg;
     }
 
     @Override
     public Checkpoint checkpoint() {
-        Map<Long, org.apache.pulsar.client.api.MessageId> positions = new HashMap<>(lastReceivedPositions);
+        Map<Long, MessageId> positions = new HashMap<>();
+        lastReceivedPositions.forEach((segmentId, position) -> {
+            MessageId messageId = position.messageId;
+            if (messageId != null) {
+                positions.put(segmentId, messageId);
+            }
+        });
         return new CheckpointV5(positions);
+    }
+
+    @VisibleForTesting
+    int checkpointPositionTrackerCount() {
+        return lastReceivedPositions.size();
+    }
+
+    /** Remove only the position belonging to the reader being detached, never a later attachment. */
+    private void removePosition(long segmentId, SegmentReaderFuture<?> readerFuture) {
+        lastReceivedPositions.computeIfPresent(segmentId, (__, position) ->
+                position == readerFuture.position ? null : position);
     }
 
     @Override
@@ -222,7 +314,7 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
             Thread.currentThread().interrupt();
             throw new PulsarClientException("Close interrupted", e);
         } catch (ExecutionException e) {
-            throw new PulsarClientException(e.getCause());
+            throw V5ExceptionMappings.toV5Exception(e);
         }
     }
 
@@ -264,23 +356,102 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
                             : CompletableFuture.completedFuture(null)));
         }
         return CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new))
-                .whenComplete((__, ___) -> segmentReaders.clear());
+                .whenComplete((__, ___) -> segmentReaders.clear())
+                .exceptionallyCompose(V5ExceptionMappings::failWithV5Exception);
     }
 
     // --- Assignment change handling ---
 
-    private void onAssignmentChange(List<ActiveSegment> newSegments, List<ActiveSegment> oldSegments) {
+    private void onAssignmentChange(List<ActiveSegment> newSegments, ClientSegmentLayout layout) {
         // Fully async: safe to run on the netty IO thread that delivered the update.
-        applyAssignment(newSegments).exceptionally(ex -> {
-            log.warn().exceptionMessage(ex).log("Failed to apply segment assignment");
-            return null;
-        });
+        latestAssignment = new Assignment(newSegments, layout);
+        reconcile();
     }
 
-    private CompletableFuture<Void> applyAssignment(List<ActiveSegment> assigned) {
+    /**
+     * Converge the per-segment readers onto {@link #latestAssignment}. An assignment is applied as
+     * soon as it arrives, not after the readers of the previous one have attached: a reader that
+     * keeps reconnecting must not delay closing a segment that was rebalanced away. A reader that
+     * fails to attach is evicted and retried with backoff: otherwise its segment, and every segment
+     * held back on it, would never be read.
+     */
+    private void reconcile() {
+        reconcileRequested.set(true);
+        // One thread applies at a time, and applies again if asked to meanwhile.
+        while (!closed && reconcileRequested.get() && reconcileInProgress.compareAndSet(false, true)) {
+            reconcileRequested.set(false);
+            evictFailedSegmentReaders();
+            Assignment target = latestAssignment;
+            applyAssignment(target.segments(), target.layout()).whenComplete((__, ex) -> {
+                if (ex == null) {
+                    synchronized (this) {
+                        reconcileBackoff.reset();
+                    }
+                } else if (!closed) {
+                    scheduleRetry(ex);
+                }
+            });
+            reconcileInProgress.set(false);
+        }
+    }
+
+    /** Retry the readers that failed to attach after a backoff, with at most one retry scheduled. */
+    private void scheduleRetry(Throwable ex) {
+        Duration delay;
+        synchronized (this) {
+            if (retryScheduled) {
+                return;
+            }
+            retryScheduled = true;
+            delay = reconcileBackoff.next();
+        }
+        log.warn().attr("delayMs", delay.toMillis()).exceptionMessage(ex)
+                .log("Failed to apply segment assignment, retrying after backoff");
+        client.v4Client().timer().newTimeout(timeout -> {
+            synchronized (this) {
+                retryScheduled = false;
+            }
+            reconcile();
+        }, delay.toMillis(), TimeUnit.MILLISECONDS);
+    }
+
+    private void evictFailedSegmentReaders() {
+        for (var entry : segmentReaders.entrySet()) {
+            var future = entry.getValue();
+            if (future.isCompletedExceptionally() && segmentReaders.remove(entry.getKey(), future)) {
+                removePosition(entry.getKey(), future);
+            }
+        }
+    }
+
+    /**
+     * @param layout the DAG the segments come from, for the unmanaged consumer, which reads each
+     *               segment after its parents; null for a managed assignment, which has no lineage
+     */
+    private CompletableFuture<Void> applyAssignment(List<ActiveSegment> assigned, ClientSegmentLayout layout) {
         var assignedIds = ConcurrentHashMap.<Long>newKeySet();
         for (var seg : assigned) {
             assignedIds.add(seg.segmentId());
+        }
+
+        Set<Long> newlySealed = new HashSet<>();
+        List<Map.Entry<Long, HeldReader<T>>> released;
+        synchronized (this) {
+            Set<Long> sealed = new HashSet<>();
+            if (layout != null) {
+                for (var seg : layout.sealedSegments()) {
+                    sealed.add(seg.segmentId());
+                    if (!sealedSegments.contains(seg.segmentId())) {
+                        newlySealed.add(seg.segmentId());
+                    }
+                }
+            }
+            segmentParents = layout != null ? layout.segmentParents() : Map.of();
+            sealedSegments = Set.copyOf(sealed);
+            drainedSegments.retainAll(assignedIds);
+            heldReaders.keySet().retainAll(assignedIds);
+            // A parent pruned from the layout leaves nothing to wait for.
+            released = releaseHeldReaders();
         }
 
         // Close readers for segments removed from the assignment (sealed, or rebalanced
@@ -290,27 +461,140 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
                 log.info().attr("segmentId", entry.getKey())
                         .log("Closing reader for segment removed from assignment");
                 entry.getValue().thenAccept(r -> r.closeAsync());
-                segmentReaders.remove(entry.getKey());
-                lastReceivedPositions.remove(entry.getKey());
+                segmentReaders.remove(entry.getKey(), entry.getValue());
+                removePosition(entry.getKey(), entry.getValue());
+            }
+        }
+
+        // A segment sealed under its running read loop: see probeSealedSegment.
+        for (long segmentId : newlySealed) {
+            var readerFuture = segmentReaders.get(segmentId);
+            if (readerFuture != null) {
+                readerFuture.thenAccept(reader -> {
+                    if (reader != null) {
+                        probeSealedSegment(reader, segmentId);
+                    }
+                });
             }
         }
 
         // Create readers for new segments asynchronously.
         List<CompletableFuture<?>> futures = new ArrayList<>();
         for (var seg : assigned) {
-            futures.add(segmentReaders.computeIfAbsent(seg.segmentId(),
-                    id -> createSegmentReaderAsync(seg)));
+            // In segmentReaders before the creation starts, so that a later step of the creation can
+            // tell whether the segment still maps to it.
+            var readerFuture = new SegmentReaderFuture<T>();
+            var current = segmentReaders.putIfAbsent(seg.segmentId(), readerFuture);
+            if (current == null) {
+                lastReceivedPositions.put(seg.segmentId(), readerFuture.position);
+                FutureUtil.completeAfter(readerFuture,
+                        FutureUtil.supplySafely(() -> createSegmentReaderAsync(seg, readerFuture)));
+                current = readerFuture;
+            }
+            futures.add(current);
         }
+        released.forEach(held -> startReadLoop(held.getValue().reader(), held.getKey(),
+                held.getValue().readerFuture()));
 
         log.info().attr("segments", assignedIds).log("Checkpoint consumer assignment applied");
         return CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new));
     }
 
-    private CompletableFuture<Reader<T>> createSegmentReaderAsync(ActiveSegment segment) {
+    /** Whether every parent of the segment still in the layout has been read to its end. */
+    private synchronized boolean parentsDrained(long segmentId) {
+        Map<Long, List<Long>> parents = segmentParents;
+        for (long parent : parents.getOrDefault(segmentId, List.of())) {
+            if (parents.containsKey(parent) && !drainedSegments.contains(parent)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** Remove and return the held readers whose parents have all been drained. */
+    private synchronized List<Map.Entry<Long, HeldReader<T>>> releaseHeldReaders() {
+        List<Map.Entry<Long, HeldReader<T>>> released = new ArrayList<>();
+        for (var it = heldReaders.entrySet().iterator(); it.hasNext(); ) {
+            var held = it.next();
+            if (parentsDrained(held.getKey())) {
+                released.add(Map.entry(held.getKey(), held.getValue()));
+                it.remove();
+            }
+        }
+        return released;
+    }
+
+    /**
+     * A segment sealed under its running read loop: once it has nothing left, the loop's pending
+     * read never completes (a reader at the end of a terminated topic just waits). Close the reader
+     * to wake the loop, which then marks the segment drained — after the segment's last message is
+     * in the receive queue, which only the loop knows.
+     */
+    private void probeSealedSegment(Reader<T> reader, long segmentId) {
+        synchronized (this) {
+            HeldReader<T> held = heldReaders.get(segmentId);
+            if ((held != null && held.reader() == reader) || drainedSegments.contains(segmentId)) {
+                // Not started yet (its loop will start on the sealed path), or already done.
+                return;
+            }
+        }
+        reader.hasMessageAvailableAsync().whenComplete((available, ex) -> {
+            if (ex != null) {
+                Throwable cause = ex instanceof CompletionException ce && ce.getCause() != null
+                        ? ce.getCause() : ex;
+                if (!closed && !(cause instanceof AlreadyClosedException)) {
+                    // E.g. reconnecting: retry, or a waiting loop would never learn it is done.
+                    client.v4Client().timer().newTimeout(__ -> probeSealedSegment(reader, segmentId),
+                            1, TimeUnit.SECONDS);
+                }
+                return;
+            }
+            if (!available) {
+                exhaustedSegments.add(segmentId);
+                reader.closeAsync();
+            }
+        });
+    }
+
+    /**
+     * A sealed segment's last message is in the receive queue: start the segments held back on it.
+     * Its closed reader stays in {@link #segmentReaders} so later layouts don't reopen it, and its
+     * position stays in the checkpoint so a restore doesn't replay it.
+     */
+    private void onSegmentDrained(Reader<T> reader, long segmentId) {
+        reader.closeAsync();
+        exhaustedSegments.remove(segmentId);
+        if (markDrained(segmentId)) {
+            log.info().attr("segmentId", segmentId).log("Sealed segment drained, closing reader");
+        }
+    }
+
+    /**
+     * Record that nothing more will be read from the segment — it was read to its end, or its
+     * backing topic was deleted — and start the segments held back on it.
+     *
+     * @return false if the segment was already recorded
+     */
+    private boolean markDrained(long segmentId) {
+        List<Map.Entry<Long, HeldReader<T>>> released;
+        synchronized (this) {
+            if (!drainedSegments.add(segmentId)) {
+                return false;
+            }
+            released = releaseHeldReaders();
+        }
+        released.forEach(held -> startReadLoop(held.getValue().reader(), held.getKey(),
+                held.getValue().readerFuture()));
+        return true;
+    }
+
+    private CompletableFuture<Reader<T>> createSegmentReaderAsync(ActiveSegment segment,
+                                                                 SegmentReaderFuture<T> readerFuture) {
+        SegmentPosition position = readerFuture.position;
         PulsarClientImpl v4Client = client.v4Client();
         org.apache.pulsar.client.api.MessageId startMsgId = resolveStartPosition(segment.segmentId());
 
-        var segConf = new org.apache.pulsar.client.impl.conf.ReaderConfigurationData<T>();
+        var segConf = new ReaderConfigurationData<T>();
         // Legacy segments wrap an externally managed persistent:// topic; regular ones use the
         // computed segment:// URI. attachTopicName() collapses both into the right URI.
         segConf.getTopicNames().add(segment.attachTopicName());
@@ -319,9 +603,34 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
             segConf.setReaderName(consumerName + "-seg-" + segment.segmentId());
         }
 
-        return v4Client.createSegmentReaderAsync(segConf, v4Schema)
+        // The original attachment is passed in, never looked up again after an asynchronous boundary.
+        return resolveLatestStartAsync(segConf)
+                .thenCompose(__ -> {
+                    // Seed only this attachment, atomically with revocation and receive advancement.
+                    // A lookup that outlives its assignment cannot insert a tracker or seed another one.
+                    lastReceivedPositions.computeIfPresent(segment.segmentId(), (ignoredSegmentId, current) -> {
+                        if (current == position && segmentReaders.get(segment.segmentId()) == readerFuture
+                                && current.messageId == null) {
+                            current.messageId = segConf.getStartMessageId();
+                        }
+                        return current;
+                    });
+                    return v4Client.createSegmentReaderAsync(segConf, v4Schema);
+                })
                 .thenApply(reader -> {
-                    startReadLoop(reader, segment.segmentId());
+                    // The reader attaches now, so its start position is resolved now, even when
+                    // reading waits for the segment's parents to drain.
+                    boolean held;
+                    synchronized (this) {
+                        held = lastReceivedPositions.get(segment.segmentId()) == position
+                                && !parentsDrained(segment.segmentId());
+                        if (held) {
+                            heldReaders.put(segment.segmentId(), new HeldReader<>(reader, readerFuture));
+                        }
+                    }
+                    if (!held) {
+                        startReadLoop(reader, segment.segmentId(), readerFuture);
+                    }
                     return reader;
                 })
                 .exceptionally(ex -> {
@@ -334,13 +643,52 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
                         // Either way, the segment's data is gone — skip it silently.
                         log.info().attr("segmentId", segment.segmentId())
                                 .log("Segment backing topic deleted (retention expired); skipping");
-                        segmentReaders.remove(segment.segmentId());
-                        lastReceivedPositions.remove(segment.segmentId());
+                        segmentReaders.remove(segment.segmentId(), readerFuture);
+                        removePosition(segment.segmentId(), readerFuture);
+                        // Its data is gone: the segments held back on it have nothing to wait for.
+                        markDrained(segment.segmentId());
                         return null;
                     }
                     throw ex instanceof CompletionException
                             ? (CompletionException) ex : new CompletionException(ex);
                 });
+    }
+
+    /**
+     * Replace a latest start position with the segment's last message id, looked up through a reader
+     * opened only for that. A reader attached at latest starts after the segment's last message at that
+     * moment, which a lookup made once it is attached can't tell apart from a message published in
+     * between, and it starts after the new latest if it reconnects before receiving anything. A reader
+     * attached after a known position starts exactly there.
+     *
+     * <p>The lookup returns the last dispatchable position. While a transaction is open on the segment,
+     * that is before the transaction's first message, so the messages behind it are delivered once they
+     * become dispatchable, also non-transactional ones published before the consumer started.
+     */
+    private CompletableFuture<Void> resolveLatestStartAsync(ReaderConfigurationData<T> segConf) {
+        if (!org.apache.pulsar.client.api.MessageId.latest.equals(segConf.getStartMessageId())) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return client.v4Client().createSegmentReaderAsync(segConf.clone(), v4Schema)
+                .thenCompose(ScalableCheckpointConsumer::lastMessageIdsThenCloseAsync)
+                .thenAccept(lastMessageIds -> segConf.setStartMessageId(lastMessageIds.get(0)));
+    }
+
+    /**
+     * The reader's last message ids, available once the reader is closed. The lookup reader is not in
+     * {@link #segmentReaders}, so a consumer close doesn't wait for it: the reader creation goes on only
+     * after it is closed, also when the lookup failed, whose error is kept. A failed close is only logged.
+     */
+    @VisibleForTesting
+    static CompletableFuture<List<TopicMessageId>> lastMessageIdsThenCloseAsync(Reader<?> lookupReader) {
+        CompletableFuture<List<TopicMessageId>> lookup = lookupReader.getLastMessageIdsAsync();
+        return lookup.handle((__, ___) -> lookupReader.closeAsync())
+                .thenCompose(closing -> closing.exceptionally(ex -> {
+                    LOG.warn().attr("topic", lookupReader.getTopic()).exceptionMessage(ex)
+                            .log("Failed to close the lookup reader");
+                    return null;
+                }))
+                .thenCompose(__ -> lookup);
     }
 
     /**
@@ -370,12 +718,36 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
         if (startPosition == CheckpointV5.EARLIEST) {
             return org.apache.pulsar.client.api.MessageId.earliest;
         }
-        // CheckpointV5.LATEST and anything else: latest.
+        // CheckpointV5.LATEST and anything else: latest. Only a managed consumer still has LATEST
+        // here (createUnmanagedAsync resolves it against the initial layout): its assignment can't
+        // tell a segment created after the consumer started from one moved to it by a rebalance.
         return org.apache.pulsar.client.api.MessageId.latest;
     }
 
-    private void startReadLoop(Reader<T> reader, long segmentId) {
-        reader.readNextAsync().thenAccept(v4Msg -> {
+    /**
+     * The segment's next message — or, for a sealed segment, null once it has none left, since a
+     * read past the end of a terminated topic never completes.
+     */
+    private CompletableFuture<org.apache.pulsar.client.api.Message<T>> readNextAsync(Reader<T> reader,
+                                                                                     long segmentId) {
+        if (!sealedSegments.contains(segmentId)) {
+            return reader.readNextAsync();
+        }
+        return reader.hasMessageAvailableAsync().thenCompose(available -> available
+                ? reader.readNextAsync() : CompletableFuture.completedFuture(null));
+    }
+
+    private void startReadLoop(Reader<T> reader, long segmentId, SegmentReaderFuture<T> readerFuture) {
+        SegmentPosition position = readerFuture.position;
+        if (closed || segmentReaders.get(segmentId) != readerFuture) {
+            reader.closeAsync();
+            return;
+        }
+        readNextAsync(reader, segmentId).thenAccept(v4Msg -> {
+            if (v4Msg == null) {
+                onSegmentDrained(reader, segmentId);
+                return;
+            }
             // Don't advance the checkpoint here — the read loop pre-fetches into the
             // queue, so updating per-segment positions on wire-receive would skip
             // messages that the application hasn't pulled yet (e.g., a checkpoint()
@@ -384,29 +756,31 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
             // receiveMulti() instead, where the message crosses into application code.
             // Re-arm only once the buffer has room, so a slow consumer pauses this reader
             // instead of pre-fetching unboundedly.
-            receiveQueue.offer(new MessageV5<>(v4Msg, segmentId)).thenRun(() -> {
+            receiveQueue.offer(new MessageV5<>(v4Msg, segmentId, position.attachment)).thenRun(() -> {
                 if (!closed) {
-                    startReadLoop(reader, segmentId);
+                    startReadLoop(reader, segmentId, readerFuture);
                 }
             });
         }).exceptionally(ex -> {
             Throwable cause = ex instanceof CompletionException ce && ce.getCause() != null
                     ? ce.getCause() : ex;
-            if (closed || cause instanceof AlreadyClosedException) {
-                // The whole consumer is shutting down or this reader was closed
-                // externally (segment sealed or rebalanced away). Stop the loop.
+            if (closed) {
+                // The whole consumer is shutting down. Stop the loop.
+                return null;
+            }
+            if (cause instanceof AlreadyClosedException) {
+                // Closed by probeSealedSegment once the segment was read to its end, or
+                // externally (segment rebalanced away or pruned). Stop the loop.
+                if (exhaustedSegments.remove(segmentId)) {
+                    onSegmentDrained(reader, segmentId);
+                }
                 return null;
             }
             if (cause instanceof org.apache.pulsar.client.api.PulsarClientException
                     .TopicTerminatedException) {
-                // Sealed segment fully drained server-side. Close the reader and drop
-                // it from the map so resources are released; the segment's data has
+                // Sealed segment fully drained server-side; the segment's data has
                 // already crossed into receiveQueue.
-                log.info().attr("segmentId", segmentId)
-                        .log("Sealed segment drained, closing reader");
-                segmentReaders.remove(segmentId);
-                lastReceivedPositions.remove(segmentId);
-                reader.closeAsync();
+                onSegmentDrained(reader, segmentId);
                 return null;
             }
             if (isSegmentGoneError(cause)) {
@@ -419,9 +793,10 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
                 // that no longer exists.
                 log.info().attr("segmentId", segmentId)
                         .log("Segment backing topic deleted (retention expired); closing reader");
-                segmentReaders.remove(segmentId);
-                lastReceivedPositions.remove(segmentId);
+                segmentReaders.remove(segmentId, readerFuture);
+                removePosition(segmentId, readerFuture);
                 reader.closeAsync();
+                markDrained(segmentId);
                 return null;
             }
             log.warn().attr("segmentId", segmentId)
@@ -429,7 +804,7 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
             // Hop to the v4 client's internal executor so repeated synchronous failures
             // don't grow the stack unboundedly.
             client.v4Client().getInternalExecutorService()
-                    .execute(() -> startReadLoop(reader, segmentId));
+                    .execute(() -> startReadLoop(reader, segmentId, readerFuture));
             return null;
         });
     }

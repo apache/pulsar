@@ -43,8 +43,10 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import org.testng.collections.Sets;
 
@@ -178,6 +180,51 @@ public class ConsumerAckTest extends SharedPulsarBaseTest {
                 data.messageIds.get(data.messageIds.size() - 1));
         assertEquals(data.consumer.getStats().getNumAcksSent(), 2);
         assertTrue(data.consumer.getUnAckedMessageTracker().isEmpty());
+    }
+
+    @DataProvider
+    public Object[][] cumulative() {
+        return new Object[][]{{false}, {true}};
+    }
+
+    @Test(timeOut = 30000, dataProvider = "cumulative")
+    public void testAckWithoutGroupingWhileReconnecting(boolean cumulative) throws Exception {
+        final String topic = newTopicName();
+        // Leaves the consumer without a connection for a while after the unload
+        @Cleanup
+        PulsarClient slowReconnectClient = PulsarClient.builder()
+                .serviceUrl(getBrokerServiceUrl())
+                .startingBackoffInterval(3, TimeUnit.SECONDS)
+                .maxBackoffInterval(3, TimeUnit.SECONDS)
+                .build();
+        @Cleanup
+        ConsumerImpl<String> consumer = (ConsumerImpl<String>) slowReconnectClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub")
+                .acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS)
+                .subscribe();
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .enableBatching(false)
+                .create();
+        producer.send("msg");
+        Message<String> message = consumer.receive(10, TimeUnit.SECONDS);
+        assertNotNull(message);
+
+        admin.topics().unload(topic);
+        Awaitility.await().until(() -> !consumer.isConnected());
+        // Without a connection, the ack waits for the subscription instead of failing
+        if (cumulative) {
+            consumer.acknowledgeCumulative(message.getMessageId());
+        } else {
+            consumer.acknowledge(message.getMessageId());
+        }
+
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(consumer.isConnected());
+            assertEquals(admin.topics().getStats(topic).getSubscriptions().get("sub").getMsgBacklog(), 0);
+        });
     }
 
     // Send 1 non-batched message, then send N-1 messages that are in the same batch

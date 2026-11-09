@@ -27,6 +27,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import lombok.CustomLog;
+import org.apache.pulsar.common.functions.MemoryLimit;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.FunctionDetails;
@@ -38,6 +39,7 @@ import org.jose4j.json.internal.json_simple.JSONObject;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
+import picocli.CommandLine;
 
 @CustomLog
 public class RuntimeUtilsTest {
@@ -237,6 +239,71 @@ public class RuntimeUtilsTest {
         assertTrue(indexJavaClass > 0);
         assertTrue(indexAdditionalArguments > 0);
         assertTrue(indexAdditionalArguments < indexJavaClass);
+    }
+
+    @DataProvider(name = "pulsarClientMemoryLimit")
+    public Object[][] pulsarClientMemoryLimit() {
+        return new Object[][] {
+                {null},
+                {new MemoryLimit().setLimitInBytes(64L * 1024 * 1024)},
+                {new MemoryLimit().setPercentOfMaxDirectMemory(25.0)},
+                {new MemoryLimit().setLimitInBytes(64L * 1024 * 1024).setPercentOfMaxDirectMemory(25.0)},
+        };
+    }
+
+    @Test(dataProvider = "pulsarClientMemoryLimit")
+    public void testPulsarClientMemoryLimitReachesJavaInstance(MemoryLimit memoryLimit) throws Exception {
+        InstanceConfig instanceConfig = new InstanceConfig();
+        instanceConfig.setClusterName("kluster");
+        instanceConfig.setInstanceId(3000);
+        instanceConfig.setFunctionId("func-7734");
+        instanceConfig.setFunctionVersion("1.0.0");
+        instanceConfig.setMaxBufferedTuples(5);
+        instanceConfig.setPort(1337);
+        instanceConfig.setFunctionDetails(new FunctionDetails());
+        instanceConfig.setPulsarClientMemoryLimit(memoryLimit);
+
+        List<String> cmd = RuntimeUtils.getCmd(instanceConfig, "instanceFile",
+                null, "logDirectory", "originalCodeFileName", null, "pulsarServiceUrl",
+                null, AuthenticationConfig.builder().build(), "0", 23, 1234L, "logConfigFile",
+                null, null, false, null, null, "narExtractionDirectory", "functionInstanceClassPath",
+                false, "");
+
+        // the arguments after the main class are the ones JavaInstanceStarter parses in the instance process
+        int indexJavaClass = cmd.indexOf("org.apache.pulsar.functions.instance.JavaInstanceMain");
+        JavaInstanceStarter javaInstanceStarter = new JavaInstanceStarter();
+        new CommandLine(javaInstanceStarter).parseArgs(
+                cmd.subList(indexJavaClass + 1, cmd.size()).toArray(new String[0]));
+
+        assertEquals(javaInstanceStarter.pulsarClientMemoryLimitBytes,
+                memoryLimit != null ? memoryLimit.getLimitInBytes() : null);
+        assertEquals(javaInstanceStarter.pulsarClientMemoryLimitPercent,
+                memoryLimit != null ? memoryLimit.getPercentOfMaxDirectMemory() : null);
+    }
+
+    @Test
+    public void testLog4j2ShutdownHookIsDisabledForJavaInstance() throws Exception {
+        InstanceConfig instanceConfig = new InstanceConfig();
+        instanceConfig.setClusterName("kluster");
+        instanceConfig.setInstanceId(3000);
+        instanceConfig.setFunctionId("func-7734");
+        instanceConfig.setFunctionVersion("1.0.0");
+        instanceConfig.setMaxBufferedTuples(5);
+        instanceConfig.setPort(1337);
+        instanceConfig.setFunctionDetails(new FunctionDetails());
+
+        List<String> cmd = RuntimeUtils.getCmd(instanceConfig, "instanceFile",
+                null, "logDirectory", "originalCodeFileName", null, "pulsarServiceUrl",
+                null, AuthenticationConfig.builder().build(), "0", 23, 1234L, "logConfigFile",
+                null, null, false, null, null, "narExtractionDirectory", "functionInstanceClassPath",
+                false, "");
+
+        // JavaInstanceStarter shuts down Log4j2 after the instance has been closed. If Log4j2 stopped
+        // its appenders from its own shutdown hook, logs written by Sink.close() and Function.close() would be lost.
+        int indexJavaClass = cmd.indexOf("org.apache.pulsar.functions.instance.JavaInstanceMain");
+        int indexShutdownHookOption = cmd.indexOf("-Dlog4j.shutdownHookEnabled=false");
+        assertTrue(indexShutdownHookOption > 0);
+        assertTrue(indexShutdownHookOption < indexJavaClass);
     }
 
     @Test

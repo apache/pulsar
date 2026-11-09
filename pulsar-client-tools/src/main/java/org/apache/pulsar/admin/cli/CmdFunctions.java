@@ -42,6 +42,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.text.WordUtils;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.cli.ClientApi;
+import org.apache.pulsar.cli.converters.picocli.ByteUnitToLongConverter;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -49,6 +50,7 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.FunctionState;
+import org.apache.pulsar.common.functions.MemoryLimit;
 import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.functions.UpdateOptionsImpl;
@@ -325,6 +327,13 @@ public class CmdFunctions extends CmdBase {
         protected Boolean skipToLatest;
         @Option(names = ClientApi.OPTION_NAME, description = CmdFunctions.CLIENT_API_DESCRIPTION)
         protected FunctionConfig.ClientApi clientApi;
+        @Option(names = "--client-memory-limit", description = "The max memory the Pulsar client of each function "
+                + "instance can use (eg: 32M, 64M) #Java(Process & K8s)", converter = ByteUnitToLongConverter.class)
+        protected Long clientMemoryLimit;
+        @Option(names = "--client-memory-limit-percent", description = "The max memory the Pulsar client of each "
+                + "function instance can use, as a percentage of the instance JVM max direct memory. If "
+                + "--client-memory-limit is also set, the smaller of the two limits is used #Java(Process & K8s)")
+        protected Double clientMemoryLimitPercent;
         @Option(names = "--parallelism", description = "The parallelism factor of a Pulsar Function "
                 + "(i.e. the number of function instances to run) #Java")
         protected Integer parallelism;
@@ -378,7 +387,7 @@ public class CmdFunctions extends CmdBase {
         @Option(names = "--timeout-ms", description = "The message timeout in milliseconds #Java, Python")
         protected Long timeoutMs;
         @Option(names = "--max-message-retries",
-                description = "How many times should we try to process a message before giving up #Java")
+                description = "How many times should we try to process a message before giving up #Java, Python")
         protected Integer maxMessageRetries;
         @Option(names = "--custom-runtime-options", description = "A string that encodes options to "
                 + "customize the runtime, see docs for configured runtime for details #Java")
@@ -387,7 +396,7 @@ public class CmdFunctions extends CmdBase {
                 + "how the secret is fetched by the underlying secrets provider #Java, Python")
         protected String secretsString;
         @Option(names = "--dead-letter-topic",
-                description = "The topic where messages that are not processed successfully are sent to #Java")
+                description = "The topic where messages that are not processed successfully are sent to #Java, Python")
         protected String deadLetterTopic;
         @Option(names = "--runtime-flags", description = "Any flags that you want to pass to a runtime"
                 + " (for process & Kubernetes runtime only).")
@@ -569,6 +578,12 @@ public class CmdFunctions extends CmdBase {
 
             if (null != clientApi) {
                 functionConfig.setClientApi(clientApi);
+            }
+
+            if (null != clientMemoryLimit || null != clientMemoryLimitPercent) {
+                functionConfig.setPulsarClientMemoryLimit(new MemoryLimit()
+                        .setLimitInBytes(clientMemoryLimit)
+                        .setPercentOfMaxDirectMemory(clientMemoryLimitPercent));
             }
 
             if (null != userConfigString) {

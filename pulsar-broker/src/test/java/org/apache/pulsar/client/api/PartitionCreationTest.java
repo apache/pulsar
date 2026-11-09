@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.client.api;
 
+import java.util.HashSet;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
@@ -164,6 +167,51 @@ public class PartitionCreationTest extends ProducerConsumerBase {
         Assert.assertNotNull(consumer);
         Assert.assertTrue(consumer instanceof MultiTopicsConsumerImpl);
         Assert.assertEquals(((MultiTopicsConsumerImpl) consumer).getConsumers().size(), 3);
+    }
+
+    @Test(timeOut = 60000)
+    public void testCreateMissedPartitionsCopiesSubscriptions() throws Exception {
+        conf.setAllowAutoTopicCreation(false);
+        final String topic = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        final TopicName topicName = TopicName.get(topic);
+        final int numPartitions = 4;
+        // simulate partitioned topic where only partitions 1 and 2 exist, with a subscription
+        pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
+                .createPartitionedTopicAsync(topicName, new PartitionedTopicMetadata(numPartitions)).join();
+        for (int i = 1; i <= 2; i++) {
+            admin.topics().createNonPartitionedTopic(topicName.getPartition(i).toString());
+            admin.topics().createSubscription(topicName.getPartition(i).toString(), "sub-1", MessageId.latest);
+        }
+
+        admin.topics().createMissedPartitions(topic);
+
+        for (int i = 0; i < numPartitions; i++) {
+            Assert.assertTrue(admin.topics().getStats(topicName.getPartition(i).toString())
+                    .getSubscriptions().containsKey("sub-1"));
+        }
+
+        // Messages published to the created partitions before the consumer attaches must not be skipped
+        final int numMessages = 8;
+        try (Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.RoundRobinPartition)
+                .create()) {
+            for (int i = 0; i < numMessages; i++) {
+                producer.send("msg-" + i);
+            }
+        }
+        Set<String> received = new HashSet<>();
+        try (Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topic)
+                .subscriptionName("sub-1")
+                .subscribe()) {
+            for (int i = 0; i < numMessages; i++) {
+                Message<String> msg = consumer.receive(5, TimeUnit.SECONDS);
+                Assert.assertNotNull(msg);
+                received.add(msg.getValue());
+            }
+        }
+        Assert.assertEquals(received.size(), numMessages);
+        admin.topics().deletePartitionedTopic(topic, true);
     }
 
 }

@@ -33,8 +33,8 @@ import org.jspecify.annotations.Nullable;
  * An {@link Executor} that hands tasks over to a delegate executor in batches instead of one task at a time.
  *
  * <p>Submitting threads append tasks to a multi-producer single-consumer queue. The thread that finds no handover batch
- * scheduled submits one task to the delegate, and that task runs the queued tasks until it has run {@code maxItems}
- * tasks or their weights add up to {@code maxWeight}. The delegate's own queue then sees one task per batch rather than
+ * scheduled submits one task to the delegate, and that task runs up to {@code maxItems} queued tasks whose total
+ * weight does not exceed {@code maxWeight}. The delegate's own queue then sees one task per batch rather than
  * one per submitted task, so concurrent submitters contend on it once per batch, and other work on the delegate does
  * not wait behind a task per submission. When more tasks remain after a batch, the next batch is submitted to the
  * delegate as a new task, so that tasks submitted to the delegate directly can run in between.
@@ -42,7 +42,7 @@ import org.jspecify.annotations.Nullable;
  * <p>The weight limit keeps a batch of heavy tasks from occupying the delegate for as long as {@code maxItems} of
  * them would, so that the other work sharing the delegate is not starved. A task that implements
  * {@link WeightedRunnable} weighs {@link WeightedRunnable#getWeight()}; any other task weighs 0 and is limited only by
- * {@code maxItems}. A batch always runs at least one task, even one that weighs more than {@code maxWeight}.
+ * {@code maxItems}. A task that weighs more than {@code maxWeight} runs in a batch of its own.
  *
  * <p>Tasks submitted by one thread run in the order that thread submitted them. The delegate must run the tasks
  * submitted to it one at a time, such as a single-threaded executor, since the queue supports a single consumer.
@@ -91,8 +91,8 @@ class BatchingExecutorWrapper implements Executor {
      * @param delegate the executor that runs the handover batches; it must run its tasks one at a time
      * @param queueChunkSize the chunk size of the handover queue, which grows by linking chunks of this size
      * @param maxItems the maximum number of tasks run by one handover batch; must be greater than 1
-     * @param maxWeight the total weight of tasks after which a handover batch stops taking more tasks; must be
-     *                  positive, and {@link Long#MAX_VALUE} leaves batches limited only by {@code maxItems}
+     * @param maxWeight the maximum total weight of a handover batch, except for a single task heavier than this;
+     *                  must be positive, and {@link Long#MAX_VALUE} leaves batches limited only by {@code maxItems}
      * @param runFailureConsumer receives what a task run by a handover batch, or the rejected task handler, throws,
      *                           so that the remaining tasks still run
      * @param rejectedTaskHandler receives each queued task that will not run because the delegate rejected its
@@ -211,13 +211,30 @@ class BatchingExecutorWrapper implements Executor {
         MpscUnboundedArrayQueue<Runnable> queue = handoverQueue;
         int items = 0;
         long weight = 0;
+        boolean weightLimited = maxWeight != Long.MAX_VALUE;
         Runnable command;
-        while (items < maxItems && weight < maxWeight && (command = queue.relaxedPoll()) != null) {
-            items++;
+        while (items < maxItems && (!weightLimited || weight < maxWeight)
+                && (command = queue.relaxedPeek()) != null) {
+            long commandWeight;
             try {
-                if (command instanceof WeightedRunnable weightedCommand) {
-                    weight += weightedCommand.getWeight();
-                }
+                commandWeight = command instanceof WeightedRunnable weightedCommand ? weightedCommand.getWeight() : 0;
+            } catch (Throwable t) {
+                queue.relaxedPoll();
+                items++;
+                runFailureConsumer.accept(t);
+                continue;
+            }
+            if (weightLimited && items > 0 && commandWeight > maxWeight - weight) {
+                // Leave the head queued for the next batch: moving it to the tail would reorder tasks.
+                break;
+            }
+            // The handover flag makes this the sole consumer, so the task seen by peek is still at the head.
+            queue.relaxedPoll();
+            items++;
+            if (weightLimited) {
+                weight += commandWeight;
+            }
+            try {
                 command.run();
             } catch (Throwable t) {
                 runFailureConsumer.accept(t);

@@ -32,7 +32,7 @@ public interface MessageExpirer {
 
     /**
      * Mark delete the largest message that publish timestamp is less than the result of the expression
-     * "{@link System#currentTimeMillis - {@param messageTTLInSeconds})".
+     * "{@link System#currentTimeMillis()} - {@code messageTTLInSeconds}".
      */
     boolean expireMessages(int messageTTLInSeconds);
 

@@ -73,6 +73,7 @@ import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 import org.apache.pulsar.functions.utils.Actions;
 import org.apache.pulsar.functions.utils.ClientApiResolver;
 import org.apache.pulsar.functions.utils.FunctionCommon;
+import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.utils.SourceConfigUtils;
 import org.apache.pulsar.functions.utils.ValidatableFunctionPackage;
 import org.apache.pulsar.functions.utils.io.Connector;
@@ -166,6 +167,8 @@ public class FunctionActioner {
             if (!packageUrlValidator.isValidPackageUrl(componentType, packagePath)) {
                 throw new IllegalArgumentException("Package URL " + packagePath + " is not valid");
             }
+            // Package URLs may not be strict URIs; keep URL(String)'s lenient parsing.
+            @SuppressWarnings("deprecation")
             URL url = new URL(packagePath);
             File pkgFile = new File(url.toURI());
             packageFile = pkgFile.getAbsolutePath();
@@ -237,6 +240,9 @@ public class FunctionActioner {
             instanceConfig.setAdditionalJavaRuntimeArguments(workerConfig.getAdditionalJavaRuntimeArguments());
         }
         instanceConfig.setIgnoreUnknownConfigFields(workerConfig.isIgnoreUnknownConfigFields());
+        instanceConfig.setPulsarClientMemoryLimit(functionDetails.hasPulsarClientMemoryLimit()
+                ? FunctionConfigUtils.convertPulsarClientMemoryLimit(functionDetails.getPulsarClientMemoryLimit())
+                : workerConfig.getPulsarClientMemoryLimit());
         return instanceConfig;
     }
 

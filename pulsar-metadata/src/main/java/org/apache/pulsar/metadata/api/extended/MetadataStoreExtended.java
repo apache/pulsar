@@ -33,6 +33,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.Option;
 import org.apache.pulsar.metadata.api.Stat;
+import org.apache.pulsar.metadata.impl.ListenerRegistrationWarnings;
 import org.apache.pulsar.metadata.impl.MetadataStoreFactoryImpl;
 
 /**
@@ -120,10 +121,42 @@ public interface MetadataStoreExtended extends MetadataStore {
     /**
      * Register a session listener that will get notified of changes in status of the current session.
      *
+     * <p>The caller must run the returned callback when the listener is no longer needed, at the latest when the
+     * component that registered it is closed, so that the store stops notifying it and doesn't keep it reachable.
+     * Running the callback more than once has no further effect.
+     *
+     * <p>Implementations must override this method. The default implementation is only there for the
+     * implementations that were written for the deprecated {@link #registerSessionListener(Consumer)}: it registers
+     * the listener with that method and returns a callback that can't unregister it. Since the default
+     * implementations of the two methods call each other, an implementation that overrides neither fails with a
+     * {@link StackOverflowError} when a session listener is registered.
+     *
      * @param listener
      *            the session listener
+     * @return a callback that unregisters the listener
      */
-    void registerSessionListener(Consumer<SessionEvent> listener);
+    default Runnable registerCancellableSessionListener(Consumer<SessionEvent> listener) {
+        ListenerRegistrationWarnings.cancellableMethodNotImplemented(getClass(),
+                "MetadataStoreExtended.registerCancellableSessionListener");
+        registerSessionListener(listener);
+        return () -> { };
+    }
+
+    /**
+     * Register a session listener that will get notified of changes in status of the current session.
+     *
+     * @param listener
+     *            the session listener
+     * @deprecated use {@link #registerCancellableSessionListener(Consumer)}, and run the returned callback when the
+     *             listener is no longer needed. Implementations implement
+     *             {@link #registerCancellableSessionListener(Consumer)} instead of this method.
+     */
+    @Deprecated
+    default void registerSessionListener(Consumer<SessionEvent> listener) {
+        ListenerRegistrationWarnings.deprecatedMethodCalled("MetadataStoreExtended.registerSessionListener",
+                "registerCancellableSessionListener");
+        registerCancellableSessionListener(listener);
+    }
 
     /**
      * Get {@link MetadataEventSynchronizer} to notify and synchronize metadata events.

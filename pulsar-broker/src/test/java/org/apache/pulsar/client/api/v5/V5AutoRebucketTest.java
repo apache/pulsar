@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.api.v5;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -41,7 +42,8 @@ import org.testng.annotations.Test;
  * PIP-486 segments-vs-buckets policy, UC#2 end to end: on a low-throughput topic (below the
  * split-vs-rebucket rate floor), surplus stream consumers must be served by growing the
  * segment's entry-buckets — an automatic rebucket rollover — instead of materializing physical
- * segments for consumer count alone.
+ * segments for consumer count alone. Surplus checkpoint group members must not trigger one: a
+ * checkpoint group never shares a segment by entry-bucket.
  */
 public class V5AutoRebucketTest extends V5ClientBaseTest {
 
@@ -160,6 +162,37 @@ public class V5AutoRebucketTest extends V5ClientBaseTest {
         }
         assertEquals(receiving, consumers.size(),
                 "the key set covers every bucket, so every consumer must receive traffic");
+    }
+
+    @Test
+    public void testCheckpointGroupSurplusOnColdTopicDoesNotRebucket() throws Exception {
+        String topic = newScalableTopic(1);
+        String group = "auto-rebucket-checkpoint";
+
+        // The same surplus as above (five members, one cold segment with N=4), but in a checkpoint
+        // group: each member reads whole segments through its own Readers, so more buckets would
+        // add no parallelism, only smaller producer batches. The segment must stay as it is.
+        for (int i = 0; i < 5; i++) {
+            track(v5Client.newCheckpointConsumer(Schema.string())
+                    .topic(topic)
+                    .consumerGroup(group)
+                    .startPosition(Checkpoint.earliest())
+                    .create());
+        }
+        Awaitility.await().untilAsserted(() -> {
+            var sub = admin.scalableTopics().getStats(topic).getSubscriptions().get(group);
+            assertNotNull(sub);
+            assertEquals(sub.getConsumers().size(), 5);
+        });
+
+        Awaitility.await().during(Duration.ofSeconds(5)).atMost(Duration.ofSeconds(15))
+                .untilAsserted(() -> {
+                    ScalableTopicMetadata md = admin.scalableTopics().getMetadata(topic);
+                    assertEquals(md.getSegments().size(), 1,
+                            "a checkpoint group's surplus must not trigger a rebucket rollover");
+                    assertEquals(md.getSegments().values().iterator().next()
+                            .getEntryBucketSplits().size() + 1, 4);
+                });
     }
 
     /**

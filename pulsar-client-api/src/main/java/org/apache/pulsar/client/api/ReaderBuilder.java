@@ -148,7 +148,7 @@ public interface ReaderBuilder<T> extends Cloneable {
     ReaderBuilder<T> startMessageFromRollbackDuration(long rollbackDuration, TimeUnit timeunit);
 
     /**
-     * Set the reader to include the given position of {@link ReaderBuilder#startMessageId(MessageId)}
+     * Set the reader to include the given position of {@link ReaderBuilder#startMessageId(MessageId)}.
      *
      * <p>This configuration option also applies for cursor reset operation {@link Reader#seek(MessageId)}.
      *
@@ -342,6 +342,8 @@ public interface ReaderBuilder<T> extends Cloneable {
      * @param interceptors the list of interceptors to intercept the reader created by this builder.
      * @return the reader builder instance
      */
+    // @SafeVarargs cannot be applied to an abstract method; implementations declare it on their final override.
+    @SuppressWarnings("unchecked")
     ReaderBuilder<T> intercept(ReaderInterceptor<T>... interceptors);
 
     /**

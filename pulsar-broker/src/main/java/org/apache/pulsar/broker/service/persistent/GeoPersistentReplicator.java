@@ -264,8 +264,10 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                             log.warn()
                                     .exception(e)
                                     .log("Failed to get schema from local cluster, will try in the next loop");
+                            log.debug("Retrying the data replication after a failed schema fetch");
+                        } else {
+                            log.info("Resume the data replication after the schema fetching done");
                         }
-                        log.info("Resume the data replication after the schema fetching done");
                         doRewindCursor(e == null);
                     });
                 } else {

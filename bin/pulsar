@@ -303,6 +303,8 @@ OPTS="$OPTS -Dorg.apache.pulsar.shade.io.netty.tryReflectionSetAccessible=true"
 OPTS="$OPTS --add-opens java.base/java.nio=ALL-UNNAMED --add-opens java.base/jdk.internal.misc=ALL-UNNAMED"
 # Required by LinuxInfoUtils
 OPTS="$OPTS --add-opens java.base/jdk.internal.platform=ALL-UNNAMED"
+# Lets Murmur3_32Hash hash a Key_Shared string key from the String's internal bytes, without encoding it
+OPTS="$OPTS --add-opens java.base/java.lang=ALL-UNNAMED"
 # Required by RocksDB java.lang.System::loadLibrary call
 OPTS="$OPTS --enable-native-access=ALL-UNNAMED"
 # These two settings work together to ensure the Pulsar process exits immediately and predictably
@@ -336,6 +338,12 @@ OPTS="-cp $PULSAR_CLASSPATH $OPTS"
 # on every component's hot paths. Disable it by default; the options that come later on the command line, such as
 # -Dio.netty.leakDetection.level=simple in PULSAR_EXTRA_OPTS (BOOKIE_EXTRA_OPTS for bookies), override this.
 OPTS="-Dio.netty.leakDetection.level=disabled $OPTS"
+
+# Log4j2 async loggers: the threads that log hand their events to a background thread instead of writing them, so
+# that writing the logs doesn't stall them, see https://logging.apache.org/log4j/2.x/manual/async.html.
+# To log synchronously, set -Dlog4j2.contextSelector=org.apache.logging.log4j.core.selector.ClassLoaderContextSelector
+# in PULSAR_EXTRA_OPTS (BOOKIE_EXTRA_OPTS for bookies), which come later on the command line and override this.
+OPTS="-Dlog4j2.contextSelector=org.apache.logging.log4j.core.async.AsyncLoggerContextSelector $OPTS"
 
 if [ $COMMAND == "bookie" ]; then
   # Pass BOOKIE_EXTRA_OPTS option defined in bkenv.sh

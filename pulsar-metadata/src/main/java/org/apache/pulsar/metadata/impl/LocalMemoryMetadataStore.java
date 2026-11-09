@@ -20,6 +20,7 @@ package org.apache.pulsar.metadata.impl;
 
 import com.google.common.collect.MapMaker;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -68,11 +69,18 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
     private final NavigableMap<String, Value> map;
     private final AtomicLong sequentialIdGenerator;
     private MetadataEventSynchronizer synchronizer;
+    // The stores that share the data set of this store, including this one. Held by each of them, since
+    // STATIC_INSTANCE holds it weakly. Guarded by STATIC_INSTANCE
+    private final Set<LocalMemoryMetadataStore> sharedStores;
+    // The callbacks that unregister the listeners between this store and the other stores that share its data set,
+    // by the other store. A callback unregisters the listeners in both directions, so both stores hold it.
+    // Guarded by STATIC_INSTANCE.
+    private final Map<LocalMemoryMetadataStore, Runnable> sharedStoreListeners = new HashMap<>();
 
     private static final Map<String, NavigableMap<String, Value>> STATIC_MAPS = new MapMaker()
             .weakValues().makeMap();
     // Manage all instances to facilitate registration to the same listener
-    private static final Map<String, Set<AbstractMetadataStore>> STATIC_INSTANCE = new MapMaker()
+    private static final Map<String, Set<LocalMemoryMetadataStore>> STATIC_INSTANCE = new MapMaker()
             .weakValues().makeMap();
     private static final Map<String, AtomicLong> STATIC_ID_GEN_MAP = new MapMaker()
             .weakValues().makeMap();
@@ -86,22 +94,26 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
         // update synchronizer and register sync listener
         updateMetadataEventSynchronizer(metadataStoreConfig.getSynchronizer());
         if ("local".equals(name)) {
+            sharedStores = null;
             map = new TreeMap<>();
             sequentialIdGenerator = new AtomicLong();
         } else {
             // Use a reference from a shared data set
             map = STATIC_MAPS.computeIfAbsent(name, __ -> new TreeMap<>());
-            STATIC_INSTANCE.compute(name, (key, value) -> {
-                if (value == null) {
-                    value = new HashSet<>();
-                }
-                value.forEach(v -> {
-                    registerListener(v);
-                    v.registerListener(this);
+            synchronized (STATIC_INSTANCE) {
+                sharedStores = STATIC_INSTANCE.computeIfAbsent(name, __ -> new HashSet<>());
+                sharedStores.forEach(v -> {
+                    Runnable cancelListenerOfOther = registerCancellableListener(v);
+                    Runnable cancelListener = v.registerCancellableListener(this);
+                    Runnable cancelListeners = () -> {
+                        cancelListenerOfOther.run();
+                        cancelListener.run();
+                    };
+                    sharedStoreListeners.put(v, cancelListeners);
+                    v.sharedStoreListeners.put(this, cancelListeners);
                 });
-                value.add(this);
-                return value;
-            });
+                sharedStores.add(this);
+            }
             sequentialIdGenerator = STATIC_ID_GEN_MAP.computeIfAbsent(name, __ -> new AtomicLong());
             log.info().attr("name", name).log("Created LocalMemoryDataStore");
         }
@@ -280,7 +292,21 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
     @Override
     public void close() throws Exception {
         if (isClosed.compareAndSet(false, true)) {
+            if (sharedStores != null) {
+                unregisterFromSharedStores();
+            }
             super.close();
+        }
+    }
+
+    private void unregisterFromSharedStores() {
+        synchronized (STATIC_INSTANCE) {
+            sharedStores.remove(this);
+            sharedStoreListeners.forEach((v, cancelListeners) -> {
+                cancelListeners.run();
+                v.sharedStoreListeners.remove(this);
+            });
+            sharedStoreListeners.clear();
         }
     }
 }

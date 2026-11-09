@@ -87,7 +87,7 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
 
         proxyService = Mockito.spy(new ProxyService(proxyConfig,
                 new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig)),
-                proxyClientAuthentication));
+                proxyClientAuthentication, 10, TimeUnit.MILLISECONDS));
         doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeper)))
                 .when(proxyService).createLocalMetadataStore();
         doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeperGlobal))).when(proxyService)
@@ -222,6 +222,34 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
         assertFalse(proxyService.getTopicStats().isEmpty());
         proxyService.setProxyLogLevel(0);
         assertTrue(proxyService.getTopicStats().isEmpty());
+    }
+
+    @Test
+    public void testStatsUpdatedPeriodically() {
+        String topicName = "periodic-stats-update";
+        TopicStats stats = Mockito.spy(new TopicStats());
+        proxyService.getTopicStats().put(topicName, stats);
+        try {
+            Mockito.verify(stats, Mockito.timeout(5000).atLeast(2)).calculate();
+        } finally {
+            proxyService.getTopicStats().remove(topicName);
+        }
+    }
+
+    @Test
+    public void testStatsUpdateContinuesAfterFailure() {
+        String topicName = "periodic-stats-update-failure";
+        TopicStats stats = Mockito.spy(new TopicStats());
+        // the first run throws, later runs must still happen
+        Mockito.doThrow(new RuntimeException("injected stats failure"))
+                .doCallRealMethod()
+                .when(stats).calculate();
+        proxyService.getTopicStats().put(topicName, stats);
+        try {
+            Mockito.verify(stats, Mockito.timeout(5000).atLeast(3)).calculate();
+        } finally {
+            proxyService.getTopicStats().remove(topicName);
+        }
     }
 
     @Test

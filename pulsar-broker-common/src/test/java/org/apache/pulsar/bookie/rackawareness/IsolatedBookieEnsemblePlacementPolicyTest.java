@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.bookie.rackawareness;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -35,6 +36,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -43,14 +45,19 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.bookkeeper.client.BKException.BKNotEnoughBookiesException;
 import org.apache.bookkeeper.client.RackawareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.feature.SettableFeatureProvider;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.net.BookieSocketAddress;
+import org.apache.bookkeeper.proto.BookieAddressResolver;
+import org.apache.bookkeeper.proto.BookieAddressResolver.BookieIdNotResolvedException;
 import org.apache.bookkeeper.stats.NullStatsLogger;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.Pair;
@@ -69,6 +76,7 @@ import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class IsolatedBookieEnsemblePlacementPolicyTest {
@@ -397,11 +405,11 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
 
     @Test
     public void testNoIsolationGroup() throws Exception {
+        // BOOKIE4 belongs to no group, so it stays available to ledgers whose metadata has empty isolation groups
         String data = "{\"group1\": {\"" + BOOKIE1
                 + "\": {\"rack\": \"rack0\", \"hostname\": \"bookie1.example.com\"}, \"" + BOOKIE2
                 + "\": {\"rack\": \"rack1\", \"hostname\": \"bookie2.example.com\"}}, \"group2\": {\"" + BOOKIE3
-                + "\": {\"rack\": \"rack0\", \"hostname\": \"bookie3.example.com\"}, \"" + BOOKIE4
-                + "\": {\"rack\": \"rack2\", \"hostname\": \"bookie4.example.com\"}}}";
+                + "\": {\"rack\": \"rack0\", \"hostname\": \"bookie3.example.com\"}}}";
 
         store.put(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, data.getBytes(StandardCharsets.UTF_8),
                 Optional.empty()).join();
@@ -448,6 +456,50 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
         BookieId replaceBookie2 = isolationPolicy.replaceBookie(3, 3, 3, customMetadata2,
                 Arrays.asList(bookie1Id, bookie2Id, bookie3Id), bookie3Id, null).getResult();
         assertEquals(replaceBookie2, bookie4Id);
+    }
+
+    /**
+     * A client without default isolation groups must still apply the groups carried by the ledger metadata, and must
+     * not isolate ledgers that carry none.
+     */
+    @Test
+    public void testMetadataIsolationGroupsWithoutDefaultGroups() throws Exception {
+        Map<String, Map<String, BookieInfo>> bookieMapping = new HashMap<>();
+        Map<String, BookieInfo> group1 = new HashMap<>();
+        group1.put(BOOKIE1, BookieInfo.builder().rack("rack0").build());
+        group1.put(BOOKIE2, BookieInfo.builder().rack("rack1").build());
+        Map<String, BookieInfo> group2 = new HashMap<>();
+        group2.put(BOOKIE3, BookieInfo.builder().rack("rack0").build());
+        group2.put(BOOKIE4, BookieInfo.builder().rack("rack1").build());
+        bookieMapping.put("group1", group1);
+        bookieMapping.put("group2", group2);
+
+        store.put(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, jsonMapper.writeValueAsBytes(bookieMapping),
+                Optional.empty()).join();
+
+        ClientConfiguration bkClientConf = new ClientConfiguration();
+        bkClientConf.setProperty(BookieRackAffinityMapping.METADATA_STORE_INSTANCE, store);
+        IsolatedBookieEnsemblePlacementPolicy isolationPolicy = createIsolationPolicy(bkClientConf);
+        isolationPolicy.onClusterChanged(writableBookies, readOnlyBookies);
+
+        Map<String, Object> placementPolicyProperties = new HashMap<>();
+        placementPolicyProperties.put(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, "group2");
+        EnsemblePlacementPolicyConfig policyConfig = new EnsemblePlacementPolicyConfig(
+                IsolatedBookieEnsemblePlacementPolicy.class, placementPolicyProperties);
+        Map<String, byte[]> customMetadata = new HashMap<>();
+        customMetadata.put(EnsemblePlacementPolicyConfig.ENSEMBLE_PLACEMENT_POLICY_CONFIG, policyConfig.encode());
+
+        // Bookies are picked randomly without isolation, so repeat to make a lucky pick very unlikely
+        for (int i = 0; i < 20; i++) {
+            List<BookieId> ensemble = isolationPolicy.newEnsemble(2, 2, 2, customMetadata, new HashSet<>())
+                    .getResult();
+            assertEquals(new HashSet<>(ensemble), Set.of(new BookieSocketAddress(BOOKIE3).toBookieId(),
+                    new BookieSocketAddress(BOOKIE4).toBookieId()));
+        }
+
+        List<BookieId> ensemble = isolationPolicy.newEnsemble(4, 4, 4, Collections.emptyMap(), new HashSet<>())
+                .getResult();
+        assertEquals(new HashSet<>(ensemble), writableBookies);
     }
 
     /**
@@ -539,6 +591,241 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
         assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE1).toBookieId()));
         assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE2).toBookieId()));
         assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE4).toBookieId()));
+    }
+
+    @DataProvider
+    public Object[][] placementOperations() {
+        return new Object[][]{{false}, {true}};
+    }
+
+    @Test(dataProvider = "placementOperations")
+    public void testPlacementDuringClusterChange(boolean replaceBookie) throws Exception {
+        BookieId primaryBookie = BookieId.parse(BOOKIE1);
+        BookieId leavingPrimaryBookie = BookieId.parse(BOOKIE2);
+        BookieId ungroupedBookie = BookieId.parse(BOOKIE3);
+        BookieId joiningPrimaryBookie = BookieId.parse(BOOKIE4);
+        Map<String, Map<String, BookieInfo>> bookieMapping = Map.of("group1", Map.of(
+                BOOKIE1, BookieInfo.builder().rack("rack0").build(),
+                BOOKIE2, BookieInfo.builder().rack("rack1").build(),
+                BOOKIE4, BookieInfo.builder().rack("rack1").build()));
+        store.put(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, jsonMapper.writeValueAsBytes(bookieMapping),
+                Optional.empty()).join();
+
+        CountDownLatch clusterChangePaused = new CountDownLatch(1);
+        CountDownLatch finishClusterChange = new CountDownLatch(1);
+        AtomicReference<Thread> clusterChangeThread = new AtomicReference<>();
+        BookieAddressResolver resolver = bookieId -> {
+            if (bookieId.equals(joiningPrimaryBookie) && Thread.currentThread() == clusterChangeThread.get()) {
+                // onClusterChanged holds the write lock here and has already removed the old primary bookie.
+                clusterChangePaused.countDown();
+                try {
+                    if (!finishClusterChange.await(30, TimeUnit.SECONDS)) {
+                        throw new IllegalStateException("Timed out waiting to finish the cluster change");
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new BookieIdNotResolvedException(bookieId, e);
+                }
+            }
+            return BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER.resolve(bookieId);
+        };
+        ClientConfiguration bkClientConf = new ClientConfiguration();
+        bkClientConf.setProperty(BookieRackAffinityMapping.METADATA_STORE_INSTANCE, store);
+        bkClientConf.setProperty(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, "group1");
+        IsolatedBookieEnsemblePlacementPolicy isolationPolicy = new IsolatedBookieEnsemblePlacementPolicy();
+        isolationPolicy.initialize(bkClientConf, Optional.empty(), timer, SettableFeatureProvider.DISABLE_ALL,
+                NullStatsLogger.INSTANCE, resolver);
+        isolationPolicy.getInitialRackConfigurationLoadFuture().get(30, TimeUnit.SECONDS);
+        isolationPolicy.onClusterChanged(Set.of(primaryBookie, leavingPrimaryBookie, ungroupedBookie), Set.of());
+
+        FutureTask<Set<BookieId>> clusterChange = new FutureTask<>(() -> {
+            clusterChangeThread.set(Thread.currentThread());
+            return isolationPolicy.onClusterChanged(Set.of(primaryBookie, joiningPrimaryBookie, ungroupedBookie),
+                    Set.of());
+        });
+        Set<BookieId> excludedBookies = new HashSet<>();
+        FutureTask<List<BookieId>> placement = new FutureTask<>(() -> {
+            if (replaceBookie) {
+                return List.of(isolationPolicy.replaceBookie(2, 2, 2, Map.of(),
+                        List.of(primaryBookie, leavingPrimaryBookie), leavingPrimaryBookie, excludedBookies)
+                        .getResult());
+            }
+            return isolationPolicy.newEnsemble(2, 2, 2, Map.of(), excludedBookies).getResult();
+        });
+        Thread updateThread = new Thread(clusterChange, "isolation-cluster-change");
+        Thread placementThread = new Thread(placement, "isolation-placement");
+        try {
+            updateThread.start();
+            assertThat(clusterChangePaused.await(10, TimeUnit.SECONDS)).as("cluster update reached address resolution")
+                    .isTrue();
+            placementThread.start();
+            // Both versions eventually wait for the write lock. Before the fix, isolation has already used
+            // the incomplete topology by then and incorrectly allowed the ungrouped fallback.
+            Awaitility.await().atMost(Duration.ofSeconds(10))
+                    .until(() -> placementThread.getState() == Thread.State.WAITING);
+            finishClusterChange.countDown();
+            assertThat(clusterChange.get(10, TimeUnit.SECONDS)).containsExactly(leavingPrimaryBookie);
+            List<BookieId> result = placement.get(10, TimeUnit.SECONDS);
+            assertThat(excludedBookies).as("a complete primary group must keep ungrouped bookies excluded")
+                    .contains(ungroupedBookie);
+            if (replaceBookie) {
+                assertThat(result).containsExactly(joiningPrimaryBookie);
+            } else {
+                assertThat(result).containsExactlyInAnyOrder(primaryBookie, joiningPrimaryBookie);
+            }
+        } finally {
+            finishClusterChange.countDown();
+            updateThread.join(TimeUnit.SECONDS.toMillis(10));
+            placementThread.join(TimeUnit.SECONDS.toMillis(10));
+            isolationPolicy.uninitalize();
+            assertThat(updateThread.isAlive()).as("cluster update thread stopped").isFalse();
+            assertThat(placementThread.isAlive()).as("placement thread stopped").isFalse();
+        }
+    }
+
+    @DataProvider
+    public Object[][] placementClusterChanges() {
+        return new Object[][]{{false, false}, {true, false}, {false, true}, {true, true}};
+    }
+
+    @Test(dataProvider = "placementClusterChanges")
+    public void testClusterChangeAfterIsolationExclusions(boolean replaceBookie, boolean primaryBookieLeaves)
+            throws Exception {
+        BookieId primaryBookie = BookieId.parse(BOOKIE1);
+        BookieId changingPrimaryBookie = BookieId.parse(BOOKIE2);
+        BookieId ungroupedBookie = BookieId.parse(BOOKIE3);
+        BookieId offlinePrimaryBookie = BookieId.parse(BOOKIE4);
+        Map<String, Map<String, BookieInfo>> bookieMapping = Map.of("group1", Map.of(
+                BOOKIE1, BookieInfo.builder().rack("rack0").build(),
+                BOOKIE2, BookieInfo.builder().rack("rack1").build(),
+                BOOKIE4, BookieInfo.builder().rack("rack1").build()));
+        store.put(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, jsonMapper.writeValueAsBytes(bookieMapping),
+                Optional.empty()).join();
+        ClientConfiguration bkClientConf = new ClientConfiguration();
+        bkClientConf.setProperty(BookieRackAffinityMapping.METADATA_STORE_INSTANCE, store);
+        bkClientConf.setProperty(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, "group1");
+        IsolatedBookieEnsemblePlacementPolicy isolationPolicy = createIsolationPolicy(bkClientConf);
+        Set<BookieId> initialBookies = primaryBookieLeaves
+                ? Set.of(primaryBookie, changingPrimaryBookie, ungroupedBookie)
+                : Set.of(primaryBookie, changingPrimaryBookie);
+        isolationPolicy.onClusterChanged(initialBookies, Set.of());
+
+        CountDownLatch exclusionsCalculated = new CountDownLatch(1);
+        CountDownLatch finishPlacement = new CountDownLatch(1);
+        Set<BookieId> excludedBookies = new HashSet<>() {
+            private boolean paused;
+
+            @Override
+            public boolean addAll(Collection<? extends BookieId> bookies) {
+                boolean changed = super.addAll(bookies);
+                if (!paused) {
+                    paused = true;
+                    // The caller's exclusion set is updated after isolation calculation and before BK selection.
+                    exclusionsCalculated.countDown();
+                    try {
+                        if (!finishPlacement.await(30, TimeUnit.SECONDS)) {
+                            throw new IllegalStateException("Timed out waiting to finish placement");
+                        }
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        throw new IllegalStateException("Interrupted while waiting to finish placement", e);
+                    }
+                }
+                return changed;
+            }
+        };
+        if (!primaryBookieLeaves) {
+            // Caller exclusions do not relax isolation: the joining ungrouped bookie must remain ineligible.
+            excludedBookies.add(changingPrimaryBookie);
+        }
+        BookieId bookieToReplace = primaryBookieLeaves ? offlinePrimaryBookie : changingPrimaryBookie;
+        FutureTask<List<BookieId>> placement = new FutureTask<>(() -> {
+            if (replaceBookie) {
+                return List.of(isolationPolicy.replaceBookie(2, 2, 2, Map.of(),
+                        List.of(primaryBookie, bookieToReplace), bookieToReplace, excludedBookies).getResult());
+            }
+            return isolationPolicy.newEnsemble(2, 2, 2, Map.of(), excludedBookies).getResult();
+        });
+        Set<BookieId> updatedBookies = primaryBookieLeaves
+                ? Set.of(primaryBookie, ungroupedBookie)
+                : Set.of(primaryBookie, changingPrimaryBookie, ungroupedBookie);
+        FutureTask<Set<BookieId>> clusterChange = new FutureTask<>(
+                () -> isolationPolicy.onClusterChanged(updatedBookies, Set.of()));
+        Thread placementThread = new Thread(placement, "isolation-placement-before-selection");
+        Thread updateThread = new Thread(clusterChange, "isolation-cluster-change-before-selection");
+        try {
+            placementThread.start();
+            assertThat(exclusionsCalculated.await(10, TimeUnit.SECONDS)).as("isolation exclusions calculated")
+                    .isTrue();
+            updateThread.start();
+            // With the fix the writer queues behind placement. Before the fix the update completes in the gap.
+            Awaitility.await().atMost(Duration.ofSeconds(10))
+                    .until(() -> clusterChange.isDone() || updateThread.getState() == Thread.State.WAITING);
+            finishPlacement.countDown();
+            if (primaryBookieLeaves) {
+                List<BookieId> result = placement.get(10, TimeUnit.SECONDS);
+                if (replaceBookie) {
+                    assertThat(result).containsExactly(changingPrimaryBookie);
+                } else {
+                    assertThat(result).containsExactlyInAnyOrder(primaryBookie, changingPrimaryBookie);
+                }
+            } else {
+                assertThatThrownBy(() -> placement.get(10, TimeUnit.SECONDS))
+                        .isInstanceOf(ExecutionException.class).hasCauseInstanceOf(BKNotEnoughBookiesException.class);
+            }
+            Set<BookieId> expectedDeadBookies = primaryBookieLeaves ? Set.of(changingPrimaryBookie) : Set.of();
+            assertThat(clusterChange.get(10, TimeUnit.SECONDS))
+                    .containsExactlyInAnyOrderElementsOf(expectedDeadBookies);
+        } finally {
+            finishPlacement.countDown();
+            placementThread.join(TimeUnit.SECONDS.toMillis(10));
+            updateThread.join(TimeUnit.SECONDS.toMillis(10));
+            isolationPolicy.uninitalize();
+            assertThat(placementThread.isAlive()).as("placement thread stopped").isFalse();
+            assertThat(updateThread.isAlive()).as("cluster update thread stopped").isFalse();
+        }
+    }
+
+    @Test
+    public void testOfflineSecondaryBookieFallsBackToUngroupedBookie() throws Exception {
+        final String primaryGroup = "primaryGroup";
+        final String secondaryGroup = "secondaryGroup";
+        BookieId primaryBookie = new BookieSocketAddress(BOOKIE1).toBookieId();
+        BookieId ungroupedBookie = new BookieSocketAddress(BOOKIE2).toBookieId();
+        BookieId offlineSecondaryBookie = new BookieSocketAddress(BOOKIE3).toBookieId();
+
+        Map<String, Map<String, BookieInfo>> bookieMapping = new HashMap<>();
+        Map<String, BookieInfo> primaryBookieGroup = new HashMap<>();
+        primaryBookieGroup.put(BOOKIE1, BookieInfo.builder().rack("rack0").build());
+        Map<String, BookieInfo> secondaryBookieGroup = new HashMap<>();
+        secondaryBookieGroup.put(BOOKIE3, BookieInfo.builder().rack("rack1").build());
+        bookieMapping.put(primaryGroup, primaryBookieGroup);
+        bookieMapping.put(secondaryGroup, secondaryBookieGroup);
+
+        store.put(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, jsonMapper.writeValueAsBytes(bookieMapping),
+                Optional.empty()).join();
+
+        ClientConfiguration bkClientConf = new ClientConfiguration();
+        bkClientConf.setProperty(BookieRackAffinityMapping.METADATA_STORE_INSTANCE, store);
+        bkClientConf.setProperty(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, primaryGroup);
+        bkClientConf.setProperty(IsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS,
+                secondaryGroup);
+        IsolatedBookieEnsemblePlacementPolicy isolationPolicy = createIsolationPolicy(bkClientConf);
+        isolationPolicy.onClusterChanged(Sets.newHashSet(primaryBookie, ungroupedBookie), Collections.emptySet());
+
+        List<BookieId> ensemble = isolationPolicy
+                .newEnsemble(2, 2, 2, Collections.emptyMap(), new HashSet<>()).getResult();
+        assertEquals(new HashSet<>(ensemble), Sets.newHashSet(primaryBookie, ungroupedBookie));
+
+        BookieId replacement = isolationPolicy.replaceBookie(2, 2, 2, Collections.emptyMap(),
+                Arrays.asList(primaryBookie, offlineSecondaryBookie), offlineSecondaryBookie,
+                new HashSet<>()).getResult();
+        assertEquals(replacement, ungroupedBookie);
+
+        isolationPolicy.onClusterChanged(Collections.singleton(primaryBookie), Collections.emptySet());
+        assertThatThrownBy(() -> isolationPolicy.newEnsemble(2, 2, 2, Collections.emptyMap(), new HashSet<>()))
+                .as("Placement must fail without a writable ungrouped bookie")
+                .isInstanceOf(BKNotEnoughBookiesException.class);
     }
 
     @Test

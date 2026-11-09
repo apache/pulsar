@@ -31,9 +31,12 @@ import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import java.nio.charset.StandardCharsets;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.protocol.Commands;
 import org.testng.annotations.Test;
 
 public class EntryImplTest {
@@ -51,6 +54,54 @@ public class EntryImplTest {
             assertThat(entry.getDataBuffer().readerIndex()).isZero();
             assertThat(entry.getDataBuffer().getInt(0)).isEqualTo(-1);
             verify(entry.data, times(1)).duplicate();
+        } finally {
+            entry.release();
+        }
+    }
+
+    @Test
+    public void testInitializedMessageMetadataDoesNotDecodeFromTheBufferLater() {
+        MessageMetadata metadata = new MessageMetadata()
+                .setProducerName("producer")
+                .setSequenceId(1)
+                .setPublishTime(2)
+                .setPartitionKey("cGFydGl0aW9uLWtleQ==")
+                .setPartitionKeyB64Encoded(true)
+                .setOrderingKey("ordering-key".getBytes(StandardCharsets.UTF_8))
+                .setReplicatedFrom("cluster")
+                .setUuid("uuid-\u00e4")
+                .setSchemaVersion(new byte[] {1, 2})
+                .setSchemaId(new byte[] {3, 4})
+                .setEncryptionAlgo("algo")
+                .setEncryptionParam(new byte[] {5, 6});
+        metadata.addReplicateTo("other-cluster");
+        metadata.addProperty().setKey("key").setValue("value");
+        metadata.addEncryptionKey().setKey("encryption-key").setValue(new byte[] {7, 8})
+                .addMetadata().setKey("metadata-key").setValue("metadata-value");
+        byte[] expected = metadata.toByteArray();
+        ByteBuf bytes = Commands.serializeMetadataAndPayload(Commands.ChecksumType.None, metadata,
+                Unpooled.wrappedBuffer("payload".getBytes(StandardCharsets.UTF_8)));
+        EntryImpl entry = EntryImpl.create(1, 0, bytes);
+        bytes.release();
+        try {
+            entry.initializeMessageMetadataIfNeeded("ledger");
+            // Copies share the metadata across threads, so it must not decode fields lazily from the buffer, which
+            // concurrent readers would race on. Overwrite the buffer to show that it no longer reads it.
+            ByteBuf data = entry.getDataBuffer();
+            data.setZero(0, data.capacity());
+            MessageMetadata shared = entry.getMessageMetadata();
+            assertEquals(shared.toByteArray(), expected);
+            assertEquals(shared.getProducerName(), "producer");
+            assertEquals(shared.getPartitionKey(), "cGFydGl0aW9uLWtleQ==");
+            assertEquals(new String(shared.getOrderingKey(), StandardCharsets.UTF_8), "ordering-key");
+            assertEquals(shared.getUuid(), "uuid-\u00e4");
+            assertEquals(shared.getReplicateToAt(0), "other-cluster");
+            assertEquals(shared.getPropertyAt(0).getValue(), "value");
+            assertEquals(shared.getEncryptionKeyAt(0).getMetadataAt(0).getValue(), "metadata-value");
+            // a copy shares the same instance
+            EntryImpl copy = EntryImpl.create(entry);
+            assertSame(copy.getMessageMetadata(), shared);
+            copy.release();
         } finally {
             entry.release();
         }

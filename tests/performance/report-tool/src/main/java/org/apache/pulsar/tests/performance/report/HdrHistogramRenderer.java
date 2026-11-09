@@ -223,6 +223,16 @@ public final class HdrHistogramRenderer implements Callable<Integer> {
                 + "%";
     }
 
+    /**
+     * The latency at a percentile of the latency logs, merged, in milliseconds.
+     *
+     * @param percentile such as 99.0
+     * @throws IOException when the logs can't be read or have no observations
+     */
+    public static double valueAtPercentileMillis(List<Path> logs, double percentile) throws IOException {
+        return readMerged(logs).getValueAtPercentile(percentile) / 1000.0;
+    }
+
     static Histogram readMerged(List<Path> paths) throws IOException {
         Histogram merged = null;
         for (Path path : paths) {

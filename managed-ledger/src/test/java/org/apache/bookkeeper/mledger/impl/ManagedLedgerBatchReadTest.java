@@ -46,6 +46,8 @@ public class ManagedLedgerBatchReadTest extends MockedBookKeeperTestCase {
                 .setAckQuorumSize(1);
         config.setPulsarMessageEntries(false);
         config.setBatchReadEnabled(true);
+        // the test checks the storage reads of one cursor read, without the read of the next range ahead
+        config.setReadAheadEnabled(false);
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("batch-read", config);
         ManagedCursor cursor = ledger.openCursor("cursor");
         byte[][] payloads = {new byte[0], new byte[2048], new byte[]{42}};

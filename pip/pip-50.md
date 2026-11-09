@@ -2,8 +2,7 @@
 
 * **Status**: Drafting
  * **Author**: Yong Zhang
- * **Pull Request**:
- * **Mailing List discussion**:
+ * **Mailing List discussion**: https://lists.apache.org/thread/r3k6hdcvlo1qwmmq6bk4xntngf3g2ovb
 
 # Motivation
 

@@ -31,6 +31,7 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
 import java.lang.reflect.Method;
+import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.HashSet;
 import java.util.List;
@@ -647,7 +648,7 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
 
         @Cleanup
-        TableView<String> tableView = pulsarClient.newTableViewBuilder(Schema.STRING)
+        TableView<String> tableView = pulsarClient.newTableView(Schema.STRING)
                 .topic(topic)
                 .createMapped(m -> {
                     if (m.getValue().equals("delete-me")) {
@@ -705,7 +706,7 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
                 .send();
 
         @Cleanup
-        TableView<Message<String>> tableView = pulsarClient.newTableViewBuilder(Schema.STRING)
+        TableView<Message<String>> tableView = pulsarClient.newTableView(Schema.STRING)
                 .topic(topic)
                 .createMapped(msg -> msg);
 
@@ -750,7 +751,7 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         producer.newMessage().key(testKey).value("fail-replay").send();
 
         @Cleanup
-        TableView<String> tableView = pulsarClient.newTableViewBuilder(Schema.STRING)
+        TableView<String> tableView = pulsarClient.newTableView(Schema.STRING)
                 .topic(topic)
                 .createMapped(mapper);
         assertEquals(failedValues, List.of("fail-replay:cannot map fail-replay"));
@@ -769,5 +770,24 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         producer.newMessage().key(testKey).value("value2").send();
         Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> "VALUE2".equals(tableView.get(testKey)));
         assertEquals(failedValues.size(), 2);
+    }
+
+    @Test(timeOut = 30 * 1000)
+    public void testByteBufferValuesKeepTheirContent() throws Exception {
+        String topic = "persistent://public/default/tableview-bytebuffer-test";
+        int count = 1000;
+        publishMessages(topic, count, false);
+        @Cleanup
+        TableView<ByteBuffer> tv = pulsarClient.newTableView(Schema.BYTEBUFFER).topic(topic).create();
+        Awaitility.await().untilAsserted(() -> assertEquals(tv.size(), count));
+        // later reads reuse the network buffers released after the first messages were applied
+        publishMessages(topic, count, count, false, false);
+        Awaitility.await().untilAsserted(() -> assertEquals(tv.size(), count * 2));
+        for (int i = 0; i < count * 2; i++) {
+            ByteBuffer value = tv.get("key" + i).duplicate();
+            byte[] bytes = new byte[value.remaining()];
+            value.get(bytes);
+            assertEquals(new String(bytes), "my-message-" + i);
+        }
     }
 }

@@ -26,7 +26,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.IntSupplier;
 import lombok.CustomLog;
@@ -35,6 +34,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
+import org.apache.pulsar.common.util.FutureUtil;
 
 /**
  * PendingReadsManager tries to prevent sending duplicate reads to BK.
@@ -89,8 +89,32 @@ public class PendingReadsManager {
             .register();
 
     private final RangeEntryCacheImpl rangeEntryCache;
-    private final ConcurrentHashMap<Long, ConcurrentHashMap<PendingReadKey, PendingRead>> cachedPendingReads =
-            new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Long, LedgerPendingReads> cachedPendingReads = new ConcurrentHashMap<>();
+
+    /**
+     * A ledger's pending reads, and among them those of more than one entry. A read of a single entry, such as each
+     * read of a dispatcher's replay, can only match a pending read of the same entry or be included in a read of more
+     * entries, so that it doesn't visit the ledger's other single-entry reads: with hundreds of them pending, a full
+     * visit for each made a replay's reads quadratic.
+     */
+    private static final class LedgerPendingReads {
+        final ConcurrentHashMap<PendingReadKey, PendingRead> all = new ConcurrentHashMap<>();
+        final ConcurrentHashMap<PendingReadKey, PendingRead> multiEntry = new ConcurrentHashMap<>();
+
+        void put(PendingReadKey key, PendingRead read) {
+            all.put(key, read);
+            if (key.size() > 1) {
+                multiEntry.put(key, read);
+            }
+        }
+
+        void remove(PendingReadKey key, PendingRead read) {
+            all.remove(key, read);
+            if (key.size() > 1) {
+                multiEntry.remove(key, read);
+            }
+        }
+    }
 
     public PendingReadsManager(RangeEntryCacheImpl rangeEntryCache) {
         this.rangeEntryCache = rangeEntryCache;
@@ -143,10 +167,22 @@ public class PendingReadsManager {
         }
     }
 
-    private FindPendingReadOutcome findPendingRead(PendingReadKey key, ConcurrentMap<PendingReadKey,
-            PendingRead> ledgerCache, AtomicBoolean created) {
+    private FindPendingReadOutcome findPendingRead(PendingReadKey key, LedgerPendingReads ledgerCache,
+                                                   AtomicBoolean created) {
+        return findPendingRead(key, ledgerCache, created, false);
+    }
+
+    /**
+     * @param createOnly create the pending read only if no pending read includes or overlaps the key; returns null
+     *                   without counting a match otherwise
+     */
+    private FindPendingReadOutcome findPendingRead(PendingReadKey key, LedgerPendingReads ledgerCache,
+                                                   AtomicBoolean created, boolean createOnly) {
         synchronized (ledgerCache) {
-            PendingRead existing = ledgerCache.get(key);
+            if (createOnly && isOverlappingReadPending(ledgerCache, key)) {
+                return null;
+            }
+            PendingRead existing = ledgerCache.all.get(key);
             if (existing != null) {
                 COUNT_PENDING_READS_MATCHED.inc(key.size());
                 COUNT_ENTRIES_NOTREAD_FROM_BK.inc(key.size());
@@ -156,7 +192,9 @@ public class PendingReadsManager {
             FindPendingReadOutcome foundButMissingSomethingOnRight = null;
             FindPendingReadOutcome foundButMissingSomethingOnBoth = null;
 
-            for (Map.Entry<PendingReadKey, PendingRead> entry : ledgerCache.entrySet()) {
+            // a single entry is either the key of a pending read, or included in a read of more entries
+            Map<PendingReadKey, PendingRead> candidates = key.size() == 1 ? ledgerCache.multiEntry : ledgerCache.all;
+            for (Map.Entry<PendingReadKey, PendingRead> entry : candidates.entrySet()) {
                 PendingReadKey entryKey = entry.getKey();
                 if (entryKey.includes(key)) {
                     COUNT_PENDING_READS_MATCHED_INCLUDED.inc(key.size());
@@ -212,7 +250,7 @@ public class PendingReadsManager {
 
     private class PendingRead {
         final PendingReadKey key;
-        final ConcurrentMap<PendingReadKey, PendingRead> ledgerCache;
+        final LedgerPendingReads ledgerCache;
         final List<ReadEntriesCallbackWithContext> listeners = new ArrayList<>(1);
         PendingReadState state = PendingReadState.INITIALISED;
 
@@ -222,8 +260,7 @@ public class PendingReadsManager {
             COMPLETED
         }
 
-        public PendingRead(PendingReadKey key,
-                           ConcurrentMap<PendingReadKey, PendingRead> ledgerCache) {
+        public PendingRead(PendingReadKey key, LedgerPendingReads ledgerCache) {
             this.key = key;
             this.ledgerCache = ledgerCache;
         }
@@ -333,12 +370,56 @@ public class PendingReadsManager {
     }
 
 
+    private static boolean isOverlappingReadPending(LedgerPendingReads ledgerCache, PendingReadKey key) {
+        for (PendingReadKey entryKey : ledgerCache.all.keySet()) {
+            if (entryKey.equals(key) || entryKey.includes(key) || entryKey.overlaps(key)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Returns whether a read of a range that overlaps the given one is pending, without the lock of the ledger's
+     * pending reads: a cheap check before {@link #readEntriesIfNotPending}, which checks it again atomically.
+     */
+    boolean isOverlappingReadPending(long ledgerId, long firstEntry, long lastEntry) {
+        LedgerPendingReads ledgerCache = cachedPendingReads.get(ledgerId);
+        return ledgerCache != null
+                && isOverlappingReadPending(ledgerCache, new PendingReadKey(firstEntry, lastEntry));
+    }
+
+    /**
+     * Reads the entries from storage, as a pending read that later reads of overlapping ranges join, only if no read
+     * of an overlapping range is pending: the callback then gets the storage read's own entries. Returns whether the
+     * read was started.
+     */
+    boolean readEntriesIfNotPending(ReadHandle lh, long firstEntry, long lastEntry, long maxSizeBytes,
+                                    IntSupplier expectedReadCount,
+                                    final AsyncCallbacks.ReadEntriesCallback callback, Object ctx) {
+        final PendingReadKey key = new PendingReadKey(firstEntry, lastEntry);
+        LedgerPendingReads pendingReadsForLedger =
+                cachedPendingReads.computeIfAbsent(lh.getId(), (l) -> new LedgerPendingReads());
+        AtomicBoolean createdByThisThread = new AtomicBoolean();
+        FindPendingReadOutcome outcome = findPendingRead(key, pendingReadsForLedger, createdByThisThread, true);
+        if (outcome == null || !createdByThisThread.get()) {
+            return false;
+        }
+        PendingRead pendingRead = outcome.pendingRead;
+        // A new pending read accepts listeners until its result is attached
+        boolean listenerAdded = pendingRead.addListener(callback, ctx, firstEntry, lastEntry);
+        // A storage read that fails to start fails the pending read, which removes it and completes its listeners
+        pendingRead.attach(FutureUtil.supplySafely(() -> rangeEntryCache.readFromStorage(lh, firstEntry, lastEntry,
+                maxSizeBytes, expectedReadCount)));
+        return listenerAdded;
+    }
+
     void readEntries(ReadHandle lh, long firstEntry, long lastEntry, long maxSizeBytes,
                      IntSupplier expectedReadCount, final AsyncCallbacks.ReadEntriesCallback callback, Object ctx) {
         final PendingReadKey key = new PendingReadKey(firstEntry, lastEntry);
 
-        ConcurrentMap<PendingReadKey, PendingRead> pendingReadsForLedger =
-                cachedPendingReads.computeIfAbsent(lh.getId(), (l) -> new ConcurrentHashMap<>());
+        LedgerPendingReads pendingReadsForLedger =
+                cachedPendingReads.computeIfAbsent(lh.getId(), (l) -> new LedgerPendingReads());
 
         boolean listenerAdded = false;
         while (!listenerAdded) {

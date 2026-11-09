@@ -2,9 +2,7 @@
 
 - Status: Proposal
 - Authors: Xiangying Meng、Bo Cong
-- Pull Request:
-- Mailing List discussion:
-- Release:
+- Mailing List discussion: https://lists.apache.org/thread/j945xjbcdbvxjnpbygbw17hdb54k8vhp
 
 ## Background / Description
 

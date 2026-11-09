@@ -251,9 +251,20 @@ class RangeCache {
         return key != null ? getWrapper(key) != null : true;
     }
 
+    /**
+     * Same as {@link #exists(Position)}, without a {@link Position} instance.
+     */
+    public boolean exists(long ledgerId, long entryId) {
+        return getWrapper(ledgerId, entryId) != null;
+    }
+
     private RangeCacheEntryWrapper getWrapper(Position key) {
-        Page page = findPage(key.getLedgerId(), key.getEntryId());
-        return page != null ? page.slots.get((int) (key.getEntryId() & SLOT_MASK)) : null;
+        return getWrapper(key.getLedgerId(), key.getEntryId());
+    }
+
+    private RangeCacheEntryWrapper getWrapper(long ledgerId, long entryId) {
+        Page page = findPage(ledgerId, entryId);
+        return page != null ? page.slots.get((int) (entryId & SLOT_MASK)) : null;
     }
 
     /**

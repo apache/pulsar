@@ -1,0 +1,41 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# Seeks by timestamp in offloaded ledgers: the gateways publish 110,000 unbatched 1 KiB messages to one topic, 1 ms
+# apart, at 1,000 msg/s, into ledgers of 25,000 entries, which the brokers offload to an S3-compatible SeaweedFS as
+# soon as they roll over. Once the gateways have finished, the launcher resets each of six late applications'
+# subscriptions to a publish time, spread over the offloaded ledgers and over the positions within them, which makes
+# the broker search the ledgers by timestamp, and then unloads the topic; the applications then read their backlogs
+# from there. The storage logs every request, so that the report counts the reads of the searches. The report's Join
+# preparation section shows how long each reset took, and the reads of offloaded data during the resets.
+extends: iot-telemetry-offload.yaml
+offload:
+  logRequests: true
+workloads:
+  iotTelemetry:
+    measurement:
+      seconds: 110
+    # The resets wait for the gateways, which finish at about 110 s
+    timeoutSeconds: 600
+    rate: 1000
+    applications:
+      joinSeconds: [115, 115, 115, 115, 115, 115]
+      skipMessages: []
+      # Milliseconds after the measurement's start: in the first, second, third and fourth offloaded ledgers, at
+      # different positions within them
+      resetToMillis: [5123, 21777, 37042, 58301, 76890, 95555]
+      unloadBeforeJoin: true

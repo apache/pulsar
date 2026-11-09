@@ -6,8 +6,7 @@
 
 **Pull Request**: https://github.com/apache/pulsar/pull/11838
 
-**Mailing List discussion**:
-https://lists.apache.org/x/thread.html/r259cfd0d20162e5e24290bc2ea8f8ac74d53489975e0c7b40d326fec@%3Cdev.pulsar.apache.org%3E
+**Mailing List discussion**: https://lists.apache.org/thread/9vzqqr60s62jc3zgkzc0syvltygsq38m
 
 **Release**: 2.9.0
 
@@ -84,3 +83,7 @@ We will add new unit tests that cover the new code.
 ## Rejected Alternatives
 Let users implement their own proxy and deploy next to the proxy process/container/pod.
 This is rejected because it will make it harder to deploy Pulsar in Kubernetes and also it will make developers code more and more mechanisms for Broker Discovery, Topic Lookup, Authentication and Authorization.
+
+# Links
+
+* Mailing List voting thread: https://lists.apache.org/thread/14wx2m4tdmqghwbdr48mopq5h51cnnt8

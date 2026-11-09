@@ -1413,9 +1413,12 @@ public class TopicAuthZTest extends AuthZTest {
             Map<String, String> properties = Map.of(PROPERTY_SOURCE_TOPIC_KEY, source);
             createTopicWithProperties(superUserAdmin, destination, partitions, properties);
             createTopicWithProperties(superUserAdmin, updatedDestination, partitions, Map.of());
-            superUserAdmin.topics().updateProperties(updatedDestination, properties);
-            assertThat(superUserAdmin.topics().getProperties(updatedDestination))
+            superUserAdmin.topics().updateProperties(destination, properties);
+            assertThat(superUserAdmin.topics().getProperties(destination))
                     .containsEntry(PROPERTY_SOURCE_TOPIC_KEY, source);
+            assertThatThrownBy(() -> superUserAdmin.topics().updateProperties(updatedDestination, properties))
+                    .isInstanceOf(PulsarAdminException.PreconditionFailedException.class);
+            assertThat(superUserAdmin.topics().getShadowSource(updatedDestination)).isNull();
             superUserAdmin.topics().setShadowTopics(source, List.of(destination));
             for (int i = 0; i < Math.max(1, partitions); i++) {
                 String sourcePartition = partitions == 0 ? source : TopicName.get(source).getPartition(i).toString();

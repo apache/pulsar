@@ -20,8 +20,10 @@ package org.apache.pulsar.client.impl.v5;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.v5.Checkpoint;
 
 /**
@@ -42,6 +44,18 @@ final class CheckpointV5 implements Checkpoint {
 
     CheckpointV5(Map<Long, org.apache.pulsar.client.api.MessageId> segmentPositions) {
         this.segmentPositions = Map.copyOf(segmentPositions);
+    }
+
+    /**
+     * A checkpoint at the end of each of the given segments. Unlike {@link #LATEST}, it has no
+     * position for any other segment.
+     */
+    static CheckpointV5 latestOf(Collection<Long> segmentIds) {
+        Map<Long, MessageId> positions = new HashMap<>();
+        for (long segmentId : segmentIds) {
+            positions.put(segmentId, MessageId.latest);
+        }
+        return new CheckpointV5(positions);
     }
 
     /**

@@ -41,6 +41,10 @@ public interface TopicCompactionService extends AutoCloseable {
     /**
      * Read the compacted entries from the TopicCompactionService.
      *
+     * <p>Compacted readers use it for positions up to {@link #getLastCompactedPosition()}. A reader that has already
+     * moved past that position keeps reading the original topic from there, even after a later compaction moves the
+     * last compacted position past it, so that it doesn't miss the messages that compaction removed since.
+     *
      * @param startPosition         the position to start reading from.
      * @param numberOfEntriesToRead the maximum number of entries to read.
      * @return a future that will be completed with the list of entries, this list can be null.

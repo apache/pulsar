@@ -88,6 +88,11 @@ public interface CheckpointConsumerBuilder<T> {
      * coordinator: each segment is assigned to exactly one consumer in the group at a
      * time, and segments rebalance automatically as consumers join or leave.
      *
+     * <p>A group does not yet preserve per-key ordering across a split or merge of the
+     * topic's segments: one consumer can receive a key's newer messages from a new
+     * segment while another is still reading the key's older messages from the segment
+     * it replaced. An ungrouped consumer preserves it.
+     *
      * <p>When unset (the default), the consumer is unmanaged: it independently reads
      * every segment from {@link #startPosition the configured start position},
      * unaffected by any other consumer. This matches the original reader-style

@@ -129,6 +129,19 @@ public class ConcurrentBitmapSortedLongPairSetTest {
     }
 
     @Test
+    public void testRemoveUpToReportsASparsePrefix() {
+        ConcurrentBitmapSortedLongPairSet set = new ConcurrentBitmapSortedLongPairSet();
+        set.add(1, 5);
+        set.add(1, 100);
+
+        // removes 1:5 although 1:0 to 1:4 and 1:6 to 1:10 were never there
+        assertTrue(set.removeUpTo(1, 11));
+        assertFalse(set.contains(1, 5));
+        assertTrue(set.contains(1, 100));
+        assertFalse(set.removeUpTo(1, 11));
+    }
+
+    @Test
     public void testItems() {
         ConcurrentBitmapSortedLongPairSet set = new ConcurrentBitmapSortedLongPairSet();
         Set<ConcurrentLongPairSet.LongPair> items = set.items(10, ConcurrentLongPairSet.LongPair::new);

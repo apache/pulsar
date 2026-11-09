@@ -70,8 +70,10 @@ public class NativeImageConfigAdminTest {
         Set<String> classNames = parseReflectConfigClassNames();
         assertFalse(classNames.isEmpty());
         for (String className : classNames) {
+            // Array types use the "Component[]" notation, which Class.forName doesn't accept.
+            String componentClassName = className.replaceAll("(\\[\\])+$", "");
             try {
-                Class.forName(className, false, getClass().getClassLoader());
+                Class.forName(componentClassName, false, getClass().getClassLoader());
             } catch (ClassNotFoundException e) {
                 fail("reflect-config.json references a class that does not exist on the "
                         + "classpath: " + className + ". If this class was renamed or removed, "

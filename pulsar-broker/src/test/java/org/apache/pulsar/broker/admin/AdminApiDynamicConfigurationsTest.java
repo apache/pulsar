@@ -24,6 +24,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertThrows;
+import static org.testng.Assert.expectThrows;
 import static org.testng.Assert.fail;
 import jakarta.ws.rs.core.Response;
 import java.util.Map;
@@ -110,6 +111,33 @@ public class AdminApiDynamicConfigurationsTest extends MockedPulsarServiceBaseTe
         admin.brokers().deleteDynamicConfiguration(key);
         allDynamicConfigurations = admin.brokers().getAllDynamicConfigurations();
         assertThat(allDynamicConfigurations).doesNotContainKey(key);
+    }
+
+    @Test
+    public void testRejectInvalidBuiltInDynamicConfiguration() throws Exception {
+        PulsarAdminException.PreconditionFailedException e = expectThrows(
+                PulsarAdminException.PreconditionFailedException.class,
+                () -> admin.brokers().updateDynamicConfiguration("brokerShutdownTimeoutMs", "abc"));
+        assertThat(e.getMessage()).contains("Failed to parse brokerShutdownTimeoutMs");
+        e = expectThrows(PulsarAdminException.PreconditionFailedException.class,
+                () -> admin.brokers().updateDynamicConfiguration("failureDomainsEnabled", "abc"));
+        assertThat(e.getMessage()).contains("failureDomainsEnabled must be 'true' or 'false'");
+        e = expectThrows(PulsarAdminException.PreconditionFailedException.class,
+                () -> admin.brokers().updateDynamicConfiguration("subscribeRatePeriodPerConsumerInSecond", "0"));
+        assertThat(e.getMessage()).contains("subscribeRatePeriodPerConsumerInSecond value 0 doesn't fit");
+        e = expectThrows(PulsarAdminException.PreconditionFailedException.class,
+                () -> admin.brokers().updateDynamicConfiguration("metadataStoreUrl", "zk:test-zk:1234"));
+        assertThat(e.getMessage()).contains("Can't update non-dynamic configuration");
+
+        assertThat(admin.brokers().getAllDynamicConfigurations())
+                .doesNotContainKeys("brokerShutdownTimeoutMs", "failureDomainsEnabled",
+                        "subscribeRatePeriodPerConsumerInSecond");
+
+        admin.brokers().updateDynamicConfiguration("failureDomainsEnabled", "TRUE");
+        admin.brokers().updateDynamicConfiguration("subscribeRatePeriodPerConsumerInSecond", "1");
+        assertThat(admin.brokers().getAllDynamicConfigurations())
+                .containsEntry("failureDomainsEnabled", "TRUE")
+                .containsEntry("subscribeRatePeriodPerConsumerInSecond", "1");
     }
 
     @Test

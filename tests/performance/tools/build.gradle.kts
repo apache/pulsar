@@ -27,6 +27,9 @@ dependencies {
     implementation(project(":pulsar-client-original"))
     implementation(libs.hdrHistogram)
     implementation(libs.picocli)
+    // The Pulsar client's warnings, such as its reconnections, into a file in the workload's output directory
+    runtimeOnly(libs.log4j.core)
+    runtimeOnly(libs.log4j.slf4j2.impl)
 
     testImplementation(libs.assertj.core)
     testImplementation(libs.testng)

@@ -37,6 +37,7 @@ import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet.LongPairConsumer;
 import org.apache.pulsar.common.util.collections.OpenLongPairRangeSet;
 import org.roaringbitmap.RoaringBitSet;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
@@ -80,6 +81,55 @@ public class PositionRangeSetTest {
         assertFalse(rangeSet.isDirtyLedgers(11L));
         for (long i = 12; i <= 20; i++) {
             assertTrue(rangeSet.isDirtyLedgers(i));
+        }
+    }
+
+    @DataProvider
+    public static Object[][] multiEntry() {
+        return new Object[][] {{true}, {false}};
+    }
+
+    @Test(dataProvider = "multiEntry")
+    public void addIfAbsentMatchesContainsThenAddOpenClosed(boolean enableMultiEntry) {
+        Random random = new Random(1);
+        PositionRangeSet expected = new PositionRangeSet(CONSUMER, enableMultiEntry);
+        PositionRangeSet actual = new PositionRangeSet(CONSUMER, enableMultiEntry);
+        // dirty ledgers from a range across ledgers, which adding single entries keeps: a range within one ledger
+        // marks no ledger dirty
+        expected.addOpenClosed(1, 5, 3, 7);
+        actual.addOpenClosed(1, 5, 3, 7);
+        long[] boundaryEntryIds = {0, 1, Integer.MAX_VALUE - 1, Integer.MAX_VALUE};
+        for (int i = 0; i < 5_000; i++) {
+            long ledgerId = 1 + random.nextInt(4);
+            long entryId = i % 50 == 0 ? boundaryEntryIds[(i / 50) % boundaryEntryIds.length] : random.nextInt(300);
+            boolean wasAbsent = !expected.contains(ledgerId, entryId);
+            if (wasAbsent) {
+                expected.addOpenClosed(ledgerId, entryId - 1, ledgerId, entryId);
+            }
+            // the cached size and string are recomputed after an added entry, and kept for a present one
+            int sizeBefore = actual.size();
+            String stringBefore = actual.toString();
+            assertEquals(actual.addIfAbsent(ledgerId, entryId), wasAbsent);
+            assertEquals(actual.size(), expected.size());
+            assertEquals(actual.toString(), expected.toString());
+            if (!wasAbsent) {
+                assertEquals(actual.size(), sizeBefore);
+                assertEquals(actual.toString(), stringBefore);
+            }
+            if (i % 500 == 0) {
+                // ranges acknowledged at once and removed up to a mark-delete position, as the cursor does
+                long ledger = 1 + random.nextInt(4);
+                expected.addOpenClosed(ledger, 10, ledger, 40);
+                actual.addOpenClosed(ledger, 10, ledger, 40);
+                long removeUpTo = random.nextInt(200);
+                expected.removeAtMost(1, removeUpTo);
+                actual.removeAtMost(1, removeUpTo);
+            }
+        }
+        assertEquals(actual.asRanges(), expected.asRanges());
+        assertEquals(actual.size(), expected.size());
+        for (long ledgerId = 0; ledgerId <= 5; ledgerId++) {
+            assertEquals(actual.isDirtyLedgers(ledgerId), expected.isDirtyLedgers(ledgerId));
         }
     }
 

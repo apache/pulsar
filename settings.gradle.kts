@@ -175,6 +175,10 @@ include("pulsar-broker")
 include("pulsar-package-management:pulsar-package-bookkeeper-storage")
 project(":pulsar-package-management:pulsar-package-bookkeeper-storage").projectDir = file("pulsar-package-management/bookkeeper-storage")
 
+// Tier 6.5 — BookKeeper stats provider on the Prometheus Java client 1.x
+include("pulsar-bookkeeper-prometheus-metrics-provider")
+project(":pulsar-bookkeeper-prometheus-metrics-provider").projectDir = file("bookkeeper-prometheus-metrics-provider")
+
 // Tier 6.5 — jetty upgrade modules
 include("jetty-upgrade:pulsar-zookeeper-prometheus-metrics")
 project(":jetty-upgrade:pulsar-zookeeper-prometheus-metrics").projectDir = file("jetty-upgrade/zookeeper-prometheus-metrics")
@@ -281,6 +285,7 @@ include("tests:pulsar-client-shade-test")
 project(":tests:pulsar-client-shade-test").projectDir = file("tests/pulsar-client-shade-test")
 include("tests:pulsar-client-admin-v5-test")
 include("tests:pulsar-client-v5-shade-test")
+include("tests:pulsar-client-only-shade-test")
 include("tests:pulsar-client-v5-all-test")
 include("tests:pulsar-client-admin-shade-test")
 project(":tests:pulsar-client-admin-shade-test").projectDir = file("tests/pulsar-client-admin-shade-test")

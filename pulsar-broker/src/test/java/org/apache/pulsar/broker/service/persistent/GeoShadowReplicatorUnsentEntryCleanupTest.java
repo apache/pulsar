@@ -38,7 +38,6 @@ import io.netty.channel.EventLoopGroup;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
@@ -131,7 +130,7 @@ public class GeoShadowReplicatorUnsentEntryCleanupTest {
     public void testCompletedExceptionalSchemaSchedulesRetryWithoutImmediateRead() throws Exception {
         ReplicatorFixture fixture = newReplicatorFixture();
         ExceptionallyCompletedSchemaGeoReplicator replicator = new ExceptionallyCompletedSchemaGeoReplicator(fixture);
-        ProducerImpl producer = mock(ProducerImpl.class);
+        ProducerImpl<?> producer = mock(ProducerImpl.class);
         replicator.startForTest(producer);
         EntryFixture entry = entry(0);
         try {
@@ -163,7 +162,7 @@ public class GeoShadowReplicatorUnsentEntryCleanupTest {
         return requests.get(0);
     }
 
-    private static SendCallback capturedCallback(ProducerImpl producer) {
+    private static SendCallback capturedCallback(ProducerImpl<?> producer) {
         ArgumentCaptor<SendCallback> callbackCaptor = ArgumentCaptor.forClass(SendCallback.class);
         verify(producer).sendAsync(any(), callbackCaptor.capture());
         return callbackCaptor.getValue();
@@ -291,12 +290,12 @@ public class GeoShadowReplicatorUnsentEntryCleanupTest {
         }
 
         @Override
-        protected CompletableFuture<SchemaInfo> getSchemaInfo(MessageImpl msg) throws ExecutionException {
+        protected CompletableFuture<SchemaInfo> getSchemaInfo(MessageImpl msg) {
             if (schemaRequests.incrementAndGet() == 2) {
                 if (error) {
                     throw new AssertionError("schema preparation failed");
                 }
-                throw new ExecutionException("schema preparation failed", null);
+                throw new IllegalStateException("schema preparation failed");
             }
             return CompletableFuture.completedFuture(null);
         }

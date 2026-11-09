@@ -220,6 +220,9 @@ public class ProducerMemoryLeakTest extends SharedPulsarBaseTest {
         return new Object[][] {{false, 0}, {false, 1}, {false, 2}, {true, 0}, {true, 1}, {true, 2}};
     }
 
+    // The custom task-queue factory is only exposed by the deprecated NioEventLoopGroup constructor, and the
+    // resolver mirrors DnsResolverGroupImpl, which also uses the deprecated traceEnabled/channelType builders.
+    @SuppressWarnings("deprecation")
     @Test(dataProvider = "chunkWriteFailures")
     public void testChunkedSendStopsAfterRejectedWrite(boolean blockIfQueueFull, int rejectedChunk) throws Exception {
         AtomicReference<Thread> rejectNextTaskFrom = new AtomicReference<>();
@@ -732,17 +735,15 @@ public class ProducerMemoryLeakTest extends SharedPulsarBaseTest {
         return new MsgPayloadTouchableMessageBuilder<T>(producer, schema);
     }
 
-    private static class MsgPayloadTouchableMessageBuilder<T> extends TypedMessageBuilderImpl {
+    private static class MsgPayloadTouchableMessageBuilder<T> extends TypedMessageBuilderImpl<T> {
 
         public volatile ByteBuf payload;
 
-        @SuppressWarnings("unchecked")
-        public <T> MsgPayloadTouchableMessageBuilder(ProducerBase producer, Schema<T> schema) {
+        public MsgPayloadTouchableMessageBuilder(ProducerBase<?> producer, Schema<T> schema) {
             super(producer, schema);
         }
 
         @Override
-        @SuppressWarnings("unchecked")
         public Message<T> getMessage() {
             MessageImpl<T> msg = (MessageImpl<T>) super.getMessage();
             payload = msg.getPayload();

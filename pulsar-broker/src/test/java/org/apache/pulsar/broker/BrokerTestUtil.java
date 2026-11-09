@@ -30,6 +30,7 @@ import java.io.InputStreamReader;
 import java.io.StringWriter;
 import java.io.UncheckedIOException;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.net.URL;
 import java.time.Duration;
 import java.util.Arrays;
@@ -37,6 +38,8 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -200,7 +203,7 @@ public class BrokerTestUtil {
      */
     @SneakyThrows
     public static String getJsonResourceAsString(String uri) {
-        URL url = new URL(uri);
+        URL url = URI.create(uri).toURL();
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         connection.setRequestMethod("GET");
         connection.setRequestProperty("Accept", "application/json");
@@ -251,11 +254,51 @@ public class BrokerTestUtil {
     public static <T> void receiveMessages(BiFunction<Consumer<T>, Message<T>, Boolean> messageHandler,
                                            Duration quietTimeout,
                                            Stream<Consumer<T>> consumers) {
+        receiveMessagesAsync(messageHandler, quietTimeout, ReceiveClock.SYSTEM, consumers).join();
+    }
+
+    // receiveMessages on the given clock, without waiting for it to finish. BrokerTestUtilTest runs it on a manual
+    // clock.
+    static <T> CompletableFuture<Void> receiveMessagesAsync(BiFunction<Consumer<T>, Message<T>, Boolean>
+                                                                    messageHandler,
+                                                            Duration quietTimeout,
+                                                            ReceiveClock clock,
+                                                            Stream<Consumer<T>> consumers) {
         long quietTimeoutNanos = quietTimeout.toNanos();
-        AtomicLong lastMessageReceivedNanos = new AtomicLong(System.nanoTime());
-        FutureUtil.waitForAll(consumers
+        AtomicLong lastMessageReceivedNanos = new AtomicLong(clock.nanoTime());
+        return FutureUtil.waitForAll(consumers
                 .map(consumer -> receiveMessagesAsync(consumer, quietTimeoutNanos, quietTimeoutNanos, messageHandler,
-                        lastMessageReceivedNanos)).toList()).join();
+                        lastMessageReceivedNanos, clock)).toList());
+    }
+
+    /**
+     * The time source of {@link #receiveMessages}: the clock that measures the quiet time, the receive timeouts, and
+     * the executor that starts each next receive.
+     */
+    interface ReceiveClock {
+        ReceiveClock SYSTEM = new ReceiveClock() {
+            @Override
+            public long nanoTime() {
+                return System.nanoTime();
+            }
+
+            @Override
+            public <T> CompletableFuture<T> orTimeout(CompletableFuture<T> future, long timeoutNanos) {
+                return future.orTimeout(timeoutNanos, TimeUnit.NANOSECONDS);
+            }
+
+            @Override
+            public Executor executor() {
+                // What thenComposeAsync uses without an executor.
+                return ForkJoinPool.commonPool();
+            }
+        };
+
+        long nanoTime();
+
+        <T> CompletableFuture<T> orTimeout(CompletableFuture<T> future, long timeoutNanos);
+
+        Executor executor();
     }
 
     // asynchronously receive messages from a consumer and handle them using the provided message handler
@@ -266,11 +309,11 @@ public class BrokerTestUtil {
                                                                     long receiveTimeoutNanos,
                                                                     BiFunction<Consumer<T>, Message<T>, Boolean>
                                                                             messageHandler,
-                                                                    AtomicLong lastMessageReceivedNanos) {
-        return consumer.receiveAsync()
-                .orTimeout(receiveTimeoutNanos, TimeUnit.NANOSECONDS)
+                                                                    AtomicLong lastMessageReceivedNanos,
+                                                                    ReceiveClock clock) {
+        return clock.orTimeout(consumer.receiveAsync(), receiveTimeoutNanos)
                 .handle((msg, t) -> {
-                    long currentNanos = System.nanoTime();
+                    long currentNanos = clock.nanoTime();
                     if (t != null) {
                         if (t instanceof TimeoutException) {
                             long sinceLastMessageReceivedNanos = currentNanos - lastMessageReceivedNanos.get();
@@ -290,11 +333,11 @@ public class BrokerTestUtil {
                     if (receiveMore) {
                         Long nextReceiveTimeoutNanos = receiveMoreAndNextTimeout.getRight();
                         return receiveMessagesAsync(consumer, quietTimeoutNanos, nextReceiveTimeoutNanos,
-                                messageHandler, lastMessageReceivedNanos);
+                                messageHandler, lastMessageReceivedNanos, clock);
                     } else {
                         return CompletableFuture.completedFuture(null);
                     }
-                });
+                }, clock.executor());
     }
 
     /**

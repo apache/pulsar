@@ -85,6 +85,8 @@ public class V5ConsumerSubscriptionPropertiesTest extends V5ClientBaseTest {
         return readConfSubscriptionProperties(v4Consumer);
     }
 
+    // The field is read reflectively, so the map's type can't be checked.
+    @SuppressWarnings("unchecked")
     private static Map<Long, ?> readSegmentConsumers(QueueConsumer<?> consumer) throws Exception {
         Field f = consumer.getClass().getDeclaredField("segmentConsumers");
         f.setAccessible(true);

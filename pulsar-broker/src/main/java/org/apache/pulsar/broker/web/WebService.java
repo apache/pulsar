@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.web;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.prometheus.client.CollectorRegistry;
 import jakarta.servlet.DispatcherType;
 import jakarta.servlet.Filter;
@@ -85,6 +86,7 @@ import org.eclipse.jetty.util.resource.ResourceFactory;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.glassfish.jersey.media.multipart.MultiPartFeature;
 import org.glassfish.jersey.server.ResourceConfig;
+import org.glassfish.jersey.server.ServerProperties;
 import org.glassfish.jersey.servlet.ServletContainer;
 
 /**
@@ -102,6 +104,7 @@ public class WebService implements AutoCloseable {
     private final PulsarService pulsar;
     private final Server server;
     private final List<Handler> handlers;
+    private final List<ResourceConfig> resourceConfigs = new ArrayList<>();
     @Deprecated
     private final WebExecutorStats executorStats;
     private final WebExecutorThreadPoolStats webExecutorThreadPoolStats;
@@ -256,6 +259,14 @@ public class WebService implements AutoCloseable {
             config.register(JsonMapperProvider.class);
         }
         config.register(MultiPartFeature.class);
+        // Write the responses of async endpoints on the web service executor instead of the thread that resumes them
+        config.register(new WebExecutorAsyncResponseFeature(webServiceExecutor));
+        // Validating the resource model is about a third of Jersey's initialization of the context, at every broker
+        // start, while the model only changes with the code: WebServiceResourceModelTest validates it instead
+        config.property(ServerProperties.RESOURCE_VALIDATION_DISABLE, true);
+        // WADL needs a JAXB implementation, which the broker doesn't have: don't look for one
+        config.property(ServerProperties.WADL_FEATURE_DISABLE, true);
+        resourceConfigs.add(config);
         ServletHolder servletHolder = new ServletHolder(new ServletContainer(config));
         servletHolder.setAsyncSupported(true);
         addServlet(basePath, servletHolder, requiresAuthentication, attributeMap);
@@ -554,6 +565,14 @@ public class WebService implements AutoCloseable {
         webExecutorThreadPoolStats.close();
         this.executorStats.close();
         log.info("Web service closed");
+    }
+
+    /**
+     * The Jersey applications of the resources that {@link #addRestResources} and {@link #addRestResource} added.
+     */
+    @VisibleForTesting
+    List<ResourceConfig> getResourceConfigs() {
+        return resourceConfigs;
     }
 
     public Optional<Integer> getListenPortHTTP() {

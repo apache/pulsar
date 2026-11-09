@@ -27,6 +27,7 @@ import com.google.common.base.Function;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.lang.reflect.Method;
+import java.net.URI;
 import java.net.URL;
 import java.util.Collections;
 import java.util.LinkedList;
@@ -100,7 +101,7 @@ public class ClientDeduplicationFailureTest {
         pulsar.start();
 
         String brokerServiceUrl = pulsar.getWebServiceAddress();
-        url = new URL(brokerServiceUrl);
+        url = URI.create(brokerServiceUrl).toURL();
 
         admin = PulsarAdmin.builder().serviceHttpUrl(brokerServiceUrl).build();
 

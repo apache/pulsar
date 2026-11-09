@@ -798,11 +798,18 @@ public class PulsarClientBuilderV5Test {
 
     @Test
     public void testAuthenticationPluginNotFoundIsWrapped() {
-        // A bad plugin class name should surface as V5 PulsarClientException (not a v4 exception
-        // type leaking through the surface).
+        // A bad plugin class name should surface as the V5 PulsarClientException of its category (not a
+        // v4 exception type leaking through the surface).
         PulsarClientBuilderV5 builder = new PulsarClientBuilderV5();
-        assertThrows(PulsarClientException.class, () ->
+        assertThrows(PulsarClientException.UnsupportedAuthenticationException.class, () ->
                 builder.authentication("com.example.NoSuchAuth", ""));
+    }
+
+    @Test
+    public void testBuildWithMalformedServiceUrlFailsWithInvalidServiceUrl() {
+        // The pulsar:// scheme passes the builder's check; the client rejects the port when it is built.
+        PulsarClientBuilder builder = PulsarClient.builder().serviceUrl("pulsar://localhost:not-a-port");
+        assertThrows(PulsarClientException.InvalidServiceURLException.class, builder::build);
     }
 
     /**

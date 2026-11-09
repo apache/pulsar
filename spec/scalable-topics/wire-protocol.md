@@ -382,7 +382,8 @@ sequenceDiagram
 `CommandConnect`/auth, TLS, schema negotiation (`CommandGetSchema`/`CommandGetOrCreateSchema`), broker
 lookup, and `CommandSend`/`CommandAck` framing are the standard Pulsar protocol, applied at the
 **segment** topic level (`segment://`, or the wrapped `persistent://` for legacy segments). No
-scalable-topic-specific changes are required to them.
+scalable-topic-specific changes are required to them. The broker authorizes these segment-level commands
+with the permissions of the parent scalable topic ([Compatibility](compatibility.md) §5).
 
 ## 11. Cross-cutting requirements
 

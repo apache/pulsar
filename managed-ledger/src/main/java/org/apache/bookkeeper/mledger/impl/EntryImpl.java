@@ -44,6 +44,11 @@ import org.apache.pulsar.common.protocol.Commands;
 @CustomLog
 public final class EntryImpl extends AbstractCASReferenceCounted
         implements ReferenceCountedEntry, Comparable<EntryImpl> {
+    /**
+     * The expected read count of an entry that isn't cached and has no read count handler.
+     */
+    public static final int NO_EXPECTED_READ_COUNT = -1;
+
 
     private static final Recycler<EntryImpl> RECYCLER = new Recycler<EntryImpl>() {
         @Override
@@ -116,7 +121,7 @@ public final class EntryImpl extends AbstractCASReferenceCounted
 
     @VisibleForTesting
     public static EntryImpl create(long ledgerId, long entryId, byte[] data) {
-        return create(ledgerId, entryId, data, 0);
+        return create(ledgerId, entryId, data, NO_EXPECTED_READ_COUNT);
     }
 
     @VisibleForTesting
@@ -133,7 +138,7 @@ public final class EntryImpl extends AbstractCASReferenceCounted
     }
 
     public static EntryImpl create(long ledgerId, long entryId, ByteBuf data) {
-        return create(ledgerId, entryId, data, 0);
+        return create(ledgerId, entryId, data, NO_EXPECTED_READ_COUNT);
     }
 
     public static EntryImpl create(long ledgerId, long entryId, ByteBuf data, int expectedReadCount) {
@@ -351,6 +356,11 @@ public final class EntryImpl extends AbstractCASReferenceCounted
             try {
                 MessageMetadata msgMetadata = new MessageMetadata();
                 Commands.parseMessageMetadata(data.duplicate(), msgMetadata);
+                // Copies of this entry share the instance across threads. Decode its lazily decoded fields now, so
+                // that readers don't decode them concurrently: a lazily decoded field is cached in a plain field, and
+                // LightProto creates an ASCII string without a constructor, so another thread could see the cached
+                // string before its contents. The volatile write below publishes the decoded fields.
+                msgMetadata.materialize();
                 this.messageMetadata = msgMetadata;
             } catch (Throwable t) {
                 // The entry bytes are immutable; another cache reader cannot make a failed parse succeed.

@@ -101,6 +101,16 @@ public class SimpleResourceAllocationPolicies {
         return nsPolicy.isPresent() && nsPolicy.get().isSecondaryBroker(broker);
     }
 
+    public boolean isPrimaryBrokerId(NamespaceName namespace, String brokerId) {
+        Optional<NamespaceIsolationPolicy> nsPolicy = getNamespaceIsolationPolicy(namespace);
+        return nsPolicy.isPresent() && nsPolicy.get().isPrimaryBrokerId(brokerId);
+    }
+
+    public boolean isSecondaryBrokerId(NamespaceName namespace, String brokerId) {
+        Optional<NamespaceIsolationPolicy> nsPolicy = getNamespaceIsolationPolicy(namespace);
+        return nsPolicy.isPresent() && nsPolicy.get().isSecondaryBrokerId(brokerId);
+    }
+
     public boolean isSharedBroker(String broker) {
         try {
             Optional<NamespaceIsolationPolicies> policies =
@@ -111,6 +121,12 @@ public class SimpleResourceAllocationPolicies {
             log.warn().exception(e).log("isPrimaryForAnyNamespace");
         }
         return false;
+    }
+
+    public boolean isPrimaryBrokerIdInAnyPolicy(String brokerId) {
+        return getIsolationPolicies(pulsar.getConfiguration().getClusterName())
+                .map(isolationPolicies -> isolationPolicies.isPrimaryBrokerIdInAnyPolicy(brokerId))
+                .orElse(false);
     }
 
     public boolean shouldFailoverToSecondaries(NamespaceName namespace, int totalPrimaryCandidates) {
