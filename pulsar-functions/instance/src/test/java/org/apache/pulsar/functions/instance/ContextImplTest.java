@@ -34,6 +34,8 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import io.prometheus.metrics.expositionformats.PrometheusTextFormatWriter;
+import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.List;
@@ -591,5 +593,50 @@ public class ContextImplTest {
         }, producerCache);
         context.fatal(fatalException);
         assertTrue(fatalInvoked.get());
+    }
+
+    /**
+     * The admin API exposes user metrics as {@code user_metric_<name>_{sum,count,0.5,0.9,0.99,0.999}}; the key
+     * format is a compatibility contract.
+     */
+    @Test
+    public void testGetMetricsKeys() throws Exception {
+        String[] metricsLabels = {"public", "public/default", "fn", "0", "standalone", "public/default/fn"};
+        FunctionCollectorRegistry registry = FunctionCollectorRegistry.getDefaultImplementation();
+        context = new ContextImpl(config, logger, client, new EnvironmentBasedSecretsProvider(), registry,
+                metricsLabels, FunctionDetails.ComponentType.FUNCTION, null, new InstanceStateManager(),
+                pulsarAdmin, clientBuilder, t -> {}, producerCache);
+
+        context.recordMetric("latency", 2.0);
+        context.recordMetric("latency", 4.0);
+
+        Map<String, Double> metrics = context.getMetrics();
+        assertThat(metrics).containsOnlyKeys("user_metric_latency_sum", "user_metric_latency_count",
+                "user_metric_latency_0.5", "user_metric_latency_0.9", "user_metric_latency_0.99",
+                "user_metric_latency_0.999");
+        assertThat(metrics).containsEntry("user_metric_latency_sum", 6.0)
+                .containsEntry("user_metric_latency_count", 2.0);
+        assertThat(metrics.get("user_metric_latency_0.5")).isBetween(2.0, 4.0);
+        assertThat(metrics.get("user_metric_latency_0.999")).isEqualTo(4.0);
+
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        PrometheusTextFormatWriter.builder().setIncludeCreatedTimestamps(false).build()
+                .write(out, registry.scrape());
+        String exposition = out.toString(UTF_8);
+        assertThat(exposition).contains("# TYPE pulsar_function_user_metric_ summary\n")
+                .contains("pulsar_function_user_metric_{cluster=\"standalone\",fqfn=\"public/default/fn\","
+                        + "instance_id=\"0\",metric=\"latency\",name=\"fn\",namespace=\"public/default\","
+                        + "tenant=\"public\",quantile=\"0.5\"} ")
+                .contains("pulsar_function_user_metric__count{cluster=\"standalone\",fqfn=\"public/default/fn\","
+                        + "instance_id=\"0\",metric=\"latency\",name=\"fn\",namespace=\"public/default\","
+                        + "tenant=\"public\"} 2\n")
+                .doesNotContain("_created");
+
+        // after a reset the metric is still reported, with zero counts, until it is observed again
+        context.resetMetrics();
+        metrics = context.getMetrics();
+        assertThat(metrics).containsEntry("user_metric_latency_count", 0.0)
+                .containsEntry("user_metric_latency_sum", 0.0);
+        assertThat(metrics.get("user_metric_latency_0.5")).isNaN();
     }
 }

@@ -23,7 +23,10 @@ import static org.apache.pulsar.functions.instance.stats.FunctionStatsManager.US
 import com.google.common.annotations.VisibleForTesting;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-import io.prometheus.client.Summary;
+import io.prometheus.metrics.core.metrics.Summary;
+import io.prometheus.metrics.model.snapshots.Labels;
+import io.prometheus.metrics.model.snapshots.Quantile;
+import io.prometheus.metrics.model.snapshots.SummarySnapshot;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -133,6 +136,9 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
     private final SubscriptionType subscriptionType;
 
     private static final String[] userMetricsLabelNames;
+
+    /** The simpleclient default; the 1.x default is 5 minutes. */
+    private static final long QUANTILE_WINDOW_SECONDS = TimeUnit.MINUTES.toSeconds(10);
 
     private boolean exposePulsarAdminClientEnabled;
 
@@ -245,7 +251,7 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
         }
         this.userMetricsSummary = collectorRegistry.registerIfNotExist(
                 prefix + ComponentStatsManager.USER_METRIC_PREFIX,
-                Summary.build()
+                Summary.builder()
                         .name(prefix + ComponentStatsManager.USER_METRIC_PREFIX)
                         .help("User defined metric.")
                         .labelNames(userMetricsLabelNames)
@@ -253,7 +259,8 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
                         .quantile(0.9, 0.01)
                         .quantile(0.99, 0.01)
                         .quantile(0.999, 0.01)
-                        .create());
+                        .maxAgeSeconds(QUANTILE_WINDOW_SECONDS)
+                        .build());
         this.componentType = componentType;
         this.stateManager = stateManager;
         this.defaultStateStore = (DefaultStateStore) stateManager.getStore(
@@ -555,10 +562,10 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
             userMetricLabels[userMetricLabels.length - 1] = metricName;
             // set label for metrics before putting into userMetricsLabels map to
             // prevent race condition with getMetrics calls
-            userMetricsSummary.labels(userMetricLabels).observe(value);
+            userMetricsSummary.labelValues(userMetricLabels).observe(value);
             userMetricsLabels.put(metricName, userMetricLabels);
         } else {
-            userMetricsSummary.labels(userMetricLabels).observe(value);
+            userMetricsSummary.labelValues(userMetricLabels).observe(value);
         }
     }
 
@@ -648,18 +655,30 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
     }
 
     public Map<String, Double> getMetrics() {
+        for (String[] labels : userMetricsLabels.values()) {
+            // a metric cleared by resetMetrics still reports zero counts, as it always did
+            userMetricsSummary.labelValues(labels);
+        }
+        // The registry can be shared with other instances (LocalRunner), so pick this instance's data points
+        // by their full label set; quantiles are only available from a snapshot.
+        Map<Labels, SummarySnapshot.SummaryDataPointSnapshot> dataPoints = new HashMap<>();
+        for (SummarySnapshot.SummaryDataPointSnapshot dataPoint : userMetricsSummary.collect().getDataPoints()) {
+            dataPoints.put(dataPoint.getLabels(), dataPoint);
+        }
         Map<String, Double> metricsMap = new HashMap<>();
         for (Map.Entry<String, String[]> userMetricsLabelsEntry : userMetricsLabels.entrySet()) {
             String metricName = userMetricsLabelsEntry.getKey();
-            String[] labels = userMetricsLabelsEntry.getValue();
-            Summary.Child.Value summary = userMetricsSummary.labels(labels).get();
+            SummarySnapshot.SummaryDataPointSnapshot summary =
+                    dataPoints.get(Labels.of(userMetricsLabelNames, userMetricsLabelsEntry.getValue()));
+            if (summary == null) {
+                // cleared by a concurrent resetMetrics
+                continue;
+            }
             String prefix = USER_METRIC_PREFIX + metricName + "_";
-            metricsMap.put(prefix + "sum", summary.sum);
-            metricsMap.put(prefix + "count", summary.count);
-            for (Map.Entry<Double, Double> entry : summary.quantiles.entrySet()) {
-                Double quantile = entry.getKey();
-                Double value = entry.getValue();
-                metricsMap.put(prefix + quantile, value);
+            metricsMap.put(prefix + "sum", summary.getSum());
+            metricsMap.put(prefix + "count", (double) summary.getCount());
+            for (Quantile quantile : summary.getQuantiles()) {
+                metricsMap.put(prefix + quantile.getQuantile(), quantile.getValue());
             }
         }
         return metricsMap;

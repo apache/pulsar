@@ -25,9 +25,9 @@ import com.google.gson.reflect.TypeToken;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import io.grpc.stub.StreamObserver;
-import io.prometheus.client.exporter.HTTPServer;
+import io.prometheus.metrics.exporter.httpserver.HTTPServer;
+import io.prometheus.metrics.exporter.httpserver.MetricsHandler;
 import java.lang.reflect.Type;
-import java.net.InetSocketAddress;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
@@ -295,7 +295,12 @@ public class JavaInstanceStarter implements AutoCloseable {
 
         // starting metrics server
         log.info().attr("metricsPort", metricsPort).log("Starting metrics server");
-        metricsServer = new HTTPServer(new InetSocketAddress(metricsPort), collectorRegistry, true);
+        // The worker and older Prometheus setups scrape the root path, so serve the metrics there too
+        metricsServer = HTTPServer.builder()
+                .port(metricsPort)
+                .registry(collectorRegistry)
+                .defaultHandler(new MetricsHandler(collectorRegistry))
+                .buildAndStart();
 
         if (expectedHealthCheckInterval > 0) {
             healthCheckTimer =
@@ -322,7 +327,6 @@ public class JavaInstanceStarter implements AutoCloseable {
         return Boolean.TRUE.toString().equals(param);
     }
 
-    @SuppressWarnings("deprecation")
     @Override
     public void close() {
         try {
@@ -340,7 +344,7 @@ public class JavaInstanceStarter implements AutoCloseable {
                 containerFactory.close();
             }
             if (metricsServer != null) {
-                metricsServer.stop();
+                metricsServer.close();
             }
 
             InstanceCache.shutdown();
