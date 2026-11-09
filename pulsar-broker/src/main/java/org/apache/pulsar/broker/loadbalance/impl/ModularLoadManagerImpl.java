@@ -1184,7 +1184,11 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         executors.shutdownNow();
 
         try {
-            brokersData.close();
+            // Release only this load manager's lock: the coordination service gives the same lock manager to every
+            // user of its type, like the load manager that replaces this one, and closes it itself
+            if (brokerDataLock != null) {
+                brokerDataLock.release().join();
+            }
         } catch (Exception e) {
             log.warn().exceptionMessage(e).log("Failed to release broker lock");
         }
