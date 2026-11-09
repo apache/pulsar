@@ -64,6 +64,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
@@ -128,9 +129,12 @@ import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.CursorStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PublisherStats;
+import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -178,28 +182,84 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             pulsarTestContext.getMockBookKeeper().setReadHandleInterceptor(null);
             pulsar.getConfiguration().setForceDeleteTenantAllowed(true);
             pulsar.getConfiguration().setForceDeleteNamespaceAllowed(true);
+            // A producer or a consumer that the test method left open would reconnect to the recreated namespaces and
+            // create its topic again: close them with the client
+            pulsarClient.shutdown();
+            pulsarClient = newPulsarClient(lookupUrl.toString(), 0);
 
-            for (String tenant : admin.tenants().getTenants()) {
-                for (String namespace : admin.namespaces().getNamespaces(tenant)) {
-                    deleteNamespaceWithRetry(namespace, true);
+            if (!recreateBaseNamespacesIfNothingElseChanged()) {
+                for (String tenant : admin.tenants().getTenants()) {
+                    for (String namespace : admin.namespaces().getNamespaces(tenant)) {
+                        deleteNamespaceWithRetry(namespace, true);
+                    }
+                    admin.tenants().deleteTenant(tenant, true);
                 }
-                admin.tenants().deleteTenant(tenant, true);
-            }
 
-            for (String cluster : admin.clusters().getClusters()) {
-                admin.clusters().deleteCluster(cluster);
+                for (String cluster : admin.clusters().getClusters()) {
+                    admin.clusters().deleteCluster(cluster);
+                }
+                super.producerBaseSetup();
             }
 
             pulsar.getConfiguration().setForceDeleteTenantAllowed(false);
             pulsar.getConfiguration().setForceDeleteNamespaceAllowed(false);
             configureDefaults(pulsar.getConfiguration());
-            super.producerBaseSetup();
         } catch (Exception | AssertionError e) {
             log.warn().exception(e).log("Failed to clean up state. Restarting broker");
             log.warn().attr("dump", ThreadDumpUtil.buildThreadDiagnosticString()).log("Thread dump:\n");
             cleanup();
             setup();
         }
+    }
+
+    /**
+     * Deletes and recreates the two namespaces of {@link #producerBaseSetup()}, which drops the topics the test method
+     * created in them, if the test method left the cluster and the tenants as producerBaseSetup() created them: the
+     * test methods of this class only create topics. Every metadata update waits for the next batch of the metadata
+     * store, so deleting and recreating the cluster and the tenants as well would take longer than the namespaces.
+     *
+     * @return false, without changing anything, if the test method changed the cluster or the tenants
+     */
+    private boolean recreateBaseNamespacesIfNothingElseChanged() throws Exception {
+        // As producerBaseSetup() creates them
+        ClusterData clusterData = ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build();
+        TenantInfo tenantInfo = new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test"));
+        Map<String, String> namespaceOfTenant = Map.of("my-property", "my-property/my-ns", "public", "public/default");
+
+        List<CompletableFuture<Boolean>> checks = new ArrayList<>();
+        checks.add(admin.clusters().getClustersAsync().thenApply(List.of("test")::equals));
+        checks.add(admin.clusters().getClusterAsync("test").thenApply(clusterData::equals));
+        checks.add(admin.clusters().getFailureDomainsAsync("test").thenApply(Map::isEmpty));
+        checks.add(admin.clusters().getNamespaceIsolationPoliciesAsync("test").thenApply(Map::isEmpty)
+                // the cluster has no isolation policies
+                .exceptionally(e -> FutureUtil.unwrapCompletionException(e)
+                        instanceof PulsarAdminException.NotFoundException));
+        checks.add(admin.tenants().getTenantsAsync()
+                .thenApply(tenants -> new HashSet<>(tenants).equals(namespaceOfTenant.keySet())));
+        namespaceOfTenant.forEach((tenant, namespace) -> {
+            checks.add(admin.tenants().getTenantInfoAsync(tenant).thenApply(tenantInfo::equals));
+            checks.add(admin.namespaces().getNamespacesAsync(tenant).thenApply(List.of(namespace)::equals));
+        });
+        boolean nothingElseChanged = true;
+        for (CompletableFuture<Boolean> check : checks) {
+            // a check fails when, for example, the test method deleted a tenant
+            nothingElseChanged &= check.exceptionally(e -> false).get();
+        }
+        if (!nothingElseChanged) {
+            return false;
+        }
+        FutureUtil.waitForAll(namespaceOfTenant.values().stream()
+                .map(namespace -> CompletableFuture.runAsync(() -> {
+                    try {
+                        deleteNamespaceWithRetry(namespace, true);
+                        admin.namespaces().createNamespace(namespace, Set.of("test"));
+                    } catch (Exception e) {
+                        throw new CompletionException(e);
+                    }
+                }))
+                .toList())
+                .get();
+        return true;
     }
 
     @DataProvider

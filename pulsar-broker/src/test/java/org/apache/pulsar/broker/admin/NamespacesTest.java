@@ -2670,11 +2670,12 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         ownership.set(pulsar.getNamespaceService(), mockOwnershipCache);
         mockWebUrl(localWebServiceUrl, testNs);
 
-        // Split the bundle
+        // Split the bundle without unloading the new bundles: the split responds before that unload completes, so
+        // it would race with the unloads below
         AsyncResponse splitResponse = mock(AsyncResponse.class);
         namespaces.splitNamespaceBundle(splitResponse, testTenant, bundledNsLocal,
                 "0x00000000_0xffffffff",
-                false, true, null, null);
+                false, false, null, null);
         ArgumentCaptor<Response> splitCaptor = ArgumentCaptor.forClass(Response.class);
         verify(splitResponse, timeout(5000).times(1)).resume(splitCaptor.capture());
 
@@ -2698,11 +2699,6 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 "Old bundle range after split should return 412");
 
         // Test bundle validation with new valid bundle ranges - should succeed
-        doReturn(true).when(nsSvc)
-                .isServiceUnitOwned(Mockito.argThat(bundle -> bundle.getNamespaceObject().equals(testNs)));
-        doReturn(CompletableFuture.completedFuture(null)).when(nsSvc)
-                .unloadNamespaceBundle(any(NamespaceBundle.class));
-
         AsyncResponse unloadNewBundle1Response = mock(AsyncResponse.class);
         namespaces.unloadNamespaceBundle(unloadNewBundle1Response, testTenant, bundledNsLocal,
                 "0x00000000_0x7fffffff", false, null);

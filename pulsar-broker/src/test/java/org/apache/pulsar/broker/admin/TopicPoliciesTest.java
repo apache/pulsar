@@ -49,6 +49,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.CustomLog;
@@ -171,6 +172,10 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
     @BeforeMethod
     void setupTestTopic() throws Exception {
+        // A producer or a consumer that the previous test left open would reconnect to the recreated namespace and
+        // create its topic again: close them with the client
+        pulsarClient.shutdown();
+        pulsarClient = newPulsarClient(lookupUrl.toString(), 0);
         // Recreate namespace to clear any policies set by previous tests
         try {
             admin.topics().deletePartitionedTopic(testTopic, true);
@@ -180,15 +185,28 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         // Use deleteNamespaceWithRetry since the forced namespace deletion can fail transiently with HTTP 422 when a
         // topic deletion in the cascade races with concurrent topic loading; the helper retries and treats an
         // already-deleted namespace as success.
-        deleteNamespaceWithRetry(myNamespace, true);
-        deleteNamespaceWithRetry(myNamespaceV1, true);
-        admin.namespaces().createNamespace(testTenant + "/" + testNamespace, Set.of("test"));
-        admin.namespaces().createNamespace(myNamespaceV1);
+        // Deleting a namespace takes many metadata updates, each waiting for the metadata store's next batch, so
+        // delete and create the two namespaces concurrently.
+        FutureUtil.waitForAll(List.of(deleteNamespaceWithRetryAsync(myNamespace),
+                deleteNamespaceWithRetryAsync(myNamespaceV1))).get();
+        FutureUtil.waitForAll(List.of(
+                admin.namespaces().createNamespaceAsync(testTenant + "/" + testNamespace, Set.of("test")),
+                admin.namespaces().createNamespaceAsync(myNamespaceV1))).get();
         admin.topics().createPartitionedTopic(testTopic, testTopicPartitions);
         // Acquire namespace bundle ownership so tests that call getOrCreateTopic() directly succeed.
         // Without this, services that don't create a __change_events reader (e.g. MetadataStoreTopicPoliciesService)
         // leave the bundle unowned after namespace recreation and the first broker-side topic load fails.
         admin.lookups().lookupTopic(testTopic + "-partition-0");
+    }
+
+    private CompletableFuture<Void> deleteNamespaceWithRetryAsync(String namespace) {
+        return CompletableFuture.runAsync(() -> {
+            try {
+                deleteNamespaceWithRetry(namespace, true);
+            } catch (Exception e) {
+                throw new CompletionException(e);
+            }
+        });
     }
 
     @AfterMethod(alwaysRun = true)
