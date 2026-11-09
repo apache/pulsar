@@ -21,16 +21,20 @@ package org.apache.pulsar.broker.loadbalance.extensions.reporter;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.VERSION_ID_INIT;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -216,5 +220,33 @@ public class BrokerLoadDataReporterTest {
             var localData = (BrokerLoadData) FieldUtils.readDeclaredField(target, "localData", true);
             assertEquals(localData, new BrokerLoadData());
         });
+    }
+
+    @Test(timeOut = 30_000)
+    public void testTombstoneDoesNotBlockTheEventThread() throws Exception {
+        // The channel delivers its events on the thread that completes its table view's reads. When the store's
+        // producer is closed, removeAsync() restarts it and waits for the topic lookup, which needs such a read.
+        ExecutorService eventThread = Executors.newSingleThreadExecutor();
+        try {
+            CompletableFuture<Boolean> readCompleted = new CompletableFuture<>();
+            doAnswer(invocation -> {
+                CompletableFuture<Void> read = CompletableFuture.runAsync(() -> { }, eventThread);
+                try {
+                    read.get(5, TimeUnit.SECONDS);
+                    readCompleted.complete(true);
+                } catch (TimeoutException e) {
+                    readCompleted.complete(false);
+                }
+                return CompletableFuture.completedFuture(null);
+            }).when(store).removeAsync(any());
+            var target = new BrokerLoadDataReporter(pulsar, broker, store);
+
+            eventThread.submit(() -> target.handleEvent(bundle,
+                    new ServiceUnitStateData(ServiceUnitState.Owned, broker, VERSION_ID_INIT), null)).get();
+
+            assertTrue(readCompleted.get(), "the tombstone waited for the event thread while blocking it");
+        } finally {
+            eventThread.shutdownNow();
+        }
     }
 }
