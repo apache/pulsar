@@ -279,6 +279,8 @@ public class BrokerService implements Closeable {
     private final Map<TopicName, PersistentOfflineTopicStats> offlineTopicStatCache = new ConcurrentHashMap<>();
     private final Map<String, ConfigField> dynamicConfigurationMap;
     private final Map<String, Consumer<?>> configRegisteredListeners = new ConcurrentHashMap<>();
+    // Replaces the load manager on each loadManagerClassName change, one change after the other
+    private final FutureUtil.Sequencer<Void> loadManagerReplacements = FutureUtil.Sequencer.create();
 
     private final ConcurrentLinkedQueue<Pair<TopicLoadingContext, LatencyTracer.TracePoint>> pendingTopicLoadingQueue;
 
@@ -3923,7 +3925,9 @@ public class BrokerService implements Closeable {
                 (maxConcurrentTopicLoadRequest) -> topicLoadRequestSemaphore.set(
                         new Semaphore((int) maxConcurrentTopicLoadRequest, false)));
         registerConfigurationListener("loadManagerClassName", className -> {
-            pulsar.getExecutor().execute(() -> {
+            // A replacement stops the current load manager before it starts the new one: two replacements running
+            // together would both stop the same one and leave both new ones running
+            loadManagerReplacements.sequential(() -> CompletableFuture.runAsync(() -> {
                 LoadManager newLoadManager = null;
                 try {
                     newLoadManager = LoadManager.create(pulsar);
@@ -3944,7 +3948,7 @@ public class BrokerService implements Closeable {
                 if (newLoadManager != null) {
                     pulsar.getLoadManager().set(newLoadManager);
                 }
-            });
+            }, pulsar.getExecutor()));
         });
 
 
