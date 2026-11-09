@@ -45,6 +45,7 @@ import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -751,23 +752,19 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends SharedPulsarBaseTest {
 
         Assert.assertEquals(totalUpdates, 0);  // currently, we don't update the RGs in this UT
 
-        // Basic check that latency metrics are doing some work.
-        SummarySnapshot.SummaryDataPointSnapshot usageAggrLatency =
-                ResourceGroupService.getRgUsageAggregationLatency();
-        Assert.assertNotEquals(usageAggrLatency.getCount(), 0);
-        Assert.assertNotEquals(usageAggrLatency.getSum(), 0);
-        double fiftiethPercentileValue = quantileValue(usageAggrLatency, 0.5);
-        Assert.assertNotEquals(fiftiethPercentileValue, 0);
-        double ninthPercentileValue = quantileValue(usageAggrLatency, 0.9);
-        Assert.assertNotEquals(ninthPercentileValue, 0);
+        // Basic check that latency metrics are doing some work. Both summaries are fed by periodic tasks that run
+        // every PUBLISH_INTERVAL_SECS, so give them time to complete at least once.
+        Awaitility.await().atMost(3 * PUBLISH_INTERVAL_SECS, TimeUnit.SECONDS).untilAsserted(() -> {
+            assertLatencyRecorded(ResourceGroupService.getRgUsageAggregationLatency());
+            assertLatencyRecorded(ResourceGroupService.getRgQuotaCalculationTime());
+        });
+    }
 
-        SummarySnapshot.SummaryDataPointSnapshot quotaCalcLatency = ResourceGroupService.getRgQuotaCalculationTime();
-        Assert.assertNotEquals(quotaCalcLatency.getCount(), 0);
-        Assert.assertNotEquals(quotaCalcLatency.getSum(), 0);
-        fiftiethPercentileValue = quantileValue(quotaCalcLatency, 0.5);
-        Assert.assertNotEquals(fiftiethPercentileValue, 0);
-        ninthPercentileValue = quantileValue(quotaCalcLatency, 0.9);
-        Assert.assertNotEquals(ninthPercentileValue, 0);
+    private static void assertLatencyRecorded(SummarySnapshot.SummaryDataPointSnapshot latency) {
+        Assert.assertTrue(latency.getCount() > 0);
+        Assert.assertTrue(latency.getSum() > 0);
+        Assert.assertTrue(quantileValue(latency, 0.5) > 0);
+        Assert.assertTrue(quantileValue(latency, 0.9) > 0);
     }
 
     private static double quantileValue(SummarySnapshot.SummaryDataPointSnapshot summary, double quantile) {
