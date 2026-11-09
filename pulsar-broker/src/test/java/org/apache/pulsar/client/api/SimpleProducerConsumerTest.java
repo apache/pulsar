@@ -23,9 +23,6 @@ import static org.apache.pulsar.common.naming.TopicName.PARTITIONED_TOPIC_SUFFIX
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
@@ -88,18 +85,14 @@ import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.impl.cache.EntryCacheManager;
 import org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheManagerImpl;
 import org.apache.commons.lang3.RandomUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.BrokerTestUtil;
-import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
-import org.apache.pulsar.broker.storage.ManagedLedgerStorageClass;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
@@ -1236,26 +1229,6 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
     }
 
-
-    @Override
-    protected void beforePulsarStart(PulsarService pulsar) throws Exception {
-        super.beforePulsarStart(pulsar);
-        ManagedLedgerStorage managedLedgerStorage = pulsar.getManagedLedgerStorage();
-        doAnswer(invocation -> {
-            ManagedLedgerStorageClass managedLedgerStorageClass =
-                    (ManagedLedgerStorageClass) spy(invocation.callRealMethod());
-            doAnswer(i0 -> {
-                ManagedLedgerFactory factory = (ManagedLedgerFactory) spy(i0.callRealMethod());
-                doAnswer(i1 -> {
-                    EntryCacheManager manager = (EntryCacheManager) spy(i1.callRealMethod());
-                    doAnswer(i2 -> spy(i2.callRealMethod())).when(manager).getEntryCache(any());
-                    return manager;
-                }).when(factory).getEntryCacheManager();
-                return factory;
-            }).when(managedLedgerStorageClass).getManagedLedgerFactory();
-            return managedLedgerStorageClass;
-        }).when(managedLedgerStorage).getDefaultStorageClass();
-    }
 
     /**
      * Usecase 1: Only 1 Active Subscription - 1 subscriber - Produce Messages - EntryCache should be used -
