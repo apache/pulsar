@@ -19,12 +19,16 @@
 package org.apache.pulsar.broker.transaction.buffer.impl;
 
 import io.opentelemetry.api.metrics.ObservableLongUpDownCounter;
-import io.prometheus.client.CollectorRegistry;
-import io.prometheus.client.Counter;
-import io.prometheus.client.Gauge;
-import io.prometheus.client.Summary;
+import io.prometheus.metrics.core.metrics.Counter;
+import io.prometheus.metrics.core.metrics.GaugeWithCallback;
+import io.prometheus.metrics.core.metrics.Summary;
+import io.prometheus.metrics.model.registry.Collector;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.LongAdder;
 import lombok.NonNull;
@@ -40,6 +44,8 @@ import org.apache.pulsar.opentelemetry.annotations.PulsarDeprecatedMetric;
 
 public final class TransactionBufferClientStatsImpl implements TransactionBufferClientStats {
     private static final double[] QUANTILES = {0.50, 0.75, 0.95, 0.99, 0.999, 0.9999, 1};
+    /** simpleclient's default sliding window for summary quantiles; the 1.x default is 5 minutes. */
+    private static final long QUANTILE_WINDOW_SECONDS = TimeUnit.MINUTES.toSeconds(10);
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
     @PulsarDeprecatedMetric(newMetricName = OpenTelemetryTopicStats.TRANSACTION_BUFFER_CLIENT_OPERATION_COUNTER)
@@ -55,7 +61,10 @@ public final class TransactionBufferClientStatsImpl implements TransactionBuffer
     private final ObservableLongUpDownCounter pendingTransactionCounter;
 
     @PulsarDeprecatedMetric(newMetricName = PENDING_TRANSACTION_COUNTER)
-    private final Gauge pendingRequests;
+    private final GaugeWithCallback pendingRequests;
+
+    /** Every collector registered by this instance, unregistered together in {@link #close()}. */
+    private final List<Collector> collectors = new ArrayList<>();
 
     private final boolean exposeTopicLevelMetrics;
 
@@ -71,25 +80,22 @@ public final class TransactionBufferClientStatsImpl implements TransactionBuffer
         String[] labelNames = exposeTopicLevelMetrics
                 ? new String[]{"namespace", "topic"} : new String[]{"namespace"};
 
-        this.abortFailed = Counter.build("pulsar_txn_tb_client_abort_failed", "-")
+        this.abortFailed = owned(Counter.builder().name("pulsar_txn_tb_client_abort_failed").help("-")
                 .labelNames(labelNames)
-                .register();
-        this.commitFailed = Counter.build("pulsar_txn_tb_client_commit_failed", "-")
+                .register());
+        this.commitFailed = owned(Counter.builder().name("pulsar_txn_tb_client_commit_failed").help("-")
                 .labelNames(labelNames)
-                .register();
+                .register());
         this.abortLatency =
                 this.buildSummary("pulsar_txn_tb_client_abort_latency", "-", labelNames);
         this.commitLatency =
                 this.buildSummary("pulsar_txn_tb_client_commit_latency", "-", labelNames);
 
-        this.pendingRequests = Gauge.build("pulsar_txn_tb_client_pending_requests", "-")
-                .register()
-                .setChild(new Gauge.Child() {
-                    @Override
-                    public double get() {
-                        return handler.getPendingRequestsCount();
-                    }
-                });
+        this.pendingRequests = owned(GaugeWithCallback.builder()
+                .name("pulsar_txn_tb_client_pending_requests")
+                .help("-")
+                .callback(callback -> callback.call(handler.getPendingRequestsCount()))
+                .register());
         this.pendingTransactionCounter = pulsarService.getOpenTelemetry().getMeter()
                 .upDownCounterBuilder(PENDING_TRANSACTION_COUNTER)
                 .setDescription("The number of pending transactions in the transaction buffer client.")
@@ -98,12 +104,19 @@ public final class TransactionBufferClientStatsImpl implements TransactionBuffer
     }
 
     private Summary buildSummary(String name, String help, String[] labelNames) {
-        Summary.Builder builder = Summary.build(name, help)
-                .labelNames(labelNames);
+        Summary.Builder builder = Summary.builder().name(name).help(help)
+                .labelNames(labelNames)
+                .maxAgeSeconds(QUANTILE_WINDOW_SECONDS);
         for (double quantile : QUANTILES) {
             builder.quantile(quantile, 0.01D);
         }
-        return builder.register();
+        return owned(builder.register());
+    }
+
+    /** Remembers an already registered collector so that {@link #close()} unregisters it. */
+    private <T extends Collector> T owned(T collector) {
+        collectors.add(collector);
+        return collector;
     }
 
     public static synchronized TransactionBufferClientStats getInstance(PulsarService pulsarService,
@@ -117,7 +130,7 @@ public final class TransactionBufferClientStatsImpl implements TransactionBuffer
 
     @Override
     public void recordAbortFailed(String topic) {
-        this.abortFailed.labels(labelValues(topic)).inc();
+        this.abortFailed.labelValues(labelValues(topic)).inc();
         getTransactionBufferClientMetrics(topic)
                 .map(PersistentTopicMetrics.TransactionBufferClientMetrics::getAbortFailedCount)
                 .ifPresent(LongAdder::increment);
@@ -125,7 +138,7 @@ public final class TransactionBufferClientStatsImpl implements TransactionBuffer
 
     @Override
     public void recordCommitFailed(String topic) {
-        this.commitFailed.labels(labelValues(topic)).inc();
+        this.commitFailed.labelValues(labelValues(topic)).inc();
         getTransactionBufferClientMetrics(topic)
                 .map(PersistentTopicMetrics.TransactionBufferClientMetrics::getCommitFailedCount)
                 .ifPresent(LongAdder::increment);
@@ -133,7 +146,7 @@ public final class TransactionBufferClientStatsImpl implements TransactionBuffer
 
     @Override
     public void recordAbortLatency(String topic, long nanos) {
-        this.abortLatency.labels(labelValues(topic)).observe(nanos);
+        this.abortLatency.labelValues(labelValues(topic)).observe(nanos);
         getTransactionBufferClientMetrics(topic)
                 .map(PersistentTopicMetrics.TransactionBufferClientMetrics::getAbortSucceededCount)
                 .ifPresent(LongAdder::increment);
@@ -141,7 +154,7 @@ public final class TransactionBufferClientStatsImpl implements TransactionBuffer
 
     @Override
     public void recordCommitLatency(String topic, long nanos) {
-        this.commitLatency.labels(labelValues(topic)).observe(nanos);
+        this.commitLatency.labelValues(labelValues(topic)).observe(nanos);
         getTransactionBufferClientMetrics(topic)
                 .map(PersistentTopicMetrics.TransactionBufferClientMetrics::getCommitSucceededCount)
                 .ifPresent(LongAdder::increment);
@@ -168,11 +181,7 @@ public final class TransactionBufferClientStatsImpl implements TransactionBuffer
     public void close() {
         if (this.closed.compareAndSet(false, true)) {
             instance = null;
-            CollectorRegistry.defaultRegistry.unregister(this.abortFailed);
-            CollectorRegistry.defaultRegistry.unregister(this.commitFailed);
-            CollectorRegistry.defaultRegistry.unregister(this.abortLatency);
-            CollectorRegistry.defaultRegistry.unregister(this.commitLatency);
-            CollectorRegistry.defaultRegistry.unregister(this.pendingRequests);
+            collectors.forEach(PrometheusRegistry.defaultRegistry::unregister);
             pendingTransactionCounter.close();
         }
     }

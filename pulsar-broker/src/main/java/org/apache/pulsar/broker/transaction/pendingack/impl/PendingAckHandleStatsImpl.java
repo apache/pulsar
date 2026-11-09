@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.broker.transaction.pendingack.impl;
 
-import io.prometheus.client.Counter;
-import io.prometheus.client.Summary;
+import io.prometheus.metrics.core.metrics.Counter;
+import io.prometheus.metrics.core.metrics.Summary;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
@@ -31,6 +31,8 @@ import org.apache.pulsar.common.naming.TopicName;
 
 public class PendingAckHandleStatsImpl implements PendingAckHandleStats {
     private static final AtomicBoolean INITIALIZED = new AtomicBoolean(false);
+    /** simpleclient's default sliding window for summary quantiles; the 1.x default is 5 minutes. */
+    private static final long QUANTILE_WINDOW_SECONDS = TimeUnit.MINUTES.toSeconds(10);
     private static Counter commitTxnCounter;
     private static Counter abortTxnCounter;
     private static Summary commitTxnLatency;
@@ -85,18 +87,18 @@ public class PendingAckHandleStatsImpl implements PendingAckHandleStats {
         if (success) {
             labels = labelSucceed;
             counter = commitTxnSucceedCounter;
-            commitTxnLatency.labels(commitLatencyLabel).observe(TimeUnit.NANOSECONDS.toMicros(nanos));
+            commitTxnLatency.labelValues(commitLatencyLabel).observe(TimeUnit.NANOSECONDS.toMicros(nanos));
         } else {
             labels = labelFailed;
             counter = commitTxnFailedCounter;
         }
-        commitTxnCounter.labels(labels).inc();
+        commitTxnCounter.labelValues(labels).inc();
         counter.increment();
     }
 
     @Override
     public void recordAbortTxn(boolean success) {
-        abortTxnCounter.labels(success ? labelSucceed : labelFailed).inc();
+        abortTxnCounter.labelValues(success ? labelSucceed : labelFailed).inc();
         var counter = success ? abortTxnSucceedCounter : abortTxnFailedCounter;
         counter.increment();
     }
@@ -148,21 +150,26 @@ public class PendingAckHandleStatsImpl implements PendingAckHandleStats {
                     ? new String[]{"namespace", "topic", "subscription", "status"}
                     : new String[]{"namespace", "status"};
 
-            commitTxnCounter = Counter
-                    .build("pulsar_txn_tp_committed_count", "-")
+            commitTxnCounter = Counter.builder()
+                    .name("pulsar_txn_tp_committed_count")
+                    .help("-")
                     .labelNames(labelNames)
                     .register();
 
-            abortTxnCounter = Counter
-                    .build("pulsar_txn_tp_aborted_count", "-")
+            abortTxnCounter = Counter.builder()
+                    .name("pulsar_txn_tp_aborted_count")
+                    .help("-")
                     .labelNames(labelNames)
                     .register();
 
-            commitTxnLatency = Summary.build("pulsar_txn_tp_commit_latency", "-")
+            commitTxnLatency = Summary.builder()
+                    .name("pulsar_txn_tp_commit_latency")
+                    .help("-")
                     .quantile(0.5, 0.01)
                     .quantile(0.9, 0.01)
                     .quantile(0.99, 0.01)
                     .quantile(0.999, 0.01)
+                    .maxAgeSeconds(QUANTILE_WINDOW_SECONDS)
                     .labelNames(exposeTopicLevelMetrics
                             ? new String[]{"namespace", "topic", "subscription"} : new String[]{"namespace"})
                     .register();
