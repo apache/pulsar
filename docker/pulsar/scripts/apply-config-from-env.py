@@ -40,12 +40,13 @@ conf_files = args.conf_files
 
 PF_ENV_DEBUG = (os.environ.get('PF_ENV_DEBUG','0') == '1')
 
-# Keys whose value may hold a secret (passwords, tokens, keys, credentials or authentication / TLS factory
-# parameters) and must not be displayed in logs. Case-insensitive substring match, which also covers prefixed
-# pass-through keys such as brokerClient_authParams. Keep in sync with
-# PulsarConfigurationLoader.SENSITIVE_KEY_PATTERN.
+# Keys whose value may hold a secret (passwords, tokens, keys, credentials, authentication / TLS factory
+# parameters or basic authentication password hashes) and must not be displayed in logs. Case-insensitive
+# substring match, which also covers prefixed pass-through keys such as brokerClient_authParams. Keep in sync
+# with PulsarConfigurationLoader.SENSITIVE_KEY_PATTERN.
 SENSITIVE_KEY_PATTERN = re.compile(
-    'password|passwd|secret|token|credential|accesskey|privatekey|authparam|authenticationparam|factoryconfig',
+    'password|passwd|secret|token|credential|accesskey|privatekey|authparam|authenticationparam|factoryconfig'
+    '|basicauth',
     re.IGNORECASE)
 
 def sanitize_display_value(k, v):
