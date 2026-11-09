@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.asyncRequests;
 import static org.apache.pulsar.common.policies.data.PoliciesUtil.getBundles;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
@@ -36,16 +37,17 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.admin.v2.Namespaces;
-import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
+import org.apache.pulsar.broker.service.SharedPulsarCluster;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BundlesData;
-import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -63,14 +65,15 @@ import org.testng.annotations.Test;
 
 @CustomLog
 @Test(groups = "broker-admin")
-public class NamespacesV2Test extends MockedPulsarServiceBaseTest {
+public class NamespacesV2Test extends SharedPulsarBaseTest {
 
     private Namespaces namespaces;
 
     private List<NamespaceName> testLocalNamespaces;
     private final String testNamespace = "v2-test-namespace";
-    private final String testTenant = "v2-tenant";
-    private final String testLocalCluster = "use";
+    // a tenant per test method, for the namespaces the tests create through the resource
+    private String testTenant;
+    private final String testLocalCluster = SharedPulsarCluster.CLUSTER_NAME;
 
     protected NamespaceService nsSvc;
     protected Field uriField;
@@ -80,36 +83,35 @@ public class NamespacesV2Test extends MockedPulsarServiceBaseTest {
         super();
     }
 
+    @Override
+    protected boolean checkClientHandlesClosed() {
+        return true;
+    }
+
     @BeforeClass
     public void initNamespace() throws Exception {
-        testLocalNamespaces = new ArrayList<>();
-        testLocalNamespaces.add(NamespaceName.get(this.testTenant, this.testNamespace));
-
         uriField = PulsarWebResource.class.getDeclaredField("uri");
         uriField.setAccessible(true);
         uriInfo = mock(UriInfo.class);
     }
 
-    @Override
     @BeforeMethod
     public void setup() throws Exception {
-        conf.setClusterName(testLocalCluster);
-        super.internalSetup();
-
         namespaces = spy(Namespaces.class);
         namespaces.setServletContext(mock(ServletContext.class));
-        namespaces.setPulsar(pulsar);
+        namespaces.setPulsar(getPulsar());
         doReturn(false).when(namespaces).isRequestHttps();
         doReturn("test").when(namespaces).clientAppId();
         doReturn(null).when(namespaces).originalPrincipal();
         doReturn(null).when(namespaces).clientAuthData();
-        doReturn(Set.of("use", "usw", "usc", "global")).when(namespaces).clusters();
+        doReturn(Set.of(testLocalCluster, "usw", "usc", "global")).when(namespaces).clusters();
 
-        admin.clusters().createCluster("use", ClusterData.builder().serviceUrl("http://broker-use.com:8080").build());
-        admin.clusters().createCluster("usw", ClusterData.builder().serviceUrl("http://broker-usw.com:8080").build());
-        admin.clusters().createCluster("usc", ClusterData.builder().serviceUrl("http://broker-usc.com:8080").build());
-        admin.tenants().createTenant(this.testTenant,
-                new TenantInfoImpl(Set.of("role1", "role2"), Set.of("use", "usc", "usw")));
+        // the namespaces are created in the local cluster, the shared broker's
+        String tenant = "v2-tenant-" + UUID.randomUUID().toString().substring(0, 8);
+        admin.tenants().createTenant(tenant, new TenantInfoImpl(Set.of("role1", "role2"), Set.of(testLocalCluster)));
+        testTenant = tenant;
+        testLocalNamespaces = new ArrayList<>();
+        testLocalNamespaces.add(NamespaceName.get(this.testTenant, this.testNamespace));
 
         createTestNamespaces(this.testLocalNamespaces);
 
@@ -121,16 +123,17 @@ public class NamespacesV2Test extends MockedPulsarServiceBaseTest {
                 .validateNamespacePolicyOperation(NamespaceName.get("other-tenant/test-namespace-1"),
                         PolicyName.RETENTION, PolicyOperation.WRITE);
 
-        nsSvc = pulsar.getNamespaceService();
+        nsSvc = getPulsar().getNamespaceService();
     }
 
-    @Override
     @AfterMethod(alwaysRun = true)
     public void cleanup() throws Exception {
-        super.internalCleanup();
-        conf.setClusterName(testLocalCluster);
-        // The spy's recorded invocations reference it again, so Mockito's inline mock maker would keep it, and the
-        // closed broker it references, until the JVM exits; TestNG keeps this test instance until the run ends.
+        if (testTenant != null) {
+            admin.tenants().deleteTenant(testTenant, true);
+            testTenant = null;
+        }
+        // The spy's recorded invocations reference it again, so Mockito's inline mock maker would keep it until the
+        // JVM exits; TestNG keeps this test instance until the run ends.
         if (namespaces != null) {
             Mockito.framework().clearInlineMock(namespaces);
             namespaces = null;
@@ -266,10 +269,10 @@ public class NamespacesV2Test extends MockedPulsarServiceBaseTest {
         asyncRequests(response -> namespaces.setBookieAffinityGroup(response, testTenant, setBookieAffinityGroupNs,
                 bookieAffinityGroupDataReq));
 
-        // 3.query namespace num bundles, should be conf.getDefaultNumberOfNamespaceBundles()
+        // 3.query namespace num bundles, should be getConfig().getDefaultNumberOfNamespaceBundles()
         BundlesData bundlesData = (BundlesData) asyncRequests(
                 response -> namespaces.getBundlesData(response, testTenant, setBookieAffinityGroupNs));
-        assertEquals(bundlesData.getNumBundles(), conf.getDefaultNumberOfNamespaceBundles());
+        assertEquals(bundlesData.getNumBundles(), getConfig().getDefaultNumberOfNamespaceBundles());
 
         // 4.assert namespace bookie affinity group
         BookieAffinityGroupData bookieAffinityGroupDataResp = (BookieAffinityGroupData) asyncRequests(
@@ -317,10 +320,10 @@ public class NamespacesV2Test extends MockedPulsarServiceBaseTest {
         asyncRequests(response -> namespaces.setNamespaceAntiAffinityGroup(response, testTenant,
                 setNamespaceAntiAffinityGroupNs, namespaceAntiAffinityGroupReq));
 
-        // 3.query namespace num bundles, should be conf.getDefaultNumberOfNamespaceBundles()
+        // 3.query namespace num bundles, should be getConfig().getDefaultNumberOfNamespaceBundles()
         BundlesData bundlesData = (BundlesData) asyncRequests(
                 response -> namespaces.getBundlesData(response, testTenant, setNamespaceAntiAffinityGroupNs));
-        assertEquals(bundlesData.getNumBundles(), conf.getDefaultNumberOfNamespaceBundles());
+        assertEquals(bundlesData.getNumBundles(), getConfig().getDefaultNumberOfNamespaceBundles());
 
         // 4.assert namespace anti affinity group
         String namespaceAntiAffinityGroupResp = (String) asyncRequests(
@@ -366,10 +369,10 @@ public class NamespacesV2Test extends MockedPulsarServiceBaseTest {
         asyncRequests(response -> namespaces.enableMigration(response, testTenant, enableMigrationGroupNs,
                 enableMigrationReq));
 
-        // 3.query namespace num bundles, should be conf.getDefaultNumberOfNamespaceBundles()
+        // 3.query namespace num bundles, should be getConfig().getDefaultNumberOfNamespaceBundles()
         BundlesData bundlesData = (BundlesData) asyncRequests(
                 response -> namespaces.getBundlesData(response, testTenant, enableMigrationGroupNs));
-        assertEquals(bundlesData.getNumBundles(), conf.getDefaultNumberOfNamespaceBundles());
+        assertEquals(bundlesData.getNumBundles(), getConfig().getDefaultNumberOfNamespaceBundles());
 
         // 4.assert namespace enable migration
         Policies policiesResp = (Policies) asyncRequests(
