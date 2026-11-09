@@ -38,17 +38,25 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import lombok.Cleanup;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.tls.impl.TlsContextAcquisition;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.tls.PulsarTlsFactory;
+import org.apache.pulsar.tls.TlsFactoryInitContext;
+import org.apache.pulsar.tls.TlsHandle;
+import org.apache.pulsar.tls.TlsPurpose;
 import org.asynchttpclient.Request;
 import org.asynchttpclient.RequestBuilder;
 import org.asynchttpclient.Response;
@@ -528,6 +536,58 @@ public class AsyncHttpConnectorTest {
             }
             AsyncHttpClientConfigHelper.reloadProperties();
         }
+    }
+
+    @Test
+    void testResolveNewTlsFactoryShutdownExecutorOnFailure() throws Exception {
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setServiceUrl("https://localhost:" + server.port());
+
+        AtomicReference<Thread> executorThread = new AtomicReference<>();
+        CountDownLatch latch = new CountDownLatch(1);
+        PulsarTlsFactory failingFactory = new PulsarTlsFactory() {
+            @Override
+            public CompletableFuture<Void> initialize(TlsFactoryInitContext context) {
+                context.scheduler().execute(() -> {
+                    executorThread.set(Thread.currentThread());
+                    latch.countDown();
+                });
+                try {
+                    latch.await(5, TimeUnit.SECONDS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                return CompletableFuture.failedFuture(new RuntimeException("Simulated TLS factory failure"));
+            }
+
+            @Override
+            public <T> CompletableFuture<Optional<TlsHandle<T>>> createInstance(
+                    TlsPurpose purpose, Class<T> instanceClass) {
+                return CompletableFuture.completedFuture(Optional.empty());
+            }
+
+            @Override
+            public <T> CompletableFuture<Optional<TlsHandle<T>>> createInstance(
+                    TlsPurpose purpose, Class<T> instanceClass, Consumer<T> onLoadOrReload) {
+                return CompletableFuture.completedFuture(Optional.empty());
+            }
+
+            @Override
+            public void close() {
+            }
+        };
+        conf.setTlsFactory(failingFactory);
+
+        assertThatThrownBy(() -> new AsyncHttpConnector(conf, 0, false))
+                .hasMessageContaining("Simulated TLS factory failure");
+
+        Thread thread = executorThread.get();
+        assertThat(thread).isNotNull();
+        assertThat(thread.getName()).startsWith("pulsar-admin-tls-factory");
+        thread.join(1000);
+        assertThat(thread.isAlive())
+                .as("Thread %s should be terminated after resolution failure", thread.getName())
+                .isFalse();
     }
 
     private Request request(String path) {
