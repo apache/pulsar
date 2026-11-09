@@ -82,6 +82,8 @@ Gradle's build-JDK requirement. Use `-PtestJavaVersion=17` as well to run ordina
 
 # Verify bundled-dependency LICENSE/NOTICE coverage (after changing a runtime dependency)
 ./gradlew checkBinaryLicense
+# Update the jar versions in the distribution LICENSE/NOTICE files after a dependency upgrade
+./gradlew updateBinaryLicense
 
 # Start a standalone Pulsar service (broker + bookie + metadata in one JVM)
 bin/pulsar standalone

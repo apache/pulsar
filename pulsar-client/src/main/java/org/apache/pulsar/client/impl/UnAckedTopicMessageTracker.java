@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map.Entry;
+import java.util.function.Predicate;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
@@ -33,6 +34,10 @@ public class UnAckedTopicMessageTracker extends UnAckedMessageTracker {
     }
 
     public int removeTopicMessages(String topicName) {
+        return removeTopicMessages(topicMessageId -> topicMessageId.hasSameBasePartitionedTopic(topicName));
+    }
+
+    public int removeTopicMessages(Predicate<TopicMessageId> filter) {
         writeLock.lock();
         try {
             int removed = 0;
@@ -40,8 +45,7 @@ public class UnAckedTopicMessageTracker extends UnAckedMessageTracker {
             while (iterator.hasNext()) {
                 Entry<MessageId, HashSet<MessageId>> entry = iterator.next();
                 MessageId messageId = entry.getKey();
-                if (messageId instanceof TopicMessageId topicMessageId
-                        && topicMessageId.hasSameBasePartitionedTopic(topicName)) {
+                if (messageId instanceof TopicMessageId topicMessageId && filter.test(topicMessageId)) {
                     entry.getValue().remove(messageId);
                     iterator.remove();
                     removed++;

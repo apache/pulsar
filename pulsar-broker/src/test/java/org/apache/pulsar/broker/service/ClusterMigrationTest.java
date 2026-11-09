@@ -287,6 +287,21 @@ public class ClusterMigrationTest extends TestRetrySupport {
     }
 
     /**
+     * Applies the migration to the topics the way the broker's periodic check does, which is disabled in these tests.
+     * A check that finds a replication backlog only terminates the topic and holds its producers back until a later
+     * check finds the replicator caught up.
+     */
+    private static void awaitProducerMigration(AbstractTopic... topics) {
+        Awaitility.await().atMost(30, TimeUnit.SECONDS).ignoreExceptions().untilAsserted(() -> {
+            for (AbstractTopic topic : topics) {
+                topic.checkClusterMigration().get();
+                assertTrue(topic.shouldProducerMigrate(),
+                        "The migration still holds back the producers of " + topic.getName());
+            }
+        });
+    }
+
+    /**
      * Test producer/consumer migration: using persistent/non-persistent topic and all types of subscriptions.
      * (1) Producer1 and consumer1 connect to cluster-1
      * (2) Close consumer1 to build backlog and publish messages using producer1
@@ -347,17 +362,7 @@ public class ClusterMigrationTest extends TestRetrySupport {
         admin1.clusters().updateClusterMigration("r1", true, migratedUrl);
         assertEquals(admin1.clusters().getClusterMigration("r1").getMigratedClusterUrl(), migratedUrl);
 
-        retryStrategically((test) -> {
-            try {
-                topic1.checkClusterMigration().get();
-                return true;
-            } catch (Exception e) {
-                // ok
-            }
-            return false;
-        }, 10, 500);
-
-        topic1.checkClusterMigration().get();
+        awaitProducerMigration(topic1);
 
         log.info("before sending message");
         sleep(1000);
@@ -692,15 +697,7 @@ public class ClusterMigrationTest extends TestRetrySupport {
 
         PersistentTopic topic1 = (PersistentTopic) pulsar1.getBrokerService().getTopic(topicName, false).getNow(null)
                 .get();
-        retryStrategically((test) -> {
-            try {
-                topic1.checkClusterMigration().get();
-                return true;
-            } catch (Exception e) {
-                // ok
-            }
-            return false;
-        }, 10, 500);
+        awaitProducerMigration(topic1);
 
         assertNotNull(admin2.tenants().getTenantInfo(tenant));
         assertNotNull(admin2.namespaces().getPolicies(namespace));
@@ -831,23 +828,10 @@ public class ClusterMigrationTest extends TestRetrySupport {
         admin1.clusters().updateClusterMigration("r1", isClusterMigrate, migratedUrl);
         admin1.namespaces().updateMigrationState(namespace, isNamespaceMigrate);
 
-        retryStrategically((test) -> {
-            try {
-                blueTopicNs11.checkClusterMigration().get();
-                if (isClusterMigrate) {
-                    blueTopicNs21.checkClusterMigration().get();
-                }
-                return true;
-            } catch (Exception e) {
-                // ok
-            }
-            return false;
-        }, 10, 500);
-
-
-        blueTopicNs11.checkClusterMigration().get();
         if (isClusterMigrate) {
-            blueTopicNs21.checkClusterMigration().get();
+            awaitProducerMigration(blueTopicNs11, blueTopicNs21);
+        } else {
+            awaitProducerMigration(blueTopicNs11);
         }
 
         log.info("before sending message");
@@ -1102,16 +1086,7 @@ public class ClusterMigrationTest extends TestRetrySupport {
                 pulsar2.getBrokerServiceUrl(), null);
         admin1.clusters().updateClusterMigration("r1", true, migratedUrl);
         assertEquals(admin1.clusters().getClusterMigration("r1").getMigratedClusterUrl(), migratedUrl);
-        retryStrategically((test) -> {
-            try {
-                topic1.checkClusterMigration().get();
-                return true;
-            } catch (Exception e) {
-                // ok
-            }
-            return false;
-        }, 10, 500);
-        topic1.checkClusterMigration().get();
+        awaitProducerMigration(topic1);
 
         sleep(1000);
         producer1.sendAsync("test1".getBytes());

@@ -74,6 +74,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -254,6 +255,9 @@ public class ServerCnxTest {
     private ManagedCursor cursorMock;
     private ConcurrentHashSet<EmbeddedChannel> channelsStoppedAnswerHealthCheck = new ConcurrentHashSet<>();
     private ManagedLedgerFactory managedLedgerFactory;
+    // Mocks and spies that reference this method's broker, which Mockito's inline mock maker would keep, with the
+    // broker, until the JVM exits: released once the broker is closed.
+    private final List<Object> ownedMocks = new CopyOnWriteArrayList<>();
 
     @BeforeMethod(alwaysRun = true)
     public void setup() throws Exception {
@@ -311,6 +315,19 @@ public class ServerCnxTest {
             pulsarTestContext.close();
             pulsarTestContext = null;
         }
+        ownedMocks.forEach(mock -> Mockito.framework().clearInlineMock(mock));
+        ownedMocks.clear();
+        // TestNG keeps this test instance until the run ends
+        serverCnx = null;
+        channel = null;
+        pulsar = null;
+        brokerService = null;
+        namespaceService = null;
+    }
+
+    private <T> T ownMock(T mock) {
+        ownedMocks.add(mock);
+        return mock;
     }
 
     @Test(timeOut = 30000)
@@ -984,8 +1001,8 @@ public class ServerCnxTest {
 
         svcConfig.setAuthorizationProvider("org.apache.pulsar.broker.auth.MockAuthorizationProvider");
         AuthorizationService authorizationService =
-                spyWithClassAndConstructorArgsRecordingInvocations(AuthorizationService.class, svcConfig,
-                        pulsarTestContext.getPulsarResources());
+                ownMock(spyWithClassAndConstructorArgsRecordingInvocations(AuthorizationService.class, svcConfig,
+                        pulsarTestContext.getPulsarResources()));
         when(brokerService.getAuthorizationService()).thenReturn(authorizationService);
         svcConfig.setAuthorizationEnabled(true);
 
@@ -1405,8 +1422,8 @@ public class ServerCnxTest {
 
         svcConfig.setAuthorizationProvider("org.apache.pulsar.broker.auth.MockAuthorizationProvider");
         AuthorizationService authorizationService =
-                spyWithClassAndConstructorArgsRecordingInvocations(AuthorizationService.class, svcConfig,
-                        pulsarTestContext.getPulsarResources());
+                ownMock(spyWithClassAndConstructorArgsRecordingInvocations(AuthorizationService.class, svcConfig,
+                        pulsarTestContext.getPulsarResources()));
         when(brokerService.getAuthorizationService()).thenReturn(authorizationService);
         svcConfig.setAuthorizationEnabled(true);
 
@@ -1500,8 +1517,8 @@ public class ServerCnxTest {
 
         svcConfig.setAuthorizationProvider("org.apache.pulsar.broker.auth.MockAuthorizationProvider");
         AuthorizationService authorizationService =
-                spyWithClassAndConstructorArgsRecordingInvocations(AuthorizationService.class, svcConfig,
-                        pulsarTestContext.getPulsarResources());
+                ownMock(spyWithClassAndConstructorArgsRecordingInvocations(AuthorizationService.class, svcConfig,
+                        pulsarTestContext.getPulsarResources()));
         when(brokerService.getAuthorizationService()).thenReturn(authorizationService);
         svcConfig.setAuthorizationEnabled(true);
 
@@ -1581,8 +1598,8 @@ public class ServerCnxTest {
 
         svcConfig.setAuthorizationProvider("org.apache.pulsar.broker.auth.MockAuthorizationProvider");
         AuthorizationService authorizationService =
-                spyWithClassAndConstructorArgsRecordingInvocations(AuthorizationService.class, svcConfig,
-                        pulsarTestContext.getPulsarResources());
+                ownMock(spyWithClassAndConstructorArgsRecordingInvocations(AuthorizationService.class, svcConfig,
+                        pulsarTestContext.getPulsarResources()));
         when(brokerService.getAuthorizationService()).thenReturn(authorizationService);
         svcConfig.setAuthorizationEnabled(true);
 
@@ -2032,15 +2049,16 @@ public class ServerCnxTest {
     @Test(timeOut = 30000)
     public void testNonExistentTopic() throws Exception {
         AuthorizationService authorizationService =
-                spyWithClassAndConstructorArgs(AuthorizationService.class, svcConfig, pulsar.getPulsarResources());
+                ownMock(spyWithClassAndConstructorArgs(AuthorizationService.class, svcConfig,
+                        pulsar.getPulsarResources()));
         doReturn(authorizationService).when(brokerService).getAuthorizationService();
         svcConfig.setAuthorizationEnabled(true);
         svcConfig.setAuthorizationEnabled(true);
         Field providerField = AuthorizationService.class.getDeclaredField("provider");
         providerField.setAccessible(true);
         PulsarAuthorizationProvider authorizationProvider =
-                spyWithClassAndConstructorArgs(PulsarAuthorizationProvider.class, svcConfig,
-                        pulsar.getPulsarResources());
+                ownMock(spyWithClassAndConstructorArgs(PulsarAuthorizationProvider.class, svcConfig,
+                        pulsar.getPulsarResources()));
         providerField.set(authorizationService, authorizationProvider);
         doReturn(CompletableFuture.completedFuture(false)).when(authorizationProvider)
                 .isSuperUser(Mockito.anyString(), Mockito.any(), Mockito.any());
@@ -2069,12 +2087,13 @@ public class ServerCnxTest {
     public void testClusterAccess() throws Exception {
         svcConfig.setAuthorizationEnabled(true);
         AuthorizationService authorizationService =
-                spyWithClassAndConstructorArgs(AuthorizationService.class, svcConfig, pulsar.getPulsarResources());
+                ownMock(spyWithClassAndConstructorArgs(AuthorizationService.class, svcConfig,
+                        pulsar.getPulsarResources()));
         Field providerField = AuthorizationService.class.getDeclaredField("provider");
         providerField.setAccessible(true);
         PulsarAuthorizationProvider authorizationProvider =
-                spyWithClassAndConstructorArgs(PulsarAuthorizationProvider.class, svcConfig,
-                        pulsar.getPulsarResources());
+                ownMock(spyWithClassAndConstructorArgs(PulsarAuthorizationProvider.class, svcConfig,
+                        pulsar.getPulsarResources()));
         providerField.set(authorizationService, authorizationProvider);
         doReturn(authorizationService).when(brokerService).getAuthorizationService();
         svcConfig.setAuthorizationEnabled(true);
@@ -2098,14 +2117,15 @@ public class ServerCnxTest {
     @Test(timeOut = 30000)
     public void testNonExistentTopicSuperUserAccess() throws Exception {
         AuthorizationService authorizationService =
-                spyWithClassAndConstructorArgs(AuthorizationService.class, svcConfig, pulsar.getPulsarResources());
+                ownMock(spyWithClassAndConstructorArgs(AuthorizationService.class, svcConfig,
+                        pulsar.getPulsarResources()));
         doReturn(authorizationService).when(brokerService).getAuthorizationService();
         svcConfig.setAuthorizationEnabled(true);
         Field providerField = AuthorizationService.class.getDeclaredField("provider");
         providerField.setAccessible(true);
         PulsarAuthorizationProvider authorizationProvider =
-                spyWithClassAndConstructorArgs(PulsarAuthorizationProvider.class, svcConfig,
-                        pulsar.getPulsarResources());
+                ownMock(spyWithClassAndConstructorArgs(PulsarAuthorizationProvider.class, svcConfig,
+                        pulsar.getPulsarResources()));
         providerField.set(authorizationService, authorizationProvider);
         doReturn(CompletableFuture.completedFuture(true)).when(authorizationProvider)
                 .isSuperUser(Mockito.anyString(), Mockito.any(), Mockito.any());
@@ -2881,8 +2901,8 @@ public class ServerCnxTest {
         resetChannel();
         setChannelConnected();
 
-        var ctx = mock(ChannelHandlerContext.class);
-        var writeFuture = mock(ChannelFuture.class);
+        var ctx = ownMock(mock(ChannelHandlerContext.class));
+        var writeFuture = ownMock(mock(ChannelFuture.class));
         var writeFailure = new RuntimeException("close consumer write failed");
         when(ctx.writeAndFlush(any())).thenReturn(writeFuture);
         when(writeFuture.isSuccess()).thenReturn(false);
@@ -2903,6 +2923,14 @@ public class ServerCnxTest {
 
         verify(ctx).writeAndFlush(any());
         verify(ctx).close();
+    }
+
+    @Test
+    public void testToStringWithoutChannel() throws Exception {
+        resetChannel();
+        serverCnx.setCtx(mock(ChannelHandlerContext.class));
+
+        assertTrue(serverCnx.toString().startsWith("[channel: null]"), serverCnx.toString());
     }
 
     @Test(timeOut = 30000)
@@ -3676,8 +3704,8 @@ public class ServerCnxTest {
     }
 
     private void setupMLAsyncCallbackMocks() {
-        ledgerMock = mock(ManagedLedger.class);
-        cursorMock = mock(ManagedCursor.class);
+        ledgerMock = ownMock(mock(ManagedLedger.class));
+        cursorMock = ownMock(mock(ManagedCursor.class));
         doReturn(new ArrayList<>()).when(ledgerMock).getCursors();
         doReturn(new ManagedLedgerConfig()).when(ledgerMock).getConfig();
 
@@ -4029,7 +4057,7 @@ public class ServerCnxTest {
                 .allowNamespaceOperationAsync(any(), any(), any(), any());
         doReturn(authorization).when(brokerService).getAuthorizationService();
         var pulsarResources = pulsar.getPulsarResources();
-        TopicResources resources = spy(pulsarResources.getTopicResources());
+        TopicResources resources = ownMock(spy(pulsarResources.getTopicResources()));
         doReturn(resources).when(pulsarResources).getTopicResources();
         resetChannel();
         @Cleanup
@@ -4110,7 +4138,7 @@ public class ServerCnxTest {
         doReturn(CompletableFuture.completedFuture(true)).when(authorization)
                 .allowNamespaceOperationAsync(any(), any(), any(), any());
         doReturn(authorization).when(brokerService).getAuthorizationService();
-        TopicResources resources = spy(pulsar.getPulsarResources().getTopicResources());
+        TopicResources resources = ownMock(spy(pulsar.getPulsarResources().getTopicResources()));
         var pulsarResources = pulsar.getPulsarResources();
         doReturn(resources).when(pulsarResources).getTopicResources();
         resetChannel();
@@ -4200,7 +4228,7 @@ public class ServerCnxTest {
                 .allowNamespaceOperationAsync(any(), any(), any(), any());
         doReturn(authorization).when(brokerService).getAuthorizationService();
         var pulsarResources = pulsar.getPulsarResources();
-        TopicResources resources = spy(pulsarResources.getTopicResources());
+        TopicResources resources = ownMock(spy(pulsarResources.getTopicResources()));
         doReturn(resources).when(pulsarResources).getTopicResources();
         resetChannel();
         @Cleanup
@@ -4254,7 +4282,7 @@ public class ServerCnxTest {
         doReturn(authorizationResult).when(authorization).allowNamespaceOperationAsync(any(), any(), any(), any());
         doReturn(authorization).when(brokerService).getAuthorizationService();
         var pulsarResources = pulsar.getPulsarResources();
-        TopicResources resources = spy(pulsarResources.getTopicResources());
+        TopicResources resources = ownMock(spy(pulsarResources.getTopicResources()));
         doReturn(resources).when(pulsarResources).getTopicResources();
         resetChannel();
         channel.writeInbound(Commands.newConnect("none", "", null));
@@ -4271,10 +4299,10 @@ public class ServerCnxTest {
     @Test
     public void testNeverDelayConsumerFutureWhenNotFail() throws Exception {
         // Mock ServerCnx.field: consumers
-        ConcurrentLongHashMap.Builder mapBuilder = Mockito.mock(ConcurrentLongHashMap.Builder.class);
+        ConcurrentLongHashMap.Builder mapBuilder = ownMock(Mockito.mock(ConcurrentLongHashMap.Builder.class));
         Mockito.when(mapBuilder.expectedItems(Mockito.anyInt())).thenReturn(mapBuilder);
         Mockito.when(mapBuilder.concurrencyLevel(Mockito.anyInt())).thenReturn(mapBuilder);
-        ConcurrentLongHashMap consumers = Mockito.mock(ConcurrentLongHashMap.class);
+        ConcurrentLongHashMap consumers = ownMock(Mockito.mock(ConcurrentLongHashMap.class));
         Mockito.when(mapBuilder.build()).thenReturn(consumers);
         ArgumentCaptor<Long> ignoreArgumentCaptor = ArgumentCaptor.forClass(Long.class);
         final ArgumentCaptor<CompletableFuture> deleteTimesMark = ArgumentCaptor.forClass(CompletableFuture.class);
@@ -5041,8 +5069,8 @@ public class ServerCnxTest {
 
         svcConfig.setAuthorizationProvider(MockAuthorizationProvider.class.getName());
         AuthorizationService authorizationService =
-                spyWithClassAndConstructorArgsRecordingInvocations(AuthorizationService.class, svcConfig,
-                        pulsarTestContext.getPulsarResources());
+                ownMock(spyWithClassAndConstructorArgsRecordingInvocations(AuthorizationService.class, svcConfig,
+                        pulsarTestContext.getPulsarResources()));
         when(brokerService.getAuthorizationService()).thenReturn(authorizationService);
         svcConfig.setAuthorizationEnabled(true);
 
