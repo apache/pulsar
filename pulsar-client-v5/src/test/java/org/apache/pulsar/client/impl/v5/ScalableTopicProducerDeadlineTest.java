@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl.v5;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.RETURNS_SELF;
@@ -36,6 +37,7 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -119,6 +121,40 @@ public class ScalableTopicProducerDeadlineTest {
 
             var segment = harness.completeCreation();
             verify(segment, never()).newMessage();
+        }
+    }
+
+    @Test(dataProvider = "sendModes")
+    public void timeBlockedOnTheMemoryLimitDoesNotCountAgainstTheSendTimeout(boolean synchronous) throws Exception {
+        long sendTimeoutMs = 50;
+        long sendTimeoutNanos = TimeUnit.MILLISECONDS.toNanos(sendTimeoutMs);
+        try (var harness = new Harness(sendTimeoutMs, true)) {
+            // One reservation may go over the limit, so go past it for the next send to block.
+            long overLimit = harness.memory.memoryLimit() + 1;
+            harness.memory.forceReserveMemory(overLimit);
+            var send = harness.sendFromCaller(synchronous);
+            Thread caller = await().until(harness.callingThread::get, Objects::nonNull);
+            await().until(() -> caller.getState() == Thread.State.WAITING);
+            // Keep the caller blocked on the memory limit for longer than the send timeout.
+            long blockedAt = System.nanoTime();
+            await().until(() -> System.nanoTime() - blockedAt > 2 * sendTimeoutNanos);
+            assertThat(send).isNotDone();
+            // Still waiting for admission: nothing has been dispatched yet.
+            assertThat(harness.creationRequested.getCount()).isEqualTo(1);
+            assertThat(harness.producer.queuedDispatchCount()).isZero();
+
+            harness.memory.releaseMemory(overLimit);
+            await().until(() -> send.isDone() || harness.creationRequested.getCount() == 0);
+            assertThat(send).isNotDone();
+            // The admitted send gets its full timeout, and is then still waiting on producer creation.
+            assertThat(harness.delaysNanos).containsExactly(sendTimeoutNanos);
+            assertThat(harness.producer.queuedDispatchCount()).isEqualTo(1);
+
+            harness.tasks.get(0).run(harness.timeouts.get(0));
+            assertThat(send).failsWithin(10, TimeUnit.SECONDS).withThrowableThat().havingCause()
+                    .isInstanceOf(TimeoutException.class);
+            assertThat(harness.producer.queuedDispatchCount()).isZero();
+            assertThat(harness.memory.currentUsage()).isZero();
         }
     }
 
@@ -253,6 +289,7 @@ public class ScalableTopicProducerDeadlineTest {
         final List<AtomicReference<?>> queued = new ArrayList<>();
         final List<TimerTask> tasks = new ArrayList<>();
         final List<Timeout> timeouts = new ArrayList<>();
+        final List<Long> delaysNanos = new ArrayList<>();
         final ExecutorService dispatch = MoreExecutors.newDirectExecutorService();
         final ExecutorService completion = MoreExecutors.newDirectExecutorService();
         final ExecutorService caller = Executors.newSingleThreadExecutor(new DefaultThreadFactory("deadline-sync"));
@@ -267,6 +304,10 @@ public class ScalableTopicProducerDeadlineTest {
         }
 
         Harness(long sendTimeoutMs) {
+            this(sendTimeoutMs, false);
+        }
+
+        Harness(long sendTimeoutMs, boolean blockIfQueueFull) {
             v4 = mock(PulsarClientImpl.class);
             when(v4.getMemoryLimitController()).thenReturn(memory);
             when(v4.getInternalExecutorService()).thenReturn(dispatch);
@@ -284,6 +325,7 @@ public class ScalableTopicProducerDeadlineTest {
             when(v4.timer()).thenReturn(timer);
             when(timer.newTimeout(any(), anyLong(), any())).thenAnswer(invocation -> {
                 tasks.add(invocation.getArgument(0));
+                delaysNanos.add(invocation.<TimeUnit>getArgument(2).toNanos(invocation.getArgument(1)));
                 Timeout timeout = mock(Timeout.class);
                 timeouts.add(timeout);
                 return timeout;
@@ -299,7 +341,7 @@ public class ScalableTopicProducerDeadlineTest {
             conf.setTopicName(topic.toString());
             conf.setAccessMode(ProducerAccessMode.WaitForExclusive);
             conf.setSendTimeoutMs(sendTimeoutMs);
-            conf.setBlockIfQueueFull(false);
+            conf.setBlockIfQueueFull(blockIfQueueFull);
             producer = new ScalableTopicProducer<>(new PulsarClientV5(v4, "test", null), Schema.bytes(),
                     conf, watch, ClientSegmentLayout.fromProto(dag, topic));
             producer.queuedDispatchHook = queued::add;
@@ -314,9 +356,26 @@ public class ScalableTopicProducerDeadlineTest {
             if (!synchronous) {
                 return send();
             }
+            CompletableFuture<MessageId> result = sendFromCaller(true);
+            assertThat(creationRequested.await(10, TimeUnit.SECONDS)).isTrue();
+            return result;
+        }
+
+        /** Issues the send on {@link #caller}, which may block there on the client memory limit. */
+        CompletableFuture<MessageId> sendFromCaller(boolean synchronous) {
             CompletableFuture<MessageId> result = new CompletableFuture<>();
             caller.execute(() -> {
                 callingThread.set(Thread.currentThread());
+                if (!synchronous) {
+                    send().whenComplete((id, failure) -> {
+                        if (failure == null) {
+                            result.complete(id);
+                        } else {
+                            result.completeExceptionally(failure);
+                        }
+                    });
+                    return;
+                }
                 try {
                     MessageId id = producer.sendInternal("key", new byte[128 * 1024],
                             null, null, null, null, null, null, null);
@@ -327,7 +386,6 @@ public class ScalableTopicProducerDeadlineTest {
                     result.completeExceptionally(failure);
                 }
             });
-            assertThat(creationRequested.await(10, TimeUnit.SECONDS)).isTrue();
             return result;
         }
 

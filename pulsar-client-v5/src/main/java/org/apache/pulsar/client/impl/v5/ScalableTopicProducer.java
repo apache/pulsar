@@ -401,8 +401,6 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
          * separate from userFuture also keeps flush continuations off the dispatch and timer threads.
          */
         final CompletableFuture<MessageId> synchronousResult;
-        /** Original invocation time, never reset when the send is parked or re-routed. */
-        final long startedAtNanos;
         /** Cancelled on every terminal path, including close and successful acknowledgement. */
         final AtomicReference<Timeout> timeout = new AtomicReference<>();
         /** The current dispatch attempt, whose queued callbacks must not retain a finished send. */
@@ -433,8 +431,7 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
         PendingSend(String key, V value, EncodeData encoded, int payloadSize,
                     Map<String, String> properties, Instant eventTime, Long sequenceId,
                     Duration deliverAfter, Instant deliverAt, List<String> replicationClusters,
-                    Transaction txn, CompletableFuture<MessageId> userFuture, boolean synchronous,
-                    long startedAtNanos) {
+                    Transaction txn, CompletableFuture<MessageId> userFuture, boolean synchronous) {
             this.key = key;
             this.value = value;
             this.encoded = encoded;
@@ -448,7 +445,6 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
             this.txn = txn;
             this.userFuture = userFuture;
             this.synchronousResult = synchronous ? new CompletableFuture<>() : null;
-            this.startedAtNanos = startedAtNanos;
         }
     }
 
@@ -557,7 +553,6 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
                                           Instant deliverAt, List<String> replicationClusters,
                                           Transaction txn, CompletableFuture<MessageId> userFuture,
                                           boolean synchronous) {
-        long startedAtNanos = System.nanoTime();
         EncodeData encoded = null;
         int payloadSize = 0;
         if (value != null) {
@@ -569,7 +564,7 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
             }
         }
         return new PendingSend<>(key, value, encoded, payloadSize, properties, eventTime, sequenceId,
-                deliverAfter, deliverAt, replicationClusters, txn, userFuture, synchronous, startedAtNanos);
+                deliverAfter, deliverAt, replicationClusters, txn, userFuture, synchronous);
     }
 
     /**
@@ -762,19 +757,19 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
         dispatchSend(send, NOT_RELEASED);
     }
 
-    /** One timer for the logical send: neither a layout change nor a retry restarts its timeout. */
+    /**
+     * One timer for the logical send: neither a layout change nor a retry restarts its timeout.
+     * It starts once the send has been admitted against the client memory limit, as the v4
+     * producer's timeout starts when its op is created, so the time a caller spends blocked on the
+     * limit ({@link #admit}) does not count against it.
+     */
     private void scheduleSendTimeout(PendingSend<T> send) {
         if (sendTimeoutNanos == 0 || isShuttingDown()) {
             return;
         }
-        long remaining = sendTimeoutNanos - (System.nanoTime() - send.startedAtNanos);
-        if (remaining <= 0) {
-            expireSend(send);
-            return;
-        }
         try {
             Timeout timeout = client.v4Client().timer().newTimeout(__ -> expireSend(send),
-                    remaining, TimeUnit.NANOSECONDS);
+                    sendTimeoutNanos, TimeUnit.NANOSECONDS);
             send.timeout.set(timeout);
             // A concurrent close or a very short timeout can finish before the handle is installed.
             if (send.finished.get() && send.timeout.compareAndSet(timeout, null)) {
