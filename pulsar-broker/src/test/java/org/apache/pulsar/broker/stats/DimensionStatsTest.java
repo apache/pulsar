@@ -19,7 +19,11 @@
 package org.apache.pulsar.broker.stats;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import org.testng.annotations.Test;
 
 public class DimensionStatsTest {
@@ -39,5 +43,34 @@ public class DimensionStatsTest {
         assertEquals(snapshot.getDimension9999(), 9999, 1);
         assertEquals(snapshot.getDimensionCount(), 10000);
         assertEquals(snapshot.getDimensionSum(), 50005000);
+    }
+
+    @Test
+    void shouldReadAsZeroWhileResetRemovesTheDataPoint() throws Exception {
+        DimensionStats dimensionStats = new DimensionStats("test-reset", 100, false);
+        AtomicBoolean stop = new AtomicBoolean();
+        AtomicReference<Throwable> failure = new AtomicReference<>();
+        Thread resetter = new Thread(() -> {
+            while (!stop.get()) {
+                dimensionStats.recordDimensionTimeValue(1, TimeUnit.MILLISECONDS);
+                dimensionStats.reset();
+            }
+        });
+        resetter.start();
+        try {
+            for (int i = 0; i < 200_000 && failure.get() == null; i++) {
+                try {
+                    DimensionStats.DimensionStatsSnapshot snapshot = dimensionStats.getSnapshot();
+                    assertTrue(snapshot.getDimensionCount() >= 0);
+                    assertTrue(snapshot.getDimensionSum() >= 0);
+                } catch (Throwable t) {
+                    failure.set(t);
+                }
+            }
+        } finally {
+            stop.set(true);
+            resetter.join();
+        }
+        assertNull(failure.get(), "snapshot failed while reset() ran concurrently: " + failure.get());
     }
 }

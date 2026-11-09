@@ -94,6 +94,7 @@ public class PulsarStats implements Closeable {
         } finally {
             bufferLock.writeLock().unlock();
         }
+        brokerOperabilityMetrics.close();
     }
 
     public ClusterReplicationMetrics getClusterReplicationMetrics() {

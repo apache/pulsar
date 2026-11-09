@@ -18,54 +18,50 @@
  */
 package org.apache.pulsar.broker.stats;
 
-import static io.prometheus.client.CollectorRegistry.defaultRegistry;
-import io.prometheus.client.Collector;
-import io.prometheus.client.Summary;
-import io.prometheus.client.Summary.Builder;
-import java.util.Arrays;
-import java.util.Collections;
+import io.prometheus.metrics.core.metrics.Summary;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
+import io.prometheus.metrics.model.snapshots.Quantile;
+import io.prometheus.metrics.model.snapshots.SummarySnapshot;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 import lombok.CustomLog;
 
 /**
  */
 @CustomLog
-public class DimensionStats {
+public class DimensionStats implements AutoCloseable {
 
-    private final String name;
-    private final String dimensionSumLabel;
-    private final String dimensionCountLabel;
     private final Summary summary;
+    /** Whether this instance's summary made it into the default registry, so {@link #close()} removes only its own. */
+    private final boolean registered;
     private static final double[] QUANTILES = {0.50, 0.75, 0.95, 0.99, 0.999, 0.9999};
-    private static final List<String> QUANTILE_LABEL = Collections.unmodifiableList(Arrays.asList("quantile"));
-    private static final List<List<String>> QUANTILE_LABEL_VALUES = Collections.unmodifiableList(
-            Arrays.stream(QUANTILES).mapToObj(Collector::doubleToGoString)
-                    .map(Collections::singletonList)
-                    .collect(Collectors.toList()));
 
     public DimensionStats(String name, long updateDurationInSec) {
         this(name, updateDurationInSec, true);
     }
 
     DimensionStats(String name, long updateDurationInSec, boolean register) {
-        this.name = name;
-        this.dimensionSumLabel = name + "_sum";
-        this.dimensionCountLabel = name + "_count";
-        Builder summaryBuilder = Summary.build().name(name).help("-");
-        for (int i = 0; i < QUANTILES.length; i++) {
-            summaryBuilder.quantile(QUANTILES[i], 0.01);
+        Summary.Builder summaryBuilder = Summary.builder().name(name).help("-").maxAgeSeconds(updateDurationInSec);
+        for (double quantile : QUANTILES) {
+            summaryBuilder.quantile(quantile, 0.01);
         }
-        this.summary = summaryBuilder.maxAgeSeconds(updateDurationInSec).create();
+        this.summary = summaryBuilder.build();
+        boolean registered = false;
         if (register) {
             try {
-                defaultRegistry.register(summary);
+                PrometheusRegistry.defaultRegistry.register(summary);
+                registered = true;
             } catch (IllegalArgumentException ie) {
                 // it only happens in test-cases when try to register summary multiple times in registry
                 log.warn().attr("name", name).exceptionMessage(ie).log("is already registered");
             }
         }
+        this.registered = registered;
+    }
+
+    /** Whether the scrape of the default registry reads this instance's summary rather than an earlier one's. */
+    boolean isRegistered() {
+        return registered;
     }
 
     public void recordDimensionTimeValue(long latency, TimeUnit unit) {
@@ -73,14 +69,17 @@ public class DimensionStats {
     }
 
     public DimensionStatsSnapshot getSnapshot() {
-        return new DimensionStatsSnapshot(summary.collect());
+        // A reset() racing with this collect() can leave the summary without its data point for a moment; the
+        // snapshot then reads as zero, which is what the simpleclient version returned for a missing sample.
+        List<SummarySnapshot.SummaryDataPointSnapshot> dataPoints = summary.collect().getDataPoints();
+        return new DimensionStatsSnapshot(dataPoints.isEmpty() ? null : dataPoints.get(0));
     }
 
-    public class DimensionStatsSnapshot {
-        private final List<Collector.MetricFamilySamples> samples;
+    public static class DimensionStatsSnapshot {
+        private final SummarySnapshot.SummaryDataPointSnapshot dataPoint;
 
-        public DimensionStatsSnapshot(List<Collector.MetricFamilySamples> samples) {
-            this.samples = samples;
+        public DimensionStatsSnapshot(SummarySnapshot.SummaryDataPointSnapshot dataPoint) {
+            this.dataPoint = dataPoint;
         }
 
         public double getMeanDimension() {
@@ -93,53 +92,44 @@ public class DimensionStats {
         }
 
         public double getMedianDimension() {
-            return getQuantile(QUANTILE_LABEL_VALUES.get(0));
+            return getQuantile(QUANTILES[0]);
         }
 
         public double getDimension75() {
-            return getQuantile(QUANTILE_LABEL_VALUES.get(1));
+            return getQuantile(QUANTILES[1]);
         }
 
         public double getDimension95() {
-            return getQuantile(QUANTILE_LABEL_VALUES.get(2));
+            return getQuantile(QUANTILES[2]);
         }
 
         public double getDimension99() {
-            return getQuantile(QUANTILE_LABEL_VALUES.get(3));
+            return getQuantile(QUANTILES[3]);
         }
 
         public double getDimension999() {
-            return getQuantile(QUANTILE_LABEL_VALUES.get(4));
+            return getQuantile(QUANTILES[4]);
         }
 
         public double getDimension9999() {
-            return getQuantile(QUANTILE_LABEL_VALUES.get(5));
+            return getQuantile(QUANTILES[5]);
         }
 
         public double getDimensionSum() {
-            return getSampleValue(dimensionSumLabel);
+            return dataPoint == null ? 0 : dataPoint.getSum();
         }
 
         public double getDimensionCount() {
-            return getSampleValue(dimensionCountLabel);
+            return dataPoint == null ? 0 : dataPoint.getCount();
         }
 
-        private double getQuantile(List<String> labelValues) {
-            return getSampleValue(name, QUANTILE_LABEL, labelValues);
-        }
-
-        private double getSampleValue(String name) {
-            return getSampleValue(name, Collections.emptyList(), Collections.emptyList());
-        }
-
-        private double getSampleValue(String name, List<String> labelNames, List<String> labelValues) {
-            for (Collector.MetricFamilySamples metricFamilySamples : samples) {
-                for (Collector.MetricFamilySamples.Sample sample : metricFamilySamples.samples) {
-                    if (sample.name.equals(name)
-                            && sample.labelNames.equals(labelNames)
-                            && sample.labelValues.equals(labelValues)) {
-                        return sample.value;
-                    }
+        private double getQuantile(double quantile) {
+            if (dataPoint == null) {
+                return 0;
+            }
+            for (Quantile q : dataPoint.getQuantiles()) {
+                if (q.getQuantile() == quantile) {
+                    return q.getValue();
                 }
             }
             return 0;
@@ -148,5 +138,12 @@ public class DimensionStats {
 
     public void reset() {
         summary.clear();
+    }
+
+    @Override
+    public void close() {
+        if (registered) {
+            PrometheusRegistry.defaultRegistry.unregister(summary);
+        }
     }
 }
