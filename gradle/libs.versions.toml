@@ -122,7 +122,7 @@ hdrHistogram = "2.2.2"
 perfmark = "0.27.0"
 # Auth
 jsonwebtoken = "0.13.0"
-athenz = "1.12.45"
+athenz = "1.12.51"
 jose4j = "0.9.6"
 nimbus-jose-jwt = "9.37.4"
 auth0-java-jwt = "4.6.2"
