@@ -631,7 +631,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         }
     }
 
-    protected Object asyncRequests(Consumer<TestAsyncResponse> function) throws Exception {
+    public static Object asyncRequests(Consumer<TestAsyncResponse> function) throws Exception {
         TestAsyncResponse ctx = new TestAsyncResponse();
         function.accept(ctx);
         ctx.latch.await();
