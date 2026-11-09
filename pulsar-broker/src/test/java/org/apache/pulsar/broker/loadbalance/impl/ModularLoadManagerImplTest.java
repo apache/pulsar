@@ -768,6 +768,9 @@ public class ModularLoadManagerImplTest {
      */
     @Test
     public void testMaxTopicDistributionToBroker() throws Exception {
+        // Ignore the host's real CPU usage: on a busy machine a broker reads as overloaded, and selectBroker then
+        // falls back to all the brokers, the one above the max topics included.
+        pulsar1.getConfiguration().setLoadBalancerCPUResourceWeight(0);
 
         final int totalBundles = 50;
         final NamespaceBundle[] bundles = LoadBalancerTestingUtils.makeBundles(nsFactory, "test", "test",
@@ -784,7 +787,7 @@ public class ModularLoadManagerImplTest {
         String maxTopicOwnedBroker = primaryLoadManager.selectBrokerForAssignment(bundles[0]).get();
 
         for (int i = 1; i < totalBundles; i++) {
-            assertNotEquals(primaryLoadManager.selectBrokerForAssignment(bundles[i]), maxTopicOwnedBroker);
+            assertNotEquals(primaryLoadManager.selectBrokerForAssignment(bundles[i]).get(), maxTopicOwnedBroker);
         }
     }
 
