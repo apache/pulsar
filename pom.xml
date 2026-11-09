@@ -325,7 +325,7 @@ flexible messaging model and an intuitive client API.</description>
     <docker-java.version>3.7.0</docker-java.version>
     <hamcrest.version>2.2</hamcrest.version>
     <restassured.version>5.4.0</restassured.version>
-    <kerby.version>2.1.1</kerby.version>
+    <kerby.version>2.1.2</kerby.version>
     <testng.version>7.7.1</testng.version>
     <mockito.version>5.19.0</mockito.version>
     <javassist.version>3.25.0-GA</javassist.version>
@@ -1813,6 +1813,15 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.eclipse.jetty.ee8</groupId>
         <artifactId>jetty-ee8-bom</artifactId>
         <version>${jetty.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+
+      <!-- Aligns the Kerby modules that Hadoop pulls in transitively -->
+      <dependency>
+        <groupId>org.apache.kerby</groupId>
+        <artifactId>kerby-bom</artifactId>
+        <version>${kerby.version}</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
