@@ -543,7 +543,7 @@ shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }
 rat = "org.nosphere.apache.rat:0.11.0"
 spotless = "com.diffplug.spotless:8.10.3"
 swagger = { id = "io.swagger.core.v3.swagger-gradle-plugin", version.ref = "swagger" }
-version-catalog-update = "nl.littlerobots.version-catalog-update:1.1.1"
+version-catalog-update = "nl.littlerobots.version-catalog-update:1.1.2"
 versions = "io.github.ben-manes.versions:0.64.0"
 crlf = "com.github.vlsi.crlf:4.0.0"
 idea-ext = "org.jetbrains.gradle.plugin.idea-ext:1.4.1"
