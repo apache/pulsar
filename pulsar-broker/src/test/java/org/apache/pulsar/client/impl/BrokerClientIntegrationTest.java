@@ -93,6 +93,11 @@ public class BrokerClientIntegrationTest extends SharedPulsarBaseTest {
     private String methodName;
     private int activeConsumerFailoverDelayTimeMillis;
 
+    @Override
+    protected boolean checkClientHandlesClosed() {
+        return true;
+    }
+
     @BeforeMethod
     public void saveConfiguration(Method method) {
         methodName = method.getName();

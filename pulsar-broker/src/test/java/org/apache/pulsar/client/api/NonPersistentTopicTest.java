@@ -63,6 +63,11 @@ public class NonPersistentTopicTest extends SharedPulsarBaseTest {
         return new Object[][] { { SubscriptionType.Shared }, { SubscriptionType.Exclusive } };
     }
 
+    @Override
+    protected boolean checkClientHandlesClosed() {
+        return true;
+    }
+
     @BeforeMethod
     public void setTestMethodName(Method method) {
         methodName = method.getName();

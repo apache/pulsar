@@ -71,6 +71,11 @@ public class PatternTopicsConsumerImplTest extends SharedPulsarBaseTest {
     private long maxPublishRatePerTopicInBytes;
     private int maxPublishRatePerTopicInMessages;
 
+    @Override
+    protected boolean checkClientHandlesClosed() {
+        return true;
+    }
+
     @BeforeMethod
     public void setupClient() throws Exception {
         maxPublishRatePerTopicInBytes = getConfig().getMaxPublishRatePerTopicInBytes();

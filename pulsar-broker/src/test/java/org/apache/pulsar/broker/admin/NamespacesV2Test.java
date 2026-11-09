@@ -83,6 +83,11 @@ public class NamespacesV2Test extends SharedPulsarBaseTest {
         super();
     }
 
+    @Override
+    protected boolean checkClientHandlesClosed() {
+        return true;
+    }
+
     @BeforeClass
     public void initNamespace() throws Exception {
         uriField = PulsarWebResource.class.getDeclaredField("uri");

@@ -79,6 +79,11 @@ public class ProxyPublishConsumeTest extends SharedPulsarBaseTest {
     private ProxyServer proxyServer;
     private WebSocketService service;
 
+    @Override
+    protected boolean checkClientHandlesClosed() {
+        return true;
+    }
+
     @BeforeMethod
     public void setup() throws Exception {
         WebSocketProxyConfiguration config = new WebSocketProxyConfiguration();

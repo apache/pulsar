@@ -51,6 +51,11 @@ public class SimpleProducerConsumerStatTest extends SharedPulsarBaseTest {
     private String methodName;
     private PulsarClient client;
 
+    @Override
+    protected boolean checkClientHandlesClosed() {
+        return true;
+    }
+
     @BeforeMethod
     public void setupClient(Method method) throws Exception {
         methodName = method.getName();

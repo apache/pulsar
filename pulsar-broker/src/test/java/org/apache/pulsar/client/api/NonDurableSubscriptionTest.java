@@ -52,6 +52,11 @@ import org.testng.annotations.Test;
 @CustomLog
 public class NonDurableSubscriptionTest extends SharedPulsarBaseTest {
 
+    @Override
+    protected boolean checkClientHandlesClosed() {
+        return true;
+    }
+
     @BeforeMethod
     public void disableDeduplication() throws Exception {
         // the tests that trim ledgers need the topics without the cursor of deduplication, as on a broker of their

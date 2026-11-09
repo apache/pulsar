@@ -97,6 +97,11 @@ public class MessageChunkingTest extends SharedPulsarBaseTest {
     private String methodName;
     private PulsarClientImpl client;
 
+    @Override
+    protected boolean checkClientHandlesClosed() {
+        return true;
+    }
+
     @BeforeMethod
     public void setupClient(Method method) throws Exception {
         methodName = method.getName();
