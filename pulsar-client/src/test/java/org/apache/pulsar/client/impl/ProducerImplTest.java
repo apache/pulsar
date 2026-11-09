@@ -672,9 +672,9 @@ public class ProducerImplTest {
 
     /**
      * A send checks the producer state before it takes the producer lock to add its message to the batch. If the
-     * producer reaches a terminal state in between, it has failed the messages it held, and it never flushes or
-     * fails its batch again: the message must fail, or its send never completes. A scalable topic producer closes
-     * the producer of a segment that a split or merge sealed while its own sends may still be on their way to it.
+     * producer reaches a terminal state in between, it has failed the messages it held and no longer schedules batch
+     * flushes: the message must fail, or its send never completes. A scalable topic producer closes the producer of a
+     * segment that a split or merge sealed while its own sends may still be on their way to it.
      */
     @Test(dataProvider = "terminalStatesReachedBeforeBatching", timeOut = 30000)
     public void testBatchedSendFailsWhenProducerEndsBeforeItIsBatched(HandlerState.State terminalState,
