@@ -437,10 +437,15 @@ public class LocalBookkeeperEnsemble {
     }
 
     public void stopBK(int i) {
+        // Both slots are null for a bookie whose start failed; startBK(i) already tore that attempt down.
         try {
-            bookieComponents[i].close();
+            if (bookieComponents[i] != null) {
+                bookieComponents[i].close();
+            }
         } finally {
-            bookieStatsProviders[i].stop();
+            if (bookieStatsProviders[i] != null) {
+                bookieStatsProviders[i].stop();
+            }
         }
     }
 
@@ -546,15 +551,9 @@ public class LocalBookkeeperEnsemble {
         if (bookieComponents != null) {
             for (int i = 0; i < bookieComponents.length; i++) {
                 try {
-                    if (bookieComponents[i] != null) {
-                        bookieComponents[i].close();
-                    }
+                    stopBK(i);
                 } catch (Exception e) {
                     log.warn().exception(e).log("failed to shutdown bookie");
-                } finally {
-                    if (bookieStatsProviders[i] != null) {
-                        bookieStatsProviders[i].stop();
-                    }
                 }
             }
         }
