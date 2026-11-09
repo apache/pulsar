@@ -342,7 +342,7 @@ public class CmdTopicPolicies extends CmdBase {
 
     @Command(description = "Get the message TTL for a topic")
     private class GetMessageTTL extends CliCommand {
-        @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
+        @Parameters(description = "persistent://tenant/namespace/topic or topic://tenant/namespace/topic", arity = "1")
         private String topicName;
 
         @Option(names = { "-ap", "--applied" }, description = "Get the applied policy of the topic")
@@ -361,7 +361,7 @@ public class CmdTopicPolicies extends CmdBase {
 
     @Command(description = "Set message TTL for a topic")
     private class SetMessageTTL extends CliCommand {
-        @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
+        @Parameters(description = "persistent://tenant/namespace/topic or topic://tenant/namespace/topic", arity = "1")
         private String topicName;
 
         @Option(names = { "-t", "--ttl" },
@@ -384,7 +384,7 @@ public class CmdTopicPolicies extends CmdBase {
     @Command(description = "Remove message TTL for a topic")
     private class RemoveMessageTTL extends CliCommand {
 
-        @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
+        @Parameters(description = "persistent://tenant/namespace/topic or topic://tenant/namespace/topic", arity = "1")
         private String topicName;
 
         @Option(names = { "--global", "-g" }, description = "Whether to remove this policy globally. "
@@ -572,7 +572,7 @@ public class CmdTopicPolicies extends CmdBase {
 
     @Command(description = "Get the retention policy for a topic")
     private class GetRetention extends CliCommand {
-        @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
+        @Parameters(description = "persistent://tenant/namespace/topic or topic://tenant/namespace/topic", arity = "1")
         private String topicName;
 
         @Option(names = { "-ap", "--applied" }, description = "Get the applied policy of the topic")
@@ -592,7 +592,7 @@ public class CmdTopicPolicies extends CmdBase {
 
     @Command(description = "Set the retention policy for a topic")
     private class SetRetention extends CliCommand {
-        @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
+        @Parameters(description = "persistent://tenant/namespace/topic or topic://tenant/namespace/topic", arity = "1")
         private String topicName;
 
         @Option(names = { "--time",
@@ -632,7 +632,7 @@ public class CmdTopicPolicies extends CmdBase {
 
     @Command(description = "Remove the retention policy for a topic")
     private class RemoveRetention extends CliCommand {
-        @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
+        @Parameters(description = "persistent://tenant/namespace/topic or topic://tenant/namespace/topic", arity = "1")
         private String topicName;
 
         @Option(names = { "--global", "-g" }, description = "Whether to remove this policy globally. "
@@ -834,7 +834,7 @@ public class CmdTopicPolicies extends CmdBase {
 
     @Command(description = "Get max message size for a topic")
     private class GetMaxMessageSize extends CliCommand {
-        @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
+        @Parameters(description = "persistent://tenant/namespace/topic or topic://tenant/namespace/topic", arity = "1")
         private String topicName;
 
         @Option(names = {"--global", "-g"}, description = "Whether to get this policy globally. "
@@ -850,7 +850,7 @@ public class CmdTopicPolicies extends CmdBase {
 
     @Command(description = "Set max message size for a topic")
     private class SetMaxMessageSize extends CliCommand {
-        @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
+        @Parameters(description = "persistent://tenant/namespace/topic or topic://tenant/namespace/topic", arity = "1")
         private String topicName;
 
         @Option(names = {"--max-message-size", "-m"}, description = "Max message size for a topic", required = true)
@@ -868,7 +868,7 @@ public class CmdTopicPolicies extends CmdBase {
 
     @Command(description = "Remove max message size for a topic")
     private class RemoveMaxMessageSize extends CliCommand {
-        @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
+        @Parameters(description = "persistent://tenant/namespace/topic or topic://tenant/namespace/topic", arity = "1")
         private String topicName;
 
         @Option(names = {"--global", "-g"}, description = "Whether to remove this policy globally. ")
@@ -1220,7 +1220,7 @@ public class CmdTopicPolicies extends CmdBase {
 
     @Command(description = "Get the persistence policies for a topic")
     private class GetPersistence extends CliCommand {
-        @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
+        @Parameters(description = "persistent://tenant/namespace/topic or topic://tenant/namespace/topic", arity = "1")
         private String topicName;
 
         @Option(names = { "--global", "-g" }, description = "Whether to get this policy globally. "
@@ -1236,7 +1236,7 @@ public class CmdTopicPolicies extends CmdBase {
 
     @Command(description = "Set the persistence policies for a topic")
     private class SetPersistence extends CliCommand {
-        @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
+        @Parameters(description = "persistent://tenant/namespace/topic or topic://tenant/namespace/topic", arity = "1")
         private String topicName;
 
         @Option(names = { "-e",
@@ -1282,7 +1282,7 @@ public class CmdTopicPolicies extends CmdBase {
 
     @Command(description = "Remove the persistence policy for a topic")
     private class RemovePersistence extends CliCommand {
-        @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
+        @Parameters(description = "persistent://tenant/namespace/topic or topic://tenant/namespace/topic", arity = "1")
         private String topicName;
 
         @Option(names = { "--global", "-g" }, description = "Whether to remove this policy globally. "
@@ -1738,7 +1738,7 @@ public class CmdTopicPolicies extends CmdBase {
 
     @Command(description = "Get the offload policies for a topic")
     private class GetOffloadPolicies extends CliCommand {
-        @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
+        @Parameters(description = "persistent://tenant/namespace/topic or topic://tenant/namespace/topic", arity = "1")
         private String topicName;
 
         @Option(names = { "-ap", "--applied" }, description = "Get the applied policy of the topic")
@@ -1757,7 +1757,7 @@ public class CmdTopicPolicies extends CmdBase {
 
     @Command(description = "Remove the offload policies for a topic")
     private class RemoveOffloadPolicies extends CliCommand {
-        @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
+        @Parameters(description = "persistent://tenant/namespace/topic or topic://tenant/namespace/topic", arity = "1")
         private String topicName;
 
         @Option(names = { "--global", "-g" }, description = "Whether to remove this policy globally. "
@@ -1773,7 +1773,7 @@ public class CmdTopicPolicies extends CmdBase {
 
     @Command(description = "Set the offload policies for a topic")
     private class SetOffloadPolicies extends CliCommand {
-        @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
+        @Parameters(description = "persistent://tenant/namespace/topic or topic://tenant/namespace/topic", arity = "1")
         private String topicName;
 
         @Option(names = {"-d", "--driver"}, description = "ManagedLedger offload driver", required = true)
