@@ -31,16 +31,19 @@ import com.google.common.collect.Sets;
 import io.opentelemetry.api.common.Attributes;
 import java.net.URI;
 import java.net.URL;
+import java.time.Duration;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.BrokerTestUtil;
@@ -57,9 +60,12 @@ import org.apache.pulsar.broker.stats.OpenTelemetryProducerStats;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.impl.ConsumerImpl;
+import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.NonPersistentPublisherStats;
+import org.apache.pulsar.common.policies.data.NonPersistentSubscriptionStats;
 import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
@@ -67,6 +73,7 @@ import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.pulsar.zookeeper.ZookeeperServerTest;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
@@ -511,6 +518,107 @@ public class NonPersistentTopicOwnBrokerTest extends ProducerConsumerBase {
             conf.setLoadManagerClassName(defaultLoadManagerName);
         }
 
+    }
+
+    /**
+     * Verifies msg-drop stats.
+     *
+     * @throws Exception
+     */
+    @Test(timeOut = 60000)
+    public void testMsgDropStat() throws Exception {
+
+        int defaultNonPersistentMessageRate = conf.getMaxConcurrentNonPersistentMessagePerConnection();
+        try {
+            final String topicName = BrokerTestUtil.newUniqueName("non-persistent://my-property/my-ns/stats-topic");
+
+            // For non-persistent topics, set the per-connection in-flight limit to 0.
+            // Since ServerCnx drops when inFlight > max; with max=0, any second overlapping send on the
+            // same connection is dropped (entryId == -1) and recorded. This makes observing a publisher drop
+            // reliable in this test.
+            conf.setMaxConcurrentNonPersistentMessagePerConnection(0);
+            stopBroker();
+            startBroker();
+
+            pulsar.getBrokerService().updateRates();
+
+            @Cleanup
+            Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("subscriber-1")
+                    .receiverQueueSize(1).subscribe();
+
+            @Cleanup
+            Consumer<byte[]> consumer2 = pulsarClient.newConsumer().topic(topicName).subscriptionName("subscriber-2")
+                    .receiverQueueSize(1).subscriptionType(SubscriptionType.Shared).subscribe();
+
+            @Cleanup
+            ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer().topic(topicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
+
+            final int threads = 10;
+            @Cleanup("shutdownNow")
+            ExecutorService executor = Executors.newFixedThreadPool(threads);
+            byte[] msgData = "testData".getBytes();
+
+            NonPersistentTopic topic =
+                    (NonPersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+
+            /*
+             * Send concurrent bursts until publisher AND subscription drop rates are all > 0.
+             *
+             * Each burst uses a CyclicBarrier so all threads send simultaneously. With
+             * maxConcurrentNonPersistentMessagePerConnection = 0, ServerCnx drops overlapping
+             * sends (publisher drops). Once subscriber queues (size 1) are full, the dispatcher
+             * also drops delivered messages (subscription drops).
+             *
+             * IMPORTANT: updateRates() calls Rate.calculateRate() which resets counters via
+             * sumThenReset(). We must keep sending fresh bursts so each updateRates() call
+             * sees new drops, rather than retrying with stale (reset) counters.
+             */
+            Awaitility.await().atMost(Duration.ofSeconds(20)).pollInterval(Duration.ofMillis(100)).until(() -> {
+                CyclicBarrier barrier = new CyclicBarrier(threads);
+                CountDownLatch completionLatch = new CountDownLatch(threads);
+                AtomicReference<Throwable> error = new AtomicReference<>();
+
+                for (int i = 0; i < threads; i++) {
+                    executor.submit(() -> {
+                        try {
+                            barrier.await();
+                            producer.send(msgData);
+                        } catch (Throwable t) {
+                            if (t instanceof InterruptedException) {
+                                Thread.currentThread().interrupt();
+                            }
+                            error.compareAndSet(null, t);
+                        } finally {
+                            completionLatch.countDown();
+                        }
+                    });
+                }
+
+                completionLatch.await(20, TimeUnit.SECONDS);
+                if (error.get() != null) {
+                    return false;
+                }
+
+                pulsar.getBrokerService().updateRates();
+                NonPersistentTopicStats stats = topic.getStats(false, false, false);
+                if (stats.getPublishers().isEmpty()) {
+                    return false;
+                }
+                NonPersistentPublisherStats npStats = stats.getPublishers().get(0);
+                NonPersistentSubscriptionStats sub1Stats = stats.getSubscriptions().get("subscriber-1");
+                NonPersistentSubscriptionStats sub2Stats = stats.getSubscriptions().get("subscriber-2");
+                return sub1Stats != null && sub2Stats != null
+                        && npStats.getMsgDropRate() > 0
+                        && sub1Stats.getMsgDropRate() > 0
+                        && sub2Stats.getMsgDropRate() > 0;
+            });
+
+        } finally {
+            conf.setMaxConcurrentNonPersistentMessagePerConnection(defaultNonPersistentMessageRate);
+        }
     }
 
     private void rolloverPerIntervalStats(PulsarService pulsar) {
