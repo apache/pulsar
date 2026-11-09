@@ -21,7 +21,9 @@ package org.apache.pulsar.client.impl;
 
 import io.github.merlimat.slog.Logger;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -186,9 +188,9 @@ public class MultiTopicsReaderImpl<T> implements Reader<T> {
 
     @Override
     public Messages<T> batchReadNext() throws PulsarClientException {
-        Messages<T> msg = multiTopicsConsumer.batchReceive();
-        msg.forEach(multiTopicsConsumer::tryAcknowledgeMessage);
-        return msg;
+        Messages<T> messages = multiTopicsConsumer.batchReceive();
+        acknowledgeBatch(messages);
+        return messages;
     }
 
     @Override
@@ -220,20 +222,23 @@ public class MultiTopicsReaderImpl<T> implements Reader<T> {
     @Override
     public CompletableFuture<Messages<T>> batchReadNextAsync() {
         CompletableFuture<Messages<T>> originalFuture = multiTopicsConsumer.batchReceiveAsync();
-        CompletableFuture<Messages<T>> result = originalFuture.thenApply(msg -> {
-            multiTopicsConsumer.acknowledgeAsync(msg)
-                               .exceptionally(ex -> {
-                                   log.warn()
-                                      .exception(ex)
-                                      .log("acknowledge message cumulative fail");
-                                   return null;
-                               });
-            return msg;
+        CompletableFuture<Messages<T>> result = originalFuture.thenApply(messages -> {
+            acknowledgeBatch(messages);
+            return messages;
         });
         CompletableFutureCancellationHandler handler = new CompletableFutureCancellationHandler();
         handler.attachToFuture(result);
         handler.setCancelAction(() -> originalFuture.cancel(false));
         return result;
+    }
+
+    private void acknowledgeBatch(Messages<T> messages) {
+        Map<String, Message<T>> lastMessages = new HashMap<>();
+        for (Message<T> message : messages) {
+            TopicMessageId messageId = (TopicMessageId) message.getMessageId();
+            lastMessages.put(messageId.getOwnerTopic(), message);
+        }
+        lastMessages.values().forEach(multiTopicsConsumer::tryAcknowledgeMessage);
     }
 
     @Override

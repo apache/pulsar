@@ -27,7 +27,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.DecryptFailListener;
@@ -53,10 +52,6 @@ public class ReaderImpl<T> implements Reader<T> {
     private static final Logger LOG = Logger.get(ReaderImpl.class);
     private final Logger log;
 
-    private static final BatchReceivePolicy DISABLED_BATCH_RECEIVE_POLICY = BatchReceivePolicy.builder()
-            .timeout(0, TimeUnit.MILLISECONDS)
-            .maxNumMessages(1)
-            .build();
     private final ConsumerImpl<T> consumer;
 
     public ReaderImpl(PulsarClientImpl client, ReaderConfigurationData<T> readerConfiguration,
@@ -88,10 +83,6 @@ public class ReaderImpl<T> implements Reader<T> {
                 readerConfiguration.isAutoAckOldestChunkedMessageOnQueueFull());
         consumerConfiguration.setExpireTimeOfIncompleteChunkedMessageMillis(
                 readerConfiguration.getExpireTimeOfIncompleteChunkedMessageMillis());
-
-        // Reader doesn't need any batch receiving behaviours
-        // disable the batch receive timer for the ConsumerImpl instance wrapped by the ReaderImpl
-        consumerConfiguration.setBatchReceivePolicy(DISABLED_BATCH_RECEIVE_POLICY);
 
         if (readerConfiguration.getReaderName() != null) {
             consumerConfiguration.setConsumerName(readerConfiguration.getReaderName());
@@ -210,17 +201,9 @@ public class ReaderImpl<T> implements Reader<T> {
 
     @Override
     public Messages<T> batchReadNext() throws PulsarClientException {
-        Messages<T> msg = consumer.batchReceive();
-
-        // Acknowledge message immediately because the reader is based on non-durable subscription. When it reconnects,
-        // it will specify the subscription position anyway
-        consumer.acknowledgeAsync(msg).exceptionally(ex -> {
-            log.warn().attr("messages", msg)
-               .exception(ex)
-               .log("acknowledge message cumulative fail");
-            return null;
-        });
-        return msg;
+        Messages<T> messages = consumer.batchReceive();
+        acknowledgeBatch(messages);
+        return messages;
     }
 
     @Override
@@ -260,20 +243,30 @@ public class ReaderImpl<T> implements Reader<T> {
     @Override
     public CompletableFuture<Messages<T>> batchReadNextAsync() {
         CompletableFuture<Messages<T>> originalFuture = consumer.batchReceiveAsync();
-        CompletableFuture<Messages<T>> result = originalFuture.thenApply(msg -> {
-            consumer.acknowledgeAsync(msg)
-                    .exceptionally(ex -> {
-                        log.error()
-                                .exception(ex)
-                                .log("acknowledge message cumulative fail");
-                        return null;
-                    });
-            return msg;
+        CompletableFuture<Messages<T>> result = originalFuture.thenApply(messages -> {
+            acknowledgeBatch(messages);
+            return messages;
         });
         CompletableFutureCancellationHandler handler = new CompletableFutureCancellationHandler();
         handler.attachToFuture(result);
         handler.setCancelAction(() -> originalFuture.cancel(false));
         return result;
+    }
+
+    private void acknowledgeBatch(Messages<T> messages) {
+        Message<T> last = null;
+        for (Message<T> message : messages) {
+            last = message;
+        }
+        if (last != null) {
+            Message<T> lastMessage = last;
+            consumer.acknowledgeCumulativeAsync(lastMessage).exceptionally(ex -> {
+                log.warn().attr("messageId", lastMessage.getMessageId())
+                        .exception(ex)
+                        .log("acknowledge message cumulative fail");
+                return null;
+            });
+        }
     }
 
     @Override

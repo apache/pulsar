@@ -51,12 +51,17 @@ public interface Reader<T> extends Closeable {
     /**
      * Read the next messages in the topic in a batch.
      *
-     * <p>This method will block until a message is available.
+     * <p>This method waits until the limits or timeout of {@link BatchReceivePolicy#DEFAULT_POLICY} are reached.
+     * It can return an empty batch if no messages are available when the timeout expires. A batch can contain
+     * messages from multiple topics or partitions.
      *
-     * @return the next messages
-     * @throws PulsarClientException
+     * @return the next messages, possibly empty
+     * @throws PulsarClientException if the reader is closed, has a listener, or has a zero receiver queue size
+     * @throws UnsupportedOperationException if the reader implementation does not support batch reads
      */
-    Messages<T> batchReadNext() throws PulsarClientException;
+    default Messages<T> batchReadNext() throws PulsarClientException {
+        throw new UnsupportedOperationException("Batch reads are not supported by this reader");
+    }
 
     /**
      * Read the next message in the topic waiting for a maximum time.
@@ -88,8 +93,12 @@ public interface Reader<T> extends Closeable {
     /**
      * Read asynchronously the next messages in the topic.
      *
-     * <p>{@code batchReadNextAsync()} should be called subsequently once returned {@code CompletableFuture} gets complete
-     * with received messages. Else it creates <i> backlog of receive requests </i> in the application.
+     * <p>The batch is subject to {@link BatchReceivePolicy#DEFAULT_POLICY}, and may be empty if no messages
+     * are available when the timeout expires. It can contain messages from multiple topics or partitions.
+     * Batch reads cannot be used with a reader listener or a zero receiver queue size.
+     *
+     * <p>{@code batchReadNextAsync()} should be called subsequently once the returned {@code CompletableFuture}
+     * completes with received messages. Otherwise, it creates a backlog of receive requests in the application.
      *
      * <p>The returned future can be cancelled before completion by calling {@code .cancel(false)}
      * ({@link CompletableFuture#cancel(boolean)}) to remove it from the the backlog of receive requests. Another
@@ -97,10 +106,13 @@ public interface Reader<T> extends Closeable {
      * which is available on JDK9+. That would remove it from the backlog of receive requests if receiving exceeds
      * the timeout.
      *
-     * @return a future that will yield a messages (when it's available) or {@link PulsarClientException} if the reader
-     *         is already closed.
+     * @return a future that yields the messages or fails if the read cannot be performed; implementations that do
+     *         not support batch reads fail with {@link UnsupportedOperationException}
      */
-    CompletableFuture<Messages<T>> batchReadNextAsync();
+    default CompletableFuture<Messages<T>> batchReadNextAsync() {
+        return CompletableFuture.failedFuture(
+                new UnsupportedOperationException("Batch reads are not supported by this reader"));
+    }
 
     /**
      * Asynchronously close the reader and stop the broker to push more messages.
