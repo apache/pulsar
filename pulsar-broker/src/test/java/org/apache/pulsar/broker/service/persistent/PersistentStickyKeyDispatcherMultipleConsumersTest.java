@@ -305,6 +305,11 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         AtomicReference<Thread> cleanupThread = new AtomicReference<>();
         ExecutorService executor = Executors.newFixedThreadPool(2,
                 new DefaultThreadFactory("redelivery-hash-test"));
+        // Stub the cursor once, before the dispatcher starts reading: each mark-delete move schedules a read that calls
+        // cursorMock.isClosed() on another thread, and Mockito takes a call from any thread that lands in a
+        // doReturn(...).when(cursorMock) stubbing as the stubbed call.
+        AtomicReference<Position> markDeletePosition = new AtomicReference<>();
+        doAnswer(invocation -> markDeletePosition.get()).when(cursorMock).getMarkDeletedPosition();
 
         persistentDispatcher.close().join();
         // Preserve the real map operations and pause only between the increment's get and put.
@@ -327,7 +332,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
                 assertThat(dispatcher.addMessageToReplay(1, 1, stickyKeyHash)).isTrue();
                 assertThat(refCounts.get(stickyKeyHash)).isEqualTo(1);
 
-                doReturn(PositionFactory.create(1, 1)).when(cursorMock).getMarkDeletedPosition();
+                markDeletePosition.set(PositionFactory.create(1, 1));
                 pauseIncrement.set(true);
                 var addition = executor.submit(() -> dispatcher.addMessageToReplay(1, 2, stickyKeyHash));
                 assertThat(incrementRead.await(10, TimeUnit.SECONDS)).isTrue();
@@ -354,7 +359,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
                 assertThat(dispatcher.redeliveryMessages.size()).isEqualTo(1);
                 long countAfterConcurrentUpdate = refCounts.get(stickyKeyHash);
 
-                doReturn(PositionFactory.create(1, 2)).when(cursorMock).getMarkDeletedPosition();
+                markDeletePosition.set(PositionFactory.create(1, 2));
                 dispatcher.markDeletePositionMoveForward();
                 assertThat(dispatcher.redeliveryMessages.isEmpty()).isTrue();
                 assertThat(dispatcher.redeliveryMessages.containsStickyKeyHash(stickyKeyHash))
