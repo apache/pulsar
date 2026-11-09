@@ -269,13 +269,14 @@ public class PulsarConfigurationLoader {
     static final String MASKED_VALUE = "******";
 
     /**
-     * Matches configuration key names whose values may hold secrets (passwords, tokens, keys, credentials or
-     * authentication / TLS factory parameters). The match is a case-insensitive substring match, so it also
-     * covers prefixed pass-through keys such as {@code brokerClient_authParams} or {@code bookkeeper_*}.
+     * Matches configuration key names whose values may hold secrets (passwords, tokens, keys, credentials,
+     * authentication / TLS factory parameters or basic authentication password hashes). The match is a
+     * case-insensitive substring match, so it also covers prefixed pass-through keys such as
+     * {@code brokerClient_authParams} or {@code bookkeeper_*}.
      */
     private static final Pattern SENSITIVE_KEY_PATTERN = Pattern.compile(
             "password|passwd|secret|token|credential|accesskey|privatekey|authparam|authenticationparam"
-                    + "|factoryconfig",
+                    + "|factoryconfig|basicauth",
             Pattern.CASE_INSENSITIVE);
 
     /**

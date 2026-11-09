@@ -389,6 +389,7 @@ public class PulsarConfigurationLoaderTest {
         props.setProperty("brokerClient_authParams", "client-param-secret");
         props.setProperty("bookkeeper_tlsKeyStorePassword", "bk-tls-secret");
         props.setProperty("s3ManagedLedgerOffloadCredentialSecret", "s3-secret");
+        props.setProperty("basicAuthConf", "data:;base64,basic-auth-secret");
         props.setProperty("custom.plugin.option", "enabled");
         // Blank undeclared keys are equivalent to unset.
         props.setProperty("brokerClient_tlsTrustStorePassword", "");
@@ -407,7 +408,8 @@ public class PulsarConfigurationLoaderTest {
                 .containsEntry("tokenSecretKey", PulsarConfigurationLoader.MASKED_VALUE)
                 .containsEntry("brokerClient_authParams", PulsarConfigurationLoader.MASKED_VALUE)
                 .containsEntry("bookkeeper_tlsKeyStorePassword", PulsarConfigurationLoader.MASKED_VALUE)
-                .containsEntry("s3ManagedLedgerOffloadCredentialSecret", PulsarConfigurationLoader.MASKED_VALUE);
+                .containsEntry("s3ManagedLedgerOffloadCredentialSecret", PulsarConfigurationLoader.MASKED_VALUE)
+                .containsEntry("basicAuthConf", PulsarConfigurationLoader.MASKED_VALUE);
         assertThat(overrides).doesNotContainKey("brokerClient_tlsTrustStorePassword");
         assertThat(overrides.toString()).doesNotContain("secret");
     }
