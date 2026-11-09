@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.broker.service.scalable;
 
+import static org.apache.pulsar.broker.service.scalable.PrometheusSamples.families;
+import static org.apache.pulsar.broker.service.scalable.PrometheusSamples.getSampleValue;
+import static org.apache.pulsar.broker.service.scalable.PrometheusSamples.registeredFamilies;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
@@ -28,13 +31,12 @@ import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.sdk.metrics.SdkMeterProvider;
 import io.opentelemetry.sdk.metrics.data.MetricData;
 import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
-import io.prometheus.client.CollectorRegistry;
-import io.prometheus.client.Counter;
-import io.prometheus.client.Gauge;
-import io.prometheus.client.Histogram;
+import io.prometheus.metrics.core.metrics.Counter;
+import io.prometheus.metrics.core.metrics.Gauge;
+import io.prometheus.metrics.core.metrics.Histogram;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -57,7 +59,7 @@ import org.testng.annotations.Test;
 public class ScalableTopicConsumerMetricsTest {
     @Test
     public void testBothExportPathsReadTheSameState() throws Exception {
-        var registry = new CollectorRegistry();
+        var registry = new PrometheusRegistry();
         var state = new AtomicReference<>(new ConsumerStats(3, 2, 1, 4));
         try (var reader = InMemoryMetricReader.create();
              var provider = SdkMeterProvider.builder().registerMetricReader(reader).build();
@@ -73,12 +75,12 @@ public class ScalableTopicConsumerMetricsTest {
             // Scraping must not itself change counters.
             assertExports(reader, registry, state.get(), 2, 2);
         }
-        assertThat(registry.metricFamilySamples().hasMoreElements()).isFalse();
+        assertThat(registeredFamilies(registry)).isEmpty();
     }
 
     @Test
     public void testPrometheusWorksWithDisabledOpenTelemetryAndReleasesRegistration() {
-        var registry = new CollectorRegistry();
+        var registry = new PrometheusRegistry();
         var meter = OpenTelemetry.noop().getMeter("test");
         try (var first = new ScalableTopicConsumerMetrics(meter, registry, "test",
                      () -> new ConsumerStats(1, 0, 0, 2));
@@ -94,7 +96,7 @@ public class ScalableTopicConsumerMetricsTest {
             assertThat(sample(registry, "consumer_count", "consumer_state", "active")).isZero();
             assertThat(sample(registry, "segment_blocked_count", null, null)).isEqualTo(3);
         }
-        assertThat(registry.metricFamilySamples().hasMoreElements()).isFalse();
+        assertThat(registeredFamilies(registry)).isEmpty();
         // A restarted broker can register the exact same metric names.
         try (var metrics = new ScalableTopicConsumerMetrics(meter, registry, "test", () -> ConsumerStats.EMPTY)) {
             assertThat(sample(registry, "rebalance_total", "rebalance_reason", "consumer_join")).isZero();
@@ -103,7 +105,7 @@ public class ScalableTopicConsumerMetricsTest {
 
     @Test
     public void testSharedRegistryRetainsCountersWhenSourceClosesAndIsReplaced() {
-        var registry = new CollectorRegistry();
+        var registry = new PrometheusRegistry();
         var meter = OpenTelemetry.noop().getMeter("test");
         var retired = new AtomicBoolean();
         try (var first = new ScalableTopicConsumerMetrics(meter, registry, "test", () -> {
@@ -142,7 +144,7 @@ public class ScalableTopicConsumerMetricsTest {
             }
             assertReasonTotals(registry, 4);
         }
-        assertThat(registry.metricFamilySamples().hasMoreElements()).isFalse();
+        assertThat(registeredFamilies(registry)).isEmpty();
         try (var restarted = new ScalableTopicConsumerMetrics(meter, registry, "test", () -> ConsumerStats.EMPTY)) {
             assertReasonTotals(registry, 0);
         }
@@ -150,7 +152,7 @@ public class ScalableTopicConsumerMetricsTest {
 
     @Test
     public void testGaugeFailureDoesNotRemoveActiveRebalanceCountsAfterRetirement() {
-        var registry = new CollectorRegistry();
+        var registry = new PrometheusRegistry();
         var meter = OpenTelemetry.noop().getMeter("test");
         var fail = new AtomicBoolean();
         try (var first = new ScalableTopicConsumerMetrics(meter, registry, "test", () -> ConsumerStats.EMPTY);
@@ -169,7 +171,7 @@ public class ScalableTopicConsumerMetricsTest {
             assertThat(sample(registry, "rebalance_total", "rebalance_reason", "consumer_join")).isEqualTo(5);
             fail.set(true);
             assertThat(sample(registry, "rebalance_total", "rebalance_reason", "consumer_join")).isEqualTo(5);
-            assertThat(registry.getSampleValue("pulsar_scalable_topic_consumer_count",
+            assertThat(getSampleValue(registry, "pulsar_scalable_topic_consumer_count",
                     new String[]{"cluster", "consumer_state"}, new String[]{"test", "active"})).isNull();
             second.recordRebalance(RebalanceReason.CONSUMER_JOIN);
             assertThat(sample(registry, "rebalance_total", "rebalance_reason", "consumer_join")).isEqualTo(6);
@@ -180,7 +182,7 @@ public class ScalableTopicConsumerMetricsTest {
 
     @Test
     public void testOpenTelemetryCountersSurviveGaugeFailureAndRetiredCallbacksStop() throws IOException {
-        var registry = new CollectorRegistry();
+        var registry = new PrometheusRegistry();
         var firstCalls = new AtomicInteger();
         var fail = new AtomicBoolean();
         try (var reader = InMemoryMetricReader.create();
@@ -220,7 +222,7 @@ public class ScalableTopicConsumerMetricsTest {
 
     @Test
     public void testRetiredClusterKeepsOnlyCountersUntilCollectorIsUnregistered() {
-        var registry = new CollectorRegistry();
+        var registry = new PrometheusRegistry();
         var meter = OpenTelemetry.noop().getMeter("test");
         try (var first = new ScalableTopicConsumerMetrics(meter, registry, "retired",
                      () -> new ConsumerStats(2, 0, 0, 4));
@@ -229,28 +231,28 @@ public class ScalableTopicConsumerMetricsTest {
             second.recordRebalance(RebalanceReason.CONSUMER_JOIN);
             second.recordRebalance(RebalanceReason.CONSUMER_JOIN);
             first.close();
-            assertThat(registry.getSampleValue("pulsar_scalable_topic_rebalance_total",
+            assertThat(getSampleValue(registry, "pulsar_scalable_topic_rebalance_total",
                     new String[]{"cluster", "rebalance_reason"}, new String[]{"retired", "consumer_join"}))
                     .isEqualTo(1);
-            assertThat(registry.getSampleValue("pulsar_scalable_topic_consumer_count",
+            assertThat(getSampleValue(registry, "pulsar_scalable_topic_consumer_count",
                     new String[]{"cluster", "consumer_state"}, new String[]{"retired", "active"})).isNull();
-            assertThat(registry.getSampleValue("pulsar_scalable_topic_segment_blocked_count",
+            assertThat(getSampleValue(registry, "pulsar_scalable_topic_segment_blocked_count",
                     new String[]{"cluster"}, new String[]{"retired"})).isNull();
             assertThat(sample(registry, "rebalance_total", "rebalance_reason", "consumer_join")).isEqualTo(2);
             try (var replacement = new ScalableTopicConsumerMetrics(meter, registry, "retired",
                     () -> new ConsumerStats(1, 0, 0, 0))) {
                 replacement.recordRebalance(RebalanceReason.CONSUMER_JOIN);
-                assertThat(registry.getSampleValue("pulsar_scalable_topic_rebalance_total",
+                assertThat(getSampleValue(registry, "pulsar_scalable_topic_rebalance_total",
                         new String[]{"cluster", "rebalance_reason"}, new String[]{"retired", "consumer_join"}))
                         .isEqualTo(2);
             }
         }
-        assertThat(registry.metricFamilySamples().hasMoreElements()).isFalse();
+        assertThat(registeredFamilies(registry)).isEmpty();
     }
 
     @Test
     public void testCollectionConcurrentWithRetirementDoesNotDoubleCount() throws Exception {
-        var registry = new CollectorRegistry();
+        var registry = new PrometheusRegistry();
         var meter = OpenTelemetry.noop().getMeter("test");
         var block = new AtomicBoolean();
         var collecting = new CompletableFuture<Void>();
@@ -281,7 +283,7 @@ public class ScalableTopicConsumerMetricsTest {
         }
     }
 
-    private static void assertReasonTotals(CollectorRegistry registry, long expected) {
+    private static void assertReasonTotals(PrometheusRegistry registry, long expected) {
         for (String reason : List.of("consumer_join", "consumer_leave", "consumer_evict",
                 "layout_change", "segment_drained")) {
             assertThat(sample(registry, "rebalance_total", "rebalance_reason", reason)).isEqualTo(expected);
@@ -290,16 +292,16 @@ public class ScalableTopicConsumerMetricsTest {
 
     @Test
     public void testExistingPrometheusMetricsSurviveLifecycle() throws IOException {
-        var registry = new CollectorRegistry();
-        var counter = Counter.build("audit_existing_counter", "Existing counter").labelNames("owner")
+        var registry = new PrometheusRegistry();
+        var counter = Counter.builder().name("audit_existing_counter").help("Existing counter").labelNames("owner")
                 .register(registry);
-        var gauge = Gauge.build("audit_existing_gauge", "Existing gauge").labelNames("owner")
+        var gauge = Gauge.builder().name("audit_existing_gauge").help("Existing gauge").labelNames("owner")
                 .register(registry);
-        var histogram = Histogram.build("audit_existing_histogram", "Existing histogram")
-                .labelNames("owner").buckets(1, 2, 4).register(registry);
-        counter.labels("broker").inc(7);
-        gauge.labels("broker").set(3);
-        histogram.labels("broker").observe(1.5);
+        var histogram = Histogram.builder().name("audit_existing_histogram").help("Existing histogram")
+                .labelNames("owner").classicOnly().classicUpperBounds(1, 2, 4).register(registry);
+        counter.labelValues("broker").inc(7);
+        gauge.labelValues("broker").set(3);
+        histogram.labelValues("broker").observe(1.5);
         String baseline = existingPrometheusSnapshot(registry);
         var meter = OpenTelemetry.noop().getMeter("test");
         try (var metrics = new ScalableTopicConsumerMetrics(meter, registry, "test",
@@ -311,14 +313,14 @@ public class ScalableTopicConsumerMetricsTest {
             assertThat(existingPrometheusSnapshot(registry)).isEqualTo(baseline);
         }
         assertThat(existingPrometheusSnapshot(registry)).isEqualTo(baseline);
-        counter.labels("broker").inc();
-        gauge.labels("broker").set(5);
-        histogram.labels("broker").observe(3);
-        assertThat(registry.getSampleValue("audit_existing_counter_total", new String[]{"owner"},
+        counter.labelValues("broker").inc();
+        gauge.labelValues("broker").set(5);
+        histogram.labelValues("broker").observe(3);
+        assertThat(getSampleValue(registry, "audit_existing_counter_total", new String[]{"owner"},
                 new String[]{"broker"})).isEqualTo(8);
-        assertThat(registry.getSampleValue("audit_existing_gauge", new String[]{"owner"},
+        assertThat(getSampleValue(registry, "audit_existing_gauge", new String[]{"owner"},
                 new String[]{"broker"})).isEqualTo(5);
-        assertThat(registry.getSampleValue("audit_existing_histogram_count", new String[]{"owner"},
+        assertThat(getSampleValue(registry, "audit_existing_histogram_count", new String[]{"owner"},
                 new String[]{"broker"})).isEqualTo(2);
         String updated = existingPrometheusSnapshot(registry);
         assertThat(updated).isNotEqualTo(baseline);
@@ -331,7 +333,7 @@ public class ScalableTopicConsumerMetricsTest {
 
     @Test
     public void testExistingOpenTelemetryMetricsSurviveLifecycle() throws IOException {
-        var registry = new CollectorRegistry();
+        var registry = new PrometheusRegistry();
         var gaugeValue = new AtomicLong(9);
         try (var reader = InMemoryMetricReader.create();
              var provider = SdkMeterProvider.builder().registerMetricReader(reader).build()) {
@@ -377,8 +379,8 @@ public class ScalableTopicConsumerMetricsTest {
 
     @Test
     public void testFailedSourceDoesNotBreakExistingMetricsOrHealthySource() throws IOException {
-        var registry = new CollectorRegistry();
-        Gauge.build("audit_existing_gauge", "Existing gauge").register(registry).set(17);
+        var registry = new PrometheusRegistry();
+        Gauge.builder().name("audit_existing_gauge").help("Existing gauge").register(registry).set(17);
         String baseline = existingPrometheusSnapshot(registry);
         var fail = new AtomicBoolean();
         var gaugeValue = new AtomicLong(19);
@@ -411,10 +413,14 @@ public class ScalableTopicConsumerMetricsTest {
 
     @Test
     public void testRegistrationCollisionDoesNotLeakOpenTelemetryCallback() throws IOException {
-        var registry = new CollectorRegistry();
-        var existing = Gauge.build("pulsar_scalable_topic_consumer_count", "Pre-existing collector")
+        var registry = new PrometheusRegistry();
+        // The 1.x registry lets the same name co-register with a different label schema; only an identical
+        // name, type, help and label set is a real conflict, so mirror the collector's schema exactly.
+        var existing = Gauge.builder().name("pulsar_scalable_topic_consumer_count")
+                .help("Consumer sessions coordinated by this broker.").labelNames("cluster", "consumer_state")
                 .register(registry);
-        existing.set(29);
+        var preExisting = existing.labelValues("pre-existing", "active");
+        preExisting.set(29);
         var supplierCalls = new AtomicInteger();
         try (var reader = InMemoryMetricReader.create();
              var provider = SdkMeterProvider.builder().registerMetricReader(reader).build();
@@ -428,29 +434,29 @@ public class ScalableTopicConsumerMetricsTest {
             assertThat(existingOpenTelemetrySnapshot(reader)).isEqualTo(baseline);
             assertThat(existingOpenTelemetrySnapshot(reader)).isEqualTo(baseline);
             assertThat(supplierCalls.get()).as("Failed registration must remove its asynchronous callback").isZero();
-            assertThat(registry.getSampleValue("pulsar_scalable_topic_consumer_count")).isEqualTo(29);
-            existing.inc();
-            assertThat(registry.getSampleValue("pulsar_scalable_topic_consumer_count")).isEqualTo(30);
-            assertThat(serialize(registry)).contains("Pre-existing collector");
+            assertThat(getSampleValue(registry, "pulsar_scalable_topic_consumer_count",
+                    new String[]{"cluster", "consumer_state"}, new String[]{"pre-existing", "active"})).isEqualTo(29);
+            preExisting.inc();
+            assertThat(getSampleValue(registry, "pulsar_scalable_topic_consumer_count",
+                    new String[]{"cluster", "consumer_state"}, new String[]{"pre-existing", "active"})).isEqualTo(30);
+            assertThat(serialize(registry)).contains("pre-existing");
         }
     }
 
-    private static String serialize(CollectorRegistry registry) throws IOException {
+    private static String serialize(PrometheusRegistry registry) throws IOException {
         var output = new StringBuilder();
-        var families = registry.metricFamilySamples();
-        while (families.hasMoreElements()) {
-            var family = families.nextElement();
-            output.append(family.name).append(" HELP ").append(family.help)
-                    .append(" TYPE ").append(family.type).append('\n');
-            for (var sample : family.samples) {
-                output.append(sample.name).append(sample.labelNames).append(sample.labelValues)
-                        .append('=').append(sample.value).append('\n');
+        for (var family : families(registry)) {
+            output.append(family.name()).append(" HELP ").append(family.help())
+                    .append(" TYPE ").append(family.type()).append('\n');
+            for (var sample : family.samples()) {
+                output.append(sample.name()).append(sample.labelNames()).append(sample.labelValues())
+                        .append('=').append(sample.value()).append('\n');
             }
         }
         return output.toString();
     }
 
-    private static String existingPrometheusSnapshot(CollectorRegistry registry) throws IOException {
+    private static String existingPrometheusSnapshot(PrometheusRegistry registry) throws IOException {
         return serialize(registry).lines().filter(line -> line.contains("audit_existing_"))
                 .sorted().collect(Collectors.joining("\n"));
     }
@@ -487,7 +493,7 @@ public class ScalableTopicConsumerMetricsTest {
                 }));
     }
 
-    private static void assertExports(InMemoryMetricReader reader, CollectorRegistry registry,
+    private static void assertExports(InMemoryMetricReader reader, PrometheusRegistry registry,
                                       ConsumerStats expected, long joins, long layouts) {
         Map<String, MetricData> data = reader.collectAllMetrics().stream()
                 .collect(Collectors.toMap(MetricData::getName, metric -> metric));
@@ -507,9 +513,9 @@ public class ScalableTopicConsumerMetricsTest {
         String blockedDescription = "Segment/subscription pairs waiting for ancestors to drain, "
                 + "summed across subscriptions served by this broker.";
         assertThat(data.get(ScalableTopicConsumerMetrics.BLOCKED_COUNT).getDescription()).isEqualTo(blockedDescription);
-        assertThat(Collections.list(registry.metricFamilySamples()))
-                .filteredOn(family -> family.name.equals("pulsar_scalable_topic_segment_blocked_count"))
-                .singleElement().satisfies(family -> assertThat(family.help).isEqualTo(blockedDescription));
+        assertThat(families(registry))
+                .filteredOn(family -> family.name().equals("pulsar_scalable_topic_segment_blocked_count"))
+                .singleElement().satisfies(family -> assertThat(family.help()).isEqualTo(blockedDescription));
         var blocked = data.get(ScalableTopicConsumerMetrics.BLOCKED_COUNT).getLongSumData();
         assertThat(blocked.isMonotonic()).isFalse();
         assertThat(blocked.getPoints()).singleElement().satisfies(point -> {
@@ -533,10 +539,10 @@ public class ScalableTopicConsumerMetricsTest {
         });
     }
 
-    private static double sample(CollectorRegistry registry, String name, String label, String value) {
+    private static double sample(PrometheusRegistry registry, String name, String label, String value) {
         String[] labels = label == null ? new String[]{"cluster"} : new String[]{"cluster", label};
         String[] values = label == null ? new String[]{"test"} : new String[]{"test", value};
-        Double sample = registry.getSampleValue("pulsar_scalable_topic_" + name, labels, values);
+        Double sample = getSampleValue(registry, "pulsar_scalable_topic_" + name, labels, values);
         assertThat(sample).as("Prometheus sample %s with %s=%s", name, label, value).isNotNull();
         return sample;
     }

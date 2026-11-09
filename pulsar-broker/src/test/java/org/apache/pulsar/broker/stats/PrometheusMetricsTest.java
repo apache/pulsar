@@ -90,6 +90,7 @@ import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentMessageExpiryMonitor;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.service.scalable.ScalableTopicMetrics;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.client.api.Consumer;
@@ -1447,6 +1448,113 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         conf.setTransactionCoordinatorEnabled(false);
         conf.setTransactionLogBatchedWriteEnabled(false);
         conf.setTransactionPendingAckBatchedWriteEnabled(false);
+    }
+
+    @Test
+    public void testScalableTopicMetricsAreScraped() throws Exception {
+        // The scalable topic metrics (watch sessions and requests, controllers, consumers, segment owners) live in
+        // the Prometheus Java client 1.x registry; the broker scrape must still expose them under the legacy names
+        // with the cluster label. A broker starts all four collectors; the request histogram only gets a series
+        // once a scalable-topic request completes, so one is recorded directly. The collectors are shared per
+        // registry and aggregate per cluster, and other test classes in this JVM may leave brokers of other
+        // clusters registered on the default registry, so only this broker's cluster is asserted.
+        double lookupsBefore = lookupSuccessCount(parseMetrics(scrapeScalableMetrics()));
+        pulsar.getBrokerService().getScalableTopicMetrics()
+                .startRequest(ScalableTopicMetrics.RequestType.LOOKUP).success();
+
+        String metricsStr = scrapeScalableMetrics();
+        assertThat(metricsStr).contains("# TYPE pulsar_scalable_topic_request_duration_seconds histogram\n");
+        assertThat(metricsStr).contains("# TYPE pulsar_scalable_topic_watch_session_count gauge\n");
+        assertThat(metricsStr).contains("# TYPE pulsar_scalable_topic_watch_update_total counter\n");
+        assertThat(metricsStr).contains("# TYPE pulsar_scalable_topic_controller_count gauge\n");
+        assertThat(metricsStr).contains("# TYPE pulsar_scalable_topic_segment_count gauge\n");
+        assertThat(metricsStr).contains("# TYPE pulsar_scalable_topic_consumer_count gauge\n");
+        assertThat(metricsStr).contains("# TYPE pulsar_scalable_topic_segment_blocked_count gauge\n");
+        assertThat(metricsStr).contains("# TYPE pulsar_scalable_topic_rebalance_total counter\n");
+        assertThat(metricsStr).contains("# TYPE pulsar_scalable_topic_leaderless_count gauge\n");
+        assertThat(metricsStr).contains("# TYPE pulsar_scalable_topic_segment_unwritable_count gauge\n");
+        assertThat(metricsStr).contains("# TYPE pulsar_scalable_topic_entry_bucket_draining_count gauge\n");
+        assertThat(metricsStr).contains("# TYPE pulsar_scalable_topic_entry_bucket_violation_total counter\n");
+        assertThat(metricsStr).contains("# TYPE pulsar_scalable_topic_segment_load_report_total counter\n");
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+
+        double lookups = lookupSuccessCount(metrics);
+        assertEquals(lookups, lookupsBefore + 1.0);
+        List<Metric> requestBuckets = testCluster(metrics, "pulsar_scalable_topic_request_duration_seconds_bucket")
+                .stream()
+                .filter(m -> "lookup".equals(m.tags.get("request_type"))
+                        && "success".equals(m.tags.get("operation_status")))
+                .collect(Collectors.toList());
+        assertEquals(requestBuckets.size(), 12);
+        assertTrue(requestBuckets.stream().anyMatch(m -> "+Inf".equals(m.tags.get("le")) && m.value == lookups));
+
+        List<Metric> sessions = testCluster(metrics, "pulsar_scalable_topic_watch_session_count");
+        assertEquals(sessions.size(), 2);
+        for (Metric session : sessions) {
+            assertTrue(Set.of("topic", "namespace").contains(session.tags.get("watch_type")));
+            assertEquals(session.value, 0.0);
+        }
+        List<Metric> updates = testCluster(metrics, "pulsar_scalable_topic_watch_update_total");
+        assertEquals(updates.size(), 2);
+        assertTrue(updates.stream().allMatch(m -> Set.of("success", "failure").contains(
+                m.tags.get("operation_status"))));
+
+        List<Metric> controllers = testCluster(metrics, "pulsar_scalable_topic_controller_count");
+        assertEquals(controllers.size(), 1);
+        assertEquals(controllers.get(0).value, 0.0);
+        List<Metric> segments = testCluster(metrics, "pulsar_scalable_topic_segment_count");
+        assertEquals(segments.size(), 2);
+        assertTrue(segments.stream().allMatch(m -> Set.of("active", "sealed").contains(
+                m.tags.get("segment_state"))));
+
+        List<Metric> consumers = testCluster(metrics, "pulsar_scalable_topic_consumer_count");
+        assertEquals(consumers.size(), 3);
+        assertTrue(consumers.stream().allMatch(m -> Set.of("active", "idle", "disconnected").contains(
+                m.tags.get("consumer_state"))));
+        List<Metric> blocked = testCluster(metrics, "pulsar_scalable_topic_segment_blocked_count");
+        assertEquals(blocked.size(), 1);
+        List<Metric> rebalances = testCluster(metrics, "pulsar_scalable_topic_rebalance_total");
+        assertEquals(rebalances.size(), 5);
+        assertTrue(rebalances.stream().allMatch(m -> m.tags.containsKey("rebalance_reason")));
+
+        for (String family : List.of("pulsar_scalable_topic_leaderless_count",
+                "pulsar_scalable_topic_segment_unwritable_count",
+                "pulsar_scalable_topic_entry_bucket_draining_count")) {
+            List<Metric> samples = testCluster(metrics, family);
+            assertEquals(samples.size(), 1, family);
+            assertEquals(samples.get(0).value, 0.0, family);
+        }
+        List<Metric> violations = testCluster(metrics, "pulsar_scalable_topic_entry_bucket_violation_total");
+        assertEquals(violations.size(), 2);
+        assertTrue(violations.stream().allMatch(m -> Set.of("straddling", "unstamped_batch").contains(
+                m.tags.get("entry_bucket_violation"))));
+        List<Metric> loadReports = testCluster(metrics, "pulsar_scalable_topic_segment_load_report_total");
+        assertEquals(loadReports.size(), 3);
+        assertTrue(loadReports.stream().allMatch(m -> Set.of("written", "unchanged", "failed").contains(
+                m.tags.get("load_report_result"))));
+    }
+
+    private String scrapeScalableMetrics() throws IOException {
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsTestUtil.generate(pulsar, true, false, false, statsOut);
+        return statsOut.toString();
+    }
+
+    /** The samples of one family that belong to this broker's cluster. */
+    private static List<Metric> testCluster(Multimap<String, Metric> metrics, String family) {
+        return metrics.get(family).stream()
+                .filter(m -> "test".equals(m.tags.get("cluster")))
+                .collect(Collectors.toList());
+    }
+
+    /** The lookup/success request count of this broker's cluster, zero while the series does not exist yet. */
+    private static double lookupSuccessCount(Multimap<String, Metric> metrics) {
+        List<Metric> counts = testCluster(metrics, "pulsar_scalable_topic_request_duration_seconds_count").stream()
+                .filter(m -> "lookup".equals(m.tags.get("request_type"))
+                        && "success".equals(m.tags.get("operation_status")))
+                .collect(Collectors.toList());
+        assertTrue(counts.size() <= 1, "one lookup/success series per cluster");
+        return counts.isEmpty() ? 0.0 : counts.get(0).value;
     }
 
     /***

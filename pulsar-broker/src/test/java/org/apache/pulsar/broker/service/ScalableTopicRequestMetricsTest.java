@@ -40,7 +40,7 @@ import io.netty.channel.VoidChannelPromise;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.opentelemetry.api.OpenTelemetry;
-import io.prometheus.client.CollectorRegistry;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -55,6 +55,7 @@ import org.apache.pulsar.broker.resources.ScalableTopicResources;
 import org.apache.pulsar.broker.service.scalable.ConsumerAssignment;
 import org.apache.pulsar.broker.service.scalable.ConsumerSession;
 import org.apache.pulsar.broker.service.scalable.DagWatchSession;
+import org.apache.pulsar.broker.service.scalable.PrometheusSamples;
 import org.apache.pulsar.broker.service.scalable.ScalableTopicMetrics;
 import org.apache.pulsar.broker.service.scalable.ScalableTopicService;
 import org.apache.pulsar.broker.service.scalable.ScalableTopicsWatcherSession;
@@ -74,7 +75,7 @@ public class ScalableTopicRequestMetricsTest {
     private BrokerService brokerService;
     private ServerCnx cnx;
     private EmbeddedChannel channel;
-    private CollectorRegistry registry;
+    private PrometheusRegistry registry;
     private ScalableTopicMetrics metrics;
     private ServiceConfiguration config;
     private final List<DagWatchSession> dagSessions = new ArrayList<>();
@@ -91,7 +92,7 @@ public class ScalableTopicRequestMetricsTest {
         config.setBacklogQuotaCheckEnabled(false);
         context = PulsarTestContext.builderForNonStartableContext().config(config).spyByDefault().build();
         brokerService = context.getBrokerService();
-        registry = new CollectorRegistry();
+        registry = new PrometheusRegistry();
         metrics = new ScalableTopicMetrics(OpenTelemetry.noop().getMeter("test"), "test", registry);
         when(brokerService.getScalableTopicMetrics()).thenReturn(metrics);
     }
@@ -432,7 +433,7 @@ public class ScalableTopicRequestMetricsTest {
     }
 
     private double sample(String name, String[] labels, String[] values) {
-        Double value = registry.getSampleValue(name, labels, values);
+        Double value = PrometheusSamples.getSampleValue(registry, name, labels, values);
         return value == null ? 0 : value;
     }
 

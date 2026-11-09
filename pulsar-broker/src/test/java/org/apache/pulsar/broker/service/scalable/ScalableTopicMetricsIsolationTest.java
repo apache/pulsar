@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.service.scalable;
 
+import static org.apache.pulsar.broker.service.scalable.PrometheusSamples.families;
+import static org.apache.pulsar.broker.service.scalable.PrometheusSamples.getSampleValue;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import io.netty.buffer.ByteBuf;
@@ -29,13 +31,12 @@ import io.opentelemetry.api.metrics.ObservableLongUpDownCounter;
 import io.opentelemetry.sdk.metrics.SdkMeterProvider;
 import io.opentelemetry.sdk.metrics.data.MetricData;
 import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
-import io.prometheus.client.CollectorRegistry;
-import io.prometheus.client.Counter;
-import io.prometheus.client.Gauge;
-import io.prometheus.client.Histogram;
+import io.prometheus.metrics.core.metrics.Counter;
+import io.prometheus.metrics.core.metrics.Gauge;
+import io.prometheus.metrics.core.metrics.Histogram;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
@@ -60,7 +61,7 @@ public class ScalableTopicMetricsIsolationTest {
 
     @Test
     public void existingMetricsSurviveCreateUpdateCollectCloseAndRestart() {
-        try (ExistingMetrics existing = new ExistingMetrics(new CollectorRegistry(), "")) {
+        try (ExistingMetrics existing = new ExistingMetrics(new PrometheusRegistry(), "")) {
             List<MetricSnapshot> before = existing.snapshot();
             try (ScalableTopicMetrics metrics = new ScalableTopicMetrics(existing.meter, CLUSTER, existing.registry)) {
                 existing.assertUnchanged(before);
@@ -86,18 +87,18 @@ public class ScalableTopicMetricsIsolationTest {
 
     @Test
     public void closingOneOfSeveralBrokersDoesNotDisposeExistingInstruments() {
-        try (ExistingMetrics existing = new ExistingMetrics(new CollectorRegistry(), "");
+        try (ExistingMetrics existing = new ExistingMetrics(new PrometheusRegistry(), "");
              ScalableTopicMetrics first = new ScalableTopicMetrics(existing.meter, CLUSTER, existing.registry);
              ScalableTopicMetrics second = new ScalableTopicMetrics(existing.meter, CLUSTER, existing.registry)) {
             List<MetricSnapshot> before = existing.snapshot();
             exercise(first);
             exercise(second);
             existing.assertUnchanged(before);
-            assertThat(existing.registry.getSampleValue(PROM_SESSION,
+            assertThat(getSampleValue(existing.registry, PROM_SESSION,
                     new String[]{"cluster", "watch_type"}, new String[]{CLUSTER, "topic"})).isEqualTo(2);
             first.close();
             existing.assertUnchanged(before);
-            assertThat(existing.registry.getSampleValue(PROM_SESSION,
+            assertThat(getSampleValue(existing.registry, PROM_SESSION,
                     new String[]{"cluster", "watch_type"}, new String[]{CLUSTER, "topic"})).isEqualTo(1);
             second.recordWatchUpdate(false);
             second.close();
@@ -108,10 +109,11 @@ public class ScalableTopicMetricsIsolationTest {
 
     @Test
     public void failedRegistrationDoesNotUnregisterExistingCollectorsOrCallbacks() {
-        try (ExistingMetrics existing = new ExistingMetrics(new CollectorRegistry(), "")) {
-            Gauge conflict = Gauge.build(PROM_SESSION, "Pre-existing conflicting collector")
-                    .register(existing.registry);
-            conflict.set(17);
+        try (ExistingMetrics existing = new ExistingMetrics(new PrometheusRegistry(), "")) {
+            // Same name, type and label schema: the 1.x registry rejects the duplicate family at registration.
+            Gauge conflict = Gauge.builder().name(PROM_SESSION).help("Pre-existing conflicting collector")
+                    .labelNames("cluster", "watch_type").register(existing.registry);
+            conflict.labelValues(CLUSTER, "topic").set(17);
             try {
                 List<MetricSnapshot> before = existing.snapshot();
                 List<MetricSnapshot> conflictBefore = prometheusSnapshot(existing.registry, Set.of(PROM_SESSION));
@@ -141,7 +143,7 @@ public class ScalableTopicMetricsIsolationTest {
         // replicas here; the isolated-registry tests above use the unmodified existing production names.
         String suffix = "_isolation_" + UUID.randomUUID().toString().replace("-", "");
         String cluster = "isolation-" + UUID.randomUUID();
-        try (ExistingMetrics existing = new ExistingMetrics(CollectorRegistry.defaultRegistry, suffix)) {
+        try (ExistingMetrics existing = new ExistingMetrics(PrometheusRegistry.defaultRegistry, suffix)) {
             List<String> before = existingRenderedLines(existing, cluster);
             try (ScalableTopicMetrics metrics = new ScalableTopicMetrics(existing.meter, cluster)) {
                 exercise(metrics);
@@ -179,10 +181,12 @@ public class ScalableTopicMetricsIsolationTest {
     }
 
     private static List<String> existingRenderedLines(ExistingMetrics existing, String cluster) {
+        // The counter's "# TYPE" line carries the exposed "_total" name.
         List<String> lines = render(cluster).lines().filter(line -> existing.promNames.stream()
                 .anyMatch(name -> line.startsWith(name + "{") || line.startsWith(name + "_")
-                        || line.startsWith("# TYPE " + name + " "))).sorted().toList();
-        assertThat(lines).contains("# TYPE " + existing.counterName + " counter",
+                        || line.startsWith("# TYPE " + name + " ") || line.startsWith("# TYPE " + name + "_")))
+                .sorted().toList();
+        assertThat(lines).contains("# TYPE " + existing.counterName + "_total counter",
                 "# TYPE " + existing.gaugeName + " gauge", "# TYPE " + existing.histogramName + " histogram");
         assertThat(lines).filteredOn(line -> !line.startsWith("#")).allSatisfy(line -> {
             assertThat(line).contains("cluster=\"" + cluster + "\"");
@@ -207,12 +211,12 @@ public class ScalableTopicMetricsIsolationTest {
     private record HistogramPoint(Attributes attributes, long count, double sum, List<Double> boundaries,
                                   List<Long> counts, double min, double max) {}
 
-    private static List<MetricSnapshot> prometheusSnapshot(CollectorRegistry registry, Set<String> names) {
-        return Collections.list(registry.metricFamilySamples()).stream().filter(family -> names.contains(family.name))
-                .map(family -> new MetricSnapshot(family.name, family.type.name(), family.help, "",
-                        family.samples.stream()
-                        .map(sample -> new PrometheusPoint(sample.name, List.copyOf(sample.labelNames),
-                                List.copyOf(sample.labelValues), sample.value))
+    private static List<MetricSnapshot> prometheusSnapshot(PrometheusRegistry registry, Set<String> names) {
+        return families(registry).stream().filter(family -> names.contains(family.name()))
+                .map(family -> new MetricSnapshot(family.name(), family.type().name(), family.help(), "",
+                        family.samples().stream()
+                        .map(sample -> new PrometheusPoint(sample.name(), List.copyOf(sample.labelNames()),
+                                List.copyOf(sample.labelValues()), sample.value()))
                         .sorted(Comparator.comparing(PrometheusPoint::name)
                                 .thenComparing(point -> point.values().toString())).toList()))
                 .sorted(Comparator.comparing(MetricSnapshot::name)).toList();
@@ -242,7 +246,7 @@ public class ScalableTopicMetricsIsolationTest {
     }
 
     private static final class ExistingMetrics implements AutoCloseable {
-        private final CollectorRegistry registry;
+        private final PrometheusRegistry registry;
         private final InMemoryMetricReader reader = InMemoryMetricReader.create();
         private final SdkMeterProvider provider = SdkMeterProvider.builder().registerMetricReader(reader).build();
         private final Meter meter = provider.get("isolation-test");
@@ -263,17 +267,19 @@ public class ScalableTopicMetricsIsolationTest {
                 OpenTelemetryMessageFinderStats.FIND_ENTRY_READ_COUNT_METRIC_NAME,
                 OpenTelemetryMessageFinderStats.FIND_ENTRY_READ_SIZE_METRIC_NAME);
 
-        private ExistingMetrics(CollectorRegistry registry, String suffix) {
+        private ExistingMetrics(PrometheusRegistry registry, String suffix) {
             this.registry = registry;
             // Existing Prometheus names, help, labels and histogram buckets from SchemaRegistryStats/BrokerService.
             counterName = "pulsar_schema_get_ops_failed" + suffix;
             gaugeName = "pulsar_broker_lookup_pending_requests" + suffix;
             histogramName = "pulsar_storage_backlog_quota_check_duration_seconds" + suffix;
             promNames = Set.of(counterName, gaugeName, histogramName);
-            counter = Counter.build(counterName + "_total", "-").labelNames("namespace").register(registry);
-            gauge = Gauge.build(gaugeName, "-").register(registry);
-            histogram = Histogram.build(histogramName, "The duration of the backlog quota check process.")
-                    .buckets(5, 10, 30, 60, 300).register(registry);
+            // Counter names are declared without "_total"; the exposition appends it.
+            counter = Counter.builder().name(counterName).help("-").labelNames("namespace").register(registry);
+            gauge = Gauge.builder().name(gaugeName).help("-").register(registry);
+            histogram = Histogram.builder().name(histogramName)
+                    .help("The duration of the backlog quota check process.")
+                    .classicOnly().classicUpperBounds(5, 10, 30, 60, 300).register(registry);
             callback = meter.counterBuilder(OLD_CALLBACK)
                     .setDescription("The number of non-recoverable entries skipped.")
                     .setUnit("{entry}").buildWithCallback(measurement -> measurement.record(callbackValue.get()));
@@ -286,7 +292,7 @@ public class ScalableTopicMetricsIsolationTest {
         }
 
         private void advance() {
-            counter.labels("tenant/namespace").inc(2);
+            counter.labelValues("tenant/namespace").inc(2);
             gauge.set(lookupValue.addAndGet(2));
             histogram.observe(8);
             callbackValue.addAndGet(2);
@@ -312,10 +318,10 @@ public class ScalableTopicMetricsIsolationTest {
             assertThat(after).extracting(metric -> List.of(metric.name(), metric.type(), metric.help(), metric.unit()))
                     .isEqualTo(before.stream().map(metric ->
                             List.of(metric.name(), metric.type(), metric.help(), metric.unit())).toList());
-            assertThat(registry.getSampleValue(counterName + "_total",
+            assertThat(getSampleValue(registry, counterName + "_total",
                     new String[]{"namespace"}, new String[]{"tenant/namespace"})).isEqualTo(4);
-            assertThat(registry.getSampleValue(gaugeName)).isEqualTo(13);
-            assertThat(registry.getSampleValue(histogramName + "_count")).isEqualTo(2);
+            assertThat(getSampleValue(registry, gaugeName)).isEqualTo(13);
+            assertThat(getSampleValue(registry, histogramName + "_count")).isEqualTo(2);
             assertThat(after).filteredOn(metric -> metric.name().equals(OLD_CALLBACK)).singleElement()
                     .satisfies(metric -> assertThat(metric.points())
                             .isEqualTo(List.of(new LongPoint(Attributes.empty(), 4))));

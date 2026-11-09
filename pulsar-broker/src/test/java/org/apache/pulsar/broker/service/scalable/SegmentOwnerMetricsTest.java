@@ -19,14 +19,16 @@
 package org.apache.pulsar.broker.service.scalable;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.pulsar.broker.service.scalable.PrometheusSamples.getSampleValue;
+import static org.apache.pulsar.broker.service.scalable.PrometheusSamples.registeredFamilies;
 import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricLongSumValue;
 import static org.assertj.core.api.Assertions.assertThat;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.sdk.metrics.SdkMeterProvider;
 import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
-import io.prometheus.client.CollectorRegistry;
-import io.prometheus.client.Counter;
+import io.prometheus.metrics.core.metrics.Counter;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import java.io.ByteArrayOutputStream;
 import java.util.List;
 import java.util.UUID;
@@ -41,7 +43,7 @@ import org.testng.annotations.Test;
 public class SegmentOwnerMetricsTest {
     @Test
     public void testBothPathsReadTheSameState() throws Exception {
-        CollectorRegistry registry = new CollectorRegistry();
+        PrometheusRegistry registry = new PrometheusRegistry();
         var state = new AtomicReference<>(new Gauges(2, 3, 5));
         try (var reader = InMemoryMetricReader.create();
              var provider = SdkMeterProvider.builder().registerMetricReader(reader).build();
@@ -69,48 +71,50 @@ public class SegmentOwnerMetricsTest {
                 assertMetricLongSumValue(exported, SegmentOwnerMetrics.OTEL_PREFIX + "entry_bucket.violation.count",
                         Attributes.builder().put("pulsar.scalable_topic.entry_bucket.violation", value).build(),
                         expected);
-                assertThat(registry.getSampleValue("pulsar_scalable_topic_entry_bucket_violation_total",
+                assertThat(getSampleValue(registry, "pulsar_scalable_topic_entry_bucket_violation_total",
                         new String[]{"cluster", "entry_bucket_violation"},
                         new String[]{"test-cluster", value})).isEqualTo((double) expected);
             }
             for (String value : new String[]{"written", "unchanged", "failed"}) {
                 assertMetricLongSumValue(exported, SegmentOwnerMetrics.OTEL_PREFIX + "segment.load_report.count",
                         Attributes.builder().put("pulsar.scalable_topic.load_report.result", value).build(), 1);
-                assertThat(registry.getSampleValue("pulsar_scalable_topic_segment_load_report_total",
+                assertThat(getSampleValue(registry, "pulsar_scalable_topic_segment_load_report_total",
                         new String[]{"cluster", "load_report_result"},
                         new String[]{"test-cluster", value})).isEqualTo(1.0);
             }
             state.set(new Gauges(0, 0, 0));
             assertGauges(registry, reader, state.get());
         }
-        assertThat(registry.metricFamilySamples().hasMoreElements()).isFalse();
+        assertThat(registeredFamilies(registry)).isEmpty();
     }
 
-    private static void assertGauges(CollectorRegistry registry, InMemoryMetricReader reader, Gauges expected) {
+    private static void assertGauges(PrometheusRegistry registry, InMemoryMetricReader reader, Gauges expected) {
         String[] names = {"leaderless.count", "segment.unwritable.count", "entry_bucket.draining.count"};
         long[] values = {expected.leaderless(), expected.unwritable(), expected.drainingBuckets()};
         var exported = reader.collectAllMetrics();
         for (int i = 0; i < names.length; i++) {
             assertMetricLongSumValue(exported, SegmentOwnerMetrics.OTEL_PREFIX + names[i],
                     Attributes.empty(), values[i]);
-            assertThat(registry.getSampleValue(SegmentOwnerMetrics.PROMETHEUS_PREFIX + names[i].replace('.', '_'),
+            assertThat(getSampleValue(registry, SegmentOwnerMetrics.PROMETHEUS_PREFIX + names[i].replace('.', '_'),
                     new String[]{"cluster"}, new String[]{"test-cluster"})).isEqualTo((double) values[i]);
         }
     }
 
     @Test
     public void testExistingMetricsSurviveSegmentOwnerCollectorLifecycle() throws Exception {
+        // The existing counter lives in the same registry the production constructor registers on.
         String legacyName = "segment_owner_compatibility_" + UUID.randomUUID().toString().replace("-", "");
-        Counter legacy = Counter.build(legacyName, "Existing counter").labelNames("subscription").register();
+        Counter legacy = Counter.builder().name(legacyName).help("Existing counter").labelNames("subscription")
+                .register(PrometheusRegistry.defaultRegistry);
         try (var reader = InMemoryMetricReader.create();
              var provider = SdkMeterProvider.builder().registerMetricReader(reader).build()) {
-            var legacyChild = legacy.labels("existing-subscription");
+            var legacyChild = legacy.labelValues("existing-subscription");
             legacyChild.inc(7);
             var meter = provider.get("compatibility-test");
             var legacyOtel = meter.counterBuilder("test.existing.counter").build();
             legacyOtel.add(7);
             List<String> before = legacyOutput(legacyName);
-            assertThat(before).contains("# TYPE " + legacyName + " counter");
+            assertThat(before).contains("# TYPE " + legacyName + "_total counter");
             var attributes = Attributes.empty();
             assertMetricLongSumValue(reader.collectAllMetrics(), "test.existing.counter", attributes, 7);
 
@@ -135,7 +139,7 @@ public class SegmentOwnerMetricsTest {
                     + "_total{cluster=\"compatibility-cluster\",subscription=\"existing-subscription\"} 9.0");
             assertMetricLongSumValue(reader.collectAllMetrics(), "test.existing.counter", attributes, 9);
         } finally {
-            CollectorRegistry.defaultRegistry.unregister(legacy);
+            PrometheusRegistry.defaultRegistry.unregister(legacy);
         }
     }
 
@@ -149,24 +153,24 @@ public class SegmentOwnerMetricsTest {
 
     @Test
     public void testDisabledTelemetryAndSharedRegistryLifecycle() {
-        CollectorRegistry registry = new CollectorRegistry();
+        PrometheusRegistry registry = new PrometheusRegistry();
         var meter = OpenTelemetry.noop().getMeter("test");
         try (var first = new SegmentOwnerMetrics(meter, registry, "cluster", () -> new Gauges(1, 2, 3))) {
             try (var second = new SegmentOwnerMetrics(meter, registry, "cluster", () -> new Gauges(4, 5, 6))) {
                 first.recordLoadReport(LoadReportResult.WRITTEN);
                 second.recordLoadReport(LoadReportResult.WRITTEN);
-                assertThat(registry.getSampleValue("pulsar_scalable_topic_leaderless_count",
+                assertThat(getSampleValue(registry, "pulsar_scalable_topic_leaderless_count",
                         new String[]{"cluster"}, new String[]{"cluster"})).isEqualTo(5.0);
-                assertThat(registry.getSampleValue("pulsar_scalable_topic_segment_load_report_total",
+                assertThat(getSampleValue(registry, "pulsar_scalable_topic_segment_load_report_total",
                         new String[]{"cluster", "load_report_result"},
                         new String[]{"cluster", "written"})).isEqualTo(2.0);
             }
-            assertThat(registry.getSampleValue("pulsar_scalable_topic_leaderless_count",
+            assertThat(getSampleValue(registry, "pulsar_scalable_topic_leaderless_count",
                     new String[]{"cluster"}, new String[]{"cluster"})).isEqualTo(1.0);
         }
-        assertThat(registry.metricFamilySamples().hasMoreElements()).isFalse();
+        assertThat(registeredFamilies(registry)).isEmpty();
         try (var restarted = new SegmentOwnerMetrics(meter, registry, "cluster", () -> new Gauges(0, 0, 0))) {
-            assertThat(registry.getSampleValue("pulsar_scalable_topic_segment_load_report_total",
+            assertThat(getSampleValue(registry, "pulsar_scalable_topic_segment_load_report_total",
                     new String[]{"cluster", "load_report_result"},
                     new String[]{"cluster", "written"})).isZero();
             restarted.close();
