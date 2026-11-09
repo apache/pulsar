@@ -54,9 +54,8 @@ public class V5ClientLifecycleTest extends V5ClientBaseTest {
 
     @Test
     public void testShutdownDelegatesToV4() throws Exception {
-        // shutdown() is the v4 "fast" path: stops executors, releases connections,
-        // but deliberately does not flip the client's state to Closed (so
-        // isClosed() can still return false). The contract for V5 here is just
+        // shutdown() is the v4 "fast" path: stops executors and releases connections
+        // without waiting for pending operations. The contract for V5 here is just
         // "delegate to v4 without throwing"; observable post-shutdown behaviour
         // is v4's responsibility and is exercised by the v4 test suite. This
         // test pins the V5 → v4 delegation.

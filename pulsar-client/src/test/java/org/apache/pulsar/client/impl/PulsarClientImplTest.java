@@ -56,6 +56,7 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketAddress;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -63,11 +64,13 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
 import lombok.Cleanup;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -121,6 +124,30 @@ public class PulsarClientImplTest {
         assertFalse(client.isClosed());
         client.close();
         assertTrue(client.isClosed());
+    }
+
+    @Test(timeOut = 30_000)
+    public void testShutdownClosesClient() throws Exception {
+        PulsarClientImpl client = (PulsarClientImpl) PulsarClient.builder()
+                .serviceUrl("pulsar://localhost:6650")
+                .build();
+        client.shutdown();
+
+        // Unless they fail on the client's state, these wait for ever on the lookup that shutdown() released
+        String topic = "persistent://public/default/test";
+        assertFailsAsClosed(client.newProducer().topic(topic).createAsync());
+        assertFailsAsClosed(client.newConsumer().topic(topic).subscriptionName("sub").subscribeAsync());
+        assertFailsAsClosed(client.newReader().topic(topic).startMessageId(MessageId.earliest).createAsync());
+        assertFailsAsClosed(client.newTableView().topic(topic).createAsync());
+        assertTrue(client.isClosed());
+        // Nothing is left to close
+        client.close();
+    }
+
+    private static void assertFailsAsClosed(CompletableFuture<?> future) {
+        assertThat(future).failsWithin(Duration.ofSeconds(10))
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(PulsarClientException.AlreadyClosedException.class);
     }
 
     @Test(timeOut = 30_000)
