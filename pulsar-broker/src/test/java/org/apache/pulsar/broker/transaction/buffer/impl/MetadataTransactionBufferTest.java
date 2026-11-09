@@ -924,7 +924,96 @@ public class MetadataTransactionBufferTest {
         }
     }
 
+    @Test
+    public void publishOrdering_burstQueuedBehindAWrittenOpRecordIsHandedOverWithoutGrowingTheStack()
+            throws Exception {
+        // The publishes queued behind a pending op-record write all go once it completes, on the thread
+        // completing it: handing each one over from the callback of the one before overflows the stack.
+        TxnID txnId = new TxnID(1, 1);
+        createOpenHeader(txnId);
+        CompletableFuture<Void> opRecordHeld = new CompletableFuture<>();
+        MetadataTransactionBuffer tb = new MetadataTransactionBuffer(topic, holdingFirstOpRecordWrite(opRecordHeld));
+        tb.checkIfTBRecoverCompletely().get();
+        ByteBuf txnBytes = payload("txn");
+        List<ByteBuf> plainBytes = new ArrayList<>();
+        try {
+            CompletableFuture<Position> txnAppend = tb.appendBufferToTxn(txnId, 0, txnBytes);
+            AtomicInteger plainCallbacks = new AtomicInteger();
+            List<CompletableFuture<Position>> plainAdds = addPlainEntryBurst(tb, plainBytes, plainCallbacks);
+            assertThat(plainAdds).noneMatch(CompletableFuture::isDone);
+
+            opRecordHeld.complete(null);
+
+            assertThat(txnAppend.get()).isEqualTo(PositionFactory.create(10, 1));
+            assertThat(plainCallbacks).hasValue(PUBLISH_BURST);
+            for (int i = 0; i < PUBLISH_BURST; i++) {
+                assertThat(plainAdds.get(i)).isCompletedWithValue(PositionFactory.create(10, i + 2));
+                assertThat(plainBytes.get(i).refCnt()).as("released by the buffer").isOne();
+            }
+            assertThat(txnBytes.refCnt()).isOne();
+        } finally {
+            txnBytes.release();
+            plainBytes.forEach(ByteBuf::release);
+            tb.closeAsync().get();
+        }
+    }
+
+    @Test
+    public void publishOrdering_burstQueuedBehindAFailedOpRecordIsRejectedWithoutGrowingTheStack()
+            throws Exception {
+        TxnID txnId = new TxnID(1, 1);
+        createOpenHeader(txnId);
+        CompletableFuture<Stat> opRecordWrite = new CompletableFuture<>();
+        TxnMetadataStore store = spy(txnStore);
+        doReturn(opRecordWrite).when(store).appendOp(any(), any());
+        captureTopicCloses();
+        MetadataTransactionBuffer tb = new MetadataTransactionBuffer(topic, store);
+        tb.checkIfTBRecoverCompletely().get();
+        ByteBuf txnBytes = payload("txn");
+        List<ByteBuf> plainBytes = new ArrayList<>();
+        try {
+            CompletableFuture<Position> txnAppend = tb.appendBufferToTxn(txnId, 0, txnBytes);
+            AtomicInteger plainCallbacks = new AtomicInteger();
+            List<CompletableFuture<Position>> plainAdds = addPlainEntryBurst(tb, plainBytes, plainCallbacks);
+            assertThat(plainAdds).noneMatch(CompletableFuture::isDone);
+
+            MetadataStoreException injected = new MetadataStoreException("injected pre-ledger failure");
+            opRecordWrite.completeExceptionally(injected);
+
+            assertThatThrownBy(txnAppend::get).hasCause(injected);
+            assertThat(plainCallbacks).hasValue(PUBLISH_BURST);
+            for (int i = 0; i < PUBLISH_BURST; i++) {
+                assertThat(plainAdds.get(i)).isCompletedExceptionally();
+                assertThat(plainBytes.get(i).refCnt()).as("released by the buffer").isOne();
+            }
+            assertThatThrownBy(plainAdds.get(PUBLISH_BURST - 1)::get)
+                    .hasRootCauseInstanceOf(MetadataStoreException.class);
+            verify(ledger, never()).asyncAddEntry(any(ByteBuf.class), anyInt(), any(), any());
+            verify(topic, times(1)).close(true);
+            assertThat(txnBytes.refCnt()).isOne();
+        } finally {
+            txnBytes.release();
+            plainBytes.forEach(ByteBuf::release);
+            tb.closeAsync().get();
+        }
+    }
+
     // ---- helpers -----------------------------------------------------------
+
+    /** Enough publishes queued at once to overflow the stack if each is handed over by the one before. */
+    private static final int PUBLISH_BURST = 4096;
+
+    /** Queue {@link #PUBLISH_BURST} non-transactional entries, adding each one's bytes to {@code entries}. */
+    private List<CompletableFuture<Position>> addPlainEntryBurst(MetadataTransactionBuffer tb, List<ByteBuf> entries,
+                                                                 AtomicInteger callbacks) {
+        List<CompletableFuture<Position>> adds = new ArrayList<>(PUBLISH_BURST);
+        for (int i = 0; i < PUBLISH_BURST; i++) {
+            ByteBuf entry = payload("plain-" + i);
+            entries.add(entry);
+            adds.add(addPlainEntry(tb, entry, callbacks));
+        }
+        return adds;
+    }
 
     private List<CompletableFuture<Void>> captureTopicCloses() {
         ScheduledExecutorService executor = mock(ScheduledExecutorService.class);
