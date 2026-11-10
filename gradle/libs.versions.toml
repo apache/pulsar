@@ -205,7 +205,7 @@ skyscreamer = "1.5.3"
 # misc
 zstd-jni = "1.5.7-25"
 lz4java = "1.12.1"
-kubernetesclient = "27.0.0"
+kubernetesclient = "27.0.1"
 aws-sdk = "1.12.797"
 hadoop3 = "3.5.0"
 jclouds = "2.7.0"
