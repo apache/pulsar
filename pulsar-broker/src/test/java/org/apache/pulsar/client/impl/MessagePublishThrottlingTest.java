@@ -86,7 +86,8 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
         Producer prod = topic.getProducers().values().iterator().next();
         // reset counter
         prod.updateRates();
-        int total = 200;
+        // At 10 msg/s, enough to take a few seconds
+        int total = 40;
         for (int i = 0; i < total; i++) {
             producer.send(new byte[80]);
         }
@@ -138,7 +139,8 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
         Producer prod = topic.getProducers().values().iterator().next();
         // reset counter
         prod.updateRates();
-        int total = 100;
+        // At 400 bytes/s, enough to take a few seconds
+        int total = 40;
         for (int i = 0; i < total; i++) {
             producer.send(new byte[1]);
         }
@@ -201,7 +203,8 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
         Producer prod = topic.getProducers().values().iterator().next();
         // reset counter
         prod.updateRates();
-        int total = 100;
+        // At 10 msg/s, enough to take a few seconds
+        int total = 40;
         for (int i = 0; i < total; i++) {
             producer.send(new byte[80]);
         }
@@ -344,7 +347,9 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
         Producer prod = topic.getProducers().values().iterator().next();
         // reset counter
         prod.updateRates();
-        int numMessage = 40;
+        // 2,400 bytes: more than twice the broker limit, so that even with its initial burst the broker-throttled
+        // phase stays below numMessage * msgBytes per second
+        int numMessage = 30;
         int msgBytes = 80;
 
         for (int i = 0; i < numMessage; i++) {

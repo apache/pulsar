@@ -74,9 +74,9 @@ public class OrphanPersistentTopicTest extends ProducerConsumerBase {
     @Test
     public void testNoOrphanTopicAfterCreateTimeout() throws Exception {
         // Make the topic loading timeout faster.
-        int topicLoadTimeoutSeconds = 2;
+        int topicLoadTimeoutSeconds = 1;
         long originalTopicLoadTimeoutSeconds = pulsar.getConfig().getTopicLoadTimeoutSeconds();
-        pulsar.getConfig().setTopicLoadTimeoutSeconds(2);
+        pulsar.getConfig().setTopicLoadTimeoutSeconds(topicLoadTimeoutSeconds);
 
         String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
         String mlPath = BrokerService.MANAGED_LEDGER_PATH_ZNODE + "/" + TopicName.get(tpName)
@@ -237,7 +237,8 @@ public class OrphanPersistentTopicTest extends ProducerConsumerBase {
     @Test(timeOut = 60 * 1000, dataProvider = "whetherTimeoutOrNot")
     public void testCheckOwnerShipFails(boolean injectTimeout) throws Exception {
         if (injectTimeout) {
-            pulsar.getConfig().setTopicLoadTimeoutSeconds(5);
+            // The stub below sleeps longer than this
+            pulsar.getConfig().setTopicLoadTimeoutSeconds(1);
         }
         String ns = "public" + "/" + UUID.randomUUID().toString().replaceAll("-", "");
         String tpName = BrokerTestUtil.newUniqueName("persistent://" + ns + "/tp");
@@ -252,7 +253,7 @@ public class OrphanPersistentTopicTest extends ProducerConsumerBase {
             TopicName paramTp = (TopicName) invocation.getArguments()[0];
             if (paramTp.toString().equalsIgnoreCase(tpName) && failedTimes.incrementAndGet() <= 2) {
                 if (injectTimeout) {
-                    Thread.sleep(10 * 1000);
+                    Thread.sleep(2 * 1000);
                 }
                 log.info().attr("failed", failedTimes.get()).log("Failed times");
                 return CompletableFuture.failedFuture(new RuntimeException("mocked error"));
@@ -274,7 +275,8 @@ public class OrphanPersistentTopicTest extends ProducerConsumerBase {
     @Test(timeOut = 60 * 1000, dataProvider = "whetherTimeoutOrNot")
     public void testTopicLoadAndDeleteAtTheSameTime(boolean injectTimeout) throws Exception {
         if (injectTimeout) {
-            pulsar.getConfig().setTopicLoadTimeoutSeconds(5);
+            // The stub below sleeps longer than this
+            pulsar.getConfig().setTopicLoadTimeoutSeconds(1);
         }
         String ns = "public" + "/" + UUID.randomUUID().toString().replaceAll("-", "");
         String tpName = BrokerTestUtil.newUniqueName("persistent://" + ns + "/tp");
@@ -289,7 +291,7 @@ public class OrphanPersistentTopicTest extends ProducerConsumerBase {
             TopicName paramTp = (TopicName) invocation.getArguments()[0];
             if (paramTp.toString().equalsIgnoreCase(tpName) && mockRaceConditionCounter.incrementAndGet() <= 1) {
                 if (injectTimeout) {
-                    Thread.sleep(10 * 1000);
+                    Thread.sleep(2 * 1000);
                 }
                 log.info().attr("conditionOccurs", mockRaceConditionCounter.get()).log("Race condition occurs times");
                 pulsar.getDefaultManagedLedgerFactory().delete(TopicName.get(tpName).getPersistenceNamingEncoding());
