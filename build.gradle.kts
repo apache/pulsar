@@ -53,14 +53,13 @@ tasks.named<DependencyUpdatesTask>("dependencyUpdates") {
 
 // ── Apache RAT (Release Audit Tool) ─────────────────────────────────────────
 tasks.named<RatTask>("rat") {
-    // Honour .gitignore exclusions so RAT skips untracked/generated files.
-    // Register .gitignore files as inputs so the task re-runs when they change.
-    inputs.files(fileTree(rootDir) {
-        include("**/.gitignore")
-        exclude("**/build/**")
-        exclude("**/.gradle/**")
-    })
-    // use crlf plugin's gitignore dsl
+    // Honour .gitignore exclusions so RAT skips untracked/generated files, using the crlf plugin's
+    // gitignore DSL. The .gitignore files need no input of their own: they are read when the
+    // configuration cache entry is stored, so a change to one invalidates the entry, and RAT's input
+    // files are the filtered tree. (A `fileTree { include("**/.gitignore") }` input would hold no files
+    // at all, since Gradle's default excludes drop them, but it would record every directory of the
+    // checkout, ignored ones such as the git worktrees of coding agents included. RAT would then rerun
+    // whenever a directory appeared anywhere, and walking those trees made the up-to-date check slow.)
     gitignore(rootDir)
     // Apply additional RAT-specific exclusions from .ratignore.
     val ratignoreFile = rootDir.resolve(".ratignore")
