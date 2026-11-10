@@ -18,7 +18,7 @@
  */
 
 plugins {
-    id("pulsar.public-java-library-conventions")
+    id("pulsar.public-shaded-library-conventions")
     id("pulsar.client-shade-conventions")
 }
 

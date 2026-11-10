@@ -42,10 +42,12 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorContainerImpl;
@@ -434,6 +436,85 @@ public class PersistentSubscriptionTest {
         assertThat(stats.subscriptionProperties)
                 .isSameAs(live)
                 .containsEntry(bucketKey, "42");
+    }
+
+    @Test
+    public void testReplicatedAckReleasesPendingAcksOutsideSubscriptionMonitor() throws Exception {
+        Dispatcher testDispatcher = mock(Dispatcher.class);
+        persistentSubscription.dispatcher = testDispatcher;
+        // the cursor can complete the mark-delete synchronously, for example when it's rate limited
+        doAnswer(invocation -> {
+            invocation.<AsyncCallbacks.MarkDeleteCallback>getArgument(2).markDeleteComplete(invocation.getArgument(3));
+            return null;
+        }).when(cursorMock).asyncMarkDelete(any(), any(), any(), any());
+        AtomicBoolean heldSubscriptionMonitor = new AtomicBoolean();
+        doAnswer(invocation -> {
+            heldSubscriptionMonitor.set(Thread.holdsLock(persistentSubscription));
+            return null;
+        }).when(testDispatcher).markDeletePositionMoveForward();
+
+        persistentSubscription.acknowledgeReplicatedSubscriptionMessage(PositionFactory.create(1, 60),
+                cursorMock.getMarkDeletedPosition(), null, false).get(5, TimeUnit.SECONDS);
+
+        verify(testDispatcher).markDeletePositionMoveForward();
+        assertThat(heldSubscriptionMonitor).isFalse();
+    }
+
+    @Test
+    public void testFailedReplicatedAckReleasesPendingAcksWhenMarkDeleteMoved() {
+        Dispatcher testDispatcher = mock(Dispatcher.class);
+        persistentSubscription.dispatcher = testDispatcher;
+        Position markDeleteBeforeAck = cursorMock.getMarkDeletedPosition();
+        ManagedLedgerException failure = new ManagedLedgerException("mark-delete failed");
+        doAnswer(invocation -> {
+            // the cursor moves the in-memory mark-delete position before the persistence fails, and the receiver
+            // doesn't retry an update that the position already covers
+            doReturn(invocation.getArgument(0)).when(cursorMock).getMarkDeletedPosition();
+            invocation.<AsyncCallbacks.MarkDeleteCallback>getArgument(2)
+                    .markDeleteFailed(failure, invocation.getArgument(3));
+            return null;
+        }).when(cursorMock).asyncMarkDelete(any(), any(), any(), any());
+
+        assertThat(persistentSubscription.acknowledgeReplicatedSubscriptionMessage(PositionFactory.create(1, 60),
+                markDeleteBeforeAck, null, false))
+                .failsWithin(5, TimeUnit.SECONDS)
+                .withThrowableOfType(ExecutionException.class)
+                .withCause(failure);
+
+        verify(testDispatcher).markDeletePositionMoveForward();
+    }
+
+    @Test
+    public void testFailedReplicatedAckKeepsPendingAcksWhenMarkDeleteDidNotMove() {
+        Dispatcher testDispatcher = mock(Dispatcher.class);
+        persistentSubscription.dispatcher = testDispatcher;
+        ManagedLedgerException failure = new ManagedLedgerException("mark-delete failed");
+        doAnswer(invocation -> {
+            invocation.<AsyncCallbacks.MarkDeleteCallback>getArgument(2)
+                    .markDeleteFailed(failure, invocation.getArgument(3));
+            return null;
+        }).when(cursorMock).asyncMarkDelete(any(), any(), any(), any());
+
+        assertThat(persistentSubscription.acknowledgeReplicatedSubscriptionMessage(PositionFactory.create(1, 60),
+                cursorMock.getMarkDeletedPosition(), null, false))
+                .failsWithin(5, TimeUnit.SECONDS)
+                .withThrowableOfType(ExecutionException.class)
+                .withCause(failure);
+
+        // the receiver retries the update, so the cleanup runs when that retry moves the position
+        verify(testDispatcher, never()).markDeletePositionMoveForward();
+    }
+
+    @Test
+    public void testRejectedReplicatedAckDoesNotReleasePendingAcks() throws Exception {
+        Dispatcher testDispatcher = mock(Dispatcher.class);
+        persistentSubscription.dispatcher = testDispatcher;
+
+        persistentSubscription.acknowledgeReplicatedSubscriptionMessage(PositionFactory.create(1, 60),
+                cursorMock.getMarkDeletedPosition(), null, true).get(5, TimeUnit.SECONDS);
+
+        verify(cursorMock, never()).asyncMarkDelete(any(), any(), any(), any());
+        verify(testDispatcher, never()).markDeletePositionMoveForward();
     }
 
     public static class CustomTransactionPendingAckStoreProvider implements TransactionPendingAckStoreProvider {

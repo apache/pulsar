@@ -20,6 +20,7 @@ package org.apache.pulsar.common.tls.impl;
 
 import io.netty.handler.ssl.SslProvider;
 import java.util.Objects;
+import org.apache.pulsar.common.tls.TlsClientAuthMode;
 
 /**
  * The factory-wide (not per-purpose) settings for a {@link FileBasedTlsFactory} (PIP-478).
@@ -29,10 +30,11 @@ import java.util.Objects;
  * <ul>
  *   <li><b>engine selection</b> — the Netty {@link SslProvider} the native contexts are built on
  *       (JDK, or an OpenSSL-based provider where the {@code netty-tcnative} binding is present);</li>
- *   <li><b>server client-auth requirement</b> — whether server contexts require (vs. merely request) a
- *       trusted client certificate; a single flag mirroring the broker-wide
- *       {@code tlsRequireTrustedClientCertOnConnect} property, applied to every server purpose. That it
- *       is one flag for the binary, proxy and web listeners is deliberate PIP-337 parity rather than a
+ *   <li><b>server client-auth mode</b> — whether server contexts require, merely request, or do not request
+ *       a client certificate; a single {@link TlsClientAuthMode} resolved from the {@code tlsClientAuthMode},
+ *       deprecated {@code tlsRequireTrustedClientCertOnConnect} and authentication properties (see
+ *       {@link TlsClientAuthMode#resolve}), applied to every server purpose. That it
+ *       is one setting for the binary, proxy and web listeners is deliberate PIP-337 parity rather than a
  *       simplification: v4 keyed all three off that same property, {@code JettySslContextFactory}
  *       included, so per-listener client-auth was never configurable;</li>
  *   <li><b>refresh interval</b> — how often the factory polls its material sources for rotation; a
@@ -67,12 +69,12 @@ public final class FileBasedTlsFactorySettings {
     }
 
     private final SslProvider engineProvider;
-    private final boolean requireTrustedClientCert;
+    private final TlsClientAuthMode clientAuthMode;
     private final int refreshIntervalSeconds;
 
     private FileBasedTlsFactorySettings(Builder builder) {
         this.engineProvider = builder.engineProvider;
-        this.requireTrustedClientCert = builder.requireTrustedClientCert;
+        this.clientAuthMode = builder.clientAuthMode;
         this.refreshIntervalSeconds = builder.refreshIntervalSeconds;
     }
 
@@ -91,9 +93,9 @@ public final class FileBasedTlsFactorySettings {
         return engineProvider;
     }
 
-    /** @return whether server contexts require (vs. merely request) a trusted client certificate */
-    public boolean requireTrustedClientCert() {
-        return requireTrustedClientCert;
+    /** @return whether server contexts require, request or do not request a client certificate */
+    public TlsClientAuthMode clientAuthMode() {
+        return clientAuthMode;
     }
 
     /** @return the rotation poll interval in seconds ({@code <= 0} disables polling) */
@@ -107,7 +109,7 @@ public final class FileBasedTlsFactorySettings {
      */
     public static final class Builder {
         private SslProvider engineProvider = SslProvider.JDK;
-        private boolean requireTrustedClientCert = false;
+        private TlsClientAuthMode clientAuthMode = TlsClientAuthMode.OPTIONAL;
         private int refreshIntervalSeconds = DEFAULT_REFRESH_INTERVAL_SECONDS;
 
         private Builder() {
@@ -123,11 +125,11 @@ public final class FileBasedTlsFactorySettings {
         }
 
         /**
-         * @param requireTrustedClientCert whether server contexts require a trusted client certificate
+         * @param clientAuthMode whether server contexts require, request or do not request a client certificate
          * @return this builder
          */
-        public Builder requireTrustedClientCert(boolean requireTrustedClientCert) {
-            this.requireTrustedClientCert = requireTrustedClientCert;
+        public Builder clientAuthMode(TlsClientAuthMode clientAuthMode) {
+            this.clientAuthMode = Objects.requireNonNull(clientAuthMode, "clientAuthMode must not be null");
             return this;
         }
 

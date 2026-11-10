@@ -26,7 +26,7 @@ dependencies {
 
     testImplementation(project(":pulsar-client-tools"))
     testImplementation(project(":pulsar-broker"))
-    testImplementation(project(path = ":pulsar-broker", configuration = "testJar"))
+    testImplementation(testJar(":pulsar-broker"))
     testImplementation(project(":testmocks"))
     testImplementation(libs.awaitility)
     testImplementation(libs.jackson.databind)
@@ -39,14 +39,10 @@ dependencies {
     testCompileOnly(libs.swagger.annotations)
 }
 
-// Copy the custom commands NAR from the example module into test resources
-val copyCustomCommandsNar = tasks.register<Copy>("copyCustomCommandsNar") {
-    dependsOn(":pulsar-client-tools-customcommand-example:nar")
-    from(project(":pulsar-client-tools-customcommand-example").layout.buildDirectory.dir("libs"))
-    include("customCommands-nar.nar")
-    into(layout.buildDirectory.dir("resources/test/cliextensions"))
-}
-
-tasks.withType<Test> {
-    dependsOn(copyCustomCommandsNar)
+// Add the custom commands NAR of the example module to the test resources
+val customCommandsNar = projectNars("customCommandsNar", ":pulsar-client-tools-customcommand-example")
+tasks.named<ProcessResources>("processTestResources") {
+    from(customCommandsNar.files) {
+        into("cliextensions")
+    }
 }

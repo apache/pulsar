@@ -19,8 +19,8 @@
 
 // Convention plugin for NAR (Nifi Archive) modules.
 // Configures platform module exclusions from runtimeClasspath, forces JAR artifacts
-// for bundled-dependencies, handles archive name qualification, and publishes the
-// NAR artifact with an empty POM (no dependencies — everything is bundled).
+// for bundled-dependencies and handles archive name qualification. pulsar.publish-conventions
+// publishes only the NAR artifact, with a POM without dependencies, since everything is bundled.
 
 plugins {
     id("io.github.merlimat.nar")
@@ -87,36 +87,16 @@ tasks.named("nar", Jar::class.java) {
     }
 }
 
-// Set NAR-specific archive name qualification for nested modules.
-val parentProject = project.parent
-if (parentProject != null && parentProject != rootProject && parentProject.parent != rootProject
-        && !project.name.startsWith(parentProject.name)) {
-    val qualifiedName = "${parentProject.name}-${project.name}"
-    val narExt = extensions.getByName("nar")
-    @Suppress("UNCHECKED_CAST")
-    val narIdProp = narExt.javaClass.getMethod("getNarId").invoke(narExt) as org.gradle.api.provider.Property<String>
-    narIdProp.set(qualifiedName)
+// Name the NAR like the module's other archives, which are qualified for nested modules.
+nar {
+    narId.set(defaultArchivesName())
 }
 
-// --- NAR publishing: publish only the .nar artifact with an empty POM ---
-// NAR modules bundle all dependencies, so the POM should have no <dependencies> section.
-publishing {
-    publications {
-        withType<MavenPublication>().configureEach {
-            // Replace component-based artifacts with just the NAR file
-            artifacts.clear()
-            artifact(tasks.named("nar"))
-            pom {
-                packaging = "nar"
-                // Remove all dependencies — NAR bundles everything
-                withXml {
-                    val root = asNode()
-                    root.children().removeAll { node ->
-                        val name = (node as groovy.util.Node).name()
-                        name.toString().contains("dependencies")
-                    }
-                }
-            }
-        }
-    }
+// --- NAR publishing: publish only the .nar artifact ---
+// A NAR bundles every dependency, so the publication has no software component: its POM lists no
+// dependencies, and it has no Gradle Module Metadata, which would reference the bundled projects,
+// some of which aren't published.
+configurePulsarPublication {
+    artifact(tasks.named("nar"))
+    pom.packaging = "nar"
 }
