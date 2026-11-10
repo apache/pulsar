@@ -116,6 +116,11 @@ public class FunctionRuntimeManager implements AutoCloseable {
 
     final FunctionRuntimeInfos functionRuntimeInfos = new FunctionRuntimeInfos();
 
+    // Deleted functions whose instances on this worker are stopped while other workers still had instances, by fully
+    // qualified function name: this worker terminates them, which deletes their subscriptions, once it reads the delete
+    // of their last instance
+    final Map<String, FunctionRuntimeInfo> stoppedDeletedFunctions = new HashMap<>();
+
     @Getter
     final WorkerConfig workerConfig;
 
@@ -844,11 +849,38 @@ public class FunctionRuntimeManager implements AutoCloseable {
                         .workerIdToAssignments);
                 if (assignments.size() > 1) {
                     this.conditionallyStopFunction(functionRuntimeInfo);
+                    // The termination deletes the function's subscriptions. The worker that reads the delete of the
+                    // last instance can't do it for all the workers: an instance that another worker still runs, or
+                    // restarts after an update, can recreate them until that worker stops it. So each worker
+                    // terminates the function once its own instances are stopped and it has read the deletes of all
+                    // the instances.
+                    Map<String, Assignment> myAssignments = workerIdToAssignments.get(workerConfig.getWorkerId());
+                    if (myAssignments == null || findFunctionAssignments(tenant, namespace, name,
+                            Collections.singletonMap(workerConfig.getWorkerId(), myAssignments)).size() <= 1) {
+                        stoppedDeletedFunctions.put(FunctionCommon.getFullyQualifiedName(tenant, namespace, name),
+                                functionRuntimeInfo);
+                    }
                 } else {
                     this.conditionallyTerminateFunction(functionRuntimeInfo);
                 }
             }
             this.functionRuntimeInfos.remove(fullyQualifiedInstanceId);
+        } else if (!stoppedDeletedFunctions.isEmpty()) {
+            FunctionInstanceId functionInstanceId = new FunctionInstanceId(fullyQualifiedInstanceId);
+            String tenant = functionInstanceId.getTenant();
+            String namespace = functionInstanceId.getNamespace();
+            String name = functionInstanceId.getName();
+            String fullyQualifiedName = FunctionCommon.getFullyQualifiedName(tenant, namespace, name);
+            FunctionRuntimeInfo stoppedFunction = stoppedDeletedFunctions.get(fullyQualifiedName);
+            if (stoppedFunction != null
+                    && findFunctionAssignments(tenant, namespace, name, workerIdToAssignments).size() <= 1) {
+                // the delete of the function's last instance
+                stoppedDeletedFunctions.remove(fullyQualifiedName);
+                // unless the function was created again since
+                if (!functionMetaDataManager.containsFunction(tenant, namespace, name)) {
+                    this.conditionallyTerminateFunction(stoppedFunction);
+                }
+            }
         }
 
         String workerId = null;

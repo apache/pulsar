@@ -391,6 +391,14 @@ public class PersistentTopicTest extends BrokerTestBase {
         msg = consumer2.receive();
         assertNotNull(msg);
 
+        // The broker counts a message out once its write to the connection completes, which can be after the client
+        // received it: wait until both subscriptions' deliveries are counted
+        Awaitility.await().untilAsserted(() -> {
+            TopicStats current = topic.getStats(false, false, false);
+            assertEquals(current.getMsgOutCounter(), 2);
+            assertEquals(current.getBytesOutCounter(), 2 * current.getBytesInCounter());
+        });
+
         // send/receive result in non-zero stats
         TopicStats statsBeforeUnsubscribe = topic.getStats(false, false, false);
         assertTrue(statsBeforeUnsubscribe.getBytesInCounter() > 0);

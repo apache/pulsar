@@ -449,11 +449,52 @@ public class ScalableTopicResources extends BaseResources<ScalableTopicMetadata>
     }
 
     /**
-     * Delete the node of a namespace whose scalable topics are deleted. Not recursive, so a scalable topic still
-     * in the namespace fails it.
+     * Like {@link #listScalableTopicsAsync}, leaving out the nodes that hold no topic record. Such a node is what a
+     * write under a deleted scalable topic leaves: the store creates the missing parents of the node it writes, so a
+     * write there, like the load that the owner of one of the topic's segments reports until the segment topic is
+     * deleted, creates the node of the topic again, with no record. It is not a topic, and
+     * {@link #clearNamespaceAsync} deletes it.
+     */
+    public CompletableFuture<List<String>> listScalableTopicsWithRecordAsync(NamespaceName ns) {
+        String nsPath = namespacePath(ns);
+        return getChildrenAsync(nsPath)
+                .thenCompose(children -> {
+                    List<CompletableFuture<Boolean>> hasRecord = children.stream()
+                            .map(child -> hasRecordAsync(joinPath(nsPath, child)))
+                            .toList();
+                    return FutureUtil.waitForAll(hasRecord).thenApply(__ -> {
+                        List<String> topics = new ArrayList<>();
+                        for (int i = 0; i < children.size(); i++) {
+                            if (hasRecord.get(i).join()) {
+                                topics.add(TopicName.get("topic", ns, Codec.decode(children.get(i))).toString());
+                            }
+                        }
+                        return topics;
+                    });
+                });
+    }
+
+    /**
+     * Delete the node of a namespace whose scalable topics are deleted, with the nodes under it that hold no topic
+     * record (see {@link #listScalableTopicsWithRecordAsync}). Not recursive otherwise, so a scalable topic still in
+     * the namespace fails it.
      */
     public CompletableFuture<Void> clearNamespaceAsync(NamespaceName ns) {
-        return getStore().deleteIfExists(namespacePath(ns), Optional.empty());
+        String nsPath = namespacePath(ns);
+        // From the store, not the cache: a node with no record that a stale list misses fails the namespace node delete
+        return getStore().getChildrenFromStore(nsPath)
+                .thenCompose(children -> FutureUtil.waitForAll(children.stream()
+                        .map(child -> joinPath(nsPath, child))
+                        .map(path -> hasRecordAsync(path).thenCompose(hasRecord -> hasRecord
+                                ? CompletableFuture.<Void>completedFuture(null)
+                                : getStore().deleteRecursive(path)))
+                        .toList()))
+                .thenCompose(__ -> getStore().deleteIfExists(nsPath, Optional.empty()));
+    }
+
+    private CompletableFuture<Boolean> hasRecordAsync(String topicPath) {
+        return getStore().get(topicPath)
+                .thenApply(result -> result.map(GetResult::getValue).filter(value -> value.length > 0).isPresent());
     }
 
     /** Delete the scalable topic records of a tenant whose namespaces are deleted. */
