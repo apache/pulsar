@@ -190,7 +190,7 @@ public class TokenExpirationProduceConsumerTest extends TlsProducerConsumerBase 
                 .sendTimeout(2, TimeUnit.SECONDS)
                 .create();
 
-        Awaitility.await().timeout(Duration.ofSeconds(60)).pollInterval(200, TimeUnit.MILLISECONDS).untilAsserted(() -> {
+        Awaitility.await().timeout(Duration.ofSeconds(60)).pollInterval(Duration.ofMillis(200)).untilAsserted(() -> {
             assertThrows(PulsarClientException.TimeoutException.class, () -> {
                 producer.send("heart beat".getBytes());
                 Message<byte[]> message = consumer.receive();
