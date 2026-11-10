@@ -34,14 +34,14 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
-import io.prometheus.metrics.expositionformats.PrometheusTextFormatWriter;
-import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.ClientBuilder;
@@ -67,6 +67,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.instance.state.BKStateStoreImpl;
 import org.apache.pulsar.functions.instance.state.InstanceStateManager;
+import org.apache.pulsar.functions.instance.stats.ComponentStatsManager;
 import org.apache.pulsar.functions.instance.stats.FunctionCollectorRegistry;
 import org.apache.pulsar.functions.instance.v5.LazyPulsarClientV5;
 import org.apache.pulsar.functions.proto.FunctionDetails;
@@ -597,18 +598,24 @@ public class ContextImplTest {
 
     /**
      * The admin API exposes user metrics as {@code user_metric_<name>_{sum,count,0.5,0.9,0.99,0.999}}; the key
-     * format is a compatibility contract.
+     * format is a compatibility contract. The registry is shared by every instance of a LocalRunner, so each
+     * instance must only report its own label set.
      */
     @Test
     public void testGetMetricsKeys() throws Exception {
-        String[] metricsLabels = {"public", "public/default", "fn", "0", "standalone", "public/default/fn"};
         FunctionCollectorRegistry registry = FunctionCollectorRegistry.getDefaultImplementation();
         context = new ContextImpl(config, logger, client, new EnvironmentBasedSecretsProvider(), registry,
-                metricsLabels, FunctionDetails.ComponentType.FUNCTION, null, new InstanceStateManager(),
+                new String[]{"public", "public/default", "fn", "0", "standalone", "public/default/fn"},
+                FunctionDetails.ComponentType.FUNCTION, null, new InstanceStateManager(),
+                pulsarAdmin, clientBuilder, t -> {}, producerCache);
+        ContextImpl otherInstance = new ContextImpl(config, logger, client, new EnvironmentBasedSecretsProvider(),
+                registry, new String[]{"public", "public/default", "fn", "1", "standalone", "public/default/fn"},
+                FunctionDetails.ComponentType.FUNCTION, null, new InstanceStateManager(),
                 pulsarAdmin, clientBuilder, t -> {}, producerCache);
 
         context.recordMetric("latency", 2.0);
         context.recordMetric("latency", 4.0);
+        otherInstance.recordMetric("latency", 10.0);
 
         Map<String, Double> metrics = context.getMetrics();
         assertThat(metrics).containsOnlyKeys("user_metric_latency_sum", "user_metric_latency_count",
@@ -618,19 +625,32 @@ public class ContextImplTest {
                 .containsEntry("user_metric_latency_count", 2.0);
         assertThat(metrics.get("user_metric_latency_0.5")).isBetween(2.0, 4.0);
         assertThat(metrics.get("user_metric_latency_0.999")).isEqualTo(4.0);
+        assertThat(otherInstance.getMetrics()).containsEntry("user_metric_latency_sum", 10.0)
+                .containsEntry("user_metric_latency_count", 1.0);
 
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        PrometheusTextFormatWriter.builder().setIncludeCreatedTimestamps(false).build()
-                .write(out, registry.scrape());
-        String exposition = out.toString(UTF_8);
-        assertThat(exposition).contains("# TYPE pulsar_function_user_metric_ summary\n")
-                .contains("pulsar_function_user_metric_{cluster=\"standalone\",fqfn=\"public/default/fn\","
-                        + "instance_id=\"0\",metric=\"latency\",name=\"fn\",namespace=\"public/default\","
-                        + "tenant=\"public\",quantile=\"0.5\"} ")
-                .contains("pulsar_function_user_metric__count{cluster=\"standalone\",fqfn=\"public/default/fn\","
-                        + "instance_id=\"0\",metric=\"latency\",name=\"fn\",namespace=\"public/default\","
-                        + "tenant=\"public\"} 2\n")
-                .doesNotContain("_created");
+        // the thread runtime serves the registry through the stats manager's writer, which must not print
+        // the 0.x-incompatible _created samples
+        ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+        try {
+            ComponentStatsManager stats = ComponentStatsManager.getStatsManager(registry,
+                    new String[]{"public", "public/default", "fn", "0", "standalone", "public/default/fn"},
+                    executor, FunctionDetails.ComponentType.FUNCTION);
+            String exposition = stats.getStatsAsString();
+            stats.close();
+            assertThat(exposition).containsOnlyOnce("# TYPE pulsar_function_user_metric_ summary\n")
+                    .contains("pulsar_function_user_metric_{cluster=\"standalone\",fqfn=\"public/default/fn\","
+                            + "instance_id=\"0\",metric=\"latency\",name=\"fn\",namespace=\"public/default\","
+                            + "tenant=\"public\",quantile=\"0.5\"} ")
+                    .contains("pulsar_function_user_metric__count{cluster=\"standalone\",fqfn=\"public/default/fn\","
+                            + "instance_id=\"0\",metric=\"latency\",name=\"fn\",namespace=\"public/default\","
+                            + "tenant=\"public\"} 2\n")
+                    .contains("pulsar_function_user_metric__sum{cluster=\"standalone\",fqfn=\"public/default/fn\","
+                            + "instance_id=\"1\",metric=\"latency\",name=\"fn\",namespace=\"public/default\","
+                            + "tenant=\"public\"} 10.0\n")
+                    .doesNotContain("_created");
+        } finally {
+            executor.shutdownNow();
+        }
 
         // after a reset the metric is still reported, with zero counts, until it is observed again
         context.resetMetrics();

@@ -341,8 +341,11 @@ public class RuntimeUtilsTest {
         Set<String> firstFamilies = families(first);
         Set<String> secondFamilies = families(second);
         assertEquals(secondFamilies, firstFamilies);
+        // one family per collector registered by registerDefaultCollectors (native memory only reports with
+        // -XX:NativeMemoryTracking, so it has no family to check here)
         for (String family : new String[]{"jvm_memory_used_bytes", "jvm_memory_pool_used_bytes", "jvm_threads_current",
                 "jvm_gc_collection_seconds", "jvm_classes_currently_loaded", "jvm_buffer_pool_used_bytes",
+                "jvm_compilation_time_seconds", "jvm_memory_pool_allocated_bytes",
                 // registered names: exposed as jvm_runtime_info and process_cpu_seconds_total
                 "jvm_runtime", "process_cpu_seconds", "jmx_scrape_duration_seconds"}) {
             assertTrue(firstFamilies.contains(family), family + " missing from " + firstFamilies);
