@@ -44,6 +44,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.admin.v2.ScalableTopicPolicies;
 import org.apache.pulsar.broker.admin.v2.ScalableTopics;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.intercept.BrokerInterceptors;
@@ -235,7 +236,8 @@ public class WebService implements AutoCloseable {
         }
         if (!pulsar.getConfiguration().isScalableTopicsEnabled()) {
             config = new ResourceConfig(config.getClasses().stream()
-                    .filter(resource -> resource != ScalableTopics.class).toArray(Class<?>[]::new));
+                    .filter(resource -> resource != ScalableTopics.class && resource != ScalableTopicPolicies.class)
+                    .toArray(Class<?>[]::new));
         }
         addResourceServlet(basePath, requiresAuthentication, attributeMap, config, useSharedJsonMapperProvider);
     }
