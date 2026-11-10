@@ -461,7 +461,31 @@ public class PersistentSubscriptionTest {
     }
 
     @Test
-    public void testReplicatedAckKeepsPendingAcksWhenMarkDeleteFails() {
+    public void testFailedReplicatedAckReleasesPendingAcksWhenMarkDeleteMoved() {
+        Dispatcher testDispatcher = mock(Dispatcher.class);
+        persistentSubscription.dispatcher = testDispatcher;
+        Position markDeleteBeforeAck = cursorMock.getMarkDeletedPosition();
+        ManagedLedgerException failure = new ManagedLedgerException("mark-delete failed");
+        doAnswer(invocation -> {
+            // the cursor moves the in-memory mark-delete position before the persistence fails, and the receiver
+            // doesn't retry an update that the position already covers
+            doReturn(invocation.getArgument(0)).when(cursorMock).getMarkDeletedPosition();
+            invocation.<AsyncCallbacks.MarkDeleteCallback>getArgument(2)
+                    .markDeleteFailed(failure, invocation.getArgument(3));
+            return null;
+        }).when(cursorMock).asyncMarkDelete(any(), any(), any(), any());
+
+        assertThat(persistentSubscription.acknowledgeReplicatedSubscriptionMessage(PositionFactory.create(1, 60),
+                markDeleteBeforeAck, null, false))
+                .failsWithin(5, TimeUnit.SECONDS)
+                .withThrowableOfType(ExecutionException.class)
+                .withCause(failure);
+
+        verify(testDispatcher).markDeletePositionMoveForward();
+    }
+
+    @Test
+    public void testFailedReplicatedAckKeepsPendingAcksWhenMarkDeleteDidNotMove() {
         Dispatcher testDispatcher = mock(Dispatcher.class);
         persistentSubscription.dispatcher = testDispatcher;
         ManagedLedgerException failure = new ManagedLedgerException("mark-delete failed");
@@ -477,7 +501,7 @@ public class PersistentSubscriptionTest {
                 .withThrowableOfType(ExecutionException.class)
                 .withCause(failure);
 
-        // the receiver retries a failed update, so the cleanup runs when that retry succeeds
+        // the receiver retries the update, so the cleanup runs when that retry moves the position
         verify(testDispatcher, never()).markDeletePositionMoveForward();
     }
 

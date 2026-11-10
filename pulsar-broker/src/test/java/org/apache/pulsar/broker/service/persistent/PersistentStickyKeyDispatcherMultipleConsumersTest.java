@@ -369,6 +369,68 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         }
     }
 
+    /**
+     * Removing the last consumer debits its unacked messages but leaves its pending acks in place. A concurrent
+     * mark-delete cleanup that releases those pending acks must not debit the same messages again.
+     */
+    @Test(timeOut = 30_000)
+    public void testMarkDeleteCleanupDoesNotDebitConsumerRemovedConcurrently() throws Exception {
+        Consumer consumer = createMockConsumer();
+        persistentDispatcher.addConsumer(consumer).join();
+        // the consumer holds one pending ack, counted in both the consumer's and the dispatcher's unacked messages
+        AtomicInteger consumerUnacked = new AtomicInteger(1);
+        AtomicBoolean pendingAckPresent = new AtomicBoolean(true);
+        doAnswer(invocation -> consumerUnacked.get()).when(consumer).getUnackedMessages();
+        persistentDispatcher.addUnAckedMessages(1);
+
+        CountDownLatch cleanupStarted = new CountDownLatch(1);
+        AtomicReference<Thread> removalThread = new AtomicReference<>();
+        AtomicReference<java.util.concurrent.Future<?>> removal = new AtomicReference<>();
+        doAnswer(invocation -> {
+            cleanupStarted.countDown();
+            // Before the fix the removal completes while the cleanup is in progress. With the fix it waits on the
+            // dispatcher monitor that the cleanup holds, so continue once that is established.
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> {
+                java.util.concurrent.Future<?> removalFuture = removal.get();
+                if (removalFuture != null && removalFuture.isDone()) {
+                    return true;
+                }
+                Thread thread = removalThread.get();
+                ThreadInfo info = thread == null ? null
+                        : ManagementFactory.getThreadMXBean().getThreadInfo(thread.threadId());
+                return info != null && info.getThreadState() == Thread.State.BLOCKED
+                        && info.getLockInfo() != null
+                        && info.getLockInfo().getIdentityHashCode() == System.identityHashCode(persistentDispatcher);
+            });
+            // as the real consumer does, release the pending ack and debit it through the subscription
+            if (pendingAckPresent.compareAndSet(true, false)) {
+                consumerUnacked.decrementAndGet();
+                persistentDispatcher.addUnAckedMessages(-1);
+            }
+            return null;
+        }).when(consumer).removePendingAcksUpToPositionAndDecrementUnacked(anyLong(), anyLong());
+        doReturn(PositionFactory.create(1, 1)).when(cursorMock).getMarkDeletedPosition();
+
+        ExecutorService executor = Executors.newFixedThreadPool(2,
+                new DefaultThreadFactory("cleanup-removal-test"));
+        try {
+            var cleanup = executor.submit(() -> persistentDispatcher.markDeletePositionMoveForward());
+            assertThat(cleanupStarted.await(10, TimeUnit.SECONDS)).isTrue();
+            removal.set(executor.submit(() -> {
+                removalThread.set(Thread.currentThread());
+                persistentDispatcher.removeConsumer(consumer);
+                return null;
+            }));
+            cleanup.get(10, TimeUnit.SECONDS);
+            removal.get().get(10, TimeUnit.SECONDS);
+        } finally {
+            executor.shutdownNow();
+            assertThat(executor.awaitTermination(10, TimeUnit.SECONDS)).isTrue();
+        }
+
+        assertThat(persistentDispatcher.getTotalUnackedMessages()).isZero();
+    }
+
     @Test
     public void testSendMarkerMessage() {
         try {
