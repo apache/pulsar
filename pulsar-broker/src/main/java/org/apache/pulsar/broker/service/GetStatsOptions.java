@@ -50,4 +50,15 @@ public class GetStatsOptions {
      * Whether to exclude consumers.
      */
     private final boolean excludeConsumers;
+
+    /**
+     * Whether to exclude the last publish time, which can require reading from storage.
+     */
+    private final boolean excludeLastPublishTime;
+
+    public GetStatsOptions(boolean getPreciseBacklog, boolean subscriptionBacklogSize,
+                           boolean getEarliestTimeInBacklog, boolean excludePublishers, boolean excludeConsumers) {
+        this(getPreciseBacklog, subscriptionBacklogSize, getEarliestTimeInBacklog,
+                excludePublishers, excludeConsumers, false);
+    }
 }

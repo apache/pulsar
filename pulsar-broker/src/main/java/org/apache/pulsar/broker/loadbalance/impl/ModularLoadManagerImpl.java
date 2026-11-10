@@ -185,6 +185,10 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     private long unloadBundleCount = 0;
 
     private final Lock lock = new ReentrantLock();
+    // Serializes the removals of bundles from loadData, with the deletions of their data from the metadata store, and
+    // writeBundleDataOnZooKeeper(). Otherwise a write that collected a bundle before its removal can recreate the
+    // bundle's data after the deletion, and nothing deletes it again.
+    private final Object bundleDataLock = new Object();
     private final Set<String> knownBrokers = new HashSet<>();
     private Map<String, String> bundleBrokerAffinityMap;
     // array used for sorting and select topK bundles
@@ -563,7 +567,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         log.debug("Updating broker and bundle data for loadreport");
         cleanupDeadBrokersData();
         updateAllBrokerData();
-        updateBundleData();
+        synchronized (bundleDataLock) {
+            updateBundleData();
+        }
         // broker has latest load-report: check if any bundle requires split
         checkNamespaceBundleSplit();
     }
@@ -917,12 +923,14 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                             isUnload, null);
 
                     // The split succeeded, so the old bundle must not be selected again.
-                    loadData.getBundleData().remove(bundleName);
-                    localData.getLastStats().remove(bundleName);
-                    // Clear namespace bundle-cache
-                    this.pulsar.getNamespaceService().getNamespaceBundleFactory()
-                            .invalidateBundleCache(NamespaceName.get(namespaceName));
-                    deleteBundleDataFromMetadataStore(bundleName);
+                    synchronized (bundleDataLock) {
+                        loadData.getBundleData().remove(bundleName);
+                        localData.getLastStats().remove(bundleName);
+                        // Clear namespace bundle-cache
+                        this.pulsar.getNamespaceService().getNamespaceBundleFactory()
+                                .invalidateBundleCache(NamespaceName.get(namespaceName));
+                        deleteBundleDataFromMetadataStore(bundleName);
+                    }
 
                     splitCount++;
                     log.info().attr("bundle", bundleName).log("Successfully split namespace bundle");
@@ -1184,7 +1192,11 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         executors.shutdownNow();
 
         try {
-            brokersData.close();
+            // Release only this load manager's lock: the coordination service gives the same lock manager to every
+            // user of its type, like the load manager that replaces this one, and closes it itself
+            if (brokerDataLock != null) {
+                brokerDataLock.release().join();
+            }
         } catch (Exception e) {
             log.warn().exceptionMessage(e).log("Failed to release broker lock");
         }
@@ -1344,43 +1356,46 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         if (!isLeader()) {
             return;
         }
-        updateBundleData();
-        if (!isLeader()) {
-            return;
-        }
-        // Write the bundle data to metadata store.
-        List<CompletableFuture<Void>> futures = new ArrayList<>();
-        boolean leadershipLost = false;
-
-        // use synchronized to protect bundleArr.
-        synchronized (bundleArr) {
-            int updateBundleCount = selectTopKBundle();
-            for (Map.Entry<String, ? extends Comparable> entry : bundleArr.subList(0, updateBundleCount)) {
-                if (!isLeader()) {
-                    leadershipLost = true;
-                    break;
-                }
-                futures.add(pulsarResources.getLoadBalanceResources().getBundleDataResources().updateBundleData(
-                        entry.getKey(), (BundleData) entry.getValue()));
+        // Hold the lock until the writes complete, so that the bundles removed meanwhile are deleted after them
+        synchronized (bundleDataLock) {
+            updateBundleData();
+            if (!isLeader()) {
+                return;
             }
-        }
+            // Write the bundle data to metadata store.
+            List<CompletableFuture<Void>> futures = new ArrayList<>();
+            boolean leadershipLost = false;
 
-        // Write the time average broker data to metadata store.
-        if (!leadershipLost) {
-            for (Map.Entry<String, BrokerData> entry : loadData.getBrokerData().entrySet()) {
-                if (!isLeader()) {
-                    break;
+            // use synchronized to protect bundleArr.
+            synchronized (bundleArr) {
+                int updateBundleCount = selectTopKBundle();
+                for (Map.Entry<String, ? extends Comparable> entry : bundleArr.subList(0, updateBundleCount)) {
+                    if (!isLeader()) {
+                        leadershipLost = true;
+                        break;
+                    }
+                    futures.add(pulsarResources.getLoadBalanceResources().getBundleDataResources().updateBundleData(
+                            entry.getKey(), (BundleData) entry.getValue()));
                 }
-                final String broker = entry.getKey();
-                final TimeAverageBrokerData data = entry.getValue().getTimeAverageData();
-                futures.add(pulsarResources.getLoadBalanceResources()
-                        .getBrokerTimeAverageDataResources().updateTimeAverageBrokerData(broker, data));
             }
-        }
-        try {
-            FutureUtil.waitForAll(futures).join();
-        } catch (Exception e) {
-            log.warn().exception(e).log("Error when writing metadata data to store");
+
+            // Write the time average broker data to metadata store.
+            if (!leadershipLost) {
+                for (Map.Entry<String, BrokerData> entry : loadData.getBrokerData().entrySet()) {
+                    if (!isLeader()) {
+                        break;
+                    }
+                    final String broker = entry.getKey();
+                    final TimeAverageBrokerData data = entry.getValue().getTimeAverageData();
+                    futures.add(pulsarResources.getLoadBalanceResources()
+                            .getBrokerTimeAverageDataResources().updateTimeAverageBrokerData(broker, data));
+                }
+            }
+            try {
+                FutureUtil.waitForAll(futures).join();
+            } catch (Exception e) {
+                log.warn().exception(e).log("Error when writing metadata data to store");
+            }
         }
     }
 

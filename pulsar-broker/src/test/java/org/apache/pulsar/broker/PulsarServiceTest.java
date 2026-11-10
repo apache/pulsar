@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -31,6 +32,9 @@ import static org.testng.Assert.fail;
 import static org.testng.AssertJUnit.assertSame;
 import io.prometheus.client.CollectorRegistry;
 import java.io.IOException;
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadInfo;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -51,6 +55,8 @@ import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateM
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.broker.namespace.OwnershipCache;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -84,10 +90,23 @@ import org.testng.annotations.Test;
 public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
 
     private boolean useStaticPorts = false;
+    // When set, what the broker's getCreateAdminClientBuilder() returns instead of a builder of its own
+    private volatile PulsarAdminBuilder brokerAdminClientBuilder;
 
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
+    }
+
+    @Override
+    protected void beforePulsarStart(PulsarService pulsar) throws Exception {
+        super.beforePulsarStart(pulsar);
+        // Stubbed before the broker starts, since its threads call the spy too: Mockito takes a call from any thread
+        // that lands in a doReturn(...).when(pulsar) stubbing as the stubbed call
+        doAnswer(invocation -> {
+            PulsarAdminBuilder builder = brokerAdminClientBuilder;
+            return builder != null ? builder : invocation.callRealMethod();
+        }).when(pulsar).getCreateAdminClientBuilder();
     }
 
     @AfterMethod(alwaysRun = true)
@@ -95,6 +114,7 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
     protected void cleanup() throws Exception {
         super.internalCleanup();
         useStaticPorts = false;
+        brokerAdminClientBuilder = null;
     }
 
     @Override
@@ -103,7 +123,7 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
         conf.setBrokerServicePortTls(Optional.of(0));
         conf.setWebServicePortTls(Optional.of(0));
         conf.setTopicNameCacheMaxCapacity(5000);
-        conf.setMaxSecondsToClearTopicNameCache(5);
+        conf.setMaxSecondsToClearTopicNameCache(1);
         if (useStaticPorts) {
             conf.setBrokerServicePortTls(Optional.of(6651));
             conf.setBrokerServicePort(Optional.of(6660));
@@ -291,15 +311,15 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
         cleanup();
         setup();
         assertEquals(conf.getTopicNameCacheMaxCapacity(), 5000);
-        assertEquals(conf.getMaxSecondsToClearTopicNameCache(), 5);
+        assertEquals(conf.getMaxSecondsToClearTopicNameCache(), 1);
 
         List<TopicName> topicNameCached = new ArrayList<>();
         for (int i = 0; i < 20; i++) {
             topicNameCached.add(TopicName.get("public/default/tp_" + i));
         }
 
-        // Verify: the cache does not clear since it is not larger than max capacity.
-        Thread.sleep(10 * 1000);
+        // Verify: the cache does not clear since it is not larger than max capacity, in two runs of the clearing.
+        Thread.sleep(2500);
         for (int i = 0; i < 20; i++) {
             assertTrue(topicNameCached.get(i) == TopicName.get("public/default/tp_" + i));
         }
@@ -308,10 +328,11 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
         admin.brokers().updateDynamicConfiguration("topicNameCacheMaxCapacity", "10");
 
         // Verify: the cache were cleared.
-        Thread.sleep(10 * 1000);
-        for (int i = 0; i < 20; i++) {
-            assertFalse(topicNameCached.get(i) == TopicName.get("public/default/tp_" + i));
-        }
+        Awaitility.await().untilAsserted(() -> {
+            for (int i = 0; i < 20; i++) {
+                assertFalse(topicNameCached.get(i) == TopicName.get("public/default/tp_" + i));
+            }
+        });
     }
 
     @Test
@@ -436,6 +457,41 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
         assertThat(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos))
                 .as("broker close time in ms")
                 .isLessThan(500);
+    }
+
+    @Test
+    public void testCloseClosesInternalAdminClientBeingCreated() throws Exception {
+        setup();
+        PulsarAdmin adminClient = mock(PulsarAdmin.class);
+        PulsarAdminBuilder adminClientBuilder = mock(PulsarAdminBuilder.class);
+        Thread closingThread = new Thread(pulsar::closeAsync, "closing-broker");
+        // The broker starts closing while getAdminClient() creates the client under the service's lock, and the
+        // creation ends once the close waits for that lock
+        doAnswer(invocation -> {
+            Thread creatingThread = Thread.currentThread();
+            closingThread.start();
+            Awaitility.await().until(() -> {
+                ThreadInfo threadInfo = ManagementFactory.getThreadMXBean().getThreadInfo(closingThread.threadId());
+                return threadInfo != null
+                        && threadInfo.getThreadState() == Thread.State.BLOCKED
+                        && threadInfo.getLockOwnerId() == creatingThread.threadId();
+            });
+            return adminClient;
+        }).when(adminClientBuilder).build();
+        brokerAdminClientBuilder = adminClientBuilder;
+
+        assertThat(pulsar.getAdminClient()).isSameAs(adminClient);
+        assertThat(closingThread.join(Duration.ofSeconds(30))).as("close finished").isTrue();
+        verify(adminClient).close();
+    }
+
+    @Test
+    public void testNoInternalAdminClientCreatedOnceClosed() throws Exception {
+        setup();
+        pulsar.close();
+
+        // The close has closed the client it found, so nothing would close a new one
+        assertThatThrownBy(() -> pulsar.getAdminClient()).isInstanceOf(PulsarServerException.class);
     }
 
     @DataProvider

@@ -136,6 +136,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
+import org.apache.pulsar.broker.service.BrokerServiceException.TopicFencedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicMigratedException;
 import org.apache.pulsar.broker.service.TopicEventsListener.EventStage;
 import org.apache.pulsar.broker.service.TopicEventsListener.TopicEvent;
@@ -279,6 +280,8 @@ public class BrokerService implements Closeable {
     private final Map<TopicName, PersistentOfflineTopicStats> offlineTopicStatCache = new ConcurrentHashMap<>();
     private final Map<String, ConfigField> dynamicConfigurationMap;
     private final Map<String, Consumer<?>> configRegisteredListeners = new ConcurrentHashMap<>();
+    // Replaces the load manager on each loadManagerClassName change, one change after the other
+    private final FutureUtil.Sequencer<Void> loadManagerReplacements = FutureUtil.Sequencer.create();
 
     private final ConcurrentLinkedQueue<Pair<TopicLoadingContext, LatencyTracer.TracePoint>> pendingTopicLoadingQueue;
 
@@ -294,6 +297,8 @@ public class BrokerService implements Closeable {
     private final AsyncDualMemoryLimiterImpl maxTopicListInFlightLimiter;
     @Getter
     private final TopicListSizeResultCache topicListSizeResultCache;
+    @Getter
+    private final TopicsPatternCache topicsPatternCache = new TopicsPatternCache();
     protected final AtomicReference<Semaphore> topicLoadRequestSemaphore;
 
     public static final String TOPIC_LOOKUP_USAGE_METRIC_NAME = "pulsar.broker.request.topic.lookup.concurrent.usage";
@@ -1747,7 +1752,7 @@ public class BrokerService implements Closeable {
         if (optTopic.isPresent()) {
             Topic t = optTopic.get();
             if (forceDelete) {
-                return t.deleteForcefully();
+                return deleteAfterClose(topic, forceDelete, cachedFuture, t, t.deleteForcefully());
             }
 
             // v2 topics have a global name so check if the topic is replicated.
@@ -1773,7 +1778,7 @@ public class BrokerService implements Closeable {
                         "Delete forbidden. Topic " + topic + " is replicated to shadow topics."));
             }
 
-            return t.delete();
+            return deleteAfterClose(topic, forceDelete, cachedFuture, t, t.delete());
         }
 
         // Reserve the cache key used by getTopic so a load cannot enter between the unloaded-topic check and
@@ -1795,6 +1800,30 @@ public class BrokerService implements Closeable {
             }
         });
         return deletionFuture.deletion;
+    }
+
+    /**
+     * A topic stays fenced in the cache while it is being closed (by an unload, say) or deleted, and fails a deletion
+     * meanwhile. Wait for that close or deletion then, and delete whatever it left, as if this deletion came after it.
+     */
+    private CompletableFuture<Void> deleteAfterClose(String topic, boolean forceDelete,
+                                                     CompletableFuture<Optional<Topic>> cachedFuture, Topic loaded,
+                                                     CompletableFuture<Void> deletion) {
+        // The topic refuses a deletion right away while it is fenced. Return any other deletion as it is, so that
+        // retries of a deletion in progress still share its future.
+        if (!(loaded instanceof PersistentTopic persistentTopic) || !deletion.isCompletedExceptionally()) {
+            return deletion;
+        }
+        return deletion.exceptionallyCompose(error -> {
+            if (!(FutureUtil.unwrapCompletionException(error) instanceof TopicFencedException)) {
+                return CompletableFuture.failedFuture(error);
+            }
+            return persistentTopic.getCloseFuture().handle((ignored, closeError) -> null)
+                    .thenCompose(ignored -> topics.get(topic) != cachedFuture
+                            ? deleteTopicInternal(topic, forceDelete)
+                            // A failed close, or one handing the topic over to another broker, keeps it cached.
+                            : CompletableFuture.failedFuture(error));
+        });
     }
 
     private CompletableFuture<Void> deleteUnloadedTopicMetadata(String topic) {
@@ -3921,7 +3950,9 @@ public class BrokerService implements Closeable {
                 (maxConcurrentTopicLoadRequest) -> topicLoadRequestSemaphore.set(
                         new Semaphore((int) maxConcurrentTopicLoadRequest, false)));
         registerConfigurationListener("loadManagerClassName", className -> {
-            pulsar.getExecutor().execute(() -> {
+            // A replacement stops the current load manager before it starts the new one: two replacements running
+            // together would both stop the same one and leave both new ones running
+            loadManagerReplacements.sequential(() -> CompletableFuture.runAsync(() -> {
                 LoadManager newLoadManager = null;
                 try {
                     newLoadManager = LoadManager.create(pulsar);
@@ -3942,7 +3973,7 @@ public class BrokerService implements Closeable {
                 if (newLoadManager != null) {
                     pulsar.getLoadManager().set(newLoadManager);
                 }
-            });
+            }, pulsar.getExecutor()));
         });
 
 
