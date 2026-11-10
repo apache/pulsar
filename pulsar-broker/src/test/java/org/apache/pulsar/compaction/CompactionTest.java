@@ -1952,7 +1952,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                 .readCompacted(true)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe()) {
-            // sub2's marker is behind the compaction horizon, before the new messages
+            // sub2's marker is after the compaction horizon, before the new messages
             Message<byte[]> marker = consumer.receive(10, TimeUnit.SECONDS);
             assertNotNull(marker, "The marker message did not arrive");
             assertEquals(marker.getKey(), MARKER_KEY);
@@ -2484,9 +2484,10 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         // Make consumer reconnect to broker
         admin.topics().unload(topicName);
 
-        // Nothing else is delivered before the new message, before or after the reconnection
+        // Nothing else is delivered after the reconnection, before the new message
         MessageId newMessageId = producer.newMessage().key("K").value("V").send();
-        Message<String> message2 = consumer.receive(3, TimeUnit.SECONDS);
+        Message<String> message2 = consumer.receive(10, TimeUnit.SECONDS);
+        assertNotNull(message2);
         assertEquals(message2.getMessageId(), newMessageId);
         assertEquals(message2.getValue(), "V");
         consumer.acknowledge(message2);
@@ -2864,7 +2865,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
             receivedTombstones.add(message.getKey());
         }
         assertEquals(receivedTombstones, deletedKeys);
-        // The marker is behind the compaction horizon, so both readers get it after the compacted entries
+        // The marker is after the compaction horizon, so both readers get it after the compacted entries
         MessageId markerId = producer.newMessage().key(MARKER_KEY).value("marker").send();
         Message<String> marker = reader.readNext(10, TimeUnit.SECONDS);
         assertNotNull(marker, "The marker message did not arrive");
