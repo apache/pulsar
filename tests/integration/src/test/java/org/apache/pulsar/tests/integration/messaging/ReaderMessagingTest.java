@@ -20,6 +20,8 @@ package org.apache.pulsar.tests.integration.messaging;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import lombok.Cleanup;
@@ -31,10 +33,17 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.common.policies.data.ConsumerStats;
+import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
 @CustomLog
 public class ReaderMessagingTest extends MessagingBase {
+
+    @Override
+    protected boolean isClusterShared() {
+        return true;
+    }
 
     @Test(dataProvider = "ServiceAndAdminUrls")
     public void testReaderReconnectAndRead(Supplier<String> serviceUrl, Supplier<String> adminUrl) throws Exception {
@@ -62,7 +71,8 @@ public class ReaderMessagingTest extends MessagingBase {
         }
 
         for (int i = 0; i < messagesToSend; i++) {
-            Message<String> msg = reader.readNext();
+            Message<String> msg = reader.readNext(10, TimeUnit.SECONDS);
+            assertNotNull(msg, "message-" + i + " not received");
             assertEquals(msg.getValue(), "message-" + i);
         }
 
@@ -72,6 +82,7 @@ public class ReaderMessagingTest extends MessagingBase {
                 .build();
 
         admin.topics().unload(topicName);
+        waitForReaderPermits(admin, topicName, messagesToSend);
 
         for (int i = 0; i < messagesToSend; i++) {
             MessageId messageId = producer.newMessage().value("message-" + i).send();
@@ -79,7 +90,8 @@ public class ReaderMessagingTest extends MessagingBase {
         }
 
         for (int i = 0; i < messagesToSend; i++) {
-            Message<String> msg = reader.readNext();
+            Message<String> msg = reader.readNext(10, TimeUnit.SECONDS);
+            assertNotNull(msg, "message-" + i + " not received");
             assertEquals(msg.getValue(), "message-" + i);
         }
 
@@ -116,7 +128,8 @@ public class ReaderMessagingTest extends MessagingBase {
         }
 
         for (int i = 0; i < messagesToSend; i++) {
-            Message<String> msg = reader.readNext();
+            Message<String> msg = reader.readNext(10, TimeUnit.SECONDS);
+            assertNotNull(msg, "message-" + i + " not received");
             assertEquals(msg.getValue(), "message-" + i);
         }
 
@@ -126,6 +139,7 @@ public class ReaderMessagingTest extends MessagingBase {
                 .build();
 
         admin.topics().unload(topicName);
+        waitForReaderPermits(admin, topicName, messagesToSend);
 
         for (int i = 0; i < messagesToSend; i++) {
             MessageId messageId = producer.newMessage().value("message-" + i).send();
@@ -133,10 +147,23 @@ public class ReaderMessagingTest extends MessagingBase {
         }
 
         for (int i = 0; i < messagesToSend; i++) {
-            Message<String> msg = reader.readNext();
+            Message<String> msg = reader.readNext(10, TimeUnit.SECONDS);
+            assertNotNull(msg, "message-" + i + " not received");
             assertEquals(msg.getValue(), "message-" + i);
         }
 
         log.info().attr("exiting", methodName).log("-- Exiting test --");
+    }
+
+    // The non-persistent topic drops what is published while the reader has no permits. The broker lists the reader's
+    // consumer before the client sends the permits, so wait for the permits.
+    private static void waitForReaderPermits(PulsarAdmin admin, String topicName, int permits) {
+        Awaitility.await().ignoreExceptions().untilAsserted(() -> {
+            List<? extends ConsumerStats> consumers =
+                    admin.topics().getStats(topicName).getSubscriptions().get("test-sub").getConsumers();
+            assertEquals(consumers.size(), 1);
+            int availablePermits = consumers.get(0).getAvailablePermits();
+            assertTrue(availablePermits >= permits, "available permits: " + availablePermits);
+        });
     }
 }

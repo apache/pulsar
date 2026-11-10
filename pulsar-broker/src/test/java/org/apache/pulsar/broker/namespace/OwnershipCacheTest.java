@@ -646,6 +646,28 @@ public class OwnershipCacheTest {
     }
 
     @Test
+    public void testConcurrentAcquisitionsNotifyOwnershipOnce() throws Exception {
+        OwnershipCache cache = new OwnershipCache(this.pulsar, nsService);
+        NamespaceBundle bundle = new NamespaceBundle(NamespaceName.get("pulsar/ns-concurrent-acquisitions"),
+                Range.closedOpen(0L, (long) Integer.MAX_VALUE),
+                bundleFactory);
+
+        // Two lookups that both found the bundle unowned: the second acquisition finds the generation the first one
+        // published
+        CompletableFuture<NamespaceEphemeralData> first = cache.tryAcquiringOwnership(bundle);
+        CompletableFuture<NamespaceEphemeralData> second = cache.tryAcquiringOwnership(bundle);
+        assertEquals(first.get(10, TimeUnit.SECONDS).getNativeUrl(), selfBrokerUrl);
+        assertEquals(second.get(10, TimeUnit.SECONDS).getNativeUrl(), selfBrokerUrl);
+        verify(nsService, times(1)).onNamespaceBundleOwned(bundle);
+
+        // Its single unload event matches the single owned event, and the next generation is notified again
+        cache.removeOwnership(bundle).get(10, TimeUnit.SECONDS);
+        Awaitility.await().untilAsserted(() -> verify(nsService, times(1)).onNamespaceBundleUnload(bundle));
+        cache.tryAcquiringOwnership(bundle).get(10, TimeUnit.SECONDS);
+        verify(nsService, times(2)).onNamespaceBundleOwned(bundle);
+    }
+
+    @Test
     public void testRemoveOwnershipWithAcquisitionInFlight() throws Exception {
         // Gate the lock acquisition so the test can invoke removeOwnership while the acquisition is in flight
         LockManager<NamespaceEphemeralData> realLockManager =

@@ -44,22 +44,27 @@ public class RelativeTimeUtil {
 
         long duration = Long.parseLong(relativeTime.substring(0, lastIndex));
 
-        switch (timeUnit) {
-        case 's':
-            return duration;
-        case 'm':
-            return TimeUnit.MINUTES.toSeconds(duration);
-        case 'h':
-            return TimeUnit.HOURS.toSeconds(duration);
-        case 'd':
-            return TimeUnit.DAYS.toSeconds(duration);
-        case 'w':
-            return 7 * TimeUnit.DAYS.toSeconds(duration);
-        // No unit for months
-        case 'y':
-            return 365 * TimeUnit.DAYS.toSeconds(duration);
-        default:
-            throw new IllegalArgumentException("Invalid time unit '" + lastChar + "'");
+        try {
+            switch (timeUnit) {
+            case 's':
+                return duration;
+            case 'm':
+                return Math.multiplyExact(duration, TimeUnit.MINUTES.toSeconds(1));
+            case 'h':
+                return Math.multiplyExact(duration, TimeUnit.HOURS.toSeconds(1));
+            case 'd':
+                return Math.multiplyExact(duration, TimeUnit.DAYS.toSeconds(1));
+            case 'w':
+                return Math.multiplyExact(duration, TimeUnit.DAYS.toSeconds(7));
+            // No unit for months
+            case 'y':
+                return Math.multiplyExact(duration, TimeUnit.DAYS.toSeconds(365));
+            default:
+                throw new IllegalArgumentException("Invalid time unit '" + lastChar + "'");
+            }
+        } catch (ArithmeticException e) {
+            throw new IllegalArgumentException(
+                    "time '" + relativeTime + "' overflows the maximum representable duration", e);
         }
     }
 

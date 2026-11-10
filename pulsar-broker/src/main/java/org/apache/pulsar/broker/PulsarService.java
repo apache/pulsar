@@ -182,6 +182,7 @@ import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.common.util.ThreadDumpUtil;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
+import org.apache.pulsar.common.util.netty.NettyFutureUtil;
 import org.apache.pulsar.compaction.CompactionServiceFactory;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.compaction.PulsarCompactionServiceFactory;
@@ -346,6 +347,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private final ReentrantLock mutex = new ReentrantLock();
     private final Condition isClosedCondition = mutex.newCondition();
     private volatile CompletableFuture<Void> closeFuture;
+    // completes when the broker service has closed; guarded by mutex
+    private CompletableFuture<Void> brokerServiceCloseFuture = CompletableFuture.completedFuture(null);
     // key is listener name, value is pulsar address and pulsar ssl address
     private Map<String, AdvertisedListener> advertisedListeners;
     private volatile HealthChecker healthChecker;
@@ -578,10 +581,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             // Close the broker's own admin client before stopping the web service: the graceful stop waits for every
             // open connection to close, so the admin client's idle connections to this broker would hold it up until
             // Jetty's shutdown idle timeout (1 s) expires.
-            if (adminClient != null) {
-                adminClient.close();
-                adminClient = null;
-            }
+            closeAdminClient();
 
             if (this.webService != null) {
                 try {
@@ -633,14 +633,15 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             if (this.brokerService != null) {
                 CompletableFuture<Void> brokerCloseFuture = this.brokerService.closeAsync();
                 if (this.transactionMetadataStoreService != null) {
-                    asyncCloseFutures.add(brokerCloseFuture.whenComplete((__, ___) -> {
+                    brokerServiceCloseFuture = brokerCloseFuture.whenComplete((__, ___) -> {
                         // close transactionMetadataStoreService after the broker has been closed
                         this.transactionMetadataStoreService.close();
                         this.transactionMetadataStoreService = null;
-                    }));
+                    });
                 } else {
-                    asyncCloseFutures.add(brokerCloseFuture);
+                    brokerServiceCloseFuture = brokerCloseFuture;
                 }
+                asyncCloseFutures.add(brokerServiceCloseFuture);
                 this.brokerService = null;
             }
 
@@ -771,7 +772,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 openTelemetryTopicStats = null;
             }
 
-            asyncCloseFutures.add(EventLoopUtil.shutdownGracefully(ioEventLoopGroup));
+            asyncCloseFutures.add(shutdownIoEventLoopGroupAfterBrokerService());
 
             // add timeout handling for closing executors
             asyncCloseFutures.add(executorServicesShutdown.handle());
@@ -809,6 +810,10 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             }
             // A failed shutdown step must not leave this service registered with the metadata stores
             unregisterMetadataStoreListeners();
+            // nor its IO event loops running, once the broker service, which uses them, is closing
+            if (brokerService == null) {
+                shutdownIoEventLoopGroupAfterBrokerService();
+            }
             return FutureUtil.failedFuture(pse);
         } finally {
             mutex.unlock();
@@ -825,6 +830,27 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
     private synchronized void resetMetricsServlet() {
         metricsServlet = null;
+    }
+
+    /**
+     * The IO event loops carry the broker service's connections and the channels of the BookKeeper and Pulsar clients
+     * that {@link #closeAsync(boolean)} closes. Shuts them down once the broker service is closed too, without a quiet
+     * period: nothing is left on them, and Netty would wait for a quiet period in 100 ms steps.
+     */
+    private CompletableFuture<Void> shutdownIoEventLoopGroupAfterBrokerService() {
+        CompletableFuture<Void> future = brokerServiceCloseFuture
+                .handle((__, ___) -> null)
+                .thenCompose(__ -> shutdownIoEventLoopGroup());
+        // shut them down also when the close is cancelled or times out
+        FutureUtil.whenCancelledOrTimedOut(future, this::shutdownIoEventLoopGroup);
+        return future;
+    }
+
+    private CompletableFuture<Void> shutdownIoEventLoopGroup() {
+        long timeoutMs = Math.max(0L, (long) (GRACEFUL_SHUTDOWN_TIMEOUT_RATIO_OF_TOTAL_TIMEOUT
+                * getConfiguration().getBrokerShutdownTimeoutMs()));
+        return NettyFutureUtil.toCompletableFutureVoid(
+                ioEventLoopGroup.shutdownGracefully(0, timeoutMs, TimeUnit.MILLISECONDS));
     }
 
     private CompletableFuture<Void> addTimeoutHandling(CompletableFuture<Void> future) {
@@ -2083,6 +2109,10 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
     public synchronized PulsarAdmin getAdminClient() throws PulsarServerException {
         if (this.adminClient == null) {
+            // The close closes the client once, so a client created once the service is closing could outlive it
+            if (!isRunning()) {
+                throw new PulsarServerException("Broker is not running");
+            }
             try {
                 this.adminClient = getCreateAdminClientBuilder().build();
                 log.info().attr("url", adminClient.getServiceUrl()).log("created admin with url");
@@ -2091,6 +2121,18 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             }
         }
         return this.adminClient;
+    }
+
+    private void closeAdminClient() {
+        PulsarAdmin adminClient;
+        // Under the lock of getAdminClient(), to also close a client that is still being created
+        synchronized (this) {
+            adminClient = this.adminClient;
+            this.adminClient = null;
+        }
+        if (adminClient != null) {
+            adminClient.close();
+        }
     }
 
     protected PulsarAdminBuilder getCreateAdminClientBuilder()

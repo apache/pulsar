@@ -33,6 +33,7 @@ import static org.testng.Assert.fail;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -58,6 +59,7 @@ import org.jline.reader.UserInterruptException;
 import org.jline.reader.impl.LineReaderImpl;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.TerminalBuilder;
+import org.jline.terminal.impl.DumbTerminal;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -150,6 +152,13 @@ public class PulsarShellTest {
         when(pulsarAdmin.topics()).thenReturn(topics);
     }
 
+    // Writes reach the stream before flush() returns. A TerminalBuilder terminal over these streams is backed by a
+    // PTY when a native provider is available, and a pump thread copies its output to the stream later.
+    private static Terminal newDumbTerminal(OutputStream output) throws IOException {
+        return new DumbTerminal("test", Terminal.TYPE_DUMB, new ByteArrayInputStream(new byte[0]), output,
+                StandardCharsets.UTF_8);
+    }
+
 
     @Test
     @SuppressWarnings("unchecked")
@@ -216,10 +225,7 @@ public class PulsarShellTest {
     @Test
     public void testInterruptRunningCommand() throws Exception {
         final ByteArrayOutputStream output = new ByteArrayOutputStream();
-        Terminal terminal = TerminalBuilder.builder()
-                .streams(new ByteArrayInputStream(new byte[0]), output)
-                .dumb(true)
-                .build();
+        Terminal terminal = newDumbTerminal(output);
         final MockLineReader linereader = new MockLineReader(terminal);
         final Properties props = new Properties();
         props.setProperty("webServiceUrl", "http://localhost:8080");
@@ -270,10 +276,7 @@ public class PulsarShellTest {
     @Test
     public void testInterruptRacingCommandCompletionDoesNotReachNextCommand() throws Exception {
         final ByteArrayOutputStream output = new ByteArrayOutputStream();
-        Terminal terminal = TerminalBuilder.builder()
-                .streams(new ByteArrayInputStream(new byte[0]), output)
-                .dumb(true)
-                .build();
+        Terminal terminal = newDumbTerminal(output);
         final MockLineReader linereader = new MockLineReader(terminal);
         final Properties props = new Properties();
         props.setProperty("webServiceUrl", "http://localhost:8080");

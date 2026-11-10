@@ -16,13 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.tests.integration.functions.python;
-
-import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
-
-public class PulsarFunctionsPythonThreadTest extends PulsarFunctionsPythonTest {
-
-    public PulsarFunctionsPythonThreadTest() {
-        super(FunctionRuntimeType.THREAD);
-  }
-}
+/**
+ * Benchmarks for Prometheus metrics generation.
+ */
+package org.apache.pulsar.broker.stats.prometheus;

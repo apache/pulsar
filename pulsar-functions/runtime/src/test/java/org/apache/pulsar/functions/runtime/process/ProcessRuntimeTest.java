@@ -302,7 +302,7 @@ public class ProcessRuntimeTest {
         String extraDepsEnv;
         int portArg;
         int metricsPortArg;
-        int totalArgCount = 55;
+        int totalArgCount = 56;
         if (webServiceUrl != null && config.isExposePulsarAdminClientEnabled()) {
             totalArgCount += 3;
         }
@@ -310,13 +310,13 @@ public class ProcessRuntimeTest {
             assertEquals(args.size(), totalArgCount);
             extraDepsEnv = " -Dpulsar.functions.extra.dependencies.dir=" + depsDir;
             classpath = classpath + ":" + depsDir + "/*";
-            portArg = 38;
-            metricsPortArg = 40;
+            portArg = 39;
+            metricsPortArg = 41;
         } else {
             assertEquals(args.size(), totalArgCount - 1);
             extraDepsEnv = "";
-            portArg = 37;
-            metricsPortArg = 39;
+            portArg = 38;
+            metricsPortArg = 40;
         }
         if (webServiceUrl != null && config.isExposePulsarAdminClientEnabled()) {
             portArg += 3;
@@ -331,7 +331,8 @@ public class ProcessRuntimeTest {
                 + " -Dpulsar.functions.instance.classpath=/pulsar/lib/*"
                 + " -Dlog4j.configurationFile=java_instance_log4j2.xml"
                 + " -Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager"
-                + " -Dlog4j2.contextSelector=org.apache.logging.log4j.core.selector.BasicContextSelector "
+                + " -Dlog4j2.contextSelector=org.apache.logging.log4j.core.selector.BasicContextSelector"
+                + " -Dlog4j.shutdownHookEnabled=false "
                 + "-Dpulsar.function.log.dir=" + logDirectory + "/functions/"
                 + FunctionCommon.getFullyQualifiedName(config.getFunctionDetails())
                 + " -Dpulsar.function.log.file=" + config.getFunctionDetails().getName() + "-" + config.getInstanceId()

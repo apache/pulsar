@@ -26,6 +26,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Future;
+import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -56,6 +57,7 @@ public class MessageIdTest extends SharedPulsarBaseTest {
             admin.topics().createPartitionedTopic(topicName, numberOfPartitions);
         }
 
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(topicName)
                 .enableBatching(false)
@@ -123,6 +125,7 @@ public class MessageIdTest extends SharedPulsarBaseTest {
             admin.topics().createPartitionedTopic(topicName, numberOfPartitions);
         }
 
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .enableBatching(false)
                 .topic(topicName)
