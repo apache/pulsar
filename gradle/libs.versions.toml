@@ -93,7 +93,7 @@ okio = "3.18.2"
 netty-tcnative = "2.0.85.Final"
 httpcomponents-httpclient = "4.5.14"
 httpcomponents-httpcore = "4.4.16"
-httpcomponents-httpclient5 = "5.6.4"
+httpcomponents-httpclient5 = "5.6.5"
 httpcomponents-httpcore5 = "5.4.3"
 # Pinned so that async-http-client's 1.0.3 dependency does not downgrade it
 reactive-streams = "1.0.4"
