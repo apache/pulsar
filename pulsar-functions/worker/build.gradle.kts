@@ -93,42 +93,23 @@ dependencies {
 }
 
 // NAR/JAR files needed by tests (mirrors Maven's maven-dependency-plugin config).
-// Resolve through dependency configurations instead of cross-project task references.
-val testNars = configurations.create("testNars") {
-    isCanBeResolved = true
-    isCanBeConsumed = false
-    attributes {
-        attribute(ArtifactTypeDefinition.ARTIFACT_TYPE_ATTRIBUTE, "nar")
-    }
-}
-val testExamplesJar = configurations.create("testExamplesJar") {
-    isCanBeResolved = true
-    isCanBeConsumed = false
-}
+val testNars = projectNars("testNars",
+    ":pulsar-functions:pulsar-functions-api-examples-builtin",
+    ":pulsar-io:pulsar-io-data-generator")
+val testExamplesJar = projectJars("testExamplesJar", ":pulsar-functions:pulsar-functions-api-examples")
 
-dependencies {
-    testNars(project(":pulsar-functions:pulsar-functions-api-examples-builtin"))
-    testNars(project(":pulsar-io:pulsar-io-data-generator"))
-    testExamplesJar(project(":pulsar-functions:pulsar-functions-api-examples"))
-}
-
-tasks.withType<Test> {
-    dependsOn(testNars, testExamplesJar)
-    // Map resolved NAR/JAR files to system properties
-    val narFiles = testNars.incoming.artifacts.resolvedArtifacts
-    val jarFiles = testExamplesJar.incoming.artifacts.resolvedArtifacts
-    doFirst {
-        val narMap = narFiles.get().associate {
-            val id = it.id.componentIdentifier as org.gradle.api.artifacts.component.ProjectComponentIdentifier
-            id.projectPath to it.file.absolutePath
-        }
-        val examplesJarPath = jarFiles.get().first().file.absolutePath
-        systemProperty("pulsar-functions-api-examples.jar.path", examplesJarPath)
-        systemProperty("pulsar-functions-api-examples.nar.path",
-            narMap[":pulsar-functions:pulsar-functions-api-examples-builtin"]!!)
-        systemProperty("pulsar-io-data-generator.nar.path",
-            narMap[":pulsar-io:pulsar-io-data-generator"]!!)
+tasks.withType<Test>().configureEach {
+    // Inputs, which builds the archives before the tests run, and passed to the tests as system properties
+    inputs.files(testNars.files).withPropertyName("testNars").withPathSensitivity(PathSensitivity.NONE)
+    inputs.files(testExamplesJar.files).withPropertyName("testExamplesJar").withPathSensitivity(PathSensitivity.NONE)
+    jvmArgumentProviders.add(TestArchivePaths(
+        testNars.files.flatMap { it.incoming.artifacts.resolvedArtifacts },
+        testExamplesJar.files.flatMap { it.incoming.artifacts.resolvedArtifacts },
+        mapOf(
+            "pulsar-functions-api-examples.nar.path" to ":pulsar-functions:pulsar-functions-api-examples-builtin",
+            "pulsar-io-data-generator.nar.path" to ":pulsar-io:pulsar-io-data-generator",
+        ),
         // A valid jar that is not a valid nar — used for invalid-nar tests
-        systemProperty("pulsar-io-invalid.nar.path", examplesJarPath)
-    }
+        listOf("pulsar-functions-api-examples.jar.path", "pulsar-io-invalid.nar.path"),
+    ))
 }

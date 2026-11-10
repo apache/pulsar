@@ -23,7 +23,7 @@ plugins {
 
 // External consumers may use the test support classes without publishing them in normal releases.
 if (PulsarApiSpiPublication.isEnabled(project)) {
-    apply(plugin = "pulsar.publish-conventions")
+    apply(plugin = "pulsar.public-java-library-conventions")
 }
 
 dependencies {
@@ -54,7 +54,7 @@ dependencies {
     testRuntimeOnly(libs.netty.buffer)
 }
 
-tasks.withType<Test> {
+tasks.withType<Test>().configureEach {
     // Exclude inner classes used as test fixtures by BetweenTestClassesListenerAdapterTest.
     // They are run programmatically inside the test, not meant to be discovered directly.
     exclude("**/BetweenTestClassesListenerAdapterTest\$*")

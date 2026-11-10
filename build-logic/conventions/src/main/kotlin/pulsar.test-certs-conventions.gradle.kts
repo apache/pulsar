@@ -30,7 +30,7 @@ tasks.named<ProcessResources>("processTestResources") {
     // This is done via from() instead of srcDir() + include() because an include()
     // on the source set would filter ALL test resource directories, not just this one,
     // causing files in src/test/resources (e.g. .htpasswd) to be excluded.
-    from(rootProject.file("tests")) {
+    from(rootDir.resolve("tests")) {
         include("certificate-authority/**")
     }
 }

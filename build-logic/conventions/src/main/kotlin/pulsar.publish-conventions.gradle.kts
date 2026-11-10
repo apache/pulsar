@@ -26,12 +26,18 @@ plugins {
     id("pulsar.publish-repositories-conventions")
 }
 
-// --- java-library projects: JAR + sources + javadoc ---
+// --- java-library projects ---
+// The `maven` publication, without contents: what it publishes depends on the module's packaging,
+// and the convention plugin that defines the packaging adds it, see PulsarPublishing.kt:
+//   - pulsar.public-java-library-conventions: the `java` component, with sources and javadoc;
+//   - pulsar.public-shaded-library-conventions: the dependency-reduced `shadow` component, with
+//     sources and javadoc;
+//   - pulsar.nar-conventions: only the .nar archive.
+// That keeps this plugin independent of the order in which the plugins are applied.
 pluginManager.withPlugin("java-library") {
     if (!PulsarApiSpiPublication.includes(project)) {
         return@withPlugin
     }
-    val sourceSets = the<SourceSetContainer>()
 
     // Match Maven's javadoc configuration: no doclint, don't fail on errors
     tasks.withType<Javadoc>().configureEach {
@@ -41,61 +47,18 @@ pluginManager.withPlugin("java-library") {
         isFailOnError = false
     }
 
-    val sourcesJar = tasks.register<Jar>("sourcesJar") {
-        archiveClassifier.set("sources")
-        from(sourceSets["main"].allJava)
-    }
-
-    val javadocJar = tasks.register<Jar>("javadocJar") {
-        archiveClassifier.set("javadoc")
-        from(tasks.named(JavaPlugin.JAVADOC_TASK_NAME))
-    }
-
-    // The Maven publication. Its software component is wired in a deferred block because it depends
-    // on whether this is a shaded module:
-    //   - Shaded modules (com.gradleup.shadow applied) publish the shadow plugin's dependency-reduced
-    //     `shadow` component: the artifact is the shadow jar and the published dependencies are
-    //     EXACTLY the `shadow` configuration (the non-bundled runtime deps), not the bundled
-    //     component modules + their unshaded transitive tree. This is the Gradle equivalent of
-    //     Maven's createDependencyReducedPom.
-    //   - All other java-library modules publish the standard `java` component with resolved
-    //     version mapping (unchanged behavior).
-    val mavenPublication = publishing.publications.create<MavenPublication>("maven") {
-        artifact(sourcesJar)
-        artifact(javadocJar)
-        // Preserve the test JAR publications from the branch-4.2 Maven build in both modes.
-        if (project.path in setOf(
-                ":managed-ledger",
-                ":pulsar-broker",
-                ":pulsar-broker-common",
-                ":pulsar-metadata",
-                ":pulsar-package-management:pulsar-package-core",
-            )) {
-            artifact(tasks.named("testJar"))
-        }
-    }
-
-    // Shaded modules: the shadow plugin registers components["shadow"] in its own afterEvaluate, so
-    // wire it from an afterEvaluate registered AFTER that. Registering inside withPlugin (which fires
-    // once the shadow plugin is applied, after this convention) guarantees the ordering.
-    pluginManager.withPlugin("com.gradleup.shadow") {
-        afterEvaluate {
-            mavenPublication.from(components["shadow"])
-        }
-    }
-
-    // Non-shaded modules: standard java component + resolved version mapping. By afterEvaluate all
-    // plugins are applied, so the shadow-plugin check is reliable.
-    afterEvaluate {
-        if (!pluginManager.hasPlugin("com.gradleup.shadow")) {
-            mavenPublication.from(components["java"])
-            mavenPublication.versionMapping {
-                usage(Usage.JAVA_RUNTIME) {
-                    fromResolutionResult()
-                }
-                usage(Usage.JAVA_API) {
-                    fromResolutionOf("runtimeClasspath")
-                }
+    publishing.publications.create<MavenPublication>(PULSAR_PUBLICATION) {
+        pom {
+            // dependencyManagement only belongs in platform POMs, whose dependencies ARE the
+            // management section.
+            withXml {
+                val sb = asString()
+                val s = sb.toString().replace(
+                    Regex("<dependencyManagement>.*?</dependencyManagement>", RegexOption.DOT_MATCHES_ALL),
+                    "",
+                )
+                sb.setLength(0)
+                sb.append(s)
             }
         }
     }
@@ -108,7 +71,7 @@ pluginManager.withPlugin("java-platform") {
     }
     publishing {
         publications {
-            create<MavenPublication>("maven") {
+            create<MavenPublication>(PULSAR_PUBLICATION) {
                 from(components["javaPlatform"])
             }
         }
@@ -120,36 +83,29 @@ run {
     // Capture values in a local scope so withXml closures don't capture the script object
     // (which would break configuration cache serialization)
     val projectName = project.name
-    val isPlatformProject = plugins.hasPlugin("java-platform")
     val isRootProject = project == rootProject
     val pulsarVersion = version.toString()
     val pulsarGroup = project.group.toString()
 
-    // Per-module POM name and description. Read in afterEvaluate so that a description
-    // assigned in a module's build script body is picked up, and captured as plain strings
-    // so the pom configuration stays configuration-cache compatible.
+    // Per-module POM name and description. A provider, so that a description assigned in a
+    // module's build script body is picked up.
     if (!isRootProject) {
-        afterEvaluate {
-            val projectDescription = project.description ?: "Apache Pulsar :: $projectName"
-            publishing.publications.withType<MavenPublication>().configureEach {
-                pom {
-                    name.set(projectDescription)
-                    description.set(projectDescription)
-                }
+        val projectDescription = provider { project.description ?: "Apache Pulsar :: $projectName" }
+        publishing.publications.withType<MavenPublication>().configureEach {
+            pom {
+                name.set(projectDescription)
+                description.set(projectDescription)
             }
         }
     }
 
-    // Set the published artifactId from archivesName. Deferred to afterEvaluate (per the Gradle
-    // maven-publish "deferred configuration" guidance) so a module can override archivesName in its
-    // build script body — e.g. the shaded client modules publish under their historical Maven
-    // artifactId ("pulsar-client", "pulsar-client-admin"). Read eagerly at plugin-application time
-    // the override would be missed. Captured as a plain string for configuration-cache safety.
-    afterEvaluate {
-        val archivesNameValue = the<BasePluginExtension>().archivesName.get()
-        publishing.publications.withType<MavenPublication>().configureEach {
-            artifactId = archivesNameValue
-        }
+    // Publish under the name of the archives, which pulsar.java-conventions qualifies for nested
+    // modules. MavenPublication.artifactId is not lazy, so it is computed the same way rather than
+    // read from archivesName; a module that publishes under another name calls
+    // publishedArtifactId(...), which sets both. See PulsarPublishing.kt.
+    val defaultArtifactId = defaultArchivesName()
+    publishing.publications.withType<MavenPublication>().configureEach {
+        artifactId = defaultArtifactId
     }
 
     publishing {
@@ -162,17 +118,6 @@ run {
                         var s = sb.toString()
                         // <scope>compile</scope> is the Maven default — remove for cleaner POM
                         s = s.replace("<scope>compile</scope>", "")
-                        // Remove dependencyManagement from non-platform POMs
-                        // (platform POMs need it — their dependencies ARE the management section)
-                        if (!isPlatformProject) {
-                            s = s.replace(
-                                Regex(
-                                    "<dependencyManagement>.*?</dependencyManagement>",
-                                    RegexOption.DOT_MATCHES_ALL
-                                ),
-                                ""
-                            )
-                        }
                         // Inject <parent> reference for child modules (not the root/parent POM itself).
                         // Metadata (license, SCM, etc.) is inherited from the parent POM.
                         if (!isRootProject) {

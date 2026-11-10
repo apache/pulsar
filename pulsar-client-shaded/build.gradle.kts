@@ -18,17 +18,15 @@
  */
 
 plugins {
-    id("pulsar.public-java-library-conventions")
+    id("pulsar.public-shaded-library-conventions")
     id("pulsar.client-shade-conventions")
 }
 
 // Published under the historical Maven artifactId "pulsar-client" (the shaded client). The Gradle
 // project is ":pulsar-client-shaded" because the "pulsar-client" directory holds pulsar-client-original.
-// archivesName drives the shaded jar base name, the published artifactId, and this project's module
+// This also sets archivesName, which drives the shaded jar base name and this project's module
 // identity (so the BOM and NAR exclusions reference "pulsar-client").
-base {
-    archivesName.set("pulsar-client")
-}
+publishedArtifactId("pulsar-client")
 
 dependencies {
     // Bundled into the shaded jar (kept on the runtime classpath so shadowJar packs them):
