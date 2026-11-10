@@ -635,6 +635,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic("persistent://my-property/my-ns/my-topic-pr").create();
 
+        awaitInitialPermitsAtBroker(consumer, receiverQueueSize);
         consumer.pause();
 
         for (int i = 0; i < receiverQueueSize * 2; i++) {
@@ -679,6 +680,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                     received.incrementAndGet();
                     latch.get().countDown();
                 }).subscribe();
+        awaitInitialPermitsAtBroker(consumer, receiverQueueSize);
         consumer.pause();
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).enableBatching(false).create();
@@ -1635,6 +1637,16 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     private long getMsgBacklog(Consumer<?> consumer) throws Exception {
         return admin.topics().getStats(consumer.getTopic()).getSubscriptions().get(consumer.getSubscription())
                 .getMsgBacklog();
+    }
+
+    /**
+     * Waits until the broker has the initial permits of a consumer whose topic has no messages yet. The subscribe
+     * future completes before the consumer sends them, and a paused consumer doesn't send them, so a consumer paused
+     * right after subscribe() can get no messages at all instead of its receiver queue size.
+     */
+    private void awaitInitialPermitsAtBroker(Consumer<?> consumer, int receiverQueueSize) {
+        Awaitility.await().untilAsserted(
+                () -> assertEquals(getBrokerConsumer(consumer).getAvailablePermits(), receiverQueueSize));
     }
 
     /**
@@ -3661,7 +3673,13 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                     ("my-message-" + counter).getBytes());
         }
 
-        // 2. pause multi-topic consumer
+        // 2. pause multi-topic consumer. The last receive made room for message 4, and the internal consumer of
+        // partition 0 gives the broker a permit back when it hands message 4 over, unless it is already paused. A
+        // pause doesn't take back the permits the broker has, so wait for that permit: the pause then always comes
+        // after the hand-over
+        ConsumerImpl<?> partition0Consumer = ((MultiTopicsConsumerImpl<?>) consumer).getConsumers().get(0);
+        Awaitility.await().untilAsserted(
+                () -> assertEquals(getBrokerConsumer(partition0Consumer).getAvailablePermits(), 1));
         consumer.pause();
 
         // 3. update partition
@@ -3670,7 +3688,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         // 4. wait for client to update partitions
         Awaitility.await().until(() -> ((MultiTopicsConsumerImpl) consumer).getConsumers().size() == 3);
 
-        // 5. produce 5 more messages
+        // 5. produce 5 more messages: partition 0 gets at least one of them, whether or not the producer has seen the
+        // new partitions yet
         for (int i = 5; i < 10; i++) {
             final String message = "my-message-" + i;
             producer.send(message.getBytes());
@@ -3681,9 +3700,14 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             assertEquals(consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS).getData(),
                 ("my-message-" + counter++).getBytes());
         }
+        // and receive the message that the permit of partition 0 lets the broker dispatch
+        Message<byte[]> permittedMessage = consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        assertNotNull(permittedMessage);
+        assertEquals(permittedMessage.getTopicName(), partition0Consumer.getTopic());
+        counter++;
 
-        // 7. should not consume any messages: the paused consumers, including the ones for the new partitions, give
-        // the broker no permits
+        // 7. should not consume any more messages: the paused consumers, including the ones for the new partitions,
+        // give the broker no permits
         awaitNoPermitsAtBroker((MultiTopicsConsumerImpl<?>) consumer);
         assertNull(consumer.receive(RECEIVE_TIMEOUT_SHORT_MILLIS, TimeUnit.MILLISECONDS));
 
@@ -3725,15 +3749,18 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             .enableBatching(false)
             .create();
 
-        // 1. produce 5 messages per topic
-        for (int i = 0; i < 5; i++) {
+        int receiverQueueSize = 6;
+        // 1. produce fewer messages per topic than half the receiver queue. An internal consumer asks the broker for
+        // more messages once it has handed half its receiver queue over to the multi-topics consumer, so none asks
+        // for more before the pause, whether the pause lands before or after the hand-overs
+        int messagesBeforePause = receiverQueueSize / 2 - 1;
+        for (int i = 0; i < messagesBeforePause; i++) {
             final String message = "my-message-" + i;
             producer1.send(message.getBytes(UTF_8));
             producer2.send(message.getBytes(UTF_8));
             producer3.send(message.getBytes(UTF_8));
         }
 
-        int receiverQueueSize = 6;
         Consumer<byte[]> consumer = pulsarClient
             .newConsumer()
             .topics(Lists.newArrayList(topicNameBase + "1", topicNameBase + "2"))
@@ -3742,12 +3769,6 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             .subscriptionName("test-multi-topic-consumer")
             .subscribe();
 
-        int counter = 0;
-        for (; counter < 2 * (5 - receiverQueueSize); counter++) {
-            assertThat(new String(consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS).getData(), UTF_8))
-                .startsWith("my-message-");
-        }
-
         // 2. pause multi-topic consumer
         consumer.pause();
 
@@ -3755,14 +3776,16 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         ((MultiTopicsConsumerImpl) consumer).subscribeAsync(topicNameBase + "3", true).join();
 
         // 4. produce 5 more messages per topic
-        for (int i = 5; i < 10; i++) {
+        for (int i = messagesBeforePause; i < messagesBeforePause + 5; i++) {
             final String message = "my-message-" + i;
             producer1.send(message.getBytes(UTF_8));
             producer2.send(message.getBytes(UTF_8));
             producer3.send(message.getBytes(UTF_8));
         }
 
-        // 5. empty receiver queues
+        // 5. empty receiver queues: the initial permits of each of the first two consumers let the broker dispatch
+        // a receiver queue of messages to it
+        int counter = 0;
         for (int i = 0; i < 2 * receiverQueueSize; i++) {
             assertThat(new String(consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS).getData(), UTF_8))
                 .startsWith("my-message-");
@@ -3778,14 +3801,15 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         consumer.resume();
 
         // 8. continue to consume
-        while (counter < 30) {
+        int totalMessages = 3 * (messagesBeforePause + 5);
+        while (counter < totalMessages) {
             assertNotNull(consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS));
             counter++;
         }
         // every message was dispatched once, so no more arrive
         awaitAllMessagesDispatched(consumer);
         assertNull(consumer.receive(RECEIVE_TIMEOUT_SHORT_MILLIS, TimeUnit.MILLISECONDS));
-        assertEquals(counter, 30);
+        assertEquals(counter, totalMessages);
 
         producer1.close();
         producer2.close();
