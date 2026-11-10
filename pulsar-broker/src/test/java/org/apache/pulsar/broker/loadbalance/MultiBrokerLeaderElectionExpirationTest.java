@@ -41,11 +41,6 @@ public class MultiBrokerLeaderElectionExpirationTest extends MultiBrokerTestZKBa
     private static final long EXPIRE_AFTER_WRITE_MILLIS_IN_TEST = 2000L;
     private static final long REFRESH_AFTER_WRITE_MILLIS_IN_TEST = 1000L;
 
-    @Override
-    protected int numberOfAdditionalBrokers() {
-        return 9;
-    }
-
     @Test
     public void shouldElectOneLeader() {
         int leaders = 0;
