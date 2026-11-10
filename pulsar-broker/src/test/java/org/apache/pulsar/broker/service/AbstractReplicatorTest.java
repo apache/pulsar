@@ -24,8 +24,10 @@ import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import io.netty.channel.DefaultEventLoop;
+import io.netty.channel.EventLoopGroup;
 import io.netty.util.internal.DefaultPriorityQueue;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -34,13 +36,20 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
+import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.logging.log4j.Level;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.service.nonpersistent.NonPersistentReplicator;
+import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
+import org.apache.pulsar.broker.service.persistent.GeoPersistentReplicator;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.api.Producer;
@@ -56,6 +65,7 @@ import org.apache.pulsar.utils.TestLogAppender;
 import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
 import org.testng.Assert;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-replication")
@@ -203,6 +213,72 @@ public class AbstractReplicatorTest {
         Assert.assertTrue(hasExpectedInfoLog);
     }
 
+    @DataProvider
+    public Object[][] stopMethods() {
+        return new Object[][]{{"terminate"}, {"disconnect"}};
+    }
+
+    /**
+     * {@link AbstractReplicator#terminate()} and {@link AbstractReplicator#disconnect()} change the state from
+     * {@code Started} and then close the producer they read. A persistent replicator that set its producer after
+     * changing the state to {@code Started} let them run in between: they found no producer to close, and the
+     * replicator kept an open producer, which held the replicator's producer name on the remote cluster.
+     */
+    @Test(dataProvider = "stopMethods")
+    public void testStopRightAfterPersistentReplicatorStarted(String stopMethod) throws Exception {
+        final CompletableFuture<Producer<byte[]>> producerCreation = new CompletableFuture<>();
+        final BrokerService broker = mockBrokerService();
+        // The constructor starts creating the producer.
+        final GeoReplicatorInTest replicator = newPersistentReplicator(broker, mockRemoteClient(producerCreation));
+        Assert.assertEquals(replicator.getState(), AbstractReplicator.State.Starting);
+
+        // Stop the replicator right after the producer creation changes the state to Started.
+        final AtomicReference<CompletableFuture<Void>> stopping = new AtomicReference<>();
+        replicator.actionAfterStarted = () -> stopping.set(
+                stopMethod.equals("terminate") ? replicator.terminate() : replicator.disconnect());
+        final ProducerImpl<byte[]> producer = mockProducer();
+        producerCreation.complete(producer);
+
+        Assert.assertNotNull(stopping.get(), "the replicator was not stopped right after it started");
+        stopping.get().get(10, TimeUnit.SECONDS);
+        verify(producer).closeAsync();
+        Assert.assertNull(replicator.getProducer());
+        // A disconnected replicator starts again for the read that the producer creation requests.
+        if (stopMethod.equals("terminate")) {
+            Assert.assertEquals(replicator.getState(), AbstractReplicator.State.Terminated);
+        }
+    }
+
+    @DataProvider
+    public Object[][] replicatorTypes() {
+        return new Object[][]{{"persistent"}, {"non-persistent"}};
+    }
+
+    /**
+     * A replicator terminated while it creates its producer closes the producer when the creation completes. It
+     * must not keep it either: a non-persistent replicator kept the closed producer.
+     */
+    @Test(dataProvider = "replicatorTypes")
+    public void testTerminateWhileCreatingTheProducer(String replicatorType) throws Exception {
+        final CompletableFuture<Producer<byte[]>> producerCreation = new CompletableFuture<>();
+        final BrokerService broker = mockBrokerService();
+        final PulsarClientImpl remoteClient = mockRemoteClient(producerCreation);
+        // The constructor starts creating the producer.
+        final AbstractReplicator replicator = replicatorType.equals("persistent")
+                ? newPersistentReplicator(broker, remoteClient)
+                : newNonPersistentReplicator(broker, remoteClient);
+        Assert.assertEquals(replicator.getState(), AbstractReplicator.State.Starting);
+
+        replicator.terminate().get(10, TimeUnit.SECONDS);
+        Assert.assertEquals(replicator.getState(), AbstractReplicator.State.Terminated);
+        final ProducerImpl<byte[]> producer = mockProducer();
+        producerCreation.complete(producer);
+
+        verify(producer).closeAsync();
+        Assert.assertNull(replicator.getProducer());
+        Assert.assertEquals(replicator.getState(), AbstractReplicator.State.Terminated);
+    }
+
     /**
      * {@link AbstractReplicator#getRemoteCluster(String, String)} must be the exact inverse of
      * {@link AbstractReplicator#getReplicatorName(String, String)} for every legal cluster name. Cluster names
@@ -240,6 +316,98 @@ public class AbstractReplicatorTest {
             Assert.assertEquals(AbstractReplicator.getRemoteCluster(replicatorPrefix, notAReplicator),
                     Optional.empty(),
                     "name wrongly resolved to a replicator: " + notAReplicator);
+        }
+    }
+
+    private static BrokerService mockBrokerService() throws Exception {
+        final ServiceConfiguration pulsarConfig = new ServiceConfiguration();
+        final PulsarService pulsar = mock(PulsarService.class);
+        when(pulsar.getConfiguration()).thenReturn(pulsarConfig);
+        when(pulsar.getConfig()).thenReturn(pulsarConfig);
+        when(pulsar.getClient()).thenReturn(mock(PulsarClientImpl.class));
+        when(pulsar.getAdminClient()).thenReturn(mock(PulsarAdmin.class));
+        final BrokerService broker = mock(BrokerService.class);
+        when(broker.pulsar()).thenReturn(pulsar);
+        when(broker.getPulsar()).thenReturn(pulsar);
+        // Scheduled tasks, such as read retries, never run.
+        when(broker.executor()).thenReturn(mock(EventLoopGroup.class));
+        return broker;
+    }
+
+    /**
+     * Mocks a remote client whose first producer creation completes with the given future, and whose later ones
+     * never complete.
+     */
+    @SuppressWarnings("unchecked")
+    private static PulsarClientImpl mockRemoteClient(CompletableFuture<Producer<byte[]>> producerCreation) {
+        final ProducerBuilderImpl<byte[]> producerBuilder = mock(ProducerBuilderImpl.class);
+        when(producerBuilder.topic(any())).thenReturn(producerBuilder);
+        when(producerBuilder.messageRoutingMode(any())).thenReturn(producerBuilder);
+        when(producerBuilder.enableBatching(anyBoolean())).thenReturn(producerBuilder);
+        when(producerBuilder.sendTimeout(anyInt(), any())).thenReturn(producerBuilder);
+        when(producerBuilder.maxPendingMessages(anyInt())).thenReturn(producerBuilder);
+        when(producerBuilder.producerName(anyString())).thenReturn(producerBuilder);
+        when(producerBuilder.getConf()).thenReturn(new ProducerConfigurationData());
+        when(producerBuilder.createAsync()).thenReturn(producerCreation, new CompletableFuture<>());
+        final PulsarClientImpl remoteClient = mock(PulsarClientImpl.class);
+        when(remoteClient.newProducer(any(Schema.class))).thenReturn(producerBuilder);
+        return remoteClient;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static ProducerImpl<byte[]> mockProducer() {
+        final ProducerImpl<byte[]> producer = mock(ProducerImpl.class);
+        when(producer.closeAsync()).thenReturn(CompletableFuture.completedFuture(null));
+        return producer;
+    }
+
+    private static GeoReplicatorInTest newPersistentReplicator(BrokerService broker, PulsarClientImpl remoteClient)
+            throws PulsarServerException {
+        final PersistentTopic topic = mock(PersistentTopic.class);
+        when(topic.getName()).thenReturn("persistent://tenant/ns/topic");
+        when(topic.getReplicatorPrefix()).thenReturn("pulsar.repl");
+        when(topic.getBrokerService()).thenReturn(broker);
+        final ManagedCursor cursor = mock(ManagedCursor.class);
+        when(cursor.getName()).thenReturn("pulsar.repl.remoteCluster");
+        return new GeoReplicatorInTest(topic, cursor, broker, remoteClient);
+    }
+
+    private static NonPersistentReplicator newNonPersistentReplicator(BrokerService broker,
+                                                                      PulsarClientImpl remoteClient)
+            throws PulsarServerException {
+        final NonPersistentTopic topic = mock(NonPersistentTopic.class);
+        when(topic.getName()).thenReturn("non-persistent://tenant/ns/topic");
+        when(topic.getReplicatorPrefix()).thenReturn("pulsar.repl");
+        return new NonPersistentReplicator(topic, "localCluster", "remoteCluster", broker, remoteClient,
+                mock(PulsarAdmin.class));
+    }
+
+    private static class GeoReplicatorInTest extends GeoPersistentReplicator {
+
+        // Runs right after the producer creation changes the state to Started.
+        private Runnable actionAfterStarted;
+
+        GeoReplicatorInTest(PersistentTopic topic, ManagedCursor cursor, BrokerService brokerService,
+                            PulsarClientImpl replicationClient) throws PulsarServerException {
+            super(topic, cursor, "localCluster", "remoteCluster", brokerService, replicationClient,
+                    mock(PulsarAdmin.class));
+        }
+
+        @Override
+        protected CompletableFuture<Void> prepareCreateProducer() {
+            // Skip the creation of the remote topic.
+            return CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        protected ImmutablePair<Boolean, State> compareSetAndGetState(State expect, State update) {
+            ImmutablePair<Boolean, State> result = super.compareSetAndGetState(expect, update);
+            if (result.getLeft() && update == State.Started && actionAfterStarted != null) {
+                Runnable action = actionAfterStarted;
+                actionAfterStarted = null;
+                action.run();
+            }
+            return result;
         }
     }
 

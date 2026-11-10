@@ -485,14 +485,14 @@ public class KubernetesRuntimeTest {
         if (null != depsDir) {
             extraDepsEnv = " -Dpulsar.functions.extra.dependencies.dir=" + depsDir;
             classpath = classpath + ":" + depsDir + "/*";
-            totalArgs = 53;
-            portArg = 40;
-            metricsPortArg = 42;
+            totalArgs = 54;
+            portArg = 41;
+            metricsPortArg = 43;
         } else {
             extraDepsEnv = "";
-            portArg = 39;
-            metricsPortArg = 41;
-            totalArgs = 52;
+            portArg = 40;
+            metricsPortArg = 42;
+            totalArgs = 53;
         }
         if (secretsAttached) {
             totalArgs += 4;
@@ -521,7 +521,8 @@ public class KubernetesRuntimeTest {
                 + " -Dpulsar.functions.instance.classpath=/pulsar/lib/*"
                 + " -Dlog4j.configurationFile=kubernetes_instance_log4j2.xml"
                 + " -Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager"
-                + " -Dlog4j2.contextSelector=org.apache.logging.log4j.core.selector.BasicContextSelector "
+                + " -Dlog4j2.contextSelector=org.apache.logging.log4j.core.selector.BasicContextSelector"
+                + " -Dlog4j.shutdownHookEnabled=false "
                 + "-Dpulsar.function.log.dir=" + logDirectory + "/"
                 + FunctionCommon.getFullyQualifiedName(config.getFunctionDetails())
                 + " -Dpulsar.function.log.file=" + config.getFunctionDetails().getName() + "-$SHARD_ID"

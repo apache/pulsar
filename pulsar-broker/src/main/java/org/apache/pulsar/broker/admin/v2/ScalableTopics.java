@@ -178,7 +178,8 @@ public class ScalableTopics extends AdminResource {
             @ApiResponse(responseCode = "403", description = "Don't have admin permission on the namespace"),
             @ApiResponse(responseCode = "409", description = "Scalable topic already exists, or is being created "
                     + "or migrated to"),
-            @ApiResponse(responseCode = "412", description = "Invalid configuration"),
+            @ApiResponse(responseCode = "412", description = "Invalid configuration, or a topic name ending with "
+                    + "-partition-<index>"),
             @ApiResponse(responseCode = "500", description = "Internal server error")})
     public void createScalableTopic(
             @Suspended final AsyncResponse asyncResponse,
@@ -196,6 +197,11 @@ public class ScalableTopics extends AdminResource {
         String decodedTopic = Codec.decode(encodedTopic);
         TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, decodedTopic);
         validateCreateTopic(tn);
+        try {
+            ScalableTopicService.validateScalableTopicName(tn);
+        } catch (IllegalArgumentException e) {
+            throw new RestException(Response.Status.PRECONDITION_FAILED, e.getMessage());
+        }
 
         validateNamespaceOperationAsync(namespaceName, NamespaceOperation.CREATE_TOPIC)
                 .thenCompose(__ -> {

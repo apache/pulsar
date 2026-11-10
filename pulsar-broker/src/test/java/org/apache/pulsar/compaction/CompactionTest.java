@@ -2715,20 +2715,22 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         triggerAndWaitCompaction(topic); // update the compaction horizon
 
+        final var topicClosed = new CompletableFuture<Void>();
         AbstractTwoPhaseCompactor.injectionAfterSeekInPhaseTwo = () -> {
             // Simulate the case when the topic is closed during compaction phase two
-            CompletableFuture.runAsync(() -> {
+            FutureUtil.completeAfter(topicClosed, CompletableFuture.runAsync(() -> {
                 final var persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topic).join()
                         .orElseThrow();
                 persistentTopic.close().join();
-            });
+            }));
         };
         // Send a new message so that the compaction won't be skipped
         send.accept("key-2", "value-0");
         send.accept("key-2", "value-1");
         admin.topics().triggerCompaction(topic);
-        Awaitility.await().untilAsserted(() -> assertFalse(pulsar.getBrokerService().getTopics()
-                .containsKey(TopicName.get(topic).toString())));
+        // Wait for the close itself: the producer reconnects and loads the topic again about 100 ms later, so polling
+        // the broker's topic map can miss the time the topic isn't there
+        topicClosed.get(10, TimeUnit.SECONDS);
 
         AbstractTwoPhaseCompactor.injectionAfterSeekInPhaseTwo = () -> {};
 

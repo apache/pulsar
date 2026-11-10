@@ -45,29 +45,36 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.DefaultEventLoop;
 import io.netty.channel.EventLoop;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.Timeout;
 import io.netty.util.Timer;
+import io.netty.util.TimerTask;
 import io.netty.util.concurrent.ScheduledFuture;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.MessageCrypto;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerCryptoFailureAction;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -84,13 +91,370 @@ import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.awaitility.Awaitility;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class ProducerImplTest {
+    @DataProvider
+    public Object[][] supersededResendAttempts() {
+        return new Object[][] {{false, false}, {true, false}, {true, true}};
+    }
+
+    @Test(dataProvider = "supersededResendAttempts", timeOut = 30000)
+    public void testSupersededResendDoesNotCompleteProducerCreation(boolean startNewAttempt, boolean reuseConnection)
+            throws Exception {
+        try (ResendAttemptClient client = new ResendAttemptClient()) {
+            ClientCnx firstCnx = client.newConnection();
+            EmbeddedChannel firstChannel = (EmbeddedChannel) firstCnx.channel();
+            client.nextConnection = firstCnx;
+            CompletableFuture<Producer<byte[]>> created = new CompletableFuture<>();
+            ProducerConfigurationData conf = new ProducerConfigurationData();
+            conf.setBatchingEnabled(false);
+            ProducerImpl<byte[]> producer = new ProducerImpl<>(client, "persistent://public/default/stale-resend",
+                    conf, created, 0, Schema.BYTES, null, Optional.empty());
+            try {
+                BaseCommand firstCommand = readCommand(firstChannel, BaseCommand.Type.PRODUCER);
+                long firstRequest = firstCommand.getProducer().getRequestId();
+                receiveCommand(firstChannel, Commands.newProducerSuccess(firstRequest, "test-producer",
+                        SchemaVersion.Empty));
+                assertThat(created).as("resend is queued on the connection event loop").isNotDone();
+
+                // The broker closes the producer before the queued resend runs. Go through the real close handler,
+                // and drive the reconnect explicitly instead of waiting for the backoff timer.
+                receiveCommand(firstChannel, Commands.newCloseProducer(firstCommand.getProducer().getProducerId(), -1));
+                ClientCnx nextCnx = reuseConnection ? firstCnx : client.newConnection();
+                client.nextConnection = nextCnx;
+                long nextRequest = -1;
+                if (startNewAttempt) {
+                    producer.getConnectionHandler().grabCnx();
+                    nextRequest = readCommand((EmbeddedChannel) nextCnx.channel(), BaseCommand.Type.PRODUCER)
+                            .getProducer().getRequestId();
+                }
+
+                firstChannel.runPendingTasks();
+                assertThat(producer.getState()).as("an old resend must not make an unregistered producer ready")
+                        .isEqualTo(HandlerState.State.Connecting);
+                assertThat(created).as("creation must wait for the current attempt's ProducerSuccess").isNotDone();
+
+                if (!startNewAttempt) {
+                    producer.getConnectionHandler().grabCnx();
+                    nextRequest = readCommand((EmbeddedChannel) nextCnx.channel(), BaseCommand.Type.PRODUCER)
+                            .getProducer().getRequestId();
+                }
+                receiveCommand((EmbeddedChannel) nextCnx.channel(), Commands.newProducerSuccess(nextRequest,
+                        "test-producer", SchemaVersion.Empty));
+                ((EmbeddedChannel) nextCnx.channel()).runPendingTasks();
+                assertThat(created.get(5, TimeUnit.SECONDS)).isSameAs(producer);
+                assertThat(producer.isConnected()).isTrue();
+            } finally {
+                // Closing the embedded transport also fails any pending close request, allowing normal cleanup.
+                CompletableFuture<Void> closed = producer.closeAsync();
+                client.closeChannels();
+                closed.get(5, TimeUnit.SECONDS);
+            }
+        }
+    }
+
+    private static void receiveCommand(EmbeddedChannel channel, ByteBuf frame) {
+        // Match the frame decoder's output without writeInbound(), which would also drain the queued resend.
+        channel.pipeline().fireChannelRead(frame.skipBytes(Integer.BYTES));
+        channel.checkException();
+    }
+
+    private static BaseCommand readCommand(EmbeddedChannel channel, BaseCommand.Type expectedType) {
+        ByteBuf frame = channel.readOutbound();
+        assertThat(frame).isNotNull();
+        BaseCommand command = parseCommand(frame);
+        assertThat(command.getType()).isEqualTo(expectedType);
+        return command;
+    }
+
+    /** Real client and protocol handlers with embedded transports so only the event-loop ordering is controlled. */
+    private static class ResendAttemptClient extends PulsarClientImpl {
+        private final List<EmbeddedChannel> channels = new ArrayList<>();
+        private ClientCnx nextConnection;
+
+        ResendAttemptClient() throws PulsarClientException {
+            super(resendAttemptConfiguration());
+        }
+
+        private static ClientConfigurationData resendAttemptConfiguration() {
+            ClientConfigurationData conf = new ClientConfigurationData();
+            conf.setServiceUrl("pulsar://localhost:6650");
+            conf.setNumIoThreads(1);
+            conf.setNumListenerThreads(1);
+            conf.setStatsIntervalSeconds(0);
+            conf.setKeepAliveIntervalSeconds(0);
+            conf.setInitialBackoffIntervalNanos(TimeUnit.HOURS.toNanos(1));
+            conf.setMaxBackoffIntervalNanos(TimeUnit.HOURS.toNanos(1));
+            return conf;
+        }
+
+        ClientCnx newConnection() {
+            ClientCnx cnx = new ClientCnx(instrumentProvider(), getConfiguration(), eventLoopGroup());
+            EmbeddedChannel channel = new EmbeddedChannel(cnx);
+            channels.add(channel);
+            readCommand(channel, BaseCommand.Type.CONNECT);
+            receiveCommand(channel, Commands.newConnected(Commands.getCurrentProtocolVersion(), false, false));
+            return cnx;
+        }
+
+        @Override
+        public CompletableFuture<Pair<ClientCnx, Boolean>> getConnection(String topic,
+                int randomKeyForSelectConnection) {
+            return CompletableFuture.completedFuture(Pair.of(nextConnection, false));
+        }
+
+        void closeChannels() {
+            channels.forEach(EmbeddedChannel::finishAndReleaseAll);
+            channels.clear();
+        }
+
+        @Override
+        public void close() throws PulsarClientException {
+            try {
+                closeChannels();
+            } finally {
+                super.close();
+            }
+        }
+    }
+
+    @DataProvider
+    public Object[][] failedBatchBoundaries() {
+        List<Object[]> cases = new ArrayList<>();
+        for (BatcherBuilder builder : List.of(BatcherBuilder.DEFAULT, BatcherBuilder.KEY_BASED,
+                new EntryBucketBatcherBuilder(List.of(0x4000, 0x8000, 0xC000)))) {
+            for (String boundary : List.of("transaction-to-plain", "plain-to-transaction",
+                    "different-transactions", "size", "duplicate")) {
+                cases.add(new Object[] {builder, boundary});
+            }
+        }
+        return cases.toArray(Object[][]::new);
+    }
+
+    @Test(dataProvider = "failedBatchBoundaries")
+    public void testFailedFlushPreservesBatchBoundary(BatcherBuilder builder, String boundary) {
+        AtomicInteger failures = new AtomicInteger();
+        // The real memory controller invokes this trigger when serialization grows the 1024-byte batch
+        // buffer. Throw only once, after the reservation, so both recovery and accounting run normally.
+        MemoryLimitController memory = new MemoryLimitController(0, 2100, () -> {
+            if (failures.getAndIncrement() == 0) {
+                throw new OutOfMemoryError("injected batch growth failure");
+            }
+        });
+        ProducerConfigurationData conf = new ProducerConfigurationData();
+        conf.setBatcherBuilder(builder);
+        conf.setProducerName("batch-boundary-test");
+        conf.setMaxPendingMessages(10);
+        if (boundary.equals("size")) {
+            conf.setBatchingMaxBytes(1005);
+        }
+        PulsarClientImpl client = mockedPulsarClient();
+        when(client.getMemoryLimitController()).thenReturn(memory);
+        when(client.getClientClock()).thenReturn(Clock.systemUTC());
+        ProducerImpl<byte[]> producer = constructProducer(client, conf);
+        producer.setState(HandlerState.State.Ready);
+        MessageImpl<byte[]> first = newMessage(new byte[500]);
+        MessageImpl<byte[]> second = newMessage(new byte[500]);
+        MessageImpl<byte[]> incoming = newMessage(new byte[32]);
+        for (MessageImpl<byte[]> message : List.of(first, second, incoming)) {
+            message.getMessageBuilder().clearPublishTime();
+            message.getMessageBuilder().setPartitionKey("key-1");
+        }
+        if (!boundary.equals("plain-to-transaction")) {
+            first.getMessageBuilder().setTxnidMostBits(7L).setTxnidLeastBits(13L);
+            second.getMessageBuilder().setTxnidMostBits(7L).setTxnidLeastBits(13L);
+        }
+        if (!boundary.equals("transaction-to-plain")) {
+            incoming.getMessageBuilder().setTxnidMostBits(7L)
+                    .setTxnidLeastBits(boundary.equals("different-transactions") ? 14L : 13L);
+        }
+        if (boundary.equals("duplicate")) {
+            incoming.getMessageBuilder().setSequenceId(0L);
+        }
+        try {
+            CompletableFuture<MessageId> firstSend = producer.internalSendAsync(first);
+            CompletableFuture<MessageId> secondSend = producer.internalSendAsync(second);
+            assertThat(failures).hasValue(0);
+            CompletableFuture<MessageId> rejected = producer.internalSendAsync(incoming);
+            assertThat(failures).as("the boundary flush failed while growing its payload").hasValue(1);
+            assertThat(producer.pendingMessages).isEmpty();
+
+            // Retry the retained batch through the real flush path and inspect its actual SEND metadata.
+            producer.flushAsync();
+            OpSendMsg op = producer.pendingMessages.peek();
+            assertThat(op).isNotNull();
+            assertThat(op.msgs).as("a failed flush must not admit the next batch's message")
+                    .containsExactly(first, second);
+            MessageMetadata metadata = metadataOf(op);
+            assertThat(metadata.getNumMessagesInBatch()).isEqualTo(2);
+            assertThat(metadata.hasTxnidMostBits()).isEqualTo(!boundary.equals("plain-to-transaction"));
+            if (metadata.hasTxnidMostBits()) {
+                assertThat(metadata.getTxnidLeastBits()).isEqualTo(13L);
+            }
+            assertThat(rejected).isCompletedExceptionally();
+            assertThat(incoming.getDataBuffer().refCnt()).isZero();
+            producer.ackReceived(null, op.sequenceId, op.highestSequenceId, 1L, 1L);
+            assertThat(firstSend).isCompleted();
+            assertThat(secondSend).isCompleted();
+            assertThat(memory.currentUsage()).isZero();
+            assertThat(producer.availableSendPermitsForTesting()).isEqualTo(10);
+
+            CompletableFuture<MessageId> recovered = producer.newMessage().value(new byte[32]).sendAsync();
+            producer.flushAsync();
+            op = producer.pendingMessages.peek();
+            assertThat(metadataOf(op).hasTxnidMostBits()).isFalse();
+            producer.ackReceived(null, op.sequenceId, op.highestSequenceId, 1L, 2L);
+            assertThat(recovered).isCompleted();
+            assertThat(memory.currentUsage()).isZero();
+            assertThat(producer.availableSendPermitsForTesting()).isEqualTo(10);
+        } finally {
+            producer.failPendingMessages(null, new PulsarClientException("test cleanup"));
+        }
+    }
+
+    @DataProvider
+    public Object[][] duplicateBatchBuilders() {
+        return new Object[][] {
+                {BatcherBuilder.DEFAULT},
+                {BatcherBuilder.KEY_BASED},
+                {new EntryBucketBatcherBuilder(List.of(0x4000, 0x8000, 0xC000))}
+        };
+    }
+
+    @Test(dataProvider = "duplicateBatchBuilders")
+    public void testFailedFlushKeepsDuplicateBatchSeparateFromLaterFreshMessage(BatcherBuilder builder) {
+        AtomicInteger failures = new AtomicInteger();
+        MemoryLimitController memory = new MemoryLimitController(0, 3000, () -> {
+            if (failures.getAndIncrement() == 0) {
+                throw new OutOfMemoryError("injected duplicate batch growth failure");
+            }
+        });
+        ProducerConfigurationData conf = new ProducerConfigurationData();
+        conf.setBatcherBuilder(builder);
+        conf.setInitialSequenceId(0L);
+        conf.setProducerName("duplicate-batch-boundary-test");
+        conf.setMaxPendingMessages(10);
+        PulsarClientImpl client = mockedPulsarClient();
+        when(client.getMemoryLimitController()).thenReturn(memory);
+        when(client.getClientClock()).thenReturn(Clock.systemUTC());
+        ProducerImpl<byte[]> producer = constructProducer(client, conf);
+        producer.setState(HandlerState.State.Ready);
+        MessageImpl<byte[]> duplicate = newMessage(new byte[1500]);
+        MessageImpl<byte[]> incoming = newMessage(new byte[32]);
+        MessageImpl<byte[]> later = newMessage(new byte[32]);
+        long sequenceId = 0;
+        for (MessageImpl<byte[]> message : List.of(duplicate, incoming, later)) {
+            message.getMessageBuilder().clearPublishTime();
+            message.getMessageBuilder().setPartitionKey("key-1").setSequenceId(sequenceId++);
+        }
+        try {
+            CompletableFuture<MessageId> duplicateSend = producer.internalSendAsync(duplicate);
+            assertThat(failures).hasValue(0);
+            CompletableFuture<MessageId> rejected = producer.internalSendAsync(incoming);
+            assertThat(failures).hasValue(1);
+            assertThat(rejected).isCompletedExceptionally();
+            assertThat(incoming.getDataBuffer().refCnt()).isZero();
+            assertThat(producer.pendingMessages).isEmpty();
+
+            // Send again before retrying the flush explicitly: rejecting sequence 1 must not let
+            // sequence 2 join the retained duplicate batch, which the broker will discard as a whole.
+            CompletableFuture<MessageId> laterSend = producer.internalSendAsync(later);
+            producer.flushAsync();
+            assertThat(producer.pendingMessages).hasSize(2);
+            OpSendMsg duplicateOp = producer.pendingMessages.peek();
+            assertThat(duplicateOp.msgs).containsExactly(duplicate);
+            assertThat(metadataOf(duplicateOp).getSequenceId()).isZero();
+            producer.ackReceived(null, duplicateOp.sequenceId, duplicateOp.highestSequenceId, 1L, 0L);
+            OpSendMsg freshOp = producer.pendingMessages.peek();
+            assertThat(freshOp.msgs).containsExactly(later);
+            assertThat(metadataOf(freshOp).getSequenceId()).isEqualTo(2L);
+            producer.ackReceived(null, freshOp.sequenceId, freshOp.highestSequenceId, 1L, 1L);
+            assertThat(duplicateSend).isCompleted();
+            assertThat(laterSend).isCompleted();
+            assertThat(producer.pendingMessages).isEmpty();
+            assertThat(memory.currentUsage()).isZero();
+            assertThat(producer.availableSendPermitsForTesting()).isEqualTo(10);
+        } finally {
+            producer.failPendingMessages(null, new PulsarClientException("test cleanup"));
+        }
+    }
+
+    @DataProvider
+    public Object[][] multiBatchBuilders() {
+        return new Object[][] {
+                {BatcherBuilder.KEY_BASED, false},
+                {BatcherBuilder.KEY_BASED, true},
+                {new EntryBucketBatcherBuilder(List.of(0x4000, 0x8000, 0xC000)), false},
+                {new EntryBucketBatcherBuilder(List.of(0x4000, 0x8000, 0xC000)), true}
+        };
+    }
+
+    @Test(dataProvider = "multiBatchBuilders")
+    public void testFailedFirstAddDoesNotBlockAnotherBucket(BatcherBuilder builder, boolean retainAnotherBucket) {
+        AtomicInteger failures = new AtomicInteger();
+        MemoryLimitController memory = new MemoryLimitController(0, retainAnotherBucket ? 2000 : 1000, () -> {
+            if (failures.getAndIncrement() == 0) {
+                throw new OutOfMemoryError("injected first batch allocation failure");
+            }
+        });
+        BatchMessageContainerBase container = (BatchMessageContainerBase) builder.build();
+        ProducerConfigurationData conf = new ProducerConfigurationData();
+        conf.setBatcherBuilder(() -> container);
+        conf.setProducerName("failed-add-test");
+        conf.setMaxPendingMessages(10);
+        PulsarClientImpl client = mockedPulsarClient();
+        when(client.getMemoryLimitController()).thenReturn(memory);
+        when(client.getClientClock()).thenReturn(Clock.systemUTC());
+        ProducerImpl<byte[]> producer = constructProducer(client, conf);
+        producer.setState(HandlerState.State.Ready);
+        try {
+            CompletableFuture<MessageId> existing = retainAnotherBucket
+                    ? producer.newMessage().key("key-2").value(new byte[16]).sendAsync() : null;
+            CompletableFuture<MessageId> failed = producer.newMessage().key("key-1").value(new byte[16])
+                    .sendAsync();
+            assertThat(failed).isCompletedExceptionally();
+            assertThat(container.getNumMessagesInBatch()).isEqualTo(retainAnotherBucket ? 1 : 0);
+            assertThat(memory.currentUsage()).isEqualTo(retainAnotherBucket ? 1040L : 0L);
+            assertThat(producer.availableSendPermitsForTesting()).isEqualTo(retainAnotherBucket ? 9 : 10);
+            boolean emptyAfterFailure = container.isEmpty();
+
+            // key-1 and key-2 belong to different entry buckets as well as different key-based batches.
+            CompletableFuture<MessageId> recovered = producer.newMessage().key("key-2").value(new byte[16])
+                    .sendAsync();
+            producer.flushAsync();
+            assertThat(producer.pendingMessages.size())
+                    .as("the empty failed bucket must not block another bucket's flush").isEqualTo(1);
+            OpSendMsg op = producer.pendingMessages.peek();
+            assertThat(op.msgs).allSatisfy(message -> assertThat(message.getKey()).isEqualTo("key-2"));
+            producer.ackReceived(null, op.sequenceId, op.highestSequenceId, 1L, 1L);
+            assertThat(recovered).isCompleted();
+            if (existing != null) {
+                assertThat(existing).isCompleted();
+            }
+            assertThat(emptyAfterFailure).as("only non-empty buckets should remain after a failed add")
+                    .isEqualTo(!retainAnotherBucket);
+            assertThat(container.isEmpty()).isTrue();
+            assertThat(memory.currentUsage()).isZero();
+            assertThat(producer.availableSendPermitsForTesting()).isEqualTo(10);
+        } finally {
+            producer.failPendingMessages(null, new PulsarClientException("test cleanup"));
+        }
+    }
+
+    private static MessageMetadata metadataOf(OpSendMsg op) {
+        ByteBuf header = op.cmd.getFirst().duplicate();
+        int commandSize = header.getInt(header.readerIndex() + 4);
+        header.skipBytes(8 + commandSize);
+        return Commands.parseMessageMetadata(header);
+    }
+
     @DataProvider
     public Object[][] completionErrors() {
         return new Object[][] {{null}, {new PulsarClientException.TimeoutException("send timed out", 41)}};
@@ -297,6 +661,61 @@ public class ProducerImplTest {
         }
     }
 
+    @DataProvider
+    public Object[][] terminalStatesReachedBeforeBatching() {
+        return new Object[][] {
+                {HandlerState.State.Closed, PulsarClientException.AlreadyClosedException.class},
+                {HandlerState.State.Terminated, PulsarClientException.TopicTerminatedException.class},
+                {HandlerState.State.ProducerFenced, PulsarClientException.ProducerFencedException.class},
+        };
+    }
+
+    /**
+     * A send checks the producer state before it takes the producer lock to add its message to the batch. If the
+     * producer reaches a terminal state in between, it has failed the messages it held and no longer schedules batch
+     * flushes: the message must fail, or its send never completes. A scalable topic producer closes the producer of a
+     * segment that a split or merge sealed while its own sends may still be on their way to it.
+     */
+    @Test(dataProvider = "terminalStatesReachedBeforeBatching", timeOut = 30000)
+    public void testBatchedSendFailsWhenProducerEndsBeforeItIsBatched(HandlerState.State terminalState,
+            Class<? extends PulsarClientException> expectedFailure) throws Exception {
+        MemoryLimitController memory = new MemoryLimitController(1024 * 1024);
+        PulsarClientImpl client = mockedPulsarClient();
+        when(client.getConnection(anyString(), anyInt())).thenReturn(new CompletableFuture<>());
+        when(client.getMemoryLimitController()).thenReturn(memory);
+        when(client.getClientClock()).thenReturn(Clock.systemUTC());
+        ProducerConfigurationData conf = new ProducerConfigurationData();
+        conf.setProducerName("batched-send-test");
+        ProducerImpl<byte[]> producer = constructProducer(client, conf);
+        assertTrue(producer.isBatchMessagingEnabled());
+        // Not connected, as once the broker closed the producer: a message waits for the connection, and a close
+        // fails the waiting messages right away.
+        producer.setState(HandlerState.State.Connecting);
+
+        AtomicReference<CompletableFuture<MessageId>> send = new AtomicReference<>();
+        Thread sender = new Thread(() -> send.set(producer.newMessage().value(new byte[10]).sendAsync()));
+        synchronized (producer) {
+            sender.start();
+            // The sender has checked the state, and waits for the lock to add its message to the batch.
+            Awaitility.await().until(() -> {
+                StackTraceElement[] stack = sender.getStackTrace();
+                return sender.getState() == Thread.State.BLOCKED && stack.length > 0
+                        && stack[0].getMethodName().equals("sendAsync");
+            });
+            if (terminalState == HandlerState.State.Closed) {
+                producer.closeAsync().get(5, TimeUnit.SECONDS);
+            } else {
+                producer.setState(terminalState);
+            }
+        }
+        sender.join();
+
+        assertThat(send.get()).failsWithin(Duration.ofSeconds(5))
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(expectedFailure);
+        assertThat(memory.currentUsage()).as("memory reserved for the message").isZero();
+    }
+
     @Test
     public void testConnectionOpenedAfterProducerCloseReleasesConnection() {
         PulsarClientImpl client = mockedPulsarClient();
@@ -370,7 +789,7 @@ public class ProducerImplTest {
         verify(interceptor).close();
     }
 
-    private ProducerConfigurationData encryptedProducerConf() {
+    private static ProducerConfigurationData encryptedProducerConf() {
         ProducerConfigurationData conf = new ProducerConfigurationData();
         conf.setEncryptionKeys(new TreeSet<>(Collections.singleton("key")));
         conf.setCryptoKeyReader(mock(CryptoKeyReader.class));
@@ -419,6 +838,283 @@ public class ProducerImplTest {
         assertEquals(producer.getState(), HandlerState.State.Closed);
         verify(keyTask).cancel(false);
         verify(client).cleanupProducer(producer);
+    }
+
+    @DataProvider
+    public Object[][] firstKeyLoad() {
+        return new Object[][]{
+                {null},
+                {new PulsarClientException.CryptoException("no key")},
+                {new IllegalStateException("key reader broken")},
+        };
+    }
+
+    /** A producer that encrypts, whose key task is captured instead of run, connected through a mocked cnx. */
+    private static final class ProducerWaitingForItsKey implements AutoCloseable {
+        final PulsarClientImpl client = mockedPulsarClient();
+        final AtomicReference<Runnable> keyTask = new AtomicReference<>();
+        final ScheduledFuture<?> keyTaskFuture = mock(ScheduledFuture.class);
+        @SuppressWarnings("unchecked")
+        final MessageCrypto<MessageMetadata, MessageMetadata> crypto = mock(MessageCrypto.class);
+        final List<TimerTask> timerTasks = new ArrayList<>();
+        final List<Timeout> timeouts = new ArrayList<>();
+        final CompletableFuture<Producer<byte[]>> created = new CompletableFuture<>();
+        final DefaultEventLoop eventLoop = new DefaultEventLoop();
+        final ClientCnx cnx = mock(ClientCnx.class, Mockito.RETURNS_DEEP_STUBS);
+        final ProducerImpl<byte[]> producer;
+
+        @SuppressWarnings("unchecked")
+        ProducerWaitingForItsKey(Exception keyLoadFailure) throws Exception {
+            EventLoopGroup eventLoopGroup = client.eventLoopGroup();
+            doAnswer(invocation -> {
+                keyTask.set(invocation.getArgument(0));
+                return keyTaskFuture;
+            }).when(eventLoopGroup).scheduleWithFixedDelay(any(Runnable.class), anyLong(), anyLong(), any());
+            when(client.getConnection(anyString(), anyInt())).thenReturn(new CompletableFuture<>());
+            if (keyLoadFailure != null) {
+                doThrow(keyLoadFailure).when(crypto).addPublicKeyCipher(any(), any());
+            }
+            ProducerConfigurationData conf = encryptedProducerConf();
+            conf.setMessageCrypto(crypto);
+            producer = new ProducerImpl<>(client, "persistent://public/default/slow-key", conf, created, 0,
+                    Schema.BYTES, null, Optional.empty());
+            Timer timer = client.timer();
+            doAnswer(invocation -> {
+                timerTasks.add(invocation.getArgument(0));
+                Timeout timeout = mock(Timeout.class);
+                timeouts.add(timeout);
+                return timeout;
+            }).when(timer).newTimeout(any(), anyLong(), any());
+
+            when(cnx.ctx().channel().eventLoop()).thenReturn(eventLoop);
+            ProducerResponse response = mock(ProducerResponse.class);
+            when(response.getProducerName()).thenReturn("slow-key-producer");
+            doAnswer(invocation -> {
+                ReferenceCountUtil.release(invocation.getArgument(0));
+                return CompletableFuture.completedFuture(response);
+            }).when(cnx).sendRequestWithId(any(ByteBuf.class), anyLong());
+        }
+
+        /** Opens the connection and waits for the producer to be ready on it. */
+        void connect() throws Exception {
+            producer.connectionOpened(cnx).get(10, TimeUnit.SECONDS);
+            eventLoop.submit(() -> { }).get(10, TimeUnit.SECONDS);
+            assertEquals(producer.getState(), HandlerState.State.Ready);
+        }
+
+        @Override
+        public void close() throws Exception {
+            try {
+                producer.closeAsync().get(10, TimeUnit.SECONDS);
+            } finally {
+                eventLoop.shutdownGracefully(0, 10, TimeUnit.SECONDS).sync();
+            }
+        }
+    }
+
+    /**
+     * The key task runs apart from the connection. When the connection is ready before the first key load has
+     * finished, the creation must wait for it: it completes once the key is loaded and fails if the load does,
+     * with a crypto error or with any other exception the key reader throws.
+     */
+    @Test(dataProvider = "firstKeyLoad")
+    public void testCreationWaitsForTheFirstKeyLoad(Exception keyLoadFailure) throws Exception {
+        try (ProducerWaitingForItsKey waiting = new ProducerWaitingForItsKey(keyLoadFailure)) {
+            waiting.connect();
+            assertFalse(waiting.created.isDone(), "The creation must wait for the first key load");
+
+            waiting.keyTask.get().run();
+
+            if (keyLoadFailure == null) {
+                assertSame(waiting.created.get(10, TimeUnit.SECONDS), waiting.producer);
+                assertEquals(waiting.producer.getState(), HandlerState.State.Ready);
+            } else {
+                assertTrue(waiting.created.isCompletedExceptionally(), "The creation must fail without the key");
+                assertThatThrownBy(waiting.created::join).hasCauseInstanceOf(PulsarClientException.class);
+                assertEquals(waiting.producer.getState(), HandlerState.State.Closed);
+                verify(waiting.client).cleanupProducer(waiting.producer);
+            }
+        }
+    }
+
+    /**
+     * A connection lost while the creation waits for the key is not a failure: the producer reconnects, and the
+     * creation completes once it is ready again with the key loaded.
+     */
+    @Test
+    public void testCreationWaitsThroughAReconnectForTheFirstKeyLoad() throws Exception {
+        try (ProducerWaitingForItsKey waiting = new ProducerWaitingForItsKey(null)) {
+            waiting.connect();
+            waiting.producer.connectionClosed(waiting.cnx, Optional.empty(), Optional.empty());
+            assertEquals(waiting.producer.getState(), HandlerState.State.Connecting);
+
+            waiting.keyTask.get().run();
+            assertFalse(waiting.created.isDone(), "A reconnecting producer is not created yet");
+            assertFalse(waiting.producer.isTerminalState());
+
+            waiting.connect();
+            assertSame(waiting.created.get(10, TimeUnit.SECONDS), waiting.producer);
+        }
+    }
+
+    /** A producer closed while its creation waits for the key fails the creation instead of leaving it pending. */
+    @Test
+    public void testCreationFailsWhenTheProducerIsClosedBeforeTheFirstKeyLoad() throws Exception {
+        try (ProducerWaitingForItsKey waiting = new ProducerWaitingForItsKey(null)) {
+            waiting.connect();
+
+            waiting.producer.closeAsync().get(10, TimeUnit.SECONDS);
+
+            assertTrue(waiting.created.isCompletedExceptionally(), "The creation must not stay pending");
+            assertThatThrownBy(waiting.created::join)
+                    .hasCauseInstanceOf(PulsarClientException.AlreadyClosedException.class);
+        }
+    }
+
+    /**
+     * The key can load while the producer is reconnecting, so the creation waits for the next connection. A close
+     * before that connection must fail the creation too: nothing else would complete it anymore.
+     */
+    @Test
+    public void testCreationFailsWhenTheProducerIsClosedWhileReconnectingAfterTheKeyLoaded() throws Exception {
+        try (ProducerWaitingForItsKey waiting = new ProducerWaitingForItsKey(null)) {
+            waiting.connect();
+            waiting.producer.connectionClosed(waiting.cnx, Optional.empty(), Optional.empty());
+            waiting.keyTask.get().run();
+            assertFalse(waiting.created.isDone(), "A reconnecting producer is not created yet");
+
+            waiting.producer.closeAsync().get(10, TimeUnit.SECONDS);
+
+            assertTrue(waiting.created.isCompletedExceptionally(), "The creation must not stay pending");
+            assertThatThrownBy(waiting.created::join)
+                    .hasCauseInstanceOf(PulsarClientException.AlreadyClosedException.class);
+        }
+    }
+
+    /**
+     * A key reader can fail with an error rather than an exception, for instance when a class it depends on is
+     * missing. The creation must fail with it too instead of waiting for a key load that has ended.
+     */
+    @Test
+    public void testCreationFailsWhenTheFirstKeyLoadFailsWithAnError() throws Exception {
+        NoClassDefFoundError keyReaderError = new NoClassDefFoundError("com/example/kms/Client");
+        try (ProducerWaitingForItsKey waiting = new ProducerWaitingForItsKey(null)) {
+            doThrow(keyReaderError).when(waiting.crypto).addPublicKeyCipher(any(), any());
+            waiting.connect();
+
+            waiting.keyTask.get().run();
+
+            assertTrue(waiting.created.isCompletedExceptionally(), "The creation must not wait for an ended key load");
+            assertThatThrownBy(waiting.created::join).hasRootCause(keyReaderError);
+            assertEquals(waiting.producer.getState(), HandlerState.State.Closed);
+            verify(waiting.client).cleanupProducer(waiting.producer);
+        }
+    }
+
+    @DataProvider
+    public Object[][] keyLoadAndReconnectOrderings() {
+        return new Object[][] {{false, false}, {false, true}, {true, false}, {true, true}};
+    }
+
+    /**
+     * An unrecoverable error on the connection fails the creation with that error, whether the key has loaded and
+     * whether the producer was ready once before: the close that follows must not replace it with its own.
+     */
+    @Test(dataProvider = "keyLoadAndReconnectOrderings")
+    public void testCreationFailsWithTheUnrecoverableError(boolean keyLoaded, boolean reconnect) throws Exception {
+        try (ProducerWaitingForItsKey waiting = new ProducerWaitingForItsKey(null)) {
+            if (reconnect) {
+                waiting.connect();
+                waiting.producer.connectionClosed(waiting.cnx, Optional.empty(), Optional.empty());
+            }
+            if (keyLoaded) {
+                waiting.keyTask.get().run();
+            }
+            assertThat(waiting.created).isNotDone();
+            PulsarClientException error = new PulsarClientException.TopicDoesNotExistException("topic deleted");
+            doAnswer(invocation -> {
+                ReferenceCountUtil.release(invocation.getArgument(0));
+                return FutureUtil.failedFuture(error);
+            }).when(waiting.cnx).sendRequestWithId(any(ByteBuf.class), anyLong());
+
+            waiting.producer.connectionOpened(waiting.cnx).get(10, TimeUnit.SECONDS);
+
+            assertThatThrownBy(waiting.created::join).hasCause(error);
+            assertThat(waiting.producer.getState()).isEqualTo(HandlerState.State.Closed);
+            verify(waiting.keyTaskFuture).cancel(false);
+            verify(waiting.client).cleanupProducer(waiting.producer);
+        }
+    }
+
+    /** A key that does not load before the producer deadline fails the creation and closes the producer. */
+    @Test
+    public void testCreationFailsWhenTheFirstKeyLoadTimesOut() throws Exception {
+        try (ProducerWaitingForItsKey waiting = new ProducerWaitingForItsKey(null)) {
+            waiting.connect();
+            assertThat(waiting.timerTasks).hasSize(1);
+
+            waiting.timerTasks.get(0).run(waiting.timeouts.get(0));
+
+            assertThatThrownBy(waiting.created::join)
+                    .hasCauseInstanceOf(PulsarClientException.TimeoutException.class);
+            assertThat(waiting.producer.getState()).isEqualTo(HandlerState.State.Closed);
+            verify(waiting.keyTaskFuture).cancel(false);
+            verify(waiting.client).cleanupProducer(waiting.producer);
+            // A key reader already running when the task was cancelled can still return: it must not revive it.
+            waiting.keyTask.get().run();
+            assertThatThrownBy(waiting.created::join)
+                    .hasCauseInstanceOf(PulsarClientException.TimeoutException.class);
+        }
+    }
+
+    /** Once the key has loaded, a timeout that fires anyway, racing with its cancellation, changes nothing. */
+    @Test(dataProvider = "keyTaskTiming")
+    public void testFirstKeyLoadTimeoutDoesNotFailACreationWhoseKeyLoaded(boolean reconnect) throws Exception {
+        try (ProducerWaitingForItsKey waiting = new ProducerWaitingForItsKey(null)) {
+            waiting.connect();
+            TimerTask timeoutTask = waiting.timerTasks.get(0);
+            Timeout timeout = waiting.timeouts.get(0);
+            if (reconnect) {
+                waiting.producer.connectionClosed(waiting.cnx, Optional.empty(), Optional.empty());
+            }
+            waiting.keyTask.get().run();
+            verify(timeout, Mockito.atLeastOnce()).cancel();
+
+            timeoutTask.run(timeout);
+            if (reconnect) {
+                assertThat(waiting.created).isNotDone();
+                waiting.connect();
+            }
+            assertThat(waiting.created.get(10, TimeUnit.SECONDS)).isSameAs(waiting.producer);
+        }
+    }
+
+    /** A reconnection while the key loads does not restart the wait: the deadline is the one of the creation. */
+    @Test
+    public void testReconnectDoesNotRestartTheFirstKeyLoadTimeout() throws Exception {
+        try (ProducerWaitingForItsKey waiting = new ProducerWaitingForItsKey(null)) {
+            waiting.connect();
+            waiting.producer.connectionClosed(waiting.cnx, Optional.empty(), Optional.empty());
+            int scheduledTasks = waiting.timerTasks.size();
+            waiting.connect();
+            assertThat(waiting.timerTasks).hasSize(scheduledTasks);
+            waiting.timerTasks.get(0).run(waiting.timeouts.get(0));
+            assertThatThrownBy(waiting.created::join)
+                    .hasCauseInstanceOf(PulsarClientException.TimeoutException.class);
+        }
+    }
+
+    /** Closing the producer while it waits for the key also cancels the wait. */
+    @Test
+    public void testCloseCancelsTheFirstKeyLoadTimeout() throws Exception {
+        try (ProducerWaitingForItsKey waiting = new ProducerWaitingForItsKey(null)) {
+            waiting.connect();
+            waiting.producer.closeAsync().get(10, TimeUnit.SECONDS);
+            verify(waiting.timeouts.get(0)).cancel();
+            waiting.timerTasks.get(0).run(waiting.timeouts.get(0));
+            assertThatThrownBy(waiting.created::join)
+                    .hasCauseInstanceOf(PulsarClientException.AlreadyClosedException.class);
+        }
     }
 
     /**
