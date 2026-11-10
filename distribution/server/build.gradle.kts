@@ -17,6 +17,9 @@
  * under the License.
  */
 
+import org.gradle.api.artifacts.component.ModuleComponentIdentifier
+import org.gradle.api.artifacts.component.ProjectComponentIdentifier
+
 plugins {
     id("pulsar.java-conventions")
     id("pulsar.binary-license-check-conventions")
@@ -32,11 +35,12 @@ val zookeeperVersion: String = libs.versions.zookeeper.get()
 val nettyTcnativeVersion: String = libs.versions.netty.tcnative.get()
 val audienceAnnotationsVersion: String = libs.versions.audience.annotations.get()
 
-// Configuration for collecting runtime dependencies
-val distLib = configurations.create("distLib") {
-    isCanBeResolved = true
-    isCanBeConsumed = false
-    isTransitive = true
+// The runtime dependencies that the distribution bundles: declared in distLib, resolved with their
+// dependencies in distLibFiles (see ProjectArtifacts.kt)
+val distLibArtifacts = runtimeJars("distLibFiles", "distLib")
+val distLib = distLibArtifacts.dependencies
+val distLibFiles = distLibArtifacts.files
+distLibFiles.configure {
     // Inherit the enforced version-alignment platform so bundled dependency versions match the
     // version catalog (the platform lives on the non-published `internalPlatform` bucket from
     // pulsar.java-conventions; `implementation` no longer carries it). Keeps the distribution's
@@ -76,19 +80,9 @@ val distLib = configurations.create("distLib") {
     exclude(group = "it.unimi.dsi", module = "fastutil")
 }
 
-// Resolvable configurations for cross-project artifact dependencies.
-// Using configurations instead of direct task references (project().tasks.named())
-// ensures compatibility with Gradle's configure-on-demand feature.
-val runtimeAllShadowJar = configurations.create("runtimeAllShadowJar") {
-    isCanBeResolved = true
-    isCanBeConsumed = false
-    isTransitive = false
-}
-val apiExamplesJar = configurations.create("apiExamplesJar") {
-    isCanBeResolved = true
-    isCanBeConsumed = false
-    isTransitive = false
-}
+// The Java instance's fat jar (see SharedBuildArtifacts.kt) and the examples jar (see ProjectArtifacts.kt)
+val runtimeAllShadowJar = sharedBuildArtifact(":pulsar-functions:pulsar-functions-runtime-all", "java-instance-jar")
+val apiExamplesJar = projectJars("apiExamplesJar", ":pulsar-functions:pulsar-functions-api-examples").files
 
 dependencies {
     // Version constraints from the enforced platform (inherited via implementation,
@@ -185,16 +179,12 @@ dependencies {
 
     // pulsar-broker-common test jar is included in Maven server dist
     // but requires test-fixtures support in pulsar-broker-common; skipped for now
-
-    // Cross-project artifact dependencies for the server distribution tarball
-    runtimeAllShadowJar(project(path = ":pulsar-functions:pulsar-functions-runtime-all", configuration = "shadowJarElements"))
-    apiExamplesJar(project(":pulsar-functions:pulsar-functions-api-examples"))
 }
 
 val pulsarVersion = project.version.toString()
-val rootDir = rootProject.projectDir
 
 val serverDistTar = tasks.register<Tar>("serverDistTar") {
+    description = "Builds the Pulsar server binary distribution tarball"
     archiveBaseName.set("apache-pulsar")
     archiveVersion.set(pulsarVersion)
     archiveClassifier.set("bin")
@@ -241,7 +231,7 @@ val serverDistTar = tasks.register<Tar>("serverDistTar") {
 
     // Runtime dependency JARs into lib/
     // Include groupId in jar names to identify provenance (matches Maven assembly outputFileNameMapping)
-    from(distLib) {
+    from(distLibFiles) {
         into("${baseDir}/lib")
         // These JARs go into other directories (instances/, examples/), not lib/
         exclude("**/pulsar-functions-runtime-all-*.jar")
@@ -258,13 +248,13 @@ val serverDistTar = tasks.register<Tar>("serverDistTar") {
     }
 
     // Build file-name -> groupId-prefixed-name map from resolved artifacts
-    val renameMap = distLib.incoming.artifacts.resolvedArtifacts.map { artifacts ->
+    val renameMap = distLibFiles.flatMap { it.incoming.artifacts.resolvedArtifacts }.map { artifacts ->
         artifacts.associate { result ->
             val id = result.id.componentIdentifier
             val file = result.file
             val ext = file.extension
             val newName = when (id) {
-                is org.gradle.api.artifacts.component.ModuleComponentIdentifier -> {
+                is ModuleComponentIdentifier -> {
                     // Include classifier from the file name if present
                     // e.g. netty-transport-native-epoll-x.y.z.Final-linux-x86_64.jar
                     val expectedBase = "${id.module}-${id.version}"
@@ -274,7 +264,7 @@ val serverDistTar = tasks.register<Tar>("serverDistTar") {
                     } else ""
                     "${id.group}-${id.module}-${id.version}${classifier}.${ext}"
                 }
-                is org.gradle.api.artifacts.component.ProjectComponentIdentifier -> {
+                is ProjectComponentIdentifier -> {
                     val mappedName = file.nameWithoutExtension
                     "org.apache.pulsar-${mappedName}.${ext}"
                 }
@@ -330,14 +320,8 @@ val serverDistTar = tasks.register<Tar>("serverDistTar") {
     }
 }
 
-// Consumable configuration exposing the server distribution tarball
-val serverDistElements = configurations.create("serverDistElements") {
-    isCanBeConsumed = true
-    isCanBeResolved = false
-    outgoing {
-        artifact(serverDistTar)
-    }
-}
+// The server distribution tarball, for the Docker image, see SharedBuildArtifacts.kt
+shareBuildArtifact("server-distribution", serverDistTar.flatMap { it.archiveFile }, serverDistTar)
 
 tasks.named("assemble") {
     dependsOn(serverDistTar)
@@ -350,12 +334,16 @@ binaryLicenseCheck {
 // Export the runtime classpath to a file for bin/ scripts to use
 // when running Pulsar from a development build (without lib/ directory)
 val exportClasspath = tasks.register("exportClasspath") {
+    group = "build"
+    description = "Writes the distribution's runtime classpath to build/classpath.txt for the bin/ scripts"
     val outputFile = layout.buildDirectory.file("classpath.txt")
+    val classpath = files(distLibFiles)
+    inputs.files(classpath).withPropertyName("classpath").withNormalizer(ClasspathNormalizer::class.java)
     outputs.file(outputFile)
     doLast {
         outputFile.get().asFile.apply {
             parentFile.mkdirs()
-            writeText(distLib.asPath)
+            writeText(classpath.asPath)
         }
     }
 }

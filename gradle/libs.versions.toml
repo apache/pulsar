@@ -213,6 +213,7 @@ shadow = "9.6.1"
 # Tooling: libraries that only tools use, such as the performance test tooling, and that are neither in Pulsar's
 # distributions nor used by its tests
 jonoffcpu = "0.8.0"
+jmh = "1.37"
 commonmark = "0.30.0"
 xchart = "4.0.4"
 vectorgraphics2d = "0.13"
@@ -515,6 +516,11 @@ datasketches-memory = { module = "org.apache.datasketches:datasketches-memory", 
 datasketches-java = { module = "org.apache.datasketches:datasketches-java", version.ref = "datasketches-java" }
 # Tooling: libraries that only tools use. Their aliases start with "tooling-", which keeps them out of the version
 # constraints that pulsar-dependencies publishes: those cover Pulsar's own and its tests' dependencies only.
+# Generates the Java classes of pulsar-client's test Avro schemas
+tooling-avro-tools = { module = "org.apache.avro:avro-tools", version.ref = "avro" }
+# The JMH microbenchmarks
+tooling-jmh-core = { module = "org.openjdk.jmh:jmh-core", version.ref = "jmh" }
+tooling-jmh-generator-annprocess = { module = "org.openjdk.jmh:jmh-generator-annprocess", version.ref = "jmh" }
 tooling-jonoffcpu-agent = { module = "io.github.jonoffcpu:jonoffcpu-agent", version.ref = "jonoffcpu" }
 tooling-jonoffcpu-correlator = { module = "io.github.jonoffcpu:jonoffcpu-correlator", version.ref = "jonoffcpu" }
 tooling-jonoffcpu-jfr-converter = { module = "io.github.jonoffcpu:jonoffcpu-jfr-converter", version.ref = "jonoffcpu" }
@@ -529,12 +535,12 @@ tooling-vectorgraphics2d = { module = "de.erichseifert.vectorgraphics2d:VectorGr
 lightproto = { id = "io.streamnative.lightproto", version.ref = "lightproto" }
 graalvm-native = { id = "org.graalvm.buildtools.native", version.ref = "graalvm-buildtools" }
 nar = "io.github.merlimat.nar:0.1.3"
-protobuf = "com.google.protobuf:0.10.0"
+protobuf = "com.google.protobuf:0.10.1"
 shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }
 rat = "org.nosphere.apache.rat:0.11.0"
-spotless = "com.diffplug.spotless:8.10.3"
+spotless = "com.diffplug.spotless:8.11.0"
 swagger = { id = "io.swagger.core.v3.swagger-gradle-plugin", version.ref = "swagger" }
-version-catalog-update = "nl.littlerobots.version-catalog-update:1.1.1"
-versions = "io.github.ben-manes.versions:0.64.0"
+version-catalog-update = "nl.littlerobots.version-catalog-update:1.1.2"
+versions = "io.github.ben-manes.versions:0.67.0"
 crlf = "com.github.vlsi.crlf:4.0.0"
 idea-ext = "org.jetbrains.gradle.plugin.idea-ext:1.4.1"
