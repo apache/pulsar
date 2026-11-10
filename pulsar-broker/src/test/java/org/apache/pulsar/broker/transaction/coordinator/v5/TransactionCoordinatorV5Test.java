@@ -362,7 +362,7 @@ public class TransactionCoordinatorV5Test {
         OpImage image = txnStore.collectAckOpImagesForSegmentSubscription(segment, subscription).get().get(0);
         TxnOp marked = image.op();
         marked.setResetPending(true);
-        txnStore.replaceOps(List.of(new OpImage(image.record(), marked)), replaced -> { }).get();
+        txnStore.replaceOps(List.of(new OpImage(image.record(), marked)), true, replaced -> { }).get();
 
         tc.sweepGc().get();
 

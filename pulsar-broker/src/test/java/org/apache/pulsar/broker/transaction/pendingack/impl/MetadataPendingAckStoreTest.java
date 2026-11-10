@@ -23,10 +23,12 @@ import static org.apache.bookkeeper.mledger.impl.AckSetStateUtil.getAckSetArrayO
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
+import static org.mockito.Mockito.after;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.inOrder;
@@ -605,14 +607,15 @@ public class MetadataPendingAckStoreTest {
         AtomicBoolean failMarking = new AtomicBoolean(true);
         doAnswer(invocation -> {
             List<OpImage> replacements = invocation.getArgument(0);
-            Consumer<OpImage> onReplaced = invocation.getArgument(1);
+            Consumer<OpImage> onReplaced = invocation.getArgument(2);
             if (replacements.size() < 2 || !failMarking.getAndSet(false)) {
                 return invocation.callRealMethod();
             }
             // Mark one of the records, then fail: the reset is rejected part way through its preparation.
-            return txnStore.replaceOps(replacements.subList(0, 1), onReplaced).thenCompose(__ ->
+            return txnStore.replaceOps(replacements.subList(0, 1), invocation.getArgument(1), onReplaced)
+                    .thenCompose(__ ->
                     CompletableFuture.<Void>failedFuture(new MetadataStoreException("injected marking failure")));
-        }).when(partialMark).replaceOps(any(), any());
+        }).when(partialMark).replaceOps(any(), anyBoolean(), any());
         MetadataPendingAckStore ackStore = new MetadataPendingAckStore(subscription, partialMark);
         TxnID txnId = commitRetainedAcks(ackStore, PositionFactory.create(200, 1), PositionFactory.create(200, 2));
 
@@ -694,7 +697,7 @@ public class MetadataPendingAckStoreTest {
                 return CompletableFuture.<Void>failedFuture(new MetadataStoreException("injected unmark failure"));
             }
             return invocation.callRealMethod();
-        }).when(failingUnmark).replaceOps(any(), any());
+        }).when(failingUnmark).replaceOps(any(), anyBoolean(), any());
         MetadataPendingAckStore ackStore = new MetadataPendingAckStore(subscription, failingUnmark);
         TxnID txnId = commitRetainedAcks(ackStore, PositionFactory.create(200, 1));
 
@@ -708,6 +711,67 @@ public class MetadataPendingAckStoreTest {
             publishDecision(txnId);
             assertThat(ackOps()).singleElement().satisfies(op -> assertThat(op.getResetPending()).isNull());
         });
+        assertRecoveryReappliesCommittedAcks(txnId, 1);
+    }
+
+    @Test
+    public void nextResetWaitsForAnInFlightUnmark() throws Exception {
+        TxnMetadataStore gated = spy(txnStore);
+        CompletableFuture<Void> unmarkGate = new CompletableFuture<>();
+        AtomicBoolean holdNextUnmark = new AtomicBoolean();
+        doAnswer(invocation -> {
+            List<OpImage> replacements = invocation.getArgument(0);
+            boolean unmark = !replacements.isEmpty() && replacements.get(0).op().getResetPending() == null;
+            if (unmark && holdNextUnmark.getAndSet(false)) {
+                // The unmark of the failed reset stays in flight until the gate opens.
+                return unmarkGate.thenCompose(__ -> txnStore.replaceOps(replacements, invocation.getArgument(1),
+                        invocation.getArgument(2)));
+            }
+            return invocation.callRealMethod();
+        }).when(gated).replaceOps(any(), anyBoolean(), any());
+        MetadataPendingAckStore ackStore = new MetadataPendingAckStore(subscription, gated);
+        TxnID txnId = commitRetainedAcks(ackStore, PositionFactory.create(200, 1));
+        ackStore.beforeCursorReset().get(5, TimeUnit.SECONDS);
+        holdNextUnmark.set(true);
+        CompletableFuture<Void> failedReset = ackStore.afterCursorReset(false);
+
+        CompletableFuture<Void> nextReset = ackStore.beforeCursorReset();
+        verify(gated, after(300).times(1)).collectAckOpImagesForSegmentSubscription(SEGMENT, SUB);
+        assertThat(nextReset).as("the next reset waits for the unmark in flight").isNotDone();
+        unmarkGate.complete(null);
+        failedReset.get(5, TimeUnit.SECONDS);
+        nextReset.get(5, TimeUnit.SECONDS);
+        assertThat(ackOps()).as("the next reset marks the record the unmark cleared").singleElement()
+                .satisfies(op -> assertThat(op.getResetPending()).isTrue());
+
+        ackStore.afterCursorReset(true).get(5, TimeUnit.SECONDS);
+        assertThat(ackOps()).as("the persisted reset deletes the record").isEmpty();
+        PendingAckHandleImpl recovering = newRecoveringHandle();
+        MetadataPendingAckStore recovered = new MetadataPendingAckStore(subscription, txnStore);
+        recovered.replayAsync(recovering, replayExecutor);
+        recovered.recoveryFuture().get(5, TimeUnit.SECONDS);
+        verify(recovering, never()).handleIndividualAckRecover(eq(txnId), anyList());
+    }
+
+    @Test
+    public void markingConflictFailsTheResetPreparation() throws Exception {
+        TxnMetadataStore racing = spy(txnStore);
+        doAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            CompletableFuture<List<OpImage>> read = (CompletableFuture<List<OpImage>>) invocation.callRealMethod();
+            // Rewrite each record between the read and the marking, as an unmark landing then would.
+            return read.thenCompose(images -> txnStore.replaceOps(images, true, rewritten -> { })
+                    .thenApply(__ -> images));
+        }).when(racing).collectAckOpImagesForSegmentSubscription(SEGMENT, SUB);
+        MetadataPendingAckStore ackStore = new MetadataPendingAckStore(subscription, racing);
+        TxnID txnId = commitRetainedAcks(ackStore, PositionFactory.create(200, 1));
+
+        assertThatThrownBy(() -> ackStore.beforeCursorReset().get(5, TimeUnit.SECONDS))
+                .as("a record rewritten since it was read is not counted as marked")
+                .hasRootCauseInstanceOf(MetadataStoreException.BadVersionException.class);
+        ackStore.afterCursorReset(false).get(5, TimeUnit.SECONDS);
+        assertThat(ackOps()).singleElement().satisfies(op -> assertThat(op.getResetPending()).isNull());
+
         assertRecoveryReappliesCommittedAcks(txnId, 1);
     }
 

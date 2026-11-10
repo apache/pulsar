@@ -120,8 +120,16 @@ public class MetadataPendingAckStore implements PendingAckStore {
     private List<OpImage> markedForReset = new ArrayList<>();
     /** Marked records whose ACKs a persisted reset discarded, or that recovery found marked: to be deleted. */
     private final Map<String, OpImage> obsoleteMarked = new HashMap<>();
-    /** Marked records of a reset that was not persisted: their mark is to be cleared. */
+    /**
+     * Marked records of a reset that was not persisted: their mark is to be cleared, unless a later reset marks them
+     * again first, which takes them over.
+     */
     private final Map<String, OpImage> unmarkPending = new HashMap<>();
+    /**
+     * The deletes and unmarks of the marked records run one {@link #resolveMarkedRecords} after another, and a reset
+     * reads the records only once those issued before it have landed.
+     */
+    private CompletableFuture<Void> resolution = CompletableFuture.completedFuture(null);
 
     private final CompletableFuture<Void> recoveryFuture = new CompletableFuture<>();
     private volatile AutoCloseable eventSubscription;
@@ -573,17 +581,22 @@ public class MetadataPendingAckStore implements PendingAckStore {
      * <p>The records are marked in place rather than deleted, so the TC never sees a terminal transaction without op
      * records, and keeps its header, while the outcome of the reset is unknown. Each mark that lands is tracked, so
      * {@link #afterCursorReset} can clear it if the reset is not persisted, including after marking failed part way.
+     *
+     * <p>The records are read only once the unmarks of an earlier reset already issued have landed, and none is issued
+     * until this reset completes: an unmark landing between the read and the marking would leave a record this reset
+     * discards unmarked. Marking fails if a record was rewritten since it was read, rather than leave it unmarked.
      */
     @Override
     public CompletableFuture<Void> beforeCursorReset() {
+        CompletableFuture<Void> resolved;
         synchronized (lock) {
             resetInProgress = true;
             markedForReset = new ArrayList<>();
-            // This reset marks those records again, at their current versions.
-            unmarkPending.clear();
+            resolved = resolution;
         }
         // Recovery applies the recovered committed ACKs before it completes; their records are then marked here.
-        return recoveryFuture
+        return resolved.handle((__, error) -> null)
+                .thenCompose(__ -> recoveryFuture)
                 .thenCompose(__ -> txnStore.collectAckOpImagesForSegmentSubscription(segmentName, subscriptionName))
                 .thenCompose(images -> {
                     Map<String, List<OpImage>> imagesByTxn = new HashMap<>();
@@ -606,9 +619,11 @@ public class MetadataPendingAckStore implements PendingAckStore {
                                 }
                             })));
                     return FutureUtil.waitForAll(reads).thenCompose(__ -> txnStore.replaceOps(List.copyOf(marks),
-                            marked -> {
+                            true, marked -> {
                                 synchronized (lock) {
                                     markedForReset.add(marked);
+                                    // This reset now owns a record an earlier reset left to unmark.
+                                    unmarkPending.remove(marked.record().path());
                                 }
                             }));
                 });
@@ -617,10 +632,15 @@ public class MetadataPendingAckStore implements PendingAckStore {
     /**
      * Resolves the records {@link #beforeCursorReset} marked: deletes them if the reset was persisted, or clears their
      * mark if it was not, since the cursor state they protect, which may hold their ACKs only in memory, still stands.
+     * A persisted reset also discards the ACKs of the records an earlier reset left to unmark.
      */
     @Override
     public CompletableFuture<Void> afterCursorReset(boolean persisted) {
         synchronized (lock) {
+            if (persisted) {
+                unmarkPending.forEach(obsoleteMarked::put);
+                unmarkPending.clear();
+            }
             for (OpImage marked : markedForReset) {
                 (persisted ? obsoleteMarked : unmarkPending).put(marked.record().path(), marked);
             }
@@ -632,9 +652,22 @@ public class MetadataPendingAckStore implements PendingAckStore {
 
     /**
      * Deletes the marked records whose ACKs a persisted reset discarded, and clears the mark of those whose reset was
-     * not persisted. Each stays in the bookkeeping until that succeeds, and is retried on the next reconcile.
+     * not persisted. Each stays in the bookkeeping until that succeeds, and is retried on the next reconcile. Runs
+     * after the resolution issued before it, so a reset can wait for all of them.
      */
     private CompletableFuture<Void> resolveMarkedRecords() {
+        CompletableFuture<Void> next = new CompletableFuture<>();
+        CompletableFuture<Void> previous;
+        synchronized (lock) {
+            previous = resolution;
+            resolution = next;
+        }
+        FutureUtil.completeAfter(next, previous.handle((__, error) -> null)
+                .thenCompose(__ -> resolveMarkedRecordsNow()));
+        return next;
+    }
+
+    private CompletableFuture<Void> resolveMarkedRecordsNow() {
         List<OpImage> obsolete;
         List<OpImage> unmark;
         synchronized (lock) {
@@ -651,8 +684,10 @@ public class MetadataPendingAckStore implements PendingAckStore {
                         obsolete.forEach(image -> obsoleteMarked.remove(image.record().path(), image));
                     }
                 });
+        // A conflict means an earlier unmark of the record landed although it was reported as failed: resets don't
+        // mark while an unmark is in flight.
         CompletableFuture<Void> unmarks = txnStore.replaceOps(
-                unmark.stream().map(image -> withResetPending(image, false)).toList(), unmarked -> {
+                unmark.stream().map(image -> withResetPending(image, false)).toList(), false, unmarked -> {
                     synchronized (lock) {
                         // Track the txn, so reconcile deletes the record once the durable cursor covers it.
                         openTxns.add(unmarked.record().txnId());

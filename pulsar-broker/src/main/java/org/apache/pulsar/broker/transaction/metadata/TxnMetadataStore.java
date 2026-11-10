@@ -141,11 +141,13 @@ public class TxnMetadataStore {
 
     /**
      * Rewrite {@code /txn/op} records in place with new contents, each at the version it was collected at and with the
-     * indexes {@link #appendOp} gave it. A record deleted or rewritten since is left alone. {@code onReplaced} receives
-     * each rewritten record at its new version as soon as its rewrite lands, so the caller knows which rewrites landed
-     * even if another fails; the returned future fails if any rewrite failed for another reason.
+     * indexes {@link #appendOp} gave it. A record deleted since is left alone, and so is a record rewritten since,
+     * unless {@code failOnConflict} is set, in which case that rewrite fails. {@code onReplaced} receives each
+     * rewritten record at its new version as soon as its rewrite lands, so the caller knows which rewrites landed even
+     * if another fails; the returned future fails if any rewrite failed.
      */
-    public CompletableFuture<Void> replaceOps(List<OpImage> replacements, Consumer<OpImage> onReplaced) {
+    public CompletableFuture<Void> replaceOps(List<OpImage> replacements, boolean failOnConflict,
+                                              Consumer<OpImage> onReplaced) {
         return FutureUtil.supplySafely(() -> {
             List<CompletableFuture<Void>> puts = new ArrayList<>(replacements.size());
             for (OpImage replacement : replacements) {
@@ -157,7 +159,7 @@ public class TxnMetadataStore {
                         .exceptionally(ex -> {
                             Throwable cause = FutureUtil.unwrapCompletionException(ex);
                             if (cause instanceof MetadataStoreException.NotFoundException
-                                    || cause instanceof MetadataStoreException.BadVersionException) {
+                                    || !failOnConflict && cause instanceof MetadataStoreException.BadVersionException) {
                                 return null;
                             }
                             throw FutureUtil.wrapToCompletionException(cause);
