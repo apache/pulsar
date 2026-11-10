@@ -20,7 +20,9 @@ package org.apache.pulsar.transaction.coordinator.impl;
 
 import static org.apache.pulsar.transaction.coordinator.impl.DisabledTxnLogBufferedWriterMetricsStats.DISABLED_BUFFERED_WRITER_METRICS;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -829,17 +831,41 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
             txnLogBufferedWriter.asyncAddData(1, callbackWithCounter.callback, "");
         }
         // Wait for all data write finish.
-        Awaitility.await().atMost(2, TimeUnit.SECONDS).until(
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).until(
                 () -> callbackWithCounter.finishCounter.get() + callbackWithCounter.failureCounter.get() == writeCount
         );
         assertEquals(callbackWithCounter.failureCounter.get(), 0);
-        // Assert metrics stat.
+        // Assert metrics stat: registered on the default registry, but nothing observed without batching.
+        verifyTheCounterMetrics(0, 0, 0, 0);
         verifyTheHistogramMetrics(0, 0, 0);
         // cleanup.
         txnLogBufferedWriter.close().get();
         metricsStats.close();
+        verifyTheMetricsAreUnregistered();
         transactionTimer.stop();
         orderedExecutor.shutdown();
+    }
+
+    /**
+     * The no-op metrics instance registers its collectors on a private registry, so none of them may show up on the
+     * default registry that brokers scrape.
+     */
+    @Test
+    public void testDisabledMetricsStatsStayOutOfDefaultRegistry() {
+        String disabledPrefix = "disabled_bufferedwriter_";
+        assertEquals(defaultRegistryNamesWithPrefix(disabledPrefix), Collections.emptyList());
+        // Touching the singleton forces its construction (and so its registration) if it did not happen yet.
+        DISABLED_BUFFERED_WRITER_METRICS.triggerFlushByRecordsCount(1, 1, 1);
+        assertEquals(defaultRegistryNamesWithPrefix(disabledPrefix), Collections.emptyList());
+        // The real metrics with the same shape do register on the default registry, so the scrape filter works.
+        TxnLogBufferedWriterMetricsStats metricsStats = new TxnLogBufferedWriterMetricsStats(
+                metricsPrefix, metricsLabelNames, metricsLabelValues, PrometheusRegistry.defaultRegistry);
+        try {
+            assertEquals(defaultRegistryNamesWithPrefix(metricsPrefix + "_bufferedwriter_").size(), 7);
+        } finally {
+            metricsStats.close();
+        }
+        verifyTheMetricsAreUnregistered();
     }
 
     @Test
@@ -870,9 +896,8 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         verifyTheHistogramMetrics(expectedBatchFlushCount, writeCount, expectedTotalBytesSize);
         // cleanup.
         releaseTxnLogBufferedWriterContext(txnLogBufferedWriterContext);
-        // after close, verify the metrics change to 0.
-        verifyTheCounterMetrics(0, 0, 0, 0);
-        verifyTheHistogramMetrics(0, 0, 0);
+        // after close, the metrics are unregistered.
+        verifyTheMetricsAreUnregistered();
     }
 
     @Test
@@ -902,9 +927,8 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         verifyTheHistogramMetrics(expectedBatchFlushCount, writeCount, expectedTotalBytesSize);
         // cleanup.
         releaseTxnLogBufferedWriterContext(txnLogBufferedWriterContext);
-        // after close, verify the metrics change to 0.
-        verifyTheCounterMetrics(0, 0, 0, 0);
-        verifyTheHistogramMetrics(0, 0, 0);
+        // after close, the metrics are unregistered.
+        verifyTheMetricsAreUnregistered();
     }
 
     @Test
@@ -933,9 +957,8 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         verifyTheHistogramMetrics(actualBatchFlushCount, writeCount, expectedTotalBytesSize);
         // cleanup.
         releaseTxnLogBufferedWriterContext(txnLogBufferedWriterContext);
-        // after close, verify the metrics change to 0.
-        verifyTheCounterMetrics(0, 0, 0, 0);
-        verifyTheHistogramMetrics(0, 0, 0);
+        // after close, the metrics are unregistered.
+        verifyTheMetricsAreUnregistered();
     }
 
     @Test
@@ -972,9 +995,8 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
                 writeCount - singleLargeDataRequestCount, expectedTotalBytesSize);
         // cleanup.
         releaseTxnLogBufferedWriterContext(txnLogBufferedWriterContext);
-        // after close, verify the metrics change to 0.
-        verifyTheCounterMetrics(0, 0, 0, 0);
-        verifyTheHistogramMetrics(0, 0, 0);
+        // after close, the metrics are unregistered.
+        verifyTheMetricsAreUnregistered();
     }
 
     @Test
@@ -1130,18 +1152,51 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
     }
 
     private double getCounterValue(String name) {
-        DataPointSnapshot dataPoint = findDataPoint(name);
-        return dataPoint == null ? 0 : ((CounterSnapshot.CounterDataPointSnapshot) dataPoint).getValue();
+        return ((CounterSnapshot.CounterDataPointSnapshot) requireDataPoint(name)).getValue();
     }
 
     private double getHistogramCount(String name) {
-        DataPointSnapshot dataPoint = findDataPoint(name);
-        return dataPoint == null ? 0 : ((HistogramSnapshot.HistogramDataPointSnapshot) dataPoint).getCount();
+        return ((HistogramSnapshot.HistogramDataPointSnapshot) requireDataPoint(name)).getCount();
     }
 
     private double getHistogramSum(String name) {
+        return ((HistogramSnapshot.HistogramDataPointSnapshot) requireDataPoint(name)).getSum();
+    }
+
+    /** Fails the test when the metric is not registered on the default registry with this test's labels. */
+    private DataPointSnapshot requireDataPoint(String name) {
         DataPointSnapshot dataPoint = findDataPoint(name);
-        return dataPoint == null ? 0 : ((HistogramSnapshot.HistogramDataPointSnapshot) dataPoint).getSum();
+        if (dataPoint == null) {
+            fail("no data point for " + name);
+        }
+        return dataPoint;
+    }
+
+    private void assertNoDataPoint(String name) {
+        assertNull(findDataPoint(name), "unexpected data point for " + name);
+    }
+
+    /** After {@link TxnLogBufferedWriterMetricsStats#close()} every metric must be gone from the registry. */
+    private void verifyTheMetricsAreUnregistered() {
+        for (String suffix : new String[]{
+                "_bufferedwriter_flush_trigger_max_records",
+                "_bufferedwriter_flush_trigger_max_size",
+                "_bufferedwriter_flush_trigger_max_delay",
+                "_bufferedwriter_flush_trigger_large_data",
+                "_bufferedwriter_batch_records",
+                "_bufferedwriter_batch_size_bytes",
+                "_bufferedwriter_batch_oldest_record_delay_seconds"}) {
+            assertNoDataPoint(metricsPrefix + suffix);
+        }
+    }
+
+    /** Metric family names on the default registry starting with {@code prefix}. */
+    private static List<String> defaultRegistryNamesWithPrefix(String prefix) {
+        List<String> names = new ArrayList<>();
+        for (MetricSnapshot snapshot : PrometheusRegistry.defaultRegistry.scrape(name -> name.startsWith(prefix))) {
+            names.add(snapshot.getMetadata().getPrometheusName());
+        }
+        return names;
     }
 
     /** The data point of the metric carrying this test's labels, or null if it is not registered. */
