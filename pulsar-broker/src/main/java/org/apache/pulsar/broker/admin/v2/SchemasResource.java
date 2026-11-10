@@ -284,7 +284,7 @@ public class SchemasResource extends SchemasResourceBase {
     @ApiOperation(value = "test the schema compatibility", response = IsCompatibilityResponse.class)
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
-            @ApiResponse(code = 401, message = "Client is not authorized or Don't have admin permission"),
+            @ApiResponse(code = 401, message = "Client lacks permission to produce or consume on this topic"),
             @ApiResponse(code = 403, message = "Client is not authenticated"),
             @ApiResponse(code = 404, message = "Tenant or Namespace or Topic doesn't exist"),
             @ApiResponse(code = 412, message = "Failed to find the ownership for the topic"),
