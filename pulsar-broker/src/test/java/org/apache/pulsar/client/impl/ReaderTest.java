@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -656,7 +657,6 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
                 .create();
 
         Awaitility.await()
-                .pollDelay(3, TimeUnit.SECONDS)
                 .until(() -> {
                     TopicStats topicStats = admin.topics().getStats(topic);
                     System.out.println("subscriptions size: " + topicStats.getSubscriptions().size());
@@ -679,7 +679,6 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         consumer.close();
 
         Awaitility.await()
-                .pollDelay(3, TimeUnit.SECONDS)
                 .until(() -> {
             TopicStats topicStats = admin.topics().getStats(topic);
             System.out.println("subscriptions size: " + topicStats.getSubscriptions().size());
@@ -937,8 +936,11 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
 
             reader.seek(System.currentTimeMillis());
             assertFalse(reader.hasMessageAvailable());
+            // A marker published after the seek is the next message, so the earlier message isn't delivered
+            final MessageId markerId = producer.send("marker");
             Message<String> message = reader.readNext(10, TimeUnit.SECONDS);
-            assertNull(message);
+            assertNotNull(message);
+            assertEquals(message.getMessageId(), markerId);
         }
 
         for (MessageId messageId : messageIds) {
