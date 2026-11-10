@@ -56,6 +56,10 @@ import org.testng.annotations.Test;
 @CustomLog
 public class MetadataStoreTableViewTest extends BaseMetadataStoreTest {
 
+    private static final JSONMetadataSerdeSimpleType<Integer> SERDE = new JSONMetadataSerdeSimpleType<>(
+            TypeFactory.defaultInstance().constructSimpleType(Integer.class, null));
+    private static final int MARKER_VALUE = 100;
+
     LinkedBlockingDeque<Pair<String, Integer>> tails;
     LinkedBlockingDeque<Pair<String, Integer>> existings;
 
@@ -94,6 +98,17 @@ public class MetadataStoreTableViewTest extends BaseMetadataStoreTest {
                 .build();
         tv.start();
         return tv;
+    }
+
+    /**
+     * Writes {@code markerKey} straight to the store and asserts that it is the next tail item. The store delivers
+     * notifications in order, so this proves that nothing was notified for the earlier writes since the last item
+     * taken, without waiting out a timeout.
+     */
+    private void assertNextTailItemIsMarker(MetadataStore store, String prefix, String markerKey) throws Exception {
+        String path = prefix + "/" + markerKey;
+        store.put(path, SERDE.serialize(path, MARKER_VALUE), Optional.empty()).join();
+        assertEquals(tails.poll(10, TimeUnit.SECONDS), Pair.of(markerKey, MARKER_VALUE));
     }
 
     private void assertGet(MetadataStoreTableViewImpl<Integer> tv, String path, Integer expected) {
@@ -263,32 +278,28 @@ public class MetadataStoreTableViewTest extends BaseMetadataStoreTest {
         tv.put(childKey, val0).join();
         kv = tails.poll(3, TimeUnit.SECONDS);
         assertEquals(kv, Pair.of(childKey, val0));
-        kv = tails.poll(3, TimeUnit.SECONDS);
-        assertNull(kv);
+        assertNextTailItemIsMarker(store, prefix, keyPrefix + "/my-marker-1");
         assertEquals(tv.get(key1), val2);
         assertEquals(tv.get(childKey), val0);
 
         tv.put(childKey, val1).join();
         kv = tails.poll(3, TimeUnit.SECONDS);
         assertEquals(kv, Pair.of(childKey, val1));
-        kv = tails.poll(3, TimeUnit.SECONDS);
-        assertNull(kv);
+        assertNextTailItemIsMarker(store, prefix, keyPrefix + "/my-marker-2");
         assertEquals(tv.get(key1), val2);
         assertEquals(tv.get(childKey), val1);
 
         tv.delete(childKey).join();
         kv = tails.poll(3, TimeUnit.SECONDS);
         assertEquals(kv, Pair.of(childKey, null));
-        kv = tails.poll(3, TimeUnit.SECONDS);
-        assertNull(kv);
+        assertNextTailItemIsMarker(store, prefix, keyPrefix + "/my-marker-3");
         assertEquals(tv.get(key1), val2);
         assertNull(tv.get(childKey));
 
         // No listen on the filtered key
         String noListenKey = keyPrefix + "/to-be-filtered";
         tv.put(noListenKey, val0).join();
-        kv = tails.poll(3, TimeUnit.SECONDS);
-        assertNull(kv);
+        assertNextTailItemIsMarker(store, prefix, keyPrefix + "/my-marker-4");
         assertEquals(tv.get(key1), val2);
         assertNull(tv.get(noListenKey));
 
@@ -333,6 +344,9 @@ public class MetadataStoreTableViewTest extends BaseMetadataStoreTest {
                                 .attr("success", !putResult.isCompletedExceptionally())
                                 .log("Put value result");
                     } else {
+                        // Put the last value back so that the other workers stop too, instead of waiting out
+                        // the poll timeout.
+                        tails.add(kv);
                         break;
                     }
                 }
@@ -459,13 +473,11 @@ public class MetadataStoreTableViewTest extends BaseMetadataStoreTest {
 
         assertFalse(btv.exists(k1));
 
-        var serde = new JSONMetadataSerdeSimpleType<>(
-                TypeFactory.defaultInstance().constructSimpleType(Integer.class, null));
-        store.put(prefix + "/" + k1, serde.serialize(prefix + "/" + k1, 0), Optional.empty()).join();
-        store.put(prefix + "/" + k2, serde.serialize(prefix + "/" + k2, 1), Optional.empty()).join();
-        store.put(prefix + "/" + k3, serde.serialize(prefix + "/" + k3, 2), Optional.empty()).join();
-        store.put(prefix + "/" + k4, serde.serialize(prefix + "/" + k4, 3), Optional.empty()).join();
-        store.put(prefix + "/" + k5, serde.serialize(prefix + "/" + k5, 4), Optional.empty()).join();
+        store.put(prefix + "/" + k1, SERDE.serialize(prefix + "/" + k1, 0), Optional.empty()).join();
+        store.put(prefix + "/" + k2, SERDE.serialize(prefix + "/" + k2, 1), Optional.empty()).join();
+        store.put(prefix + "/" + k3, SERDE.serialize(prefix + "/" + k3, 2), Optional.empty()).join();
+        store.put(prefix + "/" + k4, SERDE.serialize(prefix + "/" + k4, 3), Optional.empty()).join();
+        store.put(prefix + "/" + k5, SERDE.serialize(prefix + "/" + k5, 4), Optional.empty()).join();
 
         var expected = new HashSet<>(Set.of(Pair.of(k1, 0), Pair.of(k2, 1), Pair.of(k3, 2), Pair.of(k4, 3)));
         var tailExpected = new HashSet<>(expected);
@@ -474,8 +486,11 @@ public class MetadataStoreTableViewTest extends BaseMetadataStoreTest {
             var kv = tails.poll(3, TimeUnit.SECONDS);
             assertTrue(tailExpected.remove(kv));
         }
-        assertNull(tails.poll(3, TimeUnit.SECONDS));
+        String markerKey = "tenant-2/ns-3/my-marker";
+        assertNextTailItemIsMarker(store, prefix, markerKey);
         assertTrue(tailExpected.isEmpty());
+        // Keep the marker out of the second table view's initial fill.
+        store.delete(prefix + "/" + markerKey, Optional.empty()).join();
 
         @Cleanup
         MetadataStore store2 = MetadataStoreFactoryImpl.create(urlSupplier.get(),
@@ -490,7 +505,8 @@ public class MetadataStoreTableViewTest extends BaseMetadataStoreTest {
             var kv = existings.poll(3, TimeUnit.SECONDS);
             assertTrue(existingExpected.remove(kv));
         }
-        assertNull(existings.poll(3, TimeUnit.SECONDS));
+        // start() returns after the initial fill has called the existing-item listeners for every item.
+        assertNull(existings.poll());
         assertTrue(existingExpected.isEmpty());
 
         assertEquals(tv.get(k1), 0);
