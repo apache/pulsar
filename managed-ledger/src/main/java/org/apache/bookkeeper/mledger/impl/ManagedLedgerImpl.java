@@ -4072,12 +4072,20 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 }
             }
 
-            for (LedgerInfo ls : ledgers.values()) {
-                if (isOffloadedNeedsDelete(ls.getOffloadContext(), optionalOffloadPolicies)
-                        && !ledgersToDelete.contains(ls)) {
-                    log.debug().attr("ledgerId", ls.getLedgerId())
-                            .log("Ledger has been offloaded, bookkeeper ledger needs to be deleted");
-                    offloadedLedgersToDelete.add(ls);
+            Long offloadDeletionLag = optionalOffloadPolicies.isPresent()
+                    ? optionalOffloadPolicies.get().getManagedLedgerOffloadDeletionLagInMillis() : null;
+            if (offloadDeletionLag != null && offloadDeletionLag >= 0) {
+                // Ordinary deletion candidates form a prefix of the ordered ledger map. Only scan the remaining
+                // ledgers for offloaded BookKeeper copies, avoiding a membership lookup for every candidate.
+                Collection<LedgerInfo> remainingLedgers = ledgersToDelete.isEmpty() ? ledgers.values()
+                        : ledgers.tailMap(ledgersToDelete.get(ledgersToDelete.size() - 1).getLedgerId(), false)
+                                .values();
+                for (LedgerInfo ls : remainingLedgers) {
+                    if (isOffloadedNeedsDelete(ls.getOffloadContext(), optionalOffloadPolicies)) {
+                        log.debug().attr("ledgerId", ls.getLedgerId())
+                                .log("Ledger has been offloaded, bookkeeper ledger needs to be deleted");
+                        offloadedLedgersToDelete.add(ls);
+                    }
                 }
             }
 
