@@ -200,7 +200,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
         PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
                 .getTopic(topicName, false).get().get();
-        Field field = AbstractTopic.class.getDeclaredField("publishRateLimitedTimes");
+        Field field = AbstractTopic.class.getDeclaredField("totalPublishRateLimitedCounter");
         field.setAccessible(true);
         Awaitility.await().untilAsserted(() -> {
             long value = (long) field.get(persistentTopic);
@@ -229,12 +229,9 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                 fail("should not fail");
             }
         });
-        // Stats updater will reset the stats
+        // The counter is cumulative and is not cleared by the stats updater.
         pulsar.getBrokerService().updateRates();
-        Awaitility.await().untilAsserted(() -> {
-            long value = (long) field.get(persistentTopic);
-            assertEquals(value, 0);
-        });
+        assertEquals((long) field.get(persistentTopic), 1);
 
         @Cleanup
         ByteArrayOutputStream statsOut2 = new ByteArrayOutputStream();
@@ -244,7 +241,11 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertTrue(metrics2.containsKey("pulsar_publish_rate_limit_times"));
         metrics2.get("pulsar_publish_rate_limit_times").forEach(item -> {
             if (ns1.equals(item.tags.get("namespace"))) {
-                assertEquals(item.value, 0);
+                if (item.tags.get("topic").equals(topicName) || item.tags.get("topic").equals(topicName2)) {
+                    assertEquals(item.value, 1);
+                } else {
+                    assertEquals(item.value, 0);
+                }
             }
         });
 

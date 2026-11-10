@@ -985,6 +985,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
         stats.bytesOutCounter = bytesOutFromRemovedSubscriptions.longValue();
         stats.msgOutCounter = msgOutFromRemovedSubscriptions.longValue();
         stats.bytesOutInternalCounter = bytesOutFromRemovedSystemSubscriptions.longValue();
+        stats.publishRateLimitedTimes = getTotalPublishRateLimitCounter();
 
         subscriptions.forEach((name, subscription) -> {
             NonPersistentSubscriptionStatsImpl subStats = subscription.getStats(getStatsOptions);
