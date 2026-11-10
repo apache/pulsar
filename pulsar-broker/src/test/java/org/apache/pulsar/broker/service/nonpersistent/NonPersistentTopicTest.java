@@ -128,6 +128,17 @@ public class NonPersistentTopicTest extends BrokerTestBase {
         msg = consumer2.receive();
         assertNotNull(msg);
 
+        // The broker counts the messages out once the write to the connection completes, which can be after the
+        // client has received them, so wait until both subscriptions have counted their message
+        Awaitility.await().untilAsserted(() -> {
+            TopicStats currentStats = topic.getStats(false, false, false);
+            assertEquals(currentStats.getSubscriptions().size(), 2);
+            currentStats.getSubscriptions().values().forEach(subStats -> {
+                assertEquals(subStats.getMsgOutCounter(), 1);
+                assertTrue(subStats.getBytesOutCounter() > 0);
+            });
+        });
+
         // send/receive result in non-zero stats
         TopicStats statsBeforeUnsubscribe = topic.getStats(false, false, false);
         assertTrue(statsBeforeUnsubscribe.getBytesInCounter() > 0);
@@ -141,12 +152,15 @@ public class NonPersistentTopicTest extends BrokerTestBase {
         topic.getProducers().values().forEach(topic::removeProducer);
         assertEquals(topic.getProducers().size(), 0);
 
-        // consumer unsubscribe/producer removal does not result in stats loss
-        TopicStats statsAfterUnsubscribe = topic.getStats(false, false, false);
-        assertEquals(statsAfterUnsubscribe.getBytesInCounter(), statsBeforeUnsubscribe.getBytesInCounter());
-        assertEquals(statsAfterUnsubscribe.getMsgInCounter(), statsBeforeUnsubscribe.getMsgInCounter());
-        assertEquals(statsAfterUnsubscribe.getBytesOutCounter(), statsBeforeUnsubscribe.getBytesOutCounter());
-        assertEquals(statsAfterUnsubscribe.getMsgOutCounter(), statsBeforeUnsubscribe.getMsgOutCounter());
+        // consumer unsubscribe/producer removal does not result in stats loss. The topic removes a subscription
+        // before it adds the subscription's counters to its own, and unsubscribe() can return in between.
+        Awaitility.await().untilAsserted(() -> {
+            TopicStats statsAfterUnsubscribe = topic.getStats(false, false, false);
+            assertEquals(statsAfterUnsubscribe.getBytesInCounter(), statsBeforeUnsubscribe.getBytesInCounter());
+            assertEquals(statsAfterUnsubscribe.getMsgInCounter(), statsBeforeUnsubscribe.getMsgInCounter());
+            assertEquals(statsAfterUnsubscribe.getBytesOutCounter(), statsBeforeUnsubscribe.getBytesOutCounter());
+            assertEquals(statsAfterUnsubscribe.getMsgOutCounter(), statsBeforeUnsubscribe.getMsgOutCounter());
+        });
     }
 
     @Test
