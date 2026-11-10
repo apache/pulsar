@@ -86,8 +86,9 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
         Producer prod = topic.getProducers().values().iterator().next();
         // reset counter
         prod.updateRates();
-        // At 10 msg/s, enough to take a few seconds
-        int total = 40;
+        // The rate limiter lets one second of messages through at once, so 3 seconds of messages are throttled for
+        // about 2 seconds, which keeps the rate below the total.
+        int total = 30;
         for (int i = 0; i < total; i++) {
             producer.send(new byte[80]);
         }
@@ -139,7 +140,7 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
         Producer prod = topic.getProducers().values().iterator().next();
         // reset counter
         prod.updateRates();
-        // At 400 bytes/s, enough to take a few seconds
+        // About 3 seconds of bytes (each message counts for about 32 bytes), throttled for about 2 seconds.
         int total = 40;
         for (int i = 0; i < total; i++) {
             producer.send(new byte[1]);
@@ -203,8 +204,8 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
         Producer prod = topic.getProducers().values().iterator().next();
         // reset counter
         prod.updateRates();
-        // At 10 msg/s, enough to take a few seconds
-        int total = 40;
+        // 3 seconds of messages, throttled for about 2 seconds.
+        int total = 30;
         for (int i = 0; i < total; i++) {
             producer.send(new byte[80]);
         }
@@ -267,7 +268,8 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
         Producer prod = topic.getProducers().values().iterator().next();
         // reset counter
         prod.updateRates();
-        int numMessage = 20;
+        // 3 seconds of bytes, throttled for about 2 seconds.
+        int numMessage = 15;
         int msgBytes = 80;
 
         for (int i = 0; i < numMessage; i++) {
@@ -347,9 +349,10 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
         Producer prod = topic.getProducers().values().iterator().next();
         // reset counter
         prod.updateRates();
-        // 2,400 bytes: more than twice the broker limit, so that even with its initial burst the broker-throttled
-        // phase stays below numMessage * msgBytes per second
+        // 3 seconds of bytes at the broker rate, which the topic rate throttles for about 5 seconds.
         int numMessage = 30;
+        // 3 seconds of bytes at the topic rate, throttled for about 2 seconds.
+        int numMessagePerTopic = 15;
         int msgBytes = 80;
 
         for (int i = 0; i < numMessage; i++) {
@@ -392,14 +395,14 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
 
         for (int i = 0; i < topicNumber; i++) {
             topicRatesCounter.add(() -> {
-                int id = index.incrementAndGet();
+                int id = index.getAndIncrement();
                 ProducerImpl<byte[]> iProducer = producers.get(id);
                 PersistentTopic iTopic = topics.get(id);
                 Producer iProd = iTopic.getProducers().values().iterator().next();
                 // reset counter
                 iProd.updateRates();
 
-                for (int j = 0; j < numMessage; j++) {
+                for (int j = 0; j < numMessagePerTopic; j++) {
                     iProducer.send(new byte[msgBytes]);
                 }
                 iProd.updateRates();
@@ -409,13 +412,13 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
             });
         }
         executor.invokeAll(topicRatesCounter);
-        latch.await(2, TimeUnit.SECONDS);
+        assertTrue(latch.await(2, TimeUnit.SECONDS));
         log.info()
                 .attr("rate", topicsRateIn.get())
-                .attr("total", topicNumber * numMessage * msgBytes)
+                .attr("total", topicNumber * numMessagePerTopic * msgBytes)
                 .log("2-nd rate in: , total");
         assertTrue(rateIn < topicsRateIn.get());
-        assertTrue(rateIn < topicNumber * numMessage * msgBytes);
+        assertTrue(rateIn < topicNumber * numMessagePerTopic * msgBytes);
 
         // disable topic throttling, it will use broker throttling, expected rateIn bigger than before.
         topicPublishMsgRate.publishThrottlingRateInByte = -1;
