@@ -325,7 +325,7 @@ public class SchemasResource extends SchemasResourceBase {
             @ApiResponse(responseCode = "307",
                     description = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(responseCode = "401",
-                    description = "Client is not authorized or Don't have admin permission"),
+                    description = "Client lacks permission to produce or consume on this topic"),
             @ApiResponse(responseCode = "403", description = "Client is not authenticated"),
             @ApiResponse(responseCode = "404", description = "Tenant or Namespace or Topic doesn't exist"),
             @ApiResponse(responseCode = "412", description = "Failed to find the ownership for the topic"),

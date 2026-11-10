@@ -25,6 +25,7 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNotSame;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
+import io.netty.util.concurrent.EventExecutor;
 import java.lang.reflect.Field;
 import java.util.Collections;
 import java.util.Optional;
@@ -530,6 +531,36 @@ public class NonPersistentTopicTest extends BrokerTestBase {
             assertEquals(message.getValue(), "after-reconnect");
         } finally {
             allowRemoval.complete(null);
+        }
+    }
+
+    @Test
+    public void testClosingLastConsumerRemovesSubscriptionBeforeReturning() throws Exception {
+        String topicName = "non-persistent://prop/ns-abc/close-last-consumer-" + UUID.randomUUID();
+        String subName = "sub";
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName).subscribe();
+        NonPersistentTopic topic = (NonPersistentTopic) pulsar.getBrokerService()
+                .getTopicReference(topicName).orElseThrow();
+        NonPersistentSubscription subscription = topic.getSubscriptions().get(subName);
+        assertTrue(topic.isActive());
+
+        // Hold the broker's IO threads, so that no work the close hands over to them can run before the checks.
+        CountDownLatch releaseIoThreads = new CountDownLatch(1);
+        for (EventExecutor ioThread : pulsar.getBrokerService().executor()) {
+            ioThread.submit(() -> {
+                releaseIoThreads.await();
+                return null;
+            });
+        }
+        try {
+            // ServerCnx acknowledges the client's CloseConsumer as soon as this returns, and the inactive topic GC
+            // must not count the subscription after that.
+            subscription.getConsumers().get(0).close();
+            assertFalse(topic.getSubscriptions().containsKey(subName));
+            assertFalse(topic.isActive());
+        } finally {
+            releaseIoThreads.countDown();
         }
     }
 

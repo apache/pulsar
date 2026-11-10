@@ -47,6 +47,7 @@ import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferDisable;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.compaction.CompactionServiceFactory;
+import org.apache.pulsar.compaction.TopicCompactionService;
 import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
 import org.testng.annotations.AfterClass;
@@ -74,17 +75,17 @@ public class OrphanPersistentTopicTest extends ProducerConsumerBase {
     @Test
     public void testNoOrphanTopicAfterCreateTimeout() throws Exception {
         // Make the topic loading timeout faster.
-        int topicLoadTimeoutSeconds = 2;
+        int topicLoadTimeoutSeconds = 1;
         long originalTopicLoadTimeoutSeconds = pulsar.getConfig().getTopicLoadTimeoutSeconds();
-        pulsar.getConfig().setTopicLoadTimeoutSeconds(2);
+        pulsar.getConfig().setTopicLoadTimeoutSeconds(topicLoadTimeoutSeconds);
 
         String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
         String mlPath = BrokerService.MANAGED_LEDGER_PATH_ZNODE + "/" + TopicName.get(tpName)
                 .getPersistenceNamingEncoding();
 
-        // Make topic load timeout 5 times.
+        // Make topic load timeout 2 times.
         AtomicInteger timeoutCounter = new AtomicInteger();
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < 2; i++) {
             mockZooKeeper.delay(topicLoadTimeoutSeconds * 2 * 1000, (op, path) -> {
                 if (mlPath.equals(path)) {
                     log.info().attr("incrementAndGet", timeoutCounter.incrementAndGet()).log("Topic load timeout");
@@ -100,7 +101,7 @@ public class OrphanPersistentTopicTest extends ProducerConsumerBase {
                 .subscriptionName("my-sub")
                 .subscribeAsync();
 
-        // After create timeout 5 times, the topic will be created successful.
+        // After create timeout 2 times, the topic will be created successful.
         Awaitility.await().ignoreExceptions().atMost(40, TimeUnit.SECONDS).untilAsserted(() -> {
             CompletableFuture<Optional<Topic>> future = pulsar.getBrokerService().getTopic(tpName, false);
             assertTrue(future.isDone());
@@ -193,16 +194,34 @@ public class OrphanPersistentTopicTest extends ProducerConsumerBase {
                 .subscriptionName("my-sub")
                 .subscribe();
 
-        // Make the method `PersitentTopic.initialize` fail.
+        // Make the method `PersitentTopic.initialize` fail, counting the failed loads of the topic.
         Field fieldCompactionServiceFactory = PulsarService.class.getDeclaredField("compactionServiceFactory");
         fieldCompactionServiceFactory.setAccessible(true);
         CompactionServiceFactory compactionServiceFactory =
                 (CompactionServiceFactory) fieldCompactionServiceFactory.get(pulsar);
-        fieldCompactionServiceFactory.set(pulsar, null);
+        AtomicInteger failedInitializations = new AtomicInteger();
+        fieldCompactionServiceFactory.set(pulsar, new CompactionServiceFactory() {
+            @Override
+            public CompletableFuture<Void> initialize(PulsarService pulsarService) {
+                return CompletableFuture.completedFuture(null);
+            }
+
+            @Override
+            public CompletableFuture<TopicCompactionService> newTopicCompactionService(String topic) {
+                if (tpName.equals(topic)) {
+                    failedInitializations.incrementAndGet();
+                }
+                return CompletableFuture.failedFuture(new RuntimeException("mocked error"));
+            }
+
+            @Override
+            public void close() {
+            }
+        });
         admin.topics().unload(tpName);
 
         // Wait for failed to create topic for several times.
-        Thread.sleep(5 * 1000);
+        Awaitility.await().untilAsserted(() -> assertTrue(failedInitializations.get() >= 3));
 
         // Remove the injected error, the topic will be created successful.
         fieldCompactionServiceFactory.set(pulsar, compactionServiceFactory);
@@ -237,7 +256,7 @@ public class OrphanPersistentTopicTest extends ProducerConsumerBase {
     @Test(timeOut = 60 * 1000, dataProvider = "whetherTimeoutOrNot")
     public void testCheckOwnerShipFails(boolean injectTimeout) throws Exception {
         if (injectTimeout) {
-            pulsar.getConfig().setTopicLoadTimeoutSeconds(5);
+            pulsar.getConfig().setTopicLoadTimeoutSeconds(1);
         }
         String ns = "public" + "/" + UUID.randomUUID().toString().replaceAll("-", "");
         String tpName = BrokerTestUtil.newUniqueName("persistent://" + ns + "/tp");
@@ -252,7 +271,8 @@ public class OrphanPersistentTopicTest extends ProducerConsumerBase {
             TopicName paramTp = (TopicName) invocation.getArguments()[0];
             if (paramTp.toString().equalsIgnoreCase(tpName) && failedTimes.incrementAndGet() <= 2) {
                 if (injectTimeout) {
-                    Thread.sleep(10 * 1000);
+                    // Longer than the topic load timeout.
+                    Thread.sleep(2 * 1000);
                 }
                 log.info().attr("failed", failedTimes.get()).log("Failed times");
                 return CompletableFuture.failedFuture(new RuntimeException("mocked error"));
@@ -274,7 +294,7 @@ public class OrphanPersistentTopicTest extends ProducerConsumerBase {
     @Test(timeOut = 60 * 1000, dataProvider = "whetherTimeoutOrNot")
     public void testTopicLoadAndDeleteAtTheSameTime(boolean injectTimeout) throws Exception {
         if (injectTimeout) {
-            pulsar.getConfig().setTopicLoadTimeoutSeconds(5);
+            pulsar.getConfig().setTopicLoadTimeoutSeconds(1);
         }
         String ns = "public" + "/" + UUID.randomUUID().toString().replaceAll("-", "");
         String tpName = BrokerTestUtil.newUniqueName("persistent://" + ns + "/tp");
@@ -289,7 +309,8 @@ public class OrphanPersistentTopicTest extends ProducerConsumerBase {
             TopicName paramTp = (TopicName) invocation.getArguments()[0];
             if (paramTp.toString().equalsIgnoreCase(tpName) && mockRaceConditionCounter.incrementAndGet() <= 1) {
                 if (injectTimeout) {
-                    Thread.sleep(10 * 1000);
+                    // Longer than the topic load timeout.
+                    Thread.sleep(2 * 1000);
                 }
                 log.info().attr("conditionOccurs", mockRaceConditionCounter.get()).log("Race condition occurs times");
                 pulsar.getDefaultManagedLedgerFactory().delete(TopicName.get(tpName).getPersistenceNamingEncoding());
