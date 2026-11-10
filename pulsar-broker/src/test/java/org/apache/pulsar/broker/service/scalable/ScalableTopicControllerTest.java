@@ -71,6 +71,7 @@ import org.apache.pulsar.broker.resources.SubscriptionType;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.GetStatsOptions;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.TopicPoliciesService;
 import org.apache.pulsar.broker.service.TransportCnx;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -79,9 +80,11 @@ import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.common.api.proto.ScalableConsumerType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AutoScalePolicyOverride;
+import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.ScalableSubscriptionType;
 import org.apache.pulsar.common.policies.data.ScalableTopicStats;
 import org.apache.pulsar.common.policies.data.SegmentTopicStats;
+import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.scalable.SegmentInfo;
 import org.apache.pulsar.common.scalable.SegmentLoadStats;
@@ -1275,6 +1278,49 @@ public class ScalableTopicControllerTest {
                 "negative retention must keep sealed segments forever");
     }
 
+    /** With no local topic retention, a global topic retention applies ahead of the namespace's. */
+    @Test
+    public void testGcTickUsesGlobalTopicRetentionWhenNoLocal() throws Exception {
+        installGcMocks(/* nsRetentionMinutes */ -1, null, new RetentionPolicies(1, -1));
+        long startMs = 1_700_000_000_000L;
+        AdjustableClock clock = new AdjustableClock(startMs);
+        if (controller != null) {
+            controller.close().join();
+        }
+        controller = newControllerWithClock(topicName, clock, Duration.ofHours(1));
+        controller.initialize().get();
+        controller.splitSegment(0).get();
+
+        controller.runGcTickAsync().get();
+        assertTrue(controller.getLayout().get().getAllSegments().containsKey(0L),
+                "tick within the global retention window must not prune");
+
+        clock.set(startMs + TimeUnit.MINUTES.toMillis(1) + 1_000L);
+        controller.runGcTickAsync().get();
+        assertFalse(controller.getLayout().get().getAllSegments().containsKey(0L),
+                "tick past the global retention must prune the sealed segment");
+    }
+
+    /** A local topic retention overrides the global one, even when it keeps forever. */
+    @Test
+    public void testGcTickLocalTopicRetentionOverridesGlobal() throws Exception {
+        installGcMocks(/* nsRetentionMinutes */ 1, new RetentionPolicies(-1, -1),
+                new RetentionPolicies(1, -1));
+        long startMs = 1_700_000_000_000L;
+        AdjustableClock clock = new AdjustableClock(startMs);
+        if (controller != null) {
+            controller.close().join();
+        }
+        controller = newControllerWithClock(topicName, clock, Duration.ofHours(1));
+        controller.initialize().get();
+        controller.splitSegment(0).get();
+
+        clock.set(startMs + TimeUnit.HOURS.toMillis(1));
+        controller.runGcTickAsync().get();
+        assertTrue(controller.getLayout().get().getAllSegments().containsKey(0L),
+                "local keep-forever retention must win over the global one");
+    }
+
     /**
      * Ancestors first: a sealed segment that every subscription has drained stays in the DAG while
      * its parent is still there. Pruning it would drop it from its children's parent lists, and a
@@ -1354,20 +1400,41 @@ public class ScalableTopicControllerTest {
         }
     }
 
+    private static Optional<TopicPolicies> topicPoliciesOf(RetentionPolicies retention) {
+        if (retention == null) {
+            return Optional.empty();
+        }
+        var policies = new TopicPolicies();
+        policies.setRetentionPolicies(retention);
+        return Optional.of(policies);
+    }
+
     /**
      * Wire up the mocks the GC tick needs: empty topic-policies (so retention falls
      * through to namespace), a namespace policy with the requested retention, a
      * "drained" segment-backlog response (cursor at end), and a successful topic
      * delete admin call.
      */
-    @SuppressWarnings("unchecked")
     private void installGcMocks(int nsRetentionMinutes) {
-        // Topic-policies service: no policies set on the topic.
-        var tps = mock(org.apache.pulsar.broker.service.TopicPoliciesService.class);
+        installGcMocks(nsRetentionMinutes, null, null);
+    }
+
+    /**
+     * As {@link #installGcMocks(int)}, with topic-level retention in the local and/or global
+     * scope; a null argument means no policy in that scope.
+     */
+    @SuppressWarnings("unchecked")
+    private void installGcMocks(int nsRetentionMinutes, RetentionPolicies localTopicRetention,
+                                RetentionPolicies globalTopicRetention) {
+        // Topic-policies service: the local and global scopes answer separately.
+        var tps = mock(TopicPoliciesService.class);
         when(pulsar.getTopicPoliciesService()).thenReturn(tps);
         when(tps.getTopicPoliciesAsync(any(),
-                any(org.apache.pulsar.broker.service.TopicPoliciesService.GetType.class)))
-                .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
+                eq(TopicPoliciesService.GetType.LOCAL_ONLY)))
+                .thenReturn(CompletableFuture.completedFuture(topicPoliciesOf(localTopicRetention)));
+        when(tps.getTopicPoliciesAsync(any(),
+                eq(TopicPoliciesService.GetType.GLOBAL_ONLY)))
+                .thenReturn(CompletableFuture.completedFuture(topicPoliciesOf(globalTopicRetention)));
 
         // Namespace policy with the requested retention. Wired through PulsarResources.
         var pulsarResources = mock(org.apache.pulsar.broker.resources.PulsarResources.class);

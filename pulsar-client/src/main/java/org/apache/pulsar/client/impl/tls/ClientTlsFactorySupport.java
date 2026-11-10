@@ -597,7 +597,7 @@ public final class ClientTlsFactorySupport {
         int refresh = conf.getAutoCertRefreshSeconds();
         return FileBasedTlsFactorySettings.builder()
                 .engineProvider(engineProvider(conf.getSslProvider()))
-                // Client purposes never build server contexts, so requireTrustedClientCert is irrelevant.
+                // Client purposes never build server contexts, so the client-auth mode is irrelevant.
                 .refreshIntervalSeconds(refresh)
                 .build();
     }
