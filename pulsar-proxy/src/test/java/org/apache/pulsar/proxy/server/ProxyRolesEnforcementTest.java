@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import javax.naming.AuthenticationException;
 import lombok.Cleanup;
 import lombok.CustomLog;
@@ -200,7 +201,7 @@ public class ProxyRolesEnforcementTest extends ProducerConsumerBase {
 
         boolean exceptionOccurred = false;
         // Step 2: Try to use proxy Client as a normal Client - expect exception
-        try (PulsarClient proxyClient = createPulsarClient(pulsar.getBrokerServiceUrl(), proxyAuthParams)) {
+        try (PulsarClient proxyClient = createRejectedPulsarClient(pulsar.getBrokerServiceUrl(), proxyAuthParams)) {
             try {
                 proxyClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).subscribe();
             } catch (Exception ex) {
@@ -238,7 +239,8 @@ public class ProxyRolesEnforcementTest extends ProducerConsumerBase {
             proxyService.start();
 
 
-            try (PulsarClient proxyClient = createPulsarClient(proxyService.getServiceUrl(), proxyAuthParams)) {
+            try (PulsarClient proxyClient = createRejectedPulsarClient(proxyService.getServiceUrl(),
+                    proxyAuthParams)) {
                 exceptionOccurred = false;
                 try {
                     proxyClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).subscribe();
@@ -266,5 +268,14 @@ public class ProxyRolesEnforcementTest extends ProducerConsumerBase {
     private PulsarClient createPulsarClient(String proxyServiceUrl, String authParams) throws PulsarClientException {
         return PulsarClient.builder().serviceUrl(proxyServiceUrl).authentication(BasicAuthentication.class.getName(),
                 authParams).build();
+    }
+
+    /**
+     * The client retries a connection the broker rejects until the operation timeout, 30 s by default.
+     */
+    private PulsarClient createRejectedPulsarClient(String proxyServiceUrl, String authParams)
+            throws PulsarClientException {
+        return PulsarClient.builder().serviceUrl(proxyServiceUrl).authentication(BasicAuthentication.class.getName(),
+                authParams).operationTimeout(2, TimeUnit.SECONDS).build();
     }
 }
