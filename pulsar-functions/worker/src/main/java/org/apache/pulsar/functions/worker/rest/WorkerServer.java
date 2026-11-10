@@ -34,6 +34,7 @@ import org.apache.pulsar.broker.web.JettyRequestLogFactory;
 import org.apache.pulsar.broker.web.RateLimitingFilter;
 import org.apache.pulsar.broker.web.WebExecutorThreadPool;
 import org.apache.pulsar.client.util.ExecutorProvider;
+import org.apache.pulsar.common.tls.TlsClientAuthMode;
 import org.apache.pulsar.common.util.DefaultPulsarSslFactory;
 import org.apache.pulsar.common.util.PulsarSslConfiguration;
 import org.apache.pulsar.common.util.PulsarSslFactory;
@@ -167,6 +168,7 @@ public class WorkerServer {
 
         if (this.workerConfig.getTlsEnabled()) {
             log.info("Configuring https server on port={}", this.workerConfig.getWorkerPortTls());
+            this.workerConfig.logTlsClientAuthMode("functions-worker");
             try {
                 PulsarSslConfiguration sslConfiguration = buildSslConfiguration(workerConfig);
                 this.sslFactory = new DefaultPulsarSslFactory();
@@ -181,7 +183,7 @@ public class WorkerServer {
                         TimeUnit.SECONDS);
                 SslContextFactory.Server sslCtxFactory =
                         JettySslContextFactory.createSslContextFactory(this.workerConfig.getTlsProvider(),
-                                this.sslFactory, this.workerConfig.isTlsRequireTrustedClientCertOnConnect(),
+                                this.sslFactory, this.workerConfig.resolveTlsClientAuthMode(),
                                 this.workerConfig.getWebServiceTlsCiphers(),
                                 this.workerConfig.getWebServiceTlsProtocols());
                 List<ConnectionFactory> connectionFactories = new ArrayList<>();
@@ -328,7 +330,9 @@ public class WorkerServer {
                 .tlsCertificateFilePath(config.getTlsCertificateFilePath())
                 .tlsKeyFilePath(config.getTlsKeyFilePath())
                 .allowInsecureConnection(config.isTlsAllowInsecureConnection())
-                .requireTrustedClientCertOnConnect(config.isTlsRequireTrustedClientCertOnConnect())
+                .requireTrustedClientCertOnConnect(
+                        config.resolveTlsClientAuthMode() == TlsClientAuthMode.REQUIRE)
+                .clientAuthMode(config.resolveTlsClientAuthMode())
                 .tlsEnabledWithKeystore(config.isTlsEnabledWithKeyStore())
                 .serverMode(true)
                 .isHttps(true)
