@@ -151,6 +151,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     @Getter
     private volatile Throwable deathException;
 
+    // set by requestStop(): the instance thread exits before its next read
+    private volatile boolean stopRequested;
+
     // function stats
     private ComponentStatsManager stats;
 
@@ -383,7 +386,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             Consumer<Throwable> asyncErrorHandler = throwable -> currentThread.interrupt();
             AsyncResultConsumer asyncResultConsumer = this::handleResult;
 
-            while (true) {
+            while (!stopRequested) {
                 currentRecord = readInput();
 
                 // increment number of records received from source
@@ -645,6 +648,16 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                         .orElse(null))
                 .exception(e)
                 .log("Failed to decode the value of the input message; the message cannot be processed");
+    }
+
+    /**
+     * Tells the instance thread to stop: it exits before reading the next record. The caller also interrupts the
+     * thread to wake it from a blocking call, but code that runs on the thread can clear that interrupt (Netty's
+     * {@code HashedWheelTimer.start()} swallows it when the setup schedules the client's first timeout); without
+     * this request, the thread would then block in the source's read until the caller gives up waiting.
+     */
+    public void requestStop() {
+        stopRequested = true;
     }
 
     /**
