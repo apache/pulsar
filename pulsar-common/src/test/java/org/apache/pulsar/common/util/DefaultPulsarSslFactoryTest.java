@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.util;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertThrows;
@@ -29,6 +30,8 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 import javax.net.ssl.SSLEngine;
+import org.apache.pulsar.common.tls.TlsClientAuthMode;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class DefaultPulsarSslFactoryTest {
@@ -253,6 +256,39 @@ public class DefaultPulsarSslFactoryTest {
         assertThrows(RuntimeException.class, pulsarSslFactory::getInternalSslContext);
         SSLEngine sslEngine = pulsarSslFactory.createServerSslEngine(ByteBufAllocator.DEFAULT);
         assert(sslEngine.getNeedClientAuth());
+    }
+
+    @DataProvider(name = "tlsProviders")
+    public Object[][] tlsProviders() {
+        return new Object[][] {{"JDK"}, {"OPENSSL"}};
+    }
+
+    @Test(dataProvider = "tlsProviders")
+    public void sslEngineClientAuthModeTest(String tlsProvider) throws Exception {
+        assertThat(clientAuth(tlsProvider, TlsClientAuthMode.NONE, false)).containsExactly(false, false);
+        assertThat(clientAuth(tlsProvider, TlsClientAuthMode.OPTIONAL, false)).containsExactly(false, true);
+        assertThat(clientAuth(tlsProvider, TlsClientAuthMode.REQUIRE, true)).containsExactly(true, false);
+        // Unset: the deprecated requireTrustedClientCertOnConnect decides, as before
+        assertThat(clientAuth(tlsProvider, null, false)).containsExactly(false, true);
+        assertThat(clientAuth(tlsProvider, null, true)).containsExactly(true, false);
+    }
+
+    private static boolean[] clientAuth(String tlsProvider, TlsClientAuthMode clientAuthMode,
+                                        boolean requireTrustedClientCertOnConnect) throws Exception {
+        PulsarSslConfiguration pulsarSslConfiguration = PulsarSslConfiguration.builder()
+                .tlsProvider(tlsProvider)
+                .tlsCertificateFilePath(CERT_FILE_PATH)
+                .tlsKeyFilePath(KEY_FILE_PATH)
+                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
+                .requireTrustedClientCertOnConnect(requireTrustedClientCertOnConnect)
+                .clientAuthMode(clientAuthMode)
+                .serverMode(true)
+                .build();
+        PulsarSslFactory pulsarSslFactory = new DefaultPulsarSslFactory();
+        pulsarSslFactory.initialize(pulsarSslConfiguration);
+        pulsarSslFactory.createInternalSslContext();
+        SSLEngine sslEngine = pulsarSslFactory.createServerSslEngine(ByteBufAllocator.DEFAULT);
+        return new boolean[] {sslEngine.getNeedClientAuth(), sslEngine.getWantClientAuth()};
     }
 
     @Test
