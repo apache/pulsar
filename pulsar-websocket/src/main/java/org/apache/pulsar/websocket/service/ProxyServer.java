@@ -35,6 +35,7 @@ import org.apache.pulsar.broker.web.JsonMapperProvider;
 import org.apache.pulsar.broker.web.WebExecutorThreadPool;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.util.ExecutorProvider;
+import org.apache.pulsar.common.tls.TlsClientAuthMode;
 import org.apache.pulsar.common.util.DefaultPulsarSslFactory;
 import org.apache.pulsar.common.util.PulsarSslConfiguration;
 import org.apache.pulsar.common.util.PulsarSslFactory;
@@ -105,6 +106,7 @@ public class ProxyServer {
         }
         // TLS enabled connector
         if (config.getWebServicePortTls().isPresent()) {
+            config.logTlsClientAuthMode("websocket");
             try {
                 PulsarSslConfiguration sslConfiguration = buildSslConfiguration(config);
                 this.sslFactory = new DefaultPulsarSslFactory();
@@ -121,7 +123,7 @@ public class ProxyServer {
                 }
                 SslContextFactory.Server sslCtxFactory =
                         JettySslContextFactory.createSslContextFactory(config.getTlsProvider(),
-                                sslFactory, config.isTlsRequireTrustedClientCertOnConnect(),
+                                sslFactory, config.resolveTlsClientAuthMode(),
                                 config.getWebServiceTlsCiphers(), config.getWebServiceTlsProtocols());
                 List<ConnectionFactory> connectionFactories = new ArrayList<>();
                 if (config.isWebServiceHaProxyProtocolEnabled()) {
@@ -238,7 +240,9 @@ public class ProxyServer {
                 .tlsCertificateFilePath(config.getTlsCertificateFilePath())
                 .tlsKeyFilePath(config.getTlsKeyFilePath())
                 .allowInsecureConnection(config.isTlsAllowInsecureConnection())
-                .requireTrustedClientCertOnConnect(config.isTlsRequireTrustedClientCertOnConnect())
+                .requireTrustedClientCertOnConnect(
+                        config.resolveTlsClientAuthMode() == TlsClientAuthMode.REQUIRE)
+                .clientAuthMode(config.resolveTlsClientAuthMode())
                 .tlsEnabledWithKeystore(config.isTlsEnabledWithKeyStore())
                 .serverMode(true)
                 .isHttps(true)

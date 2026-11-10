@@ -31,6 +31,7 @@ import javax.net.ssl.SSLParameters;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.KeyStoreParams;
+import org.apache.pulsar.common.tls.TlsClientAuthMode;
 import org.apache.pulsar.common.util.keystoretls.KeyStoreSSLContext;
 
 /**
@@ -326,10 +327,14 @@ public class DefaultPulsarSslFactory implements PulsarSslFactory {
             }
             sslEngine.setUseClientMode(false);
             sslParams = sslEngine.getSSLParameters();
-            if (this.config.isRequireTrustedClientCertOnConnect()) {
-                sslParams.setNeedClientAuth(true);
-            } else {
-                sslParams.setWantClientAuth(true);
+            switch (effectiveClientAuthMode()) {
+                case REQUIRE -> sslParams.setNeedClientAuth(true);
+                case OPTIONAL -> sslParams.setWantClientAuth(true);
+                case NONE -> {
+                    // Send no CertificateRequest; the engine may carry the Netty context's client-auth mode.
+                    sslParams.setNeedClientAuth(false);
+                    sslParams.setWantClientAuth(false);
+                }
             }
         }
         if (this.config.getTlsProtocols() != null && !this.config.getTlsProtocols().isEmpty()) {
@@ -342,6 +347,15 @@ public class DefaultPulsarSslFactory implements PulsarSslFactory {
         }
         sslEngine.setSSLParameters(sslParams);
         return sslEngine;
+    }
+
+    private TlsClientAuthMode effectiveClientAuthMode() {
+        TlsClientAuthMode clientAuthMode = this.config.getClientAuthMode();
+        if (clientAuthMode != null) {
+            return clientAuthMode;
+        }
+        return this.config.isRequireTrustedClientCertOnConnect() ? TlsClientAuthMode.REQUIRE
+                : TlsClientAuthMode.OPTIONAL;
     }
 
     private void validateSslContext(SSLContext sslContext, SslContext nettySslContext) {
