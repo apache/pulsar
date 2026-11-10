@@ -204,13 +204,15 @@ public class MultiTopicsReaderImpl<T> implements Reader<T> {
     public CompletableFuture<Message<T>> readNextAsync() {
         CompletableFuture<Message<T>> originalFuture = multiTopicsConsumer.receiveAsync();
         CompletableFuture<Message<T>> result = originalFuture.thenApply(msg -> {
-            multiTopicsConsumer.acknowledgeCumulativeAsync(msg)
-                    .exceptionally(ex -> {
-                        log.warn().attr("messageId", msg.getMessageId())
-                                .exception(ex)
-                                .log("acknowledge message cumulative fail");
-                        return null;
-                    });
+            if (msg != null) {
+                multiTopicsConsumer.acknowledgeCumulativeAsync(msg)
+                        .exceptionally(ex -> {
+                            log.warn().attr("messageId", msg.getMessageId())
+                                    .exception(ex)
+                                    .log("acknowledge message cumulative fail");
+                            return null;
+                        });
+            }
             return msg;
         });
         CompletableFutureCancellationHandler handler = new CompletableFutureCancellationHandler();
@@ -233,6 +235,9 @@ public class MultiTopicsReaderImpl<T> implements Reader<T> {
     }
 
     private void acknowledgeBatch(Messages<T> messages) {
+        if (messages == null) {
+            return;
+        }
         Map<String, Message<T>> lastMessages = new HashMap<>();
         for (Message<T> message : messages) {
             TopicMessageId messageId = (TopicMessageId) message.getMessageId();

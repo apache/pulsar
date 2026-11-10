@@ -190,12 +190,14 @@ public class ReaderImpl<T> implements Reader<T> {
 
         // Acknowledge message immediately because the reader is based on non-durable subscription. When it reconnects,
         // it will specify the subscription position anyway
-        consumer.acknowledgeCumulativeAsync(msg).exceptionally(ex -> {
-            log.warn().attr("messageId", msg.getMessageId())
-                    .exception(ex)
-                    .log("acknowledge message cumulative fail");
-            return null;
-        });
+        if (msg != null) {
+            consumer.acknowledgeCumulativeAsync(msg).exceptionally(ex -> {
+                log.warn().attr("messageId", msg.getMessageId())
+                        .exception(ex)
+                        .log("acknowledge message cumulative fail");
+                return null;
+            });
+        }
         return msg;
     }
 
@@ -225,13 +227,15 @@ public class ReaderImpl<T> implements Reader<T> {
     public CompletableFuture<Message<T>> readNextAsync() {
         CompletableFuture<Message<T>> originalFuture = consumer.receiveAsync();
         CompletableFuture<Message<T>> result = originalFuture.thenApply(msg -> {
-            consumer.acknowledgeCumulativeAsync(msg)
-                    .exceptionally(ex -> {
-                        log.error().attr("messageId", msg.getMessageId())
-                                .exception(ex)
-                                .log("acknowledge message cumulative fail");
-                        return null;
-                    });
+            if (msg != null) {
+                consumer.acknowledgeCumulativeAsync(msg)
+                        .exceptionally(ex -> {
+                            log.error().attr("messageId", msg.getMessageId())
+                                    .exception(ex)
+                                    .log("acknowledge message cumulative fail");
+                            return null;
+                        });
+            }
             return msg;
         });
         CompletableFutureCancellationHandler handler = new CompletableFutureCancellationHandler();
@@ -254,6 +258,9 @@ public class ReaderImpl<T> implements Reader<T> {
     }
 
     private void acknowledgeBatch(Messages<T> messages) {
+        if (messages == null) {
+            return;
+        }
         Message<T> last = null;
         for (Message<T> message : messages) {
             last = message;

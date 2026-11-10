@@ -96,6 +96,11 @@ public class ReaderBatchAcknowledgmentTest {
         checkBatch(multiTopic, async, new MessagesImpl<>(0, 0), List.of());
     }
 
+    @Test(dataProvider = "readerKindsAndReadModes")
+    public void testNullBatchDoesNotAcknowledge(boolean multiTopic, boolean async) throws Exception {
+        checkBatch(multiTopic, async, null, List.of());
+    }
+
     private void checkBatch(boolean multiTopic, boolean async, Messages<byte[]> batch, List<Ack> expected)
             throws Exception {
         ReaderConfigurationData<byte[]> configuration = new ReaderConfigurationData<>();
