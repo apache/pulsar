@@ -20,6 +20,7 @@ package org.apache.pulsar.functions.runtime.thread;
 
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import java.util.Map;
 import java.util.Optional;
@@ -58,22 +59,10 @@ public class ThreadRuntimeTest {
     @Test(timeOut = 60_000)
     public void testStopDuringSetupThatClearsTheInterrupt() throws Exception {
         InterruptClearingSource.opening = new CompletableFuture<>();
-        FunctionDetails functionDetails = new FunctionDetails()
-                .setTenant("public")
-                .setNamespace("default")
-                .setName("stop-during-setup")
-                .setClassName(StringIdentityFunction.class.getName());
-        functionDetails.setSource().setClassName(InterruptClearingSource.class.getName());
-        functionDetails.setSink().setClassName(DiscardingSink.class.getName());
-        InstanceConfig instanceConfig = new InstanceConfig();
-        instanceConfig.setFunctionDetails(functionDetails);
-        instanceConfig.setMaxBufferedTuples(1024);
-        instanceConfig.setClusterName("test-cluster");
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl("pulsar://localhost:6650").build();
-        ThreadRuntime runtime = new ThreadRuntime(instanceConfig, mock(FunctionCacheManager.class),
-                new ThreadGroup("test"), null, null, client, null, null, null, null, null, null, null, null,
-                Optional.empty(), Optional.empty());
+        ThreadRuntime runtime = createRuntime(client, StringIdentityFunction.class, InterruptClearingSource.class,
+                DiscardingSink.class);
         runtime.start();
         InterruptClearingSource.opening.get(10, TimeUnit.SECONDS);
 
@@ -85,9 +74,66 @@ public class ThreadRuntimeTest {
         assertFalse(runtime.isAlive());
     }
 
+    /**
+     * A stop that arrives while a sync function processes a record ends the loop on the stop request, and the
+     * function returns without consuming the stop's interrupt. The instance thread must clear it before it closes
+     * the instance: on an interrupted thread, closing the producer cache gives up waiting for the output producers
+     * to be flushed and closed.
+     */
+    @Test(timeOut = 60_000)
+    public void testStopDuringProcessingClosesWithoutTheInterrupt() throws Exception {
+        InterruptAwaitingFunction.processing = new CompletableFuture<>();
+        InterruptRecordingSink.closingThread = null;
+        @Cleanup
+        PulsarClient client = PulsarClient.builder().serviceUrl("pulsar://localhost:6650").build();
+        ThreadRuntime runtime = createRuntime(client, InterruptAwaitingFunction.class, SingleRecordSource.class,
+                InterruptRecordingSink.class);
+        runtime.start();
+        Thread instanceThread = InterruptAwaitingFunction.processing.get(10, TimeUnit.SECONDS);
+
+        runtime.stop();
+
+        assertFalse(runtime.isAlive());
+        assertSame(InterruptRecordingSink.closingThread, instanceThread);
+        assertFalse(InterruptRecordingSink.closedInterrupted, "the instance thread closed the sink while interrupted");
+    }
+
+    private static ThreadRuntime createRuntime(PulsarClient client, Class<?> functionClass, Class<?> sourceClass,
+                                               Class<?> sinkClass) throws Exception {
+        FunctionDetails functionDetails = new FunctionDetails()
+                .setTenant("public")
+                .setNamespace("default")
+                .setName("thread-runtime-test")
+                .setClassName(functionClass.getName());
+        functionDetails.setSource().setClassName(sourceClass.getName());
+        functionDetails.setSink().setClassName(sinkClass.getName());
+        InstanceConfig instanceConfig = new InstanceConfig();
+        instanceConfig.setFunctionDetails(functionDetails);
+        instanceConfig.setMaxBufferedTuples(1024);
+        instanceConfig.setClusterName("test-cluster");
+        return new ThreadRuntime(instanceConfig, mock(FunctionCacheManager.class), new ThreadGroup("test"), null,
+                null, client, null, null, null, null, null, null, null, null, Optional.empty(), Optional.empty());
+    }
+
     public static class StringIdentityFunction implements Function<String, String> {
         @Override
         public String process(String input, Context context) {
+            return input;
+        }
+    }
+
+    /**
+     * A sync function that processes a record until its thread is interrupted, and leaves the interrupt set.
+     */
+    public static class InterruptAwaitingFunction implements Function<String, String> {
+        static volatile CompletableFuture<Thread> processing;
+
+        @Override
+        public String process(String input, Context context) {
+            processing.complete(Thread.currentThread());
+            while (!Thread.currentThread().isInterrupted()) {
+                LockSupport.park(this);
+            }
             return input;
         }
     }
@@ -120,6 +166,33 @@ public class ThreadRuntimeTest {
         }
     }
 
+    /**
+     * A source with a single record, whose next read waits until the source is closed.
+     */
+    public static class SingleRecordSource implements Source<String> {
+        private final CompletableFuture<Record<String>> nextRecord = new CompletableFuture<>();
+        private boolean recordRead;
+
+        @Override
+        public void open(Map<String, Object> config, SourceContext sourceContext) {
+        }
+
+        @Override
+        public Record<String> read() throws Exception {
+            if (!recordRead) {
+                recordRead = true;
+                return () -> "record";
+            }
+            // like Consumer.receive(): waits until a record arrives or the source is closed
+            return nextRecord.get();
+        }
+
+        @Override
+        public void close() {
+            nextRecord.completeExceptionally(new IllegalStateException("The source is closed"));
+        }
+    }
+
     public static class DiscardingSink implements Sink<String> {
         @Override
         public void open(Map<String, Object> config, SinkContext sinkContext) {
@@ -131,6 +204,20 @@ public class ThreadRuntimeTest {
 
         @Override
         public void close() {
+        }
+    }
+
+    /**
+     * A sink that records the thread that closes it, and whether that thread was interrupted.
+     */
+    public static class InterruptRecordingSink extends DiscardingSink {
+        static volatile Thread closingThread;
+        static volatile boolean closedInterrupted;
+
+        @Override
+        public void close() {
+            closingThread = Thread.currentThread();
+            closedInterrupted = Thread.currentThread().isInterrupted();
         }
     }
 }

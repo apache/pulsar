@@ -252,10 +252,8 @@ public class ThreadRuntime implements Runtime {
     @Override
     public void stop() {
         if (fnThread != null) {
-            // code that runs on the instance thread can clear the interrupt, so also ask the runnable to stop
-            javaInstanceRunnable.requestStop();
-            // interrupt the instance thread
-            fnThread.interrupt();
+            // interrupt the instance thread and ask it to stop, in case code that runs on it clears the interrupt
+            javaInstanceRunnable.requestStop(fnThread);
             try {
                 // If the instance thread doesn't respond within some time, attempt to
                 // kill the thread
