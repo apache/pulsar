@@ -29,6 +29,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -2201,20 +2202,21 @@ public class ScalableTopicController {
 
     /**
      * Resolve the effective retention-time-in-millis for this scalable topic by
-     * layering: topic-policy on the parent {@code topic://...} → namespace policy →
-     * broker config default. Returns {@code null} if retention is unset or negative
-     * (= keep forever) — the GC tick treats that as "skip".
+     * layering: local topic policy → global topic policy (both on the parent
+     * {@code topic://...}) → namespace policy → broker config default. Returns
+     * {@code null} if retention is unset or negative (= keep forever) — the GC tick
+     * treats that as "skip".
      */
     private CompletableFuture<Long> resolveRetentionMillisAsync() {
         TopicPoliciesService topicPoliciesService =
                 brokerService.getPulsar().getTopicPoliciesService();
-        // Topic-level (override) layer.
-        return topicPoliciesService.getTopicPoliciesAsync(topicName,
-                        TopicPoliciesService.GetType.LOCAL_ONLY)
-                .thenCompose(localOpt -> {
-                    Optional<RetentionPolicies> rp = localOpt
-                            .map(TopicPolicies::getRetentionPolicies)
-                            .filter(java.util.Objects::nonNull);
+        // Topic-level (override) layer: the local scope wins over the global one.
+        return topicRetentionAsync(topicPoliciesService, TopicPoliciesService.GetType.LOCAL_ONLY)
+                .thenCompose(local -> local.isPresent()
+                        ? CompletableFuture.completedFuture(local)
+                        : topicRetentionAsync(topicPoliciesService,
+                                TopicPoliciesService.GetType.GLOBAL_ONLY))
+                .thenCompose(rp -> {
                     if (rp.isPresent()) {
                         return CompletableFuture.completedFuture(toRetentionMillis(rp.get()));
                     }
@@ -2233,6 +2235,14 @@ public class ScalableTopicController {
                                 return defaultRetentionMillisFromBrokerConfig();
                             });
                 });
+    }
+
+    private CompletableFuture<Optional<RetentionPolicies>> topicRetentionAsync(
+            TopicPoliciesService topicPoliciesService, TopicPoliciesService.GetType scope) {
+        return topicPoliciesService.getTopicPoliciesAsync(topicName, scope)
+                .thenApply(policies -> policies
+                        .map(TopicPolicies::getRetentionPolicies)
+                        .filter(Objects::nonNull));
     }
 
     private static Long toRetentionMillis(RetentionPolicies rp) {

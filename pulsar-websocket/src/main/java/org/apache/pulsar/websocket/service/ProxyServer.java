@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.websocket.service;
 
+import com.google.common.annotations.VisibleForTesting;
 import jakarta.servlet.Servlet;
 import jakarta.servlet.ServletException;
 import java.net.MalformedURLException;
@@ -111,6 +112,7 @@ public class ProxyServer {
         }
         // TLS enabled connector
         if (config.getWebServicePortTls().isPresent()) {
+            config.logTlsClientAuthMode("websocket");
             try {
                 // PIP-478: the websocket proxy web listener uses the PulsarTlsFactory SPI (the built-in
                 // file-based factory by default, or a custom tlsFactoryClassName). It owns the refresh
@@ -246,7 +248,7 @@ public class ProxyServer {
             TlsFactorySupport.initializeBlocking(this.tlsFactory, initContext);
             this.reloadableServerTls = JettyTlsFactory.createReloadingServerFactory(this.tlsFactory, TlsPurpose.WEB,
                     scheduledExecutorService,
-                    config.getTlsProvider(), config.isTlsRequireTrustedClientCertOnConnect(),
+                    config.getTlsProvider(), config.resolveTlsClientAuthMode(),
                     config.isTlsAllowInsecureConnection(), config.getWebServiceTlsCiphers(),
                     config.getWebServiceTlsProtocols());
             return this.reloadableServerTls.sslContextFactory();
@@ -282,7 +284,8 @@ public class ProxyServer {
         }
     }
 
-    private static PulsarTlsFactory buildDefaultWebTlsFactory(WebSocketProxyConfiguration config) {
+    @VisibleForTesting
+    static PulsarTlsFactory buildDefaultWebTlsFactory(WebSocketProxyConfiguration config) {
         TlsPolicy.Builder policyBuilder = TlsPolicy.builder()
                 .allowInsecureConnection(config.isTlsAllowInsecureConnection())
                 .protocols(toList(config.getWebServiceTlsProtocols()))
@@ -313,7 +316,7 @@ public class ProxyServer {
         // FileBasedTlsFactorySettings default (JDK engine) applies and keeps netty-handler off this module's
         // compile classpath.
         FileBasedTlsFactorySettings settings = FileBasedTlsFactorySettings.builder()
-                .requireTrustedClientCert(config.isTlsRequireTrustedClientCertOnConnect())
+                .clientAuthMode(config.resolveTlsClientAuthMode())
                 .refreshIntervalSeconds(FileBasedTlsFactorySettings.refreshIntervalSecondsFromConfig(
                         config.getTlsCertRefreshCheckDurationSec()))
                 .build();

@@ -56,9 +56,8 @@ import org.testng.annotations.Test;
 @CustomLog
 public class MetadataStoreTableViewTest extends BaseMetadataStoreTest {
 
-    private static final JSONMetadataSerdeSimpleType<Integer> SERDE = new JSONMetadataSerdeSimpleType<>(
+    private final JSONMetadataSerdeSimpleType<Integer> serde = new JSONMetadataSerdeSimpleType<>(
             TypeFactory.defaultInstance().constructSimpleType(Integer.class, null));
-    private static final int MARKER_VALUE = 100;
 
     LinkedBlockingDeque<Pair<String, Integer>> tails;
     LinkedBlockingDeque<Pair<String, Integer>> existings;
@@ -101,14 +100,15 @@ public class MetadataStoreTableViewTest extends BaseMetadataStoreTest {
     }
 
     /**
-     * Writes {@code markerKey} straight to the store and asserts that it is the next tail item. The store delivers
-     * notifications in order, so this proves that nothing was notified for the earlier writes since the last item
-     * taken, without waiting out a timeout.
+     * Checks that no other tail item is pending, without waiting for a timeout. The marker is written through the
+     * store, so its tail item comes from the store notification: the store hands notifications to its listeners in
+     * order on one thread, and the table view answers each one from its cache right there or with a store read,
+     * which completes in order. A tail item caused by an earlier change is therefore queued before the marker's.
      */
-    private void assertNextTailItemIsMarker(MetadataStore store, String prefix, String markerKey) throws Exception {
-        String path = prefix + "/" + markerKey;
-        store.put(path, SERDE.serialize(path, MARKER_VALUE), Optional.empty()).join();
-        assertEquals(tails.poll(10, TimeUnit.SECONDS), Pair.of(markerKey, MARKER_VALUE));
+    private void assertNextTailItemIsMarker(MetadataStore store, String prefix, String marker) throws Exception {
+        String path = prefix + "/" + marker;
+        store.put(path, serde.serialize(path, 0), Optional.empty()).join();
+        assertEquals(tails.poll(10, TimeUnit.SECONDS), Pair.of(marker, 0));
     }
 
     private void assertGet(MetadataStoreTableViewImpl<Integer> tv, String path, Integer expected) {
@@ -344,9 +344,9 @@ public class MetadataStoreTableViewTest extends BaseMetadataStoreTest {
                                 .attr("success", !putResult.isCompletedExceptionally())
                                 .log("Put value result");
                     } else {
-                        // Put the last value back so that the other workers stop too, instead of waiting out
-                        // the poll timeout.
-                        tails.add(kv);
+                        // Hand the last value on to the other workers, so they stop now instead of after an idle
+                        // poll timeout.
+                        tails.addFirst(kv);
                         break;
                     }
                 }
@@ -473,11 +473,11 @@ public class MetadataStoreTableViewTest extends BaseMetadataStoreTest {
 
         assertFalse(btv.exists(k1));
 
-        store.put(prefix + "/" + k1, SERDE.serialize(prefix + "/" + k1, 0), Optional.empty()).join();
-        store.put(prefix + "/" + k2, SERDE.serialize(prefix + "/" + k2, 1), Optional.empty()).join();
-        store.put(prefix + "/" + k3, SERDE.serialize(prefix + "/" + k3, 2), Optional.empty()).join();
-        store.put(prefix + "/" + k4, SERDE.serialize(prefix + "/" + k4, 3), Optional.empty()).join();
-        store.put(prefix + "/" + k5, SERDE.serialize(prefix + "/" + k5, 4), Optional.empty()).join();
+        store.put(prefix + "/" + k1, serde.serialize(prefix + "/" + k1, 0), Optional.empty()).join();
+        store.put(prefix + "/" + k2, serde.serialize(prefix + "/" + k2, 1), Optional.empty()).join();
+        store.put(prefix + "/" + k3, serde.serialize(prefix + "/" + k3, 2), Optional.empty()).join();
+        store.put(prefix + "/" + k4, serde.serialize(prefix + "/" + k4, 3), Optional.empty()).join();
+        store.put(prefix + "/" + k5, serde.serialize(prefix + "/" + k5, 4), Optional.empty()).join();
 
         var expected = new HashSet<>(Set.of(Pair.of(k1, 0), Pair.of(k2, 1), Pair.of(k3, 2), Pair.of(k4, 3)));
         var tailExpected = new HashSet<>(expected);
@@ -486,11 +486,11 @@ public class MetadataStoreTableViewTest extends BaseMetadataStoreTest {
             var kv = tails.poll(3, TimeUnit.SECONDS);
             assertTrue(tailExpected.remove(kv));
         }
-        String markerKey = "tenant-2/ns-3/my-marker";
-        assertNextTailItemIsMarker(store, prefix, markerKey);
+        // k5 is filtered out. Remove the marker again so that the table view below doesn't load it.
+        String marker = "tenant-1/ns-1/my-marker";
+        assertNextTailItemIsMarker(store, prefix, marker);
         assertTrue(tailExpected.isEmpty());
-        // Keep the marker out of the second table view's initial fill.
-        store.delete(prefix + "/" + markerKey, Optional.empty()).join();
+        store.delete(prefix + "/" + marker, Optional.empty()).join();
 
         @Cleanup
         MetadataStore store2 = MetadataStoreFactoryImpl.create(urlSupplier.get(),
@@ -505,7 +505,7 @@ public class MetadataStoreTableViewTest extends BaseMetadataStoreTest {
             var kv = existings.poll(3, TimeUnit.SECONDS);
             assertTrue(existingExpected.remove(kv));
         }
-        // start() returns after the initial fill has called the existing-item listeners for every item.
+        // start() returns after the fill has called the existing-item listeners for every loaded item.
         assertNull(existings.poll());
         assertTrue(existingExpected.isEmpty());
 

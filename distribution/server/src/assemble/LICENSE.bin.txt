@@ -470,7 +470,7 @@ The Apache Software License, Version 2.0
   * Jodah
     - net.jodah-typetools-0.6.3.jar
   * Byte Buddy
-    - net.bytebuddy-byte-buddy-1.18.16.jar
+    - net.bytebuddy-byte-buddy-1.18.17.jar
   * zt-zip
     - org.zeroturnaround-zt-zip-1.18.2.jar
   * Apache Avro
@@ -526,7 +526,7 @@ The Apache Software License, Version 2.0
   * RxJava
     - io.reactivex.rxjava3-rxjava-3.0.1.jar
   * RoaringBitmap
-    - org.roaringbitmap-RoaringBitmap-1.6.25.jar
+    - org.roaringbitmap-RoaringBitmap-1.6.29.jar
   * OpenTelemetry
     - io.opentelemetry-opentelemetry-api-1.67.0.jar
     - io.opentelemetry-opentelemetry-api-incubator-1.67.0-alpha.jar

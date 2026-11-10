@@ -936,11 +936,12 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
 
             reader.seek(System.currentTimeMillis());
             assertFalse(reader.hasMessageAvailable());
-            // A marker published after the seek is the next message, so the earlier message isn't delivered
-            final MessageId markerId = producer.send("marker");
+            // A reader gets the messages of a topic in order: if the seek let it read anything before the marker
+            // published now, that would come first.
+            producer.send("marker");
             Message<String> message = reader.readNext(10, TimeUnit.SECONDS);
             assertNotNull(message);
-            assertEquals(message.getMessageId(), markerId);
+            assertEquals(message.getValue(), "marker");
         }
 
         for (MessageId messageId : messageIds) {
@@ -970,7 +971,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
                 TimeUnit.SECONDS);
         for (int i = 0; i < 3; i++) {
             try {
-                readerBuilder.createAsync().get(1, TimeUnit.SECONDS);
+                readerBuilder.createAsync().get(100, TimeUnit.MILLISECONDS);
             } catch (TimeoutException e) {
                 log.info("It should time out due to invalid url");
             } catch (IllegalArgumentException e) {
