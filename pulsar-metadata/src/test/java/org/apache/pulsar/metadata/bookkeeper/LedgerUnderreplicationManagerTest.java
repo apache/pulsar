@@ -270,7 +270,9 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
                 cleanupThread.set(Thread.currentThread());
                 try {
                     if (close) {
-                        lum.close();
+                        // The blocked acknowledgement can't arrive, so a short timeout runs out the same way as
+                        // the default 30 s one.
+                        ((PulsarLedgerUnderreplicationManager) lum).close(1, TimeUnit.SECONDS);
                     } else {
                         lum.releaseUnderreplicatedLedger(ledgerId);
                     }
