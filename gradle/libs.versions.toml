@@ -150,7 +150,7 @@ cron-utils = "9.2.1"
 failsafe = "3.3.2"
 # The LMAX Disruptor of log4j2's async loggers, which bin/pulsar enables
 disruptor = "4.0.0"
-ant = "1.10.17"
+ant = "1.10.18"
 # guice is held at 5.1.0 to match what TestNG 7.x declares; Guice 7 switches from
 # javax.inject to jakarta.inject. jclouds is the only consumer that needs Guice 7 and
 # jclouds-shaded forces it locally.
