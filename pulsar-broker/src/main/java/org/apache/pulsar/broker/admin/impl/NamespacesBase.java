@@ -461,7 +461,7 @@ public abstract class NamespacesBase extends AdminResource {
     private CompletableFuture<List<String>> listScalableTopicsAsync() {
         ScalableTopicResources resources = pulsar().getPulsarResources().getScalableTopicResources();
         return resources != null
-                ? resources.listScalableTopicsAsync(namespaceName)
+                ? resources.listScalableTopicsWithRecordAsync(namespaceName)
                 : CompletableFuture.completedFuture(List.of());
     }
 
