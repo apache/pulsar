@@ -334,6 +334,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     public void cleanup() throws Exception {
         pulsar.getConfiguration().setBrokerShutdownTimeoutMs(0);
         super.internalCleanup();
+        // TestNG keeps this test instance until the run ends, and the factory references the closed broker
+        bundleFactory = null;
     }
 
     @DataProvider(name = "numBundles")
@@ -748,17 +750,12 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                 .equals(SimpleLoadManagerImpl.class.getName()), 150, 5);
         assertEquals(pulsar.getConfiguration().getLoadManagerClassName(), SimpleLoadManagerImpl.class.getName());
         // The broker replaces its load manager on an executor after updating the configuration. Wait for each
-        // replacement: two that run concurrently can leave both load managers running.
+        // replacement, so that the broker runs a SimpleLoadManagerImpl in between, and the default load manager
+        // again for the following test methods.
         Awaitility.await().until(() -> pulsar.getLoadManager().get() instanceof SimpleLoadManagerImpl);
         admin.brokers().deleteDynamicConfiguration("loadManagerClassName");
         assertFalse(admin.brokers().getAllDynamicConfigurations().containsKey("loadManagerClassName"));
         Awaitility.await().until(() -> pulsar.getLoadManager().get() instanceof ModularLoadManagerWrapper);
-        // The new ModularLoadManagerImpl gets the broker-registration lock manager that the first one closed when it
-        // was stopped (the coordination service keeps one per class), so it loses the broker's registration, and
-        // lookups fail with "No broker available": restart the broker, after restoring the shutdown timeout that
-        // this method lowered
-        restoreBrokerShutdownTimeout();
-        restartBroker();
     }
 
     /**

@@ -19,23 +19,39 @@
 
 import org.gradle.api.file.RegularFileProperty
 
-// Convention plugin: registers the `checkBinaryLicense` task for a distribution module.
+// Convention plugin: registers the `checkBinaryLicense` and `updateBinaryLicense` tasks for a
+// distribution module.
 //
 // Consumers wire the produced tarball lazily, e.g.:
 //   binaryLicenseCheck { archive.set(serverDistTar.flatMap { it.archiveFile }) }
 // The provider chain carries the task dependency on the producing tar task without
 // resolving it at configuration time, keeping configuration-cache and
 // configure-on-demand happy.
+//
+// `licenseFile` and `noticeFile` are the source files that the tarball ships as LICENSE and
+// NOTICE, which `updateBinaryLicense` rewrites; they default to src/assemble/*.bin.txt.
 
 interface BinaryLicenseCheckExtension {
     val archive: RegularFileProperty
+    val licenseFile: RegularFileProperty
+    val noticeFile: RegularFileProperty
 }
 
 val extension = extensions.create<BinaryLicenseCheckExtension>("binaryLicenseCheck")
+extension.licenseFile.convention(layout.projectDirectory.file("src/assemble/LICENSE.bin.txt"))
+extension.noticeFile.convention(layout.projectDirectory.file("src/assemble/NOTICE.bin.txt"))
 
 tasks.register<CheckBinaryLicenseTask>("checkBinaryLicense") {
     group = "verification"
     description = "Check LICENSE/NOTICE coverage of bundled jars in the binary distribution tarball"
     binaryDistribution.set(extension.archive)
     report.set(layout.buildDirectory.file("reports/binary-license-check/result.txt"))
+}
+
+tasks.register<UpdateBinaryLicenseTask>("updateBinaryLicense") {
+    group = "build"
+    description = "Update the jar versions in the LICENSE/NOTICE source files to the jars bundled in the binary distribution tarball"
+    binaryDistribution.set(extension.archive)
+    licenseFile.set(extension.licenseFile)
+    noticeFile.set(extension.noticeFile)
 }

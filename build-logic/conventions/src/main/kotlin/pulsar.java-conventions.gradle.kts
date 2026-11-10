@@ -406,7 +406,10 @@ if (testShardCount > 0) {
         .mapNotNull { line ->
             val fields = line.trim().split(Regex("\\s+"))
             val seconds = fields[0].toDoubleOrNull()
-            if (seconds != null && fields.size == 2) fields[1] to seconds else null
+            // No test class runs for an hour in a CI job that times out after 60 to 75 minutes, so a duration that
+            // long is a recording error. Packing by it would give the class a shard of its own and leave all the
+            // other classes to the other shards, so the class goes by a hash of its name, like a class not in the file.
+            if (seconds != null && seconds < 3600 && fields.size == 2) fields[1] to seconds else null
         }
         .sortedWith(compareByDescending<Pair<String, Double>> { it.second }.thenBy { it.first })
         .forEach { (className, seconds) ->

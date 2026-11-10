@@ -271,6 +271,7 @@ registerSwaggerTask("swaggerAdminV2", "swagger", "admin-v2.json") {
         "org.apache.pulsar.broker.admin.v2.PersistentTopics",
         "org.apache.pulsar.broker.admin.v2.ResourceGroups",
         "org.apache.pulsar.broker.admin.v2.ResourceQuotas",
+        "org.apache.pulsar.broker.admin.v2.ScalableTopicPolicies",
         "org.apache.pulsar.broker.admin.v2.ScalableTopics",
         "org.apache.pulsar.broker.admin.v2.SchemasResource",
         "org.apache.pulsar.broker.admin.v2.Segments",

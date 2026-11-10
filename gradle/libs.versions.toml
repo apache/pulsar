@@ -93,8 +93,8 @@ okio = "3.18.2"
 netty-tcnative = "2.0.85.Final"
 httpcomponents-httpclient = "4.5.14"
 httpcomponents-httpcore = "4.4.16"
-httpcomponents-httpclient5 = "5.6.4"
-httpcomponents-httpcore5 = "5.4.3"
+httpcomponents-httpclient5 = "5.6.5"
+httpcomponents-httpcore5 = "5.4.4"
 # Pinned so that async-http-client's 1.0.3 dependency does not downgrade it
 reactive-streams = "1.0.4"
 # Google libraries (transitive deps)
@@ -150,7 +150,7 @@ cron-utils = "9.2.1"
 failsafe = "3.3.2"
 # The LMAX Disruptor of log4j2's async loggers, which bin/pulsar enables
 disruptor = "4.0.0"
-ant = "1.10.17"
+ant = "1.10.18"
 # guice is held at 5.1.0 to match what TestNG 7.x declares; Guice 7 switches from
 # javax.inject to jakarta.inject. jclouds is the only consumer that needs Guice 7 and
 # jclouds-shaded forces it locally.
@@ -491,6 +491,8 @@ testcontainers-bom = { module = "org.testcontainers:testcontainers-bom", version
 testcontainers = { module = "org.testcontainers:testcontainers", version.ref = "testcontainers" }
 testcontainers-k3s = { module = "org.testcontainers:k3s", version.ref = "testcontainers" }
 kerby-simplekdc = { module = "org.apache.kerby:kerb-simplekdc", version.ref = "kerby" }
+# Aligns the Kerby modules that Hadoop pulls in transitively (imported by pulsar-dependencies platform)
+kerby-bom = { module = "org.apache.kerby:kerby-bom", version.ref = "kerby" }
 json = { module = "org.json:json", version.ref = "json" }
 # AWS SDKs
 aws-java-sdk-bom = { module = "com.amazonaws:aws-java-sdk-bom", version.ref = "aws-sdk" }

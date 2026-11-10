@@ -57,12 +57,14 @@ import io.netty.util.concurrent.ScheduledFuture;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -91,6 +93,7 @@ import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.awaitility.Awaitility;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.testng.annotations.DataProvider;
@@ -656,6 +659,61 @@ public class ProducerImplTest {
             assertEquals(memoryLimitController.currentUsage(), 0,
                     "The memory reserved for the message must be released exactly once in state " + state);
         }
+    }
+
+    @DataProvider
+    public Object[][] terminalStatesReachedBeforeBatching() {
+        return new Object[][] {
+                {HandlerState.State.Closed, PulsarClientException.AlreadyClosedException.class},
+                {HandlerState.State.Terminated, PulsarClientException.TopicTerminatedException.class},
+                {HandlerState.State.ProducerFenced, PulsarClientException.ProducerFencedException.class},
+        };
+    }
+
+    /**
+     * A send checks the producer state before it takes the producer lock to add its message to the batch. If the
+     * producer reaches a terminal state in between, it has failed the messages it held and no longer schedules batch
+     * flushes: the message must fail, or its send never completes. A scalable topic producer closes the producer of a
+     * segment that a split or merge sealed while its own sends may still be on their way to it.
+     */
+    @Test(dataProvider = "terminalStatesReachedBeforeBatching", timeOut = 30000)
+    public void testBatchedSendFailsWhenProducerEndsBeforeItIsBatched(HandlerState.State terminalState,
+            Class<? extends PulsarClientException> expectedFailure) throws Exception {
+        MemoryLimitController memory = new MemoryLimitController(1024 * 1024);
+        PulsarClientImpl client = mockedPulsarClient();
+        when(client.getConnection(anyString(), anyInt())).thenReturn(new CompletableFuture<>());
+        when(client.getMemoryLimitController()).thenReturn(memory);
+        when(client.getClientClock()).thenReturn(Clock.systemUTC());
+        ProducerConfigurationData conf = new ProducerConfigurationData();
+        conf.setProducerName("batched-send-test");
+        ProducerImpl<byte[]> producer = constructProducer(client, conf);
+        assertTrue(producer.isBatchMessagingEnabled());
+        // Not connected, as once the broker closed the producer: a message waits for the connection, and a close
+        // fails the waiting messages right away.
+        producer.setState(HandlerState.State.Connecting);
+
+        AtomicReference<CompletableFuture<MessageId>> send = new AtomicReference<>();
+        Thread sender = new Thread(() -> send.set(producer.newMessage().value(new byte[10]).sendAsync()));
+        synchronized (producer) {
+            sender.start();
+            // The sender has checked the state, and waits for the lock to add its message to the batch.
+            Awaitility.await().until(() -> {
+                StackTraceElement[] stack = sender.getStackTrace();
+                return sender.getState() == Thread.State.BLOCKED && stack.length > 0
+                        && stack[0].getMethodName().equals("sendAsync");
+            });
+            if (terminalState == HandlerState.State.Closed) {
+                producer.closeAsync().get(5, TimeUnit.SECONDS);
+            } else {
+                producer.setState(terminalState);
+            }
+        }
+        sender.join();
+
+        assertThat(send.get()).failsWithin(Duration.ofSeconds(5))
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(expectedFailure);
+        assertThat(memory.currentUsage()).as("memory reserved for the message").isZero();
     }
 
     @Test
