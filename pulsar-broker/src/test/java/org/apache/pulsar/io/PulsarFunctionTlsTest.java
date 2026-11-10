@@ -229,6 +229,7 @@ public class PulsarFunctionTlsTest {
         workerConfig.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
 
         workerConfig.setAuthenticationEnabled(true);
+        workerConfig.setAuthenticationProviders(config.getAuthenticationProviders());
         workerConfig.setAuthorizationEnabled(true);
 
         PulsarWorkerService workerService = new PulsarWorkerService(new PulsarClientCreator() {
