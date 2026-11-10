@@ -1,0 +1,159 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+# Builds the Alpine (musl) kinesis_producer image from docker/kinesis-producer-alpine
+# natively on amd64 and arm64 runners and publishes a multi-arch manifest to Quay.
+#
+# Required repository secrets (Quay robot account with write access to the repository):
+#   QUAY_USERNAME  e.g. "myorg+kpl_ci"
+#   QUAY_PASSWORD  robot token
+name: Build KPL Alpine image
+
+on:
+  workflow_dispatch:
+    inputs:
+      image:
+        description: "Quay image name"
+        required: true
+        default: "quay.io/datastax/pulsar-io-kinesis-sink-kinesis_producer"
+      version:
+        description: "Image tag (should match KINESIS_PRODUCER_LIB_VERSION in the Dockerfile)"
+        required: true
+        default: "1.0.6"
+      push:
+        description: "Push to Quay (otherwise build and smoke test only)"
+        type: boolean
+        default: false
+  pull_request:
+    paths:
+      - "docker/kinesis-producer-alpine/**"
+      - ".github/workflows/build-kpl-alpine-image.yaml"
+
+env:
+  IMAGE: ${{ inputs.image || 'quay.io/datastax/pulsar-io-kinesis-sink-kinesis_producer' }}
+  VERSION: ${{ inputs.version || '1.0.6' }}
+  DO_PUSH: ${{ github.event_name == 'workflow_dispatch' && inputs.push }}
+
+jobs:
+  build:
+    name: build (${{ matrix.platform }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-24.04
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 150
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Quay
+        if: env.DO_PUSH == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: quay.io
+          username: ${{ secrets.QUAY_USERNAME }}
+          password: ${{ secrets.QUAY_PASSWORD }}
+
+      - name: Build and smoke test
+        run: |
+          docker buildx build --load --platform ${{ matrix.platform }} \
+            -t kpl-test docker/kinesis-producer-alpine
+          docker run --rm kpl-test sh -c '
+            cd /opt/amazon-kinesis-producer/bin
+            cat .version
+            ./kinesis_producer 2>&1 | head -3 | grep -q "input-pipe is required"
+          '
+          # Start the producer with a hex-encoded config (region=us-east-1) and fake credentials,
+          # and verify that it keeps running.
+          docker run --rm kpl-test sh -c '
+            cd /opt/amazon-kinesis-producer/bin
+            mkfifo /tmp/in /tmp/out
+            ./kinesis_producer -i /tmp/in -o /tmp/out \
+              -c 0801320cba010975732d656173742d31 \
+              -k 08024a10120e0a04414b49411206736563726574 >/tmp/kp.log 2>&1 &
+            pid=$!
+            sleep 4
+            kill -0 $pid || { cat /tmp/kp.log; echo "kinesis_producer exited early"; exit 1; }
+            kill $pid
+          '
+
+      - name: Build and push by digest
+        id: push
+        if: env.DO_PUSH == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: docker/kinesis-producer-alpine
+          platforms: ${{ matrix.platform }}
+          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
+
+      - name: Export digest
+        if: env.DO_PUSH == 'true'
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.push.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+
+      - uses: actions/upload-artifact@v4
+        if: env.DO_PUSH == 'true'
+        with:
+          name: digests-${{ strategy.job-index }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge:
+    name: publish multi-arch manifest
+    if: github.event_name == 'workflow_dispatch' && inputs.push
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: digests-*
+          merge-multiple: true
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Quay
+        uses: docker/login-action@v3
+        with:
+          registry: quay.io
+          username: ${{ secrets.QUAY_USERNAME }}
+          password: ${{ secrets.QUAY_PASSWORD }}
+
+      - name: Create multi-arch manifest
+        working-directory: /tmp/digests
+        run: |
+          docker buildx imagetools create \
+            -t "$IMAGE:$VERSION" -t "$IMAGE:$VERSION-$(date -I)" \
+            $(printf "$IMAGE@sha256:%s " *)
+
+      - name: Inspect
+        run: docker buildx imagetools inspect "$IMAGE:$VERSION"
