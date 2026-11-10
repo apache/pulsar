@@ -2281,42 +2281,69 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         initManagedLedgerConfig(config);
         config.setCacheEvictionByExpectedReadCount(true);
         config.setReadAheadEnabled(true);
+        // Keep the shared ranges cached throughout the bounded waits below.
+        factory.updateCacheEvictionTimeThreshold(TimeUnit.MINUTES.toNanos(1));
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("cursorsAtTheSamePositionShareReadAhead", config);
-        ManagedCursorImpl first = (ManagedCursorImpl) ledger.openCursor("c1");
-        ManagedCursorImpl second = (ManagedCursorImpl) ledger.openCursor("c2");
-        for (int i = 0; i < 20; i++) {
-            ledger.addEntry(("entry-" + i).getBytes());
-        }
-        ledger.entryCache.clear();
-        List<Long> firstEntriesRead = new CopyOnWriteArrayList<>();
         CompletableFuture<Void> readAheadHeld = new CompletableFuture<>();
-        bkc.setReadHandleInterceptor((ledgerId, firstEntry, lastEntry, entries) -> {
-            firstEntriesRead.add(firstEntry);
-            // the read ahead of the range after the first read stays pending until it's released
-            return firstEntry == 5
-                    ? readAheadHeld.thenApply(__ -> entries) : CompletableFuture.completedFuture(entries);
-        });
         try {
-            first.readEntries(5).forEach(Entry::release);
-            assertThat(first.isReadAheadInProgress()).isTrue();
-            // the second cursor's read ahead finds the first one's read of the range pending
-            second.readEntries(5).forEach(Entry::release);
-            assertThat(second.isReadAheadInProgress()).isFalse();
-            readAheadHeld.complete(null);
-            Awaitility.await().until(() -> !first.isReadAheadInProgress());
-            List<Entry> next = second.readEntries(5);
-            try {
-                assertThat(next.get(0).getEntryId()).isEqualTo(5);
-            } finally {
-                next.forEach(Entry::release);
+            ManagedCursorImpl first = (ManagedCursorImpl) ledger.openCursor("c1");
+            ManagedCursorImpl second = (ManagedCursorImpl) ledger.openCursor("c2");
+            // Only two ranges, so reading the prefetched entries does not start another read ahead.
+            for (int i = 0; i < 10; i++) {
+                ledger.addEntry(("entry-" + i).getBytes(UTF_8));
             }
-            // the range after the first read was read from storage once
-            assertThat(firstEntriesRead).filteredOn(entryId -> entryId < 10).containsExactly(0L, 5L);
+            ledger.entryCache.clear();
+            ManagedLedgerFactoryMXBean stats = factory.getCacheStats();
+            List<Long> firstEntriesRead = new CopyOnWriteArrayList<>();
+            CompletableFuture<Void> readAheadStarted = new CompletableFuture<>();
+            bkc.setReadHandleInterceptor((ledgerId, firstEntry, lastEntry, entries) -> {
+                firstEntriesRead.add(firstEntry);
+                if (firstEntry == 5) {
+                    readAheadStarted.complete(null);
+                    return readAheadHeld.thenApply(__ -> entries);
+                }
+                return CompletableFuture.completedFuture(entries);
+            });
+
+            assertReadAheadTestEntries(first, 0);
+            readAheadStarted.get(10, TimeUnit.SECONDS);
+            assertThat(first.isReadAheadInProgress()).as("the first cursor's read ahead is held").isTrue();
+
+            // The second cursor reuses the first range while its read ahead overlaps the held storage read.
+            long hits = stats.getCacheHitsTotal();
+            assertReadAheadTestEntries(second, 0);
+            assertThat(stats.getCacheHitsTotal() - hits).as("the second cursor reuses the first range").isEqualTo(5);
+
+            readAheadHeld.complete(null);
+            Awaitility.await().atMost(10, TimeUnit.SECONDS)
+                    .until(() -> !first.isReadAheadInProgress() && !second.isReadAheadInProgress());
+            for (ManagedCursor cursor : List.of(first, second)) {
+                hits = stats.getCacheHitsTotal();
+                assertReadAheadTestEntries(cursor, 5);
+                assertThat(stats.getCacheHitsTotal() - hits)
+                        .as("cursor %s reuses the prefetched range", cursor.getName()).isEqualTo(5);
+            }
+            // The demand read and read ahead run asynchronously, but each range reaches storage only once.
+            assertThat(firstEntriesRead).containsExactlyInAnyOrder(0L, 5L);
         } finally {
             readAheadHeld.complete(null);
             bkc.setReadHandleInterceptor(null);
+            ledger.close();
         }
-        ledger.close();
+    }
+
+    private static void assertReadAheadTestEntries(ManagedCursor cursor, long firstEntryId) throws Exception {
+        List<Entry> entries = cursor.readEntries(5);
+        try {
+            assertThat(entries).as("entries read by cursor %s", cursor.getName()).hasSize(5);
+            for (int i = 0; i < entries.size(); i++) {
+                Entry entry = entries.get(i);
+                assertThat(entry.getEntryId()).isEqualTo(firstEntryId + i);
+                assertThat(new String(entry.getData(), UTF_8)).isEqualTo("entry-" + (firstEntryId + i));
+            }
+        } finally {
+            entries.forEach(Entry::release);
+        }
     }
 
     @Test
