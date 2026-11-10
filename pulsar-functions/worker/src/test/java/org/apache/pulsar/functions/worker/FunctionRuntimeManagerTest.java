@@ -27,6 +27,7 @@ import static org.mockito.Mockito.argThat;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -277,6 +278,157 @@ public class FunctionRuntimeManagerTest {
 
             assertEquals(functionRuntimeManager.functionRuntimeInfos.size(), 0);
         }
+    }
+
+    // The termination of a deleted function deletes its subscriptions. An instance on another worker can recreate them
+    // until that worker stops it, such as an instance that still restarts after an update, so every worker that ran
+    // instances of the function terminates it once its own instances are stopped and it has read the deletes of all of
+    // them, in whichever order the leader deletes them.
+    @Test
+    public void testDeleteFunctionWithInstancesOnSeveralWorkers() throws Exception {
+        WorkerConfig workerConfig = new WorkerConfig();
+        workerConfig.setWorkerId("worker-1");
+        workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
+        workerConfig.setFunctionRuntimeFactoryConfigs(
+                ObjectMapperFactory.getMapper().getObjectMapper().convertValue(
+                        new ThreadRuntimeFactoryConfig().setThreadGroupName("test"), Map.class));
+        workerConfig.setPulsarServiceUrl(PULSAR_SERVICE_URL);
+        workerConfig.setStateStorageServiceUrl("foo");
+
+        PulsarWorkerService workerService = mock(PulsarWorkerService.class);
+        doReturn(mock(PulsarClient.class)).when(workerService).getClient();
+        doReturn(mock(PulsarAdmin.class)).when(workerService).getFunctionAdmin();
+        FunctionMetaDataManager functionMetaDataManager = mock(FunctionMetaDataManager.class);
+
+        try (MockedStatic<RuntimeFactory> runtimeFactoryMockedStatic = Mockito.mockStatic(RuntimeFactory.class)) {
+            mockRuntimeFactory(runtimeFactoryMockedStatic);
+
+            @Cleanup
+            FunctionRuntimeManager functionRuntimeManager = new FunctionRuntimeManager(
+                    workerConfig,
+                    workerService,
+                    mock(Namespace.class),
+                    mock(MembershipManager.class),
+                    mock(ConnectorsManager.class),
+                    mock(FunctionsManager.class),
+                    functionMetaDataManager,
+                    mock(WorkerStatsManager.class),
+                    mock(ErrorNotifier.class));
+            FunctionActioner functionActioner = spy(functionRuntimeManager.getFunctionActioner());
+            doNothing().when(functionActioner).stopFunction(any(FunctionRuntimeInfo.class));
+            doNothing().when(functionActioner).terminateFunction(any(FunctionRuntimeInfo.class));
+            functionRuntimeManager.setFunctionActioner(functionActioner);
+
+            // func-1 has instances 0 and 1 on this worker and instance 2 on worker-2
+            FunctionMetaData function1 = createFunctionMetaData("test-tenant", "test-namespace", "func-1");
+            List<Assignment> assignments1 = List.of(createAssignment("worker-1", function1, 0),
+                    createAssignment("worker-1", function1, 1), createAssignment("worker-2", function1, 2));
+            // func-2 has instance 0 on this worker and instance 1 on worker-2
+            FunctionMetaData function2 = createFunctionMetaData("test-tenant", "test-namespace", "func-2");
+            List<Assignment> assignments2 = List.of(createAssignment("worker-1", function2, 0),
+                    createAssignment("worker-2", function2, 1));
+            for (List<Assignment> assignments : List.of(assignments1, assignments2)) {
+                for (Assignment assignment : assignments) {
+                    functionRuntimeManager.setAssignment(assignment);
+                    if (assignment.getWorkerId().equals("worker-1")) {
+                        functionRuntimeManager.functionRuntimeInfos.put(
+                                FunctionCommon.getFullyQualifiedInstanceId(assignment.getInstance()),
+                                new FunctionRuntimeInfo().setFunctionInstance(assignment.getInstance()));
+                    }
+                }
+            }
+
+            // the instances on this worker are deleted first: it stops them, and terminates func-1 once it reads the
+            // delete of its last instance
+            functionRuntimeManager.deleteAssignment(
+                    FunctionCommon.getFullyQualifiedInstanceId(assignments1.get(0).getInstance()));
+            functionRuntimeManager.deleteAssignment(
+                    FunctionCommon.getFullyQualifiedInstanceId(assignments1.get(1).getInstance()));
+            verify(functionActioner, times(2)).stopFunction(any(FunctionRuntimeInfo.class));
+            verify(functionActioner, never()).terminateFunction(any(FunctionRuntimeInfo.class));
+
+            functionRuntimeManager.deleteAssignment(
+                    FunctionCommon.getFullyQualifiedInstanceId(assignments1.get(2).getInstance()));
+            verify(functionActioner, times(2)).stopFunction(any(FunctionRuntimeInfo.class));
+            verify(functionActioner).terminateFunction(argThat(functionRuntimeInfo ->
+                    isInstance(functionRuntimeInfo, "func-1", 1)));
+            assertTrue(functionRuntimeManager.stoppedDeletedFunctions.isEmpty());
+
+            // the instance on the other worker is deleted first: this worker terminates func-2 when it deletes its own
+            // instance, as before
+            functionRuntimeManager.deleteAssignment(
+                    FunctionCommon.getFullyQualifiedInstanceId(assignments2.get(1).getInstance()));
+            functionRuntimeManager.deleteAssignment(
+                    FunctionCommon.getFullyQualifiedInstanceId(assignments2.get(0).getInstance()));
+            verify(functionActioner, times(2)).stopFunction(any(FunctionRuntimeInfo.class));
+            verify(functionActioner).terminateFunction(argThat(functionRuntimeInfo ->
+                    isInstance(functionRuntimeInfo, "func-2", 0)));
+
+            assertEquals(functionRuntimeManager.functionRuntimeInfos.size(), 0);
+            assertTrue(functionRuntimeManager.workerIdToAssignments.isEmpty());
+        }
+    }
+
+    // A function that is created again before this worker reads the delete of the last instance of its previous
+    // incarnation keeps its subscriptions
+    @Test
+    public void testDeletedFunctionCreatedAgainIsNotTerminated() throws Exception {
+        WorkerConfig workerConfig = new WorkerConfig();
+        workerConfig.setWorkerId("worker-1");
+        workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
+        workerConfig.setFunctionRuntimeFactoryConfigs(
+                ObjectMapperFactory.getMapper().getObjectMapper().convertValue(
+                        new ThreadRuntimeFactoryConfig().setThreadGroupName("test"), Map.class));
+        workerConfig.setPulsarServiceUrl(PULSAR_SERVICE_URL);
+        workerConfig.setStateStorageServiceUrl("foo");
+
+        PulsarWorkerService workerService = mock(PulsarWorkerService.class);
+        doReturn(mock(PulsarClient.class)).when(workerService).getClient();
+        doReturn(mock(PulsarAdmin.class)).when(workerService).getFunctionAdmin();
+        FunctionMetaDataManager functionMetaDataManager = mock(FunctionMetaDataManager.class);
+
+        try (MockedStatic<RuntimeFactory> runtimeFactoryMockedStatic = Mockito.mockStatic(RuntimeFactory.class)) {
+            mockRuntimeFactory(runtimeFactoryMockedStatic);
+
+            @Cleanup
+            FunctionRuntimeManager functionRuntimeManager = new FunctionRuntimeManager(
+                    workerConfig,
+                    workerService,
+                    mock(Namespace.class),
+                    mock(MembershipManager.class),
+                    mock(ConnectorsManager.class),
+                    mock(FunctionsManager.class),
+                    functionMetaDataManager,
+                    mock(WorkerStatsManager.class),
+                    mock(ErrorNotifier.class));
+            FunctionActioner functionActioner = spy(functionRuntimeManager.getFunctionActioner());
+            doNothing().when(functionActioner).stopFunction(any(FunctionRuntimeInfo.class));
+            doNothing().when(functionActioner).terminateFunction(any(FunctionRuntimeInfo.class));
+            functionRuntimeManager.setFunctionActioner(functionActioner);
+
+            FunctionMetaData function = createFunctionMetaData("test-tenant", "test-namespace", "func-1");
+            Assignment local = createAssignment("worker-1", function, 0);
+            Assignment remote = createAssignment("worker-2", function, 1);
+            functionRuntimeManager.setAssignment(local);
+            functionRuntimeManager.setAssignment(remote);
+            functionRuntimeManager.functionRuntimeInfos.put(
+                    FunctionCommon.getFullyQualifiedInstanceId(local.getInstance()),
+                    new FunctionRuntimeInfo().setFunctionInstance(local.getInstance()));
+
+            functionRuntimeManager.deleteAssignment(FunctionCommon.getFullyQualifiedInstanceId(local.getInstance()));
+            verify(functionActioner).stopFunction(any(FunctionRuntimeInfo.class));
+
+            when(functionMetaDataManager.containsFunction("test-tenant", "test-namespace", "func-1")).thenReturn(true);
+            functionRuntimeManager.deleteAssignment(FunctionCommon.getFullyQualifiedInstanceId(remote.getInstance()));
+            verify(functionActioner, never()).terminateFunction(any(FunctionRuntimeInfo.class));
+            assertTrue(functionRuntimeManager.stoppedDeletedFunctions.isEmpty());
+        }
+    }
+
+    private static boolean isInstance(FunctionRuntimeInfo functionRuntimeInfo, String functionName, int instanceId) {
+        Instance instance = functionRuntimeInfo.getFunctionInstance();
+        return instance.getFunctionMetaData().getFunctionDetails().getName().equals(functionName)
+                && instance.getInstanceId() == instanceId;
     }
 
     private void mockRuntimeFactory(MockedStatic<RuntimeFactory> runtimeFactoryMockedStatic) {
