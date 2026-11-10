@@ -381,9 +381,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_SERVER,
-        doc = "Number of thread pool size to use for pulsar zookeeper callback service."
-            + "The cache executor thread pool is used for restarting global zookeeper session. "
-            + "Default is 10"
+        deprecated = true,
+        doc = "Deprecated. This setting has no effect and is retained for compatibility."
     )
     @Deprecated
     private int numCacheExecutorThreadPoolSize = 10;
@@ -1254,21 +1253,23 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "(Default is disabled)"
         )
     private boolean unblockStuckSubscriptionEnabled = false;
+    @Deprecated
     @FieldContext(
             category = CATEGORY_POLICIES,
             dynamic = true,
-            doc = "Tick time to schedule task that checks topic publish rate limiting across all topics  "
-                    + "Reducing to lower value can give more accuracy while throttling publish but "
-                    + "it uses more CPU to perform frequent check. (Disable publish throttling with value 0)"
+            deprecated = true,
+            doc = "Deprecated. Topic publish rate limiting no longer uses a periodic check. "
+                    + "This setting has no effect and is retained for compatibility."
         )
     private int topicPublisherThrottlingTickTimeMillis = 10;
 
+    @Deprecated
     @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
-        doc = "Tick time to schedule task that checks broker publish rate limiting across all topics  "
-            + "Reducing to lower value can give more accuracy while throttling publish but "
-            + "it uses more CPU to perform frequent check. (Disable publish throttling with value 0)"
+        deprecated = true,
+        doc = "Deprecated. Broker publish rate limiting no longer uses a periodic check. "
+            + "This setting has no effect and is retained for compatibility."
     )
     private int brokerPublisherThrottlingTickTimeMillis = 50;
     @FieldContext(
@@ -2039,29 +2040,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Enable or disable system topic.")
     private boolean systemTopicEnabled = true;
 
+    @Deprecated
     @FieldContext(
             category = CATEGORY_SERVER,
-            doc = "# Enable strict topic name check. Which includes two parts as follows:\n"
-                    + "# 1. Mark `-partition-` as a keyword.\n"
-                    + "# E.g.\n"
-                    + "    Create a non-partitioned topic.\n"
-                    + "      No corresponding partitioned topic\n"
-                    + "       - persistent://public/default/local-name (passed)\n"
-                    + "       - persistent://public/default/local-name-partition-z (rejected by keyword)\n"
-                    + "       - persistent://public/default/local-name-partition-0 (rejected by keyword)\n"
-                    + "      Has corresponding partitioned topic, partitions=2 and topic partition name "
-                    + "is persistent://public/default/local-name\n"
-                    + "       - persistent://public/default/local-name-partition-0 (passed,"
-                    + " Because it is the partition topic's sub-partition)\n"
-                    + "       - persistent://public/default/local-name-partition-z (rejected by keyword)\n"
-                    + "       - persistent://public/default/local-name-partition-4 (rejected,"
-                    + " Because it exceeds the number of maximum partitions)\n"
-                    + "    Create a partitioned topic(topic metadata)\n"
-                    + "       - persistent://public/default/local-name (passed)\n"
-                    + "       - persistent://public/default/local-name-partition-z (rejected by keyword)\n"
-                    + "       - persistent://public/default/local-name-partition-0 (rejected by keyword)\n"
-                    + "# 2. Allowed alphanumeric (a-zA-Z_0-9) and these special chars -=:. for topic name.\n"
-                    + "# NOTE: This flag will be removed in some major releases in the future.\n")
+            deprecated = true,
+            doc = "Deprecated. This setting has no effect on topic name validation "
+                    + "and is retained for compatibility.")
     private boolean strictTopicNameEnabled = false;
 
     @FieldContext(
@@ -2129,7 +2113,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @Deprecated
     @FieldContext(
         category = CATEGORY_SERVER,
-        doc = "This config never takes effect and will be removed in the next release"
+        deprecated = true,
+        doc = "Deprecated. This setting has no effect and is retained for compatibility."
     )
     private boolean enableNamespaceIsolationUpdateOnTime = false;
 
@@ -3815,7 +3800,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_REPLICATION,
         deprecated = true,
-        doc = "@deprecated - Use brokerClientTlsEnabled instead."
+        doc = "Deprecated. This setting has no effect and is retained for compatibility. "
+                + "Use brokerClientTlsEnabled instead."
     )
     private boolean replicationTlsEnabled = false;
     @FieldContext(
@@ -3848,9 +3834,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_POLICIES,
         deprecated = true,
-        doc = "How often broker checks for inactive topics to be deleted (topics with no subscriptions and no one "
-                + "connected) Deprecated in favor of using `brokerDeleteInactiveTopicsFrequencySeconds`\n"
-                + "@deprecated - unused."
+        doc = "Deprecated. This setting has no effect and is retained for compatibility. "
+                + "Use brokerDeleteInactiveTopicsFrequencySeconds instead."
     )
     private int brokerServicePurgeInactiveFrequencyInSeconds = 60;
     @FieldContext(

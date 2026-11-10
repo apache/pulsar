@@ -454,6 +454,7 @@ public class ConsumerRedeliveryTest extends SharedPulsarBaseTest {
         int batchSize = 100;
         String subName = "my-subscriber-name";
         String topicName = newTopicName();
+        @Cleanup
         ConsumerImpl<byte[]> consumer1 = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
                 .receiverQueueSize(queueSize).subscriptionType(SubscriptionType.Shared).subscriptionName(subName)
                 .subscribe();
@@ -464,6 +465,7 @@ public class ConsumerRedeliveryTest extends SharedPulsarBaseTest {
         producerBuilder.batchingMaxPublishDelay(2000, TimeUnit.MILLISECONDS);
         producerBuilder.batchingMaxMessages(100);
 
+        @Cleanup
         Producer<byte[]> producer = producerBuilder.create();
         for (int i = 0; i < batchSize; i++) {
             String message = "my-message-" + i;
@@ -480,6 +482,7 @@ public class ConsumerRedeliveryTest extends SharedPulsarBaseTest {
         Awaitility.await().untilAsserted(() ->
                 assertEquals(consumer1.getTotalIncomingMessages(), batchSize));
 
+        @Cleanup
         ConsumerImpl<byte[]> consumer2 = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
                 .receiverQueueSize(queueSize).subscriptionType(SubscriptionType.Shared).subscriptionName(subName)
                 .subscribe();
