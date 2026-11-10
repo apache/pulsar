@@ -184,20 +184,19 @@ public class TokenExpirationProduceConsumerTest extends TlsProducerConsumerBase 
                 .topic(topic)
                 .subscriptionName("test-token")
                 .subscribe();
-        // Once the token has expired, a send fails only when its send timeout runs out (30 s by default)
+        // Once the token has expired, the send fails when its timeout runs out
         @Cleanup final Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(topic)
                 .sendTimeout(2, TimeUnit.SECONDS)
                 .create();
 
-        Awaitility.await().timeout(Duration.ofSeconds(60)).pollInterval(500, TimeUnit.MILLISECONDS)
-                .untilAsserted(() -> {
-                    assertThrows(PulsarClientException.TimeoutException.class, () -> {
-                        producer.send("heart beat".getBytes());
-                        Message<byte[]> message = consumer.receive();
-                        consumer.acknowledge(message);
-                    });
-                    assertTrue(new Date().compareTo(expiredTime) > 0);
-                });
+        Awaitility.await().timeout(Duration.ofSeconds(60)).pollInterval(Duration.ofMillis(200)).untilAsserted(() -> {
+            assertThrows(PulsarClientException.TimeoutException.class, () -> {
+                producer.send("heart beat".getBytes());
+                Message<byte[]> message = consumer.receive();
+                consumer.acknowledge(message);
+            });
+            assertTrue(new Date().compareTo(expiredTime) > 0);
+        });
     }
 }

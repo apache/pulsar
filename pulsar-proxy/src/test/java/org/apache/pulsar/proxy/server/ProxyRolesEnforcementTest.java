@@ -239,8 +239,7 @@ public class ProxyRolesEnforcementTest extends ProducerConsumerBase {
             proxyService.start();
 
 
-            try (PulsarClient proxyClient = createRejectedPulsarClient(proxyService.getServiceUrl(),
-                    proxyAuthParams)) {
+            try (PulsarClient proxyClient = createRejectedPulsarClient(proxyService.getServiceUrl(), proxyAuthParams)) {
                 exceptionOccurred = false;
                 try {
                     proxyClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).subscribe();
@@ -270,12 +269,12 @@ public class ProxyRolesEnforcementTest extends ProducerConsumerBase {
                 authParams).build();
     }
 
-    /**
-     * The client retries a connection the broker rejects until the operation timeout, 30 s by default.
-     */
-    private PulsarClient createRejectedPulsarClient(String proxyServiceUrl, String authParams)
+    // The broker rejects this client's handshake, and the client retries the lookup until its operation times out
+    private PulsarClient createRejectedPulsarClient(String serviceUrl, String authParams)
             throws PulsarClientException {
-        return PulsarClient.builder().serviceUrl(proxyServiceUrl).authentication(BasicAuthentication.class.getName(),
-                authParams).operationTimeout(2, TimeUnit.SECONDS).build();
+        return PulsarClient.builder().serviceUrl(serviceUrl)
+                .authentication(BasicAuthentication.class.getName(), authParams)
+                .operationTimeout(2, TimeUnit.SECONDS)
+                .build();
     }
 }

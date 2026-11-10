@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.metadata.bookkeeper;
 
+import static org.apache.pulsar.metadata.bookkeeper.AbstractMetadataDriver.BLOCKING_CALL_TIMEOUT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.testng.Assert.assertEquals;
@@ -265,16 +266,17 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         try (MetadataStoreExtended otherStore = MetadataStoreExtended.create(zks.getConnectionString(),
                 MetadataStoreConfig.builder().build());
              var other = new PulsarLedgerUnderreplicationManager(new ClientConfiguration(), otherStore, ledgersRoot)) {
+            // The rows that expect the cleanup to time out wait 1 s for it, not the 30 s blocking call timeout
+            long cleanupTimeoutMillis = interrupted ? BLOCKING_CALL_TIMEOUT : 1000;
+            var manager = (PulsarLedgerUnderreplicationManager) lum;
             AtomicReference<Thread> cleanupThread = new AtomicReference<>();
             Future<UnavailableException> firstCleanup = executor.submit(() -> {
                 cleanupThread.set(Thread.currentThread());
                 try {
                     if (close) {
-                        // The blocked acknowledgement can't arrive, so a short timeout runs out the same way as
-                        // the default 30 s one.
-                        ((PulsarLedgerUnderreplicationManager) lum).close(1, TimeUnit.SECONDS);
+                        manager.close(cleanupTimeoutMillis, TimeUnit.MILLISECONDS);
                     } else {
-                        lum.releaseUnderreplicatedLedger(ledgerId);
+                        manager.releaseUnderreplicatedLedger(ledgerId, cleanupTimeoutMillis, TimeUnit.MILLISECONDS);
                     }
                     throw new AssertionError("Cleanup must fail while its delete acknowledgement is blocked");
                 } catch (UnavailableException error) {
