@@ -202,20 +202,28 @@ public class V5MultiBrokerScalableLayoutRecoveryTest extends V5MultiBrokerClient
 
             ScalableTopicMetadata recovered = resources.getScalableTopicMetadataAsync(topic, true)
                     .get(10, TimeUnit.SECONDS).orElseThrow();
-            assertThat(recovered.getEpoch()).as("exactly one DAG generation is committed")
-                    .isEqualTo(original.getEpoch() + 1);
             int replacements = operation == Operation.SPLIT ? 2 : 1;
-            assertThat(recovered.getNextSegmentId()).isEqualTo(original.getNextSegmentId() + replacements);
-            Set<Long> expectedIds = new HashSet<>(original.getSegments().keySet());
-            for (int i = 0; i < replacements; i++) {
-                expectedIds.add(original.getNextSegmentId() + i);
+            assertThat(recovered.getNextSegmentId()).as("the reserved successor IDs are never reused")
+                    .isEqualTo(original.getNextSegmentId() + replacements);
+            if (boundary == Boundary.AFTER_RESERVATION && recovered.getEpoch() == original.getEpoch()) {
+                // No parent was sealed yet, so the new leader cancels the plan when it can't complete
+                // it, e.g. while the bundle of a successor has no owner. The original DAG keeps serving.
+                assertThat(recovered.getSegments()).as("a cancelled plan publishes nothing")
+                        .isEqualTo(original.getSegments());
+            } else {
+                assertThat(recovered.getEpoch()).as("exactly one DAG generation is committed")
+                        .isEqualTo(original.getEpoch() + 1);
+                Set<Long> expectedIds = new HashSet<>(original.getSegments().keySet());
+                for (int i = 0; i < replacements; i++) {
+                    expectedIds.add(original.getNextSegmentId() + i);
+                }
+                assertThat(recovered.getSegments().keySet()).containsExactlyInAnyOrderElementsOf(expectedIds);
+                for (SegmentInfo source : sources) {
+                    assertThat(recovered.getSegments().get(source.segmentId()).isSealed()).isTrue();
+                }
+                assertThat(recovered.getSegments().values().stream().filter(SegmentInfo::isActive).count())
+                        .isEqualTo(replacements);
             }
-            assertThat(recovered.getSegments().keySet()).containsExactlyInAnyOrderElementsOf(expectedIds);
-            for (SegmentInfo source : sources) {
-                assertThat(recovered.getSegments().get(source.segmentId()).isSealed()).isTrue();
-            }
-            assertThat(recovered.getSegments().values().stream().filter(SegmentInfo::isActive).count())
-                    .isEqualTo(replacements);
             assertThat(recovered.getProperties())
                     .containsExactlyInAnyOrderEntriesOf(Map.of("original", "retained", "concurrent", "retained"));
             assertThat(recovered.getAutoScalePolicy()).isEqualTo(policy);
