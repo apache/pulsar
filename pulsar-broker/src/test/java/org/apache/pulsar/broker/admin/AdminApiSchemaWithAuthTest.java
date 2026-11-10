@@ -147,6 +147,11 @@ public class AdminApiSchemaWithAuthTest extends MockedPulsarServiceBaseTest {
         assertThrows(PulsarAdminException.class, () -> adminWithoutPermission.schemas()
                 .testCompatibility(topicName, schemaInfo2));
         assertTrue(adminWithAdminPermission.schemas().testCompatibility(topicName, schemaInfo2).isCompatibility());
+        assertTrue(adminWithConsumePermission.schemas().testCompatibility(topicName, schemaInfo2).isCompatibility());
+        assertTrue(adminWithProducePermission.schemas().testCompatibility(topicName, schemaInfo2).isCompatibility());
+        admin.topics().revokePermissions(topicName, "producer");
+        assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> adminWithProducePermission.schemas().testCompatibility(topicName, schemaInfo2));
 
         assertThrows(PulsarAdminException.class, () -> adminWithoutPermission.schemas()
                 .getVersionBySchema(topicName, si));
