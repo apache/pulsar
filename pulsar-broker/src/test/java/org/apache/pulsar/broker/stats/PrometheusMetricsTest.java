@@ -38,6 +38,7 @@ import io.prometheus.client.Collector;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
@@ -83,6 +84,7 @@ import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData;
 import org.apache.pulsar.broker.loadbalance.extensions.manager.UnloadManager;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
+import org.apache.pulsar.broker.service.AbstractBaseDispatcher;
 import org.apache.pulsar.broker.service.AbstractTopic;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
@@ -2278,7 +2280,32 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertEquals(buckets.stream().map(m -> m.tags.get("le")).collect(Collectors.toList()),
                 List.of("1.0", "10.0", "100.0", "200.0", "1000.0", "+Inf"));
         assertEquals(buckets.get(0).tags.get("cluster"), "test");
-        assertTrue(singleValue(metrics, "pulsar_broker_pending_bytes_to_dispatch", null) >= 0);
+        // The gauge reads a static adder every dispatcher updates around a read batch. The subscription's
+        // dispatcher moves it by a known amount here, so a sample that is missing or stuck at a constant fails.
+        double pendingBefore = requiredSingleValue(metrics, "pulsar_broker_pending_bytes_to_dispatch");
+        AbstractBaseDispatcher dispatcher = (AbstractBaseDispatcher) ((PersistentTopic) pulsar.getBrokerService()
+                .getTopicReference(topic).get()).getSubscription("sub").getDispatcher();
+        Method updatePendingBytes = AbstractBaseDispatcher.class
+                .getDeclaredMethod("updatePendingBytesToDispatch", long.class);
+        updatePendingBytes.setAccessible(true);
+        long pendingDelta = 123_456L;
+        updatePendingBytes.invoke(dispatcher, pendingDelta);
+        try {
+            assertEquals(requiredSingleValue(parseMetrics(scrape()), "pulsar_broker_pending_bytes_to_dispatch"),
+                    pendingBefore + pendingDelta);
+        } finally {
+            updatePendingBytes.invoke(dispatcher, -pendingDelta);
+        }
+        assertEquals(requiredSingleValue(parseMetrics(scrape()), "pulsar_broker_pending_bytes_to_dispatch"),
+                pendingBefore);
+    }
+
+    /** The value of the only sample of the unlabeled {@code name}, which must be present with the cluster label. */
+    private static double requiredSingleValue(Multimap<String, Metric> metrics, String name) {
+        List<Metric> samples = new ArrayList<>(metrics.get(name));
+        assertEquals(samples.size(), 1, name);
+        assertEquals(samples.get(0).tags.get("cluster"), "test", name);
+        return samples.get(0).value;
     }
 
     private String scrape() throws IOException {
