@@ -85,8 +85,9 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
      * broker.
      */
     private final ConcurrentSkipListSet<MessageIdAdv> pendingIndividualAcks;
+    // Cleanup starts a new map generation. In-flight batch ACKs keep using the map they started with.
     @VisibleForTesting
-    final ConcurrentSkipListMap<MessageIdAdv, ConcurrentBitSet> pendingIndividualBatchIndexAcks;
+    volatile ConcurrentSkipListMap<MessageIdAdv, ConcurrentBitSet> pendingIndividualBatchIndexAcks;
 
     // the periodic flush, shared with the other consumers' trackers of the event loop; null without grouping
     private final AcknowledgmentsGroupingFlushes.Registration periodicFlush;
@@ -160,6 +161,11 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                 return CompletableFuture.completedFuture(null);
             }
         } else {
+            // The interceptors run user code, which may take the consumer's lock: call them before taking the receipt
+            // lock, which the consumer takes in write mode under its own lock to flush the acks on reconnection.
+            for (MessageId messageId : messageIds) {
+                consumer.onAcknowledge(messageId, null);
+            }
             Optional<Lock> readLock = acquireReadLock();
             try {
                 if (messageIds.size() != 0) {
@@ -209,11 +215,6 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             @Nullable MessageIdAdv batchMessageId,
             Map<String, Long> properties,
             boolean groupedByCaller) {
-        if (batchMessageId != null) {
-            consumer.onAcknowledge(batchMessageId, null);
-        } else {
-            consumer.onAcknowledge(msgId, null);
-        }
         if (batchMessageId == null || MessageIdAdvUtils.acknowledge(batchMessageId, true)) {
             consumer.getStats().incrementNumAcksSent((batchMessageId != null) ? batchMessageId.getBatchSize() : 1);
             consumer.getUnAckedMessageTracker().remove(msgId);
@@ -236,6 +237,11 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                                                       @Nullable MessageIdAdv batchMessageId) {
         switch (ackType) {
             case Individual:
+                if (batchMessageId != null) {
+                    consumer.onAcknowledge(batchMessageId, null);
+                } else {
+                    consumer.onAcknowledge(msgId, null);
+                }
                 return addIndividualAcknowledgment(msgId,
                         batchMessageId,
                         properties, false);
@@ -356,28 +362,37 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
 
     @VisibleForTesting
     CompletableFuture<Void> doIndividualBatchAckAsync(MessageIdAdv msgId) {
-        ConcurrentBitSet bitSet = pendingIndividualBatchIndexAcks.computeIfAbsent(
-                MessageIdAdvUtils.discardBatch(msgId), __ -> {
-                    final BitSet ackSet = msgId.getAckSet();
-                    final ConcurrentBitSet value;
-                    if (ackSet != null) {
-                        synchronized (ackSet) {
-                            if (!ackSet.isEmpty()) {
-                                value =  new ConcurrentBitSet();
-                                value.or(ackSet);
-                            } else {
-                                value = new ConcurrentBitSet();
-                                value.set(0, msgId.getBatchSize());
-                            }
+        ConcurrentSkipListMap<MessageIdAdv, ConcurrentBitSet> pendingBatchIndexAcks = pendingIndividualBatchIndexAcks;
+        MessageIdAdv key = MessageIdAdvUtils.discardBatch(msgId);
+        ConcurrentBitSet bitSet;
+        do {
+            bitSet = pendingBatchIndexAcks.computeIfAbsent(key, __ -> {
+                final BitSet ackSet = msgId.getAckSet();
+                final ConcurrentBitSet value;
+                if (ackSet != null) {
+                    synchronized (ackSet) {
+                        if (!ackSet.isEmpty()) {
+                            value = new ConcurrentBitSet();
+                            value.or(ackSet);
+                        } else {
+                            value = new ConcurrentBitSet();
+                            value.set(0, msgId.getBatchSize());
                         }
-                    } else {
-                        value = new ConcurrentBitSet();
-                        value.set(0, msgId.getBatchSize());
                     }
-                    return value;
-                });
-        bitSet.clear(msgId.getBatchIndex());
-        markAcksPending();
+                } else {
+                    value = new ConcurrentBitSet();
+                    value.set(0, msgId.getBatchSize());
+                }
+                return value;
+            });
+            bitSet.clear(msgId.getBatchIndex());
+            // A flush may have detached and serialized this bitmap before the clear. In that case, apply
+            // the ACK to this generation's pending bitmap. Cleanup replaces the map and invalidates the retry.
+        } while (pendingBatchIndexAcks.get(key) != bitSet
+                && pendingBatchIndexAcks == pendingIndividualBatchIndexAcks);
+        if (pendingBatchIndexAcks == pendingIndividualBatchIndexAcks) {
+            markAcksPending();
+        }
         return CompletableFuture.completedFuture(null);
     }
 
@@ -593,7 +608,10 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             acksPending = false;
             lastCumulativeAck.reset();
             pendingIndividualAcks.clear();
-            pendingIndividualBatchIndexAcks.clear();
+            ConcurrentSkipListMap<MessageIdAdv, ConcurrentBitSet> previousBatchIndexAcks =
+                    pendingIndividualBatchIndexAcks;
+            pendingIndividualBatchIndexAcks = new ConcurrentSkipListMap<>();
+            previousBatchIndexAcks.clear();
         }
     }
 

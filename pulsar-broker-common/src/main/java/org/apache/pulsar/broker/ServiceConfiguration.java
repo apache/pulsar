@@ -381,9 +381,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_SERVER,
-        doc = "Number of thread pool size to use for pulsar zookeeper callback service."
-            + "The cache executor thread pool is used for restarting global zookeeper session. "
-            + "Default is 10"
+        deprecated = true,
+        doc = "Deprecated. This setting has no effect and is retained for compatibility."
     )
     @Deprecated
     private int numCacheExecutorThreadPoolSize = 10;
@@ -484,11 +483,22 @@ public class ServiceConfiguration implements PulsarConfiguration {
             (disable with value -1)""")
     private int delayedDeliveryMaxNumBuckets = -1;
 
+    @FieldContext(category = CATEGORY_SERVER, doc = "Allow the in-memory delayed delivery tracker "
+            + "to pause cursor reads "
+            + "after detecting ordered delivery times in a lookahead window. Default is false. "
+            + "Enable only when applications guarantee non-decreasing delivery times for all messages on the broker, "
+            + "including future publications. An immediate message must not follow a message scheduled in the future. "
+            + "The broker cannot verify the delivery times of unread messages. "
+            + "When disabled, the broker scans and tracks the delayed backlog, which can increase memory and read I/O. "
+            + "Enabling this option restores the legacy fixed-delay read-pause behavior. Requires a broker restart.")
+    private boolean delayedDeliveryAssumeOrderedDeliveryTimes = false;
+
     @FieldContext(category = CATEGORY_SERVER, doc = "Size of the lookahead window to use "
             + "when detecting if all the messages in the topic have a fixed delay for "
             + "InMemoryDelayedDeliveryTracker (the default DelayedDeliverTracker). "
             + "Default is 50,000. Setting the lookahead window to 0 will disable the "
-            + "logic to handle fixed delays in messages in a different way.")
+            + "logic to handle fixed delays in messages in a different way. "
+            + "A positive value only enables read pauses when delayedDeliveryAssumeOrderedDeliveryTimes is true.")
     private long delayedDeliveryFixedDelayDetectionLookahead = 50_000;
 
     @FieldContext(category = CATEGORY_SERVER, doc = """
@@ -666,7 +676,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_SERVER,
-            doc = "Maximum number of operations to include in a singular batch"
+            doc = "Maximum number of operations to include in a singular batch. With ZooKeeper 3.9.7 or later, a read"
+                    + " batch larger than the multiRead.maxOps setting of the ZooKeeper server, which is 1000 by"
+                    + " default, is rejected, and the broker splits and retries it. To avoid these extra requests,"
+                    + " raise that setting first when raising this value."
     )
     private int metadataStoreBatchingMaxOperations = 1_000;
 
@@ -1240,21 +1253,23 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "(Default is disabled)"
         )
     private boolean unblockStuckSubscriptionEnabled = false;
+    @Deprecated
     @FieldContext(
             category = CATEGORY_POLICIES,
             dynamic = true,
-            doc = "Tick time to schedule task that checks topic publish rate limiting across all topics  "
-                    + "Reducing to lower value can give more accuracy while throttling publish but "
-                    + "it uses more CPU to perform frequent check. (Disable publish throttling with value 0)"
+            deprecated = true,
+            doc = "Deprecated. Topic publish rate limiting no longer uses a periodic check. "
+                    + "This setting has no effect and is retained for compatibility."
         )
     private int topicPublisherThrottlingTickTimeMillis = 10;
 
+    @Deprecated
     @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
-        doc = "Tick time to schedule task that checks broker publish rate limiting across all topics  "
-            + "Reducing to lower value can give more accuracy while throttling publish but "
-            + "it uses more CPU to perform frequent check. (Disable publish throttling with value 0)"
+        deprecated = true,
+        doc = "Deprecated. Broker publish rate limiting no longer uses a periodic check. "
+            + "This setting has no effect and is retained for compatibility."
     )
     private int brokerPublisherThrottlingTickTimeMillis = 50;
     @FieldContext(
@@ -2025,29 +2040,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Enable or disable system topic.")
     private boolean systemTopicEnabled = true;
 
+    @Deprecated
     @FieldContext(
             category = CATEGORY_SERVER,
-            doc = "# Enable strict topic name check. Which includes two parts as follows:\n"
-                    + "# 1. Mark `-partition-` as a keyword.\n"
-                    + "# E.g.\n"
-                    + "    Create a non-partitioned topic.\n"
-                    + "      No corresponding partitioned topic\n"
-                    + "       - persistent://public/default/local-name (passed)\n"
-                    + "       - persistent://public/default/local-name-partition-z (rejected by keyword)\n"
-                    + "       - persistent://public/default/local-name-partition-0 (rejected by keyword)\n"
-                    + "      Has corresponding partitioned topic, partitions=2 and topic partition name "
-                    + "is persistent://public/default/local-name\n"
-                    + "       - persistent://public/default/local-name-partition-0 (passed,"
-                    + " Because it is the partition topic's sub-partition)\n"
-                    + "       - persistent://public/default/local-name-partition-z (rejected by keyword)\n"
-                    + "       - persistent://public/default/local-name-partition-4 (rejected,"
-                    + " Because it exceeds the number of maximum partitions)\n"
-                    + "    Create a partitioned topic(topic metadata)\n"
-                    + "       - persistent://public/default/local-name (passed)\n"
-                    + "       - persistent://public/default/local-name-partition-z (rejected by keyword)\n"
-                    + "       - persistent://public/default/local-name-partition-0 (rejected by keyword)\n"
-                    + "# 2. Allowed alphanumeric (a-zA-Z_0-9) and these special chars -=:. for topic name.\n"
-                    + "# NOTE: This flag will be removed in some major releases in the future.\n")
+            deprecated = true,
+            doc = "Deprecated. This setting has no effect on topic name validation "
+                    + "and is retained for compatibility.")
     private boolean strictTopicNameEnabled = false;
 
     @FieldContext(
@@ -2115,7 +2113,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @Deprecated
     @FieldContext(
         category = CATEGORY_SERVER,
-        doc = "This config never takes effect and will be removed in the next release"
+        deprecated = true,
+        doc = "Deprecated. This setting has no effect and is retained for compatibility."
     )
     private boolean enableNamespaceIsolationUpdateOnTime = false;
 
@@ -2645,14 +2644,16 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int managedLedgerCacheSizeMB = Math.max(64,
             (int) (DirectMemoryUtils.jvmMaxDirectMemory() / 5 / (1024 * 1024)));
 
-    @FieldContext(category = CATEGORY_STORAGE_ML, doc = "Whether we should make a copy of the entry payloads when "
+    @FieldContext(category = CATEGORY_STORAGE_ML, dynamic = true,
+        doc = "Whether we should make a copy of the entry payloads when "
             + "inserting in cache. Without a copy, a cached entry keeps the buffer that it was received in allocated\n"
             + "while it stays in the cache. That is a buffer of the Netty connection that the entry arrived on, from\n"
             + "a client or from a bookie, such as a receive buffer or one that the TLS handler or the frame decoder\n"
             + "allocated, and it can be much larger than the entry. The cache size limit counts only\n"
             + "the entry's own size, so size-based eviction doesn't bound that memory, and\n"
             + "managedLedgerCacheEvictionExtendTTLOfEntriesWithRemainingExpectedReadsMaxTimes extends how long it\n"
-            + "stays allocated.")
+            + "stays allocated. Dynamic updates apply to subsequent cache insertions; existing cached entries keep "
+            + "their original buffers and are not cleared.")
     private boolean managedLedgerCacheCopyEntries = false;
 
     @FieldContext(category = CATEGORY_STORAGE_ML, doc = "Maximum buffer size in MB for bytes read from storage"
@@ -3799,7 +3800,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_REPLICATION,
         deprecated = true,
-        doc = "@deprecated - Use brokerClientTlsEnabled instead."
+        doc = "Deprecated. This setting has no effect and is retained for compatibility. "
+                + "Use brokerClientTlsEnabled instead."
     )
     private boolean replicationTlsEnabled = false;
     @FieldContext(
@@ -3832,9 +3834,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_POLICIES,
         deprecated = true,
-        doc = "How often broker checks for inactive topics to be deleted (topics with no subscriptions and no one "
-                + "connected) Deprecated in favor of using `brokerDeleteInactiveTopicsFrequencySeconds`\n"
-                + "@deprecated - unused."
+        doc = "Deprecated. This setting has no effect and is retained for compatibility. "
+                + "Use brokerDeleteInactiveTopicsFrequencySeconds instead."
     )
     private int brokerServicePurgeInactiveFrequencyInSeconds = 60;
     @FieldContext(

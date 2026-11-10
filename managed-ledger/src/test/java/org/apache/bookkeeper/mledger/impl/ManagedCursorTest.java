@@ -47,6 +47,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdk;
 import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
 import java.lang.reflect.Field;
@@ -3248,14 +3249,15 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         // between the reads
         // so with a big batchSize this test would take too much
         // we are skipping this check if batchSize is too big
+        // Each entry takes as long as the timeout, which the scan then passes after a batch or two
         if (batchSize <= 5) {
             assertEquals(ScanOutcome.ABORTED, c1.scan(Optional.empty(), (entry -> {
                 try {
-                    Thread.sleep(1000);
+                    Thread.sleep(100);
                 } catch (InterruptedException ie) {
                 }
                 return true;
-            }), batchSize, Long.MAX_VALUE, 1000).get());
+            }), batchSize, Long.MAX_VALUE, 100).get());
         }
         // user code exception
         AtomicReference<Throwable> error = new AtomicReference<>();
@@ -4009,7 +4011,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                 for (int i = 0; i <= 376; i++) {
                     ledger.addEntry(new byte[128]);
                 }
-                assertEquals(ledger.getLedgersInfo().size(), 2);
+                // the full ledger rolls over to a third, empty one in the background
+                Awaitility.await().untilAsserted(() -> assertEquals(ledger.getLedgersInfo().size(), 3));
             }
             CompletableFuture<List<Entry>> replayed = new CompletableFuture<>();
             cursor.asyncReplayEntries(positions, new AsyncCallbacks.ReadEntriesCallback() {
@@ -4981,6 +4984,45 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(markDeletePosition, cursor.getMarkDeletedPosition());
     }
 
+    @Test(timeOut = 30000)
+    public void testMarkDeleteFailureCallbackRunsOutsideCursorLock() throws Exception {
+        ManagedLedger ledger = factory.open("testMarkDeleteFailureCallbackRunsOutsideCursorLock", defaultConfig());
+        ManagedCursor cursor = ledger.openCursor("c1");
+        Position first = ledger.addEntry("entry1".getBytes(Encoding));
+        Position second = ledger.addEntry("entry2".getBytes(Encoding));
+        cursor.markDelete(second);
+
+        ExecutorService executor = Executors.newSingleThreadExecutor(new DefaultThreadFactory("mark-delete-callback"));
+        CompletableFuture<Void> callbackCompleted = new CompletableFuture<>();
+        try {
+            cursor.asyncMarkDelete(first, new MarkDeleteCallback() {
+                @Override
+                public void markDeleteComplete(Object ctx) {
+                    callbackCompleted.completeExceptionally(new AssertionError("Expected mark-delete to fail"));
+                }
+
+                @Override
+                public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
+                    try {
+                        assertThat(exception.getCause()).isInstanceOf(IllegalArgumentException.class);
+                        // A non-empty replay acquires the cursor read lock even when every position is acknowledged.
+                        Future<Set<? extends Position>> replay = executor.submit(() -> cursor.asyncReplayEntries(
+                                Set.of(first), mock(ReadEntriesCallback.class), null));
+                        assertEquals(replay.get(10, TimeUnit.SECONDS), Set.of(first));
+                        callbackCompleted.complete(null);
+                    } catch (Exception | AssertionError e) {
+                        callbackCompleted.completeExceptionally(e);
+                    }
+                }
+            }, null);
+            callbackCompleted.get(10, TimeUnit.SECONDS);
+            assertEquals(cursor.getMarkDeletedPosition(), second);
+        } finally {
+            executor.shutdownNow();
+            assertTrue(executor.awaitTermination(10, TimeUnit.SECONDS));
+        }
+    }
+
     @Test
     public void testEstimatedUnackedSize() throws Exception {
         ManagedLedgerConfig config = defaultConfig();
@@ -5404,6 +5446,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test
     public void deleteMessagesCheckhMarkDelete() throws Exception {
+        // The mock BookKeeper sleeps 1 ms for each add by default
+        bkc.setDefaultAddEntryDelayMillis(0);
         ManagedLedger ledger = factory.open("my_test_ledger", initManagedLedgerConfig(defaultConfig()));
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
         final int totalEntries = 1000;
@@ -5904,7 +5948,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         }
 
         c1.markDelete(positions.get(0));
-        Thread.sleep(3000);
+        // Mark-deletes are limited to 1 per second: wait for the next one to be persisted, so that it fails
+        Thread.sleep(1500);
         // Simulate BK write error
         bkc.failNow(BKException.Code.NotEnoughBookiesException);
         metadataStore.setAlwaysFail(new MetadataStoreException.BadVersionException(""));

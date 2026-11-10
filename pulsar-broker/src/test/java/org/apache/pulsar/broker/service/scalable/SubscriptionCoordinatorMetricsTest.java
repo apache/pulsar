@@ -406,7 +406,7 @@ public class SubscriptionCoordinatorMetricsTest {
         CompletableFuture<Void> firstDelete = new CompletableFuture<>();
         CompletableFuture<Void> secondDelete = new CompletableFuture<>();
         when(resources.unregisterConsumerAsync(any(), anyString(), anyString()))
-                .thenReturn(firstDelete, secondDelete);
+                .thenReturn(firstDelete).thenReturn(secondDelete);
         var firstLeave = coordinator.unregisterConsumer("c1", 1);
         var secondLeave = coordinator.unregisterConsumer("c1", 1);
         firstDelete.complete(null);

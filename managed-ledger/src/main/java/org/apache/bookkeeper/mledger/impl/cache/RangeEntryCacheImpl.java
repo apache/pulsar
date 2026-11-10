@@ -75,7 +75,6 @@ public class RangeEntryCacheImpl implements EntryCache {
     private final RangeCache entries;
     // inserts the managed ledger's added entries, which come in order on the managed ledger's executor
     private final RangeCache.Inserter addedEntriesInserter;
-    private final boolean copyEntries;
     private final PendingReadsManager pendingReadsManager;
 
     private static final double MB = 1024 * 1024;
@@ -84,12 +83,12 @@ public class RangeEntryCacheImpl implements EntryCache {
     private final LongAdder totalAddedEntriesCount = new LongAdder();
     private final EntryLengthFunction entryLengthFunction;
 
-    public RangeEntryCacheImpl(RangeEntryCacheManagerImpl manager, ManagedLedgerImpl ml, boolean copyEntries,
+    public RangeEntryCacheImpl(RangeEntryCacheManagerImpl manager, ManagedLedgerImpl ml,
                                RangeCacheRemovalQueue rangeCacheRemovalQueue, EntryLengthFunction entryLengthFunction) {
-        this(manager, ml, copyEntries, rangeCacheRemovalQueue, entryLengthFunction, null);
+        this(manager, ml, rangeCacheRemovalQueue, entryLengthFunction, null);
     }
 
-    RangeEntryCacheImpl(RangeEntryCacheManagerImpl manager, ManagedLedgerImpl ml, boolean copyEntries,
+    RangeEntryCacheImpl(RangeEntryCacheManagerImpl manager, ManagedLedgerImpl ml,
                         RangeCacheRemovalQueue rangeCacheRemovalQueue, EntryLengthFunction entryLengthFunction,
                         PendingReadsManager pendingReadsManager) {
         this.manager = manager;
@@ -103,7 +102,6 @@ public class RangeEntryCacheImpl implements EntryCache {
         this.interceptor = ml.getManagedLedgerInterceptor();
         this.entries = new RangeCache(rangeCacheRemovalQueue);
         this.addedEntriesInserter = entries.newInserter();
-        this.copyEntries = copyEntries;
 
         log.debug("Initialized managed-ledger entry cache");
     }
@@ -135,7 +133,7 @@ public class RangeEntryCacheImpl implements EntryCache {
 
     @Override
     public boolean insert(Entry entry) {
-        return insert(entry, copyEntries, addedEntriesInserter);
+        return insert(entry, manager.isCopyEntriesInCache(), addedEntriesInserter);
     }
 
     /**
@@ -150,11 +148,12 @@ public class RangeEntryCacheImpl implements EntryCache {
      * @return the number of entries that were inserted
      */
     public int insert(List<? extends Entry> entriesToInsert, boolean copy) {
+        boolean shouldCopy = copy || manager.isCopyEntriesInCache();
         RangeCache.Inserter inserter = entries.newInserter();
         int inserted = 0;
         for (Entry entry : entriesToInsert) {
             if (!inserter.updateIfCached(entry.getPosition(), cached -> takeExpectedReadCount(cached, entry))
-                    && insert(entry, copy, inserter)) {
+                    && insert(entry, shouldCopy, inserter)) {
                 inserted++;
             }
         }
@@ -713,7 +712,7 @@ public class RangeEntryCacheImpl implements EntryCache {
                                     totalSize += entry.getLength();
                                 }
                                 if (expectedReadCountVal >= 0) {
-                                    insert(entriesToReturn, copyEntries || batchRead);
+                                    insert(entriesToReturn, batchRead);
                                 }
 
                                 ml.getMbean().recordReadEntriesOpsCacheMisses(entriesToReturn.size(), totalSize);
@@ -741,14 +740,25 @@ public class RangeEntryCacheImpl implements EntryCache {
                                 expectedReadCount, false));
             }
 
-            if (!(cause instanceof BKException
-                    && ((BKException) cause).getCode() == BKException.Code.TooManyRequestsException)) {
-                ml.invalidateLedgerHandle(lh);
-                pendingReadsManager.invalidateLedger(lh.getId());
+            if (cause instanceof BKException
+                    && ((BKException) cause).getCode() == BKException.Code.TooManyRequestsException) {
+                return CompletableFuture.<List<Entry>>failedFuture(cause);
             }
-
-            CompletableFuture<List<Entry>> failedFuture = CompletableFuture.failedFuture(cause);
-            return failedFuture;
+            pendingReadsManager.invalidateLedger(lh.getId());
+            if (!allowRetry) {
+                ml.invalidateLedgerHandle(lh);
+                return CompletableFuture.<List<Entry>>failedFuture(cause);
+            }
+            // The cached handle keeps the ensembles the ledger had when it was opened: read again once if the ledger
+            // was re-replicated since, instead of failing the read and making the cursor back off
+            return ml.reopenLedgerHandleIfReplicated(lh).thenCompose(reopened -> {
+                if (reopened == null) {
+                    return CompletableFuture.<List<Entry>>failedFuture(cause);
+                }
+                log.debug().attr("ledgerId", lh.getId())
+                        .log("Read failed on a handle with outdated ensembles, reading again with the current ones");
+                return readFromStorage(reopened, firstEntry, lastEntry, maxSizeBytes, expectedReadCount, false);
+            });
         }).thenCompose(Function.identity());
     }
 

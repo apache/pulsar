@@ -108,6 +108,8 @@ public abstract class AbstractPulsarE2ETest {
     /**
      * Creates a V5 client with the same service URL, authentication and TLS settings as the function worker.
      */
+    // Mirrors how PulsarService builds the worker client, which still honours the deprecated useTls flag.
+    @SuppressWarnings("deprecation")
     protected org.apache.pulsar.client.api.v5.PulsarClient newV5Client() throws Exception {
         AuthenticationConfig authConfig = AuthenticationConfig.builder()
                 .clientAuthenticationPlugin(workerConfig.getBrokerClientAuthenticationPlugin())
@@ -148,6 +150,9 @@ public abstract class AbstractPulsarE2ETest {
         config.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
         config.setTlsAllowInsecureConnection(true);
         config.setAdvertisedAddress("localhost");
+        // The function worker elects its leader through a Failover subscription: don't delay the election by the
+        // default 1 s
+        config.setActiveConsumerFailoverDelayTimeMillis(0);
 
         Set<String> providers = new HashSet<>();
         providers.add(AuthenticationProviderTls.class.getName());

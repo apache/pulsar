@@ -51,6 +51,8 @@ public class SegmentTopicStatsBuilderTest {
     private static final long CREATED_AT = 1789680081733L;
     private static final long LAST_ACTIVITY = 1789682261518L;
 
+    // SegmentTopicStatsBuilder reads the consumer's legacy epoch-millis timestamp fields, which are deprecated.
+    @SuppressWarnings("deprecation")
     private static TopicStatsImpl topicStats() {
         TopicStatsImpl ts = new TopicStatsImpl();
         ts.ownerBroker = "localhost:8080";

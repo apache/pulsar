@@ -167,6 +167,8 @@ public class FunctionActioner {
             if (!packageUrlValidator.isValidPackageUrl(componentType, packagePath)) {
                 throw new IllegalArgumentException("Package URL " + packagePath + " is not valid");
             }
+            // Package URLs may not be strict URIs; keep URL(String)'s lenient parsing.
+            @SuppressWarnings("deprecation")
             URL url = new URL(packagePath);
             File pkgFile = new File(url.toURI());
             packageFile = pkgFile.getAbsolutePath();

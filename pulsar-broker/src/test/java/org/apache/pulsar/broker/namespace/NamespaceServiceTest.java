@@ -578,6 +578,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testSplitBundleAndRemoveOldBundleFromOwnerShipCache() throws Exception {
         OwnershipCache ownershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());

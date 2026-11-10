@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.service;
 
 import static org.testng.Assert.assertEquals;
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.testng.annotations.Test;
 
@@ -36,8 +35,8 @@ public class EntryBatchIndexesAcksTest {
         EntryBatchIndexesAcks acks = EntryBatchIndexesAcks.get(10);
 
         // when setting 2 indexes with 95/100 bits set in each (5 "acked" in each)
-        acks.setIndexesAcks(8, Pair.of(100, nintyFiveBitsSet));
-        acks.setIndexesAcks(9, Pair.of(100, nintyFiveBitsSet));
+        acks.setIndexesAcks(8, 100, nintyFiveBitsSet);
+        acks.setIndexesAcks(9, 100, nintyFiveBitsSet);
 
         // then the totalAckedIndexCount should be 10
         assertEquals(acks.getTotalAckedIndexCount(), 10);

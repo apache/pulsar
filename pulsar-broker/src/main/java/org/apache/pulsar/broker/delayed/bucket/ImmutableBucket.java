@@ -88,11 +88,9 @@ class ImmutableBucket {
     @Setter
     private volatile long snapshotLength;
 
-    @Getter
     @Setter
     private volatile Long bucketId;
 
-    @Getter
     @Setter
     private volatile CompletableFuture<Long> snapshotCreateFuture;
 

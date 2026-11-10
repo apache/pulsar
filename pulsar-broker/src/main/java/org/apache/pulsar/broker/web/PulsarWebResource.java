@@ -532,7 +532,7 @@ public abstract class PulsarWebResource {
             } else {
                 serviceNameResolver = SERVICE_NAME_RESOLVER_CACHE.get(differentClusterData.getServiceUrl());
             }
-            URL webUrl = new URL(serviceNameResolver.resolveHostUri().toString());
+            URL webUrl = serviceNameResolver.resolveHostUri().toURL();
             return UriBuilder.fromUri(uri.getRequestUri()).host(webUrl.getHost()).port(webUrl.getPort()).build();
         } catch (Exception exception) {
             if (exception.getCause() != null

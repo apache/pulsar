@@ -319,6 +319,7 @@ public class LegacyV4AuthenticationAdapterTest {
         }
 
         @Override
+        @Deprecated
         public void configure(java.util.Map<String, String> authParams) {
         }
 

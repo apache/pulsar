@@ -39,7 +39,8 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.EventLoopGroup;
-import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.MultiThreadIoEventLoopGroup;
+import io.netty.channel.nio.NioIoHandler;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
@@ -79,7 +80,7 @@ public class AcknowledgementsGroupingTrackerTest {
 
     @BeforeClass
     public void setup() throws NoSuchFieldException, IllegalAccessException {
-        eventLoopGroup = new NioEventLoopGroup(1);
+        eventLoopGroup = new MultiThreadIoEventLoopGroup(1, NioIoHandler.newFactory());
         consumer = mock(ConsumerImpl.class);
         consumer.unAckedChunkedMessageIdSequenceMap = new ConcurrentHashMap<>();
         cnx = spy(new ClientCnxTest(new ClientConfigurationData(), eventLoopGroup));
@@ -289,6 +290,8 @@ public class AcknowledgementsGroupingTrackerTest {
         tracker.close();
     }
 
+    // Mockito.clearInvocations(T...) is not @SafeVarargs.
+    @SuppressWarnings("unchecked")
     @Test
     public void testPeriodicFlushSkipsTrackerWithoutNewAcks() throws Exception {
         ConsumerImpl<?> periodicConsumer = mock(ConsumerImpl.class);

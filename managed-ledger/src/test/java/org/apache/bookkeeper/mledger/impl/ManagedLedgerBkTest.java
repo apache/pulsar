@@ -31,30 +31,46 @@ import static org.testng.Assert.fail;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 import lombok.Cleanup;
 import lombok.CustomLog;
+import org.apache.bookkeeper.client.BKException.BKNoSuchLedgerExistsOnMetadataServerException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerEntry;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.client.PulsarBookKeeperTestClient;
 import org.apache.bookkeeper.client.api.DigestType;
+import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -66,7 +82,11 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.bookkeeper.mledger.ReadOnlyCursor;
+import org.apache.bookkeeper.mledger.ReadOnlyManagedLedger;
+import org.apache.bookkeeper.mledger.impl.cache.EntryCache;
 import org.apache.bookkeeper.mledger.impl.cache.EntryCacheManager;
+import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.proto.PositionInfo;
 import org.apache.bookkeeper.mledger.util.ThrowableToStringUtil;
 import org.apache.bookkeeper.net.BookieId;
@@ -75,6 +95,12 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.metadata.api.GetResult;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.Option;
+import org.apache.pulsar.metadata.api.Stat;
+import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
+import org.apache.zookeeper.KeeperException.BadVersionException;
 import org.awaitility.Awaitility;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -88,6 +114,573 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         super(2);
         // Use the v2 wire protocol so that reads exercise the BookKeeper batch read API against real bookies
         baseClientConf.setUseV2WireProtocol(true);
+    }
+
+    @Test(timeOut = 30000)
+    public void testInitializationMetadataConflictClosesUnpublishedWriteHandle() throws Exception {
+        verifyInitializationMetadataFailureCleanup(true);
+    }
+
+    @Test(timeOut = 30000)
+    public void testInitializationMetadataWriteTimeoutKeepsPublishedLedger() throws Exception {
+        verifyInitializationMetadataFailureCleanup(false);
+    }
+
+    private void verifyInitializationMetadataFailureCleanup(boolean badVersion) throws Exception {
+        String name = "initialization-failure-" + testName;
+        String path = "/managed-ledgers/" + name;
+        @Cleanup
+        PulsarBookKeeperTestClient client = new PulsarBookKeeperTestClient(
+                new ClientConfiguration(baseClientConf).setAddEntryQuorumTimeout(10)
+                        .setNumIOThreads(1).setNumWorkerThreads(1));
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl initialFactory = new ManagedLedgerFactoryImpl(metadataStore, client);
+        ManagedLedgerConfig config = defaultConfig().setEnsembleSize(2).setWriteQuorumSize(2).setAckQuorumSize(2);
+        initialFactory.open(name, config).close();
+        GetResult original = metadataStore.get(path).get(5, TimeUnit.SECONDS).orElseThrow();
+        AtomicBoolean changeVersion = new AtomicBoolean(true);
+        AtomicBoolean loseWriteResponse = new AtomicBoolean(true);
+        // Perform a real competing metadata update after the read, so the initialization's CAS loses.
+        FaultInjectionMetadataStore conflictingStore = new FaultInjectionMetadataStore(metadataStore) {
+            @Override
+            public CompletableFuture<Optional<GetResult>> get(String requestedPath, Set<Option> options) {
+                return super.get(requestedPath, options).thenCompose(result -> {
+                    if (badVersion && requestedPath.equals(path) && changeVersion.compareAndSet(true, false)) {
+                        GetResult read = result.orElseThrow();
+                        return metadataStore.put(path, read.getValue(), Optional.of(read.getStat().getVersion()))
+                                .thenApply(__ -> result);
+                    }
+                    return CompletableFuture.completedFuture(result);
+                });
+            }
+
+            @Override
+            public CompletableFuture<Stat> put(String requestedPath, byte[] value, Optional<Long> expectedVersion,
+                                               Set<Option> options) {
+                return super.put(requestedPath, value, expectedVersion, options).thenCompose(stat -> {
+                    if (!badVersion && requestedPath.equals(path) && loseWriteResponse.compareAndSet(true, false)) {
+                        // Commit the real ledger-list update, then lose its response. A timeout cannot establish
+                        // that the write failed, so cleanup must retain this now-published ledger.
+                        return CompletableFuture.failedFuture(new MetadataStoreException(
+                                new TimeoutException("Lost metadata write response")));
+                    }
+                    return CompletableFuture.completedFuture(stat);
+                });
+            }
+        };
+        AtomicReference<ManagedLedgerImpl> failedInstance = new AtomicReference<>();
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(conflictingStore, client) {
+            @Override
+            protected ManagedLedgerImpl createManagedLedger(BookKeeper bk, MetaStore store, String ledgerName,
+                    ManagedLedgerConfig ledgerConfig, Supplier<CompletableFuture<Boolean>> ownershipChecker) {
+                ManagedLedgerImpl ledger = super.createManagedLedger(bk, store, ledgerName, ledgerConfig,
+                        ownershipChecker);
+                failedInstance.set(ledger);
+                return ledger;
+            }
+        };
+        try {
+            assertThatThrownBy(() -> openLedgerAsync(factory, name, config).get(10, TimeUnit.SECONDS))
+                    .hasRootCauseInstanceOf(badVersion ? BadVersionException.class : TimeoutException.class);
+            ManagedLedgerImpl failedLedger = failedInstance.get();
+            assertThat(failedLedger.getState()).isEqualTo(
+                    badVersion ? ManagedLedgerImpl.State.Fenced : ManagedLedgerImpl.State.Closed);
+            assertThat(factory.ledgers).doesNotContainKey(name);
+            LedgerHandle unpublishedHandle = failedLedger.currentLedger;
+            assertThat(unpublishedHandle).isNotNull();
+            GetResult winningMetadata = metadataStore.get(path).get(5, TimeUnit.SECONDS).orElseThrow();
+            assertThat(winningMetadata.getStat().getVersion()).isEqualTo(original.getStat().getVersion() + 1);
+            if (badVersion) {
+                assertThat(winningMetadata.getValue()).isEqualTo(original.getValue());
+            } else {
+                ManagedLedgerInfo persisted = new ManagedLedgerInfo();
+                persisted.parseFrom(winningMetadata.getValue());
+                assertThat(persisted.getLedgerInfosList().stream()
+                        .anyMatch(info -> info.getLedgerId() == unpublishedHandle.getId())).isTrue();
+            }
+            Awaitility.await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> {
+                assertThat(client.hasScheduledAddTimeout(unpublishedHandle))
+                        .as("the failed initialization must release its periodic add-timeout task").isFalse();
+                assertThat(unpublishedHandle.isClosed()).isTrue();
+            });
+            if (badVersion) {
+                Awaitility.await().atMost(Duration.ofSeconds(5)).untilAsserted(() ->
+                        assertThatThrownBy(() -> client.getLedgerMetadata(unpublishedHandle.getId())
+                                .get(5, TimeUnit.SECONDS))
+                                .as("an initialization that loses the metadata CAS must delete its unpublished ledger")
+                                .hasRootCauseInstanceOf(BKNoSuchLedgerExistsOnMetadataServerException.class));
+            } else {
+                assertThat(client.getLedgerMetadata(unpublishedHandle.getId()).get(5, TimeUnit.SECONDS).isClosed())
+                        .as("a ledger published before a lost metadata response must remain in BookKeeper").isTrue();
+            }
+            ManagedLedger retry = factory.open(name, config);
+            retry.addEntry("after-conflict".getBytes(StandardCharsets.UTF_8));
+            retry.close();
+        } finally {
+            ManagedLedgerImpl failedLedger = failedInstance.get();
+            if (failedLedger != null && failedLedger.currentLedger != null) {
+                failedLedger.currentLedger.closeAsync().get(5, TimeUnit.SECONDS);
+            }
+        }
+    }
+
+    @Test(timeOut = 30000)
+    public void testOpenTimesOutDuringCursorPositionUpdate() throws Exception {
+        verifyAbandonedOpenDuringCursorPositionUpdate(false, false);
+    }
+
+    @Test(timeOut = 30000)
+    public void testShutdownDuringCursorPositionUpdateClosesLedger() throws Exception {
+        verifyAbandonedOpenDuringCursorPositionUpdate(true, false);
+    }
+
+    @Test(timeOut = 30000)
+    public void testShutdownWaitsForAbandonedInitializationClose() throws Exception {
+        verifyAbandonedOpenDuringCursorPositionUpdate(true, true);
+    }
+
+    private void verifyAbandonedOpenDuringCursorPositionUpdate(boolean shutdown, boolean raceAbandonedClose)
+            throws Exception {
+        String name = "cursor-update-" + testName;
+        @Cleanup
+        PulsarBookKeeperTestClient client = new PulsarBookKeeperTestClient(
+                new ClientConfiguration(baseClientConf).setAddEntryQuorumTimeout(10)
+                        .setNumIOThreads(1).setNumWorkerThreads(1));
+        AtomicBoolean gateNextUpdate = new AtomicBoolean();
+        CompletableFuture<Void> updateStarted = new CompletableFuture<>();
+        CompletableFuture<Void> updateGate = new CompletableFuture<>();
+        AtomicBoolean delayClose = new AtomicBoolean();
+        AtomicInteger closeCalls = new AtomicInteger();
+        CompletableFuture<Void> closeReady = new CompletableFuture<>();
+        CompletableFuture<Void> closeGate = new CompletableFuture<>();
+        List<ManagedLedgerImpl> instances = new CopyOnWriteArrayList<>();
+        ManagedLedgerFactoryConfig factoryConfig = new ManagedLedgerFactoryConfig();
+        factoryConfig.setNumManagedLedgerSchedulerThreads(1);
+        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, client, factoryConfig) {
+            @Override
+            protected ManagedLedgerImpl createManagedLedger(BookKeeper bk, MetaStore store, String ledgerName,
+                    ManagedLedgerConfig config, Supplier<CompletableFuture<Boolean>> ownershipChecker) {
+                ManagedLedgerImpl ledger = new ManagedLedgerImpl(this, bk, store, config, scheduledExecutor,
+                        ledgerName, ownershipChecker) {
+                    @Override
+                    void abandonInitialization() {
+                        super.abandonInitialization();
+                        if (raceAbandonedClose) {
+                            // Shutdown has removed the pending entry, but hasn't failed its open future yet.
+                            // Complete the cursor update now so abandonment starts closing the instance first.
+                            updateGate.complete(null);
+                            try {
+                                closeReady.get(5, TimeUnit.SECONDS);
+                            } catch (Exception e) {
+                                throw new AssertionError("The abandoned initialization did not close", e);
+                            }
+                        }
+                    }
+
+                    @Override
+                    public void asyncClose(CloseCallback callback, Object ctx) {
+                        if (!delayClose.get() || closeCalls.incrementAndGet() != 1) {
+                            super.asyncClose(callback, ctx);
+                            return;
+                        }
+                        // Run the real BookKeeper and cursor closes, then hold their completion delivery.
+                        // A second asyncClose must retain its normal behavior, exposing the premature success.
+                        super.asyncClose(new CloseCallback() {
+                            @Override
+                            public void closeComplete(Object context) {
+                                closeReady.complete(null);
+                                closeGate.thenRun(() -> callback.closeComplete(context));
+                            }
+
+                            @Override
+                            public void closeFailed(ManagedLedgerException exception, Object context) {
+                                closeReady.completeExceptionally(exception);
+                                callback.closeFailed(exception, context);
+                            }
+                        }, ctx);
+                    }
+
+                    @Override
+                    protected ManagedCursorImpl createCursor(BookKeeper cursorBk, String cursorName) {
+                        return new ManagedCursorImpl(cursorBk, this, cursorName) {
+                            @Override
+                            public void asyncMarkDelete(Position position, Map<String, Long> properties,
+                                                        MarkDeleteCallback callback, Object ctx) {
+                                if (!gateNextUpdate.compareAndSet(true, false)) {
+                                    super.asyncMarkDelete(position, properties, callback, ctx);
+                                    return;
+                                }
+                                // Perform the real mark-delete and persistence, then hold delivery of its callback.
+                                // It can be released even after the factory scheduler has stopped.
+                                super.asyncMarkDelete(position, properties, new MarkDeleteCallback() {
+                                    @Override
+                                    public void markDeleteComplete(Object context) {
+                                        updateStarted.complete(null);
+                                        updateGate.thenRun(() -> callback.markDeleteComplete(context));
+                                    }
+
+                                    @Override
+                                    public void markDeleteFailed(ManagedLedgerException exception, Object context) {
+                                        updateStarted.completeExceptionally(exception);
+                                        callback.markDeleteFailed(exception, context);
+                                    }
+                                }, ctx);
+                            }
+                        };
+                    }
+                };
+                instances.add(ledger);
+                return ledger;
+            }
+        };
+        ManagedLedgerConfig config = defaultConfig().setEnsembleSize(2).setWriteQuorumSize(2).setAckQuorumSize(2)
+                .setLazyCursorRecovery(false).setMetadataOperationsTimeoutSeconds(1)
+                .setRetentionSizeInMB(-1).setRetentionTime(-1, TimeUnit.MILLISECONDS);
+        try {
+            ManagedLedgerImpl initial = (ManagedLedgerImpl) factory.open(name, config);
+            ManagedCursor cursor = initial.openCursor("c1");
+            cursor.markDelete(initial.addEntry("entry".getBytes(StandardCharsets.UTF_8)));
+            initial.close();
+            instances.clear();
+
+            // Reopening creates the next data ledger. The recovered cursor must move from the consumed ledger
+            // to the new ledger's -1 position, persisting that position before the factory completes the open.
+            gateNextUpdate.set(true);
+            CompletableFuture<ManagedLedger> pendingOpen = openLedgerAsync(factory, name, config);
+            updateStarted.get(10, TimeUnit.SECONDS);
+            long updatePendingSince = System.nanoTime();
+            ManagedLedgerImpl pendingLedger = instances.get(0);
+            LedgerHandle writeHandle = pendingLedger.currentLedger;
+            assertThat(pendingLedger.getCursors().iterator().next().getMarkDeletedPosition())
+                    .isEqualTo(PositionFactory.create(writeHandle.getId(), -1));
+            assertThat(pendingOpen).isNotDone();
+            assertThat(client.hasScheduledAddTimeout(writeHandle)).isTrue();
+
+            if (shutdown) {
+                factory.setShutdownLedgerCloseTimeoutMillis(5000);
+                delayClose.set(raceAbandonedClose);
+                CompletableFuture<Void> shutdownFuture = factory.shutdownAsync();
+                if (raceAbandonedClose) {
+                    // One scheduler thread makes this marker follow the queued shutdown close callback.
+                    // On the broken implementation, shutdown can stop the scheduler before it accepts the marker.
+                    CompletableFuture<Void> shutdownCallbackProcessed = new CompletableFuture<>();
+                    try {
+                        factory.getScheduledExecutor().execute(() -> shutdownCallbackProcessed.complete(null));
+                    } catch (RejectedExecutionException e) {
+                        shutdownCallbackProcessed.complete(null);
+                    }
+                    CompletableFuture.anyOf(shutdownCallbackProcessed, shutdownFuture).get(5, TimeUnit.SECONDS);
+                    assertThat(closeCalls.get()).as("shutdown must share the original close").isEqualTo(1);
+                    assertThat(shutdownFuture).as("the first close callback is still pending").isNotDone();
+                    assertThat(factory.getScheduledExecutor().isShutdown()).isFalse();
+                    closeGate.complete(null);
+                }
+                shutdownFuture.get(10, TimeUnit.SECONDS);
+                if (raceAbandonedClose) {
+                    assertThatThrownBy(() -> pendingOpen.get(5, TimeUnit.SECONDS))
+                            .hasCauseInstanceOf(ManagedLedgerException.class)
+                            .hasMessageContaining("Managed ledger initialization was abandoned");
+                } else {
+                    assertThatThrownBy(() -> pendingOpen.get(5, TimeUnit.SECONDS))
+                            .hasCauseInstanceOf(ManagedLedgerException.ManagedLedgerFactoryClosedException.class);
+                }
+                assertThat(pendingLedger.getState()).isEqualTo(ManagedLedgerImpl.State.Closed);
+                assertThat(((ManagedCursorImpl) pendingLedger.getCursors().iterator().next()).getState())
+                        .isEqualTo("Closed");
+            } else {
+                Awaitility.await().atMost(Duration.ofSeconds(5)).until(() ->
+                        System.nanoTime() - updatePendingSince > TimeUnit.SECONDS.toNanos(1));
+                ManagedLedgerImpl replacement = (ManagedLedgerImpl) openLedgerAsync(factory, name, config)
+                        .get(5, TimeUnit.SECONDS);
+                assertThatThrownBy(() -> pendingOpen.get(5, TimeUnit.SECONDS))
+                        .hasMessageContaining("initialization timed out");
+                assertThat(replacement).isNotSameAs(pendingLedger);
+                assertThat(factory.ledgers.get(name).join()).isSameAs(replacement);
+            }
+
+            updateGate.complete(null);
+            Awaitility.await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> {
+                assertThat(pendingLedger.getState()).isEqualTo(ManagedLedgerImpl.State.Closed);
+                // A retry may already have deleted the empty ledger. isClosed() reports distributed metadata,
+                // whereas cancellation of this task checks release of the original handle's local resources.
+                assertThat(client.hasScheduledAddTimeout(writeHandle)).isFalse();
+            });
+            if (!shutdown) {
+                ManagedLedgerImpl replacement = factory.ledgers.get(name).join();
+                assertThat(factory.getEntryCacheManager().getEntryCache(replacement)).isSameAs(replacement.entryCache);
+                Position added = replacement.addEntry("after-retry".getBytes(StandardCharsets.UTF_8));
+                replacement.openCursor("c1").markDelete(added);
+            }
+        } finally {
+            closeGate.complete(null);
+            updateGate.complete(null);
+            // Also close an orphan on the unpatched baseline before the shared BookKeeper client is stopped.
+            for (ManagedLedgerImpl ledger : instances) {
+                if (shutdown) {
+                    if (ledger.currentLedger != null) {
+                        ledger.currentLedger.closeAsync().get(5, TimeUnit.SECONDS);
+                    }
+                } else if (!ledger.getState().isFenced()) {
+                    ledger.close();
+                }
+            }
+            try {
+                factory.shutdownAsync().get(5, TimeUnit.SECONDS);
+            } catch (ManagedLedgerException.ManagedLedgerFactoryClosedException alreadyClosed) {
+                // The shutdown case already closed the factory.
+            }
+        }
+    }
+
+    private static CompletableFuture<ManagedLedger> openLedgerAsync(ManagedLedgerFactoryImpl factory, String name,
+                                                                   ManagedLedgerConfig config) {
+        CompletableFuture<ManagedLedger> result = new CompletableFuture<>();
+        factory.asyncOpen(name, config, new OpenLedgerCallback() {
+            @Override
+            public void openLedgerComplete(ManagedLedger ledger, Object ctx) {
+                result.complete(ledger);
+            }
+
+            @Override
+            public void openLedgerFailed(ManagedLedgerException exception, Object ctx) {
+                result.completeExceptionally(exception);
+            }
+        }, null, null);
+        return result;
+    }
+
+    @DataProvider(name = "cacheEvictionModes")
+    public Object[][] cacheEvictionModes() {
+        return new Object[][]{{false}, {true}};
+    }
+
+    @DataProvider
+    public Object[][] activationPositionUpdates() {
+        return new Object[][]{{false, false}, {false, true}, {true, false}, {true, true}};
+    }
+
+    @Test(dataProvider = "cacheEvictionModes", timeOut = 30000)
+    public void testActiveSeekDoesNotWaitForLifecycleMonitor(boolean expectedReadCount) throws Exception {
+        ManagedLedgerConfig config = defaultConfig()
+                .setEnsembleSize(2).setWriteQuorumSize(2).setAckQuorumSize(2);
+        config.setCacheEvictionByExpectedReadCount(expectedReadCount);
+        config.setCacheEvictionByMarkDeletedPosition(false);
+        config.setReadAheadEnabled(false);
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(
+                "active-cursor-position-" + UUID.randomUUID(), config);
+        ManagedCursor cursor = ledger.openCursor("cursor");
+        Position target = ledger.addEntry(new byte[]{1});
+        assertThat(cursor.isActive()).isTrue();
+        ExecutorService caller = Executors.newSingleThreadExecutor(
+                new DefaultThreadFactory("active-cursor-position", true));
+        try {
+            synchronized (ledger.getActiveCursors()) {
+                // Ordinary reads update an already active cursor without taking the lifecycle monitor.
+                Future<?> seek = caller.submit(() -> cursor.seek(target));
+                seek.get(10, TimeUnit.SECONDS);
+            }
+            assertThat(ledger.getActiveCursors().getSlowestCursorPosition()).isEqualTo(target);
+        } finally {
+            caller.shutdownNow();
+            assertThat(caller.awaitTermination(10, TimeUnit.SECONDS)).isTrue();
+        }
+    }
+
+    @Test(dataProvider = "activationPositionUpdates", timeOut = 30000)
+    public void testActivationPreservesConcurrentSeek(boolean expectedReadCount, boolean moveForward) throws Exception {
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc) {
+            @Override
+            protected ManagedLedgerImpl createManagedLedger(BookKeeper bk, MetaStore store, String name,
+                    ManagedLedgerConfig config, Supplier<CompletableFuture<Boolean>> ownershipChecker) {
+                return new ManagedLedgerImpl(this, bk, store, config, scheduledExecutor, name, ownershipChecker) {
+                    @Override
+                    protected ManagedCursorImpl createCursor(BookKeeper bookKeeper, String cursorName) {
+                        return new PausingReadPositionCursor(bookKeeper, this, cursorName);
+                    }
+                };
+            }
+        };
+        ManagedLedgerConfig config = defaultConfig()
+                .setEnsembleSize(2).setWriteQuorumSize(2).setAckQuorumSize(2);
+        config.setCacheEvictionByExpectedReadCount(expectedReadCount);
+        config.setCacheEvictionByMarkDeletedPosition(false);
+        config.setReadAheadEnabled(false);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(
+                "cursor-activation-position-" + UUID.randomUUID(), config);
+        PausingReadPositionCursor cursor = (PausingReadPositionCursor) ledger.openCursor("moving");
+        ManagedCursor reference = ledger.openCursor("reference");
+        List<Position> positions = new ArrayList<>();
+        for (int index = 0; index < 5; index++) {
+            positions.add(ledger.addEntry(new byte[]{(byte) index}));
+        }
+        reference.seek(positions.get(2));
+        cursor.setInactive();
+        cursor.seek(positions.get(moveForward ? 0 : 4));
+        Position target = positions.get(moveForward ? 4 : 0);
+        cursor.pauseNextSnapshot.set(true);
+        AtomicReference<Thread> seekThread = new AtomicReference<>();
+        ExecutorService callers = Executors.newFixedThreadPool(2,
+                new DefaultThreadFactory("cursor-activation-position", true));
+        try {
+            Future<?> activation = callers.submit(cursor::setActive);
+            assertThat(cursor.positionSampled.await(10, TimeUnit.SECONDS)).isTrue();
+            Future<?> seek = callers.submit(() -> {
+                seekThread.set(Thread.currentThread());
+                cursor.seek(target);
+            });
+            // Before the fix the notification finishes without finding the cursor. With the fix it waits
+            // for registration's container lock. Wait for either outcome, not a scheduling-dependent delay.
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> seek.isDone()
+                    || (seekThread.get() != null && (seekThread.get().getState() == Thread.State.WAITING
+                    || seekThread.get().getState() == Thread.State.BLOCKED)));
+            assertThat(cursor.getReadPosition()).isEqualTo(target);
+            cursor.resumeSnapshot.countDown();
+            activation.get(10, TimeUnit.SECONDS);
+            seek.get(10, TimeUnit.SECONDS);
+
+            assertThat(cursor.isActive()).isTrue();
+            assertThat(ledger.isCursorActive(cursor)).isTrue();
+            ActiveManagedCursorContainer activeCursors = ledger.getActiveCursors();
+            if (expectedReadCount) {
+                assertThat(ledger.getNumberOfCursorsAtSamePositionOrBefore(reference))
+                        .as("expected reader count at the reference cursor")
+                        .isEqualTo(moveForward ? 1 : 2);
+                assertThat(ledger.getNumberOfCursorsAtSamePositionOrBefore(cursor))
+                        .isEqualTo(moveForward ? 2 : 1);
+            }
+            assertThat(activeCursors.getSlowestCursorPosition())
+                    .as("registration must not lose the concurrent seek")
+                    .isEqualTo(moveForward ? reference.getReadPosition() : target);
+        } finally {
+            cursor.resumeSnapshot.countDown();
+            callers.shutdownNow();
+            assertThat(callers.awaitTermination(10, TimeUnit.SECONDS)).isTrue();
+        }
+    }
+
+    @Test(dataProvider = "activationPositionUpdates", timeOut = 30000)
+    public void testActivationIgnoresDelayedReadPositionUpdate(boolean expectedReadCount, boolean moveForward)
+            throws Exception {
+        assertDelayedReadPositionUpdate(expectedReadCount, moveForward, false);
+    }
+
+    @Test(dataProvider = "activationPositionUpdates", timeOut = 30000)
+    public void testDelayedReadPositionUpdateReconcilesConcurrentSeek(boolean expectedReadCount, boolean moveForward)
+            throws Exception {
+        assertDelayedReadPositionUpdate(expectedReadCount, moveForward, true);
+    }
+
+    private void assertDelayedReadPositionUpdate(boolean expectedReadCount, boolean moveForward,
+                                                boolean overlapActiveSeek) throws Exception {
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc) {
+            @Override
+            protected ManagedLedgerImpl createManagedLedger(BookKeeper bk, MetaStore store, String name,
+                    ManagedLedgerConfig config, Supplier<CompletableFuture<Boolean>> ownershipChecker) {
+                return new ManagedLedgerImpl(this, bk, store, config, scheduledExecutor, name, ownershipChecker) {
+                    @Override
+                    protected ManagedCursorImpl createCursor(BookKeeper bookKeeper, String cursorName) {
+                        return new PausingReadPositionCursor(bookKeeper, this, cursorName);
+                    }
+                };
+            }
+        };
+        ManagedLedgerConfig config = defaultConfig()
+                .setEnsembleSize(2).setWriteQuorumSize(2).setAckQuorumSize(2);
+        config.setCacheEvictionByExpectedReadCount(expectedReadCount);
+        config.setCacheEvictionByMarkDeletedPosition(false);
+        config.setReadAheadEnabled(false);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(
+                "delayed-cursor-position-" + UUID.randomUUID(), config);
+        PausingReadPositionCursor cursor = (PausingReadPositionCursor) ledger.openCursor("moving");
+        ManagedCursor reference = ledger.openCursor("reference");
+        List<Position> positions = new ArrayList<>();
+        for (int index = 0; index < 5; index++) {
+            positions.add(ledger.addEntry(new byte[]{(byte) index}));
+        }
+        reference.seek(positions.get(2));
+        cursor.setInactive();
+        cursor.seek(positions.get(2));
+        Position oldPosition = positions.get(moveForward ? 0 : 4);
+        Position target = positions.get(moveForward ? 4 : 0);
+        AtomicReference<Thread> readThread = new AtomicReference<>();
+        ExecutorService caller = Executors.newSingleThreadExecutor(
+                new DefaultThreadFactory("delayed-cursor-position", true));
+        try {
+            Future<?> read;
+            synchronized (ledger.getActiveCursors()) {
+                read = caller.submit(() -> {
+                    readThread.set(Thread.currentThread());
+                    // Use the same position publication/notification method as OpReadEntry's completion.
+                    cursor.setReadPosition(oldPosition);
+                });
+                Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> readThread.get() != null
+                        && readThread.get().getState() == Thread.State.BLOCKED);
+                assertThat(cursor.getReadPosition()).isEqualTo(oldPosition);
+                // Publish and register a newer position before allowing the old notification to resume.
+                cursor.seek(overlapActiveSeek ? positions.get(moveForward ? 1 : 3) : target);
+                cursor.setActive();
+                if (overlapActiveSeek) {
+                    cursor.pauseNextSnapshot.set(true);
+                }
+            }
+            if (overlapActiveSeek) {
+                assertThat(cursor.positionSampled.await(10, TimeUnit.SECONDS)).isTrue();
+                // The active path can overtake reconciliation after it has sampled the current position.
+                cursor.seek(target);
+                cursor.resumeSnapshot.countDown();
+            }
+            read.get(10, TimeUnit.SECONDS);
+
+            assertThat(cursor.getReadPosition()).isEqualTo(target);
+            assertThat(cursor.isActive()).isTrue();
+            assertThat(ledger.isCursorActive(cursor)).isTrue();
+            if (expectedReadCount) {
+                assertThat(ledger.getNumberOfCursorsAtSamePositionOrBefore(reference))
+                        .as("a delayed notification must not overwrite the latest reader count")
+                        .isEqualTo(moveForward ? 1 : 2);
+                assertThat(ledger.getNumberOfCursorsAtSamePositionOrBefore(cursor))
+                        .isEqualTo(moveForward ? 2 : 1);
+            }
+            assertThat(ledger.getActiveCursors().getSlowestCursorPosition())
+                    .as("a delayed notification must not overwrite the latest position")
+                    .isEqualTo(moveForward ? reference.getReadPosition() : target);
+        } finally {
+            cursor.resumeSnapshot.countDown();
+            caller.shutdownNow();
+            assertThat(caller.awaitTermination(10, TimeUnit.SECONDS)).isTrue();
+        }
+    }
+
+    private static final class PausingReadPositionCursor extends ManagedCursorImpl {
+        private final AtomicBoolean pauseNextSnapshot = new AtomicBoolean();
+        private final CountDownLatch positionSampled = new CountDownLatch(1);
+        private final CountDownLatch resumeSnapshot = new CountDownLatch(1);
+
+        private PausingReadPositionCursor(BookKeeper bookKeeper, ManagedLedgerImpl ledger, String name) {
+            super(bookKeeper, ledger, name);
+        }
+
+        @Override
+        public Position getReadPosition() {
+            Position position = super.getReadPosition();
+            if (pauseNextSnapshot.compareAndSet(true, false)) {
+                positionSampled.countDown();
+                try {
+                    if (!resumeSnapshot.await(10, TimeUnit.SECONDS)) {
+                        throw new AssertionError("activation position snapshot was not resumed");
+                    }
+                } catch (InterruptedException error) {
+                    Thread.currentThread().interrupt();
+                    throw new AssertionError("activation interrupted", error);
+                }
+            }
+            return position;
+        }
     }
 
     @DataProvider
@@ -296,6 +889,180 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         assertThatThrownBy(cursor::getEstimatedSizeSinceMarkDeletePosition)
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("is ahead of the last position");
+    }
+
+    @Test(timeOut = 30000)
+    public void testReadOnlyDirectReadLastPublishedEntryBeyondCursorFrontier() throws Exception {
+        assertThat(baseClientConf.getExplictLacInterval()).isZero();
+        ManagedLedgerFactoryConfig factoryConfig = new ManagedLedgerFactoryConfig();
+        factoryConfig.setMaxCacheSize(0);
+        @Cleanup("shutdown")
+        ManagedLedgerFactory writerFactory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConfig);
+        @Cleanup("shutdown")
+        ManagedLedgerFactory readerFactory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConfig);
+        ManagedLedgerConfig config = defaultConfig().setEnsembleSize(2).setWriteQuorumSize(2).setAckQuorumSize(2);
+        String name = "read-only-published-entry-" + UUID.randomUUID();
+        ManagedLedger writer = writerFactory.open(name, config);
+        writer.addEntry("first".getBytes(StandardCharsets.UTF_8));
+        Position penultimate = writer.addEntry("penultimate".getBytes(StandardCharsets.UTF_8));
+        Position published = writer.addEntry("published".getBytes(StandardCharsets.UTF_8));
+
+        CompletableFuture<ReadOnlyManagedLedger> opened = new CompletableFuture<>();
+        readerFactory.asyncOpenReadOnlyManagedLedger(name, new AsyncCallbacks.OpenReadOnlyManagedLedgerCallback() {
+            @Override
+            public void openReadOnlyManagedLedgerComplete(ReadOnlyManagedLedger ledger, Object ctx) {
+                opened.complete(ledger);
+            }
+
+            @Override
+            public void openReadOnlyManagedLedgerFailed(ManagedLedgerException error, Object ctx) {
+                opened.completeExceptionally(error);
+            }
+        }, config, null);
+        ReadOnlyManagedLedger reader = opened.get(10, TimeUnit.SECONDS);
+        @Cleanup
+        ReadOnlyCursor cursor = reader.createReadOnlyCursor(PositionFactory.EARLIEST);
+        long confirmedEntries = reader.getNumberOfEntries();
+        assertThat(confirmedEntries).isEqualTo(2);
+        // Cursor creation initializes only the confirmed frontier; it does not read or populate the entry cache.
+        // No later write publishes a piggyback LAC for the final successful receipt.
+        for (Position position : List.of(penultimate, published)) {
+            CompletableFuture<Entry> read = new CompletableFuture<>();
+            reader.asyncReadEntry(position, new AsyncCallbacks.ReadEntryCallback() {
+                @Override
+                public void readEntryComplete(Entry entry, Object ctx) {
+                    read.complete(entry);
+                }
+
+                @Override
+                public void readEntryFailed(ManagedLedgerException error, Object ctx) {
+                    read.completeExceptionally(error);
+                }
+            }, null);
+            Entry entry = read.get(10, TimeUnit.SECONDS);
+            try {
+                assertThat(entry.getPosition()).isEqualTo(position);
+                String expected = position.equals(published) ? "published" : "penultimate";
+                assertThat(entry.getData()).isEqualTo(expected.getBytes(StandardCharsets.UTF_8));
+            } finally {
+                entry.release();
+            }
+        }
+        assertThat(reader.getNumberOfEntries()).isEqualTo(confirmedEntries);
+        assertThat(cursor.getNumberOfEntries()).isEqualTo(confirmedEntries);
+        List<Entry> confirmed = cursor.readEntries(10);
+        try {
+            assertThat(confirmed).hasSize(2);
+            assertThat(confirmed.get(0).getPosition().getEntryId()).isEqualTo(0);
+            assertThat(confirmed.get(1).getPosition()).isEqualTo(penultimate);
+        } finally {
+            confirmed.forEach(Entry::release);
+        }
+        assertThat(cursor.hasMoreEntries()).isFalse();
+        assertThat(cursor.getNumberOfEntries()).isZero();
+        assertThat(reader.getNumberOfEntries()).isEqualTo(confirmedEntries);
+    }
+
+    @Test(timeOut = 30000)
+    public void testReadOnlyDirectReadWithSharedCacheAfterRollover() throws Exception {
+        assertThat(baseClientConf.getExplictLacInterval()).isZero();
+        ManagedLedgerFactoryConfig factoryConfig = new ManagedLedgerFactoryConfig();
+        factoryConfig.setMaxCacheSize(16 * 1024 * 1024);
+        @Cleanup("shutdown")
+        ManagedLedgerFactory writerFactory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConfig);
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl readerFactory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConfig);
+        ManagedLedgerConfig config = defaultConfig().setEnsembleSize(2).setWriteQuorumSize(2).setAckQuorumSize(2)
+                .setRetentionTime(1, TimeUnit.HOURS).setRetentionSizeInMB(-1).setMaxEntriesPerLedger(3);
+        config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
+        String name = "read-only-shared-cache-rollover-" + UUID.randomUUID();
+        ManagedLedger writer = writerFactory.open(name, config);
+        Position first = writer.addEntry("old-first".getBytes(StandardCharsets.UTF_8));
+        writer.addEntry("old-second".getBytes(StandardCharsets.UTF_8));
+
+        ReadOnlyManagedLedger firstReader = openReadOnlyForSharedCacheTest(readerFactory, name, config);
+        @Cleanup
+        ReadOnlyCursor firstCursor = firstReader.createReadOnlyCursor(PositionFactory.EARLIEST);
+        // Public cursor/ledger hooks inspect metadata without reflecting into the wrapper or reading any entry.
+        ManagedLedger firstView = ((ManagedCursor) firstCursor).getManagedLedger();
+        Position firstFrontier = firstView.getLastConfirmedEntry();
+        long firstCount = firstReader.getNumberOfEntries();
+        Position firstReadPosition = firstCursor.getReadPosition();
+        assertThat(firstFrontier).isEqualTo(first);
+        assertThat(firstCount).isEqualTo(1);
+        EntryCache sharedCache = readerFactory.getEntryCacheManager().getEntryCache(firstView);
+
+        writer.addEntry("rollover-edge".getBytes(StandardCharsets.UTF_8));
+        Position newFirst = writer.addEntry("new-first".getBytes(StandardCharsets.UTF_8));
+        Position published = writer.addEntry("new-last-published".getBytes(StandardCharsets.UTF_8));
+        assertThat(published.getLedgerId()).isNotEqualTo(first.getLedgerId());
+        assertThat(published.getLedgerId()).isEqualTo(newFirst.getLedgerId());
+        assertThat(firstView.getOptionalLedgerInfo(published.getLedgerId())).isEmpty();
+        try (ReadHandle handle = bkc.newOpenLedgerOp().withRecovery(false).withLedgerId(published.getLedgerId())
+                .withDigestType(config.getDigestType()).withPassword(config.getPassword())
+                .execute().get(10, TimeUnit.SECONDS)) {
+            assertThat(handle.isClosed()).isFalse();
+            assertThat(handle.getLastAddConfirmed()).isEqualTo(newFirst.getEntryId());
+            assertThat(handle.getLastAddConfirmed()).isLessThan(published.getEntryId());
+        }
+
+        ReadOnlyManagedLedger secondReader = openReadOnlyForSharedCacheTest(readerFactory, name, config);
+        @Cleanup
+        ReadOnlyCursor secondCursor = secondReader.createReadOnlyCursor(PositionFactory.EARLIEST);
+        ManagedLedger secondView = ((ManagedCursor) secondCursor).getManagedLedger();
+        assertThat(secondView).isNotSameAs(firstView);
+        assertThat(secondView.getOptionalLedgerInfo(published.getLedgerId())).isPresent();
+        assertThat(readerFactory.getEntryCacheManager().getEntryCache(secondView)).isSameAs(sharedCache);
+        Position secondFrontier = secondView.getLastConfirmedEntry();
+        long secondCount = secondReader.getNumberOfEntries();
+        Position secondReadPosition = secondCursor.getReadPosition();
+        assertThat(secondFrontier).isEqualTo(newFirst);
+        assertThat(secondCount).isEqualTo(4);
+
+        // No later write publishes a newer piggyback LAC, and no cursor read can populate the cache first.
+        CompletableFuture<Entry> read = new CompletableFuture<>();
+        secondReader.asyncReadEntry(published, new AsyncCallbacks.ReadEntryCallback() {
+            @Override
+            public void readEntryComplete(Entry entry, Object ctx) {
+                read.complete(entry);
+            }
+
+            @Override
+            public void readEntryFailed(ManagedLedgerException error, Object ctx) {
+                read.completeExceptionally(error);
+            }
+        }, null);
+        Entry entry = read.get(10, TimeUnit.SECONDS);
+        try {
+            assertThat(entry.getPosition()).isEqualTo(published);
+            assertThat(entry.getData()).isEqualTo("new-last-published".getBytes(StandardCharsets.UTF_8));
+        } finally {
+            entry.release();
+        }
+        assertThat(firstView.getOptionalLedgerInfo(published.getLedgerId())).isEmpty();
+        assertThat(firstView.getLastConfirmedEntry()).isEqualTo(firstFrontier);
+        assertThat(firstReader.getNumberOfEntries()).isEqualTo(firstCount);
+        assertThat(firstCursor.getReadPosition()).isEqualTo(firstReadPosition);
+        assertThat(secondView.getLastConfirmedEntry()).isEqualTo(secondFrontier);
+        assertThat(secondReader.getNumberOfEntries()).isEqualTo(secondCount);
+        assertThat(secondCursor.getReadPosition()).isEqualTo(secondReadPosition);
+    }
+
+    private ReadOnlyManagedLedger openReadOnlyForSharedCacheTest(ManagedLedgerFactory factory, String name,
+                                                                 ManagedLedgerConfig config) throws Exception {
+        CompletableFuture<ReadOnlyManagedLedger> opened = new CompletableFuture<>();
+        factory.asyncOpenReadOnlyManagedLedger(name, new AsyncCallbacks.OpenReadOnlyManagedLedgerCallback() {
+            @Override
+            public void openReadOnlyManagedLedgerComplete(ReadOnlyManagedLedger ledger, Object ctx) {
+                opened.complete(ledger);
+            }
+
+            @Override
+            public void openReadOnlyManagedLedgerFailed(ManagedLedgerException error, Object ctx) {
+                opened.completeExceptionally(error);
+            }
+        }, config, null);
+        return opened.get(10, TimeUnit.SECONDS);
     }
 
     @Test

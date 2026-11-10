@@ -42,6 +42,7 @@ public class PartitionKeyTest extends SharedPulsarBaseTest {
                 .create();
 
         // 2. Producer without batches
+        @Cleanup
         Producer<byte[]> producerWithoutBatches = pulsarClient.newProducer().topic(topicName).create();
 
         producerWithBatches.newMessage().key("key-1").value("msg-1".getBytes()).sendAsync();

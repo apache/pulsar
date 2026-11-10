@@ -375,6 +375,8 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
                         .log("Uploading package to");
             } else if (functionMetaData.getPackageLocation().getPackagePath().startsWith(Utils.HTTP)
                     || functionMetaData.getPackageLocation().getPackagePath().startsWith(Utils.FILE)) {
+                // Package URLs may not be strict URIs; keep URL(String)'s lenient parsing.
+                @SuppressWarnings("deprecation")
                 String fileName =
                         new File(new URL(functionMetaData.getPackageLocation().getPackagePath()).toURI()).getName();
                 packageLocationMetaDataBuilder.setOriginalFileName(fileName);

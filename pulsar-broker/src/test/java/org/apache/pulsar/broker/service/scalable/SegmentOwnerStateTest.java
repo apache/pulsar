@@ -41,6 +41,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.pulsar.broker.resources.ScalableTopicMetadata;
@@ -129,7 +130,7 @@ public class SegmentOwnerStateTest {
     @Test
     public void callbacksBeforeStartWaitForTheSharedObserverAndOwnershipReplay() throws Exception {
         String legacyName = "persistent://tenant/ns/parent";
-        resources.createScalableTopicAsync(PARENT, metadata(active(0), legacy(1, legacyName))).get();
+        createLayout(PARENT, metadata(active(0), legacy(1, legacyName)));
         PersistentTopic nativeTopic = addSegment(PARENT, 0, true, 2);
         PersistentTopic legacyTopic = addPersistentTopic(legacyName, true, 3);
         clearInvocations(resources, store, cache);
@@ -154,7 +155,7 @@ public class SegmentOwnerStateTest {
 
     @Test
     public void disconnectedBeforeStartDoesNotWarmCachesUntilReconnected() throws Exception {
-        resources.createScalableTopicAsync(PARENT, metadata(active(0))).get();
+        createLayout(PARENT, metadata(active(0)));
         addSegment(PARENT, 0, false, 2);
         state.onMetadataSessionEvent(SessionEvent.ConnectionLost);
         state.start();
@@ -172,7 +173,7 @@ public class SegmentOwnerStateTest {
     public void nativeMetricsUseLiveCachedLayoutAndSubscriptionState() throws Exception {
         SegmentInfo active = active(0);
         SegmentInfo sealed = active(1).sealed(1, 1, List.of());
-        resources.createScalableTopicAsync(PARENT, metadata(active, sealed, active(3))).get();
+        createLayout(PARENT, metadata(active, sealed, active(3)));
         PersistentTopic first = addSegment(PARENT, 0, true, 2);
         addSegment(PARENT, 1, true, 3);
         addSegment(PARENT, 2, true, 4); // Not in the layout: cannot count as unwritable.
@@ -201,11 +202,11 @@ public class SegmentOwnerStateTest {
 
     @Test
     public void controllerEventsUpdatePresenceWithoutRepeatingExists() throws Exception {
-        resources.createScalableTopicAsync(PARENT, metadata(active(0))).get();
+        createLayout(PARENT, metadata(active(0)));
         addSegment(PARENT, 0, false, 0);
         addSegment(PARENT, 1, false, 0);
         TopicName other = TopicName.get("topic://tenant/ns/other");
-        resources.createScalableTopicAsync(other, metadata(active(0))).get();
+        createLayout(other, metadata(active(0)));
         addSegment(other, 0, false, 0);
         state.start();
         assertGauges(2, 0, 0);
@@ -231,7 +232,7 @@ public class SegmentOwnerStateTest {
 
     @Test
     public void warmStatsAndScrapesDoNotLoadMetadataOrScanBrokerTopics() throws Exception {
-        resources.createScalableTopicAsync(PARENT, metadata(active(0))).get();
+        createLayout(PARENT, metadata(active(0)));
         addSegment(PARENT, 0, true, 3);
         state.start();
         assertGauges(1, 1, 3);
@@ -306,7 +307,7 @@ public class SegmentOwnerStateTest {
         verify(store).exists(resources.controllerLockPath(PARENT));
 
         ScalableTopicMetadata layout = metadata(active(0), active(1));
-        resources.createScalableTopicAsync(PARENT, layout).get();
+        createLayout(PARENT, layout);
         cache.get(resources.topicPath(PARENT)).get();
         pending.complete(Optional.of(layout));
         assertGauges(1, 1, 0);
@@ -321,7 +322,7 @@ public class SegmentOwnerStateTest {
 
     @Test
     public void expiredLayoutIsQueuedByScrapeAndRepairedOnceOnStatsUpdate() throws Exception {
-        resources.createScalableTopicAsync(PARENT, metadata(active(0))).get();
+        createLayout(PARENT, metadata(active(0)));
         addSegment(PARENT, 0, true, 0);
         state.start();
         assertGauges(1, 1, 0);
@@ -346,9 +347,11 @@ public class SegmentOwnerStateTest {
         assertNoForcedRefresh();
     }
 
+    // Mockito.clearInvocations(T...) is not @SafeVarargs.
+    @SuppressWarnings("unchecked")
     @Test
     public void failedInitialReadsAreRetriedOnlyFromTheRepairQueue() throws Exception {
-        resources.createScalableTopicAsync(PARENT, metadata(active(0))).get();
+        createLayout(PARENT, metadata(active(0)));
         cache.invalidate(resources.topicPath(PARENT));
         clearInvocations(cache);
         addSegment(PARENT, 0, true, 0);
@@ -379,7 +382,7 @@ public class SegmentOwnerStateTest {
 
     @Test
     public void pendingInitialControllerReadCannotOverwriteNewerNotifications() throws Exception {
-        resources.createScalableTopicAsync(PARENT, metadata(active(0))).get();
+        createLayout(PARENT, metadata(active(0)));
         addSegment(PARENT, 0, false, 0);
         CompletableFuture<Boolean> pending = new CompletableFuture<>();
         String lock = resources.controllerLockPath(PARENT);
@@ -404,7 +407,7 @@ public class SegmentOwnerStateTest {
 
     @Test(dataProvider = "reconnectEvents")
     public void sessionLossSuppressesUnknownPresenceAndReconnectRepairsCaches(SessionEvent reconnect) throws Exception {
-        resources.createScalableTopicAsync(PARENT, metadata(active(0))).get();
+        createLayout(PARENT, metadata(active(0)));
         addSegment(PARENT, 0, true, 0);
         state.start();
         assertGauges(1, 1, 0);
@@ -438,7 +441,7 @@ public class SegmentOwnerStateTest {
         }
         verify(resources, never()).getScalableTopicMetadataAsync(any());
         verifyNoInteractions(store);
-        resources.createScalableTopicAsync(PARENT, metadata(legacy(0, ordinary.getName()))).get();
+        createLayout(PARENT, metadata(legacy(0, ordinary.getName())));
         assertGauges(1, 0, 3);
         assertNoForcedRefresh();
     }
@@ -450,7 +453,7 @@ public class SegmentOwnerStateTest {
         cache.get(resources.topicPath(PARENT)).get();
         assertThat(state.get()).isEqualTo(new SegmentOwnerMetrics.Gauges(0, 0, 0));
         state.onMetadataSessionEvent(SessionEvent.ConnectionLost);
-        resources.createScalableTopicAsync(PARENT, metadata(legacy(0, ordinary.getName()))).get();
+        createLayout(PARENT, metadata(legacy(0, ordinary.getName())));
         cache.invalidate(resources.topicPath(PARENT));
         clearInvocations(resources, store, cache);
         state.onMetadataSessionEvent(SessionEvent.SessionReestablished);
@@ -469,7 +472,7 @@ public class SegmentOwnerStateTest {
         }
         verify(resources, never()).getScalableTopicMetadataAsync(any());
         verify(store, never()).exists(anyString());
-        resources.createScalableTopicAsync(PARENT, metadata(legacy(0, ordinary.getName()))).get();
+        createLayout(PARENT, metadata(legacy(0, ordinary.getName())));
         when(ordinary.getManagedLedger().isTerminated()).thenReturn(true);
         state.onStatsUpdate();
         assertThat(state.get()).isEqualTo(new SegmentOwnerMetrics.Gauges(0, 0, 0));
@@ -492,7 +495,7 @@ public class SegmentOwnerStateTest {
         PersistentTopic second = partitioned ? addPersistentTopic(base + "-partition-1", true, 3) : null;
         ScalableTopicMetadata layout = second == null ? metadata(legacy(0, firstName))
                 : metadata(legacy(0, firstName), legacy(1, second.getName()));
-        resources.createScalableTopicAsync(PARENT, layout).get();
+        createLayout(PARENT, layout);
         state.start();
         assertGauges(1, 0, partitioned ? 5 : 2);
         verify(resources).registerMetadataListener(metadataListener);
@@ -519,8 +522,7 @@ public class SegmentOwnerStateTest {
     @Test
     public void terminatedClassicTopicWithMismatchedBackingMetadataDoesNotCount() throws Exception {
         addPersistentTopic("persistent://tenant/ns/parent", true, 4);
-        resources.createScalableTopicAsync(PARENT,
-                metadata(legacy(0, "persistent://tenant/ns/some-other-backing-topic"))).get();
+        createLayout(PARENT, metadata(legacy(0, "persistent://tenant/ns/some-other-backing-topic")));
         state.start();
         assertThat(state.get()).isEqualTo(new SegmentOwnerMetrics.Gauges(0, 0, 0));
         verify(store, never()).exists(anyString());
@@ -570,8 +572,7 @@ public class SegmentOwnerStateTest {
     public void unpublishedLoadSurvivesOldUnloadAndTracksOnlyThePublishedInstance(boolean nativeSegment)
             throws Exception {
         String name = nativeSegment ? segmentName(PARENT, 0) : "persistent://tenant/ns/parent";
-        resources.createScalableTopicAsync(PARENT,
-                metadata(nativeSegment ? active(0) : legacy(0, name))).get();
+        createLayout(PARENT, metadata(nativeSegment ? active(0) : legacy(0, name)));
         state.start();
         topicListener.handleEvent(name, TopicEvent.LOAD, EventStage.SUCCESS, null);
         topicListener.handleEvent(name, TopicEvent.UNLOAD, EventStage.SUCCESS, null);
@@ -599,7 +600,7 @@ public class SegmentOwnerStateTest {
         String name = "persistent://tenant/ns/parent";
         PersistentTopic old = topic(name, true, 1);
         PersistentTopic current = addPersistentTopic(name, false, 7);
-        resources.createScalableTopicAsync(PARENT, metadata(legacy(0, name))).get();
+        createLayout(PARENT, metadata(legacy(0, name)));
         state.start();
         state.onTopicTerminated(old);
         state.onStatsUpdate();
@@ -645,6 +646,28 @@ public class SegmentOwnerStateTest {
         verify(store, never()).sync(anyString());
         verify(cache, never()).invalidate(anyString());
         verify(broker, never()).forEachTopic(any());
+    }
+
+    /**
+     * Create the layout and wait for the store to deliver its notification. The store notifies its listeners in
+     * registration order on one thread, so by then its metadata cache and the observer have handled the creation:
+     * the notification cannot land after a test has reconnected or reset the interactions it verifies, where its
+     * cache refresh would make the observer look the layout up again.
+     */
+    private void createLayout(TopicName topic, ScalableTopicMetadata layout) throws Exception {
+        String path = resources.topicPath(topic);
+        CompletableFuture<Void> notified = new CompletableFuture<>();
+        Runnable unregister = store.registerCancellableListener(notification -> {
+            if (notification.getType() == NotificationType.Created && notification.getPath().equals(path)) {
+                notified.complete(null);
+            }
+        });
+        try {
+            resources.createScalableTopicAsync(topic, layout).get();
+            notified.get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+        } finally {
+            unregister.run();
+        }
     }
 
     private void remove(PersistentTopic topic, TopicEvent event) {

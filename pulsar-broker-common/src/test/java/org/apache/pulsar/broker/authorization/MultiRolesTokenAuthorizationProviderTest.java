@@ -827,6 +827,7 @@ public class MultiRolesTokenAuthorizationProviderTest {
      * A client asking about a tenant that does not exist is a client-side 404, not a broker fault, so
      * it must not be reported at ERROR. Any client can trigger it at will simply by mistyping a tenant.
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testMissingTenantIsNotLoggedAtError() throws Exception {
         String tenant = "non-existent-tenant";

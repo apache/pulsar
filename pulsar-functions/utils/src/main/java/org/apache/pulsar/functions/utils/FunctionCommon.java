@@ -248,6 +248,8 @@ public class FunctionCommon {
     }
 
     public static void downloadFromHttpUrl(String destPkgUrl, File targetFile) throws IOException {
+        // Package URLs may not be strict URIs; keep URL(String)'s lenient parsing.
+        @SuppressWarnings("deprecation")
         final URL url = new URL(destPkgUrl);
         final URLConnection connection = url.openConnection();
         if (StringUtils.isNotEmpty(url.getUserInfo())) {
@@ -271,6 +273,8 @@ public class FunctionCommon {
 
     public static File extractFileFromPkgURL(String destPkgUrl) throws IOException, URISyntaxException {
         if (destPkgUrl.startsWith(Utils.FILE)) {
+            // Package URLs may not be strict URIs; keep URL(String)'s lenient parsing.
+            @SuppressWarnings("deprecation")
             URL url = new URL(destPkgUrl);
             File file = new File(url.toURI());
             if (!file.exists()) {

@@ -94,6 +94,8 @@ public class V5ConsumerReceiverQueueSizeTest extends V5ClientBaseTest {
         return invokeGetCurrentReceiverQueueSize(v4Consumer);
     }
 
+    // The field is read reflectively, so the map's type can't be checked.
+    @SuppressWarnings("unchecked")
     private static Map<Long, ?> readSegmentConsumers(QueueConsumer<?> consumer) throws Exception {
         Field field = consumer.getClass().getDeclaredField("segmentConsumers");
         field.setAccessible(true);

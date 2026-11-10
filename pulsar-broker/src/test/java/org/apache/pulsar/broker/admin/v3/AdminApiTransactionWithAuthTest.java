@@ -62,6 +62,8 @@ import org.testng.annotations.Test;
  */
 @Test(groups = "broker-admin")
 public class AdminApiTransactionWithAuthTest extends MockedPulsarServiceBaseTest {
+    // AuthTokenUtils.createSecretKey only takes jjwt's deprecated SignatureAlgorithm.
+    @SuppressWarnings("deprecation")
     private static final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
     private static final String ADMIN = "admin";
     private static final String PROXY = "proxy";
@@ -110,7 +112,7 @@ public class AdminApiTransactionWithAuthTest extends MockedPulsarServiceBaseTest
     }
 
     private static String token(String subject) {
-        return Jwts.builder().setSubject(subject).signWith(SECRET_KEY).compact();
+        return Jwts.builder().subject(subject).signWith(SECRET_KEY).compact();
     }
 
     private PulsarAdmin newAdmin(String role) throws Exception {

@@ -620,7 +620,7 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
 
     private <T> Producer<T> getProducer(String topicName, Schema<T> schema) throws PulsarClientException {
         V5ProducerFactory v5Factory = v5ProducerFactoryFor(topicName);
-        Long additionalCacheKey = useThreadLocalProducers ? Thread.currentThread().getId() : null;
+        Long additionalCacheKey = useThreadLocalProducers ? Thread.currentThread().threadId() : null;
         return producerCache.getOrCreateProducer(ProducerCache.CacheArea.CONTEXT_CACHE,
                 topicName, additionalCacheKey, () -> {
                     log.info()

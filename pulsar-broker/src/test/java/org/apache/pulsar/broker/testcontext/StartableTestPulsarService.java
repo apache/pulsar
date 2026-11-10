@@ -65,7 +65,7 @@ class StartableTestPulsarService extends AbstractTestPulsarService {
 
     @Override
     public Supplier<NamespaceService> getNamespaceServiceProvider() throws PulsarServerException {
-        return () -> spyConfig.getNamespaceService().spy(NamespaceService.class, this);
+        return () -> registerCollaboratorMock(spyConfig.getNamespaceService().spy(NamespaceService.class, this));
     }
 
     @SneakyThrows
@@ -84,6 +84,6 @@ class StartableTestPulsarService extends AbstractTestPulsarService {
     }
 
     private ManagedLedgerStorage createManagedLedgerStorageSpy() throws Exception {
-        return spyConfig.getManagedLedgerStorage().spy(super.newManagedLedgerStorage());
+        return registerCollaboratorMock(spyConfig.getManagedLedgerStorage().spy(super.newManagedLedgerStorage()));
     }
 }

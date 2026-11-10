@@ -58,7 +58,7 @@ dependencies {
         exclude(group = "io.grpc")
         exclude(group = "com.google.protobuf")
     }
-    implementation(libs.grpc.netty.shaded)
+    implementation(libs.grpc.netty)
     implementation(libs.grpc.stub)
     runtimeOnly(libs.perfmark.api)
     implementation(libs.log4j.slf4j2.impl)
@@ -71,6 +71,7 @@ dependencies {
     testImplementation(libs.protobuf.java)
     // Log4j2's async loggers, which the broker and the functions worker use, for the log topic appender's tests
     testImplementation(libs.disruptor)
+    testCompileOnly(libs.swagger.annotations)
 }
 
 tasks.withType<Test> {

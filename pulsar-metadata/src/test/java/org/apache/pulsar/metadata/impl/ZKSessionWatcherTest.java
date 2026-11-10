@@ -240,7 +240,7 @@ public class ZKSessionWatcherTest {
         CountDownLatch releaseEventExecutor = new CountDownLatch(1);
 
         try (ZKMetadataStore store = new ZKMetadataStore(zk, false)) {
-            store.registerSessionListener(events::add);
+            store.registerCancellableSessionListener(events::add);
             store.getEventExecutor().execute(() -> {
                 eventExecutorBlocked.countDown();
                 try {
@@ -434,7 +434,7 @@ public class ZKSessionWatcherTest {
         CountDownLatch eventExecutorBlocked = new CountDownLatch(1);
         CountDownLatch releaseEventExecutor = new CountDownLatch(1);
         try (ZKMetadataStore store = new ZKMetadataStore(zk, false)) {
-            store.registerSessionListener(events::add);
+            store.registerCancellableSessionListener(events::add);
             store.processSessionWatcher(sessionEvent(KeeperState.Expired));
             Awaitility.await().atMost(5, TimeUnit.SECONDS)
                     .untilAsserted(() -> assertThat(events).containsExactly(SessionEvent.SessionLost));

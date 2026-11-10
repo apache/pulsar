@@ -45,8 +45,8 @@ import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @CustomLog
@@ -54,19 +54,19 @@ import org.testng.annotations.Test;
 public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
 
     private static final int NUM_PARTITIONS = 16;
-    @BeforeMethod
+    @BeforeClass(alwaysRun = true)
     protected void setup() throws Exception {
         setUpBase(1, NUM_PARTITIONS, NAMESPACE1 + "/test", 0);
     }
 
-    @AfterMethod(alwaysRun = true)
+    @AfterClass(alwaysRun = true)
     protected void cleanup() {
         super.internalCleanup();
     }
 
     @Test
     public void txnAckTestNoBatchAndSharedSubMemoryDeleteTest() throws Exception {
-        String normalTopic = NAMESPACE1 + "/normal-topic";
+        String normalTopic = NAMESPACE1 + "/txnAckTestNoBatchAndSharedSubMemoryDeleteTest";
         String subscriptionName = "test";
 
         @Cleanup
@@ -149,7 +149,7 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
 
     @Test
     public void txnAckTestBatchAndSharedSubMemoryDeleteTest() throws Exception {
-        String normalTopic = NAMESPACE1 + "/normal-topic";
+        String normalTopic = NAMESPACE1 + "/txnAckTestBatchAndSharedSubMemoryDeleteTest";
         String subscriptionName = "test";
 
         @Cleanup
@@ -247,7 +247,10 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
                             Awaitility.await().until(() -> {
                                 return batchDeletedIndexes.size() == 1;
                             });
-                            assertEquals(testPersistentSubscription.getConsumers().get(0).getPendingAcks().size(), 1);
+                            // the broker removes the consumer pending ack once the acknowledgement completes, after
+                            // the cursor has updated its batch deleted indexes, so await it as well
+                            Awaitility.await().untilAsserted(() -> assertEquals(
+                                    testPersistentSubscription.getConsumers().get(0).getPendingAcks().size(), 1));
 
                             // this test is for the last message has been cleared in this consumer pending acks
                             // and it won't clear the last message in cursor batch index ack set

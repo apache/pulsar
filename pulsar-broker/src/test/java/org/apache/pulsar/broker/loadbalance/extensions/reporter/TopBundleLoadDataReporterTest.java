@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.loadbalance.extensions.reporter;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.VERSION_ID_INIT;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -28,11 +29,16 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -46,9 +52,11 @@ import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.PulsarStats;
+import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.awaitility.Awaitility;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -68,6 +76,7 @@ public class TopBundleLoadDataReporterTest {
     String bundle2 = "my-tenant/my-namespace2/0x00000000_0x0FFFFFFF";
     String bundle = bundle1;
     String broker = "broker-1";
+    ScheduledExecutorService executor;
 
     @BeforeMethod
     @SuppressWarnings("unchecked")
@@ -85,6 +94,10 @@ public class TopBundleLoadDataReporterTest {
 
         doReturn(brokerService).when(pulsar).getBrokerService();
         doReturn(config).when(pulsar).getConfiguration();
+        executor = Executors
+                .newSingleThreadScheduledExecutor(new
+                        ExecutorProvider.ExtendedThreadFactory("pulsar-load-manager"));
+        doReturn(executor).when(pulsar).getLoadManagerExecutor();
         doReturn(pulsarStats).when(brokerService).getPulsarStats();
         doReturn(CompletableFuture.completedFuture(null)).when(store).pushAsync(any(), any());
         doReturn(CompletableFuture.completedFuture(null)).when(store).removeAsync(any());
@@ -105,6 +118,11 @@ public class TopBundleLoadDataReporterTest {
         stats2.msgRateIn = 10000;
         bundleStats.put(bundle2, stats2);
         doReturn(bundleStats).when(brokerService).getBundleStats();
+    }
+
+    @AfterMethod
+    void shutdown() {
+        executor.shutdown();
     }
 
     @SuppressWarnings("unchecked")
@@ -225,5 +243,34 @@ public class TopBundleLoadDataReporterTest {
             verify(target, times(4)).tombstone();
             verify(store, times(3)).removeAsync(eq(broker));
         });
+    }
+
+    @Test(timeOut = 30_000)
+    @SuppressWarnings("unchecked")
+    public void testTombstoneDoesNotBlockTheEventThread() throws Exception {
+        // The channel delivers its events on the thread that completes its table view's reads. When the store's
+        // producer is closed, removeAsync() restarts it and waits for the topic lookup, which needs such a read.
+        ExecutorService eventThread = Executors.newSingleThreadExecutor();
+        try {
+            CompletableFuture<Boolean> readCompleted = new CompletableFuture<>();
+            doAnswer(invocation -> {
+                CompletableFuture<Void> read = CompletableFuture.runAsync(() -> { }, eventThread);
+                try {
+                    read.get(5, TimeUnit.SECONDS);
+                    readCompleted.complete(true);
+                } catch (TimeoutException e) {
+                    readCompleted.complete(false);
+                }
+                return CompletableFuture.completedFuture(null);
+            }).when(store).removeAsync(any());
+            var target = new TopBundleLoadDataReporter(pulsar, broker, store);
+
+            eventThread.submit(() -> target.handleEvent(bundle,
+                    new ServiceUnitStateData(ServiceUnitState.Owned, broker, VERSION_ID_INIT), null)).get();
+
+            assertTrue(readCompleted.get(), "the tombstone waited for the event thread while blocking it");
+        } finally {
+            eventThread.shutdownNow();
+        }
     }
 }

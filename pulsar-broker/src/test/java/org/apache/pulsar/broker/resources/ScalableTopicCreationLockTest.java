@@ -176,7 +176,7 @@ public class ScalableTopicCreationLockTest {
         CreationLock lockA = heldByA.get(10, TimeUnit.SECONDS);
 
         BlockingQueue<SessionEvent> sessionEventsA = new LinkedBlockingQueue<>();
-        storeA.registerSessionListener(sessionEventsA::add);
+        storeA.registerCancellableSessionListener(sessionEventsA::add);
         zks.expireSession(((ZKMetadataStore) ((DualMetadataStore) storeA).getSourceStore()).getZkClient()
                 .getSessionId());
         Awaitility.await().until(() -> sessionEventsA.contains(SessionEvent.SessionReestablished));

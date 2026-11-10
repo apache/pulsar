@@ -55,7 +55,7 @@ public class ResourceGroup {
     }
 
     /**
-     * Usage "sense" for resource groups: publish and dispatch for now; may be more later (e.g., storage-monitoring)
+     * Usage "sense" for resource groups: publish and dispatch for now; may be more later (e.g., storage-monitoring).
      * ToDo: "class" is vague; is there a better term to call this?
      */
     public enum ResourceGroupMonitoringClass {

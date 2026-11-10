@@ -27,6 +27,7 @@ plugins {
 dependencies {
     api(project(":managed-ledger"))
     implementation(project(":pulsar-common"))
+    implementation(libs.re2j)
     implementation(project(":pulsar-client-v5"))
     implementation(libs.mockito.core)
     implementation(libs.protobuf.java)
@@ -34,6 +35,7 @@ dependencies {
     api(project(":pulsar-broker"))
     implementation(libs.bookkeeper.server)
     implementation(libs.fastutil)
+    compileOnly(libs.swagger.annotations)
     api(libs.guava)
     api("org.openjdk.jmh:jmh-core:1.37")
     annotationProcessor("org.openjdk.jmh:jmh-generator-annprocess:1.37")

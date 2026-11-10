@@ -60,7 +60,7 @@ import org.testng.annotations.Test;
 
 /**
  * How a namespace consumer attaches the topics of its matching set when attaching one doesn't simply
- * succeed:
+ * succeed.
  * <ul>
  *   <li>a topic whose first attach fails is retried in the background and attached once it succeeds,
  *       including a topic of the initial snapshot;</li>

@@ -125,6 +125,7 @@ public class LegacyAwareTopicPoliciesService implements TopicPoliciesService {
                 .thenCompose(service -> service.registerListenerAsync(topicName, listener));
     }
 
+    @Deprecated
     @Override
     public boolean registerListener(TopicName topicName, TopicPolicyListener listener) {
         throw new RuntimeException("should not be called");

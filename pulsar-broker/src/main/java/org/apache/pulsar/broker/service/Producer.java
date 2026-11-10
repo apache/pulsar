@@ -87,7 +87,9 @@ public class Producer {
     private static final AtomicLongFieldUpdater<Producer> pendingPublishAcksUpdater = AtomicLongFieldUpdater
             .newUpdater(Producer.class, "pendingPublishAcks");
 
-    private boolean isClosed = false;
+    private volatile boolean isClosed = false;
+    private boolean removeFromTopicOnClose;
+    private boolean cleanupStarted;
     private final CompletableFuture<Void> closeFuture;
 
     private final PublisherStatsImpl stats;
@@ -101,6 +103,8 @@ public class Producer {
     private final boolean isNonPersistentTopic;
     private final boolean isShadowTopic;
     private final boolean isEncrypted;
+    private final boolean isAutoProduceBytes;
+    private final boolean requiresSchemaVersion;
 
     private final ProducerAccessMode accessMode;
     private Optional<Long> topicEpoch;
@@ -117,6 +121,29 @@ public class Producer {
             ProducerAccessMode accessMode,
             Optional<Long> topicEpoch,
             boolean supportsPartialProducer) {
+        this(topic, cnx, producerId, producerName, appId, isEncrypted, metadata, schemaVersion, epoch,
+                userProvidedProducerName, accessMode, topicEpoch, supportsPartialProducer, false);
+    }
+
+    public Producer(Topic topic, TransportCnx cnx, long producerId, String producerName, String appId,
+            boolean isEncrypted, Map<String, String> metadata, SchemaVersion schemaVersion, long epoch,
+            boolean userProvidedProducerName,
+            ProducerAccessMode accessMode,
+            Optional<Long> topicEpoch,
+            boolean supportsPartialProducer,
+            boolean isAutoProduceBytes) {
+        this(topic, cnx, producerId, producerName, appId, isEncrypted, metadata, schemaVersion, epoch,
+                userProvidedProducerName, accessMode, topicEpoch, supportsPartialProducer, isAutoProduceBytes, false);
+    }
+
+    public Producer(Topic topic, TransportCnx cnx, long producerId, String producerName, String appId,
+            boolean isEncrypted, Map<String, String> metadata, SchemaVersion schemaVersion, long epoch,
+            boolean userProvidedProducerName,
+            ProducerAccessMode accessMode,
+            Optional<Long> topicEpoch,
+            boolean supportsPartialProducer,
+            boolean isAutoProduceBytes,
+            boolean requiresSchemaVersion) {
         final ServiceConfiguration serviceConf =  cnx.getBrokerService().pulsar().getConfiguration();
 
         this.topic = topic;
@@ -164,6 +191,8 @@ public class Producer {
         this.remoteCluster = parseRemoteClusterName(producerName, isRemote, replicatorPrefix);
 
         this.isEncrypted = isEncrypted;
+        this.isAutoProduceBytes = isAutoProduceBytes;
+        this.requiresSchemaVersion = requiresSchemaVersion;
         this.schemaVersion = schemaVersion;
         this.accessMode = accessMode;
         this.topicEpoch = topicEpoch;
@@ -265,6 +294,27 @@ public class Producer {
             return false;
         }
 
+        // Replicators (geo and shadow) copy what the source topic already accepted, including messages without a
+        // schema version. Rejecting such a message would stop the topic's replication: they resend it forever.
+        if (isAutoProduceBytes && requiresSchemaVersion && !isRemoteOrShadow
+                && (cnx.getBrokerService().pulsar().getConfig().isSchemaValidationEnforced()
+                || topic.getSchemaValidationEnforced())) {
+            headersAndPayload.markReaderIndex();
+            MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
+            headersAndPayload.resetReaderIndex();
+            if (!msgMetadata.hasSchemaVersion() || msgMetadata.getSchemaVersion().length == 0) {
+                // NotAllowedError fails just this send, while clients resend a message rejected with
+                // MetadataError until the send timeout expires.
+                cnx.execute(() -> {
+                    cnx.getCommandSender().sendSendError(producerId, sequenceId, ServerError.NotAllowedError,
+                            "Messages from AUTO_PRODUCE_BYTES producers must include a schema version "
+                                    + "when schema validation is enforced");
+                    cnx.completedSendOperation(isNonPersistentTopic, headersAndPayload.readableBytes());
+                });
+                return false;
+            }
+        }
+
         if (topic.isEncryptionRequired()) {
 
             headersAndPayload.markReaderIndex();
@@ -353,10 +403,12 @@ public class Producer {
 
         // Check the close future to avoid grabbing the mutex every time the pending acks goes down to 0
         if (newPendingPublishAcks == 0 && !closeFuture.isDone()) {
+            boolean shouldCloseNow;
             synchronized (this) {
-                if (isClosed && !closeFuture.isDone()) {
-                    closeNow(true);
-                }
+                shouldCloseNow = isClosed && !closeFuture.isDone();
+            }
+            if (shouldCloseNow) {
+                closeNow(true);
             }
         }
     }
@@ -738,24 +790,39 @@ public class Producer {
      *
      * @return completable future indicate completion of close
      */
-    public synchronized CompletableFuture<Void> close(boolean removeFromTopic) {
-        log.debug().attr("isClosed", isClosed).log("Closing producer");
+    public CompletableFuture<Void> close(boolean removeFromTopic) {
+        boolean shouldCloseNow = false;
+        synchronized (this) {
+            log.debug().attr("isClosed", isClosed).log("Closing producer");
 
-        if (!isClosed) {
-            isClosed = true;
-            log.debug()
-                    .attr("isActive", cnx.isActive())
-                    .attr("pendingPublishAcks", pendingPublishAcks)
-                    .log("Trying to close producer");
-            if (!cnx.isActive() || pendingPublishAcks == 0) {
-                closeNow(removeFromTopic);
+            if (!isClosed) {
+                isClosed = true;
+                removeFromTopicOnClose = removeFromTopic;
+                log.debug()
+                        .attr("isActive", cnx.isActive())
+                        .attr("pendingPublishAcks", pendingPublishAcks)
+                        .log("Trying to close producer");
+                shouldCloseNow = !cnx.isActive() || pendingPublishAcks == 0;
             }
+        }
+        // closeNow acquires the topic lock, so it must not be called with the monitor held
+        if (shouldCloseNow) {
+            closeNow(removeFromTopic);
         }
         return closeFuture;
     }
 
     public void closeNow(boolean removeFromTopic) {
-        if (removeFromTopic) {
+        boolean removeProducer;
+        synchronized (this) {
+            if (cleanupStarted) {
+                return;
+            }
+            cleanupStarted = true;
+            // The first close request decides: close(false) keeps the producer on the topic for its replacement
+            removeProducer = isClosed ? removeFromTopicOnClose : removeFromTopic;
+        }
+        if (removeProducer) {
             topic.removeProducer(this);
         }
         cnx.removedProducer(this);

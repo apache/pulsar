@@ -156,9 +156,13 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
             // Confirm the position is valid.
             Optional<ManagedLedgerInfo.LedgerInfo> ledgerInfoOptional =
                     ml.getOptionalLedgerInfo(messagePosition.getLedgerId());
-            if (ledgerInfoOptional.isPresent()) {
-                if (messagePosition.getEntryId() >= 0
-                        && ledgerInfoOptional.get().getEntries() - 1 >= messagePosition.getEntryId()) {
+            if (ledgerInfoOptional.isPresent() && messagePosition.getEntryId() >= 0) {
+                // The ledger info of the current ledger only gets its entry count when the ledger closes, so an
+                // entry of the current ledger is checked against the last confirmed entry instead.
+                Position lastConfirmedEntry = ml.getLastConfirmedEntry();
+                if (ledgerInfoOptional.get().getEntries() - 1 >= messagePosition.getEntryId()
+                        || (messagePosition.getLedgerId() == lastConfirmedEntry.getLedgerId()
+                        && messagePosition.getEntryId() <= lastConfirmedEntry.getEntryId())) {
                     findEntryComplete(messagePosition, null);
                     return true;
                 }

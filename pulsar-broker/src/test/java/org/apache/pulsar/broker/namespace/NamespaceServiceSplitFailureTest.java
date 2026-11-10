@@ -20,7 +20,7 @@ package org.apache.pulsar.broker.namespace;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.doCallRealMethod;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 import java.util.ArrayList;
@@ -224,27 +224,43 @@ public class NamespaceServiceSplitFailureTest {
         private final NamespaceService namespaceService;
         private final NamespaceName namespace = NamespaceName.get("prop/ns-split-failure");
         private final NamespaceBundle bundle;
+        private volatile boolean useTestExecutors;
 
         SplitContext() throws Exception {
             metadataStore = new FaultInjectionMetadataStore(MetadataStoreFactoryImpl.createExtended("memory:local",
                     MetadataStoreConfig.builder().build()));
-            ServiceConfiguration configuration = new ServiceConfiguration();
-            configuration.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
-            context = PulsarTestContext.builder().spyByDefault().config(configuration)
-                    .localMetadataStore(metadataStore).configurationMetadataStore(metadataStore).build();
-            PulsarService pulsar = context.getPulsarService();
             executor = OrderedExecutor.newBuilder().numThreads(1).name("split-failure-test").build();
             scheduler = new RetryScheduler();
-            doReturn(executor).when(pulsar).getOrderedExecutor();
-            doReturn(scheduler).when(pulsar).getExecutor();
-            assertThat(ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)).isFalse();
-            namespaceService = pulsar.getNamespaceService();
-            bundle = namespaceService.getNamespaceBundleFactory()
-                    .getBundle(namespace.toString(), "0x00000000_0xffffffff");
-            pulsar.getPulsarResources().getLocalPolicies().createLocalPoliciesAsync(namespace,
-                    new LocalPolicies(BundlesData.builder()
-                            .boundaries(List.of("0x00000000", "0xffffffff")).numBundles(1).build(), null, null))
-                    .get(10, TimeUnit.SECONDS);
+            ServiceConfiguration configuration = new ServiceConfiguration();
+            configuration.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
+            // Stub the spy before the broker starts: Mockito keeps a doReturn(...).when(spy) in progress on the
+            // mock itself, so a broker thread that calls the running spy in that window takes the pending answer.
+            // The stubs return the real executors until the broker has started, and again from close().
+            context = PulsarTestContext.builder().spyByDefault().config(configuration)
+                    .localMetadataStore(metadataStore).configurationMetadataStore(metadataStore)
+                    .pulsarServiceCustomizer(pulsar -> {
+                        doAnswer(invocation -> useTestExecutors ? executor : invocation.callRealMethod())
+                                .when(pulsar).getOrderedExecutor();
+                        doAnswer(invocation -> useTestExecutors ? scheduler : invocation.callRealMethod())
+                                .when(pulsar).getExecutor();
+                    }).build();
+            try {
+                PulsarService pulsar = context.getPulsarService();
+                useTestExecutors = true;
+                assertThat(ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)).isFalse();
+                namespaceService = pulsar.getNamespaceService();
+                bundle = namespaceService.getNamespaceBundleFactory()
+                        .getBundle(namespace.toString(), "0x00000000_0xffffffff");
+                pulsar.getPulsarResources().getLocalPolicies().createLocalPoliciesAsync(namespace,
+                        new LocalPolicies(BundlesData.builder()
+                                .boundaries(List.of("0x00000000", "0xffffffff")).numBundles(1).build(), null, null))
+                        .get(10, TimeUnit.SECONDS);
+            } catch (Throwable t) {
+                // The caller gets no context to close, and a broker left running keeps its Prometheus collectors
+                // registered, so later metric scrapes in the same JVM would call into it.
+                close();
+                throw t;
+            }
         }
 
         CompletableFuture<Void> split() {
@@ -263,9 +279,7 @@ public class NamespaceServiceSplitFailureTest {
 
         @Override
         public void close() throws Exception {
-            PulsarService pulsar = context.getPulsarService();
-            doCallRealMethod().when(pulsar).getOrderedExecutor();
-            doCallRealMethod().when(pulsar).getExecutor();
+            useTestExecutors = false;
             executor.shutdown();
             scheduler.shutdownNow();
             context.close();

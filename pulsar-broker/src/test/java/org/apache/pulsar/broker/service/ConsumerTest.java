@@ -78,6 +78,16 @@ public class ConsumerTest {
     }
 
     @Test
+    public void testUpdateAvgMessagesPerEntry() {
+        assertEquals(consumer.getAvgMessagesPerEntry(), 0);
+        consumer.updateAvgMessagesPerEntry(10, 1);
+        assertEquals(consumer.getAvgMessagesPerEntry(), 10);
+        consumer.updateAvgMessagesPerEntry(20, 1);
+        // Exponential moving average: 10 * 0.9 + 20 * 0.1 = 11
+        assertEquals(consumer.getAvgMessagesPerEntry(), 11);
+    }
+
+    @Test
     public void testGetMsgOutCounter() {
         stats.msgOutCounter = 1L;
         consumer.updateStats(stats);
@@ -132,7 +142,7 @@ public class ConsumerTest {
         CompletableFuture<Void> firstPersistence = new CompletableFuture<>();
         CompletableFuture<Void> secondPersistence = new CompletableFuture<>();
         when(subscription.acknowledgeMessageAsync(any(), eq(CommandAck.AckType.Individual), any()))
-                .thenReturn(firstPersistence, secondPersistence);
+                .thenReturn(firstPersistence).thenReturn(secondPersistence);
         CommandAck ack = new CommandAck().setConsumerId(2).setAckType(CommandAck.AckType.Individual);
         ack.addMessageId().setLedgerId(7).setEntryId(1);
         try {

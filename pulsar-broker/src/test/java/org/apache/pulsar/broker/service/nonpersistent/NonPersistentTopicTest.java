@@ -63,8 +63,10 @@ import org.apache.pulsar.common.policies.data.ClusterPolicies.ClusterUrl;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
+import org.testng.ITestResult;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -76,16 +78,26 @@ public class NonPersistentTopicTest extends BrokerTestBase {
         return Mockito.spy(brokerService);
     }
 
-    @BeforeMethod(alwaysRun = true)
+    // The test methods share the broker and use topics of their own. After a failed method, the next one gets a
+    // new broker (TestRetrySupport).
+    @BeforeClass(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         super.baseSetup();
     }
 
-    @AfterMethod(alwaysRun = true)
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @AfterMethod(alwaysRun = true)
+    public void resetClusterMigration(ITestResult result) throws Exception {
+        if (result.isSuccess()) {
+            // the migration tests mark the cluster as migrated
+            admin.clusters().updateClusterMigration(conf.getClusterName(), false, new ClusterUrl());
+        }
     }
 
     @Test
@@ -262,6 +274,7 @@ public class NonPersistentTopicTest extends BrokerTestBase {
         CompletableFuture<Void> resumeSubscribe = new CompletableFuture<>();
         CountDownLatch subscribeStarted = new CountDownLatch(1);
         Mockito.doAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
             CompletableFuture<Void> ownership = (CompletableFuture<Void>) invocation.callRealMethod();
             return ownership.thenCompose(__ -> {
                 subscribeStarted.countDown();

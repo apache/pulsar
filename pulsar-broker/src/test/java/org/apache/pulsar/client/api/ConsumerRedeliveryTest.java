@@ -267,14 +267,14 @@ public class ConsumerRedeliveryTest extends SharedPulsarBaseTest {
             unackedMessages.add(message);
         }
         // The response on the same connection also fences the FLOW commands sent while receiving.
-        consumer.getLastMessageIdAsync().get(10, TimeUnit.SECONDS);
+        consumer.getLastMessageIdsAsync().get(10, TimeUnit.SECONDS);
         assertThat(brokerConsumer.isBlocked()).isTrue();
         assertThat(brokerConsumer.getUnackedMessages()).isEqualTo(maxUnackedMessages);
         int availablePermits = brokerConsumer.getAvailablePermits();
 
         // An ACK timeout or negative ACK can arrive after the original ACK has already removed the position.
         consumer.redeliverUnacknowledgedMessages(Set.of(ackedMessage.getMessageId()));
-        consumer.getLastMessageIdAsync().get(10, TimeUnit.SECONDS);
+        consumer.getLastMessageIdsAsync().get(10, TimeUnit.SECONDS);
         assertThat(brokerConsumer.isBlocked()).as("stale redelivery must preserve unacked backpressure").isTrue();
         assertThat(brokerConsumer.getUnackedMessages()).isEqualTo(maxUnackedMessages);
         assertThat(brokerConsumer.getAvailablePermits()).isEqualTo(availablePermits);
@@ -285,7 +285,7 @@ public class ConsumerRedeliveryTest extends SharedPulsarBaseTest {
         Message<Integer> redelivered = consumer.receive(10, TimeUnit.SECONDS);
         assertThat(redelivered).isNotNull();
         assertThat(redelivered.getMessageId()).isEqualTo(redeliveryId);
-        consumer.getLastMessageIdAsync().get(10, TimeUnit.SECONDS);
+        consumer.getLastMessageIdsAsync().get(10, TimeUnit.SECONDS);
         assertThat(brokerConsumer.getUnackedMessages()).isEqualTo(maxUnackedMessages);
         assertThat(brokerConsumer.isBlocked()).isTrue();
     }
@@ -454,6 +454,7 @@ public class ConsumerRedeliveryTest extends SharedPulsarBaseTest {
         int batchSize = 100;
         String subName = "my-subscriber-name";
         String topicName = newTopicName();
+        @Cleanup
         ConsumerImpl<byte[]> consumer1 = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
                 .receiverQueueSize(queueSize).subscriptionType(SubscriptionType.Shared).subscriptionName(subName)
                 .subscribe();
@@ -464,6 +465,7 @@ public class ConsumerRedeliveryTest extends SharedPulsarBaseTest {
         producerBuilder.batchingMaxPublishDelay(2000, TimeUnit.MILLISECONDS);
         producerBuilder.batchingMaxMessages(100);
 
+        @Cleanup
         Producer<byte[]> producer = producerBuilder.create();
         for (int i = 0; i < batchSize; i++) {
             String message = "my-message-" + i;
@@ -480,6 +482,7 @@ public class ConsumerRedeliveryTest extends SharedPulsarBaseTest {
         Awaitility.await().untilAsserted(() ->
                 assertEquals(consumer1.getTotalIncomingMessages(), batchSize));
 
+        @Cleanup
         ConsumerImpl<byte[]> consumer2 = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
                 .receiverQueueSize(queueSize).subscriptionType(SubscriptionType.Shared).subscriptionName(subName)
                 .subscribe();

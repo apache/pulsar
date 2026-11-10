@@ -45,7 +45,7 @@ public class ConsumerInterceptors<T> implements Closeable {
     /**
      * This method is called when a message arrives in the consumer.
      * <p>
-     * This method calls {@link ConsumerInterceptor#onArrival(Consumer, Message) method for each
+     * This method calls {@link ConsumerInterceptor#onArrival(Consumer, Message)} method for each
      * interceptor.
      * <p>
      * This method does not throw exceptions. If any of the interceptors in the chain throws an exception, it gets
