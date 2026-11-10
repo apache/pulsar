@@ -24,6 +24,7 @@ import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyBoolean;
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.argThat;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -47,6 +48,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.distributedlog.api.namespace.Namespace;
@@ -54,6 +57,7 @@ import org.apache.pulsar.client.admin.Functions;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.Sinks;
 import org.apache.pulsar.client.admin.Sources;
+import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -79,6 +83,7 @@ import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
 import org.apache.pulsar.functions.utils.FunctionCommon;
+import org.awaitility.Awaitility;
 import org.mockito.ArgumentMatchers;
 import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
@@ -422,6 +427,85 @@ public class FunctionRuntimeManagerTest {
             functionRuntimeManager.deleteAssignment(FunctionCommon.getFullyQualifiedInstanceId(remote.getInstance()));
             verify(functionActioner, never()).terminateFunction(any(FunctionRuntimeInfo.class));
             assertTrue(functionRuntimeManager.stoppedDeletedFunctions.isEmpty());
+        }
+    }
+
+    // The leader terminates a function when it deletes the instance of another worker, whose instance still uses the
+    // subscription until that worker reads the delete: the subscription delete retries meanwhile, which must not hold
+    // up the processing of the assignments
+    @Test
+    public void testSubscriptionCleanupDoesNotBlockAssignmentProcessing() throws Exception {
+        WorkerConfig workerConfig = new WorkerConfig();
+        workerConfig.setWorkerId("worker-1");
+        workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
+        workerConfig.setFunctionRuntimeFactoryConfigs(
+                ObjectMapperFactory.getMapper().getObjectMapper().convertValue(
+                        new ThreadRuntimeFactoryConfig().setThreadGroupName("test"), Map.class));
+        workerConfig.setPulsarServiceUrl(PULSAR_SERVICE_URL);
+        workerConfig.setStateStorageServiceUrl("foo");
+
+        String inputTopic = "persistent://test-tenant/test-namespace/input";
+        String subscription = "test-subscription";
+        CountDownLatch subscriptionInUse = new CountDownLatch(1);
+        PulsarAdmin brokerAdmin = mock(PulsarAdmin.class);
+        Topics topics = mock(Topics.class);
+        doReturn(topics).when(brokerAdmin).topics();
+        doAnswer(invocation -> {
+            subscriptionInUse.await();
+            return null;
+        }).when(topics).deleteSubscription(inputTopic, subscription);
+
+        PulsarWorkerService workerService = mock(PulsarWorkerService.class);
+        doReturn(mock(PulsarClient.class)).when(workerService).getClient();
+        doReturn(mock(PulsarAdmin.class)).when(workerService).getFunctionAdmin();
+        doReturn(brokerAdmin).when(workerService).getBrokerAdmin();
+
+        try (MockedStatic<RuntimeFactory> runtimeFactoryMockedStatic = Mockito.mockStatic(RuntimeFactory.class)) {
+            mockRuntimeFactory(runtimeFactoryMockedStatic);
+
+            @Cleanup
+            FunctionRuntimeManager functionRuntimeManager = new FunctionRuntimeManager(
+                    workerConfig,
+                    workerService,
+                    mock(Namespace.class),
+                    mock(MembershipManager.class),
+                    mock(ConnectorsManager.class),
+                    mock(FunctionsManager.class),
+                    mock(FunctionMetaDataManager.class),
+                    mock(WorkerStatsManager.class),
+                    mock(ErrorNotifier.class));
+            FunctionActioner functionActioner = spy(functionRuntimeManager.getFunctionActioner());
+            doNothing().when(functionActioner).stopFunction(any(FunctionRuntimeInfo.class));
+            functionRuntimeManager.setFunctionActioner(functionActioner);
+
+            // func-1 has instance 0 on this worker and instance 1 on worker-2
+            FunctionMetaData function = createFunctionMetaData("test-tenant", "test-namespace", "func-1");
+            function.getFunctionDetails().setSource().setCleanupSubscription(true)
+                    .setSubscriptionName(subscription).putInputSpecs(inputTopic);
+            Assignment myAssignment = createAssignment("worker-1", function, 0);
+            Assignment otherAssignment = createAssignment("worker-2", function, 1);
+            functionRuntimeManager.setAssignment(myAssignment);
+            functionRuntimeManager.setAssignment(otherAssignment);
+            functionRuntimeManager.functionRuntimeInfos.put(
+                    FunctionCommon.getFullyQualifiedInstanceId(myAssignment.getInstance()),
+                    new FunctionRuntimeInfo().setFunctionInstance(myAssignment.getInstance()));
+
+            try {
+                functionRuntimeManager.deleteAssignment(
+                        FunctionCommon.getFullyQualifiedInstanceId(myAssignment.getInstance()));
+                // the delete of worker-2's instance terminates the function while worker-2 still uses its
+                // subscription
+                CompletableFuture.runAsync(() -> functionRuntimeManager.deleteAssignment(
+                        FunctionCommon.getFullyQualifiedInstanceId(otherAssignment.getInstance())))
+                        .get(10, TimeUnit.SECONDS);
+                verify(functionActioner).terminateFunction(argThat(functionRuntimeInfo ->
+                        isInstance(functionRuntimeInfo, "func-1", 0)));
+                assertTrue(functionRuntimeManager.getCurrentAssignments().isEmpty());
+                // the subscription delete runs meanwhile
+                Awaitility.await().untilAsserted(() -> verify(topics).deleteSubscription(inputTopic, subscription));
+            } finally {
+                subscriptionInUse.countDown();
+            }
         }
     }
 
