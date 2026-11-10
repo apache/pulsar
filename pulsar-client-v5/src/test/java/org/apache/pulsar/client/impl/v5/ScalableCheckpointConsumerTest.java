@@ -27,15 +27,18 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.util.Timer;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.TopicMessageId;
+import org.apache.pulsar.client.api.v5.Checkpoint;
 import org.apache.pulsar.client.api.v5.CheckpointConsumer;
 import org.apache.pulsar.client.api.v5.schema.Schema;
 import org.apache.pulsar.client.impl.MessageIdImpl;
@@ -47,7 +50,9 @@ import org.apache.pulsar.common.scalable.HashRange;
 import org.testng.annotations.Test;
 
 /**
- * Resolving a latest start position in {@link ScalableCheckpointConsumer}: the lookup goes through a reader that
+ * Checkpoint positions follow the assigned segments and advance only when the application receives a message.
+ *
+ * <p>Resolving a latest start position in {@link ScalableCheckpointConsumer}: the lookup goes through a reader that
  * is not tracked with the segment readers, so it must be closed before the lookup completes, and the position it
  * yields must only be recorded for a segment that still maps to the reader being created.
  */
@@ -115,6 +120,28 @@ public class ScalableCheckpointConsumerTest {
     }
 
     @Test
+    public void testFailedLatestLookupDoesNotRetainPositionTrackerAfterRevocation() throws Exception {
+        try (var member = new GroupMember()) {
+            var consumer = (ScalableCheckpointConsumer<?>) member.consumer;
+            assertThat(consumer.checkpointPositionTrackerCount()).isZero();
+
+            member.assign(SEGMENT);
+            assertThat(member.lookups).hasSize(1);
+            assertThat(member.positions()).as("a pending latest lookup has no public position yet").isEmpty();
+            assertThat(consumer.checkpointPositionTrackerCount())
+                    .as("a valid pending attachment retains exactly one tracker").isEqualTo(1);
+
+            assertThat(member.lookups.get(0).completeExceptionally(new PulsarClientException("latest lookup failed")))
+                    .isTrue();
+            member.assign();
+
+            assertThat(member.positions()).as("a revoked failed lookup has no public checkpoint position").isEmpty();
+            assertThat(consumer.checkpointPositionTrackerCount())
+                    .as("revocation also removes the failed attachment's unseeded tracker").isZero();
+        }
+    }
+
+    @Test
     public void testLateLookupKeepsThePositionOfTheNextReader() throws Exception {
         try (var member = new GroupMember()) {
             member.assign(SEGMENT);
@@ -128,22 +155,109 @@ public class ScalableCheckpointConsumerTest {
         }
     }
 
+    @Test
+    public void testReceivingBufferedMessageAdvancesAssignedSegment() throws Exception {
+        try (var member = new GroupMember(CheckpointV5.EARLIEST)) {
+            member.assign(SEGMENT);
+            Message<String> message = message(1);
+            assertThat(member.reads.get(0).complete(message)).isTrue();
+            assertThat(member.reads).as("the read loop re-arms after buffering the message").hasSize(2);
+            assertThat(member.positions()).as("prefetch must not advance the checkpoint")
+                    .containsOnly(Map.entry(SEGMENT.segmentId(), MessageId.earliest));
+
+            var received = member.consumer.receive(Duration.ZERO);
+
+            assertThat(received).isNotNull();
+            assertThat(received.id()).isEqualTo(new MessageIdV5(message.getMessageId(), SEGMENT.segmentId()));
+            assertThat(member.positions()).as("receiving from an assigned segment advances its position")
+                    .containsOnly(Map.entry(SEGMENT.segmentId(), message.getMessageId()));
+        }
+    }
+
+    @Test
+    public void testReceivingBufferedMessageDoesNotRestoreRevokedSegment() throws Exception {
+        try (var member = new GroupMember(CheckpointV5.EARLIEST)) {
+            member.assign(SEGMENT);
+            Message<String> message = message(1);
+            assertThat(member.reads.get(0).complete(message)).isTrue();
+            assertThat(member.reads).as("the message is buffered before revocation").hasSize(2);
+            assertThat(member.positions()).containsOnly(Map.entry(SEGMENT.segmentId(), MessageId.earliest));
+
+            member.assign();
+            assertThat(member.positions()).as("revocation removes the segment's checkpoint position").isEmpty();
+
+            // A receive may return the buffered message or find it purged on revocation. In either case,
+            // the detached segment must stay outside this consumer's checkpoint.
+            var received = member.consumer.receive(Duration.ZERO);
+            if (received != null) {
+                assertThat(received.id()).isEqualTo(new MessageIdV5(message.getMessageId(), SEGMENT.segmentId()));
+            }
+            assertThat(member.positions()).as("receiving after revocation must not restore a detached segment")
+                    .isEmpty();
+        }
+    }
+
+    @Test
+    public void testBufferedMessageFromPreviousAssignmentDoesNotOverwriteNewStartPosition() throws Exception {
+        try (var member = new GroupMember()) {
+            member.assign(SEGMENT);
+            member.lookups.get(0).complete(lastMessageIds(10));
+            Message<String> previousMessage = message(11);
+            assertThat(member.reads.get(0).complete(previousMessage)).isTrue();
+            assertThat(member.reads).as("the previous reader buffered its message").hasSize(2);
+
+            member.assign();
+            assertThat(member.positions()).isEmpty();
+            member.assign(SEGMENT);
+            member.lookups.get(1).complete(lastMessageIds(20));
+            assertThat(member.reads).as("the new assignment has its own reader").hasSize(3);
+            assertThat(member.positions()).containsOnly(Map.entry(SEGMENT.segmentId(), lastMessageIds(20).get(0)));
+
+            var previous = member.consumer.receive(Duration.ZERO);
+            if (previous != null) {
+                assertThat(previous.id())
+                        .isEqualTo(new MessageIdV5(previousMessage.getMessageId(), SEGMENT.segmentId()));
+            }
+            assertThat(member.positions()).as("a previous reader must not overwrite the new reader's start position")
+                    .containsOnly(Map.entry(SEGMENT.segmentId(), lastMessageIds(20).get(0)));
+
+            Message<String> currentMessage = message(21);
+            assertThat(member.reads.get(2).complete(currentMessage)).isTrue();
+            var current = member.consumer.receive(Duration.ZERO);
+            assertThat(current).isNotNull();
+            assertThat(current.id()).isEqualTo(new MessageIdV5(currentMessage.getMessageId(), SEGMENT.segmentId()));
+            assertThat(member.positions()).as("the current reader still advances its position")
+                    .containsOnly(Map.entry(SEGMENT.segmentId(), currentMessage.getMessageId()));
+        }
+    }
+
+    private static Message<String> message(long entryId) {
+        Message<String> message = mock(Message.class);
+        when(message.getMessageId()).thenReturn(new MessageIdImpl(1, entryId, -1));
+        return message;
+    }
+
     private static List<TopicMessageId> lastMessageIds(long entryId) {
         return List.of(TopicMessageId.create(SEGMENT.segmentTopicName(), new MessageIdImpl(1, entryId, -1)));
     }
 
     /**
-     * A member of a checkpoint consumer group started at latest, whose assignment changes and latest-start
-     * lookups the test drives.
+     * A member of a checkpoint consumer group whose assignment changes, latest-start lookups, and reader
+     * deliveries the test drives. The direct executor makes each delivery finish buffering before it returns.
      */
     private static final class GroupMember implements AutoCloseable {
 
         private final List<CompletableFuture<List<TopicMessageId>>> lookups = new ArrayList<>();
+        private final List<CompletableFuture<Message<String>>> reads = new ArrayList<>();
         private final CheckpointConsumer<String> consumer;
         private ScalableConsumerClient.AssignmentChangeListener listener;
         private List<ActiveSegment> assignment = List.of();
 
         GroupMember() {
+            this(CheckpointV5.LATEST);
+        }
+
+        GroupMember(Checkpoint startPosition) {
             PulsarClientImpl v4Client = mock(PulsarClientImpl.class);
             ExecutorProvider externalExecutor = mock(ExecutorProvider.class);
             when(externalExecutor.getExecutor()).thenReturn(MoreExecutors.newDirectExecutorService());
@@ -151,14 +265,18 @@ public class ScalableCheckpointConsumerTest {
             when(v4Client.timer()).thenReturn(mock(Timer.class));
             when(v4Client.createSegmentReaderAsync(any(), any())).thenAnswer(invocation -> {
                 ReaderConfigurationData<?> conf = invocation.getArgument(0);
-                Reader<?> reader = mock(Reader.class);
+                Reader<String> reader = mock(Reader.class);
                 when(reader.closeAsync()).thenReturn(CompletableFuture.completedFuture(null));
                 if (MessageId.latest.equals(conf.getStartMessageId())) {
                     var lookup = new CompletableFuture<List<TopicMessageId>>();
                     lookups.add(lookup);
                     when(reader.getLastMessageIdsAsync()).thenReturn(lookup);
                 } else {
-                    when(reader.readNextAsync()).thenReturn(new CompletableFuture<>());
+                    when(reader.readNextAsync()).thenAnswer(__ -> {
+                        var read = new CompletableFuture<Message<String>>();
+                        reads.add(read);
+                        return read;
+                    });
                 }
                 return CompletableFuture.completedFuture(reader);
             });
@@ -167,7 +285,7 @@ public class ScalableCheckpointConsumerTest {
             ScalableConsumerClient session = mock(ScalableConsumerClient.class);
             doAnswer(invocation -> listener = invocation.getArgument(0)).when(session).setListener(any());
             consumer = ScalableCheckpointConsumer.createManagedAsync(client, Schema.string(), TOPIC, session,
-                    List.of(), CheckpointV5.LATEST, "member").join();
+                    List.of(), startPosition, "member").join();
         }
 
         void assign(ActiveSegment... segments) {

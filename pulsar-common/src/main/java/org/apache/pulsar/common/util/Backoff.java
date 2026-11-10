@@ -34,7 +34,8 @@ import lombok.Getter;
  * <p>If a {@code mandatoryStop} duration is configured, the backoff tracks wall-clock time from the
  * first {@link #next()} call. Once the elapsed time plus the next delay would exceed the mandatory
  * stop, the delay is truncated so that the total does not exceed it, and {@link #isMandatoryStopMade()}
- * returns {@code true}. After the mandatory stop, backoff continues to grow normally.
+ * returns {@code true}. Until then, the jitter is only downward for a delay that it could otherwise take
+ * past the stop, the truncated one included. After the mandatory stop, backoff continues to grow normally.
  *
  * <p>Use {@link #reset()} to restart the sequence from the initial delay.
  *
@@ -111,7 +112,8 @@ public class Backoff {
      * <p>The underlying delay starts at the initial delay and doubles on each call up to the max
      * backoff. A symmetric jitter of {@code ±jitterPercent/2} is applied on every call (including
      * the first one) to spread out concurrent retries; the returned value may therefore be slightly
-     * below the initial delay or slightly above the max backoff.
+     * below the initial delay or slightly above the max backoff. Until the mandatory stop, the jitter is
+     * only downward for a delay that it could otherwise take past the stop.
      *
      * @return the delay to wait before the next retry attempt
      */
@@ -123,6 +125,7 @@ public class Backoff {
         }
 
         // Check for mandatory stop
+        long untilMandatoryStopMillis = Long.MAX_VALUE;
         if (!mandatoryStopMade) {
             Instant now = clock.instant();
             Duration timeElapsedSinceFirstBackoff = Duration.ZERO;
@@ -133,8 +136,9 @@ public class Backoff {
                 timeElapsedSinceFirstBackoff = Duration.between(firstBackoffTime, now);
             }
 
+            Duration remaining = mandatoryStop.minus(timeElapsedSinceFirstBackoff);
+            untilMandatoryStopMillis = remaining.toMillis();
             if (timeElapsedSinceFirstBackoff.plus(current).compareTo(mandatoryStop) > 0) {
-                Duration remaining = mandatoryStop.minus(timeElapsedSinceFirstBackoff);
                 current = remaining.compareTo(initial) > 0 ? remaining : initial;
                 mandatoryStopMade = true;
             }
@@ -142,9 +146,14 @@ public class Backoff {
 
         long currentMillis = current.toMillis();
         if (jitterPercent > 0 && currentMillis > 0) {
-            // Apply a symmetric jitter of ±jitterPercent/2 around the current delay.
-            double factor = 1.0 + (random.nextDouble() - 0.5) * (jitterPercent / 100.0);
-            currentMillis = Math.max(0L, Math.round(currentMillis * factor));
+            // Apply a symmetric jitter of ±jitterPercent/2 around the current delay. Until the mandatory stop, a delay
+            // that an upward jitter could take past the stop, such as the truncated one, is only jittered downward.
+            double offset = (random.nextDouble() - 0.5) * (jitterPercent / 100.0);
+            if (currentMillis <= untilMandatoryStopMillis
+                    && currentMillis * (1.0 + jitterPercent / 200.0) > untilMandatoryStopMillis) {
+                offset = -Math.abs(offset);
+            }
+            currentMillis = Math.max(0L, Math.round(currentMillis * (1.0 + offset)));
         }
         return Duration.ofMillis(currentMillis);
     }
@@ -221,8 +230,9 @@ public class Backoff {
         /**
          * Sets the jitter percentage applied to each returned delay. The actual jitter is symmetric:
          * the returned value is multiplied by a uniform random factor in
-         * {@code [1 - jitterPercent/200, 1 + jitterPercent/200)}. Defaults to 10. Set to 0 to disable
-         * jitter.
+         * {@code [1 - jitterPercent/200, 1 + jitterPercent/200)}, or in {@code [1 - jitterPercent/200, 1]}
+         * for a delay that the jitter could otherwise take past the mandatory stop. Defaults to 10. Set to 0
+         * to disable jitter.
          *
          * @param jitterPercent the jitter percentage, must be in {@code [0, 100]}
          * @return this builder

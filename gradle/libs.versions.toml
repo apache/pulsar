@@ -27,8 +27,8 @@ mimalloc = "3.5.3"
 checkstyle = "14.3.0"
 # Major frameworks
 bookkeeper = "4.18.2"
-zookeeper = "3.9.6"
-netty = "4.2.19.Final"
+zookeeper = "3.9.7"
+netty = "4.2.20.Final"
 jetty = "12.1.14"
 jersey = "3.1.12"
 jackson = "2.21.8"
@@ -90,7 +90,7 @@ asynchttpclient = "3.0.14"
 conscrypt = "2.7.0"
 okhttp3 = "5.5.1"
 okio = "3.18.2"
-netty-tcnative = "2.0.84.Final"
+netty-tcnative = "2.0.85.Final"
 httpcomponents-httpclient = "4.5.14"
 httpcomponents-httpcore = "4.4.16"
 httpcomponents-httpclient5 = "5.6.4"
@@ -490,6 +490,8 @@ testcontainers-bom = { module = "org.testcontainers:testcontainers-bom", version
 testcontainers = { module = "org.testcontainers:testcontainers", version.ref = "testcontainers" }
 testcontainers-k3s = { module = "org.testcontainers:k3s", version.ref = "testcontainers" }
 kerby-simplekdc = { module = "org.apache.kerby:kerb-simplekdc", version.ref = "kerby" }
+# Aligns the Kerby modules that Hadoop pulls in transitively (imported by pulsar-dependencies platform)
+kerby-bom = { module = "org.apache.kerby:kerby-bom", version.ref = "kerby" }
 json = { module = "org.json:json", version.ref = "json" }
 # AWS SDKs
 aws-java-sdk-bom = { module = "com.amazonaws:aws-java-sdk-bom", version.ref = "aws-sdk" }

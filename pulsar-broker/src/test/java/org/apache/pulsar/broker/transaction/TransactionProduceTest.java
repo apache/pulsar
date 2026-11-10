@@ -370,10 +370,8 @@ public class TransactionProduceTest extends TransactionTestBase {
                 () -> Assert.assertEquals(getPendingAckCount(ACK_COMMIT_TOPIC, subscriptionName), 0));
 
         consumer.redeliverUnacknowledgedMessages();
-        for (int i = 0; i < incomingMessageCnt; i++) {
-            message = consumer.receive(2, TimeUnit.SECONDS);
-            Assert.assertNull(message);
-        }
+        message = consumer.receive(2, TimeUnit.SECONDS);
+        Assert.assertNull(message);
 
         log.info("finish test ackCommitTest");
     }

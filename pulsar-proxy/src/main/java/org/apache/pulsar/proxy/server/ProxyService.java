@@ -21,6 +21,7 @@ package org.apache.pulsar.proxy.server;
 
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
 import io.netty.bootstrap.ServerBootstrap;
@@ -246,17 +247,9 @@ public class ProxyService implements Closeable {
 
         statsExecutor = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("proxy-stats-executor"));
-        statsExecutor.scheduleAtFixedRate(() -> {
-            this.clientCnxs.forEach(cnx -> {
-                if (cnx.getDirectProxyHandler() != null
-                        && cnx.getDirectProxyHandler().getInboundChannelRequestsRate() != null) {
-                    cnx.getDirectProxyHandler().getInboundChannelRequestsRate().calculateRate();
-                }
-            });
-            this.topicStats.forEach((topic, stats) -> {
-                stats.calculate();
-            });
-        }, statsUpdateInterval, statsUpdateInterval, statsUpdateIntervalUnit);
+        // scheduleAtFixedRate cancels all later runs if a run throws, so the task must not propagate exceptions
+        statsExecutor.scheduleAtFixedRate(catchingAndLoggingThrowables(this::updateStats),
+                statsUpdateInterval, statsUpdateInterval, statsUpdateIntervalUnit);
         this.proxyAdditionalServlets = AdditionalServlets.load(proxyConfig);
         this.proxyClientAuthentication = proxyClientAuthentication;
         this.connectionController = new ConnectionController.DefaultConnectionController(
@@ -479,6 +472,19 @@ public class ProxyService implements Closeable {
                 .log("Successfully bound extension");
     }
 
+    private void updateStats() {
+        this.clientCnxs.forEach(cnx -> {
+            // read once: the connection's event loop may clear the handler concurrently
+            DirectProxyHandler directProxyHandler = cnx.getDirectProxyHandler();
+            if (directProxyHandler != null) {
+                directProxyHandler.getInboundChannelRequestsRate().calculateRate();
+            }
+        });
+        this.topicStats.forEach((topic, stats) -> {
+            stats.calculate();
+        });
+    }
+
     public BrokerDiscoveryProvider getDiscoveryProvider() {
         return discoveryProvider;
     }
@@ -508,6 +514,14 @@ public class ProxyService implements Closeable {
         } catch (InterruptedException e) {
             log.info("Shutdown of acceptorGroup interrupted");
             Thread.currentThread().interrupt();
+        }
+
+        // No listener accepts connections any more, the extensions' included (they are on the acceptor group too).
+        // Close the extensions before what they may still use while closing: the open connections, the discovery
+        // provider, the metadata stores and the event loops.
+        if (proxyExtensions != null) {
+            proxyExtensions.close();
+            proxyExtensions = null;
         }
 
         closeAllConnections();
@@ -759,12 +773,15 @@ public class ProxyService implements Closeable {
     }
 
     // Shutdown the event loop.
-    // If graceful is true, will wait for the current requests to be completed, up to 15 seconds.
+    // If graceful is true, will wait for the current requests to be completed, up to 15 seconds. As in the broker,
+    // the quiet period is 1 ms, not Netty's default 2 s that every close would wait out: the listen channels and the
+    // connections are already closed by then. Not 0, which can end an event loop that is running tasks without the
+    // pass that closes its channels.
     // Graceful shutdown can be disabled by setting the gracefulShutdown flag to false. This is used in tests
     // to speed up the shutdown process.
     private Future<?> shutdownEventLoop(EventLoopGroup eventLoop) {
         if (gracefulShutdown) {
-            return eventLoop.shutdownGracefully();
+            return eventLoop.shutdownGracefully(1, 15_000, TimeUnit.MILLISECONDS);
         } else {
             return eventLoop.shutdownGracefully(0, 0, TimeUnit.SECONDS);
         }
