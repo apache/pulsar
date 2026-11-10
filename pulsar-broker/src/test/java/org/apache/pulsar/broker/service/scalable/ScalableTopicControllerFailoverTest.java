@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service.scalable;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
@@ -292,17 +293,18 @@ public class ScalableTopicControllerFailoverTest {
         CompletableFuture<Void> resumeCommit = new CompletableFuture<>();
         doAnswer(invocation -> {
             PendingLayoutTransition plan = invocation.getArgument(1);
-            BooleanSupplier currentTerm = invocation.getArgument(2);
+            long sealedAtMs = invocation.getArgument(2);
+            BooleanSupplier currentTerm = invocation.getArgument(3);
             // A successful write is already durable before leadership is lost; only its
             // acknowledgement is delayed. An uncommitted old term must never write later.
             CompletableFuture<Void> commit = succeeds
-                    ? broker1.resources.commitLayoutTransitionAsync(topic, plan, currentTerm)
+                    ? broker1.resources.commitLayoutTransitionAsync(topic, plan, sealedAtMs, currentTerm)
                     : CompletableFuture.completedFuture(null);
             return commit.thenCompose(__ -> {
                 updateRequested.complete(null);
                 return resumeCommit;
             });
-        }).when(heldResources).commitLayoutTransitionAsync(eq(topic), any(), any());
+        }).when(heldResources).commitLayoutTransitionAsync(eq(topic), any(), anyLong(), any());
 
         ScalableTopicController first = new ScalableTopicController(topic, heldResources,
                 broker1.brokerService, broker1.coordinationService);

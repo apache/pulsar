@@ -536,16 +536,24 @@ public class ScalableTopicResources extends BaseResources<ScalableTopicMetadata>
         });
     }
 
-    /** Publish exactly the reserved plan and remove its intent atomically in the topic record. */
+    /**
+     * Publish exactly the reserved plan and remove its intent atomically in the topic record. Its sources are
+     * recorded as sealed at {@code sealedAtMs}, when their termination was confirmed, if that is later than the
+     * time of the plan: a source accepts messages until it is terminated, and a seek to a timestamp skips a
+     * segment sealed before it.
+     */
     public CompletableFuture<Void> commitLayoutTransitionAsync(TopicName tn, PendingLayoutTransition pending,
-                                                               BooleanSupplier currentTerm) {
+                                                               long sealedAtMs, BooleanSupplier currentTerm) {
         return updateTopicRecordAsync(tn, md -> {
             validateTransitionBase(tn, md, pending, currentTerm);
             if (!pending.equals(md.getPendingLayoutTransition())) {
                 throw new IllegalStateException("Scalable topic layout transition was replaced: " + tn);
             }
             Map<Long, SegmentInfo> segments = new LinkedHashMap<>(md.getSegments());
-            segments.putAll(pending.replacements());
+            pending.replacements().forEach((id, segment) -> segments.put(id,
+                    pending.sources().containsKey(id) && segment.isSealed() && segment.sealedAtMs() < sealedAtMs
+                            ? segment.sealed(segment.sealedAtEpoch(), sealedAtMs, segment.childIds())
+                            : segment));
             return md.toBuilder().epoch(pending.baseEpoch() + 1).nextSegmentId(pending.nextSegmentId())
                     .segments(segments).pendingLayoutTransition(null).build();
         });

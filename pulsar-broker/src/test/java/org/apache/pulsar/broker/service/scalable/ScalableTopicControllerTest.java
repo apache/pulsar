@@ -270,7 +270,7 @@ public class ScalableTopicControllerTest {
         controller = newController(topicName);
         controller.initialize().get();
         doReturn(CompletableFuture.failedFuture(new IllegalStateException("CAS failed")))
-                .when(resources).commitLayoutTransitionAsync(eq(topicName), any(), any());
+                .when(resources).commitLayoutTransitionAsync(eq(topicName), any(), anyLong(), any());
 
         assertThrows(ExecutionException.class, () -> controller.splitSegment(0).get());
         verify(scalableTopics).terminateSegmentAsync(anyString());
@@ -1512,7 +1512,7 @@ public class ScalableTopicControllerTest {
         controller = newController(topicName);
         controller.initialize().get();
         doReturn(CompletableFuture.failedFuture(new IllegalStateException("layout commit failed")))
-                .when(resources).commitLayoutTransitionAsync(eq(topicName), any(), any());
+                .when(resources).commitLayoutTransitionAsync(eq(topicName), any(), anyLong(), any());
         assertThatThrownBy(() -> controller.splitSegment(0).get()).hasCauseInstanceOf(IllegalStateException.class);
         ScalableTopicStats stats = controller.getStats().get();
         assertOperation(stats, "split", "manual", "partial", List.of(0L));
@@ -1590,7 +1590,7 @@ public class ScalableTopicControllerTest {
         IllegalStateException splitFailure = new IllegalStateException("split failed");
         if (afterSeal) {
             doReturn(CompletableFuture.failedFuture(splitFailure))
-                    .when(resources).commitLayoutTransitionAsync(eq(topicName), any(), any());
+                    .when(resources).commitLayoutTransitionAsync(eq(topicName), any(), anyLong(), any());
         } else {
             when(scalableTopics.createSegmentAsync(anyString(), any()))
                     .thenReturn(CompletableFuture.failedFuture(splitFailure));
@@ -1599,7 +1599,7 @@ public class ScalableTopicControllerTest {
         assertOperation(controller.getStats().get(), "split", "manual",
                 afterSeal ? "partial" : "failure", List.of(1L));
         if (afterSeal) {
-            doCallRealMethod().when(resources).commitLayoutTransitionAsync(eq(topicName), any(), any());
+            doCallRealMethod().when(resources).commitLayoutTransitionAsync(eq(topicName), any(), anyLong(), any());
         } else {
             when(scalableTopics.createSegmentAsync(anyString(), any()))
                     .thenReturn(CompletableFuture.completedFuture(null));
@@ -1712,6 +1712,61 @@ public class ScalableTopicControllerTest {
         assertThat(after.getSegments().get(0L).isSealed()).isTrue();
         verify(scalableTopics).createSegmentAsync(sourceTopic, List.of());
         verify(scalableTopics, times(2)).terminateSegmentAsync(sourceTopic);
+    }
+
+    @Test
+    public void testRecoveredTransitionRecordsTheSourceAsSealedWhenItWasTerminated() throws Exception {
+        // A previous leader made this plan and stopped before sealing its source: the source kept
+        // accepting messages until the next leader terminated it, ten minutes later.
+        PendingLayoutTransition plan = reserveSplit(readMetadata(), 0);
+        AdjustableClock clock = new AdjustableClock(plan.startedAtMs() + TimeUnit.MINUTES.toMillis(10));
+        controller.close().get();
+        controller = newControllerWithClock(topicName, clock, Duration.ofHours(1));
+
+        controller.initialize().get(10, TimeUnit.SECONDS);
+
+        SegmentInfo source = readMetadata().getSegments().get(0L);
+        assertThat(source.isSealed()).isTrue();
+        assertThat(source.sealedAtMs()).isEqualTo(clock.millis());
+        // A seek into those ten minutes must read the source from the timestamp, not skip all of it.
+        when(scalableTopics.seekSegmentSubscriptionAsync(anyString(), anyString(), anyLong()))
+                .thenReturn(CompletableFuture.completedFuture(null));
+        when(scalableTopics.clearSegmentSubscriptionBacklogAsync(anyString(), anyString()))
+                .thenReturn(CompletableFuture.completedFuture(null));
+        long seekMs = plan.startedAtMs() + TimeUnit.MINUTES.toMillis(5);
+        controller.seekSubscription("sub", seekMs).get(10, TimeUnit.SECONDS);
+        verify(scalableTopics).seekSegmentSubscriptionAsync(
+                SegmentTopicName.fromParent(topicName, source.hashRange(), 0L).toString(), "sub", seekMs);
+        verify(scalableTopics, never()).clearSegmentSubscriptionBacklogAsync(anyString(), anyString());
+    }
+
+    @Test
+    public void testCancelledSuccessorsAreKeptOnceTheTopicIsCreatedAgain() throws Exception {
+        controller.close().get();
+        ScalableTopicResources actualResources = resources;
+        resources = spy(resources);
+        controller = newController(topicName);
+        controller.initialize().get();
+        when(scalableTopics.createSegmentAsync(anyString(), any()))
+                .thenReturn(CompletableFuture.failedFuture(new IllegalStateException("topic limit reached")));
+        when(scalableTopics.deleteSegmentAsync(anyString(), anyBoolean()))
+                .thenReturn(CompletableFuture.completedFuture(null));
+        // The reply to the cancel arrives after the topic was deleted and created again: the new topic
+        // is another incarnation, whose segments can have the names of the cancelled successors.
+        doAnswer(invocation -> actualResources.cancelLayoutTransitionAsync(
+                        invocation.getArgument(0), invocation.getArgument(1), invocation.getArgument(2))
+                .thenCompose(__ -> actualResources.getCache().readModifyUpdate(
+                        actualResources.topicPath(topicName),
+                        md -> md.toBuilder().incarnationId(UUID.randomUUID().toString()).build()))
+                .thenApply(__ -> null))
+                .when(resources).cancelLayoutTransitionAsync(eq(topicName), any(), any());
+
+        assertThatThrownBy(() -> controller.splitSegment(0).get(10, TimeUnit.SECONDS))
+                .hasCauseInstanceOf(IllegalStateException.class);
+
+        assertThat(readMetadata().getPendingLayoutTransition()).as("the plan was cancelled").isNull();
+        Awaitility.await().during(Duration.ofSeconds(1)).atMost(Duration.ofSeconds(5)).untilAsserted(() ->
+                verify(scalableTopics, never()).deleteSegmentAsync(anyString(), anyBoolean()));
     }
 
     @Test

@@ -27,6 +27,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BooleanSupplier;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.resources.ScalableTopicMetadata.PendingLayoutTransition;
 import org.apache.pulsar.broker.service.scalable.ScalableTopicController;
@@ -83,7 +84,7 @@ public class ScalableTopicLayoutTransitionTest {
         assertThat(committed.getAutoScalePolicy()).isEqualTo(policy);
         assertThat(committed.getIncarnationId()).isEqualTo(fixture.initial.getIncarnationId());
         assertThat(committed.getPendingLayoutTransition()).isNull();
-        assertRejected(fixture.resources.commitLayoutTransitionAsync(fixture.topic, plan, () -> true));
+        assertRejected(fixture.commitAsync(plan, () -> true));
         assertThat(fixture.read()).as("a stale completion cannot publish a second generation").isEqualTo(committed);
     }
 
@@ -99,7 +100,7 @@ public class ScalableTopicLayoutTransitionTest {
                 md -> SegmentLayout.fromMetadata(md).splitSegment(0, plan.startedAtMs()).toMetadata(md)));
         assertThat(fixture.read()).isEqualTo(reserved);
         PendingLayoutTransition wrongId = plan(fixture.initial, UUID.randomUUID().toString());
-        assertRejected(fixture.resources.commitLayoutTransitionAsync(fixture.topic, wrongId, () -> true));
+        assertRejected(fixture.commitAsync(wrongId, () -> true));
         assertThat(fixture.read()).as("a completion for another UUID cannot clear the active intent")
                 .isEqualTo(reserved);
         fixture.commit(plan);
@@ -119,12 +120,12 @@ public class ScalableTopicLayoutTransitionTest {
         assertThat(fixture.read().getSegments()).isEqualTo(fixture.initial.getSegments());
 
         assertRejected(fixture.resources.reserveLayoutTransitionAsync(fixture.topic, stale, () -> true));
-        assertRejected(fixture.resources.commitLayoutTransitionAsync(fixture.topic, stale, () -> true));
+        assertRejected(fixture.commitAsync(stale, () -> true));
         assertThat(fixture.read()).as("callbacks from the deleted lifetime leave the new record intact")
                 .isEqualTo(recreated);
         PendingLayoutTransition fresh = plan(recreated, UUID.randomUUID().toString());
         fixture.reserve(fresh);
-        assertRejected(fixture.resources.commitLayoutTransitionAsync(fixture.topic, stale, () -> true));
+        assertRejected(fixture.commitAsync(stale, () -> true));
         assertThat(fixture.read().getPendingLayoutTransition()).isEqualTo(fresh);
         fixture.commit(fresh);
         assertThat(fixture.read().getIncarnationId()).isEqualTo(recreated.getIncarnationId());
@@ -142,7 +143,7 @@ public class ScalableTopicLayoutTransitionTest {
                 .get(10, TimeUnit.SECONDS);
         ScalableTopicMetadata reserved = fixture.read();
         currentTerm.set(false);
-        assertRejected(fixture.resources.commitLayoutTransitionAsync(fixture.topic, plan, currentTerm::get));
+        assertRejected(fixture.commitAsync(plan, currentTerm::get));
         assertThat(fixture.read()).isEqualTo(reserved);
         // The next elected leader is allowed to finish the exact persisted reservation.
         fixture.commit(plan);
@@ -166,7 +167,7 @@ public class ScalableTopicLayoutTransitionTest {
                 .isEqualTo(plan.nextSegmentId());
         // A replay of the cancelled plan by an older leader can neither seal nor publish it.
         assertRejected(fixture.resources.markLayoutTransitionSealingAsync(fixture.topic, plan, () -> true));
-        assertRejected(fixture.resources.commitLayoutTransitionAsync(fixture.topic, plan, () -> true));
+        assertRejected(fixture.commitAsync(plan, () -> true));
         assertRejected(fixture.resources.reserveLayoutTransitionAsync(fixture.topic, plan, () -> true));
         assertThat(fixture.read()).isEqualTo(cancelled);
 
@@ -177,6 +178,42 @@ public class ScalableTopicLayoutTransitionTest {
         fixture.reserve(next);
         fixture.commit(next);
         assertThat(fixture.read().getEpoch()).isEqualTo(fixture.initial.getEpoch() + 1);
+    }
+
+    @Test
+    public void testCommitRecordsTheSourceAsSealedWhenItsTerminationWasConfirmed() throws Exception {
+        @Cleanup
+        Fixture fixture = new Fixture(initialMetadata());
+        PendingLayoutTransition plan = plan(fixture.initial, UUID.randomUUID().toString());
+        fixture.reserve(plan);
+        // A delayed recovery terminated the source long after the plan was made.
+        long terminatedAtMs = plan.startedAtMs() + TimeUnit.MINUTES.toMillis(10);
+        fixture.resources.commitLayoutTransitionAsync(fixture.topic, plan, terminatedAtMs, () -> true)
+                .get(10, TimeUnit.SECONDS);
+
+        ScalableTopicMetadata committed = fixture.read();
+        SegmentInfo planned = plan.replacements().get(0L);
+        assertThat(committed.getSegments().get(0L))
+                .isEqualTo(planned.sealed(planned.sealedAtEpoch(), terminatedAtMs, planned.childIds()));
+        plan.replacements().forEach((id, segment) -> {
+            if (id != 0L) {
+                assertThat(committed.getSegments().get(id)).as("successors are published as planned")
+                        .isEqualTo(segment);
+            }
+        });
+    }
+
+    @Test
+    public void testCommitKeepsTheSealTimeOfThePlanIfTheTerminationTimeIsEarlier() throws Exception {
+        @Cleanup
+        Fixture fixture = new Fixture(initialMetadata());
+        PendingLayoutTransition plan = plan(fixture.initial, UUID.randomUUID().toString());
+        fixture.reserve(plan);
+        // The clock of the broker that terminated the source is behind the one that made the plan.
+        fixture.resources.commitLayoutTransitionAsync(fixture.topic, plan, plan.startedAtMs() - 1000, () -> true)
+                .get(10, TimeUnit.SECONDS);
+
+        assertThat(fixture.read().getSegments().get(0L)).isEqualTo(plan.replacements().get(0L));
     }
 
     @Test
@@ -309,7 +346,12 @@ public class ScalableTopicLayoutTransitionTest {
         }
 
         void commit(PendingLayoutTransition plan) throws Exception {
-            resources.commitLayoutTransitionAsync(topic, plan, () -> true).get(10, TimeUnit.SECONDS);
+            commitAsync(plan, () -> true).get(10, TimeUnit.SECONDS);
+        }
+
+        // Its sources were terminated when the plan was made.
+        CompletableFuture<Void> commitAsync(PendingLayoutTransition plan, BooleanSupplier currentTerm) {
+            return resources.commitLayoutTransitionAsync(topic, plan, plan.startedAtMs(), currentTerm);
         }
 
         @Override

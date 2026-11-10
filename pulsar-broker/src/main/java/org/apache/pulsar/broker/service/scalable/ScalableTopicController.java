@@ -1470,7 +1470,11 @@ public class ScalableTopicController {
                 });
     }
 
-    /** Best effort: the successor IDs of a cancelled plan are never published nor reused. */
+    /**
+     * Best effort: the successor IDs of a cancelled plan are never published nor reused. Each successor is
+     * deleted only while the topic record is still the one the plan was made for: once the topic is deleted
+     * and created again, a segment of the new topic can have the same name.
+     */
     private void deleteCancelledSuccessors(PendingLayoutTransition pending) {
         PulsarAdmin admin;
         try {
@@ -1485,7 +1489,16 @@ public class ScalableTopicController {
                 continue;
             }
             String segmentTopicName = toSegmentPersistentName(successor);
-            FutureUtil.supplySafely(() -> admin.scalableTopics().deleteSegmentAsync(segmentTopicName, true))
+            readTopicRecord()
+                    .thenCompose(optMd -> {
+                        if (optMd.isEmpty() || optMd.get().isDeleted()
+                                || !pending.incarnationId().equals(optMd.get().getIncarnationId())) {
+                            log.debug().attr("segment", segmentTopicName).log("Kept a successor of a cancelled"
+                                    + " layout transition: the topic was deleted or created again");
+                            return CompletableFuture.completedFuture(null);
+                        }
+                        return admin.scalableTopics().deleteSegmentAsync(segmentTopicName, true);
+                    })
                     .exceptionally(ex -> {
                         Throwable cause = FutureUtil.unwrapCompletionException(ex);
                         if (!(cause instanceof PulsarAdminException.NotFoundException)) {
@@ -1530,8 +1543,9 @@ public class ScalableTopicController {
                                     }
                                 });
                     }
+                    // Every source is terminated by now: from here on, none of them accepts a message.
                     return sealed.thenCompose(___ -> resources.commitLayoutTransitionAsync(topicName, sealing,
-                            () -> isCurrentTerm(operationTerm)));
+                            clock.millis(), () -> isCurrentTerm(operationTerm)));
                 })
                 .thenRun(() -> {
                     if (operation != null) {
