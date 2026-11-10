@@ -22,7 +22,9 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertFalse;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.TopicPolicies;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
@@ -140,5 +142,48 @@ public class CmdTopicPoliciesTest {
 
         verify(topicPolicies, times(1)).setPersistence("persistent://public/default/topic",
                 new PersistencePolicies(2, 2, 2, -1.0, null));
+    }
+
+    @Test
+    public void testWhitelistedCommandsAcceptScalableTopic() throws Exception {
+        TopicPolicies topicPolicies = mock(TopicPolicies.class);
+        PulsarAdmin admin = mock(PulsarAdmin.class);
+        when(admin.topicPolicies(anyBoolean())).thenReturn(topicPolicies);
+        CmdTopicPolicies cmd = new CmdTopicPolicies(() -> admin);
+
+        cmd.run("set-retention topic://public/default/s -s 2T -t 200d".split("\\s+"));
+        verify(topicPolicies, times(1)).setRetention("topic://public/default/s",
+                new RetentionPolicies(200 * 24 * 60, 2 * 1024 * 1024));
+
+        cmd.run("get-message-ttl topic://public/default/s".split("\\s+"));
+        verify(topicPolicies, times(1)).getMessageTTL("topic://public/default/s", false);
+
+        cmd.run("remove-offload-policies topic://public/default/s".split("\\s+"));
+        verify(topicPolicies, times(1)).removeOffloadPolicies("topic://public/default/s");
+
+        cmd.run("get-delayed-delivery topic://public/default/s".split("\\s+"));
+        verify(topicPolicies, times(1)).getDelayedDeliveryPolicy("topic://public/default/s", false);
+    }
+
+    @Test
+    public void testOtherCommandsRejectScalableTopic() throws Exception {
+        TopicPolicies topicPolicies = mock(TopicPolicies.class);
+        PulsarAdmin admin = mock(PulsarAdmin.class);
+        when(admin.topicPolicies(anyBoolean())).thenReturn(topicPolicies);
+        CmdTopicPolicies cmd = new CmdTopicPolicies(() -> admin);
+
+        assertFalse(cmd.run("set-max-producers topic://public/default/s -p 1".split("\\s+")));
+        verifyNoInteractions(topicPolicies);
+    }
+
+    @Test
+    public void testDelayedDeliveryStillAcceptsNonPersistentTopic() throws Exception {
+        TopicPolicies topicPolicies = mock(TopicPolicies.class);
+        PulsarAdmin admin = mock(PulsarAdmin.class);
+        when(admin.topicPolicies(anyBoolean())).thenReturn(topicPolicies);
+        CmdTopicPolicies cmd = new CmdTopicPolicies(() -> admin);
+
+        cmd.run("get-delayed-delivery non-persistent://public/default/np".split("\\s+"));
+        verify(topicPolicies, times(1)).getDelayedDeliveryPolicy("non-persistent://public/default/np", false);
     }
 }

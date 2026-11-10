@@ -2196,6 +2196,17 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return closeFuture;
     }
 
+    /**
+     * Returns a future that completes, successfully or not, once the close or deletion in progress, or else the last
+     * one, has finished. A close that does not hand the topic over to another broker completes it after removing the
+     * topic from the broker's cache.
+     */
+    public CompletableFuture<Void> getCloseFuture() {
+        CloseFutures futures = closeFutures;
+        // Every close and deletion sets the transferring future.
+        return futures == null ? CompletableFuture.completedFuture(null) : futures.transferring;
+    }
+
     @VisibleForTesting
     boolean isClosed() {
         if (closeFutures == null) {

@@ -835,6 +835,11 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     @Override
     public abstract CompletableFuture<Void> closeAsync();
 
+    /** Whether the consumer has reached a state it does not leave: closing, closed or failed. */
+    protected boolean isTerminalState() {
+        State state = getState();
+        return state == State.Closing || state == State.Closed || state == State.Failed;
+    }
 
     @Deprecated
     @Override
