@@ -70,6 +70,8 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
     @VisibleForTesting
     @Getter
     final AtomicInteger asyncCloseCount = new AtomicInteger(0);
+    // Like LedgerHandle, whose close is final even when it fails: a later close replays the failure instead of retrying
+    private volatile Throwable closeFailure;
     // Count for total length of the entries
     final AtomicLong totalLengthCounter = new AtomicLong(0);
 
@@ -96,19 +98,27 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
     @Override
     public void asyncClose(CloseCallback cb, Object ctx) {
         asyncCloseCount.incrementAndGet();
-        bk.getProgrammedFailure().thenComposeAsync((res) -> {
-            fenced = true;
+        Throwable previousFailure = closeFailure;
+        CompletableFuture<Void> closeResult;
+        if (previousFailure != null) {
+            closeResult = FutureUtils.exception(previousFailure);
+        } else {
+            closeResult = bk.getProgrammedFailure().thenComposeAsync((res) -> {
+                fenced = true;
 
-            Versioned<LedgerMetadata> current = getVersionedLedgerMetadata();
-            Versioned<LedgerMetadata> newMetadata = new Versioned<>(
-                    LedgerMetadataBuilder.from(current.getValue())
-                            .withClosedState().withLastEntryId(getLastAddConfirmed())
-                            .withLength(getLength()).build(),
-                    new LongVersion(((LongVersion) current.getVersion()).getLongVersion() + 1));
-            setLedgerMetadata(current, newMetadata);
-            return FutureUtils.value(null);
-        }, bk.executor).whenCompleteAsync((res, exception) -> {
+                Versioned<LedgerMetadata> current = getVersionedLedgerMetadata();
+                Versioned<LedgerMetadata> newMetadata = new Versioned<>(
+                        LedgerMetadataBuilder.from(current.getValue())
+                                .withClosedState().withLastEntryId(getLastAddConfirmed())
+                                .withLength(getLength()).build(),
+                        new LongVersion(((LongVersion) current.getVersion()).getLongVersion() + 1));
+                setLedgerMetadata(current, newMetadata);
+                return FutureUtils.value(null);
+            }, bk.executor);
+        }
+        closeResult.whenCompleteAsync((res, exception) -> {
             if (exception != null) {
+                closeFailure = exception;
                 cb.closeComplete(PulsarMockBookKeeper.getExceptionCode(exception), null, ctx);
             } else {
                 cb.closeComplete(BKException.Code.OK, this, ctx);
