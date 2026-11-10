@@ -56,6 +56,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import lombok.Cleanup;
 import lombok.CustomLog;
@@ -116,7 +117,6 @@ import org.apache.zookeeper.KeeperException;
 import org.awaitility.Awaitility;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
-import org.mockito.internal.util.MockUtil;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
@@ -1751,10 +1751,14 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         final String topicName = "topic-1";
         AsyncResponse response = mock(AsyncResponse.class);
         BrokerService brokerService = ownMock(spy(pulsar.getBrokerService()));
+        // Stub the spy once, before the broker can reach it: Mockito binds a pending doReturn(...).when(spy) to the
+        // spy's next call from any thread, so re-stubbing it while broker threads call it can stub the wrong call.
+        AtomicReference<CompletableFuture<Void>> deleteTopicResult = new AtomicReference<>();
+        doAnswer(invocation -> deleteTopicResult.get()).when(brokerService).deleteTopic(anyString(), anyBoolean());
         doReturn(brokerService).when(pulsar).getBrokerService();
         persistentTopics.createNonPartitionedTopic(response, testTenant, testNamespace, topicName, false, null);
         CompletableFuture<Void> deleteTopicFuture = CompletableFuture.completedFuture(null);
-        doReturn(deleteTopicFuture).when(brokerService).deleteTopic(anyString(), anyBoolean());
+        deleteTopicResult.set(deleteTopicFuture);
 
         response = mock(AsyncResponse.class);
         ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
@@ -1762,24 +1766,20 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
 
-        MockUtil.resetMock(brokerService);
-
         CompletableFuture<Void> deleteTopicFuture2 = new CompletableFuture<>();
         ArgumentCaptor<RestException> errorCaptor = ArgumentCaptor.forClass(RestException.class);
         deleteTopicFuture2.completeExceptionally(new MetadataStoreException("test exception"));
-        doReturn(deleteTopicFuture2).when(brokerService).deleteTopic(anyString(), anyBoolean());
+        deleteTopicResult.set(deleteTopicFuture2);
         response = mock(AsyncResponse.class);
         persistentTopics.deleteTopic(response, testTenant, testNamespace, topicName, true, true);
         verify(response, timeout(5000).times(1)).resume(errorCaptor.capture());
         Assert.assertEquals(errorCaptor.getValue().getResponse().getStatus(),
                 Response.Status.INTERNAL_SERVER_ERROR.getStatusCode());
 
-        MockUtil.resetMock(brokerService);
-
         CompletableFuture<Void> deleteTopicFuture3 = new CompletableFuture<>();
         response = mock(AsyncResponse.class);
         deleteTopicFuture3.completeExceptionally(new MetadataStoreException.NotFoundException());
-        doReturn(deleteTopicFuture3).when(brokerService).deleteTopic(anyString(), anyBoolean());
+        deleteTopicResult.set(deleteTopicFuture3);
         persistentTopics.deleteTopic(response, testTenant, testNamespace, topicName, false, true);
         verify(response, timeout(5000).times(1)).resume(errorCaptor.capture());
         Assert.assertEquals(errorCaptor.getValue().getResponse().getStatus(),

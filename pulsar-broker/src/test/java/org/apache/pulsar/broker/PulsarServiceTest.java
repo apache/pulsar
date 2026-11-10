@@ -22,7 +22,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
@@ -91,10 +90,23 @@ import org.testng.annotations.Test;
 public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
 
     private boolean useStaticPorts = false;
+    // When set, what the broker's getCreateAdminClientBuilder() returns instead of a builder of its own
+    private volatile PulsarAdminBuilder brokerAdminClientBuilder;
 
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
+    }
+
+    @Override
+    protected void beforePulsarStart(PulsarService pulsar) throws Exception {
+        super.beforePulsarStart(pulsar);
+        // Stubbed before the broker starts, since its threads call the spy too: Mockito takes a call from any thread
+        // that lands in a doReturn(...).when(pulsar) stubbing as the stubbed call
+        doAnswer(invocation -> {
+            PulsarAdminBuilder builder = brokerAdminClientBuilder;
+            return builder != null ? builder : invocation.callRealMethod();
+        }).when(pulsar).getCreateAdminClientBuilder();
     }
 
     @AfterMethod(alwaysRun = true)
@@ -102,6 +114,7 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
     protected void cleanup() throws Exception {
         super.internalCleanup();
         useStaticPorts = false;
+        brokerAdminClientBuilder = null;
     }
 
     @Override
@@ -451,7 +464,6 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
         setup();
         PulsarAdmin adminClient = mock(PulsarAdmin.class);
         PulsarAdminBuilder adminClientBuilder = mock(PulsarAdminBuilder.class);
-        doReturn(adminClientBuilder).when(pulsar).getCreateAdminClientBuilder();
         Thread closingThread = new Thread(pulsar::closeAsync, "closing-broker");
         // The broker starts closing while getAdminClient() creates the client under the service's lock, and the
         // creation ends once the close waits for that lock
@@ -466,6 +478,7 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
             });
             return adminClient;
         }).when(adminClientBuilder).build();
+        brokerAdminClientBuilder = adminClientBuilder;
 
         assertThat(pulsar.getAdminClient()).isSameAs(adminClient);
         assertThat(closingThread.join(Duration.ofSeconds(30))).as("close finished").isTrue();
