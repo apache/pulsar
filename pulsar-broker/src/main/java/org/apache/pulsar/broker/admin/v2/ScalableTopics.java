@@ -855,6 +855,8 @@ public class ScalableTopics extends AdminResource {
                     description = "Don't have permission to administrate resources on this tenant"),
             @ApiResponse(responseCode = "403", description = "Don't have admin permission on the namespace"),
             @ApiResponse(responseCode = "404", description = "Scalable topic doesn't exist"),
+            @ApiResponse(responseCode = "409", description = "A migration to the scalable topic or a creation of it"
+                    + " is in progress"),
             @ApiResponse(responseCode = "500", description = "Internal server error")})
     public void deleteScalableTopic(
             @Suspended final AsyncResponse asyncResponse,
@@ -876,8 +878,15 @@ public class ScalableTopics extends AdminResource {
                 .thenCompose(__ -> resources().getScalableTopicMetadataAsync(tn))
                 .thenCompose(optMd -> {
                     if (optMd.isEmpty()) {
-                        throw new RestException(Response.Status.NOT_FOUND,
-                                "Scalable topic not found: " + tn);
+                        // The node with no record that a write under the topic leaves after its delete is no
+                        // topic, but the namespace lists it: delete it, with what the write created under it.
+                        return resources().deleteScalableTopicWithoutRecordAsync(tn).thenApply(deleted -> {
+                            if (!deleted) {
+                                throw new RestException(Response.Status.NOT_FOUND,
+                                        "Scalable topic not found: " + tn);
+                            }
+                            return null;
+                        });
                     }
                     // Stop the controller before deleting the metadata: still running, its
                     // leader election re-acquires the lock the delete removes, under the deleted
@@ -921,6 +930,12 @@ public class ScalableTopics extends AdminResource {
                     asyncResponse.resume(Response.noContent().build());
                 })
                 .exceptionally(ex -> {
+                    if (FutureUtil.unwrapCompletionException(ex)
+                            instanceof MetadataStoreException.LockBusyException) {
+                        asyncResponse.resume(new RestException(Response.Status.CONFLICT,
+                                "A migration or a creation of the scalable topic is in progress: " + tn));
+                        return null;
+                    }
                     if (!isRedirectException(ex)) {
                         log.error().attr("clientAppId", clientAppId()).attr("topic", tn)
                                 .exception(ex).log("Failed to delete scalable topic");
