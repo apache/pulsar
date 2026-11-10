@@ -2493,10 +2493,16 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                                 + "is already connected");
                             } else if (exception.getCause() instanceof BrokerServiceException.TopicMigratedException) {
                                 getMigratedClusterUrlAsync(service.getPulsar(), topicName.toString())
-                                        .exceptionally(e -> Optional.empty())
-                                        .thenAcceptAsync(clusterURL -> redirectOrFailMigratedConsumer(requestId,
-                                                consumerId, subscriptionName, topicName, consumerFuture, exception,
-                                                clusterURL), ctx.executor());
+                                        .handleAsync((clusterUrl, lookupError) -> {
+                                            if (lookupError != null) {
+                                                logMigrationUrlLookupFailure("subscribe", topicName, requestId,
+                                                        "consumerId", consumerId, lookupError);
+                                                clusterUrl = Optional.empty();
+                                            }
+                                            redirectOrFailMigratedConsumer(requestId, consumerId, subscriptionName,
+                                                    topicName, consumerFuture, exception, clusterUrl);
+                                            return null;
+                                        }, ctx.executor());
                                 return null;
                             } else if (exception.getCause() instanceof BrokerServiceException) {
                                 log.warn()
@@ -2542,6 +2548,18 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             commandSender.sendErrorResponse(requestId, ServerError.AuthorizationError, ex.getMessage());
             return null;
         }, ctx.executor());
+    }
+
+    private void logMigrationUrlLookupFailure(String operation, TopicName topic, long requestId,
+            String resourceIdKey, long resourceId, Throwable lookupError) {
+        log.warn()
+                .attr("operation", operation)
+                .attr("topic", topic)
+                .attr("requestId", requestId)
+                .attr(resourceIdKey, resourceId)
+                .attr("errorType", lookupError.getClass().getName())
+                .exceptionMessage(lookupError)
+                .log("Failed to look up migration URL for client redirect");
     }
 
     private void redirectOrFailMigratedConsumer(long requestId, long consumerId, String subscriptionName,
@@ -2598,11 +2616,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             producers.remove(producerId, producerFuture);
             closeProducer(producerId, -1L, Optional.empty());
         } else {
-            log.error()
-                    .attr("topic", topicName)
-                    .attr("producerId", producerId)
-                    .exception(exception)
-                    .log("Failed to create topic, producerId");
             if (producerFuture.completeExceptionally(exception)) {
                 commandSender.sendErrorResponse(requestId,
                         BrokerServiceException.getClientErrorCode(exception.getCause()),
@@ -2639,12 +2652,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         .attr("producerName", producerName)
                         .exceptionMessage(ex.getCause())
                         .log("Topic is migrated but replication backlog exist: " + "producerId =, producerName");
-            } else {
-                log.warn()
-                        .attr("topic", topicName)
-                        .attr("producerId", producerId)
-                        .exceptionMessage(ex.getCause())
-                        .log("failed producer because migration url not configured topic: producerId");
             }
             producer.closeNow(true);
             if (producerFuture.completeExceptionally(ex)) {
@@ -2918,9 +2925,20 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     return null;
                 } else if (cause instanceof BrokerServiceException.TopicMigratedException) {
                     getMigratedClusterUrlAsync(service.getPulsar(), topicName.toString())
-                            .exceptionally(e -> Optional.empty())
-                            .thenAcceptAsync(clusterURL -> redirectOrFailMigratedProducer(requestId, producerId,
-                                    producerName, topicName, producerFuture, exception, clusterURL), ctx.executor());
+                            .handleAsync((clusterUrl, lookupError) -> {
+                                if (lookupError != null) {
+                                    logMigrationUrlLookupFailure("createProducer", topicName, requestId,
+                                            "producerId", producerId, lookupError);
+                                    clusterUrl = Optional.empty();
+                                } else if (clusterUrl.isEmpty()) {
+                                    log.error().attr("operation", "createProducer").attr("topic", topicName)
+                                            .attr("requestId", requestId).attr("producerId", producerId)
+                                            .log("No migration URL available for producer redirect");
+                                }
+                                redirectOrFailMigratedProducer(requestId, producerId, producerName, topicName,
+                                        producerFuture, exception, clusterUrl);
+                                return null;
+                            }, ctx.executor());
                     return null;
                 }
 
@@ -3021,10 +3039,20 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }, ctx.executor()).exceptionallyAsync(ex -> {
             if (ex.getCause() instanceof BrokerServiceException.TopicMigratedException) {
                 getMigratedClusterUrlAsync(service.getPulsar(), topic.getName())
-                        .exceptionally(e -> Optional.empty())
-                        .thenAcceptAsync(clusterURL -> redirectOrFailMigratedProducerInQueue(requestId, producerId,
-                                producerName, topicName, topic, producer, producerFuture, ex, clusterURL),
-                                ctx.executor());
+                        .handleAsync((clusterUrl, lookupError) -> {
+                            if (lookupError != null) {
+                                logMigrationUrlLookupFailure("addProducer", topicName, requestId,
+                                        "producerId", producerId, lookupError);
+                                clusterUrl = Optional.empty();
+                            } else if (clusterUrl.isEmpty()) {
+                                log.warn().attr("operation", "addProducer").attr("topic", topicName)
+                                        .attr("requestId", requestId).attr("producerId", producerId)
+                                        .log("No migration URL available for producer redirect");
+                            }
+                            redirectOrFailMigratedProducerInQueue(requestId, producerId, producerName, topicName,
+                                    topic, producer, producerFuture, ex, clusterUrl);
+                            return null;
+                        }, ctx.executor());
                 return null;
             } else if (ex.getCause() instanceof BrokerServiceException.ProducerFencedException) {
                 log.debug()
