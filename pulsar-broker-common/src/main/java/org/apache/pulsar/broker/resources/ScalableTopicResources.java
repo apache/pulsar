@@ -297,8 +297,17 @@ public class ScalableTopicResources extends BaseResources<ScalableTopicMetadata>
         }
     }
 
+    /**
+     * Create the record of a scalable topic, failing with {@link MetadataStoreException.AlreadyExistsException} if
+     * the topic exists. A node at its path that holds no record (see {@link #listScalableTopicsWithRecordAsync}) is
+     * what a deleted topic of the same name left: it is deleted first, with everything under it. Run it under the
+     * creation lock of the topic (see {@link #runWithCreationLock}), so that no other creation of the topic writes
+     * its record in between.
+     */
     public CompletableFuture<Void> createScalableTopicAsync(TopicName tn, ScalableTopicMetadata metadata) {
-        return getCache().create(topicPath(tn), metadata, PROPERTY_INDEX_EXTRACTOR);
+        String path = topicPath(tn);
+        return deleteNodeWithoutRecordAsync(path)
+                .thenCompose(__ -> getCache().create(path, metadata, PROPERTY_INDEX_EXTRACTOR));
     }
 
     /** The creation lock of a scalable topic, while {@link #runWithCreationLock} holds it. */
@@ -398,25 +407,57 @@ public class ScalableTopicResources extends BaseResources<ScalableTopicMetadata>
                 });
     }
 
+    /**
+     * Read the record of a scalable topic. A node that holds no record (see {@link #listScalableTopicsWithRecordAsync})
+     * is no topic, so it reads as absent.
+     */
     public CompletableFuture<Optional<ScalableTopicMetadata>> getScalableTopicMetadataAsync(TopicName tn) {
-        return getAsync(topicPath(tn));
+        String path = topicPath(tn);
+        return absentIfNoRecord(path, getAsync(path));
     }
 
+    /** As {@link #getScalableTopicMetadataAsync(TopicName)}, reading the store rather than the cache if refresh. */
     public CompletableFuture<Optional<ScalableTopicMetadata>> getScalableTopicMetadataAsync(TopicName tn,
                                                                                              boolean refresh) {
-        if (refresh) {
-            return refreshAndGetAsync(topicPath(tn));
-        }
-        return getAsync(topicPath(tn));
+        String path = topicPath(tn);
+        return absentIfNoRecord(path, refresh ? refreshAndGetAsync(path) : getAsync(path));
     }
 
+    private CompletableFuture<Optional<ScalableTopicMetadata>> absentIfNoRecord(
+            String topicPath, CompletableFuture<Optional<ScalableTopicMetadata>> read) {
+        return read.exceptionallyCompose(ex -> failUnlessNoRecordAsync(topicPath, ex)
+                .thenApply(__ -> Optional.empty()));
+    }
+
+    /**
+     * Update the record of a scalable topic, failing with {@link MetadataStoreException.NotFoundException} if the
+     * topic doesn't exist, as when its node holds no record (see {@link #listScalableTopicsWithRecordAsync}).
+     */
     public CompletableFuture<Void> updateScalableTopicAsync(TopicName tn,
                                                              Function<ScalableTopicMetadata,
                                                                      ScalableTopicMetadata> updateFunction) {
+        String path = topicPath(tn);
         // Refresh property indexes on every update — the modify function may add or remove
         // properties and the underlying store needs to see the post-modification view.
-        return getCache().readModifyUpdate(topicPath(tn), updateFunction, PROPERTY_INDEX_EXTRACTOR)
-                .thenApply(__ -> null);
+        return getCache().readModifyUpdate(path, updateFunction, PROPERTY_INDEX_EXTRACTOR)
+                .<Void>thenApply(__ -> null)
+                .exceptionallyCompose(ex -> failUnlessNoRecordAsync(path, ex)
+                        .thenCompose(__ -> CompletableFuture.failedFuture(
+                                new MetadataStoreException.NotFoundException(path))));
+    }
+
+    /**
+     * Complete normally if reading the record of a scalable topic failed with {@code ex} because its node holds no
+     * record, as the empty value fails to deserialize. Fail with {@code ex} otherwise.
+     */
+    private CompletableFuture<Void> failUnlessNoRecordAsync(String topicPath, Throwable ex) {
+        if (!(FutureUtil.unwrapCompletionException(ex)
+                instanceof MetadataStoreException.ContentDeserializationException)) {
+            return CompletableFuture.failedFuture(ex);
+        }
+        return hasRecordAsync(topicPath).thenCompose(hasRecord -> hasRecord
+                ? CompletableFuture.failedFuture(ex)
+                : CompletableFuture.completedFuture(null));
     }
 
     public CompletableFuture<Void> deleteScalableTopicAsync(TopicName tn) {
@@ -424,6 +465,31 @@ public class ScalableTopicResources extends BaseResources<ScalableTopicMetadata>
         // subscriptions (and their consumer registrations), and the per-segment load
         // records — all of which must go with the topic.
         return getStore().deleteRecursive(topicPath(tn));
+    }
+
+    /**
+     * Delete the node of the scalable topic {@code tn} if it holds no record (see
+     * {@link #listScalableTopicsWithRecordAsync}), with everything under it. Under the creation lock of the topic, so
+     * that no creation of the topic writes its record in between. Completes with whether there was such a node.
+     */
+    public CompletableFuture<Boolean> deleteScalableTopicWithoutRecordAsync(TopicName tn) {
+        return runWithCreationLock(tn, __ -> deleteNodeWithoutRecordAsync(topicPath(tn)));
+    }
+
+    /**
+     * Delete the node at {@code topicPath} if it holds no topic record, with everything under it, and complete with
+     * whether there was such a node: an empty record (Oxia, ZooKeeper), or no record with nodes under it (the stores
+     * that don't create the parents of the node they write).
+     */
+    private CompletableFuture<Boolean> deleteNodeWithoutRecordAsync(String topicPath) {
+        // From the store, not the cache, which may miss a node that a write on another broker created
+        return getStore().get(topicPath)
+                .thenCompose(result -> result.isPresent()
+                        ? CompletableFuture.completedFuture(result.get().getValue().length == 0)
+                        : getStore().getChildrenFromStore(topicPath).thenApply(children -> !children.isEmpty()))
+                .thenCompose(withoutRecord -> withoutRecord
+                        ? getStore().deleteRecursive(topicPath).thenApply(__ -> true)
+                        : CompletableFuture.completedFuture(false));
     }
 
     /**
