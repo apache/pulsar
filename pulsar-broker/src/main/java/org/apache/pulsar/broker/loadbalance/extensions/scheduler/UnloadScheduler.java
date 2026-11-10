@@ -166,7 +166,7 @@ public class UnloadScheduler implements LoadManagerScheduler {
                         Unload unload = decision.getUnload();
                         log.info("[{}] Unloading bundle: {}",
                                 namespaceUnloadStrategy.getClass().getSimpleName(), unload);
-                        futures.add(unloadManager.waitAsync(channel.publishUnloadEventAsync(unload),
+                        futures.add(unloadManager.waitAsync(() -> channel.publishUnloadEventAsync(unload),
                                         unload.serviceUnit(), decision, asyncOpTimeoutMs, TimeUnit.MILLISECONDS)
                                 .thenAccept(__ -> {
                                     unloadBrokers.add(unload.sourceBroker());

@@ -29,6 +29,7 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -58,7 +59,7 @@ public class UnloadManagerTest {
         var unloadDecision =
                 new UnloadDecision(new Unload("broker-1", "bundle-1"), Success, Admin);
         CompletableFuture<Void> future =
-                manager.waitAsync(FutureUtil.failedFuture(new Exception("test")),
+                manager.waitAsync(() -> FutureUtil.failedFuture(new Exception("test")),
                         "bundle-1", unloadDecision, 10, TimeUnit.SECONDS);
 
         assertTrue(future.isCompletedExceptionally());
@@ -68,7 +69,56 @@ public class UnloadManagerTest {
         } catch (Exception ex) {
             assertEquals(ex.getCause().getMessage(), "test");
         }
+        assertEquals(manager.getInFlightUnloadRequestCount(), 0);
         assertEquals(counter.getBreakdownCounters().get(Failure).get(Unknown).get(), 1);
+    }
+
+    @Test(timeOut = 30_000)
+    public void testUnloadDoneBeforeItsPublishCompletes() throws Exception {
+        UnloadCounter counter = new UnloadCounter();
+        UnloadManager manager = new UnloadManager(counter, "mockBrokerId");
+        String bundle = "bundle-1";
+        var unloadDecision =
+                new UnloadDecision(new Unload("broker-1", bundle, Optional.of("broker-2")), Success, Admin);
+        CompletableFuture<Void> published = new CompletableFuture<>();
+        CompletableFuture<Void> future =
+                manager.waitAsync(() -> published, bundle, unloadDecision, 20, TimeUnit.SECONDS);
+
+        // The channel handles the transfer's last state before the publish future completes, as the metadata store
+        // table view does when its put reads the service unit only after the transfer is done.
+        manager.handleEvent(bundle,
+                new ServiceUnitStateData(ServiceUnitState.Owned, "broker-2", "broker-1", VERSION_ID_INIT), null);
+        assertFalse(future.isDone());
+        published.complete(null);
+
+        future.get(5, TimeUnit.SECONDS);
+        assertEquals(manager.getInFlightUnloadRequestCount(), 0);
+        assertEquals(counter.getBreakdownCounters().get(Success).get(Admin).get(), 1);
+    }
+
+    @Test(timeOut = 30_000)
+    public void testEventsOfAnotherUnloadDoNotCompleteTheRequest() throws Exception {
+        UnloadManager manager = new UnloadManager(new UnloadCounter(), "mockBrokerId");
+        String bundle = "bundle-1";
+        // broker-1 became the owner with a transfer from broker-2 and unloads the bundle right away.
+        CompletableFuture<Void> future = manager.waitAsync(() -> CompletableFuture.completedFuture(null),
+                bundle, newUnloadDecision(bundle), 20, TimeUnit.SECONDS);
+
+        // The channel notifies the listeners of the transfer's last state after the unload request was registered.
+        manager.handleEvent(bundle,
+                new ServiceUnitStateData(ServiceUnitState.Owned, "broker-1", "broker-2", VERSION_ID_INIT), null);
+        manager.handleEvent(bundle,
+                new ServiceUnitStateData(ServiceUnitState.Free, null, "broker-2", VERSION_ID_INIT), null);
+        manager.handleEvent(bundle,
+                new ServiceUnitStateData(ServiceUnitState.Owned, "broker-1", "broker-2", VERSION_ID_INIT),
+                new IllegalStateException("Failed stage."));
+        assertFalse(future.isDone());
+        assertEquals(manager.getInFlightUnloadRequestCount(), 1);
+
+        manager.handleEvent(bundle,
+                new ServiceUnitStateData(ServiceUnitState.Free, null, "broker-1", VERSION_ID_INIT), null);
+        future.get(5, TimeUnit.SECONDS);
+        assertEquals(manager.getInFlightUnloadRequestCount(), 0);
     }
 
     @Test
@@ -78,7 +128,7 @@ public class UnloadManagerTest {
         var unloadDecision =
                 new UnloadDecision(new Unload("broker-1", "bundle-1"), Success, Admin);
         CompletableFuture<Void> future =
-                manager.waitAsync(CompletableFuture.completedFuture(null),
+                manager.waitAsync(() -> CompletableFuture.completedFuture(null),
                         "bundle-1", unloadDecision, 3, TimeUnit.SECONDS);
         CompletableFuture<Integer> inFlightRequestCountOnCompletion =
                 captureInFlightRequestCountOnCompletion(future, manager);
@@ -96,7 +146,7 @@ public class UnloadManagerTest {
         assertEquals(manager.getInFlightUnloadRequestCount(), 0);
         assertEquals(counter.getBreakdownCounters().get(Failure).get(Unknown).get(), 1);
 
-        CompletableFuture<Void> nextFuture = manager.waitAsync(CompletableFuture.completedFuture(null),
+        CompletableFuture<Void> nextFuture = manager.waitAsync(() -> CompletableFuture.completedFuture(null),
                 "bundle-1", unloadDecision, 5, TimeUnit.SECONDS);
         assertFalse(nextFuture.isDone());
         assertEquals(manager.getInFlightUnloadRequestCount(), 1);
@@ -113,7 +163,7 @@ public class UnloadManagerTest {
         var unloadDecision =
                 new UnloadDecision(new Unload(srcBroker, bundle), Success, Admin);
         CompletableFuture<Void> future =
-                manager.waitAsync(CompletableFuture.completedFuture(null),
+                manager.waitAsync(() -> CompletableFuture.completedFuture(null),
                         bundle, unloadDecision, 5, TimeUnit.SECONDS);
         CompletableFuture<Integer> inFlightRequestCountOnCompletion =
                 captureInFlightRequestCountOnCompletion(future, manager);
@@ -147,7 +197,7 @@ public class UnloadManagerTest {
         assertEquals(counter.getBreakdownCounters().get(Success).get(Admin).get(), 1);
 
         // Success with Owned state.
-        future = manager.waitAsync(CompletableFuture.completedFuture(null),
+        future = manager.waitAsync(() -> CompletableFuture.completedFuture(null),
                 bundle, unloadDecision, 5, TimeUnit.SECONDS);
         assertEquals(manager.getInFlightUnloadRequestCount(), 1);
         manager.handleEvent(bundle,
@@ -160,7 +210,7 @@ public class UnloadManagerTest {
         assertEquals(counter.getBreakdownCounters().get(Success).get(Admin).get(), 2);
 
         // Success with Free state.
-        future = manager.waitAsync(CompletableFuture.completedFuture(null),
+        future = manager.waitAsync(() -> CompletableFuture.completedFuture(null),
                 bundle, unloadDecision, 5, TimeUnit.SECONDS);
         assertEquals(manager.getInFlightUnloadRequestCount(), 1);
         manager.handleEvent(bundle,
@@ -182,7 +232,7 @@ public class UnloadManagerTest {
         var unloadDecision =
                 new UnloadDecision(new Unload("broker-1", "bundle-1"), Success, Admin);
         CompletableFuture<Void> future =
-                manager.waitAsync(CompletableFuture.completedFuture(null),
+                manager.waitAsync(() -> CompletableFuture.completedFuture(null),
                         "bundle-1", unloadDecision, 5, TimeUnit.SECONDS);
         CompletableFuture<Integer> inFlightRequestCountOnCompletion =
                 captureInFlightRequestCountOnCompletion(future, manager);
@@ -212,7 +262,7 @@ public class UnloadManagerTest {
         var unloadDecision =
                 new UnloadDecision(new Unload("broker-1", "bundle-1"), Success, Admin);
         CompletableFuture<Void> future =
-                manager.waitAsync(CompletableFuture.completedFuture(null),
+                manager.waitAsync(() -> CompletableFuture.completedFuture(null),
                         "bundle-1", unloadDecision, 5, TimeUnit.SECONDS);
         CompletableFuture<Integer> inFlightRequestCountOnCompletion =
                 captureInFlightRequestCountOnCompletion(future, manager);
@@ -241,7 +291,7 @@ public class UnloadManagerTest {
             for (int i = 0; i < CONCURRENT_REQUEST_COUNT; i++) {
                 registrations.add(CompletableFuture.supplyAsync(() -> {
                     await(start);
-                    return manager.waitAsync(CompletableFuture.completedFuture(null),
+                    return manager.waitAsync(() -> CompletableFuture.completedFuture(null),
                             "bundle-1", decision, 30, TimeUnit.SECONDS);
                 }, executor));
             }
@@ -265,7 +315,7 @@ public class UnloadManagerTest {
             var timeoutDecision = newUnloadDecision(timeoutBundle);
             List<CompletableFuture<Void>> timeoutWaiters = new ArrayList<>();
             for (int i = 0; i < CONCURRENT_REQUEST_COUNT; i++) {
-                timeoutWaiters.add(manager.waitAsync(CompletableFuture.completedFuture(null),
+                timeoutWaiters.add(manager.waitAsync(() -> CompletableFuture.completedFuture(null),
                         timeoutBundle, timeoutDecision, 1, TimeUnit.SECONDS));
             }
             assertEquals(manager.getInFlightUnloadRequestCount(), 1);
@@ -296,7 +346,7 @@ public class UnloadManagerTest {
         for (int i = 0; i < CONCURRENT_REQUEST_COUNT; i++) {
             String bundle = "close-race-" + i;
             bundles.add(bundle);
-            waiters.add(manager.waitAsync(CompletableFuture.completedFuture(null),
+            waiters.add(manager.waitAsync(() -> CompletableFuture.completedFuture(null),
                     bundle, newUnloadDecision(bundle), 30, TimeUnit.SECONDS));
         }
         assertEquals(manager.getInFlightUnloadRequestCount(), CONCURRENT_REQUEST_COUNT);
