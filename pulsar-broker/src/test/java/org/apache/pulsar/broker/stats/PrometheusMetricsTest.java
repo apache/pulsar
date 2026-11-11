@@ -1983,16 +1983,35 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
         PrometheusMetricsTestUtil.generate(pulsar, false, false, false, statsOut);
         String metricsStr = statsOut.toString();
+        // The 1.x writer names counters with _total; the simpleclient writer emitted "caffeine_cache_hit counter".
         assertThat(metricsStr).contains("# TYPE caffeine_cache_hit_total counter\n")
+                .doesNotContain("# TYPE caffeine_cache_hit counter\n")
                 .contains("# TYPE caffeine_cache_eviction_weight gauge\n")
+                .doesNotContain("caffeine_cache_eviction_weight_total")
+                .doesNotContain("caffeine_cache_weighted_size")
                 .contains("# TYPE caffeine_cache_load_duration_seconds summary\n");
+        for (String type : List.of("caffeine_cache_hit_total counter", "caffeine_cache_miss_total counter",
+                "caffeine_cache_requests_total counter", "caffeine_cache_eviction_total counter",
+                "caffeine_cache_eviction_weight gauge", "caffeine_cache_estimated_size gauge",
+                "caffeine_cache_loads_total counter", "caffeine_cache_load_failure_total counter",
+                "caffeine_cache_load_duration_seconds summary")) {
+            assertEquals(StringUtils.countMatches(metricsStr, "# TYPE " + type + "\n"), 1, type);
+        }
         Multimap<String, Metric> metrics = parseMetrics(metricsStr);
         for (String family : List.of("caffeine_cache_hit_total", "caffeine_cache_miss_total",
                 "caffeine_cache_requests_total", "caffeine_cache_eviction_total",
-                "caffeine_cache_eviction_weight", "caffeine_cache_estimated_size")) {
+                "caffeine_cache_eviction_weight", "caffeine_cache_estimated_size",
+                "caffeine_cache_loads_total", "caffeine_cache_load_failure_total",
+                "caffeine_cache_load_duration_seconds_count")) {
             Collection<Metric> samples = metrics.get(family);
             assertThat(samples).as(family).extracting(m -> m.tags.get("cache")).contains("bundles", "owned-bundles");
             assertThat(samples).as(family).allSatisfy(m -> assertEquals(m.tags.get("cluster"), "test"));
+        }
+        // The loading caches have been exercised by broker start-up, so their load statistics are non-zero.
+        for (String family : List.of("caffeine_cache_requests_total", "caffeine_cache_loads_total",
+                "caffeine_cache_load_duration_seconds_count")) {
+            assertThat(metrics.get(family)).as(family).filteredOn(m -> "bundles".equals(m.tags.get("cache")))
+                    .isNotEmpty().allSatisfy(m -> assertThat(m.value).as(family).isGreaterThan(0));
         }
     }
 
