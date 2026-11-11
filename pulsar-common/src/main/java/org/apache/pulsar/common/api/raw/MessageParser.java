@@ -168,10 +168,24 @@ public class MessageParser {
             return null;
         }
 
+        // Guard against client-controlled uncompressedSize that exceeds maxMessageSize or is non-positive.
+        // Without this check, a malicious or corrupted message could cause codec.decode() to allocate a
+        // ByteBuf up to ~2 GiB, leading to OOM.
+        if (uncompressedSize <= 0 || uncompressedSize > maxMessageSize) {
+            log.error()
+                    .attr("topic", topic)
+                    .attr("uncompressedSize", uncompressedSize)
+                    .attr("maxMessageSize", maxMessageSize)
+                    .attr("ledgerId", ledgerId)
+                    .attr("entryId", entryId)
+                    .log("Got corrupted uncompressed message size");
+            return null;
+        }
+
         try {
             ByteBuf uncompressedPayload = codec.decode(payload, uncompressedSize);
             return uncompressedPayload;
-        } catch (IOException e) {
+        } catch (IOException | RuntimeException e) {
             log.error()
                     .attr("topic", topic)
                     .attr("compression", msgMetadata.getCompression())
