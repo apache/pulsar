@@ -2720,7 +2720,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     @VisibleForTesting
     synchronized void failPendingMessages(ClientCnx cnx, PulsarClientException ex) {
         if (cnx == null) {
-            final AtomicInteger releaseCount = new AtomicInteger();
             final boolean batchMessagingEnabled = isBatchMessagingEnabled();
             // Track message count to fail so that newly added messages by synchronous retries
             // triggered by op.sendComplete(ex); don't get removed
@@ -2735,7 +2734,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
             for (int i = 0; i < pendingMessagesToFailCount; i++) {
                 OpSendMsg op = pendingMessages.remove();
-                releaseCount.addAndGet(batchMessagingEnabled ? op.numMessagesInBatch : 1);
+                // Give the op's permits and memory back before completing its callback, like the other completion
+                // paths: a caller woken by the failed send, or a retry from the callback, must find them released.
+                releaseSemaphoreForSendOp(op);
                 try {
                     // Need to protect ourselves from any exception being thrown in the future handler from the
                     // application
@@ -2753,11 +2754,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                             .log("Got exception while completing the callback");
                 }
 
-                client.getMemoryLimitController().releaseMemory(op.uncompressedSize);
                 releaseOpCmdAndRecycle(op);
             }
 
-            semaphoreRelease(releaseCount.get());
             if (batchMessagingEnabled) {
                 failPendingBatchMessages(ex);
             }
@@ -2996,10 +2995,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
      * a non-last chunk: its failure stops the builder, so no last-chunk operation will be created to
      * settle the message future, interceptor payload retain and pending-message metrics.
      *
-     * <p>Keep this separate from failPendingMessages: that method settles already-queued operations,
-     * invokes chunked-message callbacks only for the last chunk, and returns permits together after
-     * draining its snapshot of the queue. Here the failed op returns its own accounting, while the
-     * builder releases the claims for chunks that will never be created.
+     * <p>Keep this separate from failPendingMessages: that method settles already-queued operations
+     * and invokes chunked-message callbacks only for the last chunk. Here the failed op returns its
+     * own accounting, while the builder releases the claims for chunks that will never be created.
      */
     private void failSendOp(OpSendMsg op, PulsarClientException exception) {
         if (op.chunkedMessageCtx != null) {
