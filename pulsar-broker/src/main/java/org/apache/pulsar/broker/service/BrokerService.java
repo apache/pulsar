@@ -2715,17 +2715,14 @@ public class BrokerService implements Closeable {
                 || NamespaceService.isHeartbeatNamespace(topicName.getNamespaceObject())) {
             return CompletableFuture.completedFuture(null);
         }
-        CompletableFuture<Void> result = new CompletableFuture<>();
-        AbstractTopic.isClusterMigrationEnabled(pulsar, topicName.toString()).handle((isMigrated, ex) -> {
-            if (isMigrated) {
-                result.completeExceptionally(
-                        new BrokerServiceException.TopicMigratedException(topicName + " already migrated"));
-            } else {
-                result.complete(null);
-            }
-            return null;
-        });
-        return result;
+        return AbstractTopic.isClusterMigrationEnabled(pulsar, topicName.toString())
+                .thenCompose(isMigrated -> {
+                    if (isMigrated) {
+                        return CompletableFuture.failedFuture(
+                                new TopicMigratedException(topicName + " already migrated"));
+                    }
+                    return CompletableFuture.completedFuture(null);
+                });
     }
 
     public CompletableFuture<ManagedLedgerConfig> getManagedLedgerConfig(@NonNull TopicName topicName) {
