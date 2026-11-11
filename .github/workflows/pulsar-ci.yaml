@@ -98,7 +98,7 @@ jobs:
     steps:
       - name: Cancel scheduled jobs in forks by default
         if: ${{ github.repository != 'apache/pulsar' && github.event_name == 'schedule' }}
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             await github.rest.actions.cancelWorkflowRun({owner: context.repo.owner, repo: context.repo.repo, run_id: context.runId});
