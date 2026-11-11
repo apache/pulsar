@@ -26,10 +26,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.RETURNS_SELF;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 import io.opentelemetry.api.common.Attributes;
@@ -61,6 +64,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.pulsar.broker.service.scalable.ScalableTopicMetrics.RequestType;
 import org.apache.pulsar.broker.service.scalable.ScalableTopicMetrics.WatchType;
+import org.mockito.MockedStatic;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -164,28 +168,61 @@ public class ScalableTopicMetricsTest {
         }
     }
 
+    /**
+     * Proves that a per-metric {@code histogramClassicUpperBounds} override in the client configuration handed to
+     * the constructor is stripped before the request histogram is built: the scrape still exposes the fixed bounds
+     * and the observation lands in them. This does not cover where the production constructors take their
+     * configuration from; see {@link #testGlobalRuntimeBucketOverridesDoNotReachTheRequestHistogram}.
+     */
     @Test
     public void testRuntimeBucketOverridesDoNotReachTheRequestHistogram() {
-        // The shared collector rebuilds the request histogram snapshot with the fixed bucket bounds. A per-metric
-        // client property that overrides those bounds must therefore never apply to the internal histogram.
-        PrometheusProperties overrides = PrometheusPropertiesLoader.load(Map.of(
-                "io.prometheus.metrics." + PROM_DURATION + ".histogramClassicUpperBounds", "0.1,1"));
         PrometheusRegistry registry = new PrometheusRegistry();
         AtomicLong nanoTime = new AtomicLong();
         try (Telemetry telemetry = new Telemetry();
-             ScalableTopicMetrics metrics =
-                     new ScalableTopicMetrics(telemetry.meter, CLUSTER, registry, nanoTime::get, overrides)) {
+             ScalableTopicMetrics metrics = new ScalableTopicMetrics(telemetry.meter, CLUSTER, registry,
+                     nanoTime::get, bucketOverrides())) {
             ScalableTopicMetrics.Request request = metrics.startRequest(RequestType.LOOKUP);
             nanoTime.addAndGet(TimeUnit.MILLISECONDS.toNanos(30));
             request.success();
-            List<String> bounds = family(registry, PROM_DURATION).samples().stream()
-                    .filter(sample -> sample.name().equals(PROM_DURATION + "_bucket"))
-                    .map(sample -> sample.labelValues().get(sample.labelNames().indexOf("le"))).toList();
-            List<String> expected = new ArrayList<>(BUCKETS.stream().map(PrometheusSamples::upperBound).toList());
-            expected.add("+Inf");
-            assertThat(bounds).containsExactlyElementsOf(expected);
-            assertThat(durationSample(registry, "_count", "lookup", "success")).isEqualTo(1);
+            assertFixedBoundsAndOneLookup(registry);
         }
+    }
+
+    /**
+     * Proves that the public constructor builds the request histogram from {@link PrometheusProperties#get()} with
+     * the metric overrides stripped. {@code PrometheusProperties.get()} is stubbed on this thread to carry the
+     * per-metric bucket override, so a plain {@code Histogram.builder()} would pick the override up from the global
+     * configuration, the shared collector would then rebuild the snapshot with a different bucket count, and the
+     * scrape would fail. The test does not touch the real global configuration and needs no forked JVM.
+     */
+    @Test
+    public void testGlobalRuntimeBucketOverridesDoNotReachTheRequestHistogram() {
+        PrometheusProperties overrides = bucketOverrides();
+        PrometheusRegistry registry = new PrometheusRegistry();
+        try (MockedStatic<PrometheusProperties> global = mockStatic(PrometheusProperties.class, CALLS_REAL_METHODS)) {
+            global.when(PrometheusProperties::get).thenReturn(overrides);
+            try (Telemetry telemetry = new Telemetry();
+                 ScalableTopicMetrics metrics = new ScalableTopicMetrics(telemetry.meter, CLUSTER, registry)) {
+                global.verify(PrometheusProperties::get, atLeastOnce());
+                metrics.startRequest(RequestType.LOOKUP).success();
+                assertFixedBoundsAndOneLookup(registry);
+            }
+        }
+    }
+
+    private static PrometheusProperties bucketOverrides() {
+        return PrometheusPropertiesLoader.load(Map.of(
+                "io.prometheus.metrics." + PROM_DURATION + ".histogramClassicUpperBounds", "0.1,1"));
+    }
+
+    private static void assertFixedBoundsAndOneLookup(PrometheusRegistry registry) {
+        List<String> bounds = family(registry, PROM_DURATION).samples().stream()
+                .filter(sample -> sample.name().equals(PROM_DURATION + "_bucket"))
+                .map(sample -> sample.labelValues().get(sample.labelNames().indexOf("le"))).toList();
+        List<String> expected = new ArrayList<>(BUCKETS.stream().map(PrometheusSamples::upperBound).toList());
+        expected.add("+Inf");
+        assertThat(bounds).containsExactlyElementsOf(expected);
+        assertThat(durationSample(registry, "_count", "lookup", "success")).isEqualTo(1);
     }
 
     @DataProvider

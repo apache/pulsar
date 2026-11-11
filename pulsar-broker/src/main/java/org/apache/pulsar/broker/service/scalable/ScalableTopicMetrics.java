@@ -157,6 +157,8 @@ public final class ScalableTopicMetrics implements AutoCloseable {
         // The shared collector exports no exemplars. Disable sampling here so recording under the freeze lock
         // cannot invoke a globally configured exemplar sampler. The histogram is never registered itself; the
         // shared collector reads its snapshot.
+        // Never use the plain Histogram.builder() here: it reads the global client configuration, whose per-metric
+        // bucket override would change the live layout while the shared collector rebuilds it with the fixed bounds.
         prometheusRequestDuration = Histogram.builder(withoutMetricOverrides(clientProperties))
                 .name(REQUEST_DURATION).help(REQUEST_HELP)
                 .labelNames("cluster", "request_type", "operation_status")
