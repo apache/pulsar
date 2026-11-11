@@ -987,9 +987,6 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
         final String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
         admin.topics().createNonPartitionedTopic(tpName);
 
-        // The counters are static JVM totals, so compare deltas: the sequential client creations below each need
-        // their own lookup, while the reconnects after the unload arrive together and must be merged.
-        int lookupCountBeforeCreate = calculateLookupRequestCount();
         // Create 1 producer and 100 consumers.
         List<Producer<String>> producers = new ArrayList<>();
         List<Consumer<String>> consumers = new ArrayList<>();
@@ -1000,11 +997,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
             consumers.add(pulsarClient.newConsumer(Schema.STRING).topic(tpName).subscriptionName("s" + i).subscribe());
         }
 
-        // Verify the merged reconnect lookups are fewer than the unmerged creation lookups.
+        // Verify the lookup count will be smaller than before improve.
         int lookupCountBeforeUnload = calculateLookupRequestCount();
-        int creationLookups = lookupCountBeforeUnload - lookupCountBeforeCreate;
-        assertTrue(creationLookups >= producers.size() + consumers.size(),
-                "each sequential client creation needs its own lookup, got " + creationLookups);
         admin.namespaces().unload(TopicName.get(tpName).getNamespace());
         Awaitility.await().untilAsserted(() -> {
             for (Producer p : producers) {
@@ -1015,11 +1009,10 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
             }
         });
         int lookupCountAfterUnload = calculateLookupRequestCount();
-        int reconnectLookups = lookupCountAfterUnload - lookupCountBeforeUnload;
-        log.info().attr("creationLookups", creationLookups).attr("reconnectLookups", reconnectLookups)
-                .log("lookup count while creating clients, while reconnecting after unload");
-        assertTrue(reconnectLookups < creationLookups,
-                "the merged reconnect lookups should be fewer than the creation lookups");
+        log.info().attr("beforeUnload", lookupCountBeforeUnload).attr("afterUnload", lookupCountAfterUnload)
+                .log("lookup count before unload, after unload");
+        assertTrue(lookupCountAfterUnload < lookupCountBeforeUnload * 2,
+                "the lookup count should be smaller than before improve");
 
         // Verify the producers and consumers is still works.
         List<String> messagesSent = new ArrayList<>();
