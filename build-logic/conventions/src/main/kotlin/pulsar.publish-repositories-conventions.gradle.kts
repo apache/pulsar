@@ -39,7 +39,7 @@ publishing {
     repositories {
         maven {
             name = "localDeploy"
-            url = uri(rootProject.layout.buildDirectory.dir("local-deploy-repo"))
+            url = uri(isolated.rootProject.projectDirectory.dir("build/local-deploy-repo"))
         }
     }
 }
@@ -168,33 +168,38 @@ tasks.withType<Sign>().configureEach {
         (providers.gradleProperty("useGpgCmd").orNull?.toBoolean() ?: false)
 }
 
-// Every upload in API/SPI mode waits for the entire selected consumer graph to pass validation.
-// String task dependencies also configure the selected projects with configure-on-demand enabled.
+// Every upload in API/SPI mode waits for the entire selected consumer graph to pass validation. The
+// selected modules share their generated POM and Gradle Module Metadata with the root project, which
+// validates them all and shares the validation's result, which every publish task takes as an input:
+// see SharedBuildArtifacts.kt.
 if (PulsarApiSpiPublication.isEnabled(project)) {
+    val publicationTaskSuffix = "For${PULSAR_PUBLICATION.replaceFirstChar(Char::uppercaseChar)}Publication"
+    val generatePom = tasks.withType<GenerateMavenPom>().matching { it.name == "generatePomFile$publicationTaskSuffix" }
+    val pomFile = layout.buildDirectory.file("publications/$PULSAR_PUBLICATION/pom-default.xml")
     if (project == rootProject) {
-        tasks.register<ValidateApiSpiPublication>("validateApiSpiPublication") {
+        val validate = tasks.register<ValidateApiSpiPublication>("validateApiSpiPublication") {
             group = "verification"
             description = "Validate that every published Pulsar dependency belongs to the API/SPI publication set."
             publicationGroup.set(project.group.toString())
-            for (selectedPath in PulsarApiSpiPublication.projects) {
-                val selected = project(selectedPath)
-                // A qualified task invocation does not discover/configure container projects.
-                // Initialize their Kotlin script scopes before Gradle resolves nested task paths.
-                generateSequence(selected.parent) { it.parent }
-                    .takeWhile { it != rootProject }.toList().asReversed().forEach {
-                        project.evaluationDependsOn(it.path)
-                    }
-                val prefix = if (selectedPath == ":") "" else selectedPath
-                poms.from(selected.layout.buildDirectory.file("publications/maven/pom-default.xml"))
-                dependsOn("$prefix:generatePomFileForMavenPublication")
-                if (selectedPath != ":") {
-                    moduleMetadata.from(selected.layout.buildDirectory.file("publications/maven/module.json"))
-                    dependsOn("$prefix:generateMetadataFileForMavenPublication")
-                }
-            }
+            val selectedModules = PulsarApiSpiPublication.projects - ":"
+            poms.from(files(pomFile).builtBy(generatePom))
+            poms.from(sharedBuildArtifacts(selectedModules, "api-spi:pom"))
+            moduleMetadata.from(sharedBuildArtifacts(selectedModules, "api-spi:module-metadata"))
+            validated.set(layout.buildDirectory.file("api-spi-publication/validated.txt"))
         }
-    }
-    tasks.withType<AbstractPublishToMaven>().configureEach {
-        dependsOn(":validateApiSpiPublication")
+        shareBuildArtifact("api-spi:validated", validate.flatMap { it.validated }, validate)
+        tasks.withType<AbstractPublishToMaven>().configureEach {
+            inputs.files(validate).withPropertyName("apiSpiPublicationValidated")
+        }
+    } else {
+        if (project.path in PulsarApiSpiPublication.projects) {
+            shareBuildArtifact("api-spi:pom", pomFile, generatePom)
+            shareBuildArtifact("api-spi:module-metadata",
+                layout.buildDirectory.file("publications/$PULSAR_PUBLICATION/module.json"),
+                tasks.withType<GenerateModuleMetadata>().matching { it.name == "generateMetadataFile$publicationTaskSuffix" })
+        }
+        tasks.withType<AbstractPublishToMaven>().configureEach {
+            inputs.files(sharedBuildArtifact(":", "api-spi:validated")).withPropertyName("apiSpiPublicationValidated")
+        }
     }
 }

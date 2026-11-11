@@ -28,8 +28,10 @@ import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.resources.ScalableTopicResources;
 import org.apache.pulsar.broker.service.scalable.ScalableTopicService;
+import org.apache.pulsar.broker.service.scalable.SegmentLoadReporter;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ScalableSubscriptionType;
+import org.apache.pulsar.common.scalable.SegmentLoadStats;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.awaitility.Awaitility;
@@ -128,6 +130,32 @@ public class V5MultiBrokerScalableTopicDeleteTest extends V5MultiBrokerClientBas
             assertThat(ObjectMapperFactory.getMapper().reader().readValue(lock.get().getValue(), String.class))
                     .as("broker holding the controller lock").isEqualTo(leaders.get(0));
         });
+    }
+
+    /**
+     * The delete deletes the record before the segment topics, which stay loaded until then. A load report of a
+     * segment in between must not bring the topic's node back: Oxia creates the missing parents of the load record as
+     * empty records, and the namespace then lists a topic that can't be read, deleted or created again.
+     */
+    @Test
+    public void segmentLoadReportAfterRecordDeleteDoesNotBringTopicBack() throws Exception {
+        String topic = newScalableTopic(2);
+        TopicName tn = TopicName.get(topic);
+        ScalableTopicResources resources = brokers.get(0).getPulsarResources().getScalableTopicResources();
+        resources.deleteScalableTopicAsync(tn).get();
+
+        // A broker reports the load of a segment topic that just loaded there, whatever the stored load.
+        List<Boolean> written = new ArrayList<>();
+        for (long segmentId = 0; segmentId < 2; segmentId++) {
+            written.add(new SegmentLoadReporter(resources, 0.25)
+                    .reportIfChanged(tn, segmentId, new SegmentLoadStats(0, 0, 0, 0)).get());
+        }
+
+        assertThat(resources.getStore().get(resources.topicPath(tn)).get()).as("node of the deleted topic").isEmpty();
+        assertThat(admin.scalableTopics().listScalableTopics(getNamespace())).doesNotContain(topic);
+        admin.scalableTopics().createScalableTopic(topic, 1);
+        assertThat(admin.scalableTopics().getMetadata(topic).getSegments()).hasSize(1);
+        assertThat(written).as("segment loads written").containsOnly(false);
     }
 
     private void assertTopicStaysDeleted(String topic) throws Exception {

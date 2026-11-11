@@ -122,6 +122,26 @@ public class OneWayReplicatorSchemaValidationEnforcedTest extends OneWayReplicat
     }
 
     @Test(timeOut = 30000)
+    public void testReplicationOfSchemaLessMessagesToRemoteTopicWithSchema() throws Exception {
+        String topicName = BrokerTestUtil.newUniqueName(
+                "persistent://" + sourceClusterAlwaysSchemaCompatibleNamespace + "/tp_");
+        // Only the remote topic has a schema, so the replicator sends the message without a schema version
+        admin2.topics().createNonPartitionedTopic(topicName);
+        admin2.schemas().createSchema(topicName, Schema.STRING.getSchemaInfo());
+        admin1.topics().createNonPartitionedTopic(topicName);
+
+        try (org.apache.pulsar.client.api.Consumer<String> consumer = client2.newConsumer(Schema.STRING)
+                .topic(topicName).subscriptionName("sub").subscribe();
+                Producer<byte[]> producer = client1.newProducer().topic(topicName).create()) {
+            producer.send("schema-less".getBytes(UTF_8));
+
+            Message<String> received = consumer.receive(10, TimeUnit.SECONDS);
+            assertThat(received).isNotNull();
+            assertThat(received.getValue()).isEqualTo("schema-less");
+        }
+    }
+
+    @Test(timeOut = 30000)
     public void testReplicationReconnectWithSchemaValidationEnforced() throws Exception {
         Schema<MyClass> myClassSchema = Schema.AVRO(MyClass.class);
         final String topicName =

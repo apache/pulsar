@@ -25,6 +25,7 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNotSame;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
+import io.netty.util.concurrent.EventExecutor;
 import java.lang.reflect.Field;
 import java.util.Collections;
 import java.util.Optional;
@@ -63,8 +64,10 @@ import org.apache.pulsar.common.policies.data.ClusterPolicies.ClusterUrl;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
+import org.testng.ITestResult;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -76,16 +79,26 @@ public class NonPersistentTopicTest extends BrokerTestBase {
         return Mockito.spy(brokerService);
     }
 
-    @BeforeMethod(alwaysRun = true)
+    // The test methods share the broker and use topics of their own. After a failed method, the next one gets a
+    // new broker (TestRetrySupport).
+    @BeforeClass(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         super.baseSetup();
     }
 
-    @AfterMethod(alwaysRun = true)
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @AfterMethod(alwaysRun = true)
+    public void resetClusterMigration(ITestResult result) throws Exception {
+        if (result.isSuccess()) {
+            // the migration tests mark the cluster as migrated
+            admin.clusters().updateClusterMigration(conf.getClusterName(), false, new ClusterUrl());
+        }
     }
 
     @Test
@@ -115,6 +128,14 @@ public class NonPersistentTopicTest extends BrokerTestBase {
         assertNotNull(msg);
         msg = consumer2.receive();
         assertNotNull(msg);
+
+        // The broker counts a message out once its write to the connection completes, which can be after the client
+        // received it: wait until both subscriptions' deliveries are counted
+        Awaitility.await().untilAsserted(() -> {
+            TopicStats current = topic.getStats(false, false, false);
+            assertEquals(current.getMsgOutCounter(), 2);
+            assertEquals(current.getBytesOutCounter(), 2 * current.getBytesInCounter());
+        });
 
         // send/receive result in non-zero stats
         TopicStats statsBeforeUnsubscribe = topic.getStats(false, false, false);
@@ -510,6 +531,36 @@ public class NonPersistentTopicTest extends BrokerTestBase {
             assertEquals(message.getValue(), "after-reconnect");
         } finally {
             allowRemoval.complete(null);
+        }
+    }
+
+    @Test
+    public void testClosingLastConsumerRemovesSubscriptionBeforeReturning() throws Exception {
+        String topicName = "non-persistent://prop/ns-abc/close-last-consumer-" + UUID.randomUUID();
+        String subName = "sub";
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName).subscribe();
+        NonPersistentTopic topic = (NonPersistentTopic) pulsar.getBrokerService()
+                .getTopicReference(topicName).orElseThrow();
+        NonPersistentSubscription subscription = topic.getSubscriptions().get(subName);
+        assertTrue(topic.isActive());
+
+        // Hold the broker's IO threads, so that no work the close hands over to them can run before the checks.
+        CountDownLatch releaseIoThreads = new CountDownLatch(1);
+        for (EventExecutor ioThread : pulsar.getBrokerService().executor()) {
+            ioThread.submit(() -> {
+                releaseIoThreads.await();
+                return null;
+            });
+        }
+        try {
+            // ServerCnx acknowledges the client's CloseConsumer as soon as this returns, and the inactive topic GC
+            // must not count the subscription after that.
+            subscription.getConsumers().get(0).close();
+            assertFalse(topic.getSubscriptions().containsKey(subName));
+            assertFalse(topic.isActive());
+        } finally {
+            releaseIoThreads.countDown();
         }
     }
 

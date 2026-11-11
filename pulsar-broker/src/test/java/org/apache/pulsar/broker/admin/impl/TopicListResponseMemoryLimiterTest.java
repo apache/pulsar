@@ -56,6 +56,7 @@ import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiterImpl;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class TopicListResponseMemoryLimiterTest {
@@ -200,6 +201,64 @@ public class TopicListResponseMemoryLimiterTest {
         assertThat(acquiredHeapPermits()).isEqualTo(TopicListMemoryLimiter.estimateTopicListSize(TOPICS));
         responseDone.set(true);
         firstCompletionCallback.onComplete(null);
+        assertThat(acquiredHeapPermits()).isZero();
+    }
+
+    @DataProvider
+    public Object[][] cancellationWhileWaitingForEstimate() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    @Test(dataProvider = "cancellationWhileWaitingForEstimate")
+    public void testListTopicsAfterCollectingSkipsCollectingWhenResponseCompletesWhileWaiting(
+            boolean estimateCompletedBeforeCancellation) {
+        // Gate the continuation before either listing starts.
+        Queue<Runnable> queuedTasks = new ConcurrentLinkedQueue<>();
+        AsyncDualMemoryLimiterImpl gatedLimiter = spy(limiter);
+        doReturn((Executor) queuedTasks::add).when(gatedLimiter).getCompletionExecutor();
+        when(brokerService.getMaxTopicListInFlightLimiter()).thenReturn(gatedLimiter);
+
+        TopicListing listing = TopicListing.namespaceTopics(NAMESPACE, Mode.ALL);
+        AsyncResponse firstResponse = mock(AsyncResponse.class);
+        AtomicReference<CompletionCallback> firstCompletionCallback = new AtomicReference<>();
+        doAnswer(invocation -> {
+            firstCompletionCallback.set(invocation.getArgument(0));
+            return List.of();
+        }).when(firstResponse).register(any(Object.class));
+        CompletableFuture<List<String>> firstListing = new CompletableFuture<>();
+        CompletableFuture<List<String>> first = TopicListResponseMemoryLimiter.listTopicsAfterCollecting(
+                brokerService, firstResponse, listing, null, () -> CompletableFuture.completedFuture(null),
+                __ -> firstListing);
+        AtomicInteger collectorCalls = new AtomicInteger();
+        CompletableFuture<List<String>> waiting = TopicListResponseMemoryLimiter.listTopicsAfterCollecting(
+                brokerService, response, listing, null, () -> {
+                    collectorCalls.incrementAndGet();
+                    return CompletableFuture.completedFuture(TOPICS);
+                }, CompletableFuture::completedFuture);
+        assertThat(first).isNotDone();
+        assertThat(waiting).isNotDone();
+        assertThat(queuedTasks).isEmpty();
+        assertThat(collectorCalls).hasValue(0);
+
+        if (estimateCompletedBeforeCancellation) {
+            firstListing.complete(TOPICS);
+            assertThat(first).succeedsWithin(Duration.ofSeconds(5)).isEqualTo(TOPICS);
+            assertThat(queuedTasks).hasSize(1);
+        }
+        // Simulate response completion either before the estimate is ready or while the continuation is queued.
+        completeResponse(null);
+        firstListing.complete(TOPICS);
+        assertThat(first).succeedsWithin(Duration.ofSeconds(5)).isEqualTo(TOPICS);
+        assertThat(queuedTasks).hasSize(1);
+        assertThat(waiting).isNotDone();
+        queuedTasks.remove().run();
+
+        assertThat(collectorCalls).as("Cancelled requests must not collect topics").hasValue(0);
+        assertThat(waiting).failsWithin(Duration.ofSeconds(5)).withThrowableThat()
+                .havingRootCause().isInstanceOf(TopicListResponseMemoryLimiter.RequestCancelledException.class);
+        // Cancelling the waiting request must not release the first response's permits.
+        assertThat(acquiredHeapPermits()).isEqualTo(TopicListMemoryLimiter.estimateTopicListSize(TOPICS));
+        firstCompletionCallback.get().onComplete(null);
         assertThat(acquiredHeapPermits()).isZero();
     }
 
@@ -406,6 +465,26 @@ public class TopicListResponseMemoryLimiterTest {
         assertThat(listingCalls).hasValue(0);
         assertThat(limiter.getLimiter(LimitType.HEAP_MEMORY).getQueueSize()).isZero();
         limiter.release(otherListingPermit);
+    }
+
+    @Test
+    public void testListTopicsAfterCollectingSkipsCollectingWhenResponseIsAlreadyDone() {
+        responseDone.set(true);
+        AtomicInteger collectorCalls = new AtomicInteger();
+        TopicListing listing = TopicListing.namespaceTopics(NAMESPACE, Mode.ALL);
+
+        CompletableFuture<List<String>> result = TopicListResponseMemoryLimiter.listTopicsAfterCollecting(
+                brokerService, response, listing, null, () -> {
+                    collectorCalls.incrementAndGet();
+                    return CompletableFuture.completedFuture(TOPICS);
+                }, CompletableFuture::completedFuture);
+
+        assertThat(collectorCalls).hasValue(0);
+        assertThat(result).failsWithin(Duration.ofSeconds(5)).withThrowableThat()
+                .havingRootCause().isInstanceOf(TopicListResponseMemoryLimiter.RequestCancelledException.class);
+        assertThat(acquiredHeapPermits()).isZero();
+        // Cancelling the initializing request must allow a later live request to obtain an estimate.
+        assertThat(sizeCache.getTopicListSize(listing, null).getSizeAsync()).isDone();
     }
 
     @Test

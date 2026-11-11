@@ -205,6 +205,36 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         return compactor;
     }
 
+    private static final String MARKER_KEY = "__marker";
+
+    /**
+     * Receives the rest of what the consumer would get, without waiting for a receive timeout: publishes a marker
+     * after everything the test wrote and returns the messages received before it. A consumer gets the messages of
+     * a topic in order, so anything else still to come for it arrives before the marker. The marker stays on the
+     * topic, so only use this when the test doesn't read the topic again with another subscription.
+     */
+    private <T> List<Message<T>> receiveUntilMarker(Consumer<T> consumer, Schema<T> schema, T markerValue)
+            throws PulsarClientException {
+        try (Producer<T> producer = pulsarClient.newProducer(schema).topic(consumer.getTopic())
+                .enableBatching(false).create()) {
+            producer.newMessage().key(MARKER_KEY).value(markerValue).send();
+        }
+        List<Message<T>> received = new ArrayList<>();
+        while (true) {
+            Message<T> message = consumer.receive(10, TimeUnit.SECONDS);
+            assertNotNull(message, "The marker message did not arrive");
+            if (MARKER_KEY.equals(message.getKey())) {
+                consumer.acknowledge(message);
+                return received;
+            }
+            received.add(message);
+        }
+    }
+
+    private List<Message<byte[]>> receiveUntilMarker(Consumer<byte[]> consumer) throws PulsarClientException {
+        return receiveUntilMarker(consumer, Schema.BYTES, "marker".getBytes());
+    }
+
     @Test
     public void testCompactionNotBlockedBySubscribeRateLimit() throws Exception {
         String namespace = "my-tenant/my-ns";
@@ -494,8 +524,12 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
             assertEquals(m.getData(), "content2".getBytes());
         }
 
+        // The subscribe below retries until the operation timeout, which is 30 s by default
+        @Cleanup
+        PulsarClient shortTimeoutClient = PulsarClient.builder().serviceUrl(lookupUrl.toString())
+                .operationTimeout(2, TimeUnit.SECONDS).build();
         stopBroker();
-        try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
+        try (Consumer<byte[]> consumer = shortTimeoutClient.newConsumer().topic(topic).subscriptionName("sub1")
                 .readCompacted(true).subscribe()) {
             consumer.receive();
             fail("Shouldn't have been able to receive anything");
@@ -675,16 +709,10 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         compact(topic);
 
         // Read messages before compaction to get ids
-        List<Message<byte[]>> messages = new ArrayList<>();
+        List<Message<byte[]>> messages;
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
              .subscriptionName("sub1").receiverQueueSize(1).readCompacted(true).subscribe()) {
-            while (true) {
-                Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
-                if (message ==  null) {
-                    break;
-                }
-                messages.add(message);
-            }
+            messages = receiveUntilMarker(consumer);
         }
 
         assertEquals(messages.size(), 3);
@@ -728,16 +756,10 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         compact(topic);
 
-        List<Message<byte[]>> messages = new ArrayList<>();
+        List<Message<byte[]>> messages;
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
              .subscriptionName("sub1").receiverQueueSize(1).readCompacted(true).subscribe()) {
-            while (true) {
-                Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
-                if (message == null) {
-                    break;
-                }
-                messages.add(message);
-            }
+            messages = receiveUntilMarker(consumer);
         }
 
         assertEquals(messages.size(), 2);
@@ -855,11 +877,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                 assertNull(m);
             } else {
                 List<Pair<String, String>> result = new ArrayList<>();
-                while (true) {
-                    Message<byte[]> message = consumer.receive(10, TimeUnit.SECONDS);
-                    if (message == null) {
-                        break;
-                    }
+                for (Message<byte[]> message : receiveUntilMarker(consumer)) {
                     result.add(Pair.of(message.getKey(),
                             message.getData() == null ? null : new String(message.getData())));
                 }
@@ -1608,8 +1626,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         // consumer with readCompacted enabled only get compacted entries
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
                 .readCompacted(true).subscribe()) {
-            Message<byte[]> m = consumer.receive(2, TimeUnit.SECONDS);
-            assertNull(m);
+            assertEquals(receiveUntilMarker(consumer), List.of());
         }
     }
 
@@ -1642,8 +1659,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         // consumer with readCompacted enabled only get compacted entries
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
                 .readCompacted(true).subscriptionInitialPosition(SubscriptionInitialPosition.Earliest).subscribe()) {
-            Message<byte[]> m = consumer.receive(2, TimeUnit.SECONDS);
-            assertNull(m);
+            assertEquals(receiveUntilMarker(consumer), List.of());
         }
     }
 
@@ -1697,8 +1713,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
             assertEquals(new String(m1.getValue()), "5");
             assertEquals(m2.getKey(), k2);
             assertEquals(new String(m2.getValue()), "3");
-            Message<byte[]> none = consumer.receive(2, TimeUnit.SECONDS);
-            assertNull(none);
+            assertEquals(receiveUntilMarker(consumer), List.of());
         }
     }
     @Test(timeOut = 20000)
@@ -1755,8 +1770,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
             assertEquals(m2.getKey(), k3);
             assertEquals(new String(m1.getValue()), "5");
             assertEquals(new String(m2.getValue()), "0");
-            Message<byte[]> none = consumer.receive(2, TimeUnit.SECONDS);
-            assertNull(none);
+            assertEquals(receiveUntilMarker(consumer), List.of());
         }
     }
 
@@ -1807,8 +1821,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
             assertNotNull(m1);
             assertEquals(m1.getKey(), k1);
             assertEquals(new String(m1.getValue()), "5");
-            Message<byte[]> none = consumer.receive(2, TimeUnit.SECONDS);
-            assertNull(none);
+            assertEquals(receiveUntilMarker(consumer), List.of());
         }
     }
 
@@ -1858,8 +1871,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
             assertNotNull(m1);
             assertEquals(m1.getKey(), key);
             assertEquals(new String(m1.getValue()), "19");
-            Message<byte[]> none = consumer.receive(2, TimeUnit.SECONDS);
-            assertNull(none);
+            assertEquals(receiveUntilMarker(consumer), List.of());
         }
     }
 
@@ -1949,8 +1961,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                 assertEquals(new String(received.getValue()), i + 20 + "");
                 consumer.acknowledge(received);
             }
-            Message<byte[]> none = consumer.receive(2, TimeUnit.SECONDS);
-            assertNull(none);
+            assertEquals(receiveUntilMarker(consumer), List.of());
         }
     }
 
@@ -2293,22 +2304,21 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                     .attr("properties", properties)
                     .log("acknowledgeMessage positions: properties");
             compactedLedgerId.set(properties.get(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY));
-            try {
-                return invocationOnMock.callRealMethod();
-            } finally {
-                log.info().attr("positions", positions).log("acknowledgeMessage completed");
-                compactionAckedLatch.countDown();
-                // add delay here to introduce possible races with deletion
-                Thread.sleep(500);
-            }
-        }).when(subscription).acknowledgeMessage(Mockito.any(), Mockito.eq(
+            @SuppressWarnings("unchecked")
+            CompletableFuture<Void> ack = (CompletableFuture<Void>) invocationOnMock.callRealMethod();
+            log.info().attr("positions", positions).log("acknowledgeMessage completed");
+            compactionAckedLatch.countDown();
+            // delay the completion of the ack to introduce possible races with deletion
+            return ack.thenRunAsync(() -> { },
+                    CompletableFuture.delayedExecutor(500, TimeUnit.MILLISECONDS));
+        }).when(subscription).acknowledgeMessageAsync(Mockito.any(), Mockito.eq(
                 CommandAck.AckType.Cumulative), Mockito.any());
 
         // trigger compaction
         admin.topics().triggerCompaction(topicName);
 
         // wait for compaction to acknowledge
-        compactionAckedLatch.await(9, TimeUnit.SECONDS);
+        assertTrue(compactionAckedLatch.await(9, TimeUnit.SECONDS));
 
         // close the producer
         producer.close();
@@ -2386,12 +2396,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                 .subscribe();
 
         List<String> result = new ArrayList<>();
-        while (true) {
-            Message<String> receive = consumer.receive(2, TimeUnit.SECONDS);
-            if (receive == null) {
-                break;
-            }
-
+        for (Message<String> receive : receiveUntilMarker(consumer, Schema.STRING, "marker")) {
             result.add(receive.getValue());
         }
 
@@ -2684,12 +2689,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                 .subscribe();
 
         List<String> results = new ArrayList<>();
-        while (true) {
-            Message<String> message = consumer.receive(3, TimeUnit.SECONDS);
-            if (message == null) {
-                break;
-            }
-
+        for (Message<String> message : receiveUntilMarker(consumer, Schema.STRING, "marker")) {
             results.add(message.getValue());
             consumer.acknowledge(message);
         }
@@ -2715,20 +2715,22 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         triggerAndWaitCompaction(topic); // update the compaction horizon
 
+        final var topicClosed = new CompletableFuture<Void>();
         AbstractTwoPhaseCompactor.injectionAfterSeekInPhaseTwo = () -> {
             // Simulate the case when the topic is closed during compaction phase two
-            CompletableFuture.runAsync(() -> {
+            FutureUtil.completeAfter(topicClosed, CompletableFuture.runAsync(() -> {
                 final var persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topic).join()
                         .orElseThrow();
                 persistentTopic.close().join();
-            });
+            }));
         };
         // Send a new message so that the compaction won't be skipped
         send.accept("key-2", "value-0");
         send.accept("key-2", "value-1");
         admin.topics().triggerCompaction(topic);
-        Awaitility.await().untilAsserted(() -> assertFalse(pulsar.getBrokerService().getTopics()
-                .containsKey(TopicName.get(topic).toString())));
+        // Wait for the close itself: the producer reconnects and loads the topic again about 100 ms later, so polling
+        // the broker's topic map can miss the time the topic isn't there
+        topicClosed.get(10, TimeUnit.SECONDS);
 
         AbstractTwoPhaseCompactor.injectionAfterSeekInPhaseTwo = () -> {};
 
@@ -3153,6 +3155,6 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         // A redelivery rewinds the cursor to the mark-delete position
         consumer.redeliverUnacknowledgedMessages();
-        assertNull(consumer.receive(3, TimeUnit.SECONDS));
+        assertEquals(receiveUntilMarker(consumer, Schema.STRING, "marker"), List.of());
     }
 }

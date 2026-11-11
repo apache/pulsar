@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.andAckSet;
 import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.isAckSetEmpty;
 import static org.apache.pulsar.broker.service.persistent.PersistentTopic.MESSAGE_RATE_BACKOFF_MS;
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
 import io.prometheus.client.Gauge;
 import java.util.ArrayList;
@@ -48,6 +49,7 @@ import org.apache.pulsar.broker.service.plugin.EntryFilter;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
+import org.apache.pulsar.common.api.proto.CompressionType;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
 import org.apache.pulsar.common.protocol.Commands;
@@ -64,6 +66,12 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
             .name("pulsar_broker_pending_bytes_to_dispatch")
             .help("Amount of bytes loaded in memory to be dispatched to Consumers")
             .register();
+
+    /**
+     * Minimum serialized size of a message in a batched entry: each message starts with the 4-byte size of its
+     * {@code SingleMessageMetadata}.
+     */
+    private static final int MIN_SERIALIZED_BATCHED_MESSAGE_SIZE = 4;
 
     protected final ServiceConfiguration serviceConfig;
     protected final boolean dispatchThrottlingOnBatchMessageEnabled;
@@ -157,6 +165,22 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                 msgMetadata = entry.getMessageMetadata();
             } else {
                 msgMetadata = Commands.peekAndCopyMessageMetadata(metadataAndPayload, subscription.toString(), -1);
+            }
+
+            if (msgMetadata != null && !hasValidNumMessagesInBatch(msgMetadata, metadataAndPayload)) {
+                // A negative num_messages_in_batch value, or one that exceeds the number of messages that fit in
+                // the entry's payload, is invalid. Consumers can't parse such an entry and the count would corrupt
+                // the permit and pending ack accounting. Skip and acknowledge it in the same way as an entry with
+                // unreadable metadata.
+                Position pos = entry.getPosition();
+                log.debug()
+                        .attr("position", pos)
+                        .attr("numMessagesInBatch", msgMetadata.getNumMessagesInBatch())
+                        .log("Skipping entry with invalid num_messages_in_batch metadata");
+                entries.set(i, null);
+                entry.release();
+                individualAcknowledgeMessageIfNeeded(Collections.singletonList(pos), Collections.emptyMap());
+                continue;
             }
 
             int entryMsgCnt = msgMetadata == null ? 1 : msgMetadata.getNumMessagesInBatch();
@@ -532,7 +556,8 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                                 subscription != null ? subscription.toString() : "", -1);
                     }
                 }
-                totalReadMessages += msgMetadata == null ? 1 : msgMetadata.getNumMessagesInBatch();
+                totalReadMessages += msgMetadata == null ? 1
+                        : getNumMessagesInBatch(msgMetadata, entry.getDataBuffer());
             }
         }
         if (totalReadEntries > 0 && totalReadMessages > 0) {
@@ -654,7 +679,60 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
         if (msgMetadata == null) {
             return -1;
         } else {
-            return msgMetadata.getNumMessagesInBatch();
+            return getNumMessagesInBatch(msgMetadata, entry.getDataBuffer());
+        }
+    }
+
+    /**
+     * Returns the number of messages in the entry as stated by its {@code num_messages_in_batch} metadata field,
+     * or {@code 0} if the value is invalid (see {@link #hasValidNumMessagesInBatch}). Such entries are skipped in
+     * {@code filterEntriesForConsumer}, so they must not count towards message estimates either.
+     */
+    protected static int getNumMessagesInBatch(MessageMetadata msgMetadata, ByteBuf metadataAndPayload) {
+        return hasValidNumMessagesInBatch(msgMetadata, metadataAndPayload) ? msgMetadata.getNumMessagesInBatch() : 0;
+    }
+
+    /**
+     * Checks that the {@code num_messages_in_batch} metadata field of an entry is within the range of message
+     * counts that the entry can hold.
+     *
+     * <p>The field is set by the producer and the broker stores it without validation. In a batched entry, each
+     * message is serialized as a 4-byte size, its {@code SingleMessageMetadata} and its payload, so a batch payload
+     * of {@code B} bytes holds at most {@code B / 4} messages. For an entry that is neither compressed nor
+     * encrypted, {@code B} is the size of the stored payload. For a compressed or encrypted entry, {@code B} is
+     * bounded by the larger of the stored payload size and the {@code uncompressed_size} metadata field; when that
+     * field isn't set, no upper bound is applied.
+     *
+     * @param msgMetadata the message metadata of the entry
+     * @param metadataAndPayload the entry data, starting at the broker entry metadata, checksum or message
+     *                           metadata; its reader index is left unchanged
+     * @return true if the value isn't negative and doesn't exceed the number of messages that fit in the entry
+     */
+    @VisibleForTesting
+    static boolean hasValidNumMessagesInBatch(MessageMetadata msgMetadata, ByteBuf metadataAndPayload) {
+        int numMessagesInBatch = msgMetadata.getNumMessagesInBatch();
+        if (numMessagesInBatch <= 1) {
+            return numMessagesInBatch >= 0;
+        }
+        long maxBatchPayloadSize = getPayloadSize(metadataAndPayload);
+        if (msgMetadata.getCompression() != CompressionType.NONE || msgMetadata.getEncryptionKeysCount() > 0
+                || msgMetadata.hasEncryptionParam()) {
+            long uncompressedSize = Integer.toUnsignedLong(msgMetadata.getUncompressedSize());
+            if (uncompressedSize == 0) {
+                return true;
+            }
+            maxBatchPayloadSize = Math.max(maxBatchPayloadSize, uncompressedSize);
+        }
+        return numMessagesInBatch <= maxBatchPayloadSize / MIN_SERIALIZED_BATCHED_MESSAGE_SIZE;
+    }
+
+    private static int getPayloadSize(ByteBuf metadataAndPayload) {
+        int readerIndex = metadataAndPayload.readerIndex();
+        try {
+            Commands.skipMessageMetadata(metadataAndPayload);
+            return metadataAndPayload.readableBytes();
+        } finally {
+            metadataAndPayload.readerIndex(readerIndex);
         }
     }
 }

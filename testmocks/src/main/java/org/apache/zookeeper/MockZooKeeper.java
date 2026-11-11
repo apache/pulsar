@@ -33,6 +33,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -127,6 +128,7 @@ public class MockZooKeeper extends ZooKeeper {
     private AtomicBoolean stopped;
     private AtomicReference<KeeperException.Code> alwaysFail;
     private CopyOnWriteArrayList<Failure> failures;
+    private CopyOnWriteArrayList<MultiDelay> multiDelays;
     private ExecutorService executor;
 
     private volatile Watcher sessionWatcher;
@@ -163,6 +165,9 @@ public class MockZooKeeper extends ZooKeeper {
     }
 
     private record NodeWatcher(Watcher watcher, long sessionId) {
+    }
+
+    private record MultiDelay(long millis, BiPredicate<Op, String> predicate) {
     }
 
     private List<PersistentWatcher> persistentWatchers;
@@ -204,6 +209,7 @@ public class MockZooKeeper extends ZooKeeper {
         stopped = new AtomicBoolean(false);
         alwaysFail = new AtomicReference<>(KeeperException.Code.OK);
         failures = new CopyOnWriteArrayList<>();
+        multiDelays = new CopyOnWriteArrayList<>();
         persistentWatchers = new ArrayList<>();
     }
 
@@ -975,6 +981,22 @@ public class MockZooKeeper extends ZooKeeper {
             cb.processResult(KeeperException.Code.CONNECTIONLOSS.intValue(), null, ctx, null);
             return;
         }
+        long delayMillis = takeMultiDelay(ops);
+        if (delayMillis > 0) {
+            long sessionId = getSessionId();
+            CompletableFuture.delayedExecutor(delayMillis, TimeUnit.MILLISECONDS).execute(() -> {
+                overrideSessionId(sessionId);
+                try {
+                    multi(ops, cb, ctx);
+                } catch (RejectedExecutionException e) {
+                    // Stopped in the meantime
+                    cb.processResult(KeeperException.Code.CONNECTIONLOSS.intValue(), null, ctx, null);
+                } finally {
+                    removeSessionIdOverride();
+                }
+            });
+            return;
+        }
         runInExecutorAsync(() -> {
             try {
                 List<OpResult> res = multi(ops);
@@ -1154,6 +1176,38 @@ public class MockZooKeeper extends ZooKeeper {
             }
             return false;
         }));
+    }
+
+    /**
+     * Delays the next asynchronous multi-operation that has an operation matching the predicate, which is how
+     * ZKMetadataStore sends its batches, while the other operations go on: the ones that follow it run first.
+     * {@link #delay(long, BiPredicate)} instead sleeps on the thread that runs all the operations, so they all wait,
+     * and a ZooKeeper session watcher reports the connection as lost when its check waits for longer than its tick.
+     */
+    public void delayMulti(long millis, BiPredicate<Op, String> predicate) {
+        multiDelays.add(new MultiDelay(millis, predicate));
+    }
+
+    private long takeMultiDelay(Iterable<org.apache.zookeeper.Op> ops) {
+        for (org.apache.zookeeper.Op op : ops) {
+            Op type = switch (op.getType()) {
+                case ZooDefs.OpCode.create -> Op.CREATE;
+                case ZooDefs.OpCode.delete -> Op.DELETE;
+                case ZooDefs.OpCode.setData -> Op.SET;
+                case ZooDefs.OpCode.getChildren -> Op.GET_CHILDREN;
+                case ZooDefs.OpCode.getData -> Op.GET;
+                default -> null;
+            };
+            if (type == null) {
+                continue;
+            }
+            for (MultiDelay delay : multiDelays) {
+                if (delay.predicate().test(type, op.getPath()) && multiDelays.remove(delay)) {
+                    return delay.millis();
+                }
+            }
+        }
+        return 0;
     }
 
     public void setAlwaysFail(KeeperException.Code rc) {
