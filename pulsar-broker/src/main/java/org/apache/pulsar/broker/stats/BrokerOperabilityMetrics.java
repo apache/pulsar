@@ -22,6 +22,7 @@ import com.google.common.annotations.VisibleForTesting;
 import io.opentelemetry.api.metrics.DoubleHistogram;
 import io.opentelemetry.api.metrics.ObservableLongCounter;
 import io.prometheus.metrics.core.metrics.Counter;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -124,9 +125,15 @@ public class BrokerOperabilityMetrics implements AutoCloseable {
             .register();
 
     public BrokerOperabilityMetrics(PulsarService pulsar) {
+        this(pulsar, PrometheusRegistry.defaultRegistry);
+    }
+
+    /** The registry receives this broker's topic load summary; tests pass their own to stay clear of the JVM one. */
+    @VisibleForTesting
+    public BrokerOperabilityMetrics(PulsarService pulsar, PrometheusRegistry registry) {
         this.metricsList = new ArrayList<>();
         this.localCluster = pulsar.getConfiguration().getClusterName();
-        this.topicLoadStats = new DimensionStats("pulsar_topic_load_times", 60);
+        this.topicLoadStats = new DimensionStats("pulsar_topic_load_times", 60, registry);
         this.brokerName = pulsar.getAdvertisedAddress();
         this.connectionTotalCreatedCount = new LongAdder();
         this.connectionTotalClosedCount = new LongAdder();

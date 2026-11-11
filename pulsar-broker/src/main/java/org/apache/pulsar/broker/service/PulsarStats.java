@@ -18,9 +18,11 @@
  */
 package org.apache.pulsar.broker.service;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.ReferenceCountUtil;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import java.io.Closeable;
 import java.util.ArrayList;
 import java.util.List;
@@ -67,6 +69,12 @@ public class PulsarStats implements Closeable {
     private long updatedAt;
 
     public PulsarStats(PulsarService pulsar) {
+        this(pulsar, PrometheusRegistry.defaultRegistry);
+    }
+
+    /** The registry receives the operability metrics' topic load summary; tests pass their own. */
+    @VisibleForTesting
+    public PulsarStats(PulsarService pulsar, PrometheusRegistry registry) {
         this.topicStatsBuf = Unpooled.buffer(16 * 1024);
         this.tempTopicStatsBuf = Unpooled.buffer(16 * 1024);
 
@@ -77,7 +85,7 @@ public class PulsarStats implements Closeable {
         this.bundleStats = new ConcurrentHashMap<>();
         this.tempMetricsCollection = new ArrayList<>();
         this.metricsCollection = new ArrayList<>();
-        this.brokerOperabilityMetrics = new BrokerOperabilityMetrics(pulsar);
+        this.brokerOperabilityMetrics = new BrokerOperabilityMetrics(pulsar, registry);
         this.tempNonPersistentTopics = new ArrayList<>();
 
         this.exposePublisherStats = pulsar.getConfiguration().isExposePublisherStats();

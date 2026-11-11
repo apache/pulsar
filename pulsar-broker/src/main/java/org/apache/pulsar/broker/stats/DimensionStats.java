@@ -32,24 +32,27 @@ import lombok.CustomLog;
 public class DimensionStats implements AutoCloseable {
 
     private final Summary summary;
-    /** Whether this instance's summary made it into the default registry, so {@link #close()} removes only its own. */
-    private final boolean registered;
+    /** The registry the summary was registered on, so {@link #close()} removes only its own; null when none. */
+    private final PrometheusRegistry registry;
+    private volatile boolean registered;
     private static final double[] QUANTILES = {0.50, 0.75, 0.95, 0.99, 0.999, 0.9999};
 
     public DimensionStats(String name, long updateDurationInSec) {
-        this(name, updateDurationInSec, true);
+        this(name, updateDurationInSec, PrometheusRegistry.defaultRegistry);
     }
 
-    DimensionStats(String name, long updateDurationInSec, boolean register) {
+    /** A null registry leaves the summary unregistered, for tests that only need the snapshot arithmetic. */
+    DimensionStats(String name, long updateDurationInSec, PrometheusRegistry registry) {
         Summary.Builder summaryBuilder = Summary.builder().name(name).help("-").maxAgeSeconds(updateDurationInSec);
         for (double quantile : QUANTILES) {
             summaryBuilder.quantile(quantile, 0.01);
         }
         this.summary = summaryBuilder.build();
+        this.registry = registry;
         boolean registered = false;
-        if (register) {
+        if (registry != null) {
             try {
-                PrometheusRegistry.defaultRegistry.register(summary);
+                registry.register(summary);
                 registered = true;
             } catch (IllegalArgumentException ie) {
                 // it only happens in test-cases when try to register summary multiple times in registry
@@ -59,7 +62,7 @@ public class DimensionStats implements AutoCloseable {
         this.registered = registered;
     }
 
-    /** Whether the scrape of the default registry reads this instance's summary rather than an earlier one's. */
+    /** Whether a scrape of the registry reads this instance's summary rather than an earlier one's. */
     boolean isRegistered() {
         return registered;
     }
@@ -85,7 +88,7 @@ public class DimensionStats implements AutoCloseable {
         public double getMeanDimension() {
             double sum = getDimensionSum();
             double count = getDimensionCount();
-            if (!Double.isNaN(sum) && !Double.isNaN(count)) {
+            if (count > 0 && !Double.isNaN(sum)) {
                 return sum / count;
             }
             return 0;
@@ -143,7 +146,8 @@ public class DimensionStats implements AutoCloseable {
     @Override
     public void close() {
         if (registered) {
-            PrometheusRegistry.defaultRegistry.unregister(summary);
+            registry.unregister(summary);
+            registered = false;
         }
     }
 }
