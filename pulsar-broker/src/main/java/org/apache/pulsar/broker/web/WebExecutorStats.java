@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.web;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.prometheus.metrics.core.metrics.GaugeWithCallback;
 import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -46,6 +47,16 @@ class WebExecutorStats implements AutoCloseable {
         }
 
         return instance;
+    }
+
+    /** Closes the current instance, if any, and forgets it, so that the next {@link #getStats} registers again. */
+    @VisibleForTesting
+    static synchronized void resetForTesting() throws Exception {
+        if (instance != null) {
+            instance.close();
+            instance = null;
+        }
+        CLOSED.set(false);
     }
 
     private WebExecutorStats(WebExecutorThreadPool executor) {

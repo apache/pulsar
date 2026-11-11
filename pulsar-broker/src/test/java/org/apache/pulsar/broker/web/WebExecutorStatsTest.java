@@ -29,16 +29,16 @@ import io.netty.buffer.Unpooled;
 import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import io.prometheus.metrics.model.snapshots.GaugeSnapshot;
 import io.prometheus.metrics.model.snapshots.MetricSnapshot;
-import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGeneratorUtils;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
+import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
 /**
@@ -59,23 +59,28 @@ public class WebExecutorStatsTest {
 
     @Test
     public void testGaugesFollowTheExecutorAndCloseUnregistersThem() throws Exception {
-        resetSingleton();
+        // An earlier owner in this JVM has unregistered its gauges on close; start from a singleton never created.
+        WebExecutorStats.resetForTesting();
         // Jetty prestarts min(8, maxThreads) core threads, so with 4 max threads the pool is fully idle at rest.
         WebExecutorThreadPool pool = new WebExecutorThreadPool(4, "web-executor-stats-test");
-        pool.start();
         WebExecutorThreadPool otherPool = new WebExecutorThreadPool(16, "web-executor-stats-other");
         try {
+            pool.start();
             WebExecutorStats stats = WebExecutorStats.getStats(pool);
             // The first executor wins; later web services share its gauges.
             assertSame(WebExecutorStats.getStats(otherPool), stats);
 
+            // start() returns before every prestarted worker is parked, and a starting worker counts as active.
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+                Map<String, Double> settling = registryValues();
+                assertEquals(settling.keySet(), FAMILIES);
+                assertEquals(settling.get(MAX), 4.0);
+                assertEquals(settling.get(MIN), 4.0);
+                assertEquals(settling.get(CURRENT), 4.0);
+                assertEquals(settling.get(IDLE), 4.0);
+                assertEquals(settling.get(ACTIVE), 0.0);
+            });
             Map<String, Double> registry = registryValues();
-            assertEquals(registry.keySet(), FAMILIES);
-            assertEquals(registry.get(MAX), 4.0);
-            assertEquals(registry.get(MIN), 4.0);
-            assertEquals(registry.get(CURRENT), 4.0);
-            assertEquals(registry.get(IDLE), 4.0);
-            assertEquals(registry.get(ACTIVE), 0.0);
 
             // The broker scrape renders the 1.x registry under the legacy names with the cluster label.
             Multimap<String, Metric> scraped = parseMetrics(render());
@@ -95,6 +100,8 @@ public class WebExecutorStatsTest {
             assertSame(WebExecutorStats.getStats(pool), stats);
             assertTrue(registryValues().isEmpty());
         } finally {
+            // Also on a failed assertion: the gauges must not outlive the pool they read.
+            WebExecutorStats.resetForTesting();
             pool.stop();
         }
     }
@@ -117,22 +124,5 @@ public class WebExecutorStatsTest {
         } finally {
             buf.release();
         }
-    }
-
-    /**
-     * Puts the singleton back into its never-created state. A previous owner in this JVM has already unregistered
-     * its gauges on close; if one leaked, closing it here unregisters them so that the new instance can register.
-     */
-    private static void resetSingleton() throws Exception {
-        Field instanceField = WebExecutorStats.class.getDeclaredField("instance");
-        instanceField.setAccessible(true);
-        WebExecutorStats previous = (WebExecutorStats) instanceField.get(null);
-        if (previous != null) {
-            previous.close();
-        }
-        Field closedField = WebExecutorStats.class.getDeclaredField("CLOSED");
-        closedField.setAccessible(true);
-        ((AtomicBoolean) closedField.get(null)).set(false);
-        instanceField.set(null, null);
     }
 }
