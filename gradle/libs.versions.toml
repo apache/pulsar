@@ -153,7 +153,7 @@ ant = "1.10.18"
 guice = "5.1.0"
 snappy = "1.1.10.12"
 ipaddress = "5.6.2"
-zt-zip = "1.18.2"
+zt-zip = "1.18.3"
 # Jakarta
 jakarta-ws-rs = "3.1.0"
 jakarta-annotation = "2.1.1"
