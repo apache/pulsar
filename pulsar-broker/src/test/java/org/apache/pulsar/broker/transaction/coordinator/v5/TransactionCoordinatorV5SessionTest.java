@@ -35,6 +35,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.transaction.metadata.TxnPaths;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Option;
 import org.apache.pulsar.metadata.api.coordination.CoordinationService;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
@@ -121,6 +122,51 @@ public class TransactionCoordinatorV5SessionTest {
                 a.close();
                 b.close();
                 await().until(() -> storeB.get(LEADER_PATH).get().isEmpty());
+            }
+        }
+    }
+
+    @Test(timeOut = 30000)
+    public void handshakeRecoversAfterFailedSessionRevalidation() throws Exception {
+        @Cleanup("shutdown") MockZooKeeper zk = MockZooKeeper.newInstance();
+        try (var session = MockZooKeeperSession.newInstance(zk, false);
+             var observerSession = MockZooKeeperSession.newInstance(zk, false);
+             var store = new GatedMetadataStore(session);
+             var observer = new ZKMetadataStore(observerSession);
+             var coordination = new CoordinationServiceImpl(store)) {
+            var tc = new TransactionCoordinatorV5(broker("a", store, coordination));
+            var failedRead = new PausedRead();
+            var retry = new PausedRead();
+            try {
+                tc.start();
+                await().until(() -> tc.isLeaderFor(0));
+                tc.handleClientConnect(TC_ID).get();
+
+                store.sendSessionEvent(SessionEvent.SessionLost);
+                session.close();
+                session.setSessionId(observerSession.getSessionId() + 1);
+                // Reconnected lets the replacement session acquire the node before SessionReestablished.
+                store.sendSessionEvent(SessionEvent.Reconnected);
+                await().until(() -> observer.get(LEADER_PATH).get().isPresent());
+                assertThat(store.get(LEADER_PATH).get().orElseThrow().getStat().isCreatedBySelf()).isTrue();
+
+                store.nextRead.set(failedRead);
+                store.sendSessionEvent(SessionEvent.SessionReestablished);
+                failedRead.result.get(5, TimeUnit.SECONDS);
+                store.nextRead.set(retry);
+                failedRead.resume.completeExceptionally(new MetadataStoreException("injected read failure"));
+                assertRejected(tc);
+
+                // The election must retry on its own, and keep fencing until the read succeeds.
+                assertThat(retry.result.get(10, TimeUnit.SECONDS).orElseThrow().getStat().isCreatedBySelf()).isTrue();
+                assertRejected(tc);
+                retry.resume.complete(null);
+                await().untilAsserted(() -> assertThat(tc.handleClientConnect(TC_ID)).isCompletedWithValue(null));
+            } finally {
+                failedRead.resume.complete(null);
+                retry.resume.complete(null);
+                tc.close();
+                await().until(() -> observer.get(LEADER_PATH).get().isEmpty());
             }
         }
     }

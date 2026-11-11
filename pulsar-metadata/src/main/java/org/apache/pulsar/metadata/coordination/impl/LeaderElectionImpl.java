@@ -26,8 +26,10 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import lombok.CustomLog;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -69,6 +71,9 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
 
     private final ScheduledExecutorService executor;
     private final FutureUtil.Sequencer<Void> sequencer;
+    // A newer session event or close supersedes even a retry already queued on the sequencer.
+    private long revalidationGeneration;
+    private ScheduledFuture<?> revalidationRetry;
 
     private enum InternalState {
         Init, ElectionInProgress, LeaderIsPresent, Closed
@@ -349,6 +354,7 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
         }
 
         internalState = InternalState.Closed;
+        cancelSessionRevalidation();
         leadingSession = null;
         coordinationService.removeLeaderElection(path, this);
         // A closed election reports "no leader" rather than waiting or failing: callers like the
@@ -466,34 +472,55 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
     }
 
     void handleSessionNotification(SessionEvent event) {
-        // Ensure we're only processing one session event at a time.
-        sequencer.sequential(() -> FutureUtil.composeAsync(() -> {
-            if (event == SessionEvent.Reconnected || event == SessionEvent.SessionReestablished) {
-                CompletableFuture<LeaderElectionState> revalidation;
-                synchronized (LeaderElectionImpl.this) {
-                    if (internalState == InternalState.Init || internalState == InternalState.Closed) {
-                        // Not taking part in the election: elect(T) was never called, or the election was closed
-                        return CompletableFuture.completedFuture(null);
-                    }
-                    log.info().attr("path", path).attr("event", event).log("Revalidating leadership");
-                    revalidation = elect();
+        submitSessionTask(() -> {
+            synchronized (LeaderElectionImpl.this) {
+                cancelSessionRevalidation();
+                if (!event.isConnected() || internalState == InternalState.Init
+                        || internalState == InternalState.Closed) {
+                    return CompletableFuture.completedFuture(null);
                 }
-                return revalidation.thenAccept(leaderState -> {
-                    log.info().attr("path", path).attr("state", leaderState).log("Resynced leadership");
-                }).exceptionally(ex -> {
-                    synchronized (LeaderElectionImpl.this) {
-                        if (internalState == InternalState.Closed) {
-                            log.debug().attr("path", path)
-                                    .log("Leader election closed while revalidating leadership");
-                            return null;
-                        }
-                    }
-                    log.warn().exception(ex).log("Failure when processing session event");
-                    return null;
-                });
+                log.info().attr("path", path).attr("event", event).log("Revalidating leadership");
+                return revalidateSession(revalidationGeneration);
             }
+        });
+    }
+
+    private void cancelSessionRevalidation() {
+        revalidationGeneration++;
+        if (revalidationRetry != null) {
+            revalidationRetry.cancel(false);
+            revalidationRetry = null;
+        }
+    }
+
+    private void submitSessionTask(Supplier<CompletableFuture<Void>> task) {
+        sequencer.sequential(() -> FutureUtil.composeAsync(task, executor));
+    }
+
+    private synchronized CompletableFuture<Void> revalidateSession(long generation) {
+        if (generation != revalidationGeneration) {
             return CompletableFuture.completedFuture(null);
-        }, executor));
+        }
+        return FutureUtil.supplySafely(this::elect).handle((state, ex) -> {
+            sessionRevalidationCompleted(generation, state, ex);
+            return null;
+        });
+    }
+
+    private synchronized void sessionRevalidationCompleted(long generation, LeaderElectionState state, Throwable ex) {
+        if (generation != revalidationGeneration) {
+            return;
+        }
+        if (ex == null) {
+            revalidationRetry = null;
+            log.info().attr("path", path).attr("state", state).log("Resynced leadership");
+            return;
+        }
+        if (revalidationRetry == null) {
+            log.warn().attr("path", path).exception(ex).log("Failed to revalidate leadership, retrying");
+        }
+        revalidationRetry = executor.schedule(() -> submitSessionTask(() -> revalidateSession(generation)),
+                LEADER_ELECTION_RETRY_DELAY_SECONDS, TimeUnit.SECONDS);
     }
 
     // Called for the notifications on the path of this election
