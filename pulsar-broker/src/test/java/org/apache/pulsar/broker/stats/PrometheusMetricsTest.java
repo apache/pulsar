@@ -1513,6 +1513,8 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                 assertEquals(commitLatencyCount.get(0).tags.get("namespace"), "my-property/my-ns");
                 assertEquals(commitLatencyCount.get(0).value, 2.0);
 
+                // Only the series shape is checked here; the gauge needs the handler's queue to back up, which
+                // TransactionBufferClientTest#testTransactionBufferPendingRequests drives with a mocked handler.
                 List<Metric> pending = new ArrayList<>(metrics.get("pulsar_txn_tb_client_pending_requests"));
                 assertEquals(pending.size(), 1);
                 assertEquals(pending.get(0).tags.get("cluster"), "test");
