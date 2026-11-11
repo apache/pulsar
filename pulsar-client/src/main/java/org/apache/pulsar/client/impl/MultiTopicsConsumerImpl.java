@@ -286,8 +286,13 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             }
             // Process the message, add to the queue and trigger listener or async callback
             messages.forEach(msg -> {
-                final boolean skipDueToSeek = seekingConsumers.contains(consumer);
                 MessageImpl<T> msgImpl = (MessageImpl<T>) msg;
+                // Drop a message from before a seek of its consumer. It can reach here after the seek completed: it
+                // may still be on its way through the consumer then, in a task of its executor or in the receive that
+                // hands it over. The consumer counts the seek before the seek completes, so checking for a seek in
+                // progress first leaves no gap between the two checks.
+                final boolean skipDueToSeek = seekingConsumers.contains(consumer)
+                        || msgImpl.getConsumerSeekCount() != consumer.getSeekCount();
                 ClientCnx cnx = msgImpl.getCnx();
                 boolean isValidEpoch = isValidConsumerEpoch(msgImpl);
                 if (isValidEpoch && !skipDueToSeek) {
