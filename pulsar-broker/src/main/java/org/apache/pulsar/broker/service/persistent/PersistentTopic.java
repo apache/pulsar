@@ -160,6 +160,7 @@ import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
+import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -4087,7 +4088,17 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                                 }
                                             });
                                 }))
-                            );
+                            ).exceptionallyCompose(ex -> {
+                                if (FutureUtil.unwrapCompletionException(ex) instanceof NotFoundException) {
+                                    // Another broker deleted the partitioned topic metadata first, e.g. the GC of
+                                    // this partition on another cluster sharing the configuration store. That only
+                                    // deleted the schema and policies of its own cluster, so delete this cluster's.
+                                    log.debug("Partitioned topic metadata was deleted concurrently, deleting the"
+                                            + " schema and topic policies of this cluster");
+                                    return deleteSchemaAndPoliciesIfAllPartitionsDeleted();
+                                }
+                                return CompletableFuture.failedFuture(ex);
+                            });
                     }
                 });
     }
