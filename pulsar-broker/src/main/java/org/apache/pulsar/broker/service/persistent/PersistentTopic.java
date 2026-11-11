@@ -3806,78 +3806,68 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             // namespace creation
             final String tenant = TopicName.get(topic).getTenant();
             final NamespaceName ns = TopicName.get(topic).getNamespaceObject();
-            List<CompletableFuture<Void>> subResults = new ArrayList<>();
 
             return brokerService.getPulsar().getPulsarResources().getTenantResources().getTenantAsync(tenant)
                     .thenCompose(tenantInfo -> {
                         if (!tenantInfo.isPresent()) {
                             return CompletableFuture.completedFuture(null);
                         }
-                        CompletableFuture<Void> ts = new CompletableFuture<>();
-                        admin.tenants().createTenantAsync(tenant, tenantInfo.get()).handle((__, ex) -> {
-                            if (ex == null || ex instanceof ConflictException) {
+                        return admin.tenants().createTenantAsync(tenant, tenantInfo.get()).handle((__, ex) -> {
+                            if (ex == null || FutureUtil.unwrapCompletionException(ex) instanceof ConflictException) {
                                 log.info()
                                         .attr("tenant", tenant)
                                         .log("successfully created tenant for migration");
-                                ts.complete(null);
                                 return null;
                             }
                             log.warn()
                                     .attr("tenant", tenant)
-                                    .exceptionMessage(ex.getCause())
+                                    .exception(ex)
                                     .log("Failed to create tenant on migration cluster");
-                            ts.completeExceptionally(ex.getCause());
-                            return null;
+                            throw FutureUtil.wrapToCompletionException(ex);
                         });
-                        return ts;
-                    }).thenCompose(t -> {
-                        return brokerService.getPulsar().getPulsarResources().getNamespaceResources()
-                                .getPoliciesAsync(ns).thenCompose(policies -> {
-                                    if (!policies.isPresent()) {
-                                        return CompletableFuture.completedFuture(null);
-                                    }
-                                    CompletableFuture<Void> nsFuture = new CompletableFuture<>();
-                                    admin.namespaces().createNamespaceAsync(ns.toString(), policies.get())
+                    }).thenCompose(t -> brokerService.getPulsar().getPulsarResources().getNamespaceResources()
+                            .getPoliciesAsync(ns).thenCompose(policies -> {
+                                if (!policies.isPresent()) {
+                                    return CompletableFuture.completedFuture(null);
+                                }
+                                return admin.namespaces().createNamespaceAsync(ns.toString(), policies.get())
+                                        .handle((__, ex) -> {
+                                            if (ex == null || FutureUtil.unwrapCompletionException(ex)
+                                                    instanceof ConflictException) {
+                                                log.info()
+                                                        .attr("namespace", ns)
+                                                        .log("successfully created namespace for migration");
+                                                return null;
+                                            }
+                                            log.warn()
+                                                    .attr("ns", ns)
+                                                    .exception(ex)
+                                                    .log("Failed to create namespace on migration cluster");
+                                            throw FutureUtil.wrapToCompletionException(ex);
+                                        });
+                            }).thenCompose(p -> {
+                                List<CompletableFuture<Void>> subResults = new ArrayList<>();
+                                subscriptions.forEach((subName, sub) -> {
+                                    CompletableFuture<Void> subResult = admin.topics()
+                                            .createSubscriptionAsync(topic, subName, MessageId.earliest)
                                             .handle((__, ex) -> {
-                                                if (ex == null || ex instanceof ConflictException) {
+                                                if (ex == null || FutureUtil.unwrapCompletionException(ex)
+                                                        instanceof ConflictException) {
                                                     log.info()
-                                                            .attr("namespace", ns)
-                                                            .log("successfully created namespace for migration");
-                                                    nsFuture.complete(null);
+                                                            .attr("subscription", subName)
+                                                            .log("successfully created sub for migration");
                                                     return null;
                                                 }
                                                 log.warn()
-                                                        .attr("ns", ns)
-                                                        .exceptionMessage(ex.getCause())
-                                                        .log("Failed to create namespace on migration cluster");
-                                                nsFuture.completeExceptionally(ex.getCause());
-                                                return null;
+                                                        .attr("subscription", subName)
+                                                        .exception(ex)
+                                                        .log("Failed to create sub on migration cluster");
+                                                throw FutureUtil.wrapToCompletionException(ex);
                                             });
-                                    return nsFuture;
-                                }).thenCompose(p -> {
-                                    subscriptions.forEach((subName, sub) -> {
-                                        CompletableFuture<Void> subResult = new CompletableFuture<>();
-                                        subResults.add(subResult);
-                                        admin.topics().createSubscriptionAsync(topic, subName, MessageId.earliest)
-                                                .handle((__, ex) -> {
-                                                    if (ex == null || ex instanceof ConflictException) {
-                                                        log.info()
-                                                                .attr("subscription", subName)
-                                                                .log("successfully created sub for migration");
-                                                        subResult.complete(null);
-                                                        return null;
-                                                    }
-                                                    log.warn()
-                                                            .attr("subscription", subName)
-                                                            .exceptionMessage(ex.getCause())
-                                                            .log("Failed to create sub on migration cluster");
-                                                    subResult.completeExceptionally(ex.getCause());
-                                                    return null;
-                                                });
-                                    });
-                                    return Futures.waitForAll(subResults);
+                                    subResults.add(subResult);
                                 });
-                    });
+                                return Futures.waitForAll(subResults);
+                            }));
         });
     }
 
