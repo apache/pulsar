@@ -38,7 +38,6 @@ import io.prometheus.client.Collector;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
@@ -88,6 +87,7 @@ import org.apache.pulsar.broker.service.AbstractBaseDispatcher;
 import org.apache.pulsar.broker.service.AbstractTopic;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
+import org.apache.pulsar.broker.service.DispatcherPendingBytesTestUtil;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentMessageExpiryMonitor;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
@@ -2285,16 +2285,13 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         double pendingBefore = requiredSingleValue(metrics, "pulsar_broker_pending_bytes_to_dispatch");
         AbstractBaseDispatcher dispatcher = (AbstractBaseDispatcher) ((PersistentTopic) pulsar.getBrokerService()
                 .getTopicReference(topic).get()).getSubscription("sub").getDispatcher();
-        Method updatePendingBytes = AbstractBaseDispatcher.class
-                .getDeclaredMethod("updatePendingBytesToDispatch", long.class);
-        updatePendingBytes.setAccessible(true);
         long pendingDelta = 123_456L;
-        updatePendingBytes.invoke(dispatcher, pendingDelta);
+        DispatcherPendingBytesTestUtil.add(dispatcher, pendingDelta);
         try {
             assertEquals(requiredSingleValue(parseMetrics(scrape()), "pulsar_broker_pending_bytes_to_dispatch"),
                     pendingBefore + pendingDelta);
         } finally {
-            updatePendingBytes.invoke(dispatcher, -pendingDelta);
+            DispatcherPendingBytesTestUtil.add(dispatcher, -pendingDelta);
         }
         assertEquals(requiredSingleValue(parseMetrics(scrape()), "pulsar_broker_pending_bytes_to_dispatch"),
                 pendingBefore);
