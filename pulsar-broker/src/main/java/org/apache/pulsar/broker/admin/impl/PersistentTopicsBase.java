@@ -3931,6 +3931,21 @@ public class PersistentTopicsBase extends AdminResource {
                 });
     }
 
+    protected CompletableFuture<Integer> internalGetMessageTTL(boolean applied, boolean isGlobal) {
+        return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
+            .thenCompose(op -> {
+                Integer topicTTL = op.map(TopicPolicies::getMessageTTLInSeconds).orElse(null);
+                if (topicTTL != null || !applied) {
+                    return CompletableFuture.completedFuture(topicTTL);
+                }
+                return getNamespacePoliciesAsync(namespaceName).thenApply(policies -> {
+                    Integer otherLevelTTL = policies.message_ttl_in_seconds;
+                    return otherLevelTTL == null ? pulsar().getConfiguration().getTtlDurationDefaultInSeconds()
+                            : otherLevelTTL;
+                });
+            });
+    }
+
     protected CompletableFuture<Void> internalSetMessageTTL(Integer ttlInSecondToSet, boolean isGlobal) {
         //Validate message ttl value.
         if (ttlInSecondToSet != null && ttlInSecondToSet < 0) {
@@ -4980,7 +4995,8 @@ public class PersistentTopicsBase extends AdminResource {
                 .thenCompose(__ -> internalGetListAsync(Optional.empty(), null))
                 .thenApply(topics -> {
                     if (!topics.contains(topicName.toString())) {
-                        throw new RestException(Status.NOT_FOUND, "Topic partitions were not yet created");
+                        throw new RestException(Status.NOT_FOUND,
+                                getTopicNotFoundErrorMessage(topicName.toString()));
                     }
                     throw new RestException(Status.NOT_FOUND,
                         getPartitionedTopicNotFoundErrorMessage(topicName.toString()));

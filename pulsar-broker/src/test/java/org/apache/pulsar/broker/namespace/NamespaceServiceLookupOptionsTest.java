@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.namespace;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -36,24 +37,33 @@ import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class NamespaceServiceLookupOptionsTest extends BrokerTestBase {
 
-    @BeforeMethod
+    @BeforeClass(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         super.baseSetup();
     }
 
-    @AfterMethod(alwaysRun = true)
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @AfterMethod(alwaysRun = true)
+    public void resetNamespaceService() {
+        // the tests stub the broker's NamespaceService spy
+        if (pulsar != null) {
+            reset(pulsar.getNamespaceService());
+        }
     }
 
     @DataProvider(name = "differentLookupOptions")
@@ -81,7 +91,7 @@ public class NamespaceServiceLookupOptionsTest extends BrokerTestBase {
     @Test(dataProvider = "differentLookupOptions")
     public void testLookupRequestsWithDifferentOptionsAreNotCoalesced(
             LookupOptions firstOptions, LookupOptions secondOptions) throws Exception {
-        TopicName topic = TopicName.get("persistent://public/default/lookup-options-" + UUID.randomUUID());
+        TopicName topic = newLookupTopic();
         NamespaceBundle bundle = pulsar.getNamespaceService().getBundle(topic);
         NamespaceService namespaceService = pulsar.getNamespaceService();
         OwnershipCache ownershipCache = mock(OwnershipCache.class);
@@ -104,7 +114,7 @@ public class NamespaceServiceLookupOptionsTest extends BrokerTestBase {
 
     @Test
     public void testEquivalentLookupRequestsAreCoalesced() throws Exception {
-        TopicName topic = TopicName.get("persistent://public/default/lookup-options-" + UUID.randomUUID());
+        TopicName topic = newLookupTopic();
         NamespaceBundle bundle = pulsar.getNamespaceService().getBundle(topic);
         NamespaceService namespaceService = pulsar.getNamespaceService();
         OwnershipCache ownershipCache = mock(OwnershipCache.class);
@@ -124,6 +134,15 @@ public class NamespaceServiceLookupOptionsTest extends BrokerTestBase {
 
         assertLookupResultUsesOptions(firstLookup.get(5, TimeUnit.SECONDS).orElseThrow(), options);
         assertLookupResultUsesOptions(secondLookup.get(5, TimeUnit.SECONDS).orElseThrow(), options);
+    }
+
+    /**
+     * A topic in a namespace of its own, so that lookups of different methods never share a bundle: the broker is
+     * shared by the methods, and NamespaceService removes a finished lookup from its coalescing map only in a later
+     * executor task, so an equal lookup in the next method could otherwise reuse it.
+     */
+    private static TopicName newLookupTopic() {
+        return TopicName.get("persistent://public/ns-" + UUID.randomUUID() + "/lookup-options");
     }
 
     private static NamespaceEphemeralData lookupOwnerWithAdvertisedListeners() {

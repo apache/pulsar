@@ -29,8 +29,8 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClient;
 import org.apache.pulsar.common.naming.TopicName;
 import org.awaitility.Awaitility;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -41,7 +41,7 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class TransactionBufferCloseTest extends TransactionTestBase {
 
-    @BeforeMethod
+    @BeforeClass(alwaysRun = true)
     protected void setup() throws Exception {
         setUpBase(1, 16, null, 0);
         Awaitility.await().until(() -> pulsarClient
@@ -49,7 +49,7 @@ public class TransactionBufferCloseTest extends TransactionTestBase {
                                            .getState() == TransactionCoordinatorClient.State.READY);
     }
 
-    @AfterMethod(alwaysRun = true)
+    @AfterClass(alwaysRun = true)
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }

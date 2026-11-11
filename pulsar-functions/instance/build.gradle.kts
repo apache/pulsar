@@ -74,6 +74,6 @@ dependencies {
     testCompileOnly(libs.swagger.annotations)
 }
 
-tasks.withType<Test> {
+tasks.withType<Test>().configureEach {
     environment("TEST_JAVA_INSTANCE_PARSE_ENV_VAR", "some-configuration")
 }

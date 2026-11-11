@@ -60,6 +60,7 @@ public class ConsumerDedupPermitsUpdateTest extends SharedPulsarBaseTest {
                 .receiverQueueSize(receiverQueueSize)
                 .subscribe();
 
+        @Cleanup
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
                 .topic(topic)
                 .enableBatching(batchingEnabled)

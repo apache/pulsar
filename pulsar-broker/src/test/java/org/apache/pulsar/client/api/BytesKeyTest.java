@@ -20,6 +20,7 @@ package org.apache.pulsar.client.api;
 
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
+import lombok.Cleanup;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -30,10 +31,12 @@ public class BytesKeyTest extends SharedPulsarBaseTest {
     private void byteKeysTest(boolean batching) throws Exception {
         Random r = new Random(0);
         String topic = newTopicName();
+        @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
             .topic(topic)
             .subscriptionName("my-subscriber-name").subscribe();
 
+        @Cleanup
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
             .enableBatching(batching)
             .batchingMaxPublishDelay(Long.MAX_VALUE, TimeUnit.SECONDS)

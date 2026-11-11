@@ -33,9 +33,11 @@ import io.netty.util.TimerTask;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadInfo;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -206,6 +208,132 @@ public class UnAckedMessageRedeliveryTrackerTest {
                 executorProvider.shutdownNow();
                 internalExecutor.shutdownNow();
             }
+        }
+    }
+
+    @DataProvider(name = "subscriptionTypes")
+    public Object[][] subscriptionTypes() {
+        return new Object[][] {
+                {SubscriptionType.Exclusive, true},
+                {SubscriptionType.Failover, true},
+                {SubscriptionType.Shared, false},
+                {SubscriptionType.Key_Shared, false},
+        };
+    }
+
+    /**
+     * An Exclusive or Failover consumer cannot redeliver single messages, so when the backoff of a timed-out message
+     * elapses it redelivers all of its unacked messages and clears the tracker: also the ones still waiting out their
+     * backoff and the ones that did not time out yet. onAckTimeoutSend must report all of them, or they are
+     * redelivered without ever being reported.
+     */
+    @Test(dataProvider = "subscriptionTypes")
+    @SuppressWarnings("unchecked")
+    public void testAckTimeoutReportsAllRedeliveredMessages(SubscriptionType subscriptionType,
+                                                            boolean redeliversAll) throws Exception {
+        ManualTimer timer = new ManualTimer();
+        PulsarClientImpl client = mock(PulsarClientImpl.class);
+        when(client.timer()).thenReturn(timer.timer);
+        when(client.instrumentProvider()).thenReturn(InstrumentProvider.NOOP);
+        ConsumerBase<byte[]> consumer = mock(ConsumerBase.class);
+        consumer.unAckedChunkedMessageIdSequenceMap = new ConcurrentHashMap<>();
+        List<Set<MessageId>> ackTimeoutSends = new ArrayList<>();
+        List<Set<MessageId>> redeliveries = new ArrayList<>();
+        // Copy the sets, since the tracker reuses them
+        doAnswer(invocation -> ackTimeoutSends.add(new HashSet<>(invocation.<Set<MessageId>>getArgument(0))))
+                .when(consumer).onAckTimeoutSend(any());
+        doAnswer(invocation -> redeliveries.add(new HashSet<>(invocation.<Set<MessageId>>getArgument(0))))
+                .when(consumer).redeliverUnacknowledgedMessages(any());
+        ConsumerConfigurationData<byte[]> conf = configuration();
+        conf.setSubscriptionType(subscriptionType);
+        conf.setAckTimeoutMillis(300);
+        conf.setTickDurationMillis(100);
+        // The first message to time out waits out a long backoff, the second one is redelivered right away
+        Queue<Long> backoffs = new ArrayDeque<>(List.of(TimeUnit.MINUTES.toMillis(10), 0L));
+        conf.setAckTimeoutRedeliveryBackoff(redeliveryCount -> backoffs.remove());
+
+        try (UnAckedMessageRedeliveryTracker tracker = new UnAckedMessageRedeliveryTracker(client, consumer, conf)) {
+            MessageId waiting = new MessageIdImpl(1, 1, -1);
+            MessageId due = new MessageIdImpl(1, 2, -1);
+            MessageId notTimedOut = new MessageIdImpl(1, 3, -1);
+            // ceil(300 / 100) + 1 time partitions: a message times out at the 4th tick after it is tracked
+            tracker.add(waiting);
+            timer.runTick();
+            tracker.add(due);
+            timer.runTick();
+            tracker.add(notTimedOut);
+            timer.runTick();
+            // waiting times out and waits out its backoff
+            timer.runTick();
+            assertThat(ackTimeoutSends).isEmpty();
+
+            // due times out and its backoff has elapsed already
+            timer.runTick();
+            Set<MessageId> redelivered = redeliversAll ? Set.of(waiting, due, notTimedOut) : Set.of(due);
+            assertThat(ackTimeoutSends).containsExactly(redelivered);
+            assertThat(redeliveries).containsExactly(redelivered);
+            assertThat(tracker.size()).isEqualTo(redeliversAll ? 0 : 2);
+            // Only the messages that timed out count as ack-timeout redeliveries
+            assertThat(tracker.getLocalRedeliveryCount(waiting)).isEqualTo(redeliversAll ? 1 : 0);
+            assertThat(tracker.getLocalRedeliveryCount(due)).isEqualTo(redeliversAll ? 1 : 0);
+            assertThat(tracker.getLocalRedeliveryCount(notTimedOut)).isEqualTo(0);
+        }
+    }
+
+    /**
+     * When an Exclusive or Failover consumer redelivers chunked messages before their redelivery is due, the tracker
+     * must keep the mappings to their chunks: the application can still acknowledge the messages it received, and
+     * the acknowledgments must cover all of their chunks, not only the last ones.
+     */
+    @Test(dataProvider = "subscriptionTypes")
+    @SuppressWarnings("unchecked")
+    public void testAckTimeoutKeepsChunkMappingsOfMessagesNotDue(SubscriptionType subscriptionType,
+                                                                  boolean redeliversAll) throws Exception {
+        ManualTimer timer = new ManualTimer();
+        PulsarClientImpl client = mock(PulsarClientImpl.class);
+        when(client.timer()).thenReturn(timer.timer);
+        when(client.instrumentProvider()).thenReturn(InstrumentProvider.NOOP);
+        ConsumerBase<byte[]> consumer = mock(ConsumerBase.class);
+        consumer.unAckedChunkedMessageIdSequenceMap = new ConcurrentHashMap<>();
+        List<Set<MessageId>> ackTimeoutSends = new ArrayList<>();
+        // Copy the set, since the tracker reuses it
+        doAnswer(invocation -> ackTimeoutSends.add(new HashSet<>(invocation.<Set<MessageId>>getArgument(0))))
+                .when(consumer).onAckTimeoutSend(any());
+        ConsumerConfigurationData<byte[]> conf = configuration();
+        conf.setSubscriptionType(subscriptionType);
+        conf.setAckTimeoutMillis(300);
+        conf.setTickDurationMillis(100);
+        // The first message to time out waits out a long backoff, the second one is redelivered right away
+        Queue<Long> backoffs = new ArrayDeque<>(List.of(TimeUnit.MINUTES.toMillis(10), 0L));
+        conf.setAckTimeoutRedeliveryBackoff(redeliveryCount -> backoffs.remove());
+
+        try (UnAckedMessageRedeliveryTracker tracker = new UnAckedMessageRedeliveryTracker(client, consumer, conf)) {
+            MessageIdImpl[] waitingChunks = {new MessageIdImpl(1, 1, -1), new MessageIdImpl(1, 2, -1)};
+            ChunkMessageIdImpl waiting = new ChunkMessageIdImpl(waitingChunks[0], waitingChunks[1]);
+            MessageId due = new MessageIdImpl(1, 3, -1);
+            MessageIdImpl[] notTimedOutChunks = {new MessageIdImpl(1, 4, -1), new MessageIdImpl(1, 5, -1)};
+            ChunkMessageIdImpl notTimedOut = new ChunkMessageIdImpl(notTimedOutChunks[0], notTimedOutChunks[1]);
+            consumer.unAckedChunkedMessageIdSequenceMap.put(waiting, waitingChunks);
+            consumer.unAckedChunkedMessageIdSequenceMap.put(notTimedOut, notTimedOutChunks);
+            tracker.add(waiting);
+            timer.runTick();
+            tracker.add(due);
+            timer.runTick();
+            tracker.add(notTimedOut);
+            timer.runTick();
+            // waiting times out and waits out its backoff
+            timer.runTick();
+
+            // due times out and its backoff has elapsed already
+            timer.runTick();
+            assertThat(ackTimeoutSends).hasSize(1);
+            if (redeliversAll) {
+                assertThat(ackTimeoutSends.get(0)).contains(waitingChunks).contains(notTimedOutChunks);
+            }
+            // PersistentAcknowledgmentsGroupingTracker acknowledges all the chunks of a message only through these
+            // mappings
+            assertThat(consumer.unAckedChunkedMessageIdSequenceMap.get(waiting)).isSameAs(waitingChunks);
+            assertThat(consumer.unAckedChunkedMessageIdSequenceMap.get(notTimedOut)).isSameAs(notTimedOutChunks);
         }
     }
 
