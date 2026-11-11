@@ -472,7 +472,7 @@ The Apache Software License, Version 2.0
   * Byte Buddy
     - net.bytebuddy-byte-buddy-1.18.17.jar
   * zt-zip
-    - org.zeroturnaround-zt-zip-1.18.2.jar
+    - org.zeroturnaround-zt-zip-1.18.3.jar
   * Apache Avro
     - org.apache.avro-avro-1.12.2.jar
     - org.apache.avro-avro-protobuf-1.12.2.jar
