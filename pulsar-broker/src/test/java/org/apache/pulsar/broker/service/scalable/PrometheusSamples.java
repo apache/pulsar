@@ -27,6 +27,7 @@ import io.prometheus.metrics.model.snapshots.GaugeSnapshot;
 import io.prometheus.metrics.model.snapshots.HistogramSnapshot;
 import io.prometheus.metrics.model.snapshots.Labels;
 import io.prometheus.metrics.model.snapshots.MetricSnapshot;
+import io.prometheus.metrics.model.snapshots.Quantile;
 import io.prometheus.metrics.model.snapshots.SummarySnapshot;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -118,6 +119,10 @@ public final class PrometheusSamples {
             } else if (snapshot instanceof SummarySnapshot summary) {
                 type = MetricType.SUMMARY;
                 for (SummarySnapshot.SummaryDataPointSnapshot point : summary.getDataPoints()) {
+                    for (Quantile quantile : point.getQuantiles()) {
+                        samples.add(new Sample(name, point.getLabels(), "quantile",
+                                Double.toString(quantile.getQuantile()), quantile.getValue()));
+                    }
                     samples.add(new Sample(name + "_count", point.getLabels(), point.getCount()));
                     samples.add(new Sample(name + "_sum", point.getLabels(), point.getSum()));
                 }
