@@ -176,11 +176,16 @@ public class CompressionCodecZLibTest {
         }
     }
 
-    @Test
-    public void testDirectInputsDoNotCopyToByteArray() throws IOException, DataFormatException {
+    @DataProvider
+    public Object[][] singleRangeBufferTypes() {
+        return new Object[][] {{BufferType.DIRECT_SLICE}, {BufferType.COMPOSITE_SINGLE_RANGE}};
+    }
+
+    @Test(dataProvider = "singleRangeBufferTypes")
+    public void testSingleRangeInputsDoNotCopyToByteArray(BufferType type) throws IOException, DataFormatException {
         byte[] data = randomBytes(65536);
-        ByteBuf source = BufferType.DIRECT_SLICE.create(data);
-        ByteBuf legacyInput = BufferType.DIRECT_SLICE.create(legacyEncode(data));
+        ByteBuf source = type.create(data);
+        ByteBuf legacyInput = type.create(legacyEncode(data));
         ByteBuf sourceWrapper = mock(ByteBuf.class, delegatesTo(source));
         ByteBuf encodedWrapper = mock(ByteBuf.class, delegatesTo(legacyInput));
         ByteBuf encoded = null;
@@ -251,6 +256,28 @@ public class CompressionCodecZLibTest {
     @DataProvider
     public Object[][] operations() {
         return new Object[][] {{true}, {false}};
+    }
+
+    @Test(dataProvider = "operations")
+    public void testInputsWithoutNioBuffersDoNotRequestNioViews(boolean encode) throws IOException {
+        byte[] data = randomBytes(4096);
+        byte[] input = encode ? data : legacyEncode(data);
+        ByteBuf source = BufferType.NON_NIO.create(input);
+        ByteBuf sourceWrapper = mock(ByteBuf.class, delegatesTo(source));
+        ByteBuf result = null;
+        try {
+            int readerIndex = source.readerIndex();
+            int writerIndex = source.writerIndex();
+            result = encode ? codec.encode(sourceWrapper) : codec.decode(sourceWrapper, data.length);
+
+            assertThat(ByteBufUtil.getBytes(result)).isEqualTo(encode ? legacyEncode(data) : data);
+            verify(sourceWrapper, never()).nioBuffer(anyInt(), anyInt());
+            verify(sourceWrapper, never()).internalNioBuffer(anyInt(), anyInt());
+            verify(sourceWrapper, never()).nioBuffers(anyInt(), anyInt());
+            assertUnchanged(source, readerIndex, writerIndex);
+        } finally {
+            release(result, source);
+        }
     }
 
     @Test(dataProvider = "operations")

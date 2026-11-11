@@ -98,14 +98,16 @@ public class CompressionCodecZLib implements CompressionCodec {
     private static ByteBuffer inputBuffer(ByteBuf source) {
         int readerIndex = source.readerIndex();
         int length = source.readableBytes();
-        try {
-            return source.nioBuffer(readerIndex, length);
-        } catch (UnsupportedOperationException e) {
-            // Some ByteBuf implementations support getBytes but cannot expose a NIO view.
-            byte[] copy = new byte[length];
-            source.getBytes(readerIndex, copy);
-            return ByteBuffer.wrap(copy);
+        if (source.nioBufferCount() > 0) {
+            try {
+                return source.nioBuffer(readerIndex, length);
+            } catch (UnsupportedOperationException e) {
+                // A custom buffer or a composite component may still reject the requested NIO view.
+            }
         }
+        byte[] copy = new byte[length];
+        source.getBytes(readerIndex, copy);
+        return ByteBuffer.wrap(copy);
     }
 
     private static void deflate(Deflater deflater, ByteBuf out) {
