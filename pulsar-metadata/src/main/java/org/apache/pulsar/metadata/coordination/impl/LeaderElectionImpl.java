@@ -56,6 +56,8 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
     private final Consumer<LeaderElectionState> stateChangesListener;
 
     private LeaderElectionState leaderElectionState;
+    // Session in which a read or create confirmed ownership of the ephemeral leader node.
+    private Object leadingSession;
     private Optional<T> proposedValue;
 
     // The leader value as known by the election cycle (the leader can only change through an
@@ -162,9 +164,10 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
         // First check if there's already a leader elected
         internalState = InternalState.ElectionInProgress;
         long lockDeletionsBeforeRead = lockDeletions;
+        Object readSession = coordinationService.getSessionToken();
         return store.get(path).thenCompose(optLock -> {
             if (optLock.isPresent()) {
-                return handleExistingLeaderValue(optLock.get(), lockDeletionsBeforeRead);
+                return handleExistingLeaderValue(optLock.get(), lockDeletionsBeforeRead, readSession);
             } else {
                 return tryToBecomeLeader();
             }
@@ -172,7 +175,7 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
     }
 
     private synchronized CompletableFuture<LeaderElectionState> handleExistingLeaderValue(GetResult res,
-            long lockDeletionsBeforeRead) {
+            long lockDeletionsBeforeRead, Object readSession) {
         if (internalState == InternalState.Closed) {
             // Closed while the lock was being read: the value read must not bring the election back, nor make it
             // delete the lock
@@ -199,6 +202,7 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
                 log.info().attr("value", existingValue).attr("path", path).attr("stat", res.getStat())
                         .log("Keeping the existing value as it's from the same session");
                 // The value is still valid because it was created in the same session
+                recordLeaderSession(readSession, true);
                 leaderKnown(Optional.of(existingValue));
                 changeState(LeaderElectionState.Leading);
                 return CompletableFuture.completedFuture(LeaderElectionState.Leading);
@@ -223,9 +227,17 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
         }
 
         // If the existing value is different, it means there's already another leader
+        recordLeaderSession(readSession, false);
         leaderKnown(Optional.of(existingValue));
         changeState(LeaderElectionState.Following);
         return CompletableFuture.completedFuture(LeaderElectionState.Following);
+    }
+
+    private void recordLeaderSession(Object session, boolean ownsLock) {
+        // An operation from an expired session can complete after another session has revalidated.
+        if (session == coordinationService.getSessionToken()) {
+            leadingSession = ownsLock ? session : null;
+        }
     }
 
     private synchronized void changeState(LeaderElectionState les) {
@@ -257,6 +269,7 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
 
         CompletableFuture<LeaderElectionState> result = new CompletableFuture<>();
         long lockDeletionsBeforeWrite = lockDeletions;
+        Object writeSession = coordinationService.getSessionToken();
         store.put(path, payload, Optional.of(-1L), EnumSet.of(CreateOption.Ephemeral))
                 .thenAccept(stat -> {
                     synchronized (LeaderElectionImpl.this) {
@@ -273,6 +286,7 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
                                     .log("Acquired leadership");
                             internalState = InternalState.LeaderIsPresent;
                             holdsLockProvisionally = false;
+                            recordLeaderSession(writeSession, true);
                             leaderKnown(Optional.of(value));
                             if (leaderElectionState != LeaderElectionState.Leading) {
                                 leaderElectionState = LeaderElectionState.Leading;
@@ -335,6 +349,7 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
         }
 
         internalState = InternalState.Closed;
+        leadingSession = null;
         coordinationService.removeLeaderElection(path, this);
         // A closed election reports "no leader" rather than waiting or failing: callers like the
         // extensible load manager's handleNoChannelOwnerError() key off the resulting
@@ -384,6 +399,11 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
     @Override
     public synchronized LeaderElectionState getState() {
         return leaderElectionState;
+    }
+
+    @Override
+    public synchronized boolean isLeaderInCurrentSession() {
+        return leadingSession != null && leadingSession == coordinationService.getSessionToken();
     }
 
     @Override
@@ -481,6 +501,7 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
         synchronized (this) {
             if (notification.getType() == NotificationType.Deleted) {
                 lockDeletions++;
+                leadingSession = null;
             }
             if (internalState != InternalState.LeaderIsPresent) {
                 // Not taking part in the election, or an election cycle is in progress: it checks the deletions once

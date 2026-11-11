@@ -239,9 +239,8 @@ public class TransactionCoordinatorV5 {
     }
 
     /**
-     * Whether this broker currently leads TC partition {@code partition}. Used to gate
-     * client-connect acceptance and the sweep. A partition with no local election (out-of-range or
-     * pre-{@code start()}) is not led here.
+     * Whether the local election for {@code partition} reports leadership. Used to gate the sweep.
+     * A partition with no local election (out-of-range or pre-{@code start()}) is not led here.
      */
     public boolean isLeaderFor(int partition) {
         LeaderElection<TcLeader> election = elections.get(partition);
@@ -293,12 +292,13 @@ public class TransactionCoordinatorV5 {
 
     /**
      * Accept a v5 handshake only while this broker leads the requested TC partition. An assignment
-     * watch can still point at the previous leader during failover, so return a retryable error.
+     * watch can still point at the previous leader during failover. Until the election confirms
+     * ownership in the current metadata session, return a retryable error.
      */
     public CompletableFuture<Void> handleClientConnect(TransactionCoordinatorID tcId) {
         long partition = tcId.getId();
-        if (partition >= 0 && partition < partitionCount && !closed && !pulsar.isMetadataSessionLost()
-                && isLeaderFor((int) partition)) {
+        var election = partition >= 0 && partition < partitionCount ? elections.get((int) partition) : null;
+        if (!closed && !pulsar.isMetadataSessionLost() && election != null && election.isLeaderInCurrentSession()) {
             return CompletableFuture.completedFuture(null);
         }
         return CompletableFuture.failedFuture(new CoordinatorException.CoordinatorNotFoundException(tcId));

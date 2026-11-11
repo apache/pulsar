@@ -45,6 +45,15 @@ public interface LeaderElection<T> extends AutoCloseable {
     LeaderElectionState getState();
 
     /**
+     * Whether this participant has confirmed ownership of the election node in the current metadata
+     * session. A lost session invalidates its confirmation immediately. Implementations that cannot
+     * confirm session ownership return false.
+     */
+    default boolean isLeaderInCurrentSession() {
+        return false;
+    }
+
+    /**
      * Get the value set by the elected leader.
      * <p>
      * This is the authoritative read: if a leader election is currently in progress (e.g. the
