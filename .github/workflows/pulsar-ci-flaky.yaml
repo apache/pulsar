@@ -124,7 +124,7 @@ jobs:
 
       - name: checkout
         if: ${{ github.event_name == 'pull_request' }}
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Detect changed files
         if: ${{ github.event_name == 'pull_request' }}
@@ -182,7 +182,7 @@ jobs:
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
     steps:
       - name: checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm

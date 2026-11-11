@@ -116,7 +116,7 @@ jobs:
           echo "jdk_major_version=${{ github.event_name == 'workflow_dispatch' && github.event.inputs.jdk_major_version || '25'}}" >> $GITHUB_OUTPUT
 
       - name: checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Check ASF action allowlist
         if: ${{ (github.event.pull_request.base.repo.owner.login || github.repository_owner) == 'apache' }}
@@ -164,7 +164,7 @@ jobs:
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
     steps:
       - name: checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -285,7 +285,7 @@ jobs:
 
     steps:
       - name: checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -405,7 +405,7 @@ jobs:
       CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
     steps:
       - name: checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -434,7 +434,7 @@ jobs:
       CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
     steps:
       - name: checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -553,7 +553,7 @@ jobs:
 
     steps:
       - name: checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -681,7 +681,7 @@ jobs:
       CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
     steps:
       - name: checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -793,7 +793,7 @@ jobs:
 
     steps:
       - name: checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -901,7 +901,7 @@ jobs:
       CODEQL_LANGUAGE: java-kotlin
     steps:
       - name: checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
