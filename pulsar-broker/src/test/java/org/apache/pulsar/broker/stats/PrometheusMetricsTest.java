@@ -1536,6 +1536,12 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                 assertEquals(tpLatencyCount.get(0).tags.get("subscription"), subName);
                 assertEquals(tpLatencyCount.get(0).value, 1.0);
 
+                // The quantile series are scraped under the family name itself; each summary keeps its own set.
+                assertEquals(quantilesOf(metrics.get("pulsar_txn_tb_client_commit_latency"), topic),
+                        Set.of(0.5, 0.75, 0.95, 0.99, 0.999, 0.9999, 1.0));
+                assertEquals(quantilesOf(metrics.get("pulsar_txn_tp_commit_latency"), topic),
+                        Set.of(0.5, 0.9, 0.99, 0.999));
+
                 // Static and never touched here: only their presence and the cluster label matter.
                 for (String family : List.of("pulsar_replicated_subscriptions_pending_snapshots",
                         "pulsar_replicated_subscriptions_timedout_snapshots_total",
@@ -1548,6 +1554,14 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         } finally {
             conf.setTransactionCoordinatorEnabled(false);
         }
+    }
+
+    /** The quantile label values of a summary's series for one topic, as numbers so the text format is irrelevant. */
+    private static Set<Double> quantilesOf(Collection<Metric> samples, String topic) {
+        return samples.stream()
+                .filter(m -> topic.equals(m.tags.get("topic")))
+                .map(m -> Double.valueOf(m.tags.get("quantile")))
+                .collect(Collectors.toSet());
     }
 
     /***
