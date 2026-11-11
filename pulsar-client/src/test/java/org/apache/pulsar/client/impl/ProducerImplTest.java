@@ -617,6 +617,51 @@ public class ProducerImplTest {
     }
 
     /**
+     * The send timeout fails the queued messages through {@link ProducerImpl#failPendingMessages}. Each message must
+     * give back its permit and memory before its send completes: a caller woken by the failed send, or a retry from
+     * its callback, must not find them still held by the thread that is failing the queue.
+     */
+    @Test
+    public void testFailPendingMessagesReleasesAccountingBeforeCompletingSends() {
+        MemoryLimitController memory = new MemoryLimitController(1024 * 1024);
+        PulsarClientImpl client = mockedPulsarClient();
+        when(client.getMemoryLimitController()).thenReturn(memory);
+        when(client.getClientClock()).thenReturn(Clock.systemUTC());
+        ProducerConfigurationData conf = new ProducerConfigurationData();
+        conf.setProducerName("fail-pending-accounting-test");
+        conf.setBatchingEnabled(false);
+        conf.setMaxPendingMessages(10);
+        ProducerImpl<byte[]> producer = constructProducer(client, conf);
+        // Not connected, as once the broker went away: the messages wait in the pending queue until they time out.
+        producer.setState(HandlerState.State.Connecting);
+
+        List<CompletableFuture<MessageId>> sends = new ArrayList<>();
+        List<Long> memoryAtCompletion = new ArrayList<>();
+        List<Integer> permitsAtCompletion = new ArrayList<>();
+        for (int i = 0; i < 2; i++) {
+            CompletableFuture<MessageId> send = producer.newMessage().value(new byte[10]).sendAsync();
+            // Runs on the failing thread as the send completes, which is when a caller blocked in send() wakes up.
+            send.whenComplete((messageId, e) -> {
+                memoryAtCompletion.add(memory.currentUsage());
+                permitsAtCompletion.add(producer.availableSendPermitsForTesting());
+            });
+            sends.add(send);
+        }
+        assertThat(producer.getPendingQueueSize()).isEqualTo(2);
+        assertThat(memory.currentUsage()).isEqualTo(20);
+        assertThat(producer.availableSendPermitsForTesting()).isEqualTo(8);
+
+        producer.failPendingMessages(null, new PulsarClientException.TimeoutException("send timed out"));
+
+        assertThat(sends).allSatisfy(send -> assertThat(send).failsWithin(Duration.ZERO)
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(PulsarClientException.TimeoutException.class));
+        // Each send sees its own message's accounting released, and the next message's still held.
+        assertThat(memoryAtCompletion).containsExactly(10L, 0L);
+        assertThat(permitsAtCompletion).containsExactly(9, 10);
+    }
+
+    /**
      * When the producer is in a terminal state, {@link ProducerImpl#processOpSendMsg} fails the message right away.
      * The memory reserved for that message must be given back to the {@link MemoryLimitController} exactly once:
      * releasing it twice makes {@code currentUsage} drift below zero and permanently disables the client memory
