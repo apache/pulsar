@@ -35,6 +35,7 @@ import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.prometheus.client.Collector;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -1340,8 +1341,10 @@ public class PrometheusMetricsTest extends BrokerTestBase {
     public void testWebExecutorAndResourceGroupMetricsAreScraped() throws Exception {
         // The web executor gauges and the resource group counters live in the Prometheus Java client 1.x registry;
         // the broker scrape must still expose them under the legacy names with the cluster label.
-        // WebExecutorStats is a JVM-wide singleton whose gauges are unregistered by the first WebService close and
-        // never re-registered, so like WebServiceTest the web executor families are only checked when present.
+        // WebExecutorStats is a JVM-wide singleton whose gauges are unregistered by the first WebService close in
+        // this JVM and never re-registered, so this broker owns them only if no broker was closed before it. The
+        // 1.x registry tells which case applies: when it holds a family the scrape must carry exactly one series
+        // with the cluster label, otherwise none. WebExecutorStatsTest covers the gauge values and close().
         String rgName = "metrics-rg-" + UUID.randomUUID();
         ResourceGroup rgConfig = new ResourceGroup();
         rgConfig.setPublishRateInMsgs(1000);
@@ -1366,10 +1369,16 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                 assertEquals(updates.get(0).tags.get("cluster"), "test");
                 assertEquals(updates.get(0).value, 1.0);
                 for (String family : List.of("pulsar_web_executor_max_threads",
+                        "pulsar_web_executor_min_threads",
+                        "pulsar_web_executor_idle_threads",
+                        "pulsar_web_executor_active_threads",
                         "pulsar_web_executor_current_threads")) {
-                    for (Metric m : metrics.get(family)) {
-                        assertEquals(m.tags.get("cluster"), "test", family);
-                        assertTrue(m.value > 0, family);
+                    boolean registered = PrometheusRegistry.defaultRegistry.scrape(family::equals).size() > 0;
+                    List<Metric> samples = new ArrayList<>(metrics.get(family));
+                    assertEquals(samples.size(), registered ? 1 : 0, family);
+                    if (registered) {
+                        assertEquals(samples.get(0).tags.get("cluster"), "test", family);
+                        assertTrue(samples.get(0).value >= 0, family);
                     }
                 }
             });

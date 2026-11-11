@@ -394,6 +394,10 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends SharedPulsarBaseTest {
 
     // Produce/consume messages on the given topics, and verify that the resource-group stats are updated.
     private void testProduceConsumeUsageOnRG(String[] topicStrings) throws Exception {
+        // The latency summaries are static, so observations left by earlier test methods in this JVM must not
+        // satisfy this method's checks: remember where they stand before this test produces any work.
+        final long usageAggregationsBefore = ResourceGroupService.getRgUsageAggregationLatency().getCount();
+        final long quotaCalculationsBefore = ResourceGroupService.getRgQuotaCalculationTime().getCount();
         createRGs();
         // creating the topics results in exposing a regression.
         // It can be put back after https://github.com/apache/pulsar/issues/11289 is fixed.
@@ -531,7 +535,8 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends SharedPulsarBaseTest {
                 true, true);
 
         // Verify the metrics corresponding to the operations in this test.
-        this.verifyRGMetrics(sentNumBytes, sentNumMsgs, recvdNumBytes, recvdNumMsgs, scaleFactor, true, true);
+        this.verifyRGMetrics(sentNumBytes, sentNumMsgs, recvdNumBytes, recvdNumMsgs, scaleFactor, true, true,
+                usageAggregationsBefore, quotaCalculationsBefore);
 
         unRegisterTenantsAndNamespaces(topicStrings);
         // destroyTopics can be called after createTopics() is added back
@@ -664,7 +669,8 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends SharedPulsarBaseTest {
     private void verifyRGMetrics(int sentNumBytes, int sentNumMsgs,
                                  int recvdNumBytes, int recvdNumMsgs,
                                  int scaleFactor, boolean checkProduce,
-                                 boolean checkConsume) throws Exception {
+                                 boolean checkConsume, long usageAggregationsBefore,
+                                 long quotaCalculationsBefore) throws Exception {
         final int expectedNumBytesSent = sentNumBytes + PER_MESSAGE_METADATA_OHEAD * sentNumMsgs;
         final int expectedNumBytesReceived = recvdNumBytes + PER_MESSAGE_METADATA_OHEAD * recvdNumMsgs;
         long totalTenantRegisters = 0;
@@ -753,15 +759,17 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends SharedPulsarBaseTest {
         Assert.assertEquals(totalUpdates, 0);  // currently, we don't update the RGs in this UT
 
         // Basic check that latency metrics are doing some work. Both summaries are fed by periodic tasks that run
-        // every PUBLISH_INTERVAL_SECS, so give them time to complete at least once.
+        // every PUBLISH_INTERVAL_SECS, so give them time to complete at least once during this test.
         Awaitility.await().atMost(3 * PUBLISH_INTERVAL_SECS, TimeUnit.SECONDS).untilAsserted(() -> {
-            assertLatencyRecorded(ResourceGroupService.getRgUsageAggregationLatency());
-            assertLatencyRecorded(ResourceGroupService.getRgQuotaCalculationTime());
+            assertLatencyRecorded(ResourceGroupService.getRgUsageAggregationLatency(), usageAggregationsBefore);
+            assertLatencyRecorded(ResourceGroupService.getRgQuotaCalculationTime(), quotaCalculationsBefore);
         });
     }
 
-    private static void assertLatencyRecorded(SummarySnapshot.SummaryDataPointSnapshot latency) {
-        Assert.assertTrue(latency.getCount() > 0);
+    private static void assertLatencyRecorded(SummarySnapshot.SummaryDataPointSnapshot latency,
+                                              long countBefore) {
+        Assert.assertTrue(latency.getCount() > countBefore,
+                "expected more than " + countBefore + " observations but found " + latency.getCount());
         Assert.assertTrue(latency.getSum() > 0);
         Assert.assertTrue(quantileValue(latency, 0.5) > 0);
         Assert.assertTrue(quantileValue(latency, 0.9) > 0);
