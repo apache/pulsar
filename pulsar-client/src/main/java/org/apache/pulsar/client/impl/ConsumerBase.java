@@ -1021,14 +1021,19 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         try {
             if (canEnqueueMessage(message)) {
                 INCOMING_MESSAGES_SIZE_UPDATER.addAndGet(this, messageSize);
+                // Reserve before the message becomes visible: a receive() takes it without incomingQueueLock and
+                // releases its size, which must not run ahead of the reservation and drop the shared usage below
+                // what the queues hold.
+                Optional<MemoryLimitController> memoryLimitController = getMemoryLimitController();
+                memoryLimitController.ifPresent(limiter -> limiter.forceReserveMemory(messageSize));
                 if (incomingMessages.offer(message)) {
                     // After we have enqueued the messages on `incomingMessages` queue, we cannot touch the message
                     // instance anymore, since for pooled messages, this instance was possibly already been released
                     // and recycled.
-                    getMemoryLimitController().ifPresent(limiter -> limiter.forceReserveMemory(messageSize));
                     updateAutoScaleReceiverQueueHint();
                 } else {
                     INCOMING_MESSAGES_SIZE_UPDATER.addAndGet(this, -messageSize);
+                    memoryLimitController.ifPresent(limiter -> limiter.releaseMemory(messageSize));
                 }
             }
         } finally {
