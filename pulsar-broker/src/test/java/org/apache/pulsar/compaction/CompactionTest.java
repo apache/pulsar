@@ -138,6 +138,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
     protected BookKeeper bk;
     private PublishingOrderCompactor compactor;
     private volatile java.util.function.Consumer<org.apache.pulsar.broker.service.Consumer> consumerCreated = __ -> {};
+    private int defaultCursorMaxEntriesPerLedger;
 
     @Override
     protected void doInitConf() throws Exception {
@@ -150,6 +151,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
     @Override
     public void setup() throws Exception {
         super.internalSetup();
+        defaultCursorMaxEntriesPerLedger = conf.getManagedLedgerCursorMaxEntriesPerLedger();
         pulsar.getBrokerService().setInterceptor(new MockBrokerInterceptor() {
 
             @Override
@@ -185,6 +187,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod(alwaysRun = true)
     public void beforeMethod() throws Exception {
         admin.namespaces().removeRetention("my-tenant/my-ns");
+        conf.setManagedLedgerCursorMaxEntriesPerLedger(defaultCursorMaxEntriesPerLedger);
         AbstractTwoPhaseCompactor.injectionAfterSeekInPhaseTwo = () -> {};
         AbstractTwoPhaseCompactor.injectionPhaseTwoSeek = RawReader::seekAsync;
         consumerCreated = __ -> {};
@@ -3032,12 +3035,10 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         // compactor subscription's mark-delete position and properties. The infinite retention
         // keeps the consumed data ledgers around so that the recovered position is not clamped
         // to a newer ledger. MissingCompactedLedgerTest also covers real retention trimming.
-        PersistentTopic setupTopic = (PersistentTopic)
-                pulsar.getBrokerService().getTopic(topic, true).get().orElseThrow();
-        setupTopic.getManagedLedger().getConfig()
-                .setRetentionTime(-1, TimeUnit.MINUTES)
-                .setRetentionSizeInMB(-1)
-                .setMetadataMaxEntriesPerLedger(1);
+        // Both go through the broker configuration and the namespace policies: any policy update
+        // reaching the topic replaces its managed-ledger config with one built from them.
+        conf.setManagedLedgerCursorMaxEntriesPerLedger(1);
+        admin.namespaces().setRetention("my-tenant/my-ns", new RetentionPolicies(-1, -1));
 
         try (Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(topic).enableBatching(false).create()) {
