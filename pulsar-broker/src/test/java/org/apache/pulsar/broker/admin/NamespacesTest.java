@@ -61,6 +61,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -70,7 +71,6 @@ import lombok.CustomLog;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
-import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.admin.v2.Namespaces;
@@ -152,6 +152,9 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     protected NamespaceService nsSvc;
     protected Field uriField;
     protected UriInfo uriInfo;
+    // Spies that reference the broker, which Mockito's inline mock maker would keep, with the broker, until the JVM
+    // exits: released once the broker is closed.
+    private final List<Object> ownedMocks = new CopyOnWriteArrayList<>();
 
     public NamespacesTest() {
         super();
@@ -182,6 +185,16 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     public void cleanup() throws Exception {
         super.internalCleanup();
         conf.setClusterName(testLocalCluster);
+        ownedMocks.forEach(mock -> Mockito.framework().clearInlineMock(mock));
+        ownedMocks.clear();
+        // TestNG keeps this test instance until the run ends
+        namespaces = null;
+        nsSvc = null;
+    }
+
+    private <T> T ownMock(T mock) {
+        ownedMocks.add(mock);
+        return mock;
     }
 
     @AfterMethod(alwaysRun = true)
@@ -215,7 +228,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         conf.setClusterName(testLocalCluster);
         super.internalSetup();
 
-        namespaces = spy(Namespaces.class);
+        namespaces = ownMock(spy(Namespaces.class));
         namespaces.setServletContext(mock(ServletContext.class));
         namespaces.setPulsar(pulsar);
         doReturn(false).when(namespaces).isRequestHttps();
@@ -782,8 +795,11 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
         NamespaceName testNs = this.testLocalNamespaces.get(1);
         TopicName topicName = TopicName.get(testNs.getPersistentTopicName("my-topic"));
-        ZkUtils.createFullPathOptimistic(mockZooKeeper, "/managed-ledgers/" + topicName.getPersistenceNamingEncoding(),
-                new byte[0], null, null);
+        // Write the topic nodes through the broker's metadata stores, which invalidate the cached topic lists before
+        // the write completes. Writing them to the mock ZooKeeper directly leaves those lists stale until the store
+        // gets the watch event, so the next delete could miss the topic.
+        String managedLedgerPath = "/managed-ledgers/" + topicName.getPersistenceNamingEncoding();
+        pulsar.getLocalMetadataStore().put(managedLedgerPath, new byte[0], Optional.of(-1L)).get();
 
         // setup ownership to localhost
         LookupResult localWebServiceUrl = LookupResult.builder()
@@ -804,11 +820,10 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         assertEquals(errorCaptor.getValue().getResponse().getStatus(), Status.CONFLICT.getStatusCode());
 
         // delete the topic from ZK
-        mockZooKeeper.delete("/managed-ledgers/" + topicName.getPersistenceNamingEncoding(), -1);
+        pulsar.getLocalMetadataStore().delete(managedLedgerPath, Optional.empty()).get();
 
-        ZkUtils.createFullPathOptimistic(mockZooKeeperGlobal,
-                "/admin/partitioned-topics/" + topicName.getPersistenceNamingEncoding(),
-                new byte[0], null, null);
+        String partitionedTopicPath = "/admin/partitioned-topics/" + topicName.getPersistenceNamingEncoding();
+        pulsar.getConfigurationMetadataStore().put(partitionedTopicPath, new byte[0], Optional.of(-1L)).get();
 
         response = mock(AsyncResponse.class);
         namespaces.deleteNamespace(response, testNs.getTenant(),
@@ -818,7 +833,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         verify(response, timeout(5000).times(1)).resume(errorCaptor.capture());
         assertEquals(errorCaptor.getValue().getResponse().getStatus(), Status.CONFLICT.getStatusCode());
 
-        mockZooKeeperGlobal.delete("/admin/partitioned-topics/" + topicName.getPersistenceNamingEncoding(), -1);
+        pulsar.getConfigurationMetadataStore().delete(partitionedTopicPath, Optional.empty()).get();
 
         testNs = this.testGlobalNamespaces.get(0);
         // setup ownership to localhost
@@ -984,7 +999,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         createBundledTestNamespaces(this.testTenant, bundledNsLocal, bundleData);
         final NamespaceName testNs = NamespaceName.get(this.testTenant, bundledNsLocal);
 
-        OwnershipCache mockOwnershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
+        OwnershipCache mockOwnershipCache = ownMock(spy(pulsar.getNamespaceService().getOwnershipCache()));
         doReturn(CompletableFuture.completedFuture(null)).when(mockOwnershipCache)
                 .disableOwnership(any(NamespaceBundle.class));
         Field ownership = NamespaceService.class.getDeclaredField("ownershipCache");
@@ -1032,7 +1047,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         createBundledTestNamespaces(this.testTenant, bundledNsLocal, bundleData);
         final NamespaceName testNs = NamespaceName.get(this.testTenant, bundledNsLocal);
 
-        OwnershipCache mockOwnershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
+        OwnershipCache mockOwnershipCache = ownMock(spy(pulsar.getNamespaceService().getOwnershipCache()));
         doReturn(CompletableFuture.completedFuture(null)).when(mockOwnershipCache)
                 .disableOwnership(any(NamespaceBundle.class));
         Field ownership = NamespaceService.class.getDeclaredField("ownershipCache");
@@ -1148,7 +1163,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             final NamespaceName testNs = NamespaceName.get(this.testTenant, bundledNsLocal);
             mockWebUrl(localWebServiceUrl, testNs);
 
-            OwnershipCache mockOwnershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
+            OwnershipCache mockOwnershipCache = ownMock(spy(pulsar.getNamespaceService().getOwnershipCache()));
             doReturn(CompletableFuture.completedFuture(null)).when(mockOwnershipCache)
                     .disableOwnership(any(NamespaceBundle.class));
             Field ownership = NamespaceService.class.getDeclaredField("ownershipCache");
@@ -1239,14 +1254,14 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 .build();
         createBundledTestNamespaces(this.testTenant, bundledNsLocal, bundleData);
         final NamespaceName testNs = NamespaceName.get(this.testTenant, bundledNsLocal);
-        OwnershipCache mockOwnershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
+        OwnershipCache mockOwnershipCache = ownMock(spy(pulsar.getNamespaceService().getOwnershipCache()));
         doReturn(CompletableFuture.completedFuture(null)).when(mockOwnershipCache)
                 .disableOwnership(any(NamespaceBundle.class));
         Field ownership = NamespaceService.class.getDeclaredField("ownershipCache");
         ownership.setAccessible(true);
         ownership.set(pulsar.getNamespaceService(), mockOwnershipCache);
         TopicName topicName = TopicName.get(testNs.getPersistentTopicName("my-topic"));
-        PersistentTopics topics = spy(PersistentTopics.class);
+        PersistentTopics topics = ownMock(spy(PersistentTopics.class));
         topics.setServletContext(mock(ServletContext.class));
         topics.setPulsar(pulsar);
         doReturn(false).when(topics).isRequestHttps();
@@ -2662,7 +2677,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         createBundledTestNamespaces(this.testTenant, bundledNsLocal, bundleData);
         final NamespaceName testNs = NamespaceName.get(this.testTenant, bundledNsLocal);
 
-        OwnershipCache mockOwnershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
+        OwnershipCache mockOwnershipCache = ownMock(spy(pulsar.getNamespaceService().getOwnershipCache()));
         doReturn(CompletableFuture.completedFuture(null)).when(mockOwnershipCache)
                 .disableOwnership(any(NamespaceBundle.class));
         Field ownership = NamespaceService.class.getDeclaredField("ownershipCache");

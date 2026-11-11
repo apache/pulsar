@@ -934,6 +934,10 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                         + "authenticationEnabled=true when authorization is enabled with authorizationEnabled=true.");
             }
 
+            if (!BindAddressValidator.validateBindAddresses(config, Arrays.asList("pulsar+ssl", "https")).isEmpty()) {
+                config.logTlsClientAuthMode("broker");
+            }
+
             if (config.getDefaultRetentionSizeInMB() > 0
                     && config.getBacklogQuotaDefaultLimitBytes() > 0
                     && config.getBacklogQuotaDefaultLimitBytes()
