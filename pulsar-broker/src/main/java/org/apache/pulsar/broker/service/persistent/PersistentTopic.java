@@ -586,7 +586,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private void createPersistentSubscriptions() {
         for (ManagedCursor cursor : ledger.getCursors()) {
                 if (cursor.getName().equals(DEDUPLICATION_CURSOR_NAME)
-                        || cursor.getName().startsWith(replicatorPrefix)) {
+                        || AbstractReplicator.isReplicatorCursor(replicatorPrefix, cursor.getName())) {
                     // This is not a regular subscription, we are going to
                     // ignore it for now and let the message dedup logic to take care of it
                 } else {
@@ -1050,7 +1050,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         new UnsupportedVersionException("Consumer doesn't support batch-message"));
             }
 
-            if (subscriptionName.startsWith(replicatorPrefix)
+            if (AbstractReplicator.isReplicatorCursor(replicatorPrefix, subscriptionName)
                     || subscriptionName.equals(DEDUPLICATION_CURSOR_NAME)) {
                 log.warn()
                         .attr("subscription", subscriptionName)
