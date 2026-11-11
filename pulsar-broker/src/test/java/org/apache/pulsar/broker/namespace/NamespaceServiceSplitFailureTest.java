@@ -33,6 +33,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.pulsar.broker.PulsarService;
@@ -52,7 +53,6 @@ import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.metadata.api.CacheGetResult;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
-import org.apache.pulsar.metadata.coordination.impl.CoordinationServiceImpl;
 import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
 import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore.OperationType;
 import org.apache.pulsar.metadata.impl.MetadataStoreFactoryImpl;
@@ -69,23 +69,27 @@ public class NamespaceServiceSplitFailureTest {
 
     @Test(dataProvider = "splitFailureTiming")
     public void testSplitFailsWhenBundleCacheLoadFails(boolean alreadyFailed) throws Exception {
+        AtomicReference<PulsarResources> pulsarResourcesOverride = new AtomicReference<>();
+        ServiceConfiguration configuration = new ServiceConfiguration();
+        configuration.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
+        // Stub the spy before the broker starts, as SplitContext does: a doReturn(...).when(spy) on a spy that
+        // broker threads already call can hand the pending answer to another method, which breaks the spy
+        // for the rest of the JVM through the broker's Prometheus collectors.
         @Cleanup
-        PulsarTestContext context = PulsarTestContext.builderForNonStartableContext().spyByDefault().build();
+        PulsarTestContext context = PulsarTestContext.builder().spyByDefault().config(configuration)
+                .pulsarServiceCustomizer(pulsar -> doAnswer(invocation -> {
+                    PulsarResources override = pulsarResourcesOverride.get();
+                    return override != null ? override : invocation.callRealMethod();
+                }).when(pulsar).getPulsarResources()).build();
         PulsarService pulsar = context.getPulsarService();
-        @Cleanup
-        CoordinationServiceImpl coordinationService = new CoordinationServiceImpl(context.getLocalMetadataStore());
-        @Cleanup("shutdown")
-        OrderedExecutor executor = OrderedExecutor.newBuilder().numThreads(1).name("split-failure-test").build();
-        doReturn(coordinationService).when(pulsar).getCoordinationService();
-        doReturn(executor).when(pulsar).getOrderedExecutor();
         assertThat(ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)).isFalse();
 
-        @Cleanup
-        NamespaceService namespaceService = new NamespaceService(pulsar);
+        NamespaceService namespaceService = pulsar.getNamespaceService();
         NamespaceName namespace = NamespaceName.get("prop/ns-split-cache-failure");
         NamespaceBundleFactory factory = namespaceService.getNamespaceBundleFactory();
         NamespaceBundle bundle = factory.getBundle(namespace.toString(), "0x00000000_0xffffffff");
-        PulsarResources pulsarResources = pulsar.getPulsarResources();
+        // Stub fresh spies that no other thread can see yet, then publish them through the override.
+        PulsarResources pulsarResources = spy(pulsar.getPulsarResources());
         LocalPoliciesResources resources = spy(pulsarResources.getLocalPolicies());
         CompletableFuture<Optional<CacheGetResult<LocalPolicies>>> policiesFuture = new CompletableFuture<>();
         MetadataStoreException failure = new MetadataStoreException("Failed to read local policies for split");
@@ -94,6 +98,7 @@ public class NamespaceServiceSplitFailureTest {
         }
         doReturn(policiesFuture).when(resources).getLocalPoliciesWithVersion(namespace);
         doReturn(resources).when(pulsarResources).getLocalPolicies();
+        pulsarResourcesOverride.set(pulsarResources);
 
         // The cache is empty: splitBundles must load policies through the real bundle factory.
         CompletableFuture<Void> result = namespaceService.splitAndOwnBundle(bundle, false,
