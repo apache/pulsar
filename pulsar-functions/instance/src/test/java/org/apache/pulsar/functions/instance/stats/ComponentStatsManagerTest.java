@@ -56,6 +56,7 @@ public class ComponentStatsManagerTest {
         stats.incrTotalReceived();
         stats.incrTotalProcessedSuccessfully();
         stats.incrUserExceptions(new RuntimeException("boom"));
+        stats.incrSysExceptions(new RuntimeException("system boom"));
         stats.setLastInvocation(1700000000000L);
         // start timestamps 5 ms and 15 ms in the past: the recorded latencies are at least that, in milliseconds
         stats.processTimeEnd(System.nanoTime() - 5_000_000L);
@@ -67,8 +68,11 @@ public class ComponentStatsManagerTest {
                 .contains("pulsar_function_received_total" + LABELS + " 1.0\n")
                 .contains("pulsar_function_received_1min_total" + LABELS + " 1.0\n")
                 .contains("pulsar_function_processed_successfully_total" + LABELS + " 1.0\n")
+                .contains("pulsar_function_processed_successfully_1min_total" + LABELS + " 1.0\n")
                 .contains("pulsar_function_user_exceptions_total" + LABELS + " 1.0\n")
-                .contains("pulsar_function_system_exceptions_total" + LABELS + " 0.0\n")
+                .contains("pulsar_function_user_exceptions_1min_total" + LABELS + " 1.0\n")
+                .contains("pulsar_function_system_exceptions_total" + LABELS + " 1.0\n")
+                .contains("pulsar_function_system_exceptions_1min_total" + LABELS + " 1.0\n")
                 .contains("# TYPE pulsar_function_last_invocation gauge\n")
                 .contains("pulsar_function_last_invocation" + LABELS + " 1.7E12\n")
                 .contains("# TYPE pulsar_function_process_latency_ms summary\n")
@@ -95,7 +99,15 @@ public class ComponentStatsManagerTest {
         assertThat(stats.getTotalUserExceptions1min()).isEqualTo(0.0);
         assertThat(stats.getTotalUserExceptions()).isEqualTo(1.0);
         assertThat(stats.getAvgProcessLatency1min()).isEqualTo(0.0);
-        assertThat(stats.getStatsAsString()).contains("pulsar_function_user_exceptions_1min_total" + LABELS + " 0.0\n")
+        // reset() only clears the one minute window: every _1min family drops to zero, the totals stay
+        assertThat(stats.getStatsAsString())
+                .contains("pulsar_function_received_1min_total" + LABELS + " 0.0\n")
+                .contains("pulsar_function_processed_successfully_1min_total" + LABELS + " 0.0\n")
+                .contains("pulsar_function_system_exceptions_1min_total" + LABELS + " 0.0\n")
+                .contains("pulsar_function_user_exceptions_1min_total" + LABELS + " 0.0\n")
+                .contains("pulsar_function_received_total" + LABELS + " 1.0\n")
+                .contains("pulsar_function_processed_successfully_total" + LABELS + " 1.0\n")
+                .contains("pulsar_function_system_exceptions_total" + LABELS + " 1.0\n")
                 .contains("pulsar_function_process_latency_ms_1min{cluster=\"standalone\",fqfn=\"public/default/fn\","
                         + "instance_id=\"0\",name=\"fn\",namespace=\"public/default\",tenant=\"public\","
                         + "quantile=\"0.5\"} NaN\n");
