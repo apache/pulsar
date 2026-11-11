@@ -71,7 +71,6 @@ import lombok.CustomLog;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
-import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.admin.v2.Namespaces;
@@ -796,8 +795,11 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
         NamespaceName testNs = this.testLocalNamespaces.get(1);
         TopicName topicName = TopicName.get(testNs.getPersistentTopicName("my-topic"));
-        ZkUtils.createFullPathOptimistic(mockZooKeeper, "/managed-ledgers/" + topicName.getPersistenceNamingEncoding(),
-                new byte[0], null, null);
+        // Write the topic nodes through the broker's metadata stores, which invalidate the cached topic lists before
+        // the write completes. Writing them to the mock ZooKeeper directly leaves those lists stale until the store
+        // gets the watch event, so the next delete could miss the topic.
+        String managedLedgerPath = "/managed-ledgers/" + topicName.getPersistenceNamingEncoding();
+        pulsar.getLocalMetadataStore().put(managedLedgerPath, new byte[0], Optional.of(-1L)).get();
 
         // setup ownership to localhost
         LookupResult localWebServiceUrl = LookupResult.builder()
@@ -818,11 +820,10 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         assertEquals(errorCaptor.getValue().getResponse().getStatus(), Status.CONFLICT.getStatusCode());
 
         // delete the topic from ZK
-        mockZooKeeper.delete("/managed-ledgers/" + topicName.getPersistenceNamingEncoding(), -1);
+        pulsar.getLocalMetadataStore().delete(managedLedgerPath, Optional.empty()).get();
 
-        ZkUtils.createFullPathOptimistic(mockZooKeeperGlobal,
-                "/admin/partitioned-topics/" + topicName.getPersistenceNamingEncoding(),
-                new byte[0], null, null);
+        String partitionedTopicPath = "/admin/partitioned-topics/" + topicName.getPersistenceNamingEncoding();
+        pulsar.getConfigurationMetadataStore().put(partitionedTopicPath, new byte[0], Optional.of(-1L)).get();
 
         response = mock(AsyncResponse.class);
         namespaces.deleteNamespace(response, testNs.getTenant(),
@@ -832,7 +833,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         verify(response, timeout(5000).times(1)).resume(errorCaptor.capture());
         assertEquals(errorCaptor.getValue().getResponse().getStatus(), Status.CONFLICT.getStatusCode());
 
-        mockZooKeeperGlobal.delete("/admin/partitioned-topics/" + topicName.getPersistenceNamingEncoding(), -1);
+        pulsar.getConfigurationMetadataStore().delete(partitionedTopicPath, Optional.empty()).get();
 
         testNs = this.testGlobalNamespaces.get(0);
         // setup ownership to localhost

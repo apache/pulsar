@@ -84,7 +84,7 @@ avro = "1.12.2"
 gson = "2.15.0"
 snakeyaml = "2.7"
 # Vert.x
-vertx = "4.5.35"
+vertx = "4.5.36"
 # Networking / HTTP
 asynchttpclient = "3.0.14"
 conscrypt = "2.7.0"
@@ -157,7 +157,7 @@ ant = "1.10.18"
 guice = "5.1.0"
 snappy = "1.1.10.12"
 ipaddress = "5.6.2"
-zt-zip = "1.18.2"
+zt-zip = "1.18.3"
 # Jakarta
 jakarta-ws-rs = "3.1.0"
 jakarta-annotation = "2.1.1"
@@ -507,7 +507,7 @@ hadoop-hdfs-client = { module = "org.apache.hadoop:hadoop-hdfs-client", version.
 hadoop-minicluster = { module = "org.apache.hadoop:hadoop-minicluster", version.ref = "hadoop3" }
 failsafe = { module = "dev.failsafe:failsafe", version.ref = "failsafe" }
 docker-java-core = "com.github.docker-java:docker-java-core:3.7.1"
-json-smart = "net.minidev:json-smart:2.6.0"
+json-smart = "net.minidev:json-smart:2.6.1"
 jfairy = "io.codearte.jfairy:jfairy:0.5.9"
 # Auth
 athenz-zts-java-client = { module = "com.yahoo.athenz:athenz-zts-java-client", version.ref = "athenz" }

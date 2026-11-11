@@ -124,6 +124,7 @@ import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenCursorCallback;
@@ -5660,6 +5661,84 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             }
         });
         future.join();
+    }
+
+    // Deletes of a cursor that overlap, such as the deletes of a subscription that two clients unsubscribe at the same
+    // time: the one that finds the cursor being deleted completes with the delete in progress
+    @Test
+    public void testConcurrentDeleteCursor() throws Exception {
+        String mlName = "testConcurrentDeleteCursor";
+        String cursorName = "cursor_1";
+        CompletableFuture<Void> cursorRemovalGate = new CompletableFuture<>();
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(
+                gateCursorRemoval(mlName, cursorName, cursorRemovalGate), bkc);
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(mlName, initManagedLedgerConfig(defaultConfig()));
+        ml.openCursor(cursorName);
+
+        CompletableFuture<Void> firstDelete = deleteCursor(ml, cursorName);
+        CompletableFuture<Void> secondDelete = deleteCursor(ml, cursorName);
+        assertThat(firstDelete).as("the first delete waits for the removal of the cursor").isNotDone();
+        assertThat(secondDelete).as("the second delete waits for the first").isNotDone();
+
+        cursorRemovalGate.complete(null);
+        assertThat(firstDelete).succeedsWithin(Duration.ofSeconds(10));
+        assertThat(secondDelete).succeedsWithin(Duration.ofSeconds(10));
+        assertNull(ml.getCursors().get(cursorName));
+    }
+
+    // A delete that fails fails the deletes that overlapped it too, and the cursor can be deleted again
+    @Test
+    public void testConcurrentDeleteCursorFailure() throws Exception {
+        String mlName = "testConcurrentDeleteCursorFailure";
+        String cursorName = "cursor_1";
+        CompletableFuture<Void> cursorRemovalGate = new CompletableFuture<>();
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(
+                gateCursorRemoval(mlName, cursorName, cursorRemovalGate), bkc);
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(mlName, initManagedLedgerConfig(defaultConfig()));
+        ml.openCursor(cursorName);
+
+        CompletableFuture<Void> firstDelete = deleteCursor(ml, cursorName);
+        CompletableFuture<Void> secondDelete = deleteCursor(ml, cursorName);
+
+        cursorRemovalGate.completeExceptionally(new MetadataStoreException("failed"));
+        assertThat(firstDelete).failsWithin(Duration.ofSeconds(10)).withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(MetaStoreException.class);
+        assertThat(secondDelete).failsWithin(Duration.ofSeconds(10)).withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(MetaStoreException.class);
+        assertNotNull(ml.getCursors().get(cursorName));
+
+        assertThat(deleteCursor(ml, cursorName)).succeedsWithin(Duration.ofSeconds(10));
+        assertNull(ml.getCursors().get(cursorName));
+    }
+
+    // A metadata store whose first removal of the cursor completes once the gate does
+    private FaultInjectionMetadataStore gateCursorRemoval(String mlName, String cursorName,
+                                                          CompletableFuture<Void> gate) {
+        FaultInjectionMetadataStore spyStore = spy(metadataStore);
+        doAnswer(inv -> {
+            @SuppressWarnings("unchecked")
+            CompletableFuture<Void> removal = (CompletableFuture<Void>) inv.callRealMethod();
+            return removal.thenCompose(__ -> gate);
+        }).doCallRealMethod().when(spyStore).delete(eq("/managed-ledgers/" + mlName + "/" + cursorName), any());
+        return spyStore;
+    }
+
+    private static CompletableFuture<Void> deleteCursor(ManagedLedgerImpl ml, String cursorName) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        ml.asyncDeleteCursor(cursorName, new DeleteCursorCallback() {
+            @Override
+            public void deleteCursorComplete(Object ctx) {
+                future.complete(null);
+            }
+
+            @Override
+            public void deleteCursorFailed(ManagedLedgerException exception, Object ctx) {
+                future.completeExceptionally(exception);
+            }
+        }, null);
+        return future;
     }
 
     @Test
