@@ -21,10 +21,12 @@ package org.apache.pulsar.client.api;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.fail;
 import lombok.Cleanup;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException.NotAllowedException;
 import org.apache.pulsar.client.impl.ProducerBuilderImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.testng.Assert;
@@ -34,19 +36,31 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
-public class ProducerCreationTest extends ProducerConsumerBase {
+public class ProducerCreationTest extends SharedPulsarBaseTest {
+
+    private boolean brokerAllowAutoSubscriptionCreation;
+    private boolean brokerAllowAutoTopicCreation;
+
+    @Override
+    protected boolean checkClientHandlesClosed() {
+        return true;
+    }
 
     @BeforeMethod
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
+    public void saveConfiguration() {
+        brokerAllowAutoSubscriptionCreation = getConfig().isAllowAutoSubscriptionCreation();
+        brokerAllowAutoTopicCreation = getConfig().isAllowAutoTopicCreation();
     }
 
     @AfterMethod(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
+    public void restoreConfiguration() {
+        // two tests change these; the shared broker reads them on each subscription and topic auto-creation
+        getConfig().setAllowAutoSubscriptionCreation(brokerAllowAutoSubscriptionCreation);
+        getConfig().setAllowAutoTopicCreation(brokerAllowAutoTopicCreation);
+    }
+
+    private TopicName topicName(String domain, String localName) {
+        return TopicName.get(domain, NamespaceName.get(getNamespace()), localName);
     }
 
     @DataProvider(name = "topicDomainProvider")
@@ -59,16 +73,18 @@ public class ProducerCreationTest extends ProducerConsumerBase {
 
     @Test(dataProvider = "topicDomainProvider")
     public void testExactlyOnceWithProducerNameSpecified(TopicDomain domain) throws PulsarClientException {
+        @Cleanup
         Producer<byte[]> producer1 = pulsarClient.newProducer()
-                .topic(TopicName.get(domain.value(), "public", "default",
+                .topic(topicName(domain.value(),
                         "testExactlyOnceWithProducerNameSpecified").toString())
                 .producerName("p-name-1")
                 .create();
 
         Assert.assertNotNull(producer1);
 
+        @Cleanup
         Producer<byte[]> producer2 = pulsarClient.newProducer()
-                .topic("testExactlyOnceWithProducerNameSpecified")
+                .topic(topicName("persistent", "testExactlyOnceWithProducerNameSpecified").toString())
                 .producerName("p-name-2")
                 .create();
 
@@ -76,7 +92,7 @@ public class ProducerCreationTest extends ProducerConsumerBase {
 
         try {
             pulsarClient.newProducer()
-                    .topic("testExactlyOnceWithProducerNameSpecified")
+                    .topic(topicName("persistent", "testExactlyOnceWithProducerNameSpecified").toString())
                     .producerName("p-name-2")
                     .create();
             Assert.fail("should be failed");
@@ -88,8 +104,9 @@ public class ProducerCreationTest extends ProducerConsumerBase {
     @Test(dataProvider = "topicDomainProvider")
     public void testGeneratedNameProducerReconnect(TopicDomain domain)
             throws PulsarClientException, InterruptedException {
+        @Cleanup
         ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
-                .topic(TopicName.get(domain.value(), "public", "default",
+                .topic(topicName(domain.value(),
                         "testGeneratedNameProducerReconnect").toString())
                 .create();
         Assert.assertTrue(producer.isConnected());
@@ -106,7 +123,7 @@ public class ProducerCreationTest extends ProducerConsumerBase {
     @Test(dataProvider = "topicDomainProvider")
     public void testInitialSubscriptionCreation(TopicDomain domain) throws PulsarClientException, PulsarAdminException {
         final String initialSubscriptionName = "init-sub";
-        final TopicName topic = TopicName.get(domain.value(), "public", "default", "testInitialSubscriptionCreation");
+        final TopicName topic = topicName(domain.value(), "testInitialSubscriptionCreation");
 
         // Should not create initial subscription when the initialSubscriptionName is null or empty
         Producer<byte[]> nullInitSubProducer = ((ProducerBuilderImpl<byte[]>) pulsarClient.newProducer())
@@ -147,7 +164,7 @@ public class ProducerCreationTest extends ProducerConsumerBase {
     @Test
     public void testCreateInitialSubscriptionOnPartitionedTopic() throws PulsarAdminException, PulsarClientException {
         final TopicName topic =
-                TopicName.get("persistent", "public", "default", "testCreateInitialSubscriptionOnPartitionedTopic");
+                topicName("persistent", "testCreateInitialSubscriptionOnPartitionedTopic");
         final String initialSubscriptionName = "init-sub";
         admin.topics().createPartitionedTopic(topic.toString(), 10);
         Producer<byte[]> producer = ((ProducerBuilderImpl<byte[]>) pulsarClient.newProducer())
@@ -162,7 +179,7 @@ public class ProducerCreationTest extends ProducerConsumerBase {
     @Test
     public void testCreateInitialSubscriptionWhenExisting() throws PulsarClientException, PulsarAdminException {
         final TopicName topic =
-                TopicName.get("persistent", "public", "default", "testCreateInitialSubscriptionWhenExisting");
+                topicName("persistent", "testCreateInitialSubscriptionWhenExisting");
         final String initialSubscriptionName = "init-sub";
         admin.topics().createNonPartitionedTopic(topic.toString());
         admin.topics().createSubscription(topic.toString(), initialSubscriptionName, MessageId.earliest);
@@ -178,10 +195,10 @@ public class ProducerCreationTest extends ProducerConsumerBase {
     @Test
     public void testInitialSubscriptionCreationWithAutoCreationDisable()
             throws PulsarAdminException, PulsarClientException {
-        pulsar.getConfiguration().setAllowAutoSubscriptionCreation(false);
+        getConfig().setAllowAutoSubscriptionCreation(false);
 
         final TopicName topic =
-                TopicName.get("persistent", "public", "default",
+                topicName("persistent",
                         "testInitialSubscriptionCreationWithAutoCreationDisable");
         final String initialSubscriptionName = "init-sub";
         admin.topics().createNonPartitionedTopic(topic.toString());
@@ -202,9 +219,13 @@ public class ProducerCreationTest extends ProducerConsumerBase {
     public void testCreateProducerWhenTopicTypeMismatch(TopicDomain domain)
             throws PulsarAdminException, PulsarClientException {
         String nonPartitionedTopic =
-                TopicName.get(domain.value(), "public", "default",
+                topicName(domain.value(),
                                 "testCreateProducerWhenTopicTypeMismatch-nonPartitionedTopic")
                         .toString();
+        // a client that looks topics up over HTTP, as the test's client did on a broker of its own: the binary
+        // lookups of the shared client answer an unknown partition with TopicDoesNotExistException
+        @Cleanup
+        PulsarClient client = PulsarClient.builder().serviceUrl(getWebServiceUrl()).build();
         admin.topics().createNonPartitionedTopic(nonPartitionedTopic);
 
         // Topic type is non-partitioned, trying to create producer on the complete partitioned topic.
@@ -212,12 +233,12 @@ public class ProducerCreationTest extends ProducerConsumerBase {
         assertThrows(NotAllowedException.class, () -> {
             @Cleanup
             Producer<byte[]> ignored =
-                    pulsarClient.newProducer().topic(TopicName.get(nonPartitionedTopic).getPartition(2).toString())
+                    client.newProducer().topic(TopicName.get(nonPartitionedTopic).getPartition(2).toString())
                             .create();
         });
 
         // Topic type is partitioned, trying to create producer on the base partitioned topic.
-        String partitionedTopic = TopicName.get(domain.value(), "public", "default",
+        String partitionedTopic = topicName(domain.value(),
                         "testCreateProducerWhenTopicTypeMismatch-partitionedTopic")
                 .toString();
         admin.topics().createPartitionedTopic(partitionedTopic, 3);
@@ -226,7 +247,7 @@ public class ProducerCreationTest extends ProducerConsumerBase {
         {
             @Cleanup
             Producer<byte[]> ignored =
-                    pulsarClient.newProducer().topic(TopicName.get(partitionedTopic).getPartitionedTopicName())
+                    client.newProducer().topic(TopicName.get(partitionedTopic).getPartitionedTopicName())
                             .create();
         }
 
@@ -234,13 +255,13 @@ public class ProducerCreationTest extends ProducerConsumerBase {
         assertThrows(PulsarClientException.NotFoundException.class, () -> {
             @Cleanup
             Producer<byte[]> ignored =
-                    pulsarClient.newProducer().topic(TopicName.get(partitionedTopic).getPartition(3).toString())
+                    client.newProducer().topic(TopicName.get(partitionedTopic).getPartition(3).toString())
                             .create();
         });
         assertThrows(PulsarClientException.NotFoundException.class, () -> {
             @Cleanup
             Producer<byte[]> ignored =
-                    pulsarClient.newProducer().topic(TopicName.get(partitionedTopic).getPartition(100).toString())
+                    client.newProducer().topic(TopicName.get(partitionedTopic).getPartition(100).toString())
                             .create();
         });
     }
@@ -254,9 +275,9 @@ public class ProducerCreationTest extends ProducerConsumerBase {
 
     private void testCreateProducerWhenSinglePartitionIsDeleted(TopicDomain domain, boolean allowAutoTopicCreation)
             throws PulsarAdminException, PulsarClientException {
-        conf.setAllowAutoTopicCreation(allowAutoTopicCreation);
+        getConfig().setAllowAutoTopicCreation(allowAutoTopicCreation);
 
-        String partitionedTopic = TopicName.get(domain.value(), "public", "default",
+        String partitionedTopic = topicName(domain.value(),
                         "testCreateProducerWhenSinglePartitionIsDeleted-" + allowAutoTopicCreation)
                 .toString();
         admin.topics().createPartitionedTopic(partitionedTopic, 3);

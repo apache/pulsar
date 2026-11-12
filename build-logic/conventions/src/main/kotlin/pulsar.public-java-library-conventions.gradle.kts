@@ -19,52 +19,26 @@
 
 // Convention plugin for public Pulsar Java libraries that are published to Maven repositories.
 // Combines java-conventions (compilation, testing) with publish-conventions (Maven publishing,
-// signing, POM metadata). Internal-only modules should use pulsar.java-conventions directly.
+// signing, POM metadata), and publishes the standard `java` component with resolved version
+// mapping. Shaded modules use pulsar.public-shaded-library-conventions instead. Internal-only
+// modules should use pulsar.java-conventions directly.
 
 plugins {
     id("pulsar.java-conventions")
     id("pulsar.publish-conventions")
 }
 
+publishJavaLibrary("java")
+configurePulsarPublication {
+    useResolvedVersions()
+}
+
+// The java component of a shaded module would publish the bundled modules as dependencies.
+pluginManager.withPlugin("com.gradleup.shadow") {
+    throw GradleException("Project '${project.path}' is shaded: apply pulsar.public-shaded-library-conventions " +
+        "instead of pulsar.public-java-library-conventions.")
+}
+
 // Validate that public java-library modules only depend on other published modules
 // in scopes that end up in the published POM (api, implementation, runtimeOnly).
-// Test/compileOnly scoped dependencies are excluded since they don't appear in the POM.
-// NAR modules are not validated here — they bundle all dependencies and have empty POMs.
-// API/SPI mode validates the generated consumer metadata for the entire selection before uploading.
-if (!PulsarApiSpiPublication.isEnabled(project)) {
-    val publishedScopes = listOf("api", "implementation", "runtimeOnly", "shadow", "shadowApi")
-    val configsToCheck = publishedScopes.mapNotNull { name ->
-        configurations.findByName(name)?.let { name to it }
-    }
-    val currentProjectPath = project.path
-
-    val unpublishedDeps = provider {
-        val errors = mutableListOf<String>()
-        for ((configName, config) in configsToCheck) {
-            for (dep in config.dependencies) {
-                if (dep is ProjectDependency) {
-                    val depPath = dep.path
-                    val depProject = project.rootProject.project(depPath)
-                    if (!depProject.plugins.hasPlugin("maven-publish")) {
-                        errors.add("  - $configName -> $depPath (not published)")
-                    }
-                }
-            }
-        }
-        errors
-    }
-
-    tasks.withType<PublishToMavenRepository>().configureEach {
-        val errorList = unpublishedDeps
-        doFirst {
-            val errors = errorList.get()
-            if (errors.isNotEmpty()) {
-                throw GradleException(
-                    "Published module '$currentProjectPath' depends on unpublished projects:\n" +
-                        errors.joinToString("\n") + "\n" +
-                        "Either publish the dependency or move it to a test/compileOnly scope."
-                )
-            }
-        }
-    }
-}
+validatePublishedDependencies(listOf("api", "implementation", "runtimeOnly"))

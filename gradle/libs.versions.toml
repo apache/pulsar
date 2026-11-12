@@ -36,7 +36,7 @@ jackson-annotations = "2.21"
 protobuf = "4.36.2"
 grpc = "1.85.1"
 slf4j = "2.0.18"
-slog = "0.10.1"
+slog = "0.10.2"
 log4j2 = "2.26.1"
 lombok = "1.18.48"
 # OpenTelemetry
@@ -84,7 +84,7 @@ avro = "1.12.2"
 gson = "2.15.0"
 snakeyaml = "2.7"
 # Vert.x
-vertx = "4.5.35"
+vertx = "4.5.36"
 # Networking / HTTP
 asynchttpclient = "3.0.14"
 conscrypt = "2.7.0"
@@ -93,8 +93,8 @@ okio = "3.18.2"
 netty-tcnative = "2.0.85.Final"
 httpcomponents-httpclient = "4.5.14"
 httpcomponents-httpcore = "4.4.16"
-httpcomponents-httpclient5 = "5.6.4"
-httpcomponents-httpcore5 = "5.4.3"
+httpcomponents-httpclient5 = "5.6.5"
+httpcomponents-httpcore5 = "5.4.4"
 # Pinned so that async-http-client's 1.0.3 dependency does not downgrade it
 reactive-streams = "1.0.4"
 # Google libraries (transitive deps)
@@ -104,7 +104,7 @@ guava = "33.7.2-jre"
 caffeine = "3.3.0"
 fastutil = "8.5.19"
 jctools = "4.0.7"
-roaringbitmap = "1.6.25"
+roaringbitmap = "1.6.29"
 # hppc is capped at 0.10.x: 0.11.x is compiled to Java 21 bytecode and Pulsar targets Java 17
 hppc = "0.10.0"
 aircompressor = "2.0.3"
@@ -150,14 +150,14 @@ cron-utils = "9.2.1"
 failsafe = "3.3.2"
 # The LMAX Disruptor of log4j2's async loggers, which bin/pulsar enables
 disruptor = "4.0.0"
-ant = "1.10.17"
+ant = "1.10.18"
 # guice is held at 5.1.0 to match what TestNG 7.x declares; Guice 7 switches from
 # javax.inject to jakarta.inject. jclouds is the only consumer that needs Guice 7 and
 # jclouds-shaded forces it locally.
 guice = "5.1.0"
 snappy = "1.1.10.12"
 ipaddress = "5.6.2"
-zt-zip = "1.18.2"
+zt-zip = "1.18.3"
 # Jakarta
 jakarta-ws-rs = "3.1.0"
 jakarta-annotation = "2.1.1"
@@ -181,7 +181,7 @@ oxia = "0.10.4"
 oxia-testcontainers = "0.7.4"
 # Build plugins
 lightproto = "0.9.3"
-graalvm-buildtools = "1.1.14"
+graalvm-buildtools = "1.1.18"
 errorprone = "2.50.0"
 spotbugs = "4.10.3"
 checkerframework = "3.33.0"
@@ -194,7 +194,7 @@ assertj = "3.27.7"
 hamcrest = "3.0"
 system-lambda = "1.2.1"
 objenesis = "3.6"
-byte-buddy = "1.18.16"
+byte-buddy = "1.18.17"
 testcontainers = "1.21.4"
 wiremock = "3.13.2"
 kerby = "2.1.2"
@@ -217,6 +217,7 @@ shadow = "9.6.1"
 # Tooling: libraries that only tools use, such as the performance test tooling, and that are neither in Pulsar's
 # distributions nor used by its tests
 jonoffcpu = "0.8.0"
+jmh = "1.37"
 commonmark = "0.30.0"
 xchart = "4.0.4"
 vectorgraphics2d = "0.13"
@@ -490,6 +491,8 @@ testcontainers-bom = { module = "org.testcontainers:testcontainers-bom", version
 testcontainers = { module = "org.testcontainers:testcontainers", version.ref = "testcontainers" }
 testcontainers-k3s = { module = "org.testcontainers:k3s", version.ref = "testcontainers" }
 kerby-simplekdc = { module = "org.apache.kerby:kerb-simplekdc", version.ref = "kerby" }
+# Aligns the Kerby modules that Hadoop pulls in transitively (imported by pulsar-dependencies platform)
+kerby-bom = { module = "org.apache.kerby:kerby-bom", version.ref = "kerby" }
 json = { module = "org.json:json", version.ref = "json" }
 # AWS SDKs
 aws-java-sdk-bom = { module = "com.amazonaws:aws-java-sdk-bom", version.ref = "aws-sdk" }
@@ -504,7 +507,7 @@ hadoop-hdfs-client = { module = "org.apache.hadoop:hadoop-hdfs-client", version.
 hadoop-minicluster = { module = "org.apache.hadoop:hadoop-minicluster", version.ref = "hadoop3" }
 failsafe = { module = "dev.failsafe:failsafe", version.ref = "failsafe" }
 docker-java-core = "com.github.docker-java:docker-java-core:3.7.1"
-json-smart = "net.minidev:json-smart:2.6.0"
+json-smart = "net.minidev:json-smart:2.6.1"
 jfairy = "io.codearte.jfairy:jfairy:0.5.9"
 # Auth
 athenz-zts-java-client = { module = "com.yahoo.athenz:athenz-zts-java-client", version.ref = "athenz" }
@@ -522,6 +525,11 @@ datasketches-memory = { module = "org.apache.datasketches:datasketches-memory", 
 datasketches-java = { module = "org.apache.datasketches:datasketches-java", version.ref = "datasketches-java" }
 # Tooling: libraries that only tools use. Their aliases start with "tooling-", which keeps them out of the version
 # constraints that pulsar-dependencies publishes: those cover Pulsar's own and its tests' dependencies only.
+# Generates the Java classes of pulsar-client's test Avro schemas
+tooling-avro-tools = { module = "org.apache.avro:avro-tools", version.ref = "avro" }
+# The JMH microbenchmarks
+tooling-jmh-core = { module = "org.openjdk.jmh:jmh-core", version.ref = "jmh" }
+tooling-jmh-generator-annprocess = { module = "org.openjdk.jmh:jmh-generator-annprocess", version.ref = "jmh" }
 tooling-jonoffcpu-agent = { module = "io.github.jonoffcpu:jonoffcpu-agent", version.ref = "jonoffcpu" }
 tooling-jonoffcpu-correlator = { module = "io.github.jonoffcpu:jonoffcpu-correlator", version.ref = "jonoffcpu" }
 tooling-jonoffcpu-jfr-converter = { module = "io.github.jonoffcpu:jonoffcpu-jfr-converter", version.ref = "jonoffcpu" }
@@ -536,12 +544,12 @@ tooling-vectorgraphics2d = { module = "de.erichseifert.vectorgraphics2d:VectorGr
 lightproto = { id = "io.streamnative.lightproto", version.ref = "lightproto" }
 graalvm-native = { id = "org.graalvm.buildtools.native", version.ref = "graalvm-buildtools" }
 nar = "io.github.merlimat.nar:0.1.3"
-protobuf = "com.google.protobuf:0.10.0"
+protobuf = "com.google.protobuf:0.10.1"
 shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }
 rat = "org.nosphere.apache.rat:0.11.0"
-spotless = "com.diffplug.spotless:8.10.3"
+spotless = "com.diffplug.spotless:8.11.0"
 swagger = { id = "io.swagger.core.v3.swagger-gradle-plugin", version.ref = "swagger" }
-version-catalog-update = "nl.littlerobots.version-catalog-update:1.1.1"
-versions = "io.github.ben-manes.versions:0.64.0"
+version-catalog-update = "nl.littlerobots.version-catalog-update:1.1.2"
+versions = "io.github.ben-manes.versions:0.67.0"
 crlf = "com.github.vlsi.crlf:4.0.0"
 idea-ext = "org.jetbrains.gradle.plugin.idea-ext:1.4.1"

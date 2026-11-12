@@ -39,4 +39,13 @@ public class MockPulsarCompactionServiceFactory extends PulsarCompactionServiceF
             return spyConfig.getCompactor().spy(super.newCompactor());
         }
     }
+
+    @Override
+    public void close() throws Exception {
+        super.close();
+        if (compactor == null) {
+            // the spy that newCompactor() created, see PulsarTestContext.releaseSpyOrMock
+            PulsarTestContext.releaseSpyOrMock(getNullableCompactor());
+        }
+    }
 }

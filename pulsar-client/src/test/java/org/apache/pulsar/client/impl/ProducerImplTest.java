@@ -57,12 +57,14 @@ import io.netty.util.concurrent.ScheduledFuture;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -91,6 +93,7 @@ import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.awaitility.Awaitility;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.testng.annotations.DataProvider;
@@ -614,6 +617,51 @@ public class ProducerImplTest {
     }
 
     /**
+     * The send timeout fails the queued messages through {@link ProducerImpl#failPendingMessages}. Each message must
+     * give back its permit and memory before its send completes: a caller woken by the failed send, or a retry from
+     * its callback, must not find them still held by the thread that is failing the queue.
+     */
+    @Test
+    public void testFailPendingMessagesReleasesAccountingBeforeCompletingSends() {
+        MemoryLimitController memory = new MemoryLimitController(1024 * 1024);
+        PulsarClientImpl client = mockedPulsarClient();
+        when(client.getMemoryLimitController()).thenReturn(memory);
+        when(client.getClientClock()).thenReturn(Clock.systemUTC());
+        ProducerConfigurationData conf = new ProducerConfigurationData();
+        conf.setProducerName("fail-pending-accounting-test");
+        conf.setBatchingEnabled(false);
+        conf.setMaxPendingMessages(10);
+        ProducerImpl<byte[]> producer = constructProducer(client, conf);
+        // Not connected, as once the broker went away: the messages wait in the pending queue until they time out.
+        producer.setState(HandlerState.State.Connecting);
+
+        List<CompletableFuture<MessageId>> sends = new ArrayList<>();
+        List<Long> memoryAtCompletion = new ArrayList<>();
+        List<Integer> permitsAtCompletion = new ArrayList<>();
+        for (int i = 0; i < 2; i++) {
+            CompletableFuture<MessageId> send = producer.newMessage().value(new byte[10]).sendAsync();
+            // Runs on the failing thread as the send completes, which is when a caller blocked in send() wakes up.
+            send.whenComplete((messageId, e) -> {
+                memoryAtCompletion.add(memory.currentUsage());
+                permitsAtCompletion.add(producer.availableSendPermitsForTesting());
+            });
+            sends.add(send);
+        }
+        assertThat(producer.getPendingQueueSize()).isEqualTo(2);
+        assertThat(memory.currentUsage()).isEqualTo(20);
+        assertThat(producer.availableSendPermitsForTesting()).isEqualTo(8);
+
+        producer.failPendingMessages(null, new PulsarClientException.TimeoutException("send timed out"));
+
+        assertThat(sends).allSatisfy(send -> assertThat(send).failsWithin(Duration.ZERO)
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(PulsarClientException.TimeoutException.class));
+        // Each send sees its own message's accounting released, and the next message's still held.
+        assertThat(memoryAtCompletion).containsExactly(10L, 0L);
+        assertThat(permitsAtCompletion).containsExactly(9, 10);
+    }
+
+    /**
      * When the producer is in a terminal state, {@link ProducerImpl#processOpSendMsg} fails the message right away.
      * The memory reserved for that message must be given back to the {@link MemoryLimitController} exactly once:
      * releasing it twice makes {@code currentUsage} drift below zero and permanently disables the client memory
@@ -656,6 +704,61 @@ public class ProducerImplTest {
             assertEquals(memoryLimitController.currentUsage(), 0,
                     "The memory reserved for the message must be released exactly once in state " + state);
         }
+    }
+
+    @DataProvider
+    public Object[][] terminalStatesReachedBeforeBatching() {
+        return new Object[][] {
+                {HandlerState.State.Closed, PulsarClientException.AlreadyClosedException.class},
+                {HandlerState.State.Terminated, PulsarClientException.TopicTerminatedException.class},
+                {HandlerState.State.ProducerFenced, PulsarClientException.ProducerFencedException.class},
+        };
+    }
+
+    /**
+     * A send checks the producer state before it takes the producer lock to add its message to the batch. If the
+     * producer reaches a terminal state in between, it has failed the messages it held and no longer schedules batch
+     * flushes: the message must fail, or its send never completes. A scalable topic producer closes the producer of a
+     * segment that a split or merge sealed while its own sends may still be on their way to it.
+     */
+    @Test(dataProvider = "terminalStatesReachedBeforeBatching", timeOut = 30000)
+    public void testBatchedSendFailsWhenProducerEndsBeforeItIsBatched(HandlerState.State terminalState,
+            Class<? extends PulsarClientException> expectedFailure) throws Exception {
+        MemoryLimitController memory = new MemoryLimitController(1024 * 1024);
+        PulsarClientImpl client = mockedPulsarClient();
+        when(client.getConnection(anyString(), anyInt())).thenReturn(new CompletableFuture<>());
+        when(client.getMemoryLimitController()).thenReturn(memory);
+        when(client.getClientClock()).thenReturn(Clock.systemUTC());
+        ProducerConfigurationData conf = new ProducerConfigurationData();
+        conf.setProducerName("batched-send-test");
+        ProducerImpl<byte[]> producer = constructProducer(client, conf);
+        assertTrue(producer.isBatchMessagingEnabled());
+        // Not connected, as once the broker closed the producer: a message waits for the connection, and a close
+        // fails the waiting messages right away.
+        producer.setState(HandlerState.State.Connecting);
+
+        AtomicReference<CompletableFuture<MessageId>> send = new AtomicReference<>();
+        Thread sender = new Thread(() -> send.set(producer.newMessage().value(new byte[10]).sendAsync()));
+        synchronized (producer) {
+            sender.start();
+            // The sender has checked the state, and waits for the lock to add its message to the batch.
+            Awaitility.await().until(() -> {
+                StackTraceElement[] stack = sender.getStackTrace();
+                return sender.getState() == Thread.State.BLOCKED && stack.length > 0
+                        && stack[0].getMethodName().equals("sendAsync");
+            });
+            if (terminalState == HandlerState.State.Closed) {
+                producer.closeAsync().get(5, TimeUnit.SECONDS);
+            } else {
+                producer.setState(terminalState);
+            }
+        }
+        sender.join();
+
+        assertThat(send.get()).failsWithin(Duration.ofSeconds(5))
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(expectedFailure);
+        assertThat(memory.currentUsage()).as("memory reserved for the message").isZero();
     }
 
     @Test
