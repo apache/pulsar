@@ -44,7 +44,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutionException;
@@ -284,12 +283,27 @@ public class TransactionBufferClientTest extends TransactionTestBase {
             tbClient.abortTxnOnSubscription(topic, "test", 1L, i, -1L).get();
         }
 
-        // A topic whose namespace does not exist fails the lookup, so both failure counters record it once.
-        String missingNamespaceTopic = "persistent://public/no-such-ns-" + UUID.randomUUID() + "/tb-client";
-        assertThrows(ExecutionException.class,
-                () -> tbClient.commitTxnOnTopic(missingNamespaceTopic, 1L, 1L, -1L).get());
-        assertThrows(ExecutionException.class,
-                () -> tbClient.abortTxnOnTopic(missingNamespaceTopic, 1L, 1L, -1L).get());
+        // A topic whose transaction buffer times out fails the request, so both failure counters record it once.
+        String failingTopic = BrokerTestUtil.newUniqueName("persistent://" + namespace + "/tb-client-failing");
+        admin.topics().createNonPartitionedTopic(failingTopic);
+        String ownerUrl = admin.lookups().lookupTopic(failingTopic);
+        PulsarService topicOwner = pulsarServiceList.stream()
+                .filter(pulsarService -> pulsarService.getBrokerServiceUrl().equals(ownerUrl))
+                .findFirst()
+                .orElseThrow();
+        Topic timingOutTopic = mock(Topic.class);
+        when(timingOutTopic.endTxn(any(TxnID.class), anyInt(), anyLong()))
+                .thenReturn(new CompletableFuture<Void>().orTimeout(100, TimeUnit.MILLISECONDS));
+        CompletableFuture<Optional<Topic>> originalTopicFuture = topicOwner.getBrokerService().getTopics()
+                .put(failingTopic, CompletableFuture.completedFuture(Optional.of(timingOutTopic)));
+        try {
+            assertThrows(ExecutionException.class,
+                    () -> tbClient.commitTxnOnTopic(failingTopic, 1L, 1L, -1L).get());
+            assertThrows(ExecutionException.class,
+                    () -> tbClient.abortTxnOnTopic(failingTopic, 1L, 1L, -1L).get());
+        } finally {
+            topicOwner.getBrokerService().getTopics().put(failingTopic, originalTopicFuture);
+        }
 
         @Cleanup
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
@@ -307,15 +321,15 @@ public class TransactionBufferClientTest extends TransactionTestBase {
 
         for (Collection<Metric> failed : List.of(abortFailed, commitFailed)) {
             List<Metric> series = failed.stream()
-                    .filter(metric -> missingNamespaceTopic.equals(metric.tags.get("topic")))
+                    .filter(metric -> failingTopic.equals(metric.tags.get("topic")))
                     .toList();
             assertEquals(series.size(), 1);
             assertEquals(series.get(0).value, 1D);
             assertEquals(failed.stream().mapToDouble(metric -> metric.value).sum(), 1D);
         }
         // The partition topics only ever succeeded, so no latency series exists for the failed topic.
-        assertFalse(abortLatencyCount.stream().anyMatch(m -> missingNamespaceTopic.equals(m.tags.get("topic"))));
-        assertFalse(commitLatencyCount.stream().anyMatch(m -> missingNamespaceTopic.equals(m.tags.get("topic"))));
+        assertFalse(abortLatencyCount.stream().anyMatch(m -> failingTopic.equals(m.tags.get("topic"))));
+        assertFalse(commitLatencyCount.stream().anyMatch(m -> failingTopic.equals(m.tags.get("topic"))));
 
         for (int i = 0; i < partitions; i++) {
             String topic = partitionedTopicName.getPartition(i).toString();
