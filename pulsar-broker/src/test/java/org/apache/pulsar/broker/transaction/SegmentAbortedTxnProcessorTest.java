@@ -18,11 +18,14 @@
  */
 package org.apache.pulsar.broker.transaction;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertNotNull;
+import io.netty.buffer.ByteBuf;
 import java.lang.reflect.Field;
 import java.util.LinkedList;
 import java.util.NavigableMap;
@@ -30,9 +33,14 @@ import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import lombok.Cleanup;
 import lombok.CustomLog;
+import org.apache.bookkeeper.client.PulsarMockBookKeeper;
+import org.apache.bookkeeper.client.api.LedgerEntries;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
@@ -58,6 +66,8 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.events.EventType;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
@@ -68,6 +78,7 @@ import org.awaitility.reflect.WhiteboxImpl;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @CustomLog
@@ -148,6 +159,100 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
         //4. Verify the two sealed segment will be deleted.
         Awaitility.await().untilAsserted(() -> verifyAbortedTxnIDAndSegmentIndex(newProcessor, 11, 4));
         processor.closeAsync().get(5, TimeUnit.SECONDS);
+    }
+
+    @DataProvider
+    public Object[][] snapshotReadOutcomes() {
+        return new Object[][] {{"success"}, {"timeout"}, {"interrupt"}};
+    }
+
+    @Test(dataProvider = "snapshotReadOutcomes", timeOut = 30000)
+    public void testRecoveryReleasesReadEntry(String outcome) throws Exception {
+        String topicName = "persistent://" + NAMESPACE1 + "/snapshot-entry-" + outcome;
+        admin.topics().createNonPartitionedTopic(topicName);
+        PersistentTopic topic = (PersistentTopic) pulsarService.getBrokerService()
+                .getTopic(topicName, false).get(5, TimeUnit.SECONDS).orElseThrow();
+        SnapshotSegmentAbortedTxnProcessorImpl writer = new SnapshotSegmentAbortedTxnProcessorImpl(topic);
+        SnapshotSegmentAbortedTxnProcessorImpl reader = new SnapshotSegmentAbortedTxnProcessorImpl(topic);
+        PulsarMockBookKeeper bookKeeper = pulsarTestContexts.get(0).getMockBookKeeper();
+        ClientConfigurationData clientConfig = ((PulsarClientImpl) pulsarService.getClient()).getConfiguration();
+        long originalTimeout = clientConfig.getOperationTimeoutMs();
+        CompletableFuture<LedgerEntries> readGate = new CompletableFuture<>();
+        CompletableFuture<LedgerEntries> readStarted = new CompletableFuture<>();
+        AtomicReference<ByteBuf> readBuffer = new AtomicReference<>();
+        int retainedReferences = 0;
+        ManagedLedgerConfig segmentConfig = null;
+        long originalReadTimeout = 0;
+        boolean readDelivered = false;
+        try {
+            Position position = topic.getManagedLedger().addEntry(new byte[] {1});
+            int segmentCapacity = (pulsarService.getConfig().getTransactionBufferSnapshotSegmentSize()
+                    - 8 - topicName.length()) / 3;
+            for (int i = 0; i < segmentCapacity; i++) {
+                writer.putAbortedTxnAndPosition(new TxnID(0, i), position);
+            }
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+                    assertThat(writer.takeAbortedTxnsSnapshot(position).handle((ignored, error) -> error)
+                            .get(5, TimeUnit.SECONDS)).isNull());
+            String segmentTopicName = "persistent://" + NAMESPACE1 + "/"
+                    + SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS;
+            PersistentTopic segmentTopic = (PersistentTopic) pulsarService.getBrokerService()
+                    .getTopic(segmentTopicName, false).get(5, TimeUnit.SECONDS).orElseThrow();
+            segmentConfig = segmentTopic.getManagedLedger().getConfig();
+            originalReadTimeout = segmentConfig.getReadEntryTimeoutSeconds();
+            segmentConfig.setReadEntryTimeoutSeconds(0);
+            pulsarService.getBrokerService().getManagedLedgerFactoryForTopic(TopicName.get(segmentTopicName))
+                    .get(5, TimeUnit.SECONDS).getEntryCacheManager()
+                    .getEntryCache(segmentTopic.getManagedLedger()).clear();
+            long segmentLedgerId = segmentTopic.getManagedLedger().getLedgersInfo().lastKey();
+            bookKeeper.setReadHandleInterceptor((ledgerId, first, last, entries) -> {
+                if (ledgerId == segmentLedgerId) {
+                    readBuffer.set(entries.getEntry(first).getEntryBuffer());
+                    readStarted.complete(entries);
+                    return readGate;
+                }
+                return CompletableFuture.completedFuture(entries);
+            });
+            Thread recoveryThread = pulsarService.getTransactionSnapshotRecoverExecutorProvider()
+                    .chooseThread(TopicName.get(topicName).getNamespace())
+                    .submit(Thread::currentThread).get(5, TimeUnit.SECONDS);
+            clientConfig.setOperationTimeoutMs(outcome.equals("timeout") ? 500 : 5_000);
+            CompletableFuture<Position> recovery = reader.recoverFromSnapshot();
+            LedgerEntries entries = readStarted.get(5, TimeUnit.SECONDS);
+            retainedReferences = readBuffer.get().refCnt() - 1;
+            if (outcome.equals("success")) {
+                readGate.complete(entries);
+                assertThat(recovery.get(5, TimeUnit.SECONDS)).isEqualTo(position);
+            } else {
+                if (outcome.equals("interrupt")) {
+                    recoveryThread.interrupt();
+                }
+                assertThatThrownBy(() -> recovery.get(5, TimeUnit.SECONDS)).hasCauseInstanceOf(
+                        outcome.equals("timeout") ? TimeoutException.class : InterruptedException.class);
+                readGate.complete(entries);
+            }
+            readDelivered = true;
+            int expectedReferences = retainedReferences;
+            Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() ->
+                    assertThat(readBuffer.get().refCnt()).as("The abandoned read must release its Entry")
+                            .isEqualTo(expectedReferences));
+        } finally {
+            bookKeeper.setReadHandleInterceptor(null);
+            clientConfig.setOperationTimeoutMs(originalTimeout);
+            if (segmentConfig != null) {
+                segmentConfig.setReadEntryTimeoutSeconds(originalReadTimeout);
+            }
+            if (readStarted.isDone()) {
+                readGate.complete(readStarted.join());
+            }
+            reader.closeAsync().get(5, TimeUnit.SECONDS);
+            writer.closeAsync().get(5, TimeUnit.SECONDS);
+            // Also clean up the leaked read reference when running this regression against unpatched code.
+            ByteBuf buffer = readBuffer.get();
+            if (readDelivered && buffer != null && buffer.refCnt() > retainedReferences) {
+                buffer.release(buffer.refCnt() - retainedReferences);
+            }
+        }
     }
 
     private void waitTaskExecuteCompletely(AbortedTxnProcessor processor) throws Exception {

@@ -38,6 +38,7 @@ import io.prometheus.client.Collector;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
@@ -100,6 +101,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.SystemTopicNames;
+import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.compaction.Compactor;
@@ -115,9 +117,22 @@ import org.testng.annotations.Test;
 @CustomLog
 @Test(groups = "broker")
 public class PrometheusMetricsTest extends BrokerTestBase {
-    @SuppressWarnings("deprecation")
+    // These methods start the broker themselves, with a configuration of their own.
+    private static final Set<String> METHODS_STARTING_OWN_BROKER = Set.of(
+            "testPublishRateLimitedTimes",
+            "testBrokerMetrics",
+            "testStorageReadCacheMissesRate",
+            "testBundlesMetricsWithExtensibleLoadManager",
+            "testDuplicateMetricTypeDefinitions");
 
     @BeforeMethod(alwaysRun = true)
+    public void startBroker(Method method) throws Exception {
+        if (!METHODS_STARTING_OWN_BROKER.contains(method.getName())) {
+            setup();
+        }
+    }
+
+    @SuppressWarnings("deprecation")
     @Override
     protected void setup() throws Exception {
         super.baseSetup();
@@ -174,7 +189,6 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
     @Test
     public void testPublishRateLimitedTimes() throws Exception {
-        cleanup();
         conf.setMaxPublishRatePerTopicInMessages(1);
         conf.setMaxPublishRatePerTopicInBytes(1);
         conf.setBrokerPublisherThrottlingMaxMessageRate(100000);
@@ -248,6 +262,10 @@ public class PrometheusMetricsTest extends BrokerTestBase {
             }
         });
 
+        // At 1 byte/s, the message (with its metadata) throttles the connection of producer and producer2 for ~40 s,
+        // and a throttled connection reads no command, so closing them would wait for it. A new publish rate rebuilds
+        // the rate limiter, which unthrottles the connection at once.
+        admin.namespaces().setPublishRate(ns1, new PublishRate(1000, 1024 * 1024));
         producer.close();
         producer2.close();
         producer3.close();
@@ -255,7 +273,6 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
     @Test
     public void testBrokerMetrics() throws Exception {
-        cleanup();
         conf.setAdditionalSystemCursorNames(Set.of("test-cursor"));
         conf.setTopicLevelPoliciesEnabled(true);
         conf.setSystemTopicEnabled(true);
@@ -714,7 +731,6 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
     @Test(dataProvider = "cacheEnable")
     public void testStorageReadCacheMissesRate(boolean cacheEnable) throws Exception {
-        cleanup();
         conf.setManagedLedgerStatsPeriodSeconds(Integer.MAX_VALUE);
         conf.setManagedLedgerCacheEvictionTimeThresholdMillis(Long.MAX_VALUE);
         conf.setCacheEvictionByMarkDeletedPosition(true);
@@ -1006,7 +1022,6 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
     @Test
     public void testBundlesMetricsWithExtensibleLoadManager() throws Exception {
-        cleanup();
         conf.setLoadManagerClassName(ExtensibleLoadManagerImpl.class.getName());
         conf.setExposeBundlesMetricsInPrometheus(true);
         setup();
@@ -1355,7 +1370,6 @@ public class PrometheusMetricsTest extends BrokerTestBase {
     // Running the test twice to make sure types are present when generated multiple times
     @Test(invocationCount = 2)
     public void testDuplicateMetricTypeDefinitions() throws Exception {
-        cleanup();
         conf.setTransactionCoordinatorEnabled(true);
         conf.setTransactionLogBatchedWriteEnabled(true);
         conf.setTransactionPendingAckBatchedWriteEnabled(true);

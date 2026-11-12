@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service.persistent;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.carrotsearch.hppc.ObjectSet;
+import io.prometheus.client.CollectorRegistry;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -44,7 +45,9 @@ import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
@@ -54,11 +57,157 @@ import org.awaitility.reflect.WhiteboxImpl;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @CustomLog
 @Test(groups = "broker-api")
 public class PersistentDispatcherMultipleConsumersTest extends SharedPulsarBaseTest {
+    @DataProvider(name = "queuedDispatchReconnectVariants")
+    public Object[][] queuedDispatchReconnectVariants() {
+        return new Object[][] {
+                {SubscriptionType.Shared, false, false},
+                {SubscriptionType.Shared, true, false},
+                {SubscriptionType.Shared, true, true},
+                {SubscriptionType.Key_Shared, false, false},
+                {SubscriptionType.Key_Shared, true, false},
+                {SubscriptionType.Key_Shared, true, true}
+        };
+    }
+
+    @Test(dataProvider = "queuedDispatchReconnectVariants", timeOut = 60000)
+    public void testQueuedDispatchIsNotDeliveredAfterReconnect(SubscriptionType subscriptionType, boolean replay,
+                                                             boolean overlappingNormalRead)
+            throws Exception {
+        boolean originalDispatchMode = getConfig().isDispatcherDispatchMessagesInSubscriptionThread();
+        getConfig().setDispatcherDispatchMessagesInSubscriptionThread(true);
+        CountDownLatch releaseDispatch = new CountDownLatch(1);
+        CountDownLatch releaseSecondDispatch = new CountDownLatch(1);
+        Future<?> blockedDispatch = null;
+        Future<?> blockedSecondDispatch = null;
+        try (Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32).topic(newTopicName())
+                .enableBatching(false).create();
+             Consumer<Integer> original = pulsarClient.newConsumer(Schema.INT32).topic(producer.getTopic())
+                     .subscriptionName("sub").subscriptionType(subscriptionType).subscribe()) {
+            PersistentTopic topic = (PersistentTopic) getTopic(producer.getTopic(), false).join().orElseThrow();
+            PersistentDispatcherMultipleConsumers dispatcher =
+                    (PersistentDispatcherMultipleConsumers) topic.getSubscription("sub").getDispatcher();
+            Awaitility.await().untilAsserted(() -> assertThat(dispatcher.havePendingRead).isTrue());
+            Double pendingBytesBefore = CollectorRegistry.defaultRegistry
+                    .getSampleValue("pulsar_broker_pending_bytes_to_dispatch");
+            MessageId firstId = null;
+            if (replay) {
+                firstId = producer.newMessage().key("same-key").value(1).send();
+                Message<Integer> first = original.receive(5, TimeUnit.SECONDS);
+                assertThat(first).isNotNull();
+                assertThat(first.getMessageId()).isEqualTo(firstId);
+                Awaitility.await().untilAsserted(() -> {
+                    assertThat(dispatcher.havePendingRead).isTrue();
+                    assertThat(dispatcher.isSendInProgress()).isFalse();
+                });
+            }
+
+            CountDownLatch dispatchBlocked = new CountDownLatch(1);
+            blockedDispatch = dispatcher.dispatchMessagesThread.submit(() -> {
+                dispatchBlocked.countDown();
+                assertThat(releaseDispatch.await(45, TimeUnit.SECONDS)).isTrue();
+                return null;
+            });
+            assertThat(dispatchBlocked.await(5, TimeUnit.SECONDS)).isTrue();
+            if (replay) {
+                original.redeliverUnacknowledgedMessages();
+            } else {
+                firstId = producer.newMessage().key("same-key").value(1).send();
+            }
+            Awaitility.await().untilAsserted(() -> {
+                synchronized (dispatcher) {
+                    assertThat(dispatcher.isSendInProgress()).isTrue();
+                    assertThat(dispatcher.havePendingReplayRead).isFalse();
+                    if (!replay) {
+                        assertThat(dispatcher.havePendingRead).isFalse();
+                    }
+                }
+            });
+            List<MessageId> expectedIds = new ArrayList<>();
+            expectedIds.add(firstId);
+            CountDownLatch firstDispatchFinished = new CountDownLatch(1);
+            if (overlappingNormalRead) {
+                // The replay read did not cancel the waiting normal read. Complete that one too, leaving two
+                // dispatches queued, with a barrier between them to observe the first one's cleanup.
+                assertThat(dispatcher.havePendingRead).isTrue();
+                blockedSecondDispatch = dispatcher.dispatchMessagesThread.submit(() -> {
+                    firstDispatchFinished.countDown();
+                    assertThat(releaseSecondDispatch.await(45, TimeUnit.SECONDS)).isTrue();
+                    return null;
+                });
+                expectedIds.add(producer.newMessage().key("same-key").value(2).send());
+                Awaitility.await().untilAsserted(() -> assertThat(dispatcher.havePendingRead).isFalse());
+            }
+
+            // The read has really completed, but its dispatch cannot run until the replacement is connected.
+            original.close();
+            try (Consumer<Integer> replacement = pulsarClient.newConsumer(Schema.INT32).topic(producer.getTopic())
+                    .subscriptionName("sub").subscriptionType(subscriptionType).subscribe()) {
+                Awaitility.await().untilAsserted(() -> {
+                    synchronized (dispatcher) {
+                        assertThat(dispatcher.getConsumers()).hasSize(1);
+                        assertThat(dispatcher.getConsumers().get(0).getAvailablePermits()).isPositive();
+                        assertThat(dispatcher.totalAvailablePermits).isPositive();
+                    }
+                });
+                releaseDispatch.countDown();
+                blockedDispatch.get(5, TimeUnit.SECONDS);
+                if (overlappingNormalRead) {
+                    assertThat(firstDispatchFinished.await(5, TimeUnit.SECONDS)).isTrue();
+                    synchronized (dispatcher) {
+                        assertThat(dispatcher.isSendInProgress()).as("normal dispatch is still queued").isTrue();
+                        assertThat(dispatcher.shouldRewindBeforeReadingOrReplaying)
+                                .as("rewind must wait for both queued dispatches").isTrue();
+                    }
+                    releaseSecondDispatch.countDown();
+                    blockedSecondDispatch.get(5, TimeUnit.SECONDS);
+                }
+                expectedIds.add(producer.newMessage().key("same-key").value(3).send());
+                List<Message<Integer>> received = new ArrayList<>();
+                for (MessageId expectedId : expectedIds) {
+                    Message<Integer> message = replacement.receive(5, TimeUnit.SECONDS);
+                    assertThat(message).isNotNull();
+                    assertThat(message.getMessageId()).as("each position once after reconnect").isEqualTo(expectedId);
+                    received.add(message);
+                }
+                // Don't let an ACK filter a duplicate from the rewind before the whole sequence is checked.
+                for (Message<Integer> message : received) {
+                    replacement.acknowledge(message);
+                }
+                Awaitility.await().untilAsserted(() -> {
+                    assertThat(dispatcher.cursor.getNumberOfEntriesInBacklog(false)).isZero();
+                    assertThat(dispatcher.isSendInProgress()).isFalse();
+                    assertThat(CollectorRegistry.defaultRegistry
+                            .getSampleValue("pulsar_broker_pending_bytes_to_dispatch")).isEqualTo(pendingBytesBefore);
+                    if (dispatcher instanceof PersistentStickyKeyDispatcherMultipleConsumers keyShared) {
+                        assertThat(keyShared.getReplayAdditionsHashCount()).isZero();
+                        assertThat(keyShared.getReplayReadsInFlight()).isZero();
+                        assertThat(keyShared.getReplayDispatchesQueued()).isZero();
+                    }
+                });
+                assertThat(replacement.receive(100, TimeUnit.MILLISECONDS)).isNull();
+            }
+        } finally {
+            releaseDispatch.countDown();
+            releaseSecondDispatch.countDown();
+            try {
+                if (blockedDispatch != null) {
+                    blockedDispatch.get(5, TimeUnit.SECONDS);
+                }
+                if (blockedSecondDispatch != null) {
+                    blockedSecondDispatch.get(5, TimeUnit.SECONDS);
+                }
+            } finally {
+                getConfig().setDispatcherDispatchMessagesInSubscriptionThread(originalDispatchMode);
+            }
+        }
+    }
+
     // Concurrent mock calls only run on executors that the test shuts down and joins.
     private final List<Object> ownedMocks = new ArrayList<>();
 

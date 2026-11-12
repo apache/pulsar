@@ -50,7 +50,7 @@ public class MetadataStoreBatchingTest extends BaseMetadataStoreTest {
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder()
                 .batchingEnabled(true)
-                .batchingMaxDelayMillis(1_000)
+                .batchingMaxDelayMillis(50)
                 .build());
 
         String key1 = newKey();
@@ -70,7 +70,7 @@ public class MetadataStoreBatchingTest extends BaseMetadataStoreTest {
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder()
                         .batchingEnabled(true)
-                        .batchingMaxDelayMillis(1_000)
+                        .batchingMaxDelayMillis(50)
                 .build());
 
         String key1 = newKey();
@@ -93,7 +93,7 @@ public class MetadataStoreBatchingTest extends BaseMetadataStoreTest {
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder()
                 .batchingEnabled(true)
-                .batchingMaxDelayMillis(1_000)
+                .batchingMaxDelayMillis(50)
                 .build());
 
         String key1 = newKey();
@@ -128,7 +128,7 @@ public class MetadataStoreBatchingTest extends BaseMetadataStoreTest {
         @Cleanup
         MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(), MetadataStoreConfig.builder()
                 .batchingEnabled(true)
-                .batchingMaxDelayMillis(1_000)
+                .batchingMaxDelayMillis(50)
                 .build());
 
         String key1 = newKey();
@@ -152,7 +152,7 @@ public class MetadataStoreBatchingTest extends BaseMetadataStoreTest {
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder()
                 .batchingEnabled(true)
-                .batchingMaxDelayMillis(1_000)
+                .batchingMaxDelayMillis(50)
                 .build());
 
         String key1 = newKey();

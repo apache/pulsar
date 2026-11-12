@@ -46,6 +46,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.BrokerTestUtil;
@@ -56,6 +58,7 @@ import org.apache.pulsar.broker.service.persistent.MessageDeduplication;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.persistent.ReplicatedSubscriptionsController;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.InjectedClientCnxClientBuilder;
 import org.apache.pulsar.client.api.Message;
@@ -124,6 +127,10 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
         config.setManagedLedgerMaxEntriesPerLedger(100);
         config.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
         config.setManagedLedgerMaxLedgerRolloverTimeMinutes(1);
+        // Start a replicated subscription snapshot every 100 ms instead of every second, so that a snapshot marker
+        // follows each message of testRepeatedlyPublishMixedMessageAndReplMarkers soon after it is published.
+        // A snapshot only starts after new user messages, and only that test has replicated subscriptions.
+        config.setReplicatedSubscriptionsSnapshotFrequencyMillis(100);
     }
 
     protected void waitReplicatorStopped(String topicName) {
@@ -177,6 +184,29 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
         };
     }
 
+    /**
+     * Receives and acknowledges messages until the subscription has no backlog, which means that every message
+     * the topic holds has been received. The topic must not get new messages meanwhile.
+     */
+    private static <T> List<Message<T>> receiveAllMessages(Consumer<T> consumer, PulsarAdmin admin,
+                                                           String topicName) {
+        List<Message<T>> messages = new ArrayList<>();
+        Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
+            Message<T> msg;
+            while ((msg = consumer.receive(100, TimeUnit.MILLISECONDS)) != null) {
+                MessageIdAdv messageIdAdv = (MessageIdAdv) msg.getMessageId();
+                log.info().attr("msgSource", StringUtils.join(msg.getProperties().values(), ":"))
+                        .attr("target", messageIdAdv.getLedgerId()).attr("entryId", messageIdAdv.getEntryId())
+                        .log("received msg. source, target");
+                messages.add(msg);
+                consumer.acknowledgeAsync(msg);
+            }
+            assertEquals(admin.topics().getStats(topicName, true).getSubscriptions().get(consumer.getSubscription())
+                    .getMsgBacklog(), 0);
+        });
+        return messages;
+    }
+
     @Test
     public void testRepeatedlyPublishMixedMessageAndReplMarkers() throws Exception {
         // Inject a mechanism to drop all send receipt, to implement a scenario: the messages of the internal producer
@@ -222,15 +252,18 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
 
         // Publish mixed user messages and replicated markers/
         // - Publish a user msg.
-        // - Replicated marker will be sent internally per seconds
+        // - Replicated marker will be sent internally after it.
         Producer<Integer> producer = client1.newProducer(Schema.INT32).topic(topicName).create();
         int messageCount = 15;
         for (int i = 0; i < messageCount; i++) {
-            producer.send(i);
-            log.info().attr("sentMessage", i).log("Sent message");
-            // The replicated marker will be sent internally per seconds. We wait 1.2s here, a replicated marker will
-            // be sent.
-            Thread.sleep(1200);
+            MessageIdAdv messageId = (MessageIdAdv) producer.send(i);
+            Position messagePosition = PositionFactory.create(messageId.getLedgerId(), messageId.getEntryId());
+            log.info().attr("sentMessage", i).attr("position", messagePosition).log("Sent message");
+            // Nothing but replication markers is written to this topic besides the producer above, so the next
+            // entry after the message is a marker. The controller writes one after every user message: either a
+            // pending snapshot completes, or a new one starts because the message is newer than the last
+            // completed snapshot.
+            Awaitility.await().until(() -> persistentTopic1.getLastPosition().compareTo(messagePosition) > 0);
             log.info().attr("replicationSnapshot", replicatedSubscriptionsController.getLastCompletedSnapshotId())
                     .log("latest replication snapshot");
         }
@@ -497,17 +530,8 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
         List<String> msgReceived = new ArrayList<>();
         Consumer<GenericRecord> consumer = client2.newConsumer(Schema.AUTO_CONSUME()).topic(topicName)
                 .subscriptionName("s1").subscribe();
-        while (true) {
-            Message<GenericRecord> msg = consumer.receive(10, TimeUnit.SECONDS);
-            if (msg == null) {
-                break;
-            }
-            MessageIdAdv messageIdAdv = (MessageIdAdv) msg.getMessageId();
-            log.info().attr("msgSource", StringUtils.join(msg.getProperties().values(), ":"))
-                    .attr("target", messageIdAdv.getLedgerId()).attr("entryId", messageIdAdv.getEntryId())
-                    .log("received msg. source, target");
+        for (Message<GenericRecord> msg : receiveAllMessages(consumer, admin2, topicName)) {
             msgReceived.add(String.valueOf(msg.getValue()));
-            consumer.acknowledgeAsync(msg);
         }
         log.info().attr("writeValueAsString", JACKSON.writeValueAsString(admin1.topics().getInternalStats(topicName)))
                 .log("c1 topic stats-internal");
@@ -564,9 +588,10 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
                     SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
         });
         admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1, cluster2));
+        waitReplicatorStarted(topicName);
         Awaitility.await().atMost(Duration.ofSeconds(60)).untilAsserted(() -> {
-            for (ManagedCursor cursor : tp2.getManagedLedger().getCursors()) {
-                if (cursor.getName().equals("pulsar.repl.c2")) {
+            for (ManagedCursor cursor : tp1.getManagedLedger().getCursors()) {
+                if (cursor.getName().equals("pulsar.repl.r2")) {
                     assertEquals(cursor.getNumberOfEntriesInBacklog(true), 0);
                 }
             }
@@ -575,17 +600,8 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
         List<String> msgReceived2 = new ArrayList<>();
         Consumer<GenericRecord> consumer2 = client2.newConsumer(Schema.AUTO_CONSUME()).topic(topicName)
                 .subscriptionName("s1").subscribe();
-        while (true) {
-            Message<GenericRecord> msg = consumer2.receive(10, TimeUnit.SECONDS);
-            if (msg == null) {
-                break;
-            }
-            MessageIdAdv messageIdAdv = (MessageIdAdv) msg.getMessageId();
-            log.info().attr("msgSource", StringUtils.join(msg.getProperties().values(), ":"))
-                    .attr("target", messageIdAdv.getLedgerId()).attr("entryId", messageIdAdv.getEntryId())
-                    .log("received msg. source, target");
+        for (Message<GenericRecord> msg : receiveAllMessages(consumer2, admin2, topicName)) {
             msgReceived2.add(String.valueOf(msg.getValue()));
-            consumer2.acknowledgeAsync(msg);
         }
         // Verify: all messages were copied correctly.
         log.info().attr("writeValueAsString", JACKSON.writeValueAsString(admin1.topics().getInternalStats(topicName)))
@@ -647,9 +663,17 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
         final List<ByteBufPair> duplicatedMsgs = new ArrayList<>();
         final int repeatMsgIndex = 2;
         AtomicInteger msgSent = new AtomicInteger(0);
+        AtomicInteger msgDropped = new AtomicInteger(0);
+        AtomicInteger sendReceiptsReceived = new AtomicInteger(0);
         ConcurrentHashSet<Channel> injectedChannel = new ConcurrentHashSet<>();
         Runnable taskToClearInjection = injectReplicatorClientCnx(
                 (conf, eventLoopGroup) -> new ClientCnx(InstrumentProvider.NOOP, conf, eventLoopGroup) {
+
+                    @Override
+                    protected void handleSendReceipt(CommandSendReceipt sendReceipt) {
+                        sendReceiptsReceived.incrementAndGet();
+                        super.handleSendReceipt(sendReceipt);
+                    }
 
                     @Override
                     public ChannelHandlerContext ctx() {
@@ -685,6 +709,7 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
                             if (cmd.getType().equals(BaseCommand.Type.SEND)) {
                                 synchronized (duplicatedMsgs) {
                                     if (duplicatedMsgs.isEmpty() && msgSent.get() == repeatMsgIndex) {
+                                        msgDropped.incrementAndGet();
                                         return null;
                                     }
                                     if (msgSent.get() == repeatMsgIndex) {
@@ -693,6 +718,7 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
                                             originalCtx.channel().flush();
                                         }
                                         duplicatedMsgs.clear();
+                                        msgDropped.incrementAndGet();
                                         return null;
                                     }
                                 }
@@ -774,22 +800,14 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
         p2.send("3".toString().getBytes(StandardCharsets.UTF_8));
         p2.send("4".toString().getBytes(StandardCharsets.UTF_8));
 
-        // Enable replication and wait the task to be finished, it should not finish if no bug.
+        // Enable replication and wait for step-2: the remote broker has answered the sends of M1 and M2 and of their
+        // copies, and the connection broke before M3 and M4 were sent, so the replication can not finish yet.
         admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1, cluster2));
         waitReplicatorStarted(topicName);
-        try {
-            Awaitility.await().atMost(Duration.ofSeconds(20)).pollInterval(Duration.ofSeconds(1)).untilAsserted(() -> {
-                for (ManagedCursor cursor : tp1.getManagedLedger().getCursors()) {
-                    if (cursor.getName().equals("pulsar.repl.r2")) {
-                        long replBacklog = cursor.getNumberOfEntriesInBacklog(true);
-                        log.info().attr("replBacklog", replBacklog).log("repl backlog");
-                        assertEquals(replBacklog, 0);
-                    }
-                }
-            });
-        } catch (Throwable t) {
-            // Ignore the error.
-        }
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(sendReceiptsReceived.get() >= 4);
+            assertTrue(msgDropped.get() >= 2);
+        });
 
         /**
          * Step-3: remove the injections, unload topics and rebuild connections of the replicator.
@@ -806,7 +824,7 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
                 (PersistentTopic) pulsar1.getBrokerService().getTopic(topicName, false).join().get();
         PersistentTopic tp22 =
                 (PersistentTopic) pulsar2.getBrokerService().getTopic(topicName, false).join().get();
-        Awaitility.await().atMost(Duration.ofSeconds(20)).pollInterval(Duration.ofSeconds(1)).untilAsserted(() -> {
+        Awaitility.await().atMost(Duration.ofSeconds(20)).untilAsserted(() -> {
             for (ManagedCursor cursor : tp12.getManagedLedger().getCursors()) {
                 if (cursor.getName().equals("pulsar.repl.r2")) {
                     long replBacklog = cursor.getNumberOfEntriesInBacklog(true);
@@ -820,19 +838,10 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
          * Verify: All 4 messages are copied to the remote cluster.
          */
         List<String> msgReceived = new ArrayList<>();
-        Consumer consumer = client2.newConsumer().topic(topicName)
+        Consumer<byte[]> consumer = client2.newConsumer().topic(topicName)
                 .subscriptionName("s1").subscribe();
-        while (true) {
-            Message msg = consumer.receive(10, TimeUnit.SECONDS);
-            if (msg == null) {
-                break;
-            }
-            MessageIdAdv messageIdAdv = (MessageIdAdv) msg.getMessageId();
-            log.info().attr("msgSource", StringUtils.join(msg.getProperties().values(), ":"))
-                    .attr("target", messageIdAdv.getLedgerId()).attr("entryId", messageIdAdv.getEntryId())
-                    .log("received msg. source, target");
+        for (Message<byte[]> msg : receiveAllMessages(consumer, admin2, topicName)) {
             msgReceived.add(new String(msg.getData(), StandardCharsets.UTF_8));
-            consumer.acknowledgeAsync(msg);
         }
 
         log.info().attr("receivedMsgs", msgReceived).log("received msgs");
@@ -993,7 +1002,7 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
         // Enable replication and wait the task to be finished, it should not finish if no bug.
         admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1, cluster2));
         waitReplicatorStarted(topicName);
-        Awaitility.await().atMost(Duration.ofSeconds(180)).pollInterval(Duration.ofSeconds(1)).untilAsserted(() -> {
+        Awaitility.await().atMost(Duration.ofSeconds(180)).untilAsserted(() -> {
             for (ManagedCursor cursor : tp1.getManagedLedger().getCursors()) {
                 if (cursor.getName().equals("pulsar.repl.r2")) {
                     long replBacklog = cursor.getNumberOfEntriesInBacklog(true);
@@ -1005,19 +1014,10 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
 
         // Verify: All messages are copied to the remote cluster.
         List<String> msgReceived = new ArrayList<>();
-        Consumer consumer = client2.newConsumer().topic(topicName)
+        Consumer<byte[]> consumer = client2.newConsumer().topic(topicName)
                 .subscriptionName("s1").subscribe();
-        while (true) {
-            Message msg = consumer.receive(10, TimeUnit.SECONDS);
-            if (msg == null) {
-                break;
-            }
-            MessageIdAdv messageIdAdv = (MessageIdAdv) msg.getMessageId();
-            log.info().attr("msgSource", StringUtils.join(msg.getProperties().values(), ":"))
-                    .attr("target", messageIdAdv.getLedgerId()).attr("entryId", messageIdAdv.getEntryId())
-                    .log("received msg. source, target");
+        for (Message<byte[]> msg : receiveAllMessages(consumer, admin2, topicName)) {
             msgReceived.add(new String(msg.getData(), StandardCharsets.UTF_8));
-            consumer.acknowledgeAsync(msg);
         }
         log.info().attr("receivedMsgs", msgReceived).log("received msgs");
         assertTrue(msgReceived.contains("1"));

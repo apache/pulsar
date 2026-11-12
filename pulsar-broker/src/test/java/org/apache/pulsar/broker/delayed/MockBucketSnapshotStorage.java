@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.delayed;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -46,11 +48,16 @@ public class MockBucketSnapshotStorage implements BucketSnapshotStorage {
 
     private final Map<Long, List<ByteBuf>> bucketSnapshots;
 
-    private final ExecutorService executorService =
-            new ThreadPoolExecutor(10, 20, 30, TimeUnit.SECONDS, new LinkedBlockingQueue<>(),
-                    new DefaultThreadFactory("bucket-snapshot-storage-io"));
+    private final ExecutorService executorService;
 
     public MockBucketSnapshotStorage() {
+        this(new ThreadPoolExecutor(10, 20, 30, TimeUnit.SECONDS, new LinkedBlockingQueue<>(),
+                new DefaultThreadFactory("bucket-snapshot-storage-io")));
+    }
+
+    @VisibleForTesting
+    MockBucketSnapshotStorage(ExecutorService executorService) {
+        this.executorService = executorService;
         this.bucketSnapshots = new ConcurrentHashMap<>();
         this.maxBucketId = new AtomicLong();
     }
@@ -185,21 +192,15 @@ public class MockBucketSnapshotStorage implements BucketSnapshotStorage {
     }
 
     public void clean() {
+        // Wait for the executor to terminate before releasing snapshot buffers.
+        if (!MoreExecutors.shutdownAndAwaitTermination(executorService, 20, TimeUnit.SECONDS)) {
+            throw new IllegalStateException("Bucket snapshot storage executor did not terminate");
+        }
         for (List<ByteBuf> value : bucketSnapshots.values()) {
             for (ByteBuf byteBuf : value) {
                 byteBuf.release();
             }
         }
         bucketSnapshots.clear();
-        // Gracefully shutdown: allow pending tasks to complete
-        executorService.shutdown();
-        try {
-            if (!executorService.awaitTermination(10, TimeUnit.SECONDS)) {
-                executorService.shutdownNow();
-            }
-        } catch (InterruptedException e) {
-            executorService.shutdownNow();
-            Thread.currentThread().interrupt();
-        }
     }
 }
