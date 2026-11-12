@@ -80,7 +80,7 @@ dependencies {
     api(libs.picocli)
     api(libs.simpleclient)
     // PulsarBrokerStarter hands an in-process bookie's stats provider its own PrometheusRegistry;
-    // WebExecutorStats and the resource group service register their metrics on it.
+    // the broker's own stats classes register their metrics on the default one.
     implementation(libs.prometheus.metrics.core)
     implementation(libs.prometheus.metrics.model)
     implementation(libs.simpleclient.hotspot)
