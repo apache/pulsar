@@ -19,7 +19,9 @@
 package org.apache.pulsar.admin.cli;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.OutputStreamWriter;
@@ -109,5 +111,17 @@ public class TestRunMain {
         PulsarAdminBuilderImpl builder = (PulsarAdminBuilderImpl) tool.pulsarAdminSupplier.adminBuilder;
         assertEquals(builder.getConf().getTlsTrustCertsFilePath(), tlsTrustCertsFilePathInArg);
         PulsarAdminTool.allowSystemExit = prevValue;
+    }
+
+    @Test
+    public void testUsageMessageListsEnvironmentVariables() throws Exception {
+        PulsarAdminTool tool = new PulsarAdminTool(new Properties());
+        String usage = tool.commander.getUsageMessage();
+        assertTrue(usage.contains("Environment variables:"), usage);
+        assertTrue(usage.contains("PULSAR_CLIENT_CONF"), usage);
+        assertTrue(usage.contains("PULSAR_EXTRA_OPTS"), usage);
+        assertTrue(usage.contains("PULSAR_LOG_LEVEL"), usage);
+        String topicsUsage = tool.commander.getSubcommands().get("topics").getUsageMessage();
+        assertFalse(topicsUsage.contains("Environment variables:"), topicsUsage);
     }
 }

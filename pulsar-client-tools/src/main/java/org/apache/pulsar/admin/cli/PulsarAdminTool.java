@@ -113,6 +113,7 @@ public class PulsarAdminTool implements CommandHook {
                 new PulsarAdminSupplier(createAdminBuilderFromProperties(pulsarAdminPropertiesProvider.getProperties()),
                         rootParams);
         initCommander(pulsarAdminPropertiesProvider.getProperties());
+        CommanderFactory.addEnvironmentVariablesFooter(commander);
     }
 
     private static PulsarAdminBuilder createAdminBuilderFromProperties(Properties properties) {
