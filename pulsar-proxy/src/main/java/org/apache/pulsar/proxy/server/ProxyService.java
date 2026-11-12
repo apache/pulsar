@@ -160,24 +160,29 @@ public class ProxyService implements Closeable {
             .help("Number of connections currently active in the proxy")
             .register();
 
+    // Nothing in the proxy exports exemplars, so its counters skip the sampling that 1.x counters do by default.
     static final Counter NEW_CONNECTIONS = Counter.builder()
             .name("pulsar_proxy_new_connections")
             .help("Counter of connections being opened in the proxy")
+            .withoutExemplars()
             .register();
 
     static final Counter REJECTED_CONNECTIONS = Counter.builder()
             .name("pulsar_proxy_rejected_connections")
             .help("Counter for connections rejected due to throttling")
+            .withoutExemplars()
             .register();
 
     static final Counter OPS_COUNTER = Counter.builder()
             .name("pulsar_proxy_binary_ops")
             .help("Counter of proxy operations")
+            .withoutExemplars()
             .register();
 
     static final Counter BYTES_COUNTER = Counter.builder()
             .name("pulsar_proxy_binary_bytes")
             .help("Counter of proxy bytes")
+            .withoutExemplars()
             .register();
 
     @Getter

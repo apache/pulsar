@@ -77,36 +77,43 @@ public class LookupProxyHandler {
     private static final Counter LOOKUP_REQUESTS = Counter.builder()
             .name("pulsar_proxy_lookup_requests")
             .help("Counter of topic lookup requests")
+            .withoutExemplars()
             .register();
 
     private static final Counter PARTITIONS_METADATA_REQUESTS = Counter.builder()
             .name("pulsar_proxy_partitions_metadata_requests")
             .help("Counter of partitions metadata requests")
+            .withoutExemplars()
             .register();
 
     private static final Counter GET_TOPICS_OF_NAMESPACE_REQUESTS = Counter.builder()
             .name("pulsar_proxy_get_topics_of_namespace_requests")
             .help("Counter of getTopicsOfNamespace requests")
+            .withoutExemplars()
             .register();
 
     private static final Counter GET_SCHEMA_REQUESTS = Counter.builder()
             .name("pulsar_proxy_get_schema_requests")
             .help("Counter of schema requests")
+            .withoutExemplars()
             .register();
 
     static final Counter REJECTED_LOOKUP_REQUESTS = Counter.builder()
             .name("pulsar_proxy_rejected_lookup_requests")
             .help("Counter of topic lookup requests rejected due to throttling")
+            .withoutExemplars()
             .register();
 
     static final Counter REJECTED_PARTITIONS_METADATA_REQUESTS = Counter.builder()
             .name("pulsar_proxy_rejected_partitions_metadata_requests")
             .help("Counter of partitions metadata requests rejected due to throttling")
+            .withoutExemplars()
             .register();
 
     static final Counter REJECTED_GET_TOPICS_OF_NAMESPACE_REQUESTS = Counter.builder()
             .name("pulsar_proxy_rejected_get_topics_of_namespace_requests")
             .help("Counter of getTopicsOfNamespace requests rejected due to throttling")
+            .withoutExemplars()
             .register();
     private final Semaphore lookupRequestSemaphore;
     private final AsyncDualMemoryLimiterImpl maxTopicListInFlightLimiter;
