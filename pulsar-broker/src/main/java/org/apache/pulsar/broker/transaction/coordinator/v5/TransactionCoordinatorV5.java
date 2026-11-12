@@ -239,7 +239,8 @@ public class TransactionCoordinatorV5 {
     }
 
     /**
-     * Whether the local election for {@code partition} reports leadership. Used to gate the sweep.
+     * Whether the local election for {@code partition} reports leadership. Used by the sweep and
+     * as an initial check for client connections.
      * A partition with no local election (out-of-range or pre-{@code start()}) is not led here.
      */
     public boolean isLeaderFor(int partition) {
@@ -292,16 +293,26 @@ public class TransactionCoordinatorV5 {
 
     /**
      * Accept a v5 handshake only while this broker leads the requested TC partition. An assignment
-     * watch can still point at the previous leader during failover. Until the election confirms
-     * ownership in the current metadata session, return a retryable error.
+     * watch and the local election can still point at the previous leader during failover.
+     * Verify that the current metadata session owns the election node before accepting.
      */
     public CompletableFuture<Void> handleClientConnect(TransactionCoordinatorID tcId) {
         long partition = tcId.getId();
-        var election = partition >= 0 && partition < partitionCount ? elections.get((int) partition) : null;
-        if (!closed && !pulsar.isMetadataSessionLost() && election != null && election.isLeaderInCurrentSession()) {
-            return CompletableFuture.completedFuture(null);
+        long sessionLossCount = pulsar.getMetadataSessionLossCount();
+        if (closed || partition < 0 || partition >= partitionCount || pulsar.isMetadataSessionLost()
+                || !isLeaderFor((int) partition)) {
+            return CompletableFuture.failedFuture(new CoordinatorException.CoordinatorNotFoundException(tcId));
         }
-        return CompletableFuture.failedFuture(new CoordinatorException.CoordinatorNotFoundException(tcId));
+        String path = TxnPaths.tcLeaderPath((int) partition);
+        return FutureUtil.supplySafely(() -> pulsar.getLocalMetadataStore().get(path)).handle((lock, error) -> {
+            // A read from an expired session can complete after its replacement has connected.
+            if (error != null || lock.isEmpty() || !lock.get().getStat().isCreatedBySelf()
+                    || closed || !isLeaderFor((int) partition) || pulsar.isMetadataSessionLost()
+                    || pulsar.getMetadataSessionLossCount() != sessionLossCount) {
+                throw FutureUtil.wrapToCompletionException(new CoordinatorException.CoordinatorNotFoundException(tcId));
+            }
+            return null;
+        });
     }
 
     // ---- Assignment discovery (client watch) ------------------------------

@@ -26,10 +26,8 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
 import lombok.CustomLog;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -58,8 +56,6 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
     private final Consumer<LeaderElectionState> stateChangesListener;
 
     private LeaderElectionState leaderElectionState;
-    // Session in which a read or create confirmed ownership of the ephemeral leader node.
-    private Object leadingSession;
     private Optional<T> proposedValue;
 
     // The leader value as known by the election cycle (the leader can only change through an
@@ -71,9 +67,6 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
 
     private final ScheduledExecutorService executor;
     private final FutureUtil.Sequencer<Void> sequencer;
-    // A newer session event or close supersedes even a retry already queued on the sequencer.
-    private long revalidationGeneration;
-    private ScheduledFuture<?> revalidationRetry;
 
     private enum InternalState {
         Init, ElectionInProgress, LeaderIsPresent, Closed
@@ -169,10 +162,9 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
         // First check if there's already a leader elected
         internalState = InternalState.ElectionInProgress;
         long lockDeletionsBeforeRead = lockDeletions;
-        Object readSession = coordinationService.getSessionToken();
         return store.get(path).thenCompose(optLock -> {
             if (optLock.isPresent()) {
-                return handleExistingLeaderValue(optLock.get(), lockDeletionsBeforeRead, readSession);
+                return handleExistingLeaderValue(optLock.get(), lockDeletionsBeforeRead);
             } else {
                 return tryToBecomeLeader();
             }
@@ -180,7 +172,7 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
     }
 
     private synchronized CompletableFuture<LeaderElectionState> handleExistingLeaderValue(GetResult res,
-            long lockDeletionsBeforeRead, Object readSession) {
+            long lockDeletionsBeforeRead) {
         if (internalState == InternalState.Closed) {
             // Closed while the lock was being read: the value read must not bring the election back, nor make it
             // delete the lock
@@ -207,7 +199,6 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
                 log.info().attr("value", existingValue).attr("path", path).attr("stat", res.getStat())
                         .log("Keeping the existing value as it's from the same session");
                 // The value is still valid because it was created in the same session
-                recordLeaderSession(readSession, true);
                 leaderKnown(Optional.of(existingValue));
                 changeState(LeaderElectionState.Leading);
                 return CompletableFuture.completedFuture(LeaderElectionState.Leading);
@@ -232,17 +223,9 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
         }
 
         // If the existing value is different, it means there's already another leader
-        recordLeaderSession(readSession, false);
         leaderKnown(Optional.of(existingValue));
         changeState(LeaderElectionState.Following);
         return CompletableFuture.completedFuture(LeaderElectionState.Following);
-    }
-
-    private void recordLeaderSession(Object session, boolean ownsLock) {
-        // An operation from an expired session can complete after another session has revalidated.
-        if (session == coordinationService.getSessionToken()) {
-            leadingSession = ownsLock ? session : null;
-        }
     }
 
     private synchronized void changeState(LeaderElectionState les) {
@@ -274,7 +257,6 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
 
         CompletableFuture<LeaderElectionState> result = new CompletableFuture<>();
         long lockDeletionsBeforeWrite = lockDeletions;
-        Object writeSession = coordinationService.getSessionToken();
         store.put(path, payload, Optional.of(-1L), EnumSet.of(CreateOption.Ephemeral))
                 .thenAccept(stat -> {
                     synchronized (LeaderElectionImpl.this) {
@@ -291,7 +273,6 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
                                     .log("Acquired leadership");
                             internalState = InternalState.LeaderIsPresent;
                             holdsLockProvisionally = false;
-                            recordLeaderSession(writeSession, true);
                             leaderKnown(Optional.of(value));
                             if (leaderElectionState != LeaderElectionState.Leading) {
                                 leaderElectionState = LeaderElectionState.Leading;
@@ -354,8 +335,6 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
         }
 
         internalState = InternalState.Closed;
-        cancelSessionRevalidation();
-        leadingSession = null;
         coordinationService.removeLeaderElection(path, this);
         // A closed election reports "no leader" rather than waiting or failing: callers like the
         // extensible load manager's handleNoChannelOwnerError() key off the resulting
@@ -405,11 +384,6 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
     @Override
     public synchronized LeaderElectionState getState() {
         return leaderElectionState;
-    }
-
-    @Override
-    public synchronized boolean isLeaderInCurrentSession() {
-        return leadingSession != null && leadingSession == coordinationService.getSessionToken();
     }
 
     @Override
@@ -472,55 +446,34 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
     }
 
     void handleSessionNotification(SessionEvent event) {
-        submitSessionTask(() -> {
-            synchronized (LeaderElectionImpl.this) {
-                cancelSessionRevalidation();
-                if (!event.isConnected() || internalState == InternalState.Init
-                        || internalState == InternalState.Closed) {
-                    return CompletableFuture.completedFuture(null);
+        // Ensure we're only processing one session event at a time.
+        sequencer.sequential(() -> FutureUtil.composeAsync(() -> {
+            if (event == SessionEvent.Reconnected || event == SessionEvent.SessionReestablished) {
+                CompletableFuture<LeaderElectionState> revalidation;
+                synchronized (LeaderElectionImpl.this) {
+                    if (internalState == InternalState.Init || internalState == InternalState.Closed) {
+                        // Not taking part in the election: elect(T) was never called, or the election was closed
+                        return CompletableFuture.completedFuture(null);
+                    }
+                    log.info().attr("path", path).attr("event", event).log("Revalidating leadership");
+                    revalidation = elect();
                 }
-                log.info().attr("path", path).attr("event", event).log("Revalidating leadership");
-                return revalidateSession(revalidationGeneration);
+                return revalidation.thenAccept(leaderState -> {
+                    log.info().attr("path", path).attr("state", leaderState).log("Resynced leadership");
+                }).exceptionally(ex -> {
+                    synchronized (LeaderElectionImpl.this) {
+                        if (internalState == InternalState.Closed) {
+                            log.debug().attr("path", path)
+                                    .log("Leader election closed while revalidating leadership");
+                            return null;
+                        }
+                    }
+                    log.warn().exception(ex).log("Failure when processing session event");
+                    return null;
+                });
             }
-        });
-    }
-
-    private void cancelSessionRevalidation() {
-        revalidationGeneration++;
-        if (revalidationRetry != null) {
-            revalidationRetry.cancel(false);
-            revalidationRetry = null;
-        }
-    }
-
-    private void submitSessionTask(Supplier<CompletableFuture<Void>> task) {
-        sequencer.sequential(() -> FutureUtil.composeAsync(task, executor));
-    }
-
-    private synchronized CompletableFuture<Void> revalidateSession(long generation) {
-        if (generation != revalidationGeneration) {
             return CompletableFuture.completedFuture(null);
-        }
-        return FutureUtil.supplySafely(this::elect).handle((state, ex) -> {
-            sessionRevalidationCompleted(generation, state, ex);
-            return null;
-        });
-    }
-
-    private synchronized void sessionRevalidationCompleted(long generation, LeaderElectionState state, Throwable ex) {
-        if (generation != revalidationGeneration) {
-            return;
-        }
-        if (ex == null) {
-            revalidationRetry = null;
-            log.info().attr("path", path).attr("state", state).log("Resynced leadership");
-            return;
-        }
-        if (revalidationRetry == null) {
-            log.warn().attr("path", path).exception(ex).log("Failed to revalidate leadership, retrying");
-        }
-        revalidationRetry = executor.schedule(() -> submitSessionTask(() -> revalidateSession(generation)),
-                LEADER_ELECTION_RETRY_DELAY_SECONDS, TimeUnit.SECONDS);
+        }, executor));
     }
 
     // Called for the notifications on the path of this election
@@ -528,7 +481,6 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
         synchronized (this) {
             if (notification.getType() == NotificationType.Deleted) {
                 lockDeletions++;
-                leadingSession = null;
             }
             if (internalState != InternalState.LeaderIsPresent) {
                 // Not taking part in the election, or an election cycle is in progress: it checks the deletions once

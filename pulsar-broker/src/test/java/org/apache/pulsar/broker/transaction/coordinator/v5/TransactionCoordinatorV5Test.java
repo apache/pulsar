@@ -24,6 +24,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.transaction.metadata.TxnEvent;
@@ -32,10 +34,13 @@ import org.apache.pulsar.broker.transaction.metadata.TxnIds;
 import org.apache.pulsar.broker.transaction.metadata.TxnMetadataStore;
 import org.apache.pulsar.broker.transaction.metadata.TxnOp;
 import org.apache.pulsar.broker.transaction.metadata.TxnOpKind;
+import org.apache.pulsar.broker.transaction.metadata.TxnPaths;
 import org.apache.pulsar.broker.transaction.metadata.TxnState;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.TxnAction;
+import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.coordination.CoordinationService;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.coordination.impl.CoordinationServiceImpl;
@@ -392,6 +397,36 @@ public class TransactionCoordinatorV5Test {
     @Test
     public void handleClientConnect_acceptsWhenLeader() throws Exception {
         tc.handleClientConnect(TC_ID).get();
+    }
+
+    @Test
+    public void handleClientConnect_rejectsMissingLockOrReadFailure() {
+        var handshakeStore = mock(MetadataStoreExtended.class);
+        when(pulsar.getLocalMetadataStore()).thenReturn(handshakeStore);
+        when(handshakeStore.get(TxnPaths.tcLeaderPath(0)))
+                .thenReturn(CompletableFuture.completedFuture(Optional.empty()))
+                .thenReturn(CompletableFuture.failedFuture(new MetadataStoreException("read failed")));
+        assertThatThrownBy(() -> tc.handleClientConnect(TC_ID).get())
+                .as("missing election node")
+                .hasCauseInstanceOf(CoordinatorException.CoordinatorNotFoundException.class);
+        assertThatThrownBy(() -> tc.handleClientConnect(TC_ID).get())
+                .as("failed ownership read")
+                .hasCauseInstanceOf(CoordinatorException.CoordinatorNotFoundException.class);
+    }
+
+    @Test
+    public void handleClientConnect_rejectsIfClosedDuringRead() throws Exception {
+        String path = TxnPaths.tcLeaderPath(0);
+        var ownedLock = store.get(path).get();
+        assertThat(ownedLock.orElseThrow().getStat().isCreatedBySelf()).isTrue();
+        var pendingRead = new CompletableFuture<Optional<GetResult>>();
+        var handshakeStore = mock(MetadataStoreExtended.class);
+        when(handshakeStore.get(path)).thenReturn(pendingRead);
+        when(pulsar.getLocalMetadataStore()).thenReturn(handshakeStore);
+        var handshake = tc.handleClientConnect(TC_ID);
+        tc.close();
+        pendingRead.complete(ownedLock);
+        assertThatThrownBy(handshake::get).hasCauseInstanceOf(CoordinatorException.CoordinatorNotFoundException.class);
     }
 
     @Test

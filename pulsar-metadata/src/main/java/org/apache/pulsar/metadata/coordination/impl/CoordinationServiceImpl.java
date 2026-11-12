@@ -64,8 +64,6 @@ public class CoordinationServiceImpl implements CoordinationService {
     private final Map<String, LeaderElectionImpl<?>> leaderElections = new ConcurrentHashMap<>();
     private Runnable cancelLeaderElectionListener;
     private Runnable cancelLeaderElectionSessionListener;
-    // Identity shared by all elections using this store. Null between session expiry and reestablishment.
-    private volatile Object sessionToken = new Object();
 
     private final ScheduledExecutorService executor;
 
@@ -210,16 +208,7 @@ public class CoordinationServiceImpl implements CoordinationService {
     }
 
     private void handleLeaderElectionSessionEvent(SessionEvent event) {
-        if (event == SessionEvent.SessionLost) {
-            sessionToken = null;
-        } else if (event == SessionEvent.SessionReestablished) {
-            sessionToken = new Object();
-        }
         leaderElections.values().forEach(leaderElection -> leaderElection.handleSessionNotification(event));
-    }
-
-    Object getSessionToken() {
-        return sessionToken;
     }
 
     /**

@@ -28,6 +28,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.PulsarService;
@@ -64,25 +65,33 @@ public class TransactionCoordinatorV5SessionTest {
             var brokerA = broker("a", storeA, coordinationA);
             var brokerB = broker("b", storeB, coordinationB);
             var lost = new AtomicBoolean();
+            var losses = new AtomicLong();
             // PulsarService receives session events before the coordination service.
             @Cleanup("run") Runnable cancel = storeA.registerCancellableSessionListener(event -> {
                 if (event == SessionEvent.SessionLost) {
+                    losses.incrementAndGet();
                     lost.set(true);
                 } else if (event == SessionEvent.SessionReestablished) {
                     lost.set(false);
                 }
             });
             when(brokerA.isMetadataSessionLost()).thenAnswer(__ -> lost.get());
+            when(brokerA.getMetadataSessionLossCount()).thenAnswer(__ -> losses.get());
             var a = new TransactionCoordinatorV5(brokerA);
             var b = new TransactionCoordinatorV5(brokerB);
             var oldRead = new PausedRead();
             var newRead = new PausedRead();
+            var handshakeRead = new PausedRead();
             try {
                 a.start();
                 await().until(() -> a.isLeaderFor(0));
                 a.handleClientConnect(TC_ID).get();
 
-                // Hold a successful read of A's lock until after that session expires.
+                // Both reads see A's lock. Hold their replies until after A loses its session.
+                storeA.nextRead.set(handshakeRead);
+                var handshake = a.handleClientConnect(TC_ID);
+                assertThat(handshakeRead.result.get(5, TimeUnit.SECONDS).orElseThrow().getStat().isCreatedBySelf())
+                        .isTrue();
                 storeA.nextRead.set(oldRead);
                 storeA.sendSessionEvent(SessionEvent.Reconnected);
                 assertThat(oldRead.result.get(5, TimeUnit.SECONDS).orElseThrow().getStat().isCreatedBySelf()).isTrue();
@@ -97,13 +106,16 @@ public class TransactionCoordinatorV5SessionTest {
                 storeA.nextRead.set(newRead);
                 storeA.sendSessionEvent(SessionEvent.SessionReestablished);
                 await().untilFalse(lost);
-                b.handleClientConnect(TC_ID).get();
-                assertRejected(a);
+                assertThat(a.isLeaderFor(0)).isTrue();
+                handshakeRead.resume.complete(null);
+                assertThatThrownBy(() -> handshake.get(1, TimeUnit.SECONDS))
+                        .hasCauseInstanceOf(CoordinatorNotFoundException.class);
 
                 // The previous session's positive read completes. Revalidation of the new session
                 // has read B's lock but has not delivered the result to A's election yet.
                 oldRead.resume.complete(null);
                 assertThat(newRead.result.get(5, TimeUnit.SECONDS).orElseThrow().getStat().isCreatedBySelf()).isFalse();
+                assertThat(a.isLeaderFor(0)).isTrue();
                 b.handleClientConnect(TC_ID).get();
                 assertRejected(a);
 
@@ -117,6 +129,7 @@ public class TransactionCoordinatorV5SessionTest {
                 assertThat(storeA.get(LEADER_PATH).get().orElseThrow().getStat().isCreatedBySelf()).isTrue();
                 a.handleClientConnect(TC_ID).get();
             } finally {
+                handshakeRead.resume.complete(null);
                 oldRead.resume.complete(null);
                 newRead.resume.complete(null);
                 a.close();
@@ -127,7 +140,7 @@ public class TransactionCoordinatorV5SessionTest {
     }
 
     @Test(timeOut = 30000)
-    public void handshakeRecoversAfterFailedSessionRevalidation() throws Exception {
+    public void handshakeAcceptsLockOwnerAfterFailedSessionRevalidation() throws Exception {
         @Cleanup("shutdown") MockZooKeeper zk = MockZooKeeper.newInstance();
         try (var session = MockZooKeeperSession.newInstance(zk, false);
              var observerSession = MockZooKeeperSession.newInstance(zk, false);
@@ -136,7 +149,6 @@ public class TransactionCoordinatorV5SessionTest {
              var coordination = new CoordinationServiceImpl(store)) {
             var tc = new TransactionCoordinatorV5(broker("a", store, coordination));
             var failedRead = new PausedRead();
-            var retry = new PausedRead();
             try {
                 tc.start();
                 await().until(() -> tc.isLeaderFor(0));
@@ -153,18 +165,11 @@ public class TransactionCoordinatorV5SessionTest {
                 store.nextRead.set(failedRead);
                 store.sendSessionEvent(SessionEvent.SessionReestablished);
                 failedRead.result.get(5, TimeUnit.SECONDS);
-                store.nextRead.set(retry);
                 failedRead.resume.completeExceptionally(new MetadataStoreException("injected read failure"));
-                assertRejected(tc);
-
-                // The election must retry on its own, and keep fencing until the read succeeds.
-                assertThat(retry.result.get(10, TimeUnit.SECONDS).orElseThrow().getStat().isCreatedBySelf()).isTrue();
-                assertRejected(tc);
-                retry.resume.complete(null);
-                await().untilAsserted(() -> assertThat(tc.handleClientConnect(TC_ID)).isCompletedWithValue(null));
+                // The handshake can read the lock even though the election's own read failed.
+                tc.handleClientConnect(TC_ID).get(1, TimeUnit.SECONDS);
             } finally {
                 failedRead.resume.complete(null);
-                retry.resume.complete(null);
                 tc.close();
                 await().until(() -> observer.get(LEADER_PATH).get().isEmpty());
             }
