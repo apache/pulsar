@@ -28,7 +28,6 @@ import io.prometheus.metrics.instrumentation.jvm.JvmClassLoadingMetrics;
 import io.prometheus.metrics.instrumentation.jvm.JvmCompilationMetrics;
 import io.prometheus.metrics.instrumentation.jvm.JvmGarbageCollectorMetrics;
 import io.prometheus.metrics.instrumentation.jvm.JvmMemoryMetrics;
-import io.prometheus.metrics.instrumentation.jvm.JvmMemoryPoolAllocationMetrics;
 import io.prometheus.metrics.instrumentation.jvm.JvmNativeMemoryMetrics;
 import io.prometheus.metrics.instrumentation.jvm.JvmRuntimeInfoMetric;
 import io.prometheus.metrics.instrumentation.jvm.JvmThreadsMetrics;
@@ -599,12 +598,13 @@ public class RuntimeUtils {
         }
         // The same set as JvmMetrics.builder().register(registry), registered one by one: JvmMetrics keeps every
         // registry it has seen in a static set, which would retain each LocalRunner registry for the JVM's lifetime.
+        // JvmMemoryPoolAllocationMetrics is left out for the same reason: every registration adds a listener to
+        // the JVM's garbage collector beans that is never removed. simpleclient's set had no such family either.
         JvmThreadsMetrics.builder().register(registry);
         JvmBufferPoolMetrics.builder().register(registry);
         JvmClassLoadingMetrics.builder().register(registry);
         JvmCompilationMetrics.builder().register(registry);
         JvmGarbageCollectorMetrics.builder().register(registry);
-        JvmMemoryPoolAllocationMetrics.builder().register(registry);
         JvmMemoryMetrics.builder().register(registry);
         JvmNativeMemoryMetrics.builder().register(registry);
         JvmRuntimeInfoMetric.builder().register(registry);

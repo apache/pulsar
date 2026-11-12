@@ -19,6 +19,7 @@
 package org.apache.pulsar.functions.runtime;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -325,7 +326,8 @@ public class RuntimeUtilsTest {
     /**
      * Every LocalRunner start gets a fresh registry. {@code JvmMetrics.builder().register(registry)} would keep
      * each of them in a static set for the JVM's lifetime and skip the JVM families on any registry it had
-     * seen, so the collectors are registered one by one.
+     * seen, so the collectors are registered one by one. The allocation collector is not among them: it adds a
+     * garbage collector listener per registration that nothing removes.
      */
     @Test
     public void testRegisterDefaultCollectorsOnFreshRegistries() throws Exception {
@@ -345,11 +347,13 @@ public class RuntimeUtilsTest {
         // -XX:NativeMemoryTracking, so it has no family to check here)
         for (String family : new String[]{"jvm_memory_used_bytes", "jvm_memory_pool_used_bytes", "jvm_threads_current",
                 "jvm_gc_collection_seconds", "jvm_classes_currently_loaded", "jvm_buffer_pool_used_bytes",
-                "jvm_compilation_time_seconds", "jvm_memory_pool_allocated_bytes",
+                "jvm_compilation_time_seconds",
                 // registered names: exposed as jvm_runtime_info and process_cpu_seconds_total
                 "jvm_runtime", "process_cpu_seconds", "jmx_scrape_duration_seconds"}) {
             assertTrue(firstFamilies.contains(family), family + " missing from " + firstFamilies);
         }
+        assertFalse(firstFamilies.contains("jvm_memory_pool_allocated_bytes"),
+                "the allocation collector leaves a GC listener behind on every registration");
         // the individual collectors keep no static state; JvmMetrics.REGISTERED must not have grown
         assertEquals(((Set<?>) registered.get(null)).size(), registriesHeldByJvmMetrics);
     }
