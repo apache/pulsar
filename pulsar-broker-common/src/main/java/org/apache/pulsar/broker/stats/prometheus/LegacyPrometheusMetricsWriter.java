@@ -33,16 +33,21 @@ final class LegacyPrometheusMetricsWriter {
     private LegacyPrometheusMetricsWriter() {
     }
 
-    /** Writes the registry and returns the family names it declared, so the caller can spot duplicates. */
-    static Set<String> write(SimpleTextOutputStream stream, String cluster, CollectorRegistry registry) {
-        Set<String> names = new HashSet<>();
+    /** What the legacy registry wrote: its family names, and the names on its {@code # TYPE} lines. */
+    record DeclaredNames(Set<String> families, Set<String> typeNames) {
+    }
+
+    /** Writes the registry and returns the names it declared, so the caller can spot duplicates. */
+    static DeclaredNames write(SimpleTextOutputStream stream, String cluster, CollectorRegistry registry) {
+        DeclaredNames names = new DeclaredNames(new HashSet<>(), new HashSet<>());
         Enumeration<Collector.MetricFamilySamples> families = registry.metricFamilySamples();
         while (families.hasMoreElements()) {
             Collector.MetricFamilySamples family = families.nextElement();
-            names.add(family.name);
+            names.families().add(family.name);
             String typeName = family instanceof PrometheusCounterMetricFamily counter
                     ? counter.getPrometheusTypeName()
                     : family.name + (family.type == Collector.Type.INFO ? "_info" : "");
+            names.typeNames().add(typeName);
             stream.write("# TYPE ").write(typeName).write(' ')
                     .write(PrometheusMetricsGeneratorUtils.getTypeStr(family.type)).write('\n');
             for (Collector.MetricFamilySamples.Sample sample : family.samples) {

@@ -36,6 +36,7 @@ import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.coordination.LockManager;
+import org.apache.pulsar.metadata.api.coordination.ResourceLock;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 
@@ -46,6 +47,7 @@ public class NoopLoadManager implements LoadManager {
     private String brokerId;
     private ResourceUnit localResourceUnit;
     private LockManager<LocalBrokerData> lockManager;
+    private ResourceLock<LocalBrokerData> brokerLock;
     private Map<String, String> bundleBrokerAffinityMap;
 
     @Override
@@ -69,7 +71,7 @@ public class NoopLoadManager implements LoadManager {
 
         try {
             log.info().attr("broker", brokerReportPath).log("Acquiring broker resource lock");
-            lockManager.acquireLock(brokerReportPath, localData).join();
+            brokerLock = lockManager.acquireLock(brokerReportPath, localData).join();
             log.info().attr("broker", brokerReportPath).log("Acquired broker resource lock");
         } catch (CompletionException ce) {
             throw new PulsarServerException(MetadataStoreException.unwrap(ce));
@@ -138,9 +140,11 @@ public class NoopLoadManager implements LoadManager {
 
     @Override
     public void stop() throws PulsarServerException {
-        if (lockManager != null) {
+        // Release only this load manager's lock: the coordination service gives the same lock manager to every user
+        // of its type, like the load manager that replaces this one, and closes it itself
+        if (brokerLock != null) {
             try {
-                lockManager.close();
+                brokerLock.release().join();
             } catch (Exception e) {
                 throw new PulsarServerException(e);
             }

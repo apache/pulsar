@@ -52,6 +52,7 @@ import javax.security.auth.login.Configuration;
 import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.commons.io.FileUtils;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
@@ -71,7 +72,6 @@ import org.mockito.ArgumentCaptor;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @CustomLog
@@ -156,7 +156,7 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
 
     }
 
-    @AfterClass(alwaysRun = true)
+    @AfterClass(alwaysRun = true, dependsOnMethods = "cleanup")
     public static void stopMiniKdc() throws IOException {
         System.clearProperty("java.security.auth.login.config");
         System.clearProperty("java.security.krb5.conf");
@@ -169,8 +169,9 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         assertFalse(kerberosWorkDir.exists());
     }
 
+    // The tests share a broker, started once the KDC is
     @SuppressWarnings("deprecation")
-    @BeforeMethod
+    @BeforeClass(dependsOnMethods = "startMiniKdc")
     @Override
     protected void setup() throws Exception {
         log.info().attr("method", methodName).attr("host", localHostname).log("start at host");
@@ -221,12 +222,21 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         super.producerBaseSetup();
     }
 
-    @AfterMethod(alwaysRun = true)
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         FileUtils.deleteQuietly(secretKeyFile);
         assertFalse(secretKeyFile.exists());
         super.internalCleanup();
+    }
+
+    // The tests that create SASL providers of their own set these in the configuration, which the broker read at
+    // its start
+    @AfterMethod(alwaysRun = true)
+    public void resetInflightSaslContextConfig() {
+        ServiceConfiguration defaultConf = new ServiceConfiguration();
+        conf.setInflightSaslContextExpiryMs(defaultConf.getInflightSaslContextExpiryMs());
+        conf.setMaxInflightSaslContext(defaultConf.getMaxInflightSaslContext());
     }
 
     // Test could verify with kerberos configured.

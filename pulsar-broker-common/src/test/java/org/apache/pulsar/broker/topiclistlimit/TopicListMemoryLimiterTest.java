@@ -22,6 +22,7 @@ import static org.testng.Assert.assertEquals;
 import io.opentelemetry.api.OpenTelemetry;
 import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import io.prometheus.metrics.model.snapshots.MetricSnapshot;
+import io.prometheus.metrics.model.snapshots.SummarySnapshot;
 import java.util.Set;
 import java.util.TreeSet;
 import org.testng.annotations.Test;
@@ -41,6 +42,19 @@ public class TopicListMemoryLimiterTest {
             PREFIX + "topic_list_direct_wait_time_ms",
             PREFIX + "topic_list_heap_timeout",
             PREFIX + "topic_list_direct_timeout");
+
+    @Test
+    public void testWaitTimeIsRecordedWithSubMillisecondPrecision() {
+        PrometheusRegistry registry = new PrometheusRegistry();
+        try (TopicListMemoryLimiter limiter = newLimiter(registry)) {
+            limiter.recordHeapWaitTime(1_500_000);
+            limiter.recordDirectWaitTime(250_000);
+
+            // truncating to whole milliseconds would record 0 ms for nearly every request, see recordHeapWaitTime
+            assertEquals(summarySum(registry, PREFIX + "topic_list_heap_wait_time_ms"), 1.5);
+            assertEquals(summarySum(registry, PREFIX + "topic_list_direct_wait_time_ms"), 0.25);
+        }
+    }
 
     /**
      * Two brokers in one JVM create two limiters with the same prefix. The second one loses every registration,
@@ -76,5 +90,10 @@ public class TopicListMemoryLimiterTest {
             names.add(snapshot.getMetadata().getPrometheusName());
         }
         return names;
+    }
+
+    private static double summarySum(PrometheusRegistry registry, String name) {
+        SummarySnapshot snapshot = (SummarySnapshot) registry.scrape(name::equals).get(0);
+        return snapshot.getDataPoints().get(0).getSum();
     }
 }

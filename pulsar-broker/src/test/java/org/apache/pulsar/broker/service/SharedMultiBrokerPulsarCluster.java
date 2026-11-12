@@ -24,6 +24,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 import lombok.CustomLog;
 import org.apache.bookkeeper.common.allocator.PoolingPolicy;
 import org.apache.bookkeeper.conf.ServerConfiguration;
@@ -133,6 +134,12 @@ public class SharedMultiBrokerPulsarCluster {
         return startBroker(NUM_BROKERS + extraBrokers++);
     }
 
+    /** Start an extra broker with a test-specific service, for faults installed before startup. */
+    public synchronized PulsarService startExtraBroker(
+            Function<ServiceConfiguration, PulsarService> brokerFactory) throws Exception {
+        return startBroker(NUM_BROKERS + extraBrokers++, brokerFactory);
+    }
+
     @SuppressWarnings("deprecation")
     private void start() throws Exception {
         log.info().attr("brokers", NUM_BROKERS).log("Starting SharedMultiBrokerPulsarCluster");
@@ -219,6 +226,11 @@ public class SharedMultiBrokerPulsarCluster {
     }
 
     private PulsarService startBroker(int index) throws Exception {
+        return startBroker(index, PulsarService::new);
+    }
+
+    private PulsarService startBroker(int index, Function<ServiceConfiguration, PulsarService> brokerFactory)
+            throws Exception {
         ServiceConfiguration config = new ServiceConfiguration();
         config.setMetadataStoreUrl(metadataStoreUrl);
         config.setConfigurationMetadataStoreUrl(metadataStoreUrl);
@@ -262,7 +274,7 @@ public class SharedMultiBrokerPulsarCluster {
         config.setLoadBalancerSheddingEnabled(false);
 
         log.info().attr("index", index).log("Starting broker");
-        PulsarService broker = new PulsarService(config);
+        PulsarService broker = brokerFactory.apply(config);
         broker.start();
         log.info().attr("index", index)
                 .attr("broker", broker.getBrokerServiceUrl())

@@ -22,6 +22,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
@@ -85,6 +86,8 @@ public class MessageImpl<T> implements TraceableMessage, Message<T> {
     private boolean poolMessage;
     @Getter
     private long consumerEpoch;
+    // The number of seeks that the consumer which received the message had completed when the message arrived
+    private long consumerSeekCount;
 
     /**
      * OpenTelemetry tracing span associated with this message.
@@ -292,6 +295,7 @@ public class MessageImpl<T> implements TraceableMessage, Message<T> {
         this.encryptionCtx = other.encryptionCtx;
         this.redeliveryCount = other.redeliveryCount;
         this.consumerEpoch = other.consumerEpoch;
+        this.consumerSeekCount = other.consumerSeekCount;
         if (other.brokerEntryMetadata != null) {
             this.brokerEntryMetadata = new BrokerEntryMetadata().copyFrom(other.brokerEntryMetadata);
         }
@@ -401,19 +405,7 @@ public class MessageImpl<T> implements TraceableMessage, Message<T> {
         if (msgMetadata.isNullValue()) {
             return null;
         }
-        if (payload.isDirect()) {
-            byte[] data = new byte[payload.readableBytes()];
-            payload.getBytes(payload.readerIndex(), data);
-            return data;
-        }
-        if (payload.arrayOffset() == 0 && payload.capacity() == payload.array().length) {
-            return payload.array();
-        } else {
-            // Need to copy into a smaller byte array
-            byte[] data = new byte[payload.readableBytes()];
-            payload.getBytes(payload.readerIndex(), data);
-            return data;
-        }
+        return ByteBufUtil.getBytes(payload, payload.readerIndex(), payload.readableBytes(), false);
     }
 
     @Override
@@ -749,6 +741,14 @@ public class MessageImpl<T> implements TraceableMessage, Message<T> {
         return cnx;
     }
 
+    long getConsumerSeekCount() {
+        return consumerSeekCount;
+    }
+
+    void setConsumerSeekCount(long consumerSeekCount) {
+        this.consumerSeekCount = consumerSeekCount;
+    }
+
     public void recycle() {
         if (msgMetadata != null) {
             msgMetadata.clear();
@@ -768,6 +768,7 @@ public class MessageImpl<T> implements TraceableMessage, Message<T> {
         schemaState = SchemaState.None;
         poolMessage = false;
         consumerEpoch = DEFAULT_CONSUMER_EPOCH;
+        consumerSeekCount = 0;
 
         if (recyclerHandle != null) {
             recyclerHandle.recycle(this);

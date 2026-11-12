@@ -24,6 +24,8 @@ import io.prometheus.client.CollectorRegistry;
 import io.prometheus.metrics.config.EscapingScheme;
 import io.prometheus.metrics.expositionformats.PrometheusTextFormatWriter;
 import io.prometheus.metrics.model.registry.PrometheusRegistry;
+import io.prometheus.metrics.model.snapshots.CounterSnapshot;
+import io.prometheus.metrics.model.snapshots.InfoSnapshot;
 import io.prometheus.metrics.model.snapshots.MetricSnapshot;
 import io.prometheus.metrics.model.snapshots.MetricSnapshots;
 import java.io.IOException;
@@ -78,15 +80,16 @@ public class PrometheusMetricsGeneratorUtils {
 
     static void generateSystemMetrics(SimpleTextOutputStream stream, String cluster,
                                       CollectorRegistry legacyRegistry, PrometheusRegistry registry) {
-        Set<String> legacyNames = LegacyPrometheusMetricsWriter.write(stream, cluster, legacyRegistry);
+        LegacyPrometheusMetricsWriter.DeclaredNames legacyNames =
+                LegacyPrometheusMetricsWriter.write(stream, cluster, legacyRegistry);
         MetricSnapshots snapshots = registry.scrape();
         if (snapshots.size() == 0) {
             return;
         }
-        if (!legacyNames.isEmpty()) {
+        if (!legacyNames.families().isEmpty()) {
             for (MetricSnapshot snapshot : snapshots) {
                 String name = snapshot.getMetadata().getPrometheusName();
-                if (legacyNames.contains(name) && REPORTED_DUPLICATES.add(name)) {
+                if (isDeclaredByLegacyRegistry(legacyNames, snapshot) && REPORTED_DUPLICATES.add(name)) {
                     log.warn().attr("metric", name)
                             .log("Metric family is registered in both Prometheus client registries;"
                                     + " /metrics declares it twice. Register it in one registry only");
@@ -100,6 +103,28 @@ public class PrometheusMetricsGeneratorUtils {
             // The destination is an in-memory stream; keep the existing unchecked scrape API.
             throw new UncheckedIOException(e);
         }
+    }
+
+    /**
+     * Whether the legacy registry declares this family as well: under the same family name, or on the same
+     * {@code # TYPE} line once the 1.x writer has appended {@code _total} to a counter or {@code _info} to an
+     * info. A legacy gauge {@code requests_total} next to a 1.x counter {@code requests} is such a pair. A clash
+     * that only shows in the sample names, like a legacy counter {@code requests} next to a 1.x gauge
+     * {@code requests_total}, is not covered.
+     */
+    static boolean isDeclaredByLegacyRegistry(LegacyPrometheusMetricsWriter.DeclaredNames legacyNames,
+                                              MetricSnapshot snapshot) {
+        String name = snapshot.getMetadata().getPrometheusName();
+        if (legacyNames.families().contains(name)) {
+            return true;
+        }
+        String typeName = name;
+        if (snapshot instanceof CounterSnapshot) {
+            typeName = name + "_total";
+        } else if (snapshot instanceof InfoSnapshot) {
+            typeName = name + "_info";
+        }
+        return legacyNames.typeNames().contains(typeName);
     }
 
     /** Legacy text type names; the broker's dropwizard-backed metrics still render through this. */

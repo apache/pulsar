@@ -837,6 +837,15 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                     .log("Loaded the service unit state data");
         }
         ServiceUnitState state = state(data);
+        if (state.equals(Owned)) {
+            // The table view is refilled with the existing items after the metadata store session is reestablished.
+            // A lookup waiting for an owner misses the event that set it if it came while the session was lost:
+            // answer the lookup now, instead of when it times out.
+            var getOwnerRequest = getOwnerRequests.remove(serviceUnit);
+            if (getOwnerRequest != null) {
+                getOwnerRequest.complete(data.dstBroker());
+            }
+        }
         if (state.equals(Owned) && isTargetBroker(data.dstBroker())) {
             pulsar.getNamespaceService()
                     .onNamespaceBundleOwned(LoadManagerShared.getNamespaceBundle(pulsar, serviceUnit));
@@ -1185,7 +1194,9 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                                 .exception(ex)
                                 .log("Failed to close topics under bundle");
                         if (!disconnectClients) {
-                            pulsar.getBrokerService().cleanUnloadedTopicFromCache(bundle, topicFutures);
+                            // The failed transfer leaves the bundle owned by this broker, so a topic whose close
+                            // failed keeps serving its clients until a later close of the bundle closes it.
+                            pulsar.getBrokerService().cleanFencedTopicsFromCache(bundle, topicFutures);
                         }
                     } else {
                         log.info().attr("bundle", bundle).attr("topicCount", unloadedTopics)

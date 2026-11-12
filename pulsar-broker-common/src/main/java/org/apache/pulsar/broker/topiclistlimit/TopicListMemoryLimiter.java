@@ -259,7 +259,9 @@ public class TopicListMemoryLimiter extends AsyncDualMemoryLimiterImpl {
             heapTimeoutTotal.inc();
             otelHeapTimeoutTotal.add(1);
         } else {
-            heapWaitTimeMs.observe(TimeUnit.NANOSECONDS.toMillis(waitTimeNanos));
+            // sub-millisecond precision, since a stream of equal values like 0 ms makes the samples of the Summary's
+            // quantiles grow linearly, and each observation slower while holding its lock
+            heapWaitTimeMs.observe(waitTimeNanos / 1_000_000.0d);
             otelHeapWaitTime.record(waitTimeNanos / 1_000_000_000.0d);
         }
     }
@@ -270,7 +272,8 @@ public class TopicListMemoryLimiter extends AsyncDualMemoryLimiterImpl {
             directTimeoutTotal.inc();
             otelDirectTimeoutTotal.add(1);
         } else {
-            directWaitTimeMs.observe(TimeUnit.NANOSECONDS.toMillis(waitTimeNanos));
+            // sub-millisecond precision, see recordHeapWaitTime
+            directWaitTimeMs.observe(waitTimeNanos / 1_000_000.0d);
             otelDirectWaitTime.record(waitTimeNanos / 1_000_000_000.0d);
         }
     }

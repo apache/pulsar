@@ -51,7 +51,6 @@ import org.apache.pulsar.broker.transaction.metadata.TxnState;
 import org.apache.pulsar.broker.transaction.metadata.Versioned;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.TxnAction;
-import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.ScanConsumer;
@@ -79,10 +78,10 @@ import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException
  * failover. (After a strictly sequential scale-up an early broker can hold more partitions until
  * it restarts; TC load is light, so v1 does not actively rebalance.)
  *
- * <p>Wire commands handled (routed by {@code ServerCnx} when
- * {@code transactionCoordinatorScalableTopicsEnabled} is on):
+ * <p>{@code ServerCnx} routes transaction commands marked {@code scalable=true} and TC assignment
+ * watches to this coordinator when it is enabled:
  * <ul>
- *   <li>{@code TC_CLIENT_CONNECT} → {@link #handleClientConnect}</li>
+ *   <li>{@code TC_CLIENT_CONNECT_REQUEST} → {@link #handleClientConnect}</li>
  *   <li>{@code NEW_TXN} → {@link #newTransaction}</li>
  *   <li>{@code ADD_PARTITION_TO_TXN}, {@code ADD_SUBSCRIPTION_TO_TXN} — no-ops; participants
  *       advertise themselves by writing {@code /txn/op} records, so the TC doesn't need a
@@ -240,9 +239,9 @@ public class TransactionCoordinatorV5 {
     }
 
     /**
-     * Whether this broker currently leads TC partition {@code partition}. Used to gate
-     * client-connect acceptance and the sweep. A partition with no local election (out-of-range or
-     * pre-{@code start()}) is not led here.
+     * Whether the local election for {@code partition} reports leadership. Used by the sweep and
+     * as an initial check for client connections.
+     * A partition with no local election (out-of-range or pre-{@code start()}) is not led here.
      */
     public boolean isLeaderFor(int partition) {
         LeaderElection<TcLeader> election = elections.get(partition);
@@ -293,21 +292,27 @@ public class TransactionCoordinatorV5 {
     // ---- TC client connect ------------------------------------------------
 
     /**
-     * Verify this broker may coordinate {@code tcId}. A new client reaches us via the assignment
-     * watch, so we are the metadata-store election leader for that partition. An old client (no
-     * assignment-watch support) reaches us via an assign-topic lookup, so we own that partition's
-     * assign-topic bundle. Accept either: both are correctness-safe because every transaction
-     * state transition is a metadata-store CAS, so even a stale router can't corrupt state. We
-     * accept-if-leader first (cheap, in-memory) and fall back to the assign-topic ownership check
-     * only when we're not the election leader.
+     * Accept a v5 handshake only while this broker leads the requested TC partition. An assignment
+     * watch and the local election can still point at the previous leader during failover.
+     * Verify that the current metadata session owns the election node before accepting.
      */
     public CompletableFuture<Void> handleClientConnect(TransactionCoordinatorID tcId) {
-        if (isLeaderFor((int) tcId.getId())) {
-            return CompletableFuture.completedFuture(null);
+        long partition = tcId.getId();
+        long sessionLossCount = pulsar.getMetadataSessionLossCount();
+        if (closed || partition < 0 || partition >= partitionCount || pulsar.isMetadataSessionLost()
+                || !isLeaderFor((int) partition)) {
+            return CompletableFuture.failedFuture(new CoordinatorException.CoordinatorNotFoundException(tcId));
         }
-        String assignPartition = SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN
-                .getPartition((int) tcId.getId()).toString();
-        return pulsar.getBrokerService().checkTopicNsOwnership(assignPartition);
+        String path = TxnPaths.tcLeaderPath((int) partition);
+        return FutureUtil.supplySafely(() -> pulsar.getLocalMetadataStore().get(path)).handle((lock, error) -> {
+            // A read from an expired session can complete after its replacement has connected.
+            if (error != null || lock.isEmpty() || !lock.get().getStat().isCreatedBySelf()
+                    || closed || !isLeaderFor((int) partition) || pulsar.isMetadataSessionLost()
+                    || pulsar.getMetadataSessionLossCount() != sessionLossCount) {
+                throw FutureUtil.wrapToCompletionException(new CoordinatorException.CoordinatorNotFoundException(tcId));
+            }
+            return null;
+        });
     }
 
     // ---- Assignment discovery (client watch) ------------------------------
