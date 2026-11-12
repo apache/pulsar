@@ -71,6 +71,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.PrometheusMetricsTestUtil;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerTestBase;
+import org.apache.pulsar.broker.service.Replicator;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.Metric;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -90,6 +91,7 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.ClusterPolicies.ClusterUrl;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
 import org.apache.pulsar.common.util.Codec;
@@ -695,6 +697,37 @@ public class PersistentTopicTest extends BrokerTestBase {
         } catch (PulsarClientException.NotFoundException ex) {
         }
         Assert.assertEquals(admin.topics().getPartitionedTopicMetadata(topicName).partitions, 4);
+    }
+
+    @Test
+    public void testClusterMigrationWithBacklogPropagatesLedgerMigrationResult() throws Exception {
+        ManagedLedger ledger = mock(ManagedLedger.class);
+        doReturn(new ManagedLedgerConfig()).when(ledger).getConfig();
+        String topicName = "persistent://prop/ns-abc/migration-" + UUID.randomUUID();
+        PersistentTopic topic = spy(new PersistentTopic(topicName, ledger, pulsar.getBrokerService()));
+        ClusterUrl destination = new ClusterUrl(null, null, "pulsar://destination:6650", null);
+        doReturn(CompletableFuture.completedFuture(Optional.of(destination))).when(topic).getMigratedClusterUrlAsync();
+        Replicator replicator = mock(Replicator.class);
+        doReturn(true).when(replicator).hasBacklog();
+        topic.getReplicators().put("remote", replicator);
+
+        CompletableFuture<Position> migration = new CompletableFuture<>();
+        doReturn(migration).when(ledger).asyncMigrate();
+        CompletableFuture<Void> check = topic.checkClusterMigration();
+        assertThat(check).as("the ledger migration is still pending").isNotDone();
+        ManagedLedgerException failure = new ManagedLedgerException("failed to terminate ledger");
+        migration.completeExceptionally(failure);
+        assertThatThrownBy(() -> check.get(3, TimeUnit.SECONDS)).cause().isSameAs(failure);
+
+        CompletableFuture<Position> retryMigration = new CompletableFuture<>();
+        doReturn(retryMigration).when(ledger).asyncMigrate();
+        CompletableFuture<Void> retryCheck = topic.checkClusterMigration();
+        assertThat(retryCheck).as("the second check waits for the ledger retry").isNotDone();
+        retryMigration.complete(PositionFactory.LATEST);
+        retryCheck.get(3, TimeUnit.SECONDS);
+
+        doReturn(false).when(replicator).hasBacklog();
+        assertThat(topic.shouldProducerMigrate()).as("resource initialization needs another check").isFalse();
     }
 
     @Test

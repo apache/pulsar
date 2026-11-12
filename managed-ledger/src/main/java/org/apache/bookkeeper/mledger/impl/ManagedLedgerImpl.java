@@ -1653,7 +1653,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
             @Override
             public void terminateFailed(ManagedLedgerException exception, Object ctx) {
-                log.info().exception(exception).log("Topic failed to terminate and migrate");
                 result.completeExceptionally(exception);
             }
         }, null);
