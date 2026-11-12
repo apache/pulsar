@@ -185,6 +185,7 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
         PulsarAdminBuilderImpl pulsarAdminBuilder = new PulsarAdminBuilderImpl(conf.clone(), adoptedTlsFactories);
         pulsarAdminBuilder.clientBuilderClassLoader = clientBuilderClassLoader;
         pulsarAdminBuilder.acceptGzipCompression = acceptGzipCompression;
+        pulsarAdminBuilder.sharedResources = sharedResources;
         return pulsarAdminBuilder;
     }
 

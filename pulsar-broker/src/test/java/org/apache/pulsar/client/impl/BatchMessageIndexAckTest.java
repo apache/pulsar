@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doReturn;
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
@@ -31,7 +32,11 @@ import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
+import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.net.BookieId;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -40,8 +45,10 @@ import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -189,16 +196,30 @@ public class BatchMessageIndexAckTest extends ProducerConsumerBase {
         }
         FutureUtil.waitForAll(futures).get();
 
-        List<MessageId> acked = new ArrayList<>(50);
+        // A negative ack redelivers the whole batch, with the indexes not acknowledged when the broker dispatches it:
+        // a redelivery that crosses an ack on its way to the broker delivers the acknowledged message again. Ack half
+        // of the batch, and nack only once the broker has those acks.
+        List<Message<Integer>> batch = new ArrayList<>(messages);
         for (int i = 0; i < messages; i++) {
-            Message<Integer> msg = consumer.receive();
-            if (i % 2 == 0) {
-                consumer.acknowledge(msg);
-                acked.add(msg.getMessageId());
-            } else {
-                consumer.negativeAcknowledge(consumer.receive());
-            }
+            batch.add(consumer.receive());
         }
+        List<MessageId> acked = new ArrayList<>(50);
+        for (int i = 0; i < messages; i += 2) {
+            consumer.acknowledge(batch.get(i));
+            acked.add(batch.get(i).getMessageId());
+        }
+        BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) acked.get(0);
+        Position batchPosition = PositionFactory.create(batchMessageId.getLedgerId(), batchMessageId.getEntryId());
+        ManagedCursor cursor = ((PersistentSubscription) pulsar.getBrokerService()
+                .getTopicReference(TopicName.get(topic).toString()).orElseThrow()
+                .getSubscription(subscriptionName)).getCursor();
+        Awaitility.await().untilAsserted(() -> {
+            long[] unackedIndexes = cursor.getDeletedBatchIndexesAsLongArray(batchPosition);
+            Assert.assertNotNull(unackedIndexes);
+            Assert.assertEquals(BitSet.valueOf(unackedIndexes).cardinality(), 50);
+        });
+        // the batch comes back with the 50 messages not acknowledged
+        consumer.negativeAcknowledge(batch.get(1));
 
         List<MessageId> received = new ArrayList<>(50);
         for (int i = 0; i < 50; i++) {
@@ -213,18 +234,18 @@ public class BatchMessageIndexAckTest extends ProducerConsumerBase {
             consumer.acknowledge(messageId);
         }
 
-        Thread.sleep(1000);
+        // check the mark delete position was changed, once the broker has the acks
+        BatchMessageIdImpl ackedMessageId = (BatchMessageIdImpl) received.get(0);
+        Awaitility.await().untilAsserted(() -> {
+            PersistentTopicInternalStats stats = admin.topics().getInternalStats(topic, false);
+            String markDeletePosition = stats.cursors.get(subscriptionName).markDeletePosition;
+            Assert.assertEquals(ackedMessageId.ledgerId + ":" + ackedMessageId.entryId, markDeletePosition);
+        });
 
         consumer.redeliverUnacknowledgedMessages();
 
         Message<Integer> moreMessage = consumer.receive(2, TimeUnit.SECONDS);
         Assert.assertNull(moreMessage);
-
-        // check the mark delete position was changed
-        BatchMessageIdImpl ackedMessageId = (BatchMessageIdImpl) received.get(0);
-        PersistentTopicInternalStats stats = admin.topics().getInternalStats(topic, false);
-        String markDeletePosition = stats.cursors.get(subscriptionName).markDeletePosition;
-        Assert.assertEquals(ackedMessageId.ledgerId + ":" + ackedMessageId.entryId, markDeletePosition);
 
         futures.clear();
         for (int i = 0; i < 50; i++) {

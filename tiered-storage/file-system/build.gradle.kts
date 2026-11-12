@@ -29,7 +29,7 @@ plugins {
 // Jetty to 12.x and Jersey to 3.x (jakarta), which MiniDFSCluster's Jetty 9 web app rejects with
 // "org.glassfish.jersey.servlet.ServletContainer is not a javax.servlet.Servlet". These forces are
 // scoped to test configurations only; production code uses Jetty 12 / Jersey 3 (jakarta).
-configurations.matching { it.name.startsWith("test") }.all {
+configurations.matching { it.name.startsWith("test") }.configureEach {
     resolutionStrategy.force(
         "org.eclipse.jetty:jetty-server:9.4.58.v20250814",
         "org.eclipse.jetty:jetty-servlet:9.4.58.v20250814",

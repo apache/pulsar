@@ -156,8 +156,10 @@ public class AuditorLedgerCheckerTest extends BookKeeperClusterTestCase {
     @AfterMethod
     @Override
     public void tearDown() throws Exception {
-        stopAuditorElectors();
-        super.tearDown();
+        ParallelAuditorShutdown.cleanup(
+                () -> ParallelAuditorShutdown.shutdown(auditorElectors.values()),
+                auditorElectors::clear,
+                () -> super.tearDown());
     }
 
     private void startAuditorElectors() throws Exception {
@@ -172,7 +174,7 @@ public class AuditorLedgerCheckerTest extends BookKeeperClusterTestCase {
 
     private void stopAuditorElectors() throws Exception {
         for (AuditorElector auditorElector : auditorElectors.values()) {
-            auditorElector.shutdown();
+            shutdownAuditorElector(auditorElector);
             log.debug("Stopping Auditor Elector!");
         }
     }
@@ -971,7 +973,7 @@ public class AuditorLedgerCheckerTest extends BookKeeperClusterTestCase {
         String bookieAddr = bkServer.getBookieId().toString();
         log.info().attr("bookie", bookieAddr).log("Shutting down bookie");
         killBookie(bkShutdownIndex);
-        auditorElectors.get(bookieAddr).shutdown();
+        shutdownAuditorElector(auditorElectors.get(bookieAddr));
         auditorElectors.remove(bookieAddr);
         return bookieAddr;
     }

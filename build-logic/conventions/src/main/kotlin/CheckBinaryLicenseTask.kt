@@ -38,6 +38,9 @@ import javax.inject.Inject
  *  2. Every jar referenced from LICENSE must be bundled.
  *  3. Every jar referenced from NOTICE (except "checker-qual.jar") must be bundled.
  *
+ * After a dependency upgrade, [UpdateBinaryLicenseTask] fixes the jar versions that these checks
+ * report.
+ *
  * Cacheable + configuration-cache friendly: state is held only on inputs/outputs and the
  * injected `ArchiveOperations` service; the task action does not reach into the project.
  */
@@ -57,73 +60,34 @@ abstract class CheckBinaryLicenseTask : DefaultTask() {
     @TaskAction
     fun check() {
         val tarFile = binaryDistribution.get().asFile
-        val tarTree = archiveOperations.tarTree(tarFile)
+        val contents = BinaryLicenseSupport.readDistribution(archiveOperations, tarFile)
+        val bundledJars = contents.bundledJars
+        val license = contents.license
 
-        val licenseEntryRegex = Regex("^[^/]+/LICENSE$")
-        val noticeEntryRegex = Regex("^[^/]+/NOTICE$")
-        val nameExclusionSubstrings = listOf(
-            "pulsar-client",
-            "pulsar-cli-utils",
-            "pulsar-common",
-            "pulsar-http-client-api",
-            "pulsar-package",
-            "pulsar-tls-factory-api",
-            "pulsar-websocket",
-        )
-
-        val bundledJars = sortedSetOf<String>()
-        var licenseContent: String? = null
-        var noticeContent: String? = null
-
-        tarTree.visit {
-            if (isDirectory) return@visit
-            val path = relativePath.pathString
-            when {
-                path.endsWith(".jar") -> {
-                    val inExcludedDir = path.contains("/examples/") || path.contains("/instances/")
-                    val nameExcluded = nameExclusionSubstrings.any { name.contains(it) }
-                    if (!inExcludedDir && !nameExcluded) {
-                        bundledJars.add(name)
-                    }
-                }
-                licenseEntryRegex.matches(path) -> licenseContent = file.readText()
-                noticeEntryRegex.matches(path) -> noticeContent = file.readText()
-            }
-        }
-
-        val license = licenseContent
-            ?: throw GradleException("Could not find a top-level LICENSE entry in ${tarFile.name}")
-        val notice = noticeContent
-            ?: throw GradleException("Could not find a top-level NOTICE entry in ${tarFile.name}")
-
-        val licenseJars = extractJarReferences(license)
-        val noticeJars = extractJarReferences(notice)
+        val licenseJars = BinaryLicenseSupport.extractJarReferences(license)
+        val noticeJars = BinaryLicenseSupport.extractJarReferences(contents.notice)
 
         val errors = mutableListOf<String>()
 
         // Check 1: every bundled non-pulsar jar must appear as a substring of LICENSE.
         for (jar in bundledJars) {
-            if (jar.contains("org.apache.pulsar")) continue
+            if (!BinaryLicenseSupport.needsLicenseEntry(jar)) continue
             if (!license.contains(jar)) {
                 errors.add("$jar unaccounted for in LICENSE")
             }
         }
 
         // Check 2: every jar mentioned in LICENSE must be bundled.
-        // Reference may contain wildcards like "org.rocksdb.*.jar"; treat it as a regex
-        // to match the legacy bash `grep -q $J` semantics.
         for (jar in licenseJars) {
-            val pattern = Regex(jar)
-            if (bundledJars.none { pattern.containsMatchIn(it) }) {
+            if (!BinaryLicenseSupport.isBundled(jar, bundledJars)) {
                 errors.add("$jar mentioned in LICENSE, but not bundled")
             }
         }
 
         // Check 3: every jar mentioned in NOTICE (except checker-qual.jar) must be bundled.
         for (jar in noticeJars) {
-            if (jar == "checker-qual.jar") continue
-            val pattern = Regex(jar)
-            if (bundledJars.none { pattern.containsMatchIn(it) }) {
+            if (jar == BinaryLicenseSupport.NOTICE_EXEMPT_JAR) continue
+            if (!BinaryLicenseSupport.isBundled(jar, bundledJars)) {
                 errors.add("$jar mentioned in NOTICE, but not bundled")
             }
         }
@@ -134,17 +98,41 @@ abstract class CheckBinaryLicenseTask : DefaultTask() {
 
         if (errors.isNotEmpty()) {
             errors.forEach { logger.error(it) }
-            throw GradleException(
-                "LICENSE/NOTICE check failed for ${tarFile.name}: ${errors.size} issue(s). " +
-                    "See report at ${reportFile.absolutePath}",
-            )
+            val summary = "LICENSE/NOTICE check failed for ${tarFile.name}: ${errors.size} issue(s)."
+            val howToFix = howToFix()
+            logger.error(howToFix)
+            if (System.getenv("GITHUB_ACTIONS") == "true") {
+                // A workflow command, so that GitHub shows the fix on the pull request's checks page
+                println("::error title=checkBinaryLicense failed::${escapeWorkflowCommand("$summary\n$howToFix")}")
+            }
+            throw GradleException("$summary See report at ${reportFile.absolutePath}.\n$howToFix")
         }
     }
 
-    private fun extractJarReferences(content: String): List<String> {
-        val jarRegex = Regex(""".* (.*\.jar).*""")
-        return content.lines().mapNotNull { line -> jarRegex.matchEntire(line)?.groupValues?.get(1) }
+    /** How to fix a failed check in a pull request, using the pull request number when in CI. */
+    private fun howToFix(): String {
+        val pullRequest = System.getenv("GITHUB_REF")
+            ?.let { Regex("^refs/pull/(\\d+)/").find(it)?.groupValues?.get(1) }
+        val checkout = if (pullRequest != null) {
+            "gh pr checkout $pullRequest"
+        } else {
+            "gh pr checkout <pull request number>"
+        }
+        return """
+            |How to fix: when a dependency upgrade changed the bundled jars, as in a Dependabot pull request,
+            |update the LICENSE/NOTICE files on the pull request's branch and push the change to it:
+            |    $checkout
+            |    ./gradlew updateBinaryLicense
+            |    ./gradlew checkBinaryLicense
+            |    git commit -am "Update the binary LICENSE/NOTICE files" && git push
+            |updateBinaryLicense updates the versions of the referenced jars. It fails for the issues that need a
+            |manual edit: a jar that is bundled for the first time needs a LICENSE entry after its license has been
+            |reviewed, and the entry of a jar that is no longer bundled has to be removed.
+        """.trimMargin()
     }
+
+    private fun escapeWorkflowCommand(message: String): String =
+        message.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
 
     private fun buildReport(
         tarballName: String,

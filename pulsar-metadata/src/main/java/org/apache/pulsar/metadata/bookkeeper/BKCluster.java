@@ -383,8 +383,9 @@ public class BKCluster implements AutoCloseable {
     private Bookie startBookie(ServerConfiguration conf)
             throws Exception {
         StatsProvider statsProvider = BookieStatsProviders.create(conf);
-        statsProvider.start(conf);
         try {
+            // Inside the try: a provider whose start fails part way may already have bound its endpoint.
+            statsProvider.start(conf);
             LifecycleComponentStack server = BookieStatsProviders.buildBookieServer(conf, statsProvider);
 
             BookieId address = BookieImpl.getBookieId(conf);

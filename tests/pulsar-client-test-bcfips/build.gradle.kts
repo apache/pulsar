@@ -26,7 +26,7 @@ plugins {
 // broker and client pull in transitively, leaving only the FIPS provider (bc-fips) on the classpath.
 // The non-FIPS and FIPS jars both define org.bouncycastle.* classes with different signers, so having
 // both on one classpath triggers CryptoServicesRegistrar signer conflicts.
-configurations.all {
+configurations.configureEach {
     exclude(group = "org.bouncycastle", module = "bcprov-jdk18on")
     exclude(group = "org.bouncycastle", module = "bcprov-ext-jdk18on")
     exclude(group = "org.bouncycastle", module = "bcpkix-jdk18on")
@@ -40,7 +40,7 @@ dependencies {
     testImplementation(libs.bcutil.fips)
     testImplementation(project(":pulsar-common"))
     testImplementation(project(":pulsar-broker"))
-    testImplementation(project(path = ":pulsar-broker", configuration = "testJar"))
+    testImplementation(testJar(":pulsar-broker"))
     testImplementation(project(":pulsar-client-original"))
     testImplementation(libs.guava)
 }

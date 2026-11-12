@@ -16,10 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import com.github.benmanes.gradle.versions.updates.DependencyUpdatesTask
 import com.github.vlsi.gradle.git.dsl.gitignore
-import org.gradle.api.artifacts.ProjectDependency
 import org.jetbrains.gradle.ext.copyright
 import org.jetbrains.gradle.ext.settings
+import org.nosphere.apache.rat.RatTask
 
 plugins {
     alias(libs.plugins.rat)
@@ -40,7 +41,7 @@ versionCatalogUpdate {
     }
 }
 
-tasks.named<com.github.benmanes.gradle.versions.updates.DependencyUpdatesTask>("dependencyUpdates") {
+tasks.named<DependencyUpdatesTask>("dependencyUpdates") {
     outputFormatter = "html"
     rejectVersionIf {
         val nonStable = candidate.version.contains("alpha") || candidate.version.contains("beta") || candidate.version.contains("rc")
@@ -51,15 +52,14 @@ tasks.named<com.github.benmanes.gradle.versions.updates.DependencyUpdatesTask>("
 }
 
 // ── Apache RAT (Release Audit Tool) ─────────────────────────────────────────
-tasks.named<org.nosphere.apache.rat.RatTask>("rat").configure {
-    // Honour .gitignore exclusions so RAT skips untracked/generated files.
-    // Register .gitignore files as inputs so the task re-runs when they change.
-    inputs.files(fileTree(rootDir) {
-        include("**/.gitignore")
-        exclude("**/build/**")
-        exclude("**/.gradle/**")
-    })
-    // use crlf plugin's gitignore dsl
+tasks.named<RatTask>("rat") {
+    // Honour .gitignore exclusions so RAT skips untracked/generated files, using the crlf plugin's
+    // gitignore DSL. The .gitignore files need no input of their own: they are read when the
+    // configuration cache entry is stored, so a change to one invalidates the entry, and RAT's input
+    // files are the filtered tree. (A `fileTree { include("**/.gitignore") }` input would hold no files
+    // at all, since Gradle's default excludes drop them, but it would record every directory of the
+    // checkout, ignored ones such as the git worktrees of coding agents included. RAT would then rerun
+    // whenever a directory appeared anywhere, and walking those trees made the up-to-date check slow.)
     gitignore(rootDir)
     // Apply additional RAT-specific exclusions from .ratignore.
     val ratignoreFile = rootDir.resolve(".ratignore")
@@ -67,8 +67,18 @@ tasks.named<org.nosphere.apache.rat.RatTask>("rat").configure {
     exclude(ratignoreFile.readLines().map { it.trim() }.filter { it.isNotBlank() && !it.startsWith("#") })
 }
 
-apply(from = "gradle/verify-test-groups.gradle.kts")
-
+// Reports the TestNG group assignments of the modules' test classes, see VerifyTestGroups.
+//   ./gradlew verifyTestGroups
+//   ./gradlew verifyTestGroups -PverifyModule=pulsar-broker
+tasks.register<VerifyTestGroups>("verifyTestGroups") {
+    description = "Verify that all test classes have TestNG group assignments and detect duplicates across CI groups"
+    group = "verification"
+    val filterModule = providers.gradleProperty("verifyModule").orNull
+    // Only the modules' names and directories, which `isolated` gives without accessing their configuration
+    testSourceDirs.set(subprojects.map { it.isolated }
+        .filter { filterModule == null || it.name == filterModule }
+        .associate { it.name to it.projectDirectory.dir("src/test/java").asFile.absolutePath })
+}
 
 idea {
     project {
@@ -78,7 +88,7 @@ idea {
                 useDefault = "ASL2"
                 profiles {
                     create("ASL2") {
-                        notice = rootProject.file("src/license-header.txt").readText().trimEnd()
+                        notice = file("src/license-header.txt").readText().trimEnd()
                         keyword = "Copyright"
                     }
                 }
@@ -91,6 +101,8 @@ idea {
 // ── Root lifecycle tasks ────────────────────────────────────────────────────
 
 tasks.register("serverDistTar") {
+    group = "distribution"
+    description = "Build the Pulsar server binary distribution tarball"
     dependsOn(":distribution:pulsar-server-distribution:serverDistTar")
 }
 
@@ -103,65 +115,55 @@ tasks.register("checkBinaryLicense") {
     )
 }
 
+tasks.register("updateBinaryLicense") {
+    group = "build"
+    description = "Update the jar versions in the LICENSE/NOTICE files of all binary distributions after a dependency upgrade"
+    dependsOn(
+        ":distribution:pulsar-server-distribution:updateBinaryLicense",
+        ":distribution:pulsar-shell-distribution:updateBinaryLicense",
+    )
+}
+
+// ── OpenTelemetry version alignment ────────────────────────────────────────
+// OpenTelemetry releases each *-alpha artifact together with its stable line, at the same version
+// plus "-alpha". The version catalog holds the two as separate versions, which Dependabot could
+// update independently, so fail fast when they drift apart.
+val versionCatalog = extensions.getByType<VersionCatalogsExtension>().named("libs")
+for (versionLine in listOf("opentelemetry", "opentelemetry-instrumentation")) {
+    val stableVersion = versionCatalog.findVersion(versionLine).get().requiredVersion
+    val alphaVersion = versionCatalog.findVersion("$versionLine-alpha").get().requiredVersion
+    if (alphaVersion != "$stableVersion-alpha") {
+        throw GradleException(
+            "gradle/libs.versions.toml: $versionLine-alpha = \"$alphaVersion\" must be " +
+                "\"$stableVersion-alpha\" to match $versionLine = \"$stableVersion\"",
+        )
+    }
+}
+
 tasks.register("docker") {
     description = "Build the Pulsar Docker image"
     group = "docker"
     dependsOn(":docker:pulsar-docker-image:dockerBuild")
 }
 
-// ── Aggregate verification tasks (quickCheck / sanityCheck) ───────────────────
-// quickCheck   — fast, source-only conformance across every module: checkstyle + spotless + Apache
-//                RAT. Compiles nothing, so it never builds shadow jars.
-// sanityCheck  — pre-PR gate: quickCheck plus compiling main + test sources of every module that
-//                does NOT pull a shaded artifact onto its compile classpath. Compiling such a module
-//                would build a (slow) shadow jar, so those modules are skipped for compilation; their
-//                sources are still covered by the checkstyle/spotless part of quickCheck.
-//
-// Compiling a module builds a shadow jar only when it declares a shaded module (one applying the
-// shadow plugin) on its compile or test-compile classpath — compilation then needs that dependency's
-// relocated jar. The shade convention plugins (pulsar.shadow-conventions, pulsar.client-shade-conventions)
-// all apply `com.gradleup.shadow`, so the plugin id is the reliable marker for a shaded module.
-// A shaded module's OWN compileJava/compileTestJava does NOT build its shadow jar, so the shaded and
-// *-minimized modules are themselves compiled here; only their shadow-consuming dependents are skipped.
-val shadowPluginId = "com.gradleup.shadow"
-val compileScopeConfigurations = setOf(
-    "api", "implementation", "compileOnly", "testImplementation", "testCompileOnly",
-)
-fun Project.dependsOnShadowJar(): Boolean =
-    configurations
-        .filter { it.name in compileScopeConfigurations }
-        .any { configuration ->
-            configuration.dependencies.withType(ProjectDependency::class.java).any { dependency ->
-                rootProject.project(dependency.path).plugins.hasPlugin(shadowPluginId)
-            }
-        }
-
-// The cross-project wiring is deferred to `provider {}` so it only runs when these aggregates are
-// actually in the task graph, keeping configuration-on-demand intact for every other build.
-tasks.register("quickCheck") {
+// ── Verification tasks (quickCheck / sanityCheck) ───────────────────────────
+// Every Java module has its own quickCheck (checkstyle + spotless) and sanityCheck (quickCheck plus
+// compiling main + test sources, unless that needs a shaded module's shadow jar), see
+// pulsar.code-quality-conventions and pulsar.java-conventions. `./gradlew quickCheck` and
+// `./gradlew sanityCheck` run them in every module and these in the root project, which add Apache
+// RAT. Neither compiles anything that would build a shadow jar.
+val quickCheck = tasks.register("quickCheck") {
     group = "verification"
-    description = "Fast source-code conformance check across all modules (checkstyle + spotless + " +
-        "Apache RAT). Compiles nothing and never builds shadow jars."
-    dependsOn("rat")
-    dependsOn(provider {
-        subprojects.flatMap { sub ->
-            listOf("checkstyleMain", "checkstyleTest", "spotlessCheck").mapNotNull { sub.tasks.findByName(it) }
-        }
-    })
+    description = "Fast source-code conformance check: Apache RAT here, and checkstyle + spotless in each " +
+        "module with `./gradlew quickCheck`. Compiles nothing and never builds shadow jars."
+    dependsOn(tasks.named("rat"))
 }
 
 tasks.register("sanityCheck") {
     group = "verification"
-    description = "Pre-PR check: quickCheck plus compiling main + test sources of every module. " +
-        "Modules that depend on shaded artifacts are skipped for compilation so no shadow jar is built."
-    dependsOn("quickCheck")
-    dependsOn(provider {
-        subprojects
-            .filter { it.plugins.hasPlugin("java") && !it.dependsOnShadowJar() }
-            .flatMap { sub ->
-                listOf("compileJava", "compileTestJava").mapNotNull { sub.tasks.findByName(it) }
-            }
-    })
+    description = "Pre-PR check: quickCheck, and compiling main + test sources in each module with " +
+        "`./gradlew sanityCheck`. Modules that depend on shaded artifacts are not compiled."
+    dependsOn(quickCheck)
 }
 
 // ── Parent POM publication ──────────────────────────────────────────────────
@@ -176,13 +178,13 @@ tasks.register<JfrFlamegraphsTask>("jfrFlamegraphs") {
         "directory. Pass -Pjfr=<file-or-directory> to pick what to convert."
 
     val jfrInput = providers.gradleProperty("jfr")
-        .map { rootProject.file(it) }
-        .getOrElse(layout.buildDirectory.dir("test-profiles").get().asFile)
+        .map { file(it) }
+        .orElse(layout.buildDirectory.dir("test-profiles").map { it.asFile })
     // A directory is wired in as a file tree rather than listed here: the listing has to happen when
     // the task runs, or a reused configuration cache entry would convert the recordings of the
     // previous profiling run and miss the one just made. The tree is searched recursively because
     // JMH's async-profiler integration writes its recording into a directory per benchmark.
-    jfrFiles.from(if (jfrInput.isFile) jfrInput else fileTree(jfrInput) { include("**/*.jfr") })
+    jfrFiles.from(jfrInput.map { if (it.isFile) files(it) else fileTree(it) { include("**/*.jfr") } })
 
     // async-profiler's converter, looked up the same way as the profiler library itself:
     // -Pjfrconv wins, then the bin/ directory of the async-profiler install that
