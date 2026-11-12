@@ -54,6 +54,7 @@ import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
 import org.apache.pulsar.compaction.Compactor;
 import org.jspecify.annotations.Nullable;
@@ -614,7 +615,8 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                     .thenAccept(clusterUrl -> consumers.forEach(c -> c.topicMigrated(clusterUrl)))
                     .whenComplete((ignored, error) -> {
                         if (error != null) {
-                            log.warn().attr("topic", topic.getName()).exception(error)
+                            log.warn().attr("topic", topic.getName())
+                                    .exceptionMessage(FutureUtil.unwrapCompletionException(error))
                                     .log("Failed to notify consumers of topic migration");
                         }
                     });
