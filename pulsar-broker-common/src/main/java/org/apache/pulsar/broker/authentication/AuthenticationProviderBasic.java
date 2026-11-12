@@ -43,6 +43,7 @@ import org.apache.pulsar.client.api.url.URL;
 @SuppressWarnings("deprecation")
 public class AuthenticationProviderBasic implements AuthenticationProvider {
     private static final String HTTP_HEADER_NAME = "Authorization";
+    private static final String HTTP_HEADER_VALUE_PREFIX = "Basic ";
     private static final String CONF_SYSTEM_PROPERTY_KEY = "pulsar.auth.basic.conf";
     private static final String CONF_PULSAR_PROPERTY_KEY = "basicAuthConf";
     private Map<String, String> users;
@@ -169,7 +170,9 @@ public class AuthenticationProviderBasic implements AuthenticationProvider {
             } else if (authData.hasDataFromHttp()) {
                 String rawAuthToken = authData.getHttpHeader(HTTP_HEADER_NAME);
                 // parsing and validation
-                if (StringUtils.isBlank(rawAuthToken) || !rawAuthToken.toUpperCase().startsWith("BASIC ")) {
+                if (StringUtils.isBlank(rawAuthToken)
+                        || !rawAuthToken.regionMatches(true, 0, HTTP_HEADER_VALUE_PREFIX, 0,
+                                HTTP_HEADER_VALUE_PREFIX.length())) {
                     incrementFailureMetric(ErrorCode.INVALID_HEADER);
                     throw new AuthenticationException("Authentication token has to be started with \"Basic \"");
                 }

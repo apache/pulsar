@@ -44,6 +44,7 @@ import java.util.Deque;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.service.scalable.ConsumerAssignment;
@@ -57,6 +58,7 @@ import org.apache.pulsar.common.api.proto.BaseCommand.Type;
 import org.apache.pulsar.common.api.proto.ScalableConsumerType;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.protocol.Commands;
+import org.mockito.Mockito;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
@@ -79,6 +81,9 @@ public class ScalableTopicRequestWriteMetricsTest {
     private ServerCnx cnx;
     private ResponseWriteGate gate;
     private final List<Type> interceptedTypes = new ArrayList<>();
+    // Mocks that reference this method's broker, which Mockito's inline mock maker would keep, with the broker, until
+    // the JVM exits: released once the broker is closed.
+    private final List<Object> ownedMocks = new CopyOnWriteArrayList<>();
 
     @BeforeMethod(alwaysRun = true)
     public void setup() throws Exception {
@@ -91,7 +96,7 @@ public class ScalableTopicRequestWriteMetricsTest {
         context = PulsarTestContext.builderForNonStartableContext().config(config).spyByDefault().build();
         broker = context.getBrokerService();
         interceptedTypes.clear();
-        var interceptor = mock(BrokerInterceptor.class);
+        var interceptor = ownMock(mock(BrokerInterceptor.class));
         when(broker.getInterceptor()).thenReturn(interceptor);
         doAnswer(invocation -> {
             BaseCommand command = invocation.getArgument(0);
@@ -102,7 +107,7 @@ public class ScalableTopicRequestWriteMetricsTest {
         registry = new PrometheusRegistry();
         metrics = new ScalableTopicMetrics(OpenTelemetry.noop().getMeter("write-test"), "test", registry);
         when(broker.getScalableTopicMetrics()).thenReturn(metrics);
-        scalableService = mock(ScalableTopicService.class);
+        scalableService = ownMock(mock(ScalableTopicService.class));
         when(broker.getScalableTopicService()).thenReturn(scalableService);
         when(scalableService.registerConsumer(any(), anyString(), anyString(), anyLong(), any(), any()))
                 .thenReturn(CompletableFuture.completedFuture(assignment(1)));
@@ -121,6 +126,19 @@ public class ScalableTopicRequestWriteMetricsTest {
         if (context != null) {
             context.close();
         }
+        ownedMocks.forEach(mock -> Mockito.framework().clearInlineMock(mock));
+        ownedMocks.clear();
+        // TestNG keeps this test instance until the run ends
+        context = null;
+        broker = null;
+        scalableService = null;
+        cnx = null;
+        channel = null;
+    }
+
+    private <T> T ownMock(T mock) {
+        ownedMocks.add(mock);
+        return mock;
     }
 
     @DataProvider

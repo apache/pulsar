@@ -113,9 +113,13 @@ public class ReplicatedSubscriptionsControllerTest {
         PersistentTopic topic = mockTopicForUpdates();
         PersistentSubscription createdSubscription = mockSubscription(PositionFactory.create(1, -1),
                 new ManagedLedgerException("Invalid mark deleted position"));
-        when(topic.getSubscription("sub")).thenReturn(null);
+        AtomicReference<PersistentSubscription> currentSubscription = new AtomicReference<>();
+        when(topic.getSubscription("sub")).thenAnswer(ignored -> currentSubscription.get());
         when(topic.createSubscription(eq("sub"), eq(InitialPosition.Earliest), eq(true), any()))
-                .thenReturn(CompletableFuture.completedFuture(createdSubscription));
+                .thenAnswer(ignored -> {
+                    currentSubscription.set(createdSubscription);
+                    return CompletableFuture.completedFuture(createdSubscription);
+                });
 
         @Cleanup
         TestLogAppender logAppender = TestLogAppender.create(ReplicatedSubscriptionsController.class);
@@ -152,6 +156,10 @@ public class ReplicatedSubscriptionsControllerTest {
         ManagedCursor cursor = mock(ManagedCursor.class);
         when(cursor.getMarkDeletedPosition()).thenReturn(markDeletePosition);
         when(subscription.getCursor()).thenReturn(cursor);
+        when(subscription.getLastCursorResetFuture()).thenReturn(null);
+        when(subscription.acknowledgeReplicatedSubscriptionMessage(any(), any(), any(), anyBoolean()))
+                .thenAnswer(invocation -> subscription.acknowledgeMessageAsync(
+                        List.of(invocation.getArgument(0, Position.class)), AckType.Cumulative, Map.of()));
         when(subscription.acknowledgeMessageAsync(any(), eq(AckType.Cumulative), any()))
                 .thenReturn(CompletableFuture.failedFuture(ackFailure));
         return subscription;

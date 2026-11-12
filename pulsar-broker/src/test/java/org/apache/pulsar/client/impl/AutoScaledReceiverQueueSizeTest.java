@@ -27,7 +27,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.CustomLog;
-import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
@@ -40,28 +40,19 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @CustomLog
-public class AutoScaledReceiverQueueSizeTest extends MockedPulsarServiceBaseTest {
-    @BeforeMethod(alwaysRun = true)
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        setupDefaultTenantAndNamespace();
-    }
+public class AutoScaledReceiverQueueSizeTest extends SharedPulsarBaseTest {
 
-    @AfterMethod(alwaysRun = true)
     @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
+    protected boolean checkClientHandlesClosed() {
+        return true;
     }
 
     @Test
     public void testConsumerImpl() throws PulsarClientException {
-        String topic = "persistent://public/default/testConsumerImpl" + System.currentTimeMillis();
+        String topic = "persistent://" + getNamespace() + "/testConsumerImpl" + System.currentTimeMillis();
         @Cleanup
         ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer()
                 .topic(topic)
@@ -113,7 +104,7 @@ public class AutoScaledReceiverQueueSizeTest extends MockedPulsarServiceBaseTest
 
     @Test
     public void testConsumerImplBatchReceive() throws PulsarClientException {
-        String topic = "persistent://public/default/testConsumerImplBatchReceive" + System.currentTimeMillis();
+        String topic = "persistent://" + getNamespace() + "/testConsumerImplBatchReceive" + System.currentTimeMillis();
         @Cleanup
         ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer()
                 .topic(topic)
@@ -172,7 +163,7 @@ public class AutoScaledReceiverQueueSizeTest extends MockedPulsarServiceBaseTest
 
     @Test
     public void testMultiConsumerImpl() throws Exception {
-        String topic = "persistent://public/default/testMultiConsumerImpl" + System.currentTimeMillis();
+        String topic = "persistent://" + getNamespace() + "/testMultiConsumerImpl" + System.currentTimeMillis();
         admin.topics().createPartitionedTopic(topic, 3);
         @Cleanup
         MultiTopicsConsumerImpl<byte[]> consumer = (MultiTopicsConsumerImpl<byte[]>) pulsarClient.newConsumer()
@@ -244,7 +235,8 @@ public class AutoScaledReceiverQueueSizeTest extends MockedPulsarServiceBaseTest
 
     @Test
     public void testMultiConsumerImplBatchReceive() throws PulsarClientException, PulsarAdminException {
-        String topic = "persistent://public/default/testMultiConsumerImplBatchReceive" + System.currentTimeMillis();
+        String topic = "persistent://" + getNamespace() + "/testMultiConsumerImplBatchReceive"
+                + System.currentTimeMillis();
         admin.topics().createPartitionedTopic(topic, 3);
         @Cleanup
         MultiTopicsConsumerImpl<byte[]> consumer = (MultiTopicsConsumerImpl<byte[]>) pulsarClient.newConsumer()
@@ -297,14 +289,17 @@ public class AutoScaledReceiverQueueSizeTest extends MockedPulsarServiceBaseTest
 
     @Test
     public void testNegativeClientMemory() throws Exception {
-        final String topicName = "persistent://public/default/testMemory-"
+        final String topicName = "persistent://" + getNamespace() + "/testMemory-"
                 + UUID.randomUUID().toString();
         final String subName = "my-sub";
 
         admin.topics().createPartitionedTopic(topicName, 3);
 
+        // a client of its own, as the check is that this client's memory usage goes back to zero
         @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer()
+        PulsarClient client = newPulsarClient();
+        @Cleanup
+        Producer<byte[]> producer = client.newProducer()
                 .topic(topicName)
                 .enableBatching(false)
                 .create();
@@ -318,7 +313,7 @@ public class AutoScaledReceiverQueueSizeTest extends MockedPulsarServiceBaseTest
 
 
         @Cleanup
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+        Consumer<byte[]> consumer = client.newConsumer()
                 .topic(topicName)
                 .subscriptionName(subName)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
@@ -344,7 +339,7 @@ public class AutoScaledReceiverQueueSizeTest extends MockedPulsarServiceBaseTest
         });
 
 
-        MemoryLimitController controller = ((PulsarClientImpl) pulsarClient).getMemoryLimitController();
+        MemoryLimitController controller = ((PulsarClientImpl) client).getMemoryLimitController();
         Assert.assertEquals(controller.currentUsage(), 0);
         Assert.assertEquals(controller.currentUsagePercent(), 0);
     }
@@ -354,10 +349,10 @@ public class AutoScaledReceiverQueueSizeTest extends MockedPulsarServiceBaseTest
         @Cleanup
         PulsarClient clientWithoutMemoryLimit = PulsarClient.builder()
                 .memoryLimit(0, SizeUnit.BYTES)
-                .serviceUrl(pulsar.getBrokerServiceUrl())
+                .serviceUrl(getBrokerServiceUrl())
                 .build();
 
-        String topic = "persistent://public/default/testWithoutMemoryLimit";
+        String topic = "persistent://" + getNamespace() + "/testWithoutMemoryLimit";
         @Cleanup
         ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) clientWithoutMemoryLimit.newConsumer()
                 .topic(topic)

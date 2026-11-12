@@ -22,6 +22,7 @@ import static org.apache.pulsar.broker.service.scalable.PrometheusSamples.getSam
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
@@ -51,9 +52,13 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Function;
+import java.util.function.BooleanSupplier;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.resources.NamespaceResources;
+import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.resources.ScalableTopicMetadata;
+import org.apache.pulsar.broker.resources.ScalableTopicMetadata.PendingLayoutTransition;
 import org.apache.pulsar.broker.resources.ScalableTopicResources;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.TransportCnx;
@@ -288,11 +293,19 @@ public class ScalableTopicControllerFailoverTest {
         CompletableFuture<Void> updateRequested = new CompletableFuture<>();
         CompletableFuture<Void> resumeCommit = new CompletableFuture<>();
         doAnswer(invocation -> {
-            Function<ScalableTopicMetadata, ScalableTopicMetadata> update = invocation.getArgument(1);
-            // The operation reaches the metadata update only after all source seals completed.
-            updateRequested.complete(null);
-            return resumeCommit.thenCompose(__ -> broker1.resources.updateScalableTopicAsync(topic, update));
-        }).when(heldResources).updateScalableTopicAsync(eq(topic), any());
+            PendingLayoutTransition plan = invocation.getArgument(1);
+            long sealedAtMs = invocation.getArgument(2);
+            BooleanSupplier currentTerm = invocation.getArgument(3);
+            // A successful write is already durable before leadership is lost; only its
+            // acknowledgement is delayed. An uncommitted old term must never write later.
+            CompletableFuture<Void> commit = succeeds
+                    ? broker1.resources.commitLayoutTransitionAsync(topic, plan, sealedAtMs, currentTerm)
+                    : CompletableFuture.completedFuture(null);
+            return commit.thenCompose(__ -> {
+                updateRequested.complete(null);
+                return resumeCommit;
+            });
+        }).when(heldResources).commitLayoutTransitionAsync(eq(topic), any(), anyLong(), any());
 
         ScalableTopicController first = new ScalableTopicController(topic, heldResources,
                 broker1.brokerService, broker1.coordinationService);
@@ -499,6 +512,65 @@ public class ScalableTopicControllerFailoverTest {
         assertThat(assignment.assignedSegments()).as("segments assigned to consumer-1").hasSize(SEGMENTS);
         assertThat(broker1.resources.listConsumersAsync(topic, "sub").get())
                 .as("registered consumers").containsExactly("consumer-1");
+    }
+
+    @Test(timeOut = 30_000)
+    public void testOldAutoEvaluationCannotBlockOrClearTheReacquiredTerm() throws Exception {
+        ServiceConfiguration config = new ServiceConfiguration();
+        config.setScalableTopicAutoScaleEnabled(false);
+        config.setScalableTopicAutoScaleIntervalSeconds(3600);
+        PulsarService pulsar = broker1.brokerService.getPulsar();
+        when(pulsar.getConfig()).thenReturn(config);
+        PulsarResources pulsarResources = mock(PulsarResources.class);
+        NamespaceResources namespaceResources = mock(NamespaceResources.class);
+        when(pulsar.getPulsarResources()).thenReturn(pulsarResources);
+        when(pulsarResources.getNamespaceResources()).thenReturn(namespaceResources);
+        when(namespaceResources.getPoliciesAsync(any()))
+                .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
+        ScalableTopicResources heldResources = spy(broker1.resources);
+        BlockingQueue<CompletableFuture<Optional<ScalableTopicMetadata>>> requested = new LinkedBlockingQueue<>();
+        List<CompletableFuture<Optional<ScalableTopicMetadata>>> reads = new CopyOnWriteArrayList<>();
+        doAnswer(invocation -> {
+            CompletableFuture<Optional<ScalableTopicMetadata>> read = new CompletableFuture<>();
+            reads.add(read);
+            requested.add(read);
+            return read;
+        }).when(heldResources).getScalableTopicMetadataAsync(topic);
+        ScalableTopicController controller = new ScalableTopicController(topic, heldResources,
+                broker1.brokerService, broker1.coordinationService);
+        broker1.controllers.add(controller);
+        try {
+            controller.initialize().get(5, TimeUnit.SECONDS);
+            broker2.newController().initialize().get(5, TimeUnit.SECONDS);
+            Optional<ScalableTopicMetadata> metadata = broker1.resources.getScalableTopicMetadataAsync(topic, true)
+                    .get(5, TimeUnit.SECONDS);
+            CompletableFuture<Void> oldEvaluation = controller.evaluateAutoScaleForTest();
+            CompletableFuture<Optional<ScalableTopicMetadata>> oldRead = requested.poll(5, TimeUnit.SECONDS);
+            assertThat(oldRead).as("the first term's auto policy read is held").isNotNull();
+            assertThat(controller.isAutoScaleEvaluationInFlight()).isTrue();
+
+            broker2.takeOverControllerLock();
+            Awaitility.await().atMost(Duration.ofSeconds(5)).until(() -> !controller.isLeader());
+            broker1.takeOverControllerLock();
+            Awaitility.await().atMost(Duration.ofSeconds(5)).until(controller::isLeader);
+
+            CompletableFuture<Void> currentEvaluation = controller.evaluateAutoScaleForTest();
+            CompletableFuture<Optional<ScalableTopicMetadata>> currentRead = requested.poll(5, TimeUnit.SECONDS);
+            assertThat(currentRead).as("the new term evaluates before the old future resolves").isNotNull();
+            assertThat(currentEvaluation).isNotDone();
+            oldRead.complete(metadata);
+            oldEvaluation.get(5, TimeUnit.SECONDS);
+            assertThat(controller.isAutoScaleEvaluationInFlight())
+                    .as("the old completion must not clear the new term's in-flight flag").isTrue();
+            assertThat(currentEvaluation).isNotDone();
+
+            currentRead.complete(metadata);
+            currentEvaluation.get(5, TimeUnit.SECONDS);
+            assertThat(controller.isAutoScaleEvaluationInFlight()).isFalse();
+            assertThat(requested).as("the old term must not request a coalesced evaluation in the new term").isEmpty();
+        } finally {
+            reads.forEach(read -> read.completeExceptionally(new IllegalStateException("release held policy read")));
+        }
     }
 
     /**
