@@ -79,9 +79,8 @@ dependencies {
     api(libs.jspecify)
     api(libs.picocli)
     api(libs.simpleclient)
-    // PulsarBrokerStarter hands an in-process bookie's stats provider its own PrometheusRegistry;
-    // WebExecutorStats and the resource group service register their metrics on it.
     implementation(libs.prometheus.metrics.core)
+    // PulsarBrokerStarter hands an in-process bookie's stats provider its own PrometheusRegistry.
     implementation(libs.prometheus.metrics.model)
     implementation(libs.simpleclient.hotspot)
     implementation(libs.simpleclient.caffeine)
