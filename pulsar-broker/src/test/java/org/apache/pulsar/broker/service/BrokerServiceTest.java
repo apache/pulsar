@@ -27,6 +27,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -40,6 +41,7 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNotSame;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.expectThrows;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
@@ -93,6 +95,7 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.service.PulsarMetadataEventSynchronizer.State;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
@@ -140,6 +143,7 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.compaction.Compactor;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.MockZooKeeper;
 import org.awaitility.Awaitility;
@@ -154,6 +158,8 @@ import org.testng.annotations.Test;
 @Slf4j
 @Test(groups = "broker")
 public class BrokerServiceTest extends BrokerTestBase {
+
+    private volatile PulsarResources migrationTestResources;
 
     @Test
     public void testTopicLoadTimeoutReason() {
@@ -260,6 +266,35 @@ public class BrokerServiceTest extends BrokerTestBase {
                 CompletableFuture.failedFuture(new RuntimeException("failure")));
 
         assertEquals(context.getTopicLoadFailureReason(), TopicLoadFailureReason.FAILED_CHECK_OWNERSHIP);
+    }
+
+    @Test
+    public void testPersistentTopicReloadPropagatesMigrationPolicyFailure() throws Exception {
+        String topicName = newTopicName();
+        admin.topics().createNonPartitionedTopic(topicName);
+        admin.topics().unload(topicName);
+
+        var pulsarResources = spy(pulsar.getPulsarResources());
+        var clusterResources = spy(pulsarResources.getClusterResources());
+        var clusterPoliciesResources = spy(clusterResources.getClusterPoliciesResources());
+        doReturn(clusterResources).when(pulsarResources).getClusterResources();
+        doReturn(clusterPoliciesResources).when(clusterResources).getClusterPoliciesResources();
+        var policyReadFailure = new MetadataStoreException("Failed to read cluster migration policy");
+        doReturn(CompletableFuture.failedFuture(policyReadFailure))
+                .when(clusterPoliciesResources).getClusterPoliciesAsync(conf.getClusterName());
+
+        migrationTestResources = pulsarResources;
+        try {
+            var topicLoadFuture = pulsar.getBrokerService().getTopic(topicName, false);
+            long topicLoadTimeoutSeconds = pulsar.getConfiguration().getTopicLoadTimeoutSeconds();
+            ExecutionException topicLoadException = expectThrows(ExecutionException.class,
+                    () -> topicLoadFuture.get(topicLoadTimeoutSeconds + 5, TimeUnit.SECONDS));
+            assertThat(topicLoadException.getCause())
+                    .as("cause of persistent topic reload failure")
+                    .isSameAs(policyReadFailure);
+        } finally {
+            migrationTestResources = null;
+        }
     }
 
     @Test
@@ -398,6 +433,16 @@ public class BrokerServiceTest extends BrokerTestBase {
         conf.setTopicLevelPoliciesEnabled(true);
         conf.setTopicPoliciesServiceClassName(MockTopicPoliciesService.class.getName());
         super.baseSetup();
+    }
+
+    @Override
+    protected void beforePulsarStart(PulsarService pulsar) throws Exception {
+        super.beforePulsarStart(pulsar);
+        // Install the stub before broker threads can call the shared PulsarService spy.
+        doAnswer(invocation -> {
+            PulsarResources pulsarResources = migrationTestResources;
+            return pulsarResources != null ? pulsarResources : invocation.callRealMethod();
+        }).when(pulsar).getPulsarResources();
     }
 
     @AfterClass(alwaysRun = true)
