@@ -50,6 +50,7 @@ import org.apache.pulsar.broker.service.plugin.EntryFilterProvider;
 import org.apache.pulsar.broker.service.plugin.FilterContext;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
+import org.apache.pulsar.common.api.proto.CompressionType;
 import org.apache.pulsar.common.api.proto.MarkerType;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.Commands;
@@ -501,8 +502,11 @@ public class AbstractBaseDispatcherTest {
                 .setPartitionKeyB64Encoded(false)
                 .setPublishTime(System.currentTimeMillis())
                 .setNumMessagesInBatch(batchSize);
-        return serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, messageMetadata,
-                Unpooled.copiedBuffer(message.getBytes(UTF_8)));
+        byte[] messageBytes = message.getBytes(UTF_8);
+        // a batch payload takes at least 4 bytes per message, pad it so that the batch size is valid
+        ByteBuf payload = Unpooled.buffer().writeBytes(messageBytes)
+                .writeZero(Math.max(0, batchSize * 4 - messageBytes.length));
+        return serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, messageMetadata, payload);
     }
 
     private EntriesAndExpectedMetadata createEntriesWithVaryingBatchSizes(int entryCount) {
@@ -702,4 +706,67 @@ public class AbstractBaseDispatcherTest {
         }
     }
 
+    @Test
+    public void testHasValidNumMessagesInBatchForUncompressedEntry() {
+        // each message in a batch takes at least 4 bytes, so a 400-byte payload holds at most 100 messages
+        assertValidNumMessagesInBatch(batchMetadata(100), 400, true);
+        assertValidNumMessagesInBatch(batchMetadata(101), 400, false);
+        assertValidNumMessagesInBatch(batchMetadata(Integer.MAX_VALUE), 400, false);
+        assertValidNumMessagesInBatch(batchMetadata(-1), 400, false);
+        assertValidNumMessagesInBatch(batchMetadata(Integer.MIN_VALUE), 400, false);
+        // counts of 0 and 1 are accepted regardless of the payload size
+        assertValidNumMessagesInBatch(batchMetadata(0), 0, true);
+        assertValidNumMessagesInBatch(batchMetadata(1), 0, true);
+        // a non-batched entry doesn't set the field and defaults to 1
+        assertValidNumMessagesInBatch(baseMetadata(), 0, true);
+        // uncompressed_size doesn't extend the bound of an uncompressed and unencrypted entry
+        assertValidNumMessagesInBatch(batchMetadata(101).setUncompressedSize(4000), 400, false);
+    }
+
+    @Test
+    public void testHasValidNumMessagesInBatchForCompressedOrEncryptedEntry() {
+        // the bound comes from the larger of the payload size and uncompressed_size
+        assertValidNumMessagesInBatch(
+                batchMetadata(1000).setCompression(CompressionType.LZ4).setUncompressedSize(4000), 400, true);
+        assertValidNumMessagesInBatch(
+                batchMetadata(1001).setCompression(CompressionType.LZ4).setUncompressedSize(4000), 400, false);
+        assertValidNumMessagesInBatch(
+                batchMetadata(100).setCompression(CompressionType.LZ4).setUncompressedSize(40), 400, true);
+        assertValidNumMessagesInBatch(
+                batchMetadata(101).setCompression(CompressionType.LZ4).setUncompressedSize(40), 400, false);
+        MessageMetadata encrypted = batchMetadata(1000).setUncompressedSize(4000);
+        encrypted.addEncryptionKey().setKey("key").setValue(new byte[]{1});
+        assertValidNumMessagesInBatch(encrypted, 400, true);
+        encrypted.setNumMessagesInBatch(1001);
+        assertValidNumMessagesInBatch(encrypted, 400, false);
+        // without uncompressed_size, a compressed entry has no upper bound
+        assertValidNumMessagesInBatch(
+                batchMetadata(Integer.MAX_VALUE).setCompression(CompressionType.ZSTD), 400, true);
+        assertValidNumMessagesInBatch(batchMetadata(-1).setCompression(CompressionType.ZSTD), 400, false);
+    }
+
+    private static MessageMetadata baseMetadata() {
+        return new MessageMetadata()
+                .setSequenceId(1)
+                .setProducerName("testProducer")
+                .setPublishTime(System.currentTimeMillis());
+    }
+
+    private static MessageMetadata batchMetadata(int numMessagesInBatch) {
+        return baseMetadata().setNumMessagesInBatch(numMessagesInBatch);
+    }
+
+    private static void assertValidNumMessagesInBatch(MessageMetadata metadata, int payloadSize,
+                                                      boolean expected) {
+        ByteBuf entryData = serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, metadata,
+                Unpooled.wrappedBuffer(new byte[payloadSize]));
+        try {
+            int readerIndex = entryData.readerIndex();
+            assertEquals(AbstractBaseDispatcher.hasValidNumMessagesInBatch(metadata, entryData), expected,
+                    "numMessagesInBatch=" + metadata.getNumMessagesInBatch() + ", payloadSize=" + payloadSize);
+            assertEquals(entryData.readerIndex(), readerIndex);
+        } finally {
+            entryData.release();
+        }
+    }
 }

@@ -21,9 +21,11 @@ import groovy.json.JsonSlurper
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.file.ConfigurableFileCollection
+import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFiles
+import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
@@ -31,9 +33,16 @@ import org.gradle.work.DisableCachingByDefault
 import org.w3c.dom.Element
 import javax.xml.parsers.DocumentBuilderFactory
 
-/** Checks the consumer graph, including publication-only rewrites and dependency-reduced shaded POMs. */
-@DisableCachingByDefault(because = "Verification has no outputs")
+/**
+ * Checks the consumer graph, including publication-only rewrites and dependency-reduced shaded POMs.
+ * Writes the validated coordinates to [validated], which the publish tasks take as an input so that
+ * they run only after the validation passed.
+ */
+@DisableCachingByDefault(because = "Cheap to run, and the result is only a marker for the publish tasks")
 abstract class ValidateApiSpiPublication : DefaultTask() {
+    @get:OutputFile
+    abstract val validated: RegularFileProperty
+
     @get:InputFiles
     @get:PathSensitive(PathSensitivity.RELATIVE)
     abstract val poms: ConfigurableFileCollection
@@ -104,6 +113,7 @@ abstract class ValidateApiSpiPublication : DefaultTask() {
                 failures.joinToString("\n") +
                 "\nAdd the missing projects to PulsarApiSpiPublication.projects or correct their published coordinates.")
         }
+        validated.get().asFile.writeText(coordinates.sorted().joinToString("\n", postfix = "\n"))
         logger.lifecycle("Validated {} API/SPI publications and their published dependency closure.", coordinates.size)
     }
 }

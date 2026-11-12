@@ -48,7 +48,7 @@ jobs:
       docs_only: ${{ steps.check_changes.outputs.docs_only }}
     steps:
       - name: checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Detect changed files
         id: changes
@@ -82,7 +82,7 @@ jobs:
 
     steps:
       - name: checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm

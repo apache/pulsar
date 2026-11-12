@@ -1024,11 +1024,10 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
         }
         HashSet<String> messagesReceived = new HashSet<>();
         for (Consumer<String> consumer : consumers) {
-            while (true) {
+            // Each consumer has a subscription of its own, which gets every message.
+            for (int i = 0; i < messagesSent.size(); i++) {
                 Message<String> msg = consumer.receive(2, TimeUnit.SECONDS);
-                if (msg == null) {
-                    break;
-                }
+                assertNotNull(msg);
                 messagesReceived.add(msg.getValue());
             }
         }

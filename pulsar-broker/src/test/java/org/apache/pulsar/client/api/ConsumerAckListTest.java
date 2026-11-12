@@ -130,7 +130,9 @@ public class ConsumerAckListTest extends SharedPulsarBaseTest {
         partialTopicsConsumer.close();
         partialTopicsConsumer = pulsarClient.newConsumer(Schema.STRING).topic(topics[0])
                 .subscriptionName("sub2").subscribe();
-        pulsarClient.newProducer(Schema.STRING).topic(topics[0]).create().send("done");
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topics[0]).create();
+        producer.send("done");
         final Message<String> msg = partialTopicsConsumer.receive();
         Assert.assertEquals(msg.getValue(), "msg-0");
         partialTopicsConsumer.close();

@@ -1263,23 +1263,23 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
 
     @Override
     public CompletableFuture<Void> unsubscribe(String subscriptionName) {
-        // checkInactiveSubscriptions iterates over subscriptions map and removing from the map with the same thread.
-        // That creates deadlock. so, execute remove it in different thread.
-        return CompletableFuture.runAsync(() -> {
-            NonPersistentSubscription sub = subscriptions.remove(subscriptionName);
-            if (sub != null) {
-                // preserve accumulative stats form removed subscription
-                GetStatsOptions getStatsOptions = new GetStatsOptions(false, false, false, false, false);
-                SubscriptionStatsImpl stats = sub.getStats(getStatsOptions);
-                bytesOutFromRemovedSubscriptions.add(stats.bytesOutCounter);
-                msgOutFromRemovedSubscriptions.add(stats.msgOutCounter);
+        // Remove the subscription before returning: the broker acknowledges the close of the last consumer right after
+        // this call, and the topic must not count the subscription after that (e.g. as activity in the inactive topic
+        // GC). The subscriptions map allows removals while it is being iterated.
+        NonPersistentSubscription sub = subscriptions.remove(subscriptionName);
+        if (sub != null) {
+            // preserve accumulative stats form removed subscription
+            GetStatsOptions getStatsOptions = new GetStatsOptions(false, false, false, false, false);
+            SubscriptionStatsImpl stats = sub.getStats(getStatsOptions);
+            bytesOutFromRemovedSubscriptions.add(stats.bytesOutCounter);
+            msgOutFromRemovedSubscriptions.add(stats.msgOutCounter);
 
-                if (isSystemCursor(subscriptionName)
-                        || subscriptionName.startsWith(SystemTopicNames.SYSTEM_READER_PREFIX)) {
-                    bytesOutFromRemovedSystemSubscriptions.add(stats.bytesOutCounter);
-                }
+            if (isSystemCursor(subscriptionName)
+                    || subscriptionName.startsWith(SystemTopicNames.SYSTEM_READER_PREFIX)) {
+                bytesOutFromRemovedSystemSubscriptions.add(stats.bytesOutCounter);
             }
-        }, brokerService.executor());
+        }
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override
