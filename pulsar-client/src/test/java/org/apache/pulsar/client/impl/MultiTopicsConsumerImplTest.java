@@ -42,9 +42,11 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -52,6 +54,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
+import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Messages;
@@ -455,6 +458,93 @@ public class MultiTopicsConsumerImplTest {
         pendingAck.complete(null);
 
         assertEquals(impl.getUnAckedMessageTracker().size(), 1);
+    }
+
+    @Test(timeOut = 10000)
+    public void testBatchReceiveWaitingForMessagesResumesPausedConsumers() throws Exception {
+        String topic0 = "persistent://public/default/topic-partition-0";
+        String topic1 = "persistent://public/default/topic-partition-1";
+        ConsumerConfigurationData<byte[]> conf = new ConsumerConfigurationData<>();
+        conf.setSubscriptionName("subscriptionName");
+        conf.setReceiverQueueSize(4);
+        // A batch takes a full receiver queue, and has no timeout to return fewer messages
+        conf.setBatchReceivePolicy(BatchReceivePolicy.builder().maxNumMessages(4).build());
+        MultiTopicsConsumerImpl<byte[]> impl = createMultiTopicsConsumer(conf);
+        ConsumerImpl<byte[]> consumer0 = addPartitionConsumer(impl, topic0, null, 4);
+        ConsumerImpl<byte[]> consumer1 = addPartitionConsumer(impl, topic1, null, 4);
+        List<CompletableFuture<?>> receives0 = recordReceives(consumer0);
+        List<CompletableFuture<?>> receives1 = recordReceives(consumer1);
+
+        // Before the application asks for a batch, partition 0 fills the queue, and partition 1 hands over 3 more
+        // messages: both are paused, with 7 messages in the queue
+        impl.receiveMessageFromConsumer(consumer0, true);
+        impl.receiveMessageFromConsumer(consumer1, true);
+        completeBatchReceive(receives0.get(0), topic0, 0, 4);
+        impl.internalPinnedExecutor.submit(() -> { }).get();
+        completeBatchReceive(receives1.get(0), topic1, 1, 3);
+        impl.internalPinnedExecutor.submit(() -> { }).get();
+        assertEquals(impl.incomingMessages.size(), 7);
+        assertEquals(receives0.size(), 1);
+        assertEquals(receives1.size(), 1);
+
+        // The first batch leaves 3 messages, more than half of the queue
+        assertEquals(impl.internalBatchReceiveAsync().get().size(), 4);
+        assertEquals(impl.incomingMessages.size(), 3);
+
+        // The second batch waits for a 4th message: the paused partitions must be asked for more
+        CompletableFuture<Messages<byte[]>> secondBatch = impl.internalBatchReceiveAsync();
+        impl.internalPinnedExecutor.submit(() -> { }).get();
+        impl.internalPinnedExecutor.submit(() -> { }).get();
+        assertFalse(secondBatch.isDone());
+        assertEquals(receives0.size(), 2);
+        completeBatchReceive(receives0.get(1), topic0, 0, 1);
+        assertEquals(secondBatch.get().size(), 4);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static ConsumerImpl<byte[]> addPartitionConsumer(MultiTopicsConsumerImpl<byte[]> impl, String topic,
+                                                             ClientCnx cnx, int receiverQueueSize) {
+        ConnectionHandler connectionHandler = mock(ConnectionHandler.class);
+        when(connectionHandler.cnx()).thenReturn(cnx);
+        ConsumerImpl<byte[]> consumer = mock(ConsumerImpl.class);
+        when(consumer.getTopic()).thenReturn(topic);
+        when(consumer.getConnectionHandler()).thenReturn(connectionHandler);
+        when(consumer.getCurrentReceiverQueueSize()).thenReturn(receiverQueueSize);
+        when(consumer.batchReceiveAsync()).thenReturn(new CompletableFuture<>());
+        when(consumer.receiveAsync()).thenReturn(new CompletableFuture<>());
+        impl.consumers.put(topic, consumer);
+        return consumer;
+    }
+
+    private static MessageImpl<byte[]> newMessage(String topic, long ledgerId, long entryId, int partitionIndex) {
+        return MessageImpl.create(topic, new MessageIdImpl(ledgerId, entryId, partitionIndex), new MessageMetadata(),
+                Unpooled.wrappedBuffer(new byte[1]), Optional.empty(), null, Schema.BYTES, 0, false, 0);
+    }
+
+    // Make each receive request of a partition consumer wait until the test completes it, and record it
+    private static List<CompletableFuture<?>> recordReceives(ConsumerImpl<byte[]> consumer) {
+        List<CompletableFuture<?>> receives = new CopyOnWriteArrayList<>();
+        when(consumer.receiveAsync()).thenAnswer(invocation -> {
+            CompletableFuture<Message<byte[]>> receive = new CompletableFuture<>();
+            receives.add(receive);
+            return receive;
+        });
+        when(consumer.batchReceiveAsync()).thenAnswer(invocation -> {
+            CompletableFuture<Messages<byte[]>> receive = new CompletableFuture<>();
+            receives.add(receive);
+            return receive;
+        });
+        return receives;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void completeBatchReceive(CompletableFuture<?> receive, String topic, int partitionIndex,
+                                             int numMessages) {
+        MessagesImpl<byte[]> messages = new MessagesImpl<>(-1, -1);
+        for (int i = 0; i < numMessages; i++) {
+            messages.add(newMessage(topic, partitionIndex, i, partitionIndex));
+        }
+        assertTrue(((CompletableFuture<Messages<byte[]>>) receive).complete(messages));
     }
 
 }
