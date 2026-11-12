@@ -2923,7 +2923,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     }
                     producers.remove(producerId, producerFuture);
                     return null;
-                } else if (cause instanceof BrokerServiceException.TopicMigratedException) {
+                } else if (cause instanceof BrokerServiceException.TopicMigratedException migrationException) {
                     getMigratedClusterUrlAsync(service.getPulsar(), topicName.toString())
                             .handleAsync((clusterUrl, lookupError) -> {
                                 if (lookupError != null) {
@@ -2931,8 +2931,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                             "producerId", producerId, lookupError);
                                     clusterUrl = Optional.empty();
                                 } else if (clusterUrl.isEmpty()) {
-                                    log.error().attr("operation", "createProducer").attr("topic", topicName)
-                                            .attr("requestId", requestId).attr("producerId", producerId)
+                                    log.error()
+                                            .attr("operation", "createProducer")
+                                            .attr("topic", topicName)
+                                            .attr("requestId", requestId)
+                                            .attr("producerId", producerId)
+                                            .exceptionMessage(migrationException)
                                             .log("No migration URL available for producer redirect");
                                 }
                                 redirectOrFailMigratedProducer(requestId, producerId, producerName, topicName,
@@ -3037,7 +3041,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
             producers.remove(producerId, producerFuture);
         }, ctx.executor()).exceptionallyAsync(ex -> {
-            if (ex.getCause() instanceof BrokerServiceException.TopicMigratedException) {
+            Throwable cause = ex.getCause();
+            if (cause instanceof BrokerServiceException.TopicMigratedException) {
                 getMigratedClusterUrlAsync(service.getPulsar(), topic.getName())
                         .handleAsync((clusterUrl, lookupError) -> {
                             if (lookupError != null) {
@@ -3045,8 +3050,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                         "producerId", producerId, lookupError);
                                 clusterUrl = Optional.empty();
                             } else if (clusterUrl.isEmpty()) {
-                                log.warn().attr("operation", "addProducer").attr("topic", topicName)
-                                        .attr("requestId", requestId).attr("producerId", producerId)
+                                log.warn()
+                                        .attr("operation", "addProducer")
+                                        .attr("topic", topicName)
+                                        .attr("requestId", requestId)
+                                        .attr("producerId", producerId)
+                                        .exceptionMessage(cause)
                                         .log("No migration URL available for producer redirect");
                             }
                             redirectOrFailMigratedProducerInQueue(requestId, producerId, producerName, topicName,
@@ -3054,17 +3063,17 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             return null;
                         }, ctx.executor());
                 return null;
-            } else if (ex.getCause() instanceof BrokerServiceException.ProducerFencedException) {
+            } else if (cause instanceof BrokerServiceException.ProducerFencedException) {
                 log.debug()
                         .attr("topic", topicName)
                         .attr("producerId", producerId)
-                        .exceptionMessage(ex.getCause())
+                        .exceptionMessage(cause)
                         .log("Failed to add producer to topic: producerId");
             } else {
                 log.warn()
                         .attr("topic", topicName)
                         .attr("producerId", producerId)
-                        .exceptionMessage(ex.getCause())
+                        .exceptionMessage(cause)
                         .log("Failed to add producer to topic: producerId");
             }
 
