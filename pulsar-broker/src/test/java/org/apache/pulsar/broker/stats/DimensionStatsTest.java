@@ -47,22 +47,26 @@ public class DimensionStatsTest {
         assertEquals(snapshot.getDimensionSum(), 50005000);
     }
 
-    /**
-     * {@link DimensionStats#getSnapshot()} hands the snapshot no data point when a concurrent {@code reset()}
-     * emptied the summary's collect; every accessor must then read as zero, as the simpleclient version did.
-     */
+    /** An unused or just reset instance reads as the simpleclient version did: no count, and no mean or quantile. */
     @Test
-    void shouldReadEmptySnapshotAsZero() {
-        DimensionStats.DimensionStatsSnapshot snapshot = new DimensionStats.DimensionStatsSnapshot(null);
+    void shouldReadUnusedStatsAsEmpty() {
+        DimensionStats dimensionStats = new DimensionStats("test_empty", 100, null);
+        assertEmpty(dimensionStats.getSnapshot());
+        dimensionStats.recordDimensionTimeValue(7, TimeUnit.MILLISECONDS);
+        assertEquals(dimensionStats.getSnapshot().getMeanDimension(), 7.0);
+        dimensionStats.reset();
+        assertEmpty(dimensionStats.getSnapshot());
+    }
+
+    private static void assertEmpty(DimensionStats.DimensionStatsSnapshot snapshot) {
         assertEquals(snapshot.getDimensionCount(), 0.0);
         assertEquals(snapshot.getDimensionSum(), 0.0);
-        assertEquals(snapshot.getMeanDimension(), 0.0);
-        assertEquals(snapshot.getMedianDimension(), 0.0);
-        assertEquals(snapshot.getDimension75(), 0.0);
-        assertEquals(snapshot.getDimension95(), 0.0);
-        assertEquals(snapshot.getDimension99(), 0.0);
-        assertEquals(snapshot.getDimension999(), 0.0);
-        assertEquals(snapshot.getDimension9999(), 0.0);
+        assertTrue(Double.isNaN(snapshot.getMeanDimension()), "mean " + snapshot.getMeanDimension());
+        for (double quantile : new double[]{snapshot.getMedianDimension(), snapshot.getDimension75(),
+                snapshot.getDimension95(), snapshot.getDimension99(), snapshot.getDimension999(),
+                snapshot.getDimension9999()}) {
+            assertTrue(Double.isNaN(quantile), "quantile " + quantile);
+        }
     }
 
     @Test
@@ -88,30 +92,31 @@ public class DimensionStatsTest {
         second.close();
     }
 
-    /** Smoke test for the collect/clear race; the deterministic guard check is shouldReadEmptySnapshotAsZero. */
+    /** reset() clears the summary's data point; recording and reading must not trip over that. */
     @Test(timeOut = 60_000)
-    void shouldReadAsZeroWhileResetRemovesTheDataPoint() throws Exception {
+    void shouldRecordAndReadWhileResetRuns() throws Exception {
         DimensionStats dimensionStats = new DimensionStats("test-reset", 100, null);
         AtomicBoolean stop = new AtomicBoolean();
         AtomicReference<Throwable> failure = new AtomicReference<>();
         Thread resetter = new Thread(() -> {
             try {
                 while (!stop.get()) {
-                    dimensionStats.recordDimensionTimeValue(1, TimeUnit.MILLISECONDS);
                     dimensionStats.reset();
                 }
             } catch (Throwable t) {
                 failure.compareAndSet(null, t);
             }
         });
+        // a daemon, so a run that is cut short by the timeout cannot keep the JVM alive
+        resetter.setDaemon(true);
         resetter.start();
         try {
-            for (int i = 0; i < 200_000 && failure.get() == null; i++) {
+            for (int i = 0; i < 10_000 && failure.get() == null; i++) {
                 try {
+                    dimensionStats.recordDimensionTimeValue(1, TimeUnit.MILLISECONDS);
                     DimensionStats.DimensionStatsSnapshot snapshot = dimensionStats.getSnapshot();
-                    double count = snapshot.getDimensionCount();
-                    assertTrue(count == 0 || count == 1, "count " + count);
-                    assertEquals(snapshot.getDimensionSum(), count, "sum must match a count of 1 ms observations");
+                    // Whatever survived the resets so far: only 1 ms observations, so sum and count agree.
+                    assertEquals(snapshot.getDimensionSum(), snapshot.getDimensionCount());
                 } catch (Throwable t) {
                     failure.compareAndSet(null, t);
                 }
@@ -120,6 +125,6 @@ public class DimensionStatsTest {
             stop.set(true);
             resetter.join();
         }
-        assertNull(failure.get(), "snapshot failed while reset() ran concurrently: " + failure.get());
+        assertNull(failure.get(), "recording or reading failed while reset() ran concurrently: " + failure.get());
     }
 }

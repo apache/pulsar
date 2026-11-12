@@ -22,8 +22,9 @@ import io.prometheus.metrics.core.metrics.Summary;
 import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import io.prometheus.metrics.model.snapshots.Quantile;
 import io.prometheus.metrics.model.snapshots.SummarySnapshot;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import lombok.CustomLog;
 
 /**
@@ -35,6 +36,12 @@ public class DimensionStats implements AutoCloseable {
     /** The registry the summary was registered on, so {@link #close()} removes only its own; null when none. */
     private final PrometheusRegistry registry;
     private volatile boolean registered;
+    /**
+     * Summary.clear() drops the data point that a concurrent observe() or collect() is about to use: observe()
+     * can then fail with a NullPointerException and collect() can come back empty. reset() takes the write
+     * side; recording and reading share the read side, so they do not block each other.
+     */
+    private final ReadWriteLock clearLock = new ReentrantReadWriteLock();
     private static final double[] QUANTILES = {0.50, 0.75, 0.95, 0.99, 0.999, 0.9999};
 
     public DimensionStats(String name, long updateDurationInSec) {
@@ -68,14 +75,22 @@ public class DimensionStats implements AutoCloseable {
     }
 
     public void recordDimensionTimeValue(long latency, TimeUnit unit) {
-        summary.observe(unit.toMillis(latency));
+        clearLock.readLock().lock();
+        try {
+            summary.observe(unit.toMillis(latency));
+        } finally {
+            clearLock.readLock().unlock();
+        }
     }
 
     public DimensionStatsSnapshot getSnapshot() {
-        // A reset() racing with this collect() can leave the summary without its data point for a moment; the
-        // snapshot then reads as zero, which is what the simpleclient version returned for a missing sample.
-        List<SummarySnapshot.SummaryDataPointSnapshot> dataPoints = summary.collect().getDataPoints();
-        return new DimensionStatsSnapshot(dataPoints.isEmpty() ? null : dataPoints.get(0));
+        clearLock.readLock().lock();
+        try {
+            // collect() creates the data point of an unused summary, and no clear() can run here, so there is one
+            return new DimensionStatsSnapshot(summary.collect().getDataPoints().get(0));
+        } finally {
+            clearLock.readLock().unlock();
+        }
     }
 
     public static class DimensionStatsSnapshot {
@@ -88,7 +103,7 @@ public class DimensionStats implements AutoCloseable {
         public double getMeanDimension() {
             double sum = getDimensionSum();
             double count = getDimensionCount();
-            if (count > 0 && !Double.isNaN(sum)) {
+            if (!Double.isNaN(sum) && !Double.isNaN(count)) {
                 return sum / count;
             }
             return 0;
@@ -119,17 +134,14 @@ public class DimensionStats implements AutoCloseable {
         }
 
         public double getDimensionSum() {
-            return dataPoint == null ? 0 : dataPoint.getSum();
+            return dataPoint.getSum();
         }
 
         public double getDimensionCount() {
-            return dataPoint == null ? 0 : dataPoint.getCount();
+            return dataPoint.getCount();
         }
 
         private double getQuantile(double quantile) {
-            if (dataPoint == null) {
-                return 0;
-            }
             for (Quantile q : dataPoint.getQuantiles()) {
                 if (q.getQuantile() == quantile) {
                     return q.getValue();
@@ -140,9 +152,18 @@ public class DimensionStats implements AutoCloseable {
     }
 
     public void reset() {
-        summary.clear();
+        clearLock.writeLock().lock();
+        try {
+            summary.clear();
+        } finally {
+            clearLock.writeLock().unlock();
+        }
     }
 
+    /**
+     * Unregisters the summary if this instance registered it. An instance that lost the registration to an
+     * earlier one of the same name stays unregistered after that owner closes; it is not registered in its place.
+     */
     @Override
     public void close() {
         if (registered) {
