@@ -41,7 +41,7 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: actions/github-script@v8
+    - uses: actions/github-script@v9
       env:
         # github.action_path is passed in an environment variable since a relative require would be
         # resolved against the github-script action's own directory instead of this action's directory

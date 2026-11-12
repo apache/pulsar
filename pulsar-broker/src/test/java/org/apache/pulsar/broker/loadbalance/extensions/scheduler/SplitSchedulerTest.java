@@ -33,6 +33,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
@@ -112,7 +113,8 @@ public class SplitSchedulerTest {
         doAnswer((invocation)->{
             var decision = invocation.getArgument(2, SplitDecision.class);
             counter.update(decision);
-            return CompletableFuture.completedFuture(null);
+            // Publish the split, as the split manager does
+            return invocation.<Supplier<CompletableFuture<Void>>>getArgument(0).get();
         }).when(manager).waitAsync(any(), any(), any(), anyLong(), any());
         scheduler.execute();
 

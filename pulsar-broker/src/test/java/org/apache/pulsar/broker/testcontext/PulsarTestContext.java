@@ -29,6 +29,7 @@ import java.time.Duration;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import lombok.AccessLevel;
@@ -182,6 +183,10 @@ public class PulsarTestContext implements AutoCloseable {
 
     private final WorkerService functionWorkerService;
 
+    @Getter(AccessLevel.NONE)
+    @ToString.Exclude
+    private final List<ServerCnx> serverCnxSpies = new CopyOnWriteArrayList<>();
+
     public ManagedLedgerStorage getManagedLedgerStorage() {
         return managedLedgerStorage;
     }
@@ -222,6 +227,8 @@ public class PulsarTestContext implements AutoCloseable {
      */
     public void close() throws Exception {
         callCloseables(closeables);
+        serverCnxSpies.forEach(PulsarTestContext::releaseSpyOrMock);
+        serverCnxSpies.clear();
     }
 
     private static void callCloseables(List<AutoCloseable> closeables) {
@@ -241,8 +248,10 @@ public class PulsarTestContext implements AutoCloseable {
      * @return a ServerCnx instance
      */
     public ServerCnx createServerCnxSpy() {
-        return BrokerTestUtil.spyWithClassAndConstructorArgsRecordingInvocations(ServerCnx.class,
+        ServerCnx serverCnx = BrokerTestUtil.spyWithClassAndConstructorArgsRecordingInvocations(ServerCnx.class,
                 getPulsarService());
+        serverCnxSpies.add(serverCnx);
+        return serverCnx;
     }
 
     private enum WithMockZooKeeperOrTestZKServer {
@@ -347,6 +356,13 @@ public class PulsarTestContext implements AutoCloseable {
 
             if (svcConfig.getTopicLoadTimeoutSeconds() == unconfiguredDefaults.getTopicLoadTimeoutSeconds()) {
                 svcConfig.setTopicLoadTimeoutSeconds(10);
+            }
+
+            // With batching, every metadata store operation waits for the store's next flush, which runs every
+            // metadataStoreBatchingMaxDelayMillis: a chain of operations, like an admin call's, waits for one flush
+            // per operation. A test that needs batching enables it with configOverride(...)
+            if (svcConfig.isMetadataStoreBatchingEnabled() == unconfiguredDefaults.isMetadataStoreBatchingEnabled()) {
+                svcConfig.setMetadataStoreBatchingEnabled(false);
             }
         }
 
@@ -626,7 +642,10 @@ public class PulsarTestContext implements AutoCloseable {
             }
             createWithMockZooKeeperOrTestZKServerInstances();
             if (super.managedLedgerStorage != null && !MockUtil.isMock(super.managedLedgerStorage)) {
-                super.managedLedgerStorage = spyConfig.getManagedLedgerStorage().spy(super.managedLedgerStorage);
+                ManagedLedgerStorage managedLedgerStorageSpy =
+                        spyConfig.getManagedLedgerStorage().spy(super.managedLedgerStorage);
+                registerCloseable(() -> releaseSpyOrMock(managedLedgerStorageSpy));
+                super.managedLedgerStorage = managedLedgerStorageSpy;
             }
             initializeCommonPulsarServices(spyConfig);
             initializePulsarServices(spyConfig, this);
@@ -779,7 +798,12 @@ public class PulsarTestContext implements AutoCloseable {
                 }
                 registerCloseable(() -> {
                     mockBookKeeper.reallyShutdown();
-                    resetSpyOrMock(mockBookKeeper);
+                    // The client factory hands this client to the broker and to tests, which may close it (a no-op)
+                    // after the context, so it stays usable. Its settings only reference the executor: dropping its
+                    // invocations and stubs is enough.
+                    if (MockUtil.isMock(mockBookKeeper)) {
+                        Mockito.reset(mockBookKeeper);
+                    }
                 });
                 bookKeeperClient(mockBookKeeper);
             }
@@ -827,7 +851,7 @@ public class PulsarTestContext implements AutoCloseable {
                                         .metadataStoreName(MetadataStoreConfig.METADATA_STORE).build());
                         registerCloseable(() -> {
                             store.close();
-                            resetSpyOrMock(store);
+                            releaseSpyOrMock(store);
                         });
                         MetadataStoreExtended nonClosingProxy =
                                 NonClosingProxyHandler.createNonClosingProxy(store, MetadataStoreExtended.class
@@ -865,13 +889,13 @@ public class PulsarTestContext implements AutoCloseable {
             mockZooKeeperSession.setSessionTimeout((int) config.getMetadataStoreSessionTimeoutMillis());
             registerCloseable(() -> {
                 mockZooKeeperSession.close();
-                resetSpyOrMock(mockZooKeeperSession);
+                releaseSpyOrMock(mockZooKeeperSession);
             });
             ZKMetadataStore zkMetadataStore =
                     new ZKMetadataStore(mockZooKeeperSession, createMetadataStoreConfig(config, metadataStoreName));
             registerCloseable(() -> {
                 zkMetadataStore.close();
-                resetSpyOrMock(zkMetadataStore);
+                releaseSpyOrMock(zkMetadataStore);
             });
             MetadataStoreExtended nonClosingProxy =
                     NonClosingProxyHandler.createNonClosingProxy(zkMetadataStore, MetadataStoreExtended.class);
@@ -893,9 +917,19 @@ public class PulsarTestContext implements AutoCloseable {
         protected abstract void initializePulsarServices(SpyConfig spyConfig, Builder builder);
     }
 
-    static void resetSpyOrMock(Object object) {
-        if (MockUtil.isMock(object)) {
-            Mockito.reset(object);
+    /**
+     * Removes a Mockito mock or spy that the context created from Mockito's inline mock maker, once the context no
+     * longer uses it. The mock maker keeps every mock in a static map, with the mock as a weak key and its
+     * interceptor as the value. The interceptor holds the mock's settings, with the spied instance or the
+     * constructor arguments, and its invocations. For a broker and its collaborators, these reference the mock
+     * again (the compaction service factory, a constructor argument of the PulsarService spy, references the
+     * PulsarService, for example), so the entry is never removed and the closed broker would stay in the heap until
+     * the test JVM exits. {@link Mockito#reset(Object[])} doesn't help: it keeps the settings. Mockito disables a
+     * released mock: calling it throws.
+     */
+    static void releaseSpyOrMock(Object object) {
+        if (object != null && MockUtil.isMock(object)) {
+            Mockito.framework().clearInlineMock(object);
         }
     }
 
@@ -936,7 +970,7 @@ public class PulsarTestContext implements AutoCloseable {
             } else {
                 openTelemetrySdkBuilderCustomizer = null;
             }
-            PulsarService pulsarService = spyConfig.getPulsarService()
+            StartableTestPulsarService pulsarService = spyConfig.getPulsarService()
                     .spy(StartableTestPulsarService.class, spyConfig, builder.config, builder.localMetadataStore,
                             builder.configurationMetadataStore, compactionServiceFactory,
                             builder.brokerInterceptor,
@@ -947,7 +981,8 @@ public class PulsarTestContext implements AutoCloseable {
             }
             registerCloseable(() -> {
                 pulsarService.close();
-                resetSpyOrMock(pulsarService);
+                pulsarService.releaseCollaboratorMocks();
+                releaseSpyOrMock(pulsarService);
             });
             pulsarService(pulsarService);
         }
@@ -974,13 +1009,17 @@ public class PulsarTestContext implements AutoCloseable {
         protected void initializePulsarServices(SpyConfig spyConfig, Builder builder) {
             if (builder.managedLedgerStorage == null) {
                 ManagedLedgerFactory mlFactoryMock = Mockito.mock(ManagedLedgerFactory.class);
-                managedLedgerStorage(
-                        spyConfig.getManagedLedgerStorage()
-                                .spy(PulsarTestContext.createManagedLedgerStorage(builder.bookKeeperClient,
-                                        mlFactoryMock)));
+                ManagedLedgerStorage managedLedgerStorageSpy = spyConfig.getManagedLedgerStorage()
+                        .spy(PulsarTestContext.createManagedLedgerStorage(builder.bookKeeperClient, mlFactoryMock));
+                registerCloseable(() -> {
+                    releaseSpyOrMock(managedLedgerStorageSpy);
+                    releaseSpyOrMock(mlFactoryMock);
+                });
+                managedLedgerStorage(managedLedgerStorageSpy);
             }
             if (builder.pulsarResources == null) {
                 SpyConfig.SpyType spyConfigPulsarResources = spyConfig.getPulsarResources();
+                PulsarResources pulsarResources;
                 if (useTestPulsarResources) {
                     MetadataStore metadataStore = pulsarResourcesMetadataStore;
                     if (metadataStore == null) {
@@ -989,16 +1028,20 @@ public class PulsarTestContext implements AutoCloseable {
                     NamespaceResources nsr = spyConfigPulsarResources.spy(NamespaceResources.class,
                             metadataStore, 30);
                     TopicResources tsr = spyConfigPulsarResources.spy(TopicResources.class, metadataStore);
-                    pulsarResources(
-                            spyConfigPulsarResources.spy(
-                                    NonStartableTestPulsarService.TestPulsarResources.class, builder.localMetadataStore,
-                                    builder.configurationMetadataStore,
-                                    tsr, nsr));
+                    registerCloseable(() -> {
+                        releaseSpyOrMock(nsr);
+                        releaseSpyOrMock(tsr);
+                    });
+                    pulsarResources = spyConfigPulsarResources.spy(
+                            NonStartableTestPulsarService.TestPulsarResources.class, builder.localMetadataStore,
+                            builder.configurationMetadataStore,
+                            tsr, nsr);
                 } else {
-                    pulsarResources(
-                            spyConfigPulsarResources.spy(PulsarResources.class, builder.localMetadataStore,
-                                    builder.configurationMetadataStore));
+                    pulsarResources = spyConfigPulsarResources.spy(PulsarResources.class, builder.localMetadataStore,
+                            builder.configurationMetadataStore);
                 }
+                registerCloseable(() -> releaseSpyOrMock(pulsarResources));
+                pulsarResources(pulsarResources);
             }
             BookKeeperClientFactory bookKeeperClientFactory =
                     new MockBookKeeperClientFactory(builder.bookKeeperClient);
@@ -1007,7 +1050,7 @@ public class PulsarTestContext implements AutoCloseable {
                     .equals(PulsarCompactionServiceFactory.class.getName())) {
                 compactionServiceFactory = new MockPulsarCompactionServiceFactory(spyConfig, builder.compactor);
             }
-            PulsarService pulsarService = spyConfig.getPulsarService()
+            NonStartableTestPulsarService pulsarService = spyConfig.getPulsarService()
                     .spy(NonStartableTestPulsarService.class, spyConfig, builder.config, builder.localMetadataStore,
                             builder.configurationMetadataStore, compactionServiceFactory,
                             builder.brokerInterceptor,
@@ -1018,7 +1061,8 @@ public class PulsarTestContext implements AutoCloseable {
             }
             registerCloseable(() -> {
                 pulsarService.close();
-                resetSpyOrMock(pulsarService);
+                pulsarService.releaseCollaboratorMocks();
+                releaseSpyOrMock(pulsarService);
             });
             pulsarService(pulsarService);
         }

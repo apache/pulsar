@@ -110,6 +110,8 @@ public class OffloadedLedgerFindPositionTest extends BlobStoreManagedLedgerOfflo
         ManagedLedgerFactoryConfig factoryConfig = new ManagedLedgerFactoryConfig();
         // Measure the reads from the blob store, not from the broker entry cache
         factoryConfig.setMaxCacheSize(0);
+        // The mock BookKeeper sleeps 1 ms for each add by default, on a single thread: 15 s for these 15K adds
+        bk.setDefaultAddEntryDelayMillis(0);
         factory = new ManagedLedgerFactoryImpl(metadataStore, bk, factoryConfig);
         ManagedLedgerConfig ledgerConfig = new ManagedLedgerConfig();
         ledgerConfig.setMaxEntriesPerLedger(ENTRIES_PER_LEDGER);

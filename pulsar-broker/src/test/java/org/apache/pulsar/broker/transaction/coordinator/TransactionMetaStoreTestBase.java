@@ -40,7 +40,7 @@ public abstract class TransactionMetaStoreTestBase extends TestRetrySupport {
     LocalBookkeeperEnsemble bkEnsemble;
     protected PulsarAdmin[] pulsarAdmins = new PulsarAdmin[BROKER_COUNT];
     protected PulsarClient pulsarClient;
-    protected static final int BROKER_COUNT = 5;
+    protected static final int BROKER_COUNT = 2;
     protected ServiceConfiguration[] configurations = new ServiceConfiguration[BROKER_COUNT];
     protected PulsarService[] pulsarServices = new PulsarService[BROKER_COUNT];
 
@@ -50,7 +50,7 @@ public abstract class TransactionMetaStoreTestBase extends TestRetrySupport {
     protected final void setup() throws Exception {
         log.info().attr("class", getClass().getSimpleName()).log("---- Initializing -----");
         // Start local bookkeeper ensemble
-        bkEnsemble = new LocalBookkeeperEnsemble(3, 0);
+        bkEnsemble = new LocalBookkeeperEnsemble(1, 0);
         bkEnsemble.start();
 
         String[] args = new String[]{
@@ -73,6 +73,9 @@ public abstract class TransactionMetaStoreTestBase extends TestRetrySupport {
             config.setDefaultNumberOfNamespaceBundles(1);
             config.setLoadBalancerEnabled(false);
             config.setTransactionCoordinatorEnabled(true);
+            config.setManagedLedgerDefaultEnsembleSize(1);
+            config.setManagedLedgerDefaultWriteQuorum(1);
+            config.setManagedLedgerDefaultAckQuorum(1);
             configurations[i] = config;
 
             pulsarServices[i] = spyWithClassAndConstructorArgs(PulsarService.class, config);
@@ -82,8 +85,6 @@ public abstract class TransactionMetaStoreTestBase extends TestRetrySupport {
                     .serviceHttpUrl(pulsarServices[i].getWebServiceAddress())
                     .build();
         }
-
-        Thread.sleep(100);
 
         afterPulsarStart();
 
@@ -95,8 +96,6 @@ public abstract class TransactionMetaStoreTestBase extends TestRetrySupport {
             .build();
         transactionCoordinatorClient = new TransactionCoordinatorClientImpl(pulsarClient);
         transactionCoordinatorClient.start();
-
-        Thread.sleep(3000);
 
         afterSetup();
     }
