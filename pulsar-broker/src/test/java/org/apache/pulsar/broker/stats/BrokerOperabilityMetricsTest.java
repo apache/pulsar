@@ -27,6 +27,7 @@ import io.opentelemetry.api.OpenTelemetry;
 import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import io.prometheus.metrics.model.snapshots.MetricSnapshots;
 import io.prometheus.metrics.model.snapshots.SummarySnapshot;
+import java.util.Map;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.PulsarStats;
@@ -108,5 +109,26 @@ public class BrokerOperabilityMetricsTest {
         second.getBrokerOperabilityMetrics().recordTopicLoadTimeValue(7);
         assertEquals(scrapedTopicLoadCount(registry), 1);
         second.close();
+    }
+
+    /** getMetrics() resets before it reads, so the exported topic load mean comes from an empty summary. */
+    @Test
+    public void testTopicLoadMeanIsNaNWhenNothingWasRecordedSinceTheLastReset() {
+        BrokerOperabilityMetrics metrics = new BrokerOperabilityMetrics(mockPulsar(), new PrometheusRegistry());
+        try {
+            // two values, so the mean is not also one of the quantiles
+            metrics.recordTopicLoadTimeValue(1);
+            metrics.recordTopicLoadTimeValue(5);
+            Map<String, Object> recorded = metrics.getTopicLoadMetrics().getMetrics();
+            assertEquals(recorded.get("brk_topic_load_time_mean_ms"), 3.0);
+            assertEquals(recorded.get("brk_topic_load_rate_s"), 2.0);
+
+            Map<String, Object> afterReset = metrics.getMetrics().get(0).getMetrics();
+            assertEquals(afterReset.get("brk_topic_load_rate_s"), 0.0);
+            assertEquals(afterReset.get("brk_topic_load_time_mean_ms"), Double.NaN);
+            assertEquals(afterReset.get("brk_topic_load_time_median_ms"), Double.NaN);
+        } finally {
+            metrics.close();
+        }
     }
 }
