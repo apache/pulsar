@@ -59,7 +59,7 @@ jobs:
           java-version: 21
 
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Gradle
         uses: ./.github/actions/setup-gradle

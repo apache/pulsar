@@ -72,6 +72,9 @@ public class UnAckedMessageRedeliveryTracker extends UnAckedMessageTracker {
                     return;
                 }
 
+                Set<MessageId> messageIds = TL_MESSAGE_IDS_SET.get();
+                messageIds.clear();
+
                 writeLock.lock();
                 try {
                     HashSet<UnackMessageIdWrapper> headPartition = redeliveryTimePartitions.removeFirst();
@@ -84,12 +87,26 @@ public class UnAckedMessageRedeliveryTracker extends UnAckedMessageTracker {
                     }
                     headPartition.clear();
                     redeliveryTimePartitions.addLast(headPartition);
-                    triggerRedelivery(consumerBase);
+                    collectMessagesToRedeliver(consumerBase, messageIds);
+                    if (redeliversAllOnAckTimeout && !messageIds.isEmpty()) {
+                        // The consumer redelivers all of its unacked messages and clears this tracker, also the
+                        // ones still waiting out their backoff and the ones that did not time out yet: report
+                        // them to onAckTimeoutSend as well
+                        removeAllMessagesToRedeliver(consumerBase, messageIds);
+                    }
                 } finally {
                     try {
                         timeout = client.timer().newTimeout(this, tickDurationInMs, TimeUnit.MILLISECONDS);
                     } finally {
                         writeLock.unlock();
+
+                        // Never call into the consumer while holding the tracker lock: receive processing
+                        // and explicit redelivery hold the consumer monitor while updating this tracker.
+                        // UnAckedMessageTracker follows the same lock ordering.
+                        if (!messageIds.isEmpty()) {
+                            consumerBase.onAckTimeoutSend(messageIds);
+                            consumerBase.redeliverUnacknowledgedMessages(messageIds);
+                        }
                     }
                 }
             }
@@ -112,37 +129,47 @@ public class UnAckedMessageRedeliveryTracker extends UnAckedMessageTracker {
         }
     }
 
-    private void triggerRedelivery(ConsumerBase<?> consumerBase) {
+    private void collectMessagesToRedeliver(ConsumerBase<?> consumerBase, Set<MessageId> messageIds) {
         if (ackTimeoutMessages.isEmpty()) {
             return;
         }
-        Set<MessageId> messageIds = TL_MESSAGE_IDS_SET.get();
-        messageIds.clear();
 
-        try {
-            long now = System.currentTimeMillis();
-            ackTimeoutMessages.forEach((messageId, timestamp) -> {
-                if (timestamp <= now) {
-                    addChunkedMessageIdsAndRemoveFromSequenceMap(messageId, messageIds, consumerBase);
-                    messageIds.add(messageId);
-                }
-            });
-            if (!messageIds.isEmpty()) {
-                log.info().attr("consumerBase", consumerBase)
-                        .attr("size", messageIds.size())
-                        .log("messages will be re-delivered");
-                Iterator<MessageId> iterator = messageIds.iterator();
-                while (iterator.hasNext()) {
-                    MessageId messageId = iterator.next();
-                    ackTimeoutMessages.remove(messageId);
-                }
+        long now = System.currentTimeMillis();
+        ackTimeoutMessages.forEach((messageId, timestamp) -> {
+            if (timestamp <= now) {
+                addChunkedMessageIdsAndRemoveFromSequenceMap(messageId, messageIds, consumerBase);
+                messageIds.add(messageId);
             }
-        } finally {
-            if (messageIds.size() > 0) {
-                consumerBase.onAckTimeoutSend(messageIds);
-                consumerBase.redeliverUnacknowledgedMessages(messageIds);
+        });
+        if (!messageIds.isEmpty()) {
+            log.info().attr("consumerBase", consumerBase)
+                    .attr("size", messageIds.size())
+                    .log("messages will be re-delivered");
+            Iterator<MessageId> iterator = messageIds.iterator();
+            while (iterator.hasNext()) {
+                MessageId messageId = iterator.next();
+                ackTimeoutMessages.remove(messageId);
             }
         }
+    }
+
+    // Keeps the chunk mappings of these messages, since their redelivery is not due yet: an acknowledgment of one of
+    // them must still cover all its chunks
+    private void removeAllMessagesToRedeliver(ConsumerBase<?> consumerBase, Set<MessageId> messageIds) {
+        ackTimeoutMessages.keySet().forEach(messageId -> {
+            addChunkedMessageIds(messageId, messageIds, consumerBase);
+            messageIds.add(messageId);
+        });
+        ackTimeoutMessages.clear();
+        redeliveryMessageIdPartitionMap.clear();
+        redeliveryTimePartitions.forEach(partition -> {
+            partition.forEach(unackMessageIdWrapper -> {
+                addChunkedMessageIds(unackMessageIdWrapper.getMessageId(), messageIds, consumerBase);
+                messageIds.add(unackMessageIdWrapper.getMessageId());
+                unackMessageIdWrapper.recycle();
+            });
+            partition.clear();
+        });
     }
 
     @Override

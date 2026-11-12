@@ -125,31 +125,37 @@ configurations.matching { it.name.endsWith("ProtoPath") }.configureEach {
     extendsFrom(configurations["internalPlatform"])
 }
 
-// Generate Avro test classes from .avsc schema files
-val avroTools = configurations.create("avroTools") {
+// Generate Avro test classes from .avsc schema files, with avro-tools declared in avroTools and
+// resolved in avroToolsClasspath (see ProjectArtifacts.kt)
+val avroTools = runtimeJars("avroToolsClasspath", "avroTools")
+avroTools.files.configure {
     // Align the avro-tools codegen classpath with the enforced version platform so its transitive
     // dependencies (commons-*, jetty-util, ...) match the version catalog instead of avro-tools'
     // own older transitives. Build-time only, never published.
     extendsFrom(configurations["internalPlatform"])
 }
 dependencies {
-    avroTools("org.apache.avro:avro-tools:${libs.versions.avro.get()}") {
+    avroTools.dependencies(libs.tooling.avro.tools) {
         exclude(group = "org.eclipse.jetty", module = "jetty-server")
     }
 }
 
 val generateTestAvro = tasks.register<JavaExec>("generateTestAvro") {
-    val avscDir = file("src/test/resources/avro")
+    group = "build"
+    description = "Generates the Java classes of the Avro schemas that the tests use"
+    val avscDir = layout.projectDirectory.dir("src/test/resources/avro")
     val outputDir = layout.buildDirectory.dir("generated-sources/avro-test")
-    inputs.dir(avscDir)
-    outputs.dir(outputDir)
-    classpath = avroTools
+    inputs.dir(avscDir).withPropertyName("schemas").withPathSensitivity(PathSensitivity.RELATIVE)
+    outputs.dir(outputDir).withPropertyName("generatedSources")
+    classpath = files(avroTools.files)
     mainClass.set("org.apache.avro.tool.Main")
-    args("compile", "schema", avscDir.absolutePath, outputDir.get().asFile.absolutePath)
+    argumentProviders.add(CommandLineArgumentProvider {
+        listOf("compile", "schema", avscDir.asFile.absolutePath, outputDir.get().asFile.absolutePath)
+    })
 }
 
-sourceSets["test"].java.srcDir(generateTestAvro.map { layout.buildDirectory.dir("generated-sources/avro-test").get() })
-tasks.named("compileTestJava") { dependsOn(generateTestAvro) }
+// The task's output directory, which also makes compiling the tests generate the classes first
+sourceSets["test"].java.srcDir(generateTestAvro)
 
 // ---------------------------------------------------------------------------
 // Publish-time dependency replacement: in the PUBLISHED POM and Gradle Module Metadata only,

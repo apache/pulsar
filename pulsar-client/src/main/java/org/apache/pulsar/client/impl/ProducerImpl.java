@@ -167,6 +167,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private final MessageCrypto<?, ?> msgCrypto;
 
     private ScheduledFuture<?> keyGeneratorTask = null;
+    // Completed by the key task once the first key load has succeeded; null without encryption. The creation
+    // completes only after it, so a producer whose key cannot be loaded fails its creation whether the connection
+    // or the key load finishes first.
+    private final CompletableFuture<Void> firstKeyLoad;
+    // Guarded by the producer lock: a reconnection must not restart the wait for the first key load.
+    private boolean firstKeyLoadTimeoutScheduled;
 
     private final Map<String, String> metadata;
 
@@ -278,6 +284,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         } else {
             this.msgCrypto = null;
         }
+        this.firstKeyLoad = this.msgCrypto != null ? new CompletableFuture<>() : null;
 
         if (conf.getSendTimeoutMs() > 0) {
             sendTimeout = client.timer().newTimeout(this, conf.getSendTimeoutMs(), TimeUnit.MILLISECONDS);
@@ -849,6 +856,18 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
 
         if (canAddToBatch(msg) && totalChunks <= 1) {
+            final State state = getState();
+            if (state == State.Terminated || state == State.Closed || state == State.ProducerFenced) {
+                // sendAsync checked the state before it took the producer lock, and the producer has reached a
+                // terminal state since. It fails the messages it holds as it ends and no longer schedules batch
+                // flushes: a message added now would sit in the batch, and its send would not complete. Fail it, as
+                // processOpSendMsg fails a message sent on its own.
+                payload.release();
+                PulsarClientException failure = getTerminalException(state);
+                failure.setSequenceId(sequenceId);
+                completeCallbackAndReleaseSemaphore(msg.getUncompressedSize(), callback, failure);
+                return;
+            }
             if (canAddToCurrentBatch(msg)) {
                 // should trigger complete the batch message, new message will add to a new batch and new batch
                 // sequence id use the new message, so that broker can handle the message duplication
@@ -2241,7 +2260,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         cnx.sendRequestWithId(
                 Commands.newProducer(topic, producerId, requestId, producerName, conf.isEncryptionEnabled(), metadata,
                         schemaInfo, epoch, userProvidedProducerName,
-                        conf.getAccessMode(), topicEpoch, client.conf.isEnableTransaction(),
+                        conf.getAccessMode(), topicEpoch, client.getConfiguration().isEnableTransaction(),
                         conf.getInitialSubscriptionName(), schema instanceof AutoProduceBytesSchema),
                 requestId).thenAccept(response -> {
             if (connectionHandler.isSupersededAttempt(cnx, epoch)) {
@@ -2429,11 +2448,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 .attr("retry", t.getClass().getName())
                 .exceptionMessage(t)
                 .log("Closed producer because get an error that does not support to retry");
+        // Fail the creation with the error before closing, so that the close does not fail it first with its own.
+        producerCreatedFuture.completeExceptionally(t);
         closeAsync().whenComplete((v, ex) -> {
             if (ex != null) {
                 log.error().exception(ex).log("Failed to close producer on TopicDoesNotExistException.");
             }
-            producerCreatedFuture.completeExceptionally(t);
         });
     }
 
@@ -2481,13 +2501,64 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         if (keyGeneratorTask != null && !keyGeneratorTask.isCancelled()) {
             keyGeneratorTask.cancel(false);
         }
+        if (firstKeyLoad != null) {
+            // The creation of a producer that encrypts can wait for the key, or for a reconnection after it, and
+            // nothing else completes it once the producer has closed: fail it here, whatever stage it has reached.
+            // A creation that has already completed, or already failed with its own cause, is not affected.
+            producerCreatedFuture.completeExceptionally(new PulsarClientException.AlreadyClosedException(
+                    String.format("The producer %s of the topic %s was closed before it was created",
+                            producerName, topic)));
+        }
 
         stats.cancelStatsTimeout();
+    }
+
+    /**
+     * Completes the creation, after the first key load when the producer encrypts: the key is loaded by a task
+     * that runs apart from the connection, and a producer whose key cannot be loaded must not be created even
+     * when the connection is ready first. The key task fails the creation itself in that case, and so does the
+     * timeout if the key does not load before the producer deadline. Called under the producer lock.
+     */
+    private void completeCreation() {
+        if (firstKeyLoad == null) {
+            producerCreatedFuture.complete(this);
+            return;
+        }
+        if (!firstKeyLoad.isDone() && !firstKeyLoadTimeoutScheduled) {
+            firstKeyLoadTimeoutScheduled = true;
+            // The creation has the same budget as when it retries a connection: the time left until the producer
+            // deadline set on the first connection. Waited for on the timer, not on the event loop running the key
+            // reader.
+            long remainingMs = Math.max(0, producerDeadline - System.currentTimeMillis());
+            Timeout timeout = client.timer().newTimeout(ignored -> {
+                if (!firstKeyLoad.isDone() && producerCreatedFuture.completeExceptionally(
+                        new PulsarClientException.TimeoutException(String.format(
+                                "The producer %s of the topic %s timed out waiting for its encryption key",
+                                producerName, topic)))) {
+                    closeAsync();
+                }
+            }, remainingMs, TimeUnit.MILLISECONDS);
+            firstKeyLoad.thenRun(timeout::cancel);
+            producerCreatedFuture.whenComplete((producer, error) -> timeout.cancel());
+        }
+        firstKeyLoad.thenRun(() -> {
+            if (getState() == State.Ready) {
+                producerCreatedFuture.complete(this);
+            }
+            // Otherwise the producer is reconnecting, and the next switch to Ready completes the creation, or it
+            // has ended, and closeProducerTasks() has failed the creation.
+        });
     }
 
     private void resendMessages(ClientCnx cnx, long expectedEpoch) {
         cnx.ctx().channel().eventLoop().execute(() -> {
             synchronized (ProducerImpl.this) {
+                // The attempt may have been superseded after its success response queued this task.
+                // Check before Closing/Closed too, so a broker-closed registration does not cause stale work
+                // to close the possibly shared channel.
+                if (connectionHandler.isSupersededAttempt(cnx, expectedEpoch)) {
+                    return;
+                }
                 if (getState() == State.Closing || getState() == State.Closed) {
                     // Producer was closed while reconnecting, close the connection to make sure the broker
                     // drops the producer on its side
@@ -2501,7 +2572,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                                 .attr("resend", messagesToResend)
                                 .log("No pending messages to resend");
                     if (changeToReadyState()) {
-                        producerCreatedFuture.complete(ProducerImpl.this);
+                        completeCreation();
                         scheduleBatchFlushTask(0);
                         return;
                     } else {
@@ -2649,7 +2720,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     @VisibleForTesting
     synchronized void failPendingMessages(ClientCnx cnx, PulsarClientException ex) {
         if (cnx == null) {
-            final AtomicInteger releaseCount = new AtomicInteger();
             final boolean batchMessagingEnabled = isBatchMessagingEnabled();
             // Track message count to fail so that newly added messages by synchronous retries
             // triggered by op.sendComplete(ex); don't get removed
@@ -2664,7 +2734,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
             for (int i = 0; i < pendingMessagesToFailCount; i++) {
                 OpSendMsg op = pendingMessages.remove();
-                releaseCount.addAndGet(batchMessagingEnabled ? op.numMessagesInBatch : 1);
+                // Give the op's permits and memory back before completing its callback, like the other completion
+                // paths: a caller woken by the failed send, or a retry from the callback, must find them released.
+                releaseSemaphoreForSendOp(op);
                 try {
                     // Need to protect ourselves from any exception being thrown in the future handler from the
                     // application
@@ -2682,11 +2754,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                             .log("Got exception while completing the callback");
                 }
 
-                client.getMemoryLimitController().releaseMemory(op.uncompressedSize);
                 releaseOpCmdAndRecycle(op);
             }
 
-            semaphoreRelease(releaseCount.get());
             if (batchMessagingEnabled) {
                 failPendingBatchMessages(ex);
             }
@@ -2925,10 +2995,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
      * a non-last chunk: its failure stops the builder, so no last-chunk operation will be created to
      * settle the message future, interceptor payload retain and pending-message metrics.
      *
-     * <p>Keep this separate from failPendingMessages: that method settles already-queued operations,
-     * invokes chunked-message callbacks only for the last chunk, and returns permits together after
-     * draining its snapshot of the queue. Here the failed op returns its own accounting, while the
-     * builder releases the claims for chunks that will never be created.
+     * <p>Keep this separate from failPendingMessages: that method settles already-queued operations
+     * and invokes chunked-message callbacks only for the last chunk. Here the failed op returns its
+     * own accounting, while the builder releases the claims for chunks that will never be created.
      */
     private void failSendOp(OpSendMsg op, PulsarClientException exception) {
         if (op.chunkedMessageCtx != null) {
@@ -3259,18 +3328,25 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private void addPublicKeyCipher() {
         try {
             msgCrypto.addPublicKeyCipher(conf.getEncryptionKeys(), conf.getCryptoKeyReader());
-        } catch (CryptoException e) {
+            firstKeyLoad.complete(null);
+        } catch (Throwable e) {
+            // A key reader that throws, an exception or an error, cannot provide the key either: the creation must
+            // not wait for a key load that has ended.
             if (!producerCreatedFuture.isDone()) {
-                log.warn().log("Failed to add public key cipher");
-                producerCreatedFuture.completeExceptionally(
-                        PulsarClientException.wrap(e,
-                                String.format("The producer %s of the topic %s "
-                                                + "adds the public key cipher was failed",
-                                        producerName, topic)));
+                log.warn().exception(e).log("Failed to add public key cipher");
+                String message = String.format("The producer %s of the topic %s adds the public key cipher was failed",
+                        producerName, topic);
+                producerCreatedFuture.completeExceptionally(e instanceof CryptoException
+                        ? PulsarClientException.wrap(e, message) : new PulsarClientException(message, e));
                 // The creation has failed, so close the producer as the other creation failures do. Otherwise it
                 // stays in the client and keeps the connection it is about to open, which registers it on the
                 // broker and then reconnects it as if it had been created.
                 closeAsync();
+            } else if (e instanceof RuntimeException) {
+                // A later refresh: leave it to the task wrapper to log, as before.
+                throw (RuntimeException) e;
+            } else if (e instanceof Error) {
+                throw (Error) e;
             }
         }
     }

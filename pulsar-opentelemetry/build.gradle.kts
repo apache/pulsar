@@ -34,12 +34,12 @@ dependencies {
     implementation(libs.commons.lang3)
 
     testImplementation(project(":testmocks"))
-    testImplementation(project(path = ":pulsar-broker-common", configuration = "testJar"))
+    testImplementation(testJar(":pulsar-broker-common"))
     testImplementation(libs.restassured)
     testImplementation(libs.awaitility)
     testImplementation(libs.opentelemetry.sdk.testing)
 }
 
-tasks.withType<Test> {
+tasks.withType<Test>().configureEach {
     systemProperty("otel.semconv-stability.opt-in", "jvm")
 }
