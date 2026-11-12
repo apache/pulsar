@@ -194,6 +194,18 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
 
     @Test
     public void testOAuth2TokenRefreshedWithoutReconnect() throws Exception {
+        testOAuth2TokenRefreshedWithoutReconnect(0);
+    }
+
+    @Test
+    public void testOAuth2TokenRefreshedWithoutReconnectAfterSlowTokenResponse() throws Exception {
+        // The client's first token arrives 1.5 s after the identity provider issued it, longer than the broker's
+        // 1 s refresh check. A client that counted the token's lifetime from its arrival would still serve it
+        // when the broker's first refresh after its expiration comes, and the broker would close the connection.
+        testOAuth2TokenRefreshedWithoutReconnect(1500);
+    }
+
+    private void testOAuth2TokenRefreshedWithoutReconnect(long firstTokenResponseDelayMillis) throws Exception {
         log.info().attr("method", methodName).log("Starting test");
         clientSetup();
 
@@ -203,6 +215,8 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
             new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
 
+        // the client fetches its first token when it connects for the consumer
+        server.delayNextTokenResponse(firstTokenResponseDelayMillis);
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic")
             .subscriptionName("my-subscriber-name").subscribe();
 

@@ -201,6 +201,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     @VisibleForTesting
     final AtomicReference<SeekStatus> seekStatus;
     private volatile CompletableFuture<Void> seekFuture;
+    // The number of seeks that the broker confirmed. Updated on the connection's thread, which receives the messages in
+    // order with the seek response: each message records the count when it arrives, so a message that arrived before
+    // a seek can be told apart from one that arrived after it, wherever it is when the seek completes.
+    private final AtomicLong seekCount = new AtomicLong();
 
     private final MessageIdAdv initialStartMessageId;
 
@@ -1343,7 +1347,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     @Override
-    public synchronized CompletableFuture<Void> closeAsync() {
+    public CompletableFuture<Void> closeAsync() {
+        return closeAsync(true);
+    }
+
+    // A parent retaining another child with this schema owns its eventual close.
+    synchronized CompletableFuture<Void> closeAsync(boolean closeSchema) {
         CompletableFuture<Void> closeFuture = new CompletableFuture<>();
 
         ArrayList<CompletableFuture<Void>> closeFutures = new ArrayList<>(4);
@@ -1362,7 +1371,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 }
             }));
         }
-        if (schema != null) {
+        if (closeSchema && schema != null) {
             closeFutures.add(schema.closeAsync().whenComplete((ignore, ex) -> {
                 if (ex != null) {
                     log.warn().exception(ex).log("Exception ignored in closing schema of consumer");
@@ -1571,12 +1580,16 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         // Enqueue the message so that it can be retrieved when application calls receive()
         // if the conf.getReceiverQueueSize() is 0 then discard message if no one is waiting for it.
         // if asyncReceive is waiting then notify callback without adding to incomingMessages queue
+        final long seekCountOnArrival = seekCount.get();
         internalPinnedExecutor.execute(() -> {
             if (!isValidConsumerEpoch(message)) {
                 increaseAvailablePermits(cnx());
                 return;
             }
             Message<T> interceptMsg = onArrival(message);
+            if (interceptMsg instanceof MessageImpl) {
+                ((MessageImpl<T>) interceptMsg).setConsumerSeekCount(seekCountOnArrival);
+            }
             if (hasNextPendingReceive()) {
                 notifyPendingReceivedCallback(interceptMsg, null);
             } else if (enqueueMessageAndCheckBatchReceive(interceptMsg) && hasPendingBatchReceive()) {
@@ -3045,6 +3058,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
                 lastDequeuedMessageId = MessageId.earliest;
 
+                seekCount.incrementAndGet();
                 clearIncomingMessages();
                 CompletableFuture<Void> future = null;
                 synchronized (this) {
@@ -3097,6 +3111,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (seekStatus.compareAndSet(SeekStatus.IN_PROGRESS, SeekStatus.NOT_STARTED)) {
             seekFuture.completeExceptionally(throwable);
         }
+    }
+
+    long getSeekCount() {
+        return seekCount.get();
     }
 
     @Override

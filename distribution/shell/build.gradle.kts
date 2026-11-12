@@ -17,6 +17,8 @@
  * under the License.
  */
 
+import org.gradle.api.artifacts.component.ProjectComponentIdentifier
+
 plugins {
     id("pulsar.java-conventions")
     id("pulsar.binary-license-check-conventions")
@@ -27,10 +29,12 @@ tasks.named("compileTestJava") { enabled = false }
 tasks.named("jar") { enabled = false }
 val nettyTcnativeVersion: String = libs.versions.netty.tcnative.get()
 val bookkeeperVersion: String = libs.versions.bookkeeper.get()
-val distLib = configurations.create("distLib") {
-    isCanBeResolved = true
-    isCanBeConsumed = false
-    isTransitive = true
+// The runtime dependencies that the distribution bundles: declared in distLib, resolved with their
+// dependencies in distLibFiles (see ProjectArtifacts.kt)
+val distLibArtifacts = runtimeJars("distLibFiles", "distLib")
+val distLib = distLibArtifacts.dependencies
+val distLibFiles = distLibArtifacts.files
+distLibFiles.configure {
     // Inherit the enforced version-alignment platform so bundled dependency versions match the
     // version catalog (the platform lives on the non-published `internalPlatform` bucket from
     // pulsar.java-conventions; `implementation` no longer carries it).
@@ -75,15 +79,16 @@ dependencies {
     }
 }
 val pulsarVersion = project.version.toString()
-val rootDir = rootProject.projectDir
 val shellDistTar = tasks.register<Tar>("shellDistTar") {
+    group = "distribution"
+    description = "Builds the Pulsar shell distribution tarball"
     val baseDir = "apache-pulsar-shell-${pulsarVersion}"
-    val renameMap = distLib.incoming.artifacts.resolvedArtifacts.map { artifacts ->
+    val renameMap = distLibFiles.flatMap { it.incoming.artifacts.resolvedArtifacts }.map { artifacts ->
         artifacts.associate { result ->
             val id = result.id.componentIdentifier
             val file = result.file
             val newName = when (id) {
-                is org.gradle.api.artifacts.component.ProjectComponentIdentifier -> {
+                is ProjectComponentIdentifier -> {
                     val mappedName = file.nameWithoutExtension
                     "${mappedName}.${file.extension}"
                 }
@@ -135,7 +140,7 @@ val shellDistTar = tasks.register<Tar>("shellDistTar") {
         into("${baseDir}/conf")
     }
     // Runtime dependency JARs
-    from(distLib) {
+    from(distLibFiles) {
         into("${baseDir}/lib")
         exclude("**/*.nar")
     }
@@ -148,13 +153,15 @@ val shellDistTar = tasks.register<Tar>("shellDistTar") {
     }
 }
 val shellDistZip = tasks.register<Zip>("shellDistZip") {
+    group = "distribution"
+    description = "Builds the Pulsar shell distribution zip"
     val baseDir = "apache-pulsar-shell-${pulsarVersion}"
-    val renameMap = distLib.incoming.artifacts.resolvedArtifacts.map { artifacts ->
+    val renameMap = distLibFiles.flatMap { it.incoming.artifacts.resolvedArtifacts }.map { artifacts ->
         artifacts.associate { result ->
             val id = result.id.componentIdentifier
             val file = result.file
             val newName = when (id) {
-                is org.gradle.api.artifacts.component.ProjectComponentIdentifier -> {
+                is ProjectComponentIdentifier -> {
                     val mappedName = file.nameWithoutExtension
                     "${mappedName}.${file.extension}"
                 }
@@ -202,7 +209,7 @@ val shellDistZip = tasks.register<Zip>("shellDistZip") {
     from(rootDir.resolve("conf/log4j2.yaml")) {
         into("${baseDir}/conf")
     }
-    from(distLib) {
+    from(distLibFiles) {
         into("${baseDir}/lib")
         exclude("**/*.nar")
     }
@@ -224,12 +231,16 @@ binaryLicenseCheck {
 // Export the runtime classpath to a file for bin/ scripts to use
 // when running Pulsar CLI tools from a development build
 val exportClasspath = tasks.register("exportClasspath") {
+    group = "build"
+    description = "Writes the distribution's runtime classpath to build/classpath.txt for the bin/ scripts"
     val outputFile = layout.buildDirectory.file("classpath.txt")
+    val classpath = files(distLibFiles)
+    inputs.files(classpath).withPropertyName("classpath").withNormalizer(ClasspathNormalizer::class.java)
     outputs.file(outputFile)
     doLast {
         outputFile.get().asFile.apply {
             parentFile.mkdirs()
-            writeText(distLib.asPath)
+            writeText(classpath.asPath)
         }
     }
 }

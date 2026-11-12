@@ -21,6 +21,7 @@ package org.apache.pulsar.common.util.collections;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
@@ -436,5 +437,45 @@ public class GrowableArrayBlockingQueueTest {
         assertTrue(queue.remove(7));
         assertEquals(queue.size(), 1);
         assertEquals(queue.toString(), "[3]");
+    }
+
+    @Test
+    public void removeIfKeepsOrderAcrossWrap() {
+        GrowableArrayBlockingQueue<Integer> queue = new GrowableArrayBlockingQueue<>(4);
+        assertFalse(queue.removeIf(i -> true));
+
+        // Fill the array, with the items wrapping around its end
+        queue.addAll(List.of(1, 2, 3));
+        queue.poll();
+        queue.addAll(List.of(4, 5));
+        assertEquals(queue.capacity(), 4);
+        assertFalse(queue.removeIf(i -> i > 5));
+        assertTrue(queue.removeIf(i -> i % 2 == 0));
+        assertEquals(queue.size(), 2);
+        assertEquals(queue.toList(), List.of(3, 5));
+
+        // The slots of the removed items are reused
+        queue.addAll(List.of(6, 7));
+        assertEquals(queue.capacity(), 4);
+        assertEquals(queue.toList(), List.of(3, 5, 6, 7));
+
+        assertTrue(queue.removeIf(i -> true));
+        assertEquals(queue.size(), 0);
+        assertNull(queue.poll());
+        assertTrue(queue.offer(8));
+        assertEquals(queue.poll(), Integer.valueOf(8));
+    }
+
+    @Test
+    public void removeIfLeavesQueueUnchangedWhenFilterThrows() {
+        GrowableArrayBlockingQueue<Integer> queue = new GrowableArrayBlockingQueue<>(4);
+        queue.addAll(List.of(1, 2, 3));
+        assertThrows(IllegalStateException.class, () -> queue.removeIf(i -> {
+            if (i == 3) {
+                throw new IllegalStateException();
+            }
+            return true;
+        }));
+        assertEquals(queue.toList(), List.of(1, 2, 3));
     }
 }

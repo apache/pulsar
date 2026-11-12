@@ -121,7 +121,7 @@ function ci_move_test_reports() {
 }
 
 # writes "<seconds> <class>" for each top-level test class that the test or testShard* tasks ran, from their
-# JUnit XML reports, so that the next CI run of the unit test group packs its shards by these durations
+# JUnit XML reports, so that later CI runs of the unit test group pack their shards by these durations
 # (see gradle_test_shards in run_unit_group_gradle.sh). A report's time ends with the class's last test
 # method, before its cleanup, but a shard runs its classes one after the other in one JVM, so there a class
 # lasts until the next one starts. The forks of `test` share one report directory, so there the report's
@@ -139,21 +139,25 @@ function ci_record_test_durations() {
         if [[ "$results_dir" == */testShard* ]]; then
           in_order=1
         fi
+        # Gradle writes a class's start time as "2026-11-08T06:15:23.432Z", but "06:15:23Z" on a whole second,
+        # which sorts after "06:15:23.432Z" as text, so the classes are ordered by date and seconds since midnight
         find "$results_dir" -maxdepth 1 -name 'TEST-*.xml' -print0 |
           xargs -0 -r sed -n -E 's/^<testsuite name="([^"]+)".* timestamp="([^"]+)".* time="([0-9.]+)".*/\2 \3 \1/p' |
-          sort |
+          awk '{ split($1, t, /[T:Z]/); printf "%s %.3f %s %s\n", t[1], t[2] * 3600 + t[3] * 60 + t[4], $2, $3 }' |
+          sort -k1,1 -k2,2n |
           awk -v in_order=$in_order '
             {
-              split(substr($1, 12), hms, ":")
-              start[NR] = hms[1] * 3600 + hms[2] * 60 + hms[3]
-              seconds[NR] = $2
-              name[NR] = $3
+              day[NR] = $1
+              start[NR] = $2
+              seconds[NR] = $3
+              name[NR] = $4
             }
             END {
               for (i = 1; i <= NR; i++) {
                 if (in_order && i < NR) {
                   seconds[i] = start[i + 1] - start[i]
-                  if (seconds[i] < 0) {
+                  # the next class started after midnight
+                  if (day[i + 1] != day[i]) {
                     seconds[i] += 86400
                   }
                 }
@@ -170,6 +174,58 @@ function ci_record_test_durations() {
       echo "Recorded the durations of $(wc -l < "$durations_file") test classes in $durations_file"
     else
       rm -f "${durations_file}.tmp"
+    fi
+  )
+}
+
+# downloads the test class durations that the latest successful run of a unit test group on master uploaded
+# (see pulsar-ci.yaml) to the file that gradle_test_shards in run_unit_group_gradle.sh packs the group's
+# shards by. Unlike cache entries, artifacts aren't evicted before they expire. Without the file, the group
+# runs `test`, so a failed download doesn't fail the job. GH_TOKEN needs the actions: read permission.
+function ci_download_test_durations() {
+  (
+    local test_group="$1"
+    local artifact_name="unit-test-durations-${test_group}"
+    local durations_dir="${TEST_DURATIONS_DIR:-$PWD/build/test-durations}"
+    local artifact
+    # only runs on this repository's master: a pull request's run can upload an artifact of the same name
+    if ! artifact=$(gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${artifact_name}&per_page=100" \
+        --jq '[.artifacts[] | select((.expired | not) and .workflow_run.head_branch == "master"
+                and .workflow_run.head_repository_id == .workflow_run.repository_id)]
+              | max_by(.created_at) | select(. != null) | "\(.id) \(.workflow_run.id)"'); then
+      echo "::warning::Couldn't list the $artifact_name artifacts."
+      return 0
+    fi
+    if [ -z "$artifact" ]; then
+      echo "No master run has uploaded the test class durations of $test_group."
+      return 0
+    fi
+    local artifact_id run_id zip_file
+    read -r artifact_id run_id <<< "$artifact"
+    mkdir -p "$durations_dir"
+    zip_file=$(mktemp)
+    if ! gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" > "$zip_file" ||
+        ! unzip -o -q "$zip_file" -d "$durations_dir"; then
+      echo "::warning::Couldn't download the $artifact_name artifact of run $run_id."
+      rm -f "$zip_file"
+      return 0
+    fi
+    rm -f "$zip_file"
+    echo "Downloaded the durations of $(wc -l < "$durations_dir/${test_group}.txt") test classes of $test_group" \
+      "from ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${run_id}"
+  )
+}
+
+# reports the test methods that failed their first attempt and passed or failed again on the retry, from the
+# JUnit XML reports in test-reports/: a warning annotation per hidden failure, a job summary table and
+# test-reports/retried-tests.tsv. A failure to report doesn't fail the job.
+function ci_report_retried_tests() {
+  (
+    if [ -n "${GITHUB_WORKSPACE}" ]; then
+      cd "${GITHUB_WORKSPACE}"
+    fi
+    if [ -d test-reports ]; then
+      python3 -I "$SCRIPT_DIR/report_retried_tests.py" test-reports || echo "::warning::Reporting retried tests failed."
     fi
   )
 }

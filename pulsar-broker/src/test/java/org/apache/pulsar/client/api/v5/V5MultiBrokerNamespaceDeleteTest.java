@@ -25,11 +25,13 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import lombok.Cleanup;
+import org.apache.pulsar.broker.resources.ScalableTopicResources;
 import org.apache.pulsar.broker.service.SharedMultiBrokerPulsarCluster;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.v5.schema.Schema;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.scalable.SegmentLoadStats;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.assertj.core.api.SoftAssertions;
 import org.testng.annotations.Test;
@@ -102,6 +104,30 @@ public class V5MultiBrokerNamespaceDeleteTest extends V5MultiBrokerClientBaseTes
     }
 
     @Test
+    public void testDeleteNamespaceWithSegmentLoadReportedAfterTopicDelete() throws Exception {
+        String namespace = getNamespace();
+        String topic = newScalableTopic(2);
+        publishString(topic, "v");
+        deleteRecordThenReportSegmentLoad(topic);
+
+        admin.namespaces().deleteNamespace(namespace);
+
+        assertNamespaceNodesDeleted(namespace);
+    }
+
+    @Test
+    public void testForceDeleteNamespaceWithSegmentLoadReportedAfterTopicDelete() throws Exception {
+        String namespace = getNamespace();
+        String topic = newScalableTopic(2);
+        publishString(topic, "v");
+        deleteRecordThenReportSegmentLoad(topic);
+
+        admin.namespaces().deleteNamespace(namespace, true);
+
+        assertNamespaceNodesDeleted(namespace);
+    }
+
+    @Test
     public void testDeleteNamespaceWithNodeLeftUnderItIsConflict() throws Exception {
         String namespace = getNamespace();
         // Like a topic created while the namespace is deleted, but one that nothing deletes.
@@ -149,6 +175,31 @@ public class V5MultiBrokerNamespaceDeleteTest extends V5MultiBrokerClientBaseTes
                 .topic(topic)
                 .create();
         producer.newMessage().key("k").value(value).send();
+    }
+
+    /**
+     * Delete the record of a scalable topic, leaving its segment topics behind, then write the load of one of its
+     * segments, as the broker that owns it reports it: the write creates the node of the topic again, with no record.
+     */
+    private void deleteRecordThenReportSegmentLoad(String topic) throws Exception {
+        TopicName tn = TopicName.get(topic);
+        ScalableTopicResources resources = brokers.get(0).getPulsarResources().getScalableTopicResources();
+        resources.deleteScalableTopicAsync(tn).get();
+        resources.reportSegmentLoadAsync(tn, 0, new SegmentLoadStats(1, 100, 0, 0)).get();
+        assertThat(store().get(resources.topicPath(tn)).get())
+                .as("node of the deleted topic %s, created again by the load report", topic)
+                .hasValueSatisfying(result -> assertThat(result.getValue()).isEmpty());
+    }
+
+    private void assertNamespaceNodesDeleted(String namespace) throws Exception {
+        assertThat(admin.namespaces().getNamespaces(SharedMultiBrokerPulsarCluster.TENANT_NAME))
+                .doesNotContain(namespace);
+        assertThat(store().exists("/topics/" + namespace).get())
+                .as("scalable topic records of the deleted namespace %s", namespace)
+                .isFalse();
+        assertThat(store().exists("/managed-ledgers/" + namespace).get())
+                .as("managed ledgers of the deleted namespace %s", namespace)
+                .isFalse();
     }
 
     private MetadataStore store() {

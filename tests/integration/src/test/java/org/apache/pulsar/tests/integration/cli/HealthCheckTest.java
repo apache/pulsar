@@ -21,63 +21,30 @@ package org.apache.pulsar.tests.integration.cli;
 import static org.awaitility.Awaitility.await;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.HealthChecker;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.tests.integration.containers.BKContainer;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.apache.pulsar.tests.integration.docker.ContainerExecException;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
-import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 /**
  * Test the healthcheck command.
  */
-public class HealthCheckTest extends TestRetrySupport {
+public class HealthCheckTest extends CombinedSettingsTestSuite {
 
-    private final PulsarClusterSpec spec = PulsarClusterSpec.builder()
-        .clusterName("HealthCheckTest-" + UUID.randomUUID().toString().substring(0, 8))
-        .numProxies(0)
-        .numFunctionWorkers(0)
-        // With the bookies paused, a check fails after about 30 s, and the bookies' ZooKeeper sessions can expire
-        // meanwhile. A bookie registers again when it resumes, but its AutoRecovery daemon stops on the expired
-        // session and shuts the bookie down.
-        .bookkeeperEnvs(Map.of("autoRecoveryDaemonEnabled", "false"))
-        // With ZooKeeper paused, a check fails once the broker gives up loading its health check topic: after 5 s
-        // rather than 60 s, so that ZooKeeper resumes before any session in the cluster expires
-        .brokerEnvs(Map.of("PULSAR_PREFIX_topicLoadTimeoutSeconds", "5"))
-        .build();
-
-    private PulsarCluster pulsarCluster = null;
-
+    // It pauses ZooKeeper and the bookies, so no class runs on its cluster after it
     @Override
-    @BeforeClass(alwaysRun = true)
-    public final void setup() throws Exception {
-        incrementSetupNumber();
-        pulsarCluster = PulsarCluster.forSpec(spec);
-        pulsarCluster.start();
-    }
-
-    @Override
-    @AfterClass(alwaysRun = true)
-    public final void cleanup() {
-        markCurrentSetupNumberCleaned();
-        if (pulsarCluster != null) {
-            pulsarCluster.stop();
-            pulsarCluster = null;
-        }
+    protected boolean isLastClassOnCluster() {
+        return true;
     }
 
     @Test

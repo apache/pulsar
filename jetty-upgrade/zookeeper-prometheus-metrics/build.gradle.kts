@@ -24,10 +24,19 @@ plugins {
 dependencies {
     implementation(libs.slog)
     implementation(libs.zookeeper)
+    // Prometheus Java client 1.x: the registry and snapshot model, the metric implementations,
+    // the JVM instrumentation and the text exposition format writer.
+    implementation(libs.prometheus.metrics.model)
+    implementation(libs.prometheus.metrics.core)
+    implementation(libs.prometheus.metrics.instrumentation.jvm)
+    implementation(libs.prometheus.metrics.exposition.textformats)
+    // Transitional bridge for #27045: conf/log4j2.yaml still configures the legacy
+    // simpleclient_log4j2 Prometheus appender, which registers into the 0.x
+    // CollectorRegistry.defaultRegistry. Read that registry until the appender is migrated.
     implementation(libs.simpleclient)
-    implementation(libs.simpleclient.hotspot)
-    implementation(libs.simpleclient.servlet)
     implementation(libs.simpleclient.common)
     implementation(libs.jetty.server)
+    // javax.servlet and Jetty ee8 are still what the patched ZooKeeper AdminServer uses here;
+    // the javax.servlet API is provided transitively by jetty-ee8-servlet.
     implementation(libs.jetty.ee8.servlet)
 }
