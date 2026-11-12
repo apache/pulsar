@@ -22,30 +22,16 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import java.util.Map;
 import java.util.Properties;
-import org.apache.pulsar.broker.service.BrokerTestBase;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 import picocli.CommandLine;
 
-public class DocumentTest extends BrokerTestBase {
-
-    @BeforeMethod
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-    }
-
-    @AfterMethod(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+// Generating the documentation doesn't connect to the service URL: no broker is needed
+public class DocumentTest {
 
     @Test
     public void testSpecifyModuleName() {
         Properties properties = new Properties();
-        properties.setProperty("serviceUrl", brokerUrl.toString());
+        properties.setProperty("serviceUrl", "pulsar://localhost:6650");
         properties.setProperty("useTls", "false");
         PulsarClientTool tool = new PulsarClientTool(properties);
         String[] args = new String[]{"generate_documentation", "-n", "produce", "-n", "consume"};

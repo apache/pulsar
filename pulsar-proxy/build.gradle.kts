@@ -73,7 +73,7 @@ dependencies {
     testCompileOnly(libs.swagger.annotations)
 
     testImplementation(project(":pulsar-broker"))
-    testImplementation(project(path = ":pulsar-broker", configuration = "testJar"))
+    testImplementation(testJar(":pulsar-broker"))
     testImplementation(project(":pulsar-client-admin-original"))
     testImplementation(project(":pulsar-client-v5"))
     testImplementation(project(":pulsar-client-api-v5"))

@@ -17,12 +17,16 @@
  * under the License.
  */
 
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 // Convention plugin for modules using the Shadow plugin.
 // Applies the shadow plugin, disables the default jar task, and makes the
 // shadow jar the primary artifact for both runtimeElements and apiElements,
 // so plain project() dependencies resolve to the shadow jar.
 
 plugins {
+    // The jar task and the java variants that these conventions reconfigure come from it.
+    id("pulsar.java-conventions")
     id("com.gradleup.shadow")
 }
 
@@ -30,7 +34,7 @@ shadow {
     addShadowVariantIntoJavaComponent.set(false)
 }
 
-tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar") {
+tasks.named<ShadowJar>("shadowJar") {
     archiveClassifier.set("")
     // ShadowJar's duplicatesStrategy is applied *before* the resource transformers run, so its
     // EXCLUDE default drops every duplicate META-INF/services file and mergeServiceFiles() ends up
@@ -75,6 +79,6 @@ configurations {
 
 // Check the actual shaded contents too, including relocated classes and multi-release entries.
 tasks.withType<VerifyJavaCompatibility>().configureEach {
-    classpath.from(tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar")
+    classpath.from(tasks.named<ShadowJar>("shadowJar")
         .flatMap { it.archiveFile })
 }

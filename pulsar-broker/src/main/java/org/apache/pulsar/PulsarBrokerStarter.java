@@ -305,13 +305,17 @@ public class PulsarBrokerStarter {
                 log.info("Shut down broker service successfully.");
             }
 
-            if (bookieServer != null) {
-                bookieServer.close();
-                log.info("Shut down bookieServer successfully.");
-            }
-            if (bookieStatsProvider != null) {
-                bookieStatsProvider.stop();
-                log.info("Shut down bookieStatsProvider successfully.");
+            try {
+                if (bookieServer != null) {
+                    bookieServer.close();
+                    log.info("Shut down bookieServer successfully.");
+                }
+            } finally {
+                // The starter owns the provider: stop it after the bookie, also when closing the bookie fails.
+                if (bookieStatsProvider != null) {
+                    bookieStatsProvider.stop();
+                    log.info("Shut down bookieStatsProvider successfully.");
+                }
             }
             if (autoRecoveryMain != null) {
                 autoRecoveryMain.shutdown();

@@ -17,6 +17,8 @@
  * under the License.
  */
 
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 plugins {
     id("pulsar.java-conventions")
     // No version: the Shadow plugin is already on the classpath via the build-logic conventions,
@@ -51,7 +53,7 @@ configurations.named("runtimeClasspath") {
 // Build a fat JAR as java-instance.jar using the Shadow plugin.
 // Shadow handles dependency resolution lazily, avoiding configuration cache invalidation
 // that occurred with the previous manual dependsOn(runtimeClasspath) + zipTree() approach.
-tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar") {
+tasks.named<ShadowJar>("shadowJar") {
     archiveFileName.set("java-instance.jar")
     mergeServiceFiles()
     // See pulsar.shadow-conventions: the default EXCLUDE strategy drops duplicates of
@@ -64,17 +66,12 @@ tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJ
     exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA")
 }
 
-// Consumable configuration exposing the shadow jar for cross-project dependencies.
-// Unlike pulsar.shadow-conventions (which replaces runtimeElements), this project
-// uses the Shadow plugin directly, so we create a dedicated configuration.
-val shadowJarElements = configurations.create("shadowJarElements") {
-    isCanBeConsumed = true
-    isCanBeResolved = false
-    outgoing {
-        artifact(tasks.named("shadowJar"))
-    }
-}
+// The shadow jar, which the server distribution ships as instances/java-instance.jar. Unlike
+// pulsar.shadow-conventions (which replaces runtimeElements), this project uses the Shadow plugin
+// directly, so the jar is shared on its own, see SharedBuildArtifacts.kt.
+val shadowJar = tasks.named<ShadowJar>("shadowJar")
+shareBuildArtifact("java-instance-jar", shadowJar.flatMap { it.archiveFile }, shadowJar)
 
 tasks.withType<Test>().configureEach {
-    dependsOn(tasks.named("shadowJar"))
+    inputs.files(shadowJar).withPropertyName("javaInstanceJar").withNormalizer(ClasspathNormalizer::class.java)
 }

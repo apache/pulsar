@@ -28,7 +28,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.bookkeeper.client.LedgerHandle;
@@ -37,75 +36,46 @@ import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
-import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.service.BrokerService;
-import org.apache.pulsar.broker.service.PulsarChannelInitializer;
-import org.apache.pulsar.broker.service.ServerCnx;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
-import org.apache.pulsar.common.api.proto.CommandFlow;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
 import org.testng.Assert;
-import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
 @CustomLog
-public class NonDurableSubscriptionTest extends ProducerConsumerBase {
+public class NonDurableSubscriptionTest extends SharedPulsarBaseTest {
 
-    private final AtomicInteger numFlow = new AtomicInteger(0);
+    @Override
+    protected boolean checkClientHandlesClosed() {
+        return true;
+    }
 
     @BeforeMethod
-    @Override
-    protected void setup() throws Exception {
-        conf.setTopicLevelPoliciesEnabled(false);
-        conf.setSystemTopicEnabled(false);
-        conf.setSubscriptionExpirationTimeMinutes(1);
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
-
-    @AfterMethod(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
-
-    @Override
-    protected BrokerService customizeNewBrokerService(BrokerService brokerService) {
-        brokerService.setPulsarChannelInitializerFactory((_pulsar, opts) -> {
-            return new PulsarChannelInitializer(_pulsar, opts) {
-                @Override
-                protected ServerCnx newServerCnx(PulsarService pulsar, String listenerName) throws Exception {
-                    return new ServerCnx(pulsar) {
-
-                        @Override
-                        protected void handleFlow(CommandFlow flow) {
-                            super.handleFlow(flow);
-                            numFlow.incrementAndGet();
-                        }
-                    };
-                }
-            };
-        });
-        return brokerService;
+    public void disableDeduplication() throws Exception {
+        // the tests that trim ledgers need the topics without the cursor of deduplication, as on a broker of their
+        // own, where deduplication is off
+        admin.namespaces().setDeduplicationStatus(getNamespace(), false);
     }
 
     @Test
     public void testNonDurableSubscription() throws Exception {
-        String topicName = "persistent://my-property/my-ns/nonDurable-topic1";
+        String topicName = "persistent://" + getNamespace() + "/nonDurable-topic1";
+        // a client of its own: the test closes its consumer's connection
+        @Cleanup
+        PulsarClient client = newPulsarClient();
         // 1 setup producer、consumer
         @Cleanup
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName)
+        Producer<String> producer = client.newProducer(Schema.STRING).topic(topicName)
                 .create();
         @Cleanup
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topicName)
+        Consumer<String> consumer = client.newConsumer(Schema.STRING).topic(topicName)
                 .readCompacted(true)
                 .subscriptionMode(SubscriptionMode.NonDurable)
                 .subscriptionType(SubscriptionType.Exclusive)
@@ -137,7 +107,7 @@ public class NonDurableSubscriptionTest extends ProducerConsumerBase {
 
     @Test
     public void testSameSubscriptionNameForDurableAndNonDurableSubscription() throws Exception {
-        String topicName = "persistent://my-property/my-ns/same-sub-name-topic";
+        String topicName = "persistent://" + getNamespace() + "/same-sub-name-topic";
         // first test for create Durable subscription and then create NonDurable subscription
         // 1. create a subscription with SubscriptionMode.Durable
         @Cleanup
@@ -197,92 +167,15 @@ public class NonDurableSubscriptionTest extends ProducerConsumerBase {
         }
     }
 
-    @DataProvider(name = "subscriptionTypes")
-    public static Object[][] subscriptionTypes() {
-        Object[][] result = new Object[SubscriptionType.values().length][];
-        int i = 0;
-        for (SubscriptionType type : SubscriptionType.values()) {
-            result[i++] = new Object[] {type};
-        }
-        return result;
-    }
-
-    @Test(dataProvider = "subscriptionTypes")
-    public void testNonDurableSubscriptionRecovery(SubscriptionType subscriptionType) throws Exception {
-        log.info().attr("testing", subscriptionType).log("testing");
-        String topicName = "persistent://my-property/my-ns/nonDurable-sub-recorvery-" + subscriptionType;
-        // 1 setup producer、consumer
-        @Cleanup
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName)
-                .create();
-        @Cleanup
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topicName)
-                .subscriptionMode(SubscriptionMode.NonDurable)
-                .subscriptionType(subscriptionType)
-                .subscriptionName("my-nonDurable-subscriber")
-                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                .subscribe();
-        // 2 send messages
-        int messageNum = 15;
-        for (int i = 0; i < messageNum; i++) {
-            producer.send("message" + i);
-        }
-        // 3 receive the first 5 messages
-        for (int i = 0; i < 5; i++) {
-            Message<String> message = consumer.receive();
-            assertNotNull(message);
-            Assert.assertEquals(message.getValue(), "message" + i);
-            consumer.acknowledge(message);
-        }
-        // 4 trigger reconnect
-        ((ConsumerImpl) consumer).getClientCnx().close();
-
-        // 5 for non-durable we are going to restart from the next entry
-        for (int i = 5; i < 10; i++) {
-            Message<String> message = consumer.receive();
-            assertNotNull(message);
-            Assert.assertEquals(message.getValue(), "message" + i);
-        }
-
-        // 6 restart broker
-        restartBroker();
-
-        // 7 for non-durable we are going to restart from the next entry
-        for (int i = 10; i < messageNum; i++) {
-            Message<String> message = consumer.receive();
-            assertNotNull(message);
-            Assert.assertEquals(message.getValue(), "message" + i);
-        }
-
-    }
-
-    @Test
-    public void testFlowCountForMultiTopics() throws Exception {
-        String topicName = "persistent://my-property/my-ns/test-flow-count";
-        int numPartitions = 5;
-        admin.topics().createPartitionedTopic(topicName, numPartitions);
-        numFlow.set(0);
-
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
-                .topic(topicName)
-                .subscriptionName("my-nonDurable-subscriber")
-                .subscriptionMode(SubscriptionMode.NonDurable)
-                .subscribe();
-        consumer.receive(1, TimeUnit.SECONDS);
-        consumer.close();
-
-        assertEquals(numFlow.get(), numPartitions);
-    }
-
     private void trimLedgers(final String tpName) {
         // Wait for topic loading.
         org.awaitility.Awaitility.await().untilAsserted(() -> {
             PersistentTopic persistentTopic =
-                    (PersistentTopic) pulsar.getBrokerService().getTopic(tpName, false).join().get();
+                    (PersistentTopic) getPulsar().getBrokerService().getTopic(tpName, false).join().get();
             assertNotNull(persistentTopic);
         });
         PersistentTopic persistentTopic =
-                (PersistentTopic) pulsar.getBrokerService().getTopic(tpName, false).join().get();
+                (PersistentTopic) getPulsar().getBrokerService().getTopic(tpName, false).join().get();
         ManagedLedgerImpl ml = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
         CompletableFuture<Void> trimLedgersTask = new CompletableFuture<>();
         ml.trimConsumedLedgersInBackground(trimLedgersTask);
@@ -300,13 +193,13 @@ public class NonDurableSubscriptionTest extends ProducerConsumerBase {
         // Wait for topic create.
         org.awaitility.Awaitility.await().untilAsserted(() -> {
             PersistentTopic persistentTopic =
-                    (PersistentTopic) pulsar.getBrokerService().getTopic(tpName, false).join().get();
+                    (PersistentTopic) getPulsar().getBrokerService().getTopic(tpName, false).join().get();
             assertNotNull(persistentTopic);
         });
 
         // Switch ledger.
         PersistentTopic persistentTopic =
-                (PersistentTopic) pulsar.getBrokerService().getTopic(tpName, false).join().get();
+                (PersistentTopic) getPulsar().getBrokerService().getTopic(tpName, false).join().get();
         ManagedLedgerImpl ml = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
         LedgerHandle currentLedger1 = WhiteboxImpl.getInternalState(ml, "currentLedger");
         ledgerClosed.invoke(ml, new Object[]{currentLedger1});
@@ -320,7 +213,7 @@ public class NonDurableSubscriptionTest extends ProducerConsumerBase {
     @Test
     public void testHasMessageAvailableIfIncomingQueueNotEmpty() throws Exception {
         final String nonDurableCursor = "non-durable-cursor";
-        final String topicName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + getNamespace() + "/tp");
         Reader<String> reader = pulsarClient.newReader(Schema.STRING).topic(topicName).receiverQueueSize(1)
                 .subscriptionName(nonDurableCursor).startMessageId(MessageIdImpl.earliest).create();
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName).create();
@@ -351,7 +244,7 @@ public class NonDurableSubscriptionTest extends ProducerConsumerBase {
 
     @Test
     public void testInitReaderAtSpecifiedPosition() throws Exception {
-        String topicName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        String topicName = BrokerTestUtil.newUniqueName("persistent://" + getNamespace() + "/tp");
         admin.topics().createNonPartitionedTopic(topicName);
         admin.topics().createSubscription(topicName, "s0", MessageId.earliest);
 
@@ -365,7 +258,7 @@ public class NonDurableSubscriptionTest extends ProducerConsumerBase {
         }
         producer.close();
         PersistentTopic persistentTopic =
-                (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).join().get();
+                (PersistentTopic) getPulsar().getBrokerService().getTopic(topicName, false).join().get();
         ManagedLedgerImpl ml = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
         LedgerHandle currentLedger = WhiteboxImpl.getInternalState(ml, "currentLedger");
         log.info().attr("currentledger", currentLedger.getId()).log("currentLedger");
@@ -531,7 +424,7 @@ public class NonDurableSubscriptionTest extends ProducerConsumerBase {
 
     @Test
     public void testReaderInitAtDeletedPosition() throws Exception {
-        String topicName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        String topicName = BrokerTestUtil.newUniqueName("persistent://" + getNamespace() + "/tp");
         admin.topics().createNonPartitionedTopic(topicName);
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName).create();
         producer.send("1");
@@ -583,7 +476,7 @@ public class NonDurableSubscriptionTest extends ProducerConsumerBase {
     public void testTrimLedgerIfNoDurableCursor() throws Exception {
         final String nonDurableCursor = "non-durable-cursor";
         final String durableCursor = "durable-cursor";
-        final String topicName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + getNamespace() + "/tp");
         admin.topics().createNonPartitionedTopic(topicName);
         Reader<String> reader = pulsarClient.newReader(Schema.STRING).topic(topicName).receiverQueueSize(1)
                 .subscriptionName(nonDurableCursor).startMessageId(MessageIdImpl.earliest).create();
@@ -646,7 +539,7 @@ public class NonDurableSubscriptionTest extends ProducerConsumerBase {
         // The following tests are designed to verify the api "getNumberOfEntries" and "consumedEntries" still work
         // after changes.See the code-description added with the PR https://github.com/apache/pulsar/pull/10667.
         PersistentTopic persistentTopic =
-                (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).join().get();
+                (PersistentTopic) getPulsar().getBrokerService().getTopic(topicName, false).join().get();
         ManagedLedgerImpl ml = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
         ManagedCursorImpl cursor = (ManagedCursorImpl) ml.getCursors().get(nonDurableCursor);
 

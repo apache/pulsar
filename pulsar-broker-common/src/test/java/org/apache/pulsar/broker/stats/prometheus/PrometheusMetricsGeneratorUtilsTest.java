@@ -27,6 +27,7 @@ import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Gauge;
 import io.prometheus.client.Histogram;
+import io.prometheus.client.Info;
 import io.prometheus.client.Summary;
 import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import io.prometheus.metrics.model.snapshots.ClassicHistogramBuckets;
@@ -260,6 +261,47 @@ public class PrometheusMetricsGeneratorUtilsTest {
                 # TYPE shared gauge
                 shared{cluster="c1"} 2.0
                 """);
+    }
+
+    @Test
+    public void testDuplicateDetectionFollowsTheDeclaredTypeNames() {
+        // The 1.x writer declares a counter as <name>_total and an info as <name>_info, so a legacy family can
+        // collide with a 1.x family whose own name is different.
+        CollectorRegistry legacyRegistry = new CollectorRegistry();
+        Gauge.build("requests_total", "x").register(legacyRegistry).set(1);
+        Gauge.build("build_info", "x").register(legacyRegistry).set(1);
+        Counter.build("moved", "x").register(legacyRegistry).inc();
+        Info.build("release", "x").register(legacyRegistry).info("version", "1");
+        LegacyPrometheusMetricsWriter.DeclaredNames legacyNames;
+        ByteBuf buf = Unpooled.buffer();
+        try {
+            legacyNames = LegacyPrometheusMetricsWriter.write(new SimpleTextOutputStream(buf), "c1", legacyRegistry);
+        } finally {
+            buf.release();
+        }
+
+        assertThat(PrometheusMetricsGeneratorUtils.isDeclaredByLegacyRegistry(legacyNames,
+                CounterSnapshot.builder().name("requests").build()))
+                .as("1.x counter requests declares requests_total, like the legacy gauge").isTrue();
+        assertThat(PrometheusMetricsGeneratorUtils.isDeclaredByLegacyRegistry(legacyNames,
+                InfoSnapshot.builder().name("build").build()))
+                .as("1.x info build declares build_info, like the legacy gauge").isTrue();
+        assertThat(PrometheusMetricsGeneratorUtils.isDeclaredByLegacyRegistry(legacyNames,
+                CounterSnapshot.builder().name("moved").build()))
+                .as("the same counter in both registries").isTrue();
+        assertThat(PrometheusMetricsGeneratorUtils.isDeclaredByLegacyRegistry(legacyNames,
+                GaugeSnapshot.builder().name("release_info").build()))
+                .as("1.x gauge release_info against the legacy info release").isTrue();
+        assertThat(PrometheusMetricsGeneratorUtils.isDeclaredByLegacyRegistry(legacyNames,
+                GaugeSnapshot.builder().name("requests").build()))
+                .as("1.x gauge requests declares requests, which the legacy registry does not").isFalse();
+        assertThat(PrometheusMetricsGeneratorUtils.isDeclaredByLegacyRegistry(legacyNames,
+                CounterSnapshot.builder().name("unrelated").build())).isFalse();
+        // The legacy info release declares release_info. A 1.x counter of that name declares
+        // release_info_total, so no output line is repeated.
+        assertThat(PrometheusMetricsGeneratorUtils.isDeclaredByLegacyRegistry(legacyNames,
+                CounterSnapshot.builder().name("release_info").build()))
+                .as("1.x counter release_info declares release_info_total").isFalse();
     }
 
     @Test
