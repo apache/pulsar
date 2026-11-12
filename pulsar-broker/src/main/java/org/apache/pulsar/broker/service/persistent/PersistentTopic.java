@@ -3756,7 +3756,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 if (isReplicationBacklogExist()) {
                     if (!ledger.isMigrated()) {
                         log.info("applying migration with replication backlog");
-                        ledger.asyncMigrate();
+                        return ledger.asyncMigrate().thenApply(position -> null);
                     }
                     log.debug("has replication backlog and applied migration");
                     return CompletableFuture.<Void>completedFuture(null);
