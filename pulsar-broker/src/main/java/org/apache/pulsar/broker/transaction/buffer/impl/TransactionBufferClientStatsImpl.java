@@ -22,10 +22,7 @@ import io.opentelemetry.api.metrics.ObservableLongUpDownCounter;
 import io.prometheus.metrics.core.metrics.Counter;
 import io.prometheus.metrics.core.metrics.GaugeWithCallback;
 import io.prometheus.metrics.core.metrics.Summary;
-import io.prometheus.metrics.model.registry.Collector;
 import io.prometheus.metrics.model.registry.PrometheusRegistry;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -134,9 +131,6 @@ public final class TransactionBufferClientStatsImpl implements TransactionBuffer
         @PulsarDeprecatedMetric(newMetricName = PENDING_TRANSACTION_COUNTER)
         private final GaugeWithCallback pendingRequests;
 
-        /** Every collector registered by this instance, unregistered together in {@link #close()}. */
-        private final List<Collector> collectors = new ArrayList<>();
-
         private final boolean exposeTopicLevelMetrics;
 
         private static PrometheusStats instance;
@@ -146,22 +140,22 @@ public final class TransactionBufferClientStatsImpl implements TransactionBuffer
             String[] labelNames = exposeTopicLevelMetrics
                     ? new String[]{"namespace", "topic"} : new String[]{"namespace"};
 
-            this.abortFailed = owned(Counter.builder().name("pulsar_txn_tb_client_abort_failed").help("-")
+            this.abortFailed = Counter.builder().name("pulsar_txn_tb_client_abort_failed").help("-")
                     .labelNames(labelNames)
-                    .register());
-            this.commitFailed = owned(Counter.builder().name("pulsar_txn_tb_client_commit_failed").help("-")
+                    .register();
+            this.commitFailed = Counter.builder().name("pulsar_txn_tb_client_commit_failed").help("-")
                     .labelNames(labelNames)
-                    .register());
+                    .register();
             this.abortLatency =
                     this.buildSummary("pulsar_txn_tb_client_abort_latency", "-", labelNames);
             this.commitLatency =
                     this.buildSummary("pulsar_txn_tb_client_commit_latency", "-", labelNames);
 
-            this.pendingRequests = owned(GaugeWithCallback.builder()
+            this.pendingRequests = GaugeWithCallback.builder()
                     .name("pulsar_txn_tb_client_pending_requests")
                     .help("-")
                     .callback(callback -> callback.call(handler.getPendingRequestsCount()))
-                    .register());
+                    .register();
         }
 
         private Summary buildSummary(String name, String help, String[] labelNames) {
@@ -171,13 +165,7 @@ public final class TransactionBufferClientStatsImpl implements TransactionBuffer
             for (double quantile : QUANTILES) {
                 builder.quantile(quantile, 0.01D);
             }
-            return owned(builder.register());
-        }
-
-        /** Remembers an already registered collector so that {@link #close()} unregisters it. */
-        private <T extends Collector> T owned(T collector) {
-            collectors.add(collector);
-            return collector;
+            return builder.register();
         }
 
         static synchronized PrometheusStats getInstance(boolean exposeTopicLevelMetrics,
@@ -201,7 +189,11 @@ public final class TransactionBufferClientStatsImpl implements TransactionBuffer
         void close() {
             if (this.closed.compareAndSet(false, true)) {
                 instance = null;
-                collectors.forEach(PrometheusRegistry.defaultRegistry::unregister);
+                PrometheusRegistry.defaultRegistry.unregister(this.abortFailed);
+                PrometheusRegistry.defaultRegistry.unregister(this.commitFailed);
+                PrometheusRegistry.defaultRegistry.unregister(this.abortLatency);
+                PrometheusRegistry.defaultRegistry.unregister(this.commitLatency);
+                PrometheusRegistry.defaultRegistry.unregister(this.pendingRequests);
             }
         }
     }
