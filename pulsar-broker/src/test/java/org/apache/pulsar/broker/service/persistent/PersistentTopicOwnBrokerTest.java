@@ -24,19 +24,24 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
+import com.github.tomakehurst.wiremock.WireMockServer;
+import com.github.tomakehurst.wiremock.client.WireMock;
 import com.google.common.collect.Sets;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -47,6 +52,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -74,6 +80,10 @@ import org.apache.pulsar.broker.service.TopicFactory;
 import org.apache.pulsar.broker.service.TopicPoliciesService;
 import org.apache.pulsar.broker.service.TopicPolicyListener;
 import org.apache.pulsar.broker.testinterceptor.BrokerTestInterceptor;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
+import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -86,6 +96,7 @@ import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterPolicies.ClusterUrl;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -918,5 +929,140 @@ public class PersistentTopicOwnBrokerTest extends BrokerTestBase {
                 BrokerTestInterceptor.INSTANCE.reset();
             }
         }
+    }
+
+    @Test
+    public void testMigrationPropagatesTenantCreationFailure() throws Exception {
+        PulsarAdmin pulsarAdmin = mockMigrationAdmin();
+        Topic topic = prepareTopicForMigration("http://destination.invalid", "orders");
+        CompletableFuture<Void> createTenant = new CompletableFuture<>();
+        when(pulsarAdmin.tenants().createTenantAsync(eq("prop"), any())).thenReturn(createTenant);
+
+        CompletableFuture<Void> migration = topic.checkClusterMigration();
+        verify(pulsarAdmin.tenants(), timeout(5000)).createTenantAsync(eq("prop"), any());
+        assertCreationFailurePropagates(createTenant, migration);
+        verifyNoInteractions(pulsarAdmin.namespaces(), pulsarAdmin.topics());
+    }
+
+    @Test
+    public void testMigrationPropagatesCancelledTenantCreation() throws Exception {
+        PulsarAdmin pulsarAdmin = mockMigrationAdmin();
+        Topic topic = prepareTopicForMigration("http://destination.invalid", "orders");
+        CompletableFuture<Void> createTenant = new CompletableFuture<>();
+        when(pulsarAdmin.tenants().createTenantAsync(eq("prop"), any())).thenReturn(createTenant);
+
+        CompletableFuture<Void> migration = topic.checkClusterMigration();
+        verify(pulsarAdmin.tenants(), timeout(5000)).createTenantAsync(eq("prop"), any());
+        assertThat(createTenant.cancel(false)).isTrue();
+
+        ExecutionException thrown = Assert.expectThrows(ExecutionException.class,
+                () -> migration.get(5, TimeUnit.SECONDS));
+        assertThat(thrown.getCause()).isInstanceOf(CancellationException.class);
+        verifyNoInteractions(pulsarAdmin.namespaces(), pulsarAdmin.topics());
+    }
+
+    @Test
+    public void testMigrationPreservesForbiddenTenantCreationResponse() throws Exception {
+        @Cleanup("stop")
+        WireMockServer destination = new WireMockServer(0);
+        destination.start();
+        destination.stubFor(WireMock.put("/admin/v2/tenants/prop").willReturn(WireMock.forbidden()));
+        Topic topic = prepareTopicForMigration(destination.baseUrl());
+
+        ExecutionException thrown = Assert.expectThrows(ExecutionException.class,
+                () -> topic.checkClusterMigration().get(5, TimeUnit.SECONDS));
+        assertThat(thrown.getCause()).isInstanceOfSatisfying(NotAuthorizedException.class,
+                failure -> assertThat(failure.getStatusCode()).isEqualTo(403));
+    }
+
+    @Test
+    public void testMigrationContinuesAfterWrappedTenantConflict() throws Exception {
+        PulsarAdmin pulsarAdmin = mockMigrationAdmin();
+        Topic topic = prepareTopicForMigration("http://destination.invalid");
+        CompletableFuture<Void> tenantConflict =
+                CompletableFuture.failedFuture(new ConflictException(null, "Tenant already exists", 409));
+        // A dependent stage propagates the conflict as a CompletionException.
+        when(pulsarAdmin.tenants().createTenantAsync(eq("prop"), any()))
+                .thenReturn(tenantConflict.thenApply(value -> value));
+        when(pulsarAdmin.namespaces().createNamespaceAsync(eq("prop/ns-abc"), any(Policies.class)))
+                .thenReturn(CompletableFuture.completedFuture(null));
+
+        topic.checkClusterMigration().get(5, TimeUnit.SECONDS);
+
+        verify(pulsarAdmin.tenants()).createTenantAsync(eq("prop"), any());
+        verify(pulsarAdmin.namespaces()).createNamespaceAsync(eq("prop/ns-abc"), any(Policies.class));
+        assertThat(topic.shouldProducerMigrate()).isTrue();
+    }
+
+    @Test
+    public void testMigrationPropagatesNamespaceCreationFailure() throws Exception {
+        PulsarAdmin pulsarAdmin = mockMigrationAdmin();
+        Topic topic = prepareTopicForMigration("http://destination.invalid", "orders");
+        when(pulsarAdmin.tenants().createTenantAsync(eq("prop"), any()))
+                .thenReturn(CompletableFuture.completedFuture(null));
+        CompletableFuture<Void> createNamespace = new CompletableFuture<>();
+        when(pulsarAdmin.namespaces().createNamespaceAsync(eq("prop/ns-abc"), any(Policies.class)))
+                .thenReturn(createNamespace);
+
+        CompletableFuture<Void> migration = topic.checkClusterMigration();
+        verify(pulsarAdmin.namespaces(), timeout(5000)).createNamespaceAsync(eq("prop/ns-abc"), any(Policies.class));
+        assertCreationFailurePropagates(createNamespace, migration);
+        verifyNoInteractions(pulsarAdmin.topics());
+    }
+
+    @Test
+    public void testMigrationPropagatesSubscriptionFailureWhileAnotherIsPending() throws Exception {
+        PulsarAdmin pulsarAdmin = mockMigrationAdmin();
+        Topic topic = prepareTopicForMigration("http://destination.invalid", "orders", "pending");
+        when(pulsarAdmin.tenants().createTenantAsync(eq("prop"), any()))
+                .thenReturn(CompletableFuture.completedFuture(null));
+        when(pulsarAdmin.namespaces().createNamespaceAsync(eq("prop/ns-abc"), any(Policies.class)))
+                .thenReturn(CompletableFuture.completedFuture(null));
+        CompletableFuture<Void> createOrders = new CompletableFuture<>();
+        CompletableFuture<Void> createPending = new CompletableFuture<>();
+        when(pulsarAdmin.topics().createSubscriptionAsync(topic.getName(), "orders", MessageId.earliest))
+                .thenReturn(createOrders);
+        when(pulsarAdmin.topics().createSubscriptionAsync(topic.getName(), "pending", MessageId.earliest))
+                .thenReturn(createPending);
+
+        CompletableFuture<Void> migration = topic.checkClusterMigration();
+        verify(pulsarAdmin.topics(), timeout(5000))
+                .createSubscriptionAsync(topic.getName(), "orders", MessageId.earliest);
+        verify(pulsarAdmin.topics(), timeout(5000))
+                .createSubscriptionAsync(topic.getName(), "pending", MessageId.earliest);
+        assertCreationFailurePropagates(createOrders, migration);
+        assertThat(createPending).isNotDone();
+        assertThat(topic.shouldProducerMigrate()).isFalse();
+    }
+
+    private Topic prepareTopicForMigration(String destinationUrl, String... subscriptions) throws Exception {
+        String topic = "persistent://" + newTopicName();
+        admin.topics().createNonPartitionedTopic(topic);
+        for (String subscription : subscriptions) {
+            admin.topics().createSubscription(topic, subscription, MessageId.earliest);
+        }
+        conf.setClusterMigrationAutoResourceCreation(true);
+        admin.clusters().updateClusterMigration(conf.getClusterName(), true,
+                new ClusterUrl(destinationUrl, null, null, null));
+        return pulsar.getBrokerService().getTopicReference(topic).orElseThrow();
+    }
+
+    private PulsarAdmin mockMigrationAdmin() {
+        PulsarAdmin pulsarAdmin = mock(PulsarAdmin.class, RETURNS_DEEP_STUBS);
+        BrokerService broker = spy(pulsar.getBrokerService());
+        doReturn(pulsarAdmin).when(broker).getClusterPulsarAdmin(eq("migration-cluster"), any());
+        doReturn(broker).when(pulsar).getBrokerService();
+        return pulsarAdmin;
+    }
+
+    private static void assertCreationFailurePropagates(CompletableFuture<Void> create,
+                                                        CompletableFuture<Void> migration) {
+        PulsarAdminException failure = new PulsarAdminException("Resource creation failed");
+        assertThat(failure.getCause()).isNull();
+        assertThat(create.completeExceptionally(failure)).isTrue();
+
+        ExecutionException thrown = Assert.expectThrows(ExecutionException.class,
+                () -> migration.get(5, TimeUnit.SECONDS));
+        assertThat(thrown.getCause()).isSameAs(failure);
     }
 }
