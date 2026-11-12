@@ -102,6 +102,27 @@ public class SimpleTextOutputStreamTest {
 
         stream.write(-123456.100456789);
         assertEquals(str(), "-123456.100");
+
+        // Values in the open interval (-1, 0): the integer part is 0, so the sign must be emitted
+        // explicitly, otherwise it is dropped and a negative value prints as positive.
+        stream.write(0.5);
+        assertEquals(str(), "0.500");
+
+        stream.write(-0.5);
+        assertEquals(str(), "-0.500");
+
+        stream.write(-0.123456789);
+        assertEquals(str(), "-0.123");
+
+        stream.write(-0.999);
+        assertEquals(str(), "-0.999");
+
+        stream.write(-0.05);
+        assertEquals(str(), "-0.050");
+
+        // A negative value whose magnitude truncates to zero prints as "0.0", not "-0.0".
+        stream.write(-0.0004);
+        assertEquals(str(), "0.0");
     }
 
     @Test

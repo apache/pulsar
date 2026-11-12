@@ -125,9 +125,15 @@ public class SimpleTextOutputStream {
 
     public SimpleTextOutputStream write(double d) {
         long i = (long) d;
+        long r = Math.abs((long) (1000 * (d - i)));
+        // Casting to long truncates toward zero, so the sign is lost for -1 < d < 0, where the integer
+        // part is 0. Emit the minus sign explicitly in that case, unless the value still prints as zero
+        // (which would give a stray "-0.0").
+        if (i == 0 && d < 0 && r != 0) {
+            write('-');
+        }
         write(i);
 
-        long r = Math.abs((long) (1000 * (d - i)));
         write('.');
         if (r == 0) {
             write('0');
