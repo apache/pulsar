@@ -2746,6 +2746,9 @@ public class BrokerServiceTest extends BrokerTestBase {
         sync.client = (PulsarClientImpl) pulsarClient;
         retryStrategically((test) -> sync.getProducer() != null, 1000, 10);
         assertNotNull(sync.getProducer());
+
+        sync.closeAsync().get(10, TimeUnit.SECONDS);
+        resetState();
     }
 
     @Test
