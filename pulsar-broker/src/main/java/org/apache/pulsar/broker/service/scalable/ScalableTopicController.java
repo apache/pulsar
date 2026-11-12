@@ -1834,12 +1834,13 @@ public class ScalableTopicController {
      * Called when a consumer's transport connection drops. Does <em>not</em> delete the
      * persisted session — the coordinator marks the consumer disconnected and starts the
      * grace-period timer. The consumer can reconnect within the grace period and resume
-     * with the same segment assignment.
+     * with the same segment assignment. {@code cnx} is the connection that dropped; the
+     * coordinator ignores it when the consumer is attached to another connection by now.
      */
-    public void onConsumerDisconnect(String subscription, String consumerName) {
+    public void onConsumerDisconnect(String subscription, String consumerName, TransportCnx cnx) {
         SubscriptionCoordinator coordinator = subscriptions.get(subscription);
         if (coordinator != null) {
-            coordinator.onConsumerDisconnect(consumerName);
+            coordinator.onConsumerDisconnect(consumerName, cnx);
         }
     }
 

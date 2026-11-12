@@ -596,7 +596,7 @@ public class ScalableTopicServiceTest {
     public void testOnConsumerDisconnectIsNoopIfNoLocalController() {
         TopicName tn = scalableTopic("t-no-controller");
         // No controller has been created for this topic → call should be a silent no-op.
-        service.onConsumerDisconnect(tn, "sub", "c1");
+        service.onConsumerDisconnect(tn, "sub", "c1", mock(TransportCnx.class));
     }
 
     // --- deleteScalableTopic ---
@@ -696,12 +696,12 @@ public class ScalableTopicServiceTest {
         TopicName second = scalableTopic("metrics-second");
         service.createScalableTopic(first, 1).get();
         service.createScalableTopic(second, 1).get();
-        service.registerConsumer(first, "stream", "one", 1, ScalableConsumerType.STREAM,
-                mock(TransportCnx.class)).get();
+        TransportCnx oneCnx = mock(TransportCnx.class);
+        service.registerConsumer(first, "stream", "one", 1, ScalableConsumerType.STREAM, oneCnx).get();
         service.registerConsumer(second, "checkpoint", "two", 2, ScalableConsumerType.CHECKPOINT,
                 mock(TransportCnx.class)).get();
         assertEquals(service.consumerStats(), new SubscriptionCoordinator.ConsumerStats(2, 0, 0, 0));
-        service.onConsumerDisconnect(first, "stream", "one");
+        service.onConsumerDisconnect(first, "stream", "one", oneCnx);
         assertEquals(service.consumerStats(), new SubscriptionCoordinator.ConsumerStats(1, 0, 1, 0));
         service.releaseController(first).get();
         assertEquals(service.consumerStats(), new SubscriptionCoordinator.ConsumerStats(1, 0, 0, 0));
