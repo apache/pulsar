@@ -80,6 +80,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -126,9 +127,12 @@ import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerWrapper;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.namespace.TopicExistsInfo;
+import org.apache.pulsar.broker.resources.ClusterResources;
+import org.apache.pulsar.broker.resources.ClusterResources.ClusterPoliciesResources;
 import org.apache.pulsar.broker.resources.TopicListener;
 import org.apache.pulsar.broker.resources.TopicResources;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
+import org.apache.pulsar.broker.service.BrokerServiceException.TopicMigratedException;
 import org.apache.pulsar.broker.service.ServerCnx.State;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.scalable.ConsumerAssignment;
@@ -2970,6 +2974,99 @@ public class ServerCnxTest {
         assertTrue(channel.isOpen());
 
         channel.finish();
+    }
+
+    @Test(timeOut = 30000)
+    public void testSubscribeReturnsMigrationErrorWhenMigrationUrlLookupFails() throws Exception {
+        resetChannel();
+        try {
+            channel.writeInbound(Commands.newConnect("none", "", null));
+            assertThat(getResponse()).isInstanceOf(CommandConnected.class);
+
+            doReturn(CompletableFuture.failedFuture(new TopicMigratedException("topic already migrated")))
+                    .when(brokerService).getTopicCreatingIfAllowed(eq(TopicName.get(successTopicName)), any());
+            var clusterPolicies = failMigrationUrlLookup();
+
+            long requestId = 17;
+            channel.writeInbound(Commands.newSubscribe(successTopicName, successSubName, 1, requestId,
+                    SubType.Exclusive, 0, "consumer", 0));
+            CommandError error = (CommandError) getResponse();
+            verify(clusterPolicies).getClusterPoliciesAsync(svcConfig.getClusterName());
+            assertThat(error.getRequestId()).isEqualTo(requestId);
+            assertThat(error.getError())
+                    .as("subscribe response error code after migration URL lookup failure")
+                    .isEqualTo(ServerError.UnknownError);
+            assertThat(error.getMessage())
+                    .as("original migration error message returned to the subscriber")
+                    .isEqualTo("topic already migrated");
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test(timeOut = 30000)
+    public void testCreateProducerReturnsMigrationErrorWhenMigrationUrlLookupFails() throws Exception {
+        resetChannel();
+        try {
+            channel.writeInbound(Commands.newConnect("none", "", null));
+            assertThat(getResponse()).isInstanceOf(CommandConnected.class);
+
+            doReturn(CompletableFuture.failedFuture(new TopicMigratedException("topic already migrated")))
+                    .when(brokerService).getTopicCreatingIfAllowed(eq(TopicName.get(successTopicName)), any());
+            var clusterPolicies = failMigrationUrlLookup();
+
+            long requestId = 17;
+            channel.writeInbound(Commands.newProducer(successTopicName, 1, requestId, "producer", Map.of(), false));
+            CommandError error = (CommandError) getResponse();
+            verify(clusterPolicies).getClusterPoliciesAsync(svcConfig.getClusterName());
+            assertThat(error.getRequestId()).isEqualTo(requestId);
+            assertThat(error.getError()).as("create producer response error code").isEqualTo(ServerError.UnknownError);
+            assertThat(error.getMessage()).as("original topic migration error").isEqualTo("topic already migrated");
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test(timeOut = 30000)
+    public void testAddProducerReturnsMigrationErrorWhenMigrationUrlLookupFails() throws Exception {
+        resetChannel();
+        try {
+            channel.writeInbound(Commands.newConnect("none", "", null));
+            assertThat(getResponse()).isInstanceOf(CommandConnected.class);
+
+            Topic topic = ownMock(spy(brokerService.getOrCreateTopic(successTopicName).get()));
+            doReturn(CompletableFuture.completedFuture(Optional.of(topic)))
+                    .when(brokerService).getTopicCreatingIfAllowed(eq(TopicName.get(successTopicName)), any());
+            var migrationError = new TopicMigratedException("topic already migrated");
+            doReturn(CompletableFuture.failedFuture(migrationError)).when(topic).addProducer(any(), any());
+            var clusterPolicies = failMigrationUrlLookup();
+
+            long requestId = 17;
+            channel.writeInbound(Commands.newProducer(successTopicName, 1, requestId, "producer", Map.of(), false));
+            CommandError error = (CommandError) getResponse();
+            verify(clusterPolicies).getClusterPoliciesAsync(svcConfig.getClusterName());
+            assertThat(error.getRequestId()).isEqualTo(requestId);
+            assertThat(error.getError()).as("add producer response error code").isEqualTo(ServerError.UnknownError);
+            assertThat(error.getMessage()).as("original add producer migration error")
+                    .isEqualTo(migrationError.toString());
+
+            var producer = ArgumentCaptor.forClass(Producer.class);
+            verify(topic).addProducer(producer.capture(), any());
+            verify(topic).removeProducer(same(producer.getValue()));
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    private ClusterPoliciesResources failMigrationUrlLookup() {
+        var clusterResources = mock(ClusterResources.class);
+        var clusterPolicies = mock(ClusterPoliciesResources.class);
+        var resources = pulsar.getPulsarResources();
+        doReturn(clusterResources).when(resources).getClusterResources();
+        when(clusterResources.getClusterPoliciesResources()).thenReturn(clusterPolicies);
+        when(clusterPolicies.getClusterPoliciesAsync(svcConfig.getClusterName()))
+                .thenReturn(CompletableFuture.failedFuture(new TimeoutException("metadata lookup timed out")));
+        return clusterPolicies;
     }
 
     @Test(timeOut = 30000)
