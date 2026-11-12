@@ -3813,7 +3813,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                             return CompletableFuture.completedFuture(null);
                         }
                         return admin.tenants().createTenantAsync(tenant, tenantInfo.get()).handle((__, ex) -> {
-                            if (ex == null || FutureUtil.unwrapCompletionException(ex) instanceof ConflictException) {
+                            Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                            if (ex == null || cause instanceof ConflictException) {
                                 log.info()
                                         .attr("tenant", tenant)
                                         .log("successfully created tenant for migration");
@@ -3821,7 +3822,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                             }
                             log.warn()
                                     .attr("tenant", tenant)
-                                    .exception(ex)
+                                    .exceptionMessage(cause)
                                     .log("Failed to create tenant on migration cluster");
                             throw FutureUtil.wrapToCompletionException(ex);
                         });
@@ -3832,8 +3833,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                 }
                                 return admin.namespaces().createNamespaceAsync(ns.toString(), policies.get())
                                         .handle((__, ex) -> {
-                                            if (ex == null || FutureUtil.unwrapCompletionException(ex)
-                                                    instanceof ConflictException) {
+                                            Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                                            if (ex == null || cause instanceof ConflictException) {
                                                 log.info()
                                                         .attr("namespace", ns)
                                                         .log("successfully created namespace for migration");
@@ -3841,7 +3842,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                             }
                                             log.warn()
                                                     .attr("ns", ns)
-                                                    .exception(ex)
+                                                    .exceptionMessage(cause)
                                                     .log("Failed to create namespace on migration cluster");
                                             throw FutureUtil.wrapToCompletionException(ex);
                                         });
@@ -3851,8 +3852,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                     CompletableFuture<Void> subResult = admin.topics()
                                             .createSubscriptionAsync(topic, subName, MessageId.earliest)
                                             .handle((__, ex) -> {
-                                                if (ex == null || FutureUtil.unwrapCompletionException(ex)
-                                                        instanceof ConflictException) {
+                                                Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                                                if (ex == null || cause instanceof ConflictException) {
                                                     log.info()
                                                             .attr("subscription", subName)
                                                             .log("successfully created sub for migration");
@@ -3860,7 +3861,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                                 }
                                                 log.warn()
                                                         .attr("subscription", subName)
-                                                        .exception(ex)
+                                                        .exceptionMessage(cause)
                                                         .log("Failed to create sub on migration cluster");
                                                 throw FutureUtil.wrapToCompletionException(ex);
                                             });
