@@ -48,6 +48,7 @@ import lombok.CustomLog;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationParameters;
 import org.apache.pulsar.broker.web.AuthenticationFilter;
+import org.apache.pulsar.proxy.server.DirectProxyHandler;
 import org.apache.pulsar.proxy.server.ProxyService;
 
 @CustomLog
@@ -77,13 +78,15 @@ public class ProxyStats {
         throwIfNotSuperUser("metrics");
         List<ConnectionStats> stats = new ArrayList<>();
         proxyService().getClientCnxs().forEach(cnx -> {
-            if (cnx.getDirectProxyHandler() == null) {
+            // read once: the connection's event loop may clear the handler concurrently
+            DirectProxyHandler directProxyHandler = cnx.getDirectProxyHandler();
+            if (directProxyHandler == null) {
                 return;
             }
-            double requestRate = cnx.getDirectProxyHandler().getInboundChannelRequestsRate().getRate();
-            double byteRate = cnx.getDirectProxyHandler().getInboundChannelRequestsRate().getValueRate();
-            Channel inboundChannel = cnx.getDirectProxyHandler().getInboundChannel();
-            Channel outboundChannel = cnx.getDirectProxyHandler().getOutboundChannel();
+            double requestRate = directProxyHandler.getInboundChannelRequestsRate().getRate();
+            double byteRate = directProxyHandler.getInboundChannelRequestsRate().getValueRate();
+            Channel inboundChannel = directProxyHandler.getInboundChannel();
+            Channel outboundChannel = directProxyHandler.getOutboundChannel();
             stats.add(new ConnectionStats(requestRate, byteRate, inboundChannel, outboundChannel));
         });
         return stats;

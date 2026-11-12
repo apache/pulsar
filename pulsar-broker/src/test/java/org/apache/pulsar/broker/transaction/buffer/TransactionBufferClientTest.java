@@ -57,6 +57,7 @@ import org.apache.pulsar.PrometheusMetricsTestUtil;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferClientImpl;
@@ -85,8 +86,6 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -174,6 +173,14 @@ public class TransactionBufferClientTest extends TransactionTestBase {
         for (int i = 0; i < getPulsarServiceList().size(); i++) {
             getPulsarServiceList().get(i).getConfig().setTransactionBufferSegmentedSnapshotEnabled(true);
         }
+        // The brokers share one configuration, which outlives their restarts: turn segmented snapshots off again for
+        // the later tests.
+        @Cleanup
+        AutoCloseable restoreSnapshotConfig = () -> {
+            for (int i = 0; i < getPulsarServiceList().size(); i++) {
+                getPulsarServiceList().get(i).getConfig().setTransactionBufferSegmentedSnapshotEnabled(false);
+            }
+        };
         String topic1 = NAMESPACE1 + "/testRecoveryTransactionBufferWhenCommonTopicAndSystemTopicAtDifferentBroker";
         admin.tenants().createTenant(TENANT,
                 new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
@@ -332,7 +339,6 @@ public class TransactionBufferClientTest extends TransactionTestBase {
      */
     @Test
     public void testTransactionBufferClientTimeout() throws Exception {
-        PulsarService pulsarService = pulsarServiceList.get(0);
         PulsarClientImpl mockClient = mock(PulsarClientImpl.class);
         ConnectionPool connectionPool = mock(ConnectionPool.class);
         when(mockClient.getCnxPool()).thenReturn(connectionPool);
@@ -347,20 +353,13 @@ public class TransactionBufferClientTest extends TransactionTestBase {
         when(clientCnx.ctx()).thenReturn(cnx);
         Channel channel = mock(Channel.class);
         when(cnx.channel()).thenReturn(channel);
-        when(pulsarService.getClient()).thenAnswer(new Answer<PulsarClient>(){
-
-            @Override
-            public PulsarClient answer(InvocationOnMock invocation) throws Throwable {
-                return mockClient;
-            }
-        });
 
         when(channel.isActive()).thenReturn(true);
 
         @Cleanup("stop")
         HashedWheelTimer hashedWheelTimer = new HashedWheelTimer();
         TransactionBufferHandlerImpl transactionBufferHandler =
-                new TransactionBufferHandlerImpl(pulsarService, hashedWheelTimer, 1000, 3000);
+                new TransactionBufferHandlerImpl(mockPulsarService(mockClient), hashedWheelTimer, 1000, 3000);
         CompletableFuture<TxnID> endFuture =
                 transactionBufferHandler.endTxnOnTopic("test", 1, 1, TxnAction.ABORT, 1);
 
@@ -391,7 +390,6 @@ public class TransactionBufferClientTest extends TransactionTestBase {
 
     @Test
     public void testTransactionBufferChannelUnActive() throws PulsarServerException {
-        PulsarService pulsarService = pulsarServiceList.get(0);
         PulsarClientImpl mockClient = mock(PulsarClientImpl.class);
         ConnectionPool connectionPool = mock(ConnectionPool.class);
         when(mockClient.getCnxPool()).thenReturn(connectionPool);
@@ -404,18 +402,11 @@ public class TransactionBufferClientTest extends TransactionTestBase {
         when(cnx.channel()).thenReturn(channel);
 
         when(channel.isActive()).thenReturn(false);
-        when(pulsarService.getClient()).thenAnswer(new Answer<PulsarClient>(){
-
-            @Override
-            public PulsarClient answer(InvocationOnMock invocation) throws Throwable {
-                return mockClient;
-            }
-        });
 
         @Cleanup("stop")
         HashedWheelTimer hashedWheelTimer = new HashedWheelTimer();
         TransactionBufferHandlerImpl transactionBufferHandler =
-                new TransactionBufferHandlerImpl(pulsarServiceList.get(0), hashedWheelTimer, 1000, 3000);
+                new TransactionBufferHandlerImpl(mockPulsarService(mockClient), hashedWheelTimer, 1000, 3000);
         try {
             transactionBufferHandler.endTxnOnTopic("test", 1, 1, TxnAction.ABORT, 1).get();
             fail();
@@ -435,7 +426,6 @@ public class TransactionBufferClientTest extends TransactionTestBase {
 
     @Test
     public void testTransactionBufferConnectionClosedBeforeHandshake() throws PulsarServerException {
-        PulsarService pulsarService = pulsarServiceList.get(0);
         PulsarClientImpl mockClient = mock(PulsarClientImpl.class);
         ConnectionPool connectionPool = mock(ConnectionPool.class);
         when(mockClient.getCnxPool()).thenReturn(connectionPool);
@@ -444,18 +434,11 @@ public class TransactionBufferClientTest extends TransactionTestBase {
         when(mockClient.getConnection(anyString(), anyInt())).thenReturn(
                 CompletableFuture.failedFuture(
                         new PulsarClientException.ConnectException("Connection already closed")));
-        when(pulsarService.getClient()).thenAnswer(new Answer<PulsarClient>(){
-
-            @Override
-            public PulsarClient answer(InvocationOnMock invocation) throws Throwable {
-                return mockClient;
-            }
-        });
 
         @Cleanup("stop")
         HashedWheelTimer hashedWheelTimer = new HashedWheelTimer();
         TransactionBufferHandlerImpl transactionBufferHandler =
-                new TransactionBufferHandlerImpl(pulsarServiceList.get(0), hashedWheelTimer, 1000, 3000);
+                new TransactionBufferHandlerImpl(mockPulsarService(mockClient), hashedWheelTimer, 1000, 3000);
         try {
             transactionBufferHandler.endTxnOnTopic("test", 1, 1, TxnAction.ABORT, 1).get();
             fail();
@@ -515,15 +498,16 @@ public class TransactionBufferClientTest extends TransactionTestBase {
 
     @Test
     public void testTransactionBufferPendingRequests() throws Exception {
-        // The pending requests gauge asks the handler on every scrape. The stats are a process wide singleton
-        // bound to the first handler, so replace the live singleton with one bound to a handler the test controls
-        // and check that the scraped value follows it. The next broker start recreates the singleton.
+        // The pending requests gauge asks the handler on every scrape. The Prometheus collectors are shared by
+        // every client in the process and bound to the first client's handler, so close the live ones and create
+        // a client bound to a handler the test controls, then check that the scraped value follows it. The next
+        // client created after this test registers new ones.
         PulsarService pulsar = pulsarServiceList.get(0);
         TransactionBufferHandler handler = mock(TransactionBufferHandler.class);
         AtomicInteger pendingCount = new AtomicInteger(3);
         when(handler.getPendingRequestsCount()).thenAnswer(invocation -> pendingCount.get());
-        TransactionBufferClientStatsImpl.getInstance(pulsar, true, handler).close();
-        TransactionBufferClientStats stats = TransactionBufferClientStatsImpl.getInstance(pulsar, true, handler);
+        new TransactionBufferClientStatsImpl(pulsar, true, handler).close();
+        TransactionBufferClientStats stats = new TransactionBufferClientStatsImpl(pulsar, true, handler);
         try {
             assertEquals(scrapePendingRequests(pulsar), 3D);
             pendingCount.set(0);
@@ -566,5 +550,17 @@ public class TransactionBufferClientTest extends TransactionTestBase {
 
         tbClient.abortTxnOnSubscription(topic + "_abort_topic", sub, 1L, 1L, -1L).get();
         tbClient.abortTxnOnSubscription(topic + "_commit_topic", sub, 1L, 1L, -1L).get();
+    }
+
+    /**
+     * Returns a {@link PulsarService} that hands the given client to a {@link TransactionBufferHandlerImpl}. Stubbing
+     * getClient() on one of the brokers instead would leave the mock in that broker for the later tests.
+     */
+    private PulsarService mockPulsarService(PulsarClientImpl client) throws PulsarServerException {
+        NamespaceService namespaceService = pulsarServiceList.get(0).getNamespaceService();
+        PulsarService pulsarService = mock(PulsarService.class);
+        when(pulsarService.getNamespaceService()).thenReturn(namespaceService);
+        when(pulsarService.getClient()).thenReturn(client);
+        return pulsarService;
     }
 }

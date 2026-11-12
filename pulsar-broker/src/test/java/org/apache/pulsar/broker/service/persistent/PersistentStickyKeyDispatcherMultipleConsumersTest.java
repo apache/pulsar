@@ -305,6 +305,11 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         AtomicReference<Thread> cleanupThread = new AtomicReference<>();
         ExecutorService executor = Executors.newFixedThreadPool(2,
                 new DefaultThreadFactory("redelivery-hash-test"));
+        // Stub the cursor once, before the dispatcher starts reading: each mark-delete move schedules a read that calls
+        // cursorMock.isClosed() on another thread, and Mockito takes a call from any thread that lands in a
+        // doReturn(...).when(cursorMock) stubbing as the stubbed call.
+        AtomicReference<Position> markDeletePosition = new AtomicReference<>();
+        doAnswer(invocation -> markDeletePosition.get()).when(cursorMock).getMarkDeletedPosition();
 
         persistentDispatcher.close().join();
         // Preserve the real map operations and pause only between the increment's get and put.
@@ -327,7 +332,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
                 assertThat(dispatcher.addMessageToReplay(1, 1, stickyKeyHash)).isTrue();
                 assertThat(refCounts.get(stickyKeyHash)).isEqualTo(1);
 
-                doReturn(PositionFactory.create(1, 1)).when(cursorMock).getMarkDeletedPosition();
+                markDeletePosition.set(PositionFactory.create(1, 1));
                 pauseIncrement.set(true);
                 var addition = executor.submit(() -> dispatcher.addMessageToReplay(1, 2, stickyKeyHash));
                 assertThat(incrementRead.await(10, TimeUnit.SECONDS)).isTrue();
@@ -354,7 +359,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
                 assertThat(dispatcher.redeliveryMessages.size()).isEqualTo(1);
                 long countAfterConcurrentUpdate = refCounts.get(stickyKeyHash);
 
-                doReturn(PositionFactory.create(1, 2)).when(cursorMock).getMarkDeletedPosition();
+                markDeletePosition.set(PositionFactory.create(1, 2));
                 dispatcher.markDeletePositionMoveForward();
                 assertThat(dispatcher.redeliveryMessages.isEmpty()).isTrue();
                 assertThat(dispatcher.redeliveryMessages.containsStickyKeyHash(stickyKeyHash))
@@ -367,6 +372,68 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
                 assertThat(executor.awaitTermination(10, TimeUnit.SECONDS)).isTrue();
             }
         }
+    }
+
+    /**
+     * Removing the last consumer debits its unacked messages but leaves its pending acks in place. A concurrent
+     * mark-delete cleanup that releases those pending acks must not debit the same messages again.
+     */
+    @Test(timeOut = 30_000)
+    public void testMarkDeleteCleanupDoesNotDebitConsumerRemovedConcurrently() throws Exception {
+        Consumer consumer = createMockConsumer();
+        persistentDispatcher.addConsumer(consumer).join();
+        // the consumer holds one pending ack, counted in both the consumer's and the dispatcher's unacked messages
+        AtomicInteger consumerUnacked = new AtomicInteger(1);
+        AtomicBoolean pendingAckPresent = new AtomicBoolean(true);
+        doAnswer(invocation -> consumerUnacked.get()).when(consumer).getUnackedMessages();
+        persistentDispatcher.addUnAckedMessages(1);
+
+        CountDownLatch cleanupStarted = new CountDownLatch(1);
+        AtomicReference<Thread> removalThread = new AtomicReference<>();
+        AtomicReference<java.util.concurrent.Future<?>> removal = new AtomicReference<>();
+        doAnswer(invocation -> {
+            cleanupStarted.countDown();
+            // Before the fix the removal completes while the cleanup is in progress. With the fix it waits on the
+            // dispatcher monitor that the cleanup holds, so continue once that is established.
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> {
+                java.util.concurrent.Future<?> removalFuture = removal.get();
+                if (removalFuture != null && removalFuture.isDone()) {
+                    return true;
+                }
+                Thread thread = removalThread.get();
+                ThreadInfo info = thread == null ? null
+                        : ManagementFactory.getThreadMXBean().getThreadInfo(thread.threadId());
+                return info != null && info.getThreadState() == Thread.State.BLOCKED
+                        && info.getLockInfo() != null
+                        && info.getLockInfo().getIdentityHashCode() == System.identityHashCode(persistentDispatcher);
+            });
+            // as the real consumer does, release the pending ack and debit it through the subscription
+            if (pendingAckPresent.compareAndSet(true, false)) {
+                consumerUnacked.decrementAndGet();
+                persistentDispatcher.addUnAckedMessages(-1);
+            }
+            return null;
+        }).when(consumer).removePendingAcksUpToPositionAndDecrementUnacked(anyLong(), anyLong());
+        doReturn(PositionFactory.create(1, 1)).when(cursorMock).getMarkDeletedPosition();
+
+        ExecutorService executor = Executors.newFixedThreadPool(2,
+                new DefaultThreadFactory("cleanup-removal-test"));
+        try {
+            var cleanup = executor.submit(() -> persistentDispatcher.markDeletePositionMoveForward());
+            assertThat(cleanupStarted.await(10, TimeUnit.SECONDS)).isTrue();
+            removal.set(executor.submit(() -> {
+                removalThread.set(Thread.currentThread());
+                persistentDispatcher.removeConsumer(consumer);
+                return null;
+            }));
+            cleanup.get(10, TimeUnit.SECONDS);
+            removal.get().get(10, TimeUnit.SECONDS);
+        } finally {
+            executor.shutdownNow();
+            assertThat(executor.awaitTermination(10, TimeUnit.SECONDS)).isTrue();
+        }
+
+        assertThat(persistentDispatcher.getTotalUnackedMessages()).isZero();
     }
 
     @Test

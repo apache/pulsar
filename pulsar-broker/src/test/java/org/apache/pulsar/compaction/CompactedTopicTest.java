@@ -58,6 +58,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.RawMessageImpl;
 import org.apache.pulsar.client.impl.ReaderImpl;
 import org.apache.pulsar.common.api.proto.MessageIdData;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
@@ -159,8 +160,18 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
         return Triple.of(lh.getId(), positions, idsInGaps);
     }
 
+    // The compaction of a partitioned topic is triggered for each partition, which has the compaction status: the
+    // partitioned topic has none
+    private void awaitCompactionSuccess(String partition) {
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(admin.topics().compactionStatus(partition).status,
+                LongRunningProcessStatus.Status.SUCCESS));
+    }
+
     @Test
     public void testEntryLookup() throws Exception {
+        // The mock BookKeeper sleeps 1 ms for each add and for each read, and the lookups read thousands of entries
+        pulsarTestContext.getMockBookKeeper().setDefaultAddEntryDelayMillis(0);
+        pulsarTestContext.getMockBookKeeper().setDefaultReadEntriesDelayMillis(0);
         @Cleanup
         BookKeeper bk = pulsar.getBookKeeperClientFactory().create(
                 this.conf, null, null, Optional.empty(), null).get();
@@ -297,16 +308,7 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
 
         FutureUtil.waitForAll(list).get();
         admin.topics().triggerCompaction(topic);
-
-        boolean succeed = retryStrategically((test) -> {
-            try {
-                return LongRunningProcessStatus.Status.SUCCESS.equals(admin.topics().compactionStatus(topic).status);
-            } catch (PulsarAdminException e) {
-                return false;
-            }
-        }, 10, 200);
-
-        Assert.assertTrue(succeed);
+        awaitCompactionSuccess(TopicName.get(topic).getPartition(0).toString());
 
         // Send more messages and trigger compaction again.
 
@@ -317,15 +319,7 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
 
         FutureUtil.waitForAll(list).get();
         admin.topics().triggerCompaction(topic);
-
-        succeed = retryStrategically((test) -> {
-            try {
-                return LongRunningProcessStatus.Status.SUCCESS.equals(admin.topics().compactionStatus(topic).status);
-            } catch (PulsarAdminException e) {
-                return false;
-            }
-        }, 10, 200);
-        Assert.assertTrue(succeed);
+        awaitCompactionSuccess(TopicName.get(topic).getPartition(0).toString());
 
         producer.close();
     }
@@ -344,16 +338,7 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
         }
 
         admin.topics().triggerCompaction(topic);
-        boolean succeed = retryStrategically((test) -> {
-            try {
-                return LongRunningProcessStatus.Status.SUCCESS.equals(admin.topics().compactionStatus(topic).status);
-            } catch (PulsarAdminException e) {
-                return false;
-            }
-        }, 10, 200);
-
-        Assert.assertTrue(succeed);
-
+        awaitCompactionSuccess(TopicName.get(topic).getPartition(0).toString());
 
         final String newKey = "2";
         String newMsg = "test compaction msg v2";
@@ -459,6 +444,8 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
     public void testDoNotLossTheLastCompactedLedgerData() throws Exception {
         String topic = "persistent://my-property/my-ns/testDoNotLossTheLastCompactedLedgerData-"
                 + UUID.randomUUID();
+        // The mock BookKeeper sleeps 1 ms for each add by default, on a single thread
+        pulsarTestContext.getMockBookKeeper().setDefaultAddEntryDelayMillis(0);
         final int numMessages = 2000;
         final int keys = 200;
         final String msg = "Test";
@@ -518,6 +505,8 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
     public void testReadCompactedDataWhenLedgerRolloverKickIn() throws Exception {
         String topic = "persistent://my-property/my-ns/testReadCompactedDataWhenLedgerRolloverKickIn-"
                 + UUID.randomUUID();
+        // The mock BookKeeper sleeps 1 ms for each add by default, on a single thread
+        pulsarTestContext.getMockBookKeeper().setDefaultAddEntryDelayMillis(0);
         final int numMessages = 2000;
         final int keys = 200;
         final String msg = "Test";
@@ -593,6 +582,8 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
     public void testCompactionWithTopicUnloading() throws Exception {
         String topic = "persistent://my-property/my-ns/testCompactionWithTopicUnloading-"
                 + UUID.randomUUID();
+        // The mock BookKeeper sleeps 1 ms for each add by default, on a single thread
+        pulsarTestContext.getMockBookKeeper().setDefaultAddEntryDelayMillis(0);
         final int numMessages = 2000;
         final int keys = 500;
         final String msg = "Test";
@@ -609,7 +600,7 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
         producer.flush();
         lastMessage.join();
         admin.topics().triggerCompaction(topic);
-        Awaitility.await().pollInterval(5, TimeUnit.SECONDS).untilAsserted(() -> {
+        Awaitility.await().untilAsserted(() -> {
             PersistentTopicInternalStats stats = admin.topics().getInternalStats(topic);
             Assert.assertNotEquals(stats.compactedLedger.ledgerId, -1);
             Assert.assertEquals(stats.compactedLedger.entries, keys);
@@ -623,11 +614,13 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
         }
         producer.flush();
         lastMessage.join();
+        // The compacted entries are added at 1 ms each again, so that the unload comes while the compaction runs
+        pulsarTestContext.getMockBookKeeper().setDefaultAddEntryDelayMillis(1);
         admin.topics().triggerCompaction(topic);
         Thread.sleep(100);
         admin.topics().unload(topic);
         admin.topics().triggerCompaction(topic);
-        Awaitility.await().pollInterval(3, TimeUnit.SECONDS).atMost(30, TimeUnit.SECONDS).untilAsserted(() -> {
+        Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() -> {
             PersistentTopicInternalStats stats = admin.topics().getInternalStats(topic);
             Assert.assertNotEquals(stats.compactedLedger.ledgerId, -1);
             Assert.assertEquals(stats.compactedLedger.entries, keys * 2);
@@ -669,7 +662,8 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
         ((PulsarCompactionServiceFactory) pulsar.getCompactionServiceFactory()).getCompactor().compact(topic).get();
 
         Awaitility.await()
-                .pollInterval(3, TimeUnit.SECONDS)
+                .pollDelay(0, TimeUnit.SECONDS)
+                .pollInterval(500, TimeUnit.MILLISECONDS)
                 .atMost(30, TimeUnit.SECONDS).untilAsserted(() -> {
             admin.topics().unload(topic);
             Thread.sleep(100);
@@ -741,6 +735,8 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
     public void testReadCompleteMessagesDuringTopicUnloading() throws Exception {
         String topic = "persistent://my-property/my-ns/testReadCompleteMessagesDuringTopicUnloading-"
                 + UUID.randomUUID();
+        // The mock BookKeeper sleeps 1 ms for each add by default, on a single thread
+        pulsarTestContext.getMockBookKeeper().setDefaultAddEntryDelayMillis(0);
         final int numMessages = 1000;
         @Cleanup
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
@@ -833,7 +829,8 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
         });
 
         Awaitility.await()
-                .pollInterval(3, TimeUnit.SECONDS)
+                .pollDelay(0, TimeUnit.SECONDS)
+                .pollInterval(500, TimeUnit.MILLISECONDS)
                 .atMost(30, TimeUnit.SECONDS).untilAsserted(() -> {
                     admin.topics().unload(topic);
                     Assert.assertTrue(admin.topics().getInternalStats(topic).lastConfirmedEntry.endsWith("-1"));

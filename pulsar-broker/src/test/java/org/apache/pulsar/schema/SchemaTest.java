@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.schema;
 
-import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
 import static org.apache.pulsar.schema.compatibility.SchemaCompatibilityCheckTest.randomName;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -30,7 +29,6 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import static org.testng.internal.junit.ArrayAsserts.assertArrayEquals;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.google.common.collect.Sets;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.Serializable;
@@ -55,11 +53,9 @@ import lombok.EqualsAndHashCode;
 import org.apache.avro.Schema.Parser;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
-import org.apache.bookkeeper.client.PulsarMockBookKeeper;
-import org.apache.bookkeeper.client.PulsarMockLedgerHandle;
-import org.apache.bookkeeper.mledger.impl.LedgerMetadataUtils;
 import org.apache.pulsar.broker.BrokerTestUtil;
-import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
+import org.apache.pulsar.broker.service.SharedPulsarCluster;
 import org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage;
 import org.apache.pulsar.broker.service.schema.SchemaLocator;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry;
@@ -69,6 +65,7 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
@@ -85,12 +82,11 @@ import org.apache.pulsar.client.impl.schema.ProtobufSchema;
 import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
 import org.apache.pulsar.client.impl.schema.generic.GenericJsonRecord;
 import org.apache.pulsar.client.impl.schema.writer.AvroWriter;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SchemaMetadata;
-import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -101,37 +97,20 @@ import org.apache.pulsar.metadata.api.MetadataSerde;
 import org.apache.pulsar.metadata.api.Stat;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+/**
+ * Schema tests on the shared broker, each in a namespace of its own. {@link SchemaOwnBrokerTest} has the tests that
+ * need a broker of their own.
+ */
 @CustomLog
 @Test(groups = "schema")
-public class SchemaTest extends MockedPulsarServiceBaseTest {
+public class SchemaTest extends SharedPulsarBaseTest {
 
-    private static final String CLUSTER_NAME = "test";
-
-    @BeforeMethod
     @Override
-    public void setup() throws Exception {
-        isTcpLookup = true;
-        super.internalSetup();
-
-        // Setup namespaces
-        admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder()
-                .serviceUrl(pulsar.getWebServiceAddress()).build());
-        TenantInfo tenantInfo = TenantInfo.builder()
-                .allowedClusters(Collections.singleton(CLUSTER_NAME))
-                .build();
-        admin.tenants().createTenant(PUBLIC_TENANT, tenantInfo);
-        admin.namespaces().createNamespace(PUBLIC_TENANT + "/my-ns");
-    }
-
-    @AfterMethod(alwaysRun = true)
-    @Override
-    public void cleanup() throws Exception {
-        super.internalCleanup();
+    protected boolean checkClientHandlesClosed() {
+        return true;
     }
 
     @DataProvider(name = "topicDomain")
@@ -141,23 +120,22 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testGetSchemaWhenCreateAutoProduceBytesProducer() throws Exception{
-        final String tenant = PUBLIC_TENANT;
-        final String namespace = "test-namespace-" + randomName(16);
+        final String tenant = SharedPulsarCluster.TENANT_NAME;
+        final String namespace = NamespaceName.get(getNamespace()).getLocalName();
         final String topic = tenant + "/" + namespace + "/test-getSchema";
-        admin.namespaces().createNamespace(
-                tenant + "/" + namespace,
-                Sets.newHashSet(CLUSTER_NAME)
-        );
 
         ProtobufSchema<org.apache.pulsar.client.api.schema.proto.Test.TestMessage> protobufSchema =
                 ProtobufSchema.of(org.apache.pulsar.client.api.schema.proto.Test.TestMessage.class);
-        pulsarClient.newProducer(protobufSchema).topic(topic).create();
-        pulsarClient.newProducer(org.apache.pulsar.client.api.Schema.AUTO_PRODUCE_BYTES()).topic(topic).create();
+        @Cleanup
+        Producer<?> producer = pulsarClient.newProducer(protobufSchema).topic(topic).create();
+        @Cleanup
+        Producer<?> producer2 = pulsarClient.newProducer(org.apache.pulsar.client.api.Schema.AUTO_PRODUCE_BYTES())
+                .topic(topic).create();
     }
 
     @Test
     public void testGetSchemaWithPatternTopic() throws Exception {
-        final String topicPrefix = "persistent://public/my-ns/test-getSchema";
+        final String topicPrefix = "persistent://" + getNamespace() + "/test-getSchema";
 
         int topicNums = 10;
         for (int i = 0; i < topicNums; i++) {
@@ -185,8 +163,8 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testMultiTopicSetSchemaProvider() throws Exception {
-        final String tenant = PUBLIC_TENANT;
-        final String namespace = "test-namespace-" + randomName(16);
+        final String tenant = SharedPulsarCluster.TENANT_NAME;
+        final String namespace = NamespaceName.get(getNamespace()).getLocalName();
         final String topicOne = "test-multi-version-schema-one";
         final String topicTwo = "test-multi-version-schema-two";
         final String fqtnOne = TopicName.get(
@@ -203,11 +181,6 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
                 topicTwo
         ).toString();
 
-
-        admin.namespaces().createNamespace(
-                tenant + "/" + namespace,
-                Sets.newHashSet(CLUSTER_NAME)
-        );
 
         admin.topics().createPartitionedTopic(fqtnOne, 3);
         admin.topics().createPartitionedTopic(fqtnTwo, 3);
@@ -248,6 +221,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
                 .topic(fqtnOne, fqtnTwo)
                 .subscribe();
 
+        @Cleanup
         Consumer<GenericRecord> consumer2 = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
                 .subscriptionName("test2")
                 .topic(fqtnOne, fqtnTwo)
@@ -282,8 +256,8 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testMultiTopicSetSchemaProviderWithKeyValue() throws Exception {
-        final String tenant = PUBLIC_TENANT;
-        final String namespace = "test-namespace-" + randomName(16);
+        final String tenant = SharedPulsarCluster.TENANT_NAME;
+        final String namespace = NamespaceName.get(getNamespace()).getLocalName();
         final String topicOne = "test-multi-version-schema-one";
         final String topicTwo = "test-multi-version-schema-two";
         final String fqtnOne = TopicName.get(
@@ -300,11 +274,6 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
                 topicTwo
         ).toString();
 
-
-        admin.namespaces().createNamespace(
-                tenant + "/" + namespace,
-                Sets.newHashSet(CLUSTER_NAME)
-        );
 
         admin.topics().createPartitionedTopic(fqtnOne, 3);
         admin.topics().createPartitionedTopic(fqtnTwo, 3);
@@ -349,6 +318,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
                 .topic(fqtnOne, fqtnTwo)
                 .subscribe();
 
+        @Cleanup
         Consumer<GenericRecord> consumer2 = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
                 .subscriptionName("test2")
                 .topic(fqtnOne, fqtnTwo)
@@ -384,8 +354,8 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testSendAvroAndJsonPrimitiveSchema() throws Exception {
-        final String tenant = PUBLIC_TENANT;
-        final String namespace = "test-namespace-" + randomName(16);
+        final String tenant = SharedPulsarCluster.TENANT_NAME;
+        final String namespace = NamespaceName.get(getNamespace()).getLocalName();
         final String topicOne = "test-multi-version-schema-one";
         final String fqtnOne = TopicName.get(
                 TopicDomain.persistent.value(),
@@ -395,18 +365,15 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         ).toString();
 
 
-        admin.namespaces().createNamespace(
-                tenant + "/" + namespace,
-                Sets.newHashSet(CLUSTER_NAME)
-        );
-
         admin.namespaces().setSchemaCompatibilityStrategy(tenant + "/" + namespace,
                 SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
 
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer(Schema.AUTO_PRODUCE_BYTES())
                 .topic(fqtnOne)
                 .create();
 
+        @Cleanup
         final Consumer<GenericRecord> consumer =
                 pulsarClient.newConsumer(Schema.AUTO_CONSUME()).topic(fqtnOne)
                 .subscriptionName("sub")
@@ -433,7 +400,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testAvroIntSchema() throws Exception {
-        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + PUBLIC_TENANT + "/my-ns/tp");
+        final String topicName = newTopicName();
 
         Producer<Integer> producer = pulsarClient.newProducer(Schema.AVRO(Integer.class)).topic(topicName).create();
         Consumer<Integer> consumer = pulsarClient.newConsumer(Schema.AVRO(Integer.class)).topic(topicName)
@@ -461,8 +428,8 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testJSONSchemaDeserialize() throws Exception {
-        final String tenant = PUBLIC_TENANT;
-        final String namespace = "test-namespace-" + randomName(16);
+        final String tenant = SharedPulsarCluster.TENANT_NAME;
+        final String namespace = NamespaceName.get(getNamespace()).getLocalName();
         final String topicName = "test-bytes-schema";
 
         final String topic = TopicName.get(
@@ -470,10 +437,6 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
                 tenant,
                 namespace,
                 topicName).toString();
-
-        admin.namespaces().createNamespace(
-                tenant + "/" + namespace,
-                Sets.newHashSet(CLUSTER_NAME));
 
         admin.topics().createPartitionedTopic(topic, 2);
         admin.schemas().createSchema(topic, Schema.JSON(Schemas.BytesRecord.class).getSchemaInfo());
@@ -519,8 +482,8 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testStringSchema() throws Exception {
-        final String tenant = PUBLIC_TENANT;
-        final String namespace = "test-namespace-" + randomName(16);
+        final String tenant = SharedPulsarCluster.TENANT_NAME;
+        final String namespace = NamespaceName.get(getNamespace()).getLocalName();
         final String topicName = "test-string-schema";
 
         final String topic = TopicName.get(
@@ -528,10 +491,6 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
                 tenant,
                 namespace,
                 topicName).toString();
-
-        admin.namespaces().createNamespace(
-                tenant + "/" + namespace,
-                Sets.newHashSet(CLUSTER_NAME));
 
         admin.topics().createPartitionedTopic(topic, 2);
 
@@ -581,8 +540,8 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
     }
 
     private void testUseAutoConsumeWithSchemalessTopic(SchemaType schema) throws Exception {
-        final String tenant = PUBLIC_TENANT;
-        final String namespace = "test-namespace-" + randomName(16);
+        final String tenant = SharedPulsarCluster.TENANT_NAME;
+        final String namespace = NamespaceName.get(getNamespace()).getLocalName();
         final String topicName = "test-schemaless";
 
         final String topic = TopicName.get(
@@ -590,10 +549,6 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
                 tenant,
                 namespace,
                 topicName).toString();
-
-        admin.namespaces().createNamespace(
-                tenant + "/" + namespace,
-                Sets.newHashSet(CLUSTER_NAME));
 
         admin.topics().createPartitionedTopic(topic, 2);
 
@@ -660,8 +615,8 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
     }
 
     private void testKeyValueSchema(KeyValueEncodingType keyValueEncodingType) throws Exception {
-        final String tenant = PUBLIC_TENANT;
-        final String namespace = "test-namespace-" + randomName(16);
+        final String tenant = SharedPulsarCluster.TENANT_NAME;
+        final String namespace = NamespaceName.get(getNamespace()).getLocalName();
         final String topicName = "test-kv-schema-" + randomName(16);
 
         final String topic = TopicName.get(
@@ -669,10 +624,6 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
                 tenant,
                 namespace,
                 topicName).toString();
-
-        admin.namespaces().createNamespace(
-                tenant + "/" + namespace,
-                Sets.newHashSet(CLUSTER_NAME));
 
         admin.topics().createPartitionedTopic(topic, 2);
 
@@ -725,8 +676,8 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
 
     @SuppressWarnings("unchecked")
     private void testKeyValueSchemaWithStructs(KeyValueEncodingType keyValueEncodingType) throws Exception {
-        final String tenant = PUBLIC_TENANT;
-        final String namespace = "test-namespace-" + randomName(16);
+        final String tenant = SharedPulsarCluster.TENANT_NAME;
+        final String namespace = NamespaceName.get(getNamespace()).getLocalName();
         final String topicName = "test-kv-schema-" + randomName(16);
 
         final String topic = TopicName.get(
@@ -734,10 +685,6 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
                 tenant,
                 namespace,
                 topicName).toString();
-
-        admin.namespaces().createNamespace(
-                tenant + "/" + namespace,
-                Sets.newHashSet(CLUSTER_NAME));
 
         admin.topics().createPartitionedTopic(topic, 2);
 
@@ -810,8 +757,8 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testNullKeyValueProperty() throws PulsarAdminException, PulsarClientException {
-        final String tenant = PUBLIC_TENANT;
-        final String namespace = "test-namespace-" + randomName(16);
+        final String tenant = SharedPulsarCluster.TENANT_NAME;
+        final String namespace = NamespaceName.get(getNamespace()).getLocalName();
         final String topicName = "test";
 
         final String topic = TopicName.get(
@@ -819,9 +766,6 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
                 tenant,
                 namespace,
                 topicName).toString();
-        admin.namespaces().createNamespace(
-                tenant + "/" + namespace,
-                Sets.newHashSet(CLUSTER_NAME));
 
         final Map<String, String> map = new HashMap<>();
         map.put("key", null);
@@ -839,8 +783,8 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testDeleteTopicAndSchema() throws Exception {
-        final String tenant = PUBLIC_TENANT;
-        final String namespace = "test-namespace-" + randomName(16);
+        final String tenant = SharedPulsarCluster.TENANT_NAME;
+        final String namespace = NamespaceName.get(getNamespace()).getLocalName();
         final String topicName = "test-delete-topic-and-schema";
 
         final String topic = TopicName.get(
@@ -848,10 +792,6 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
                 tenant,
                 namespace,
                 topicName).toString();
-
-        admin.namespaces().createNamespace(
-                tenant + "/" + namespace,
-                Sets.newHashSet(CLUSTER_NAME));
 
         Producer<Schemas.PersonOne> p1 = pulsarClient.newProducer(Schema.JSON(Schemas.PersonOne.class))
                 .topic(topic)
@@ -893,21 +833,19 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
                 getPulsar().getBookKeeperClient().openLedger(ledger, BookKeeper.DigestType.CRC32,
                         new byte[]{});
                 fail();
-            } catch (BKException.BKNoSuchLedgerExistsException ignore) {
+            } catch (BKException.BKNoSuchLedgerExistsOnMetadataServerException ignore) {
+                // a real BookKeeper's answer for a deleted ledger (the mock one threw BKNoSuchLedgerExistsException)
             }
         }
     }
 
     @Test
     public void testDeleteTopicAndSchemaForV2() throws Exception {
-        final String tenant = PUBLIC_TENANT;
-        final String namespace = "test-namespace-" + randomName(16);
+        final String tenant = SharedPulsarCluster.TENANT_NAME;
+        final String namespace = NamespaceName.get(getNamespace()).getLocalName();
         final String topicOne = "persistent://" + tenant + "/" + namespace + "/non-partitioned-topic";
         final String topicTwo = "persistent://" + tenant + "/" + namespace + "/partitioned-topic";
 
-        admin.namespaces().createNamespace(
-                tenant + "/" + namespace,
-                Sets.newHashSet(CLUSTER_NAME));
         // persistent, non-partitioned v2/topic
         admin.topics().createNonPartitionedTopic(topicOne);
         // persistent, partitioned v2/topic
@@ -991,12 +929,11 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testProducerMultipleSchemaMessages() throws Exception {
-        final String tenant = PUBLIC_TENANT;
-        final String namespace = "test-namespace-" + randomName(16);
+        final String tenant = SharedPulsarCluster.TENANT_NAME;
+        final String namespace = NamespaceName.get(getNamespace()).getLocalName();
         final String topicName = "auto_schema_test";
 
         String ns = tenant + "/" + namespace;
-        admin.namespaces().createNamespace(ns, Sets.newHashSet(CLUSTER_NAME));
         admin.namespaces().setSchemaCompatibilityStrategy(ns, SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
 
         final String topic = TopicName.get(TopicDomain.persistent.value(), tenant, namespace, topicName).toString();
@@ -1040,8 +977,8 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testNullKey() throws Exception {
-        final String tenant = PUBLIC_TENANT;
-        final String namespace = "test-namespace-" + randomName(16);
+        final String tenant = SharedPulsarCluster.TENANT_NAME;
+        final String namespace = NamespaceName.get(getNamespace()).getLocalName();
         final String topicName = "test-schema-" + randomName(16);
 
         final String topic = TopicName.get(
@@ -1050,17 +987,15 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
                 namespace,
                 topicName).toString();
 
-        admin.namespaces().createNamespace(
-                tenant + "/" + namespace,
-                Sets.newHashSet(CLUSTER_NAME));
-
         admin.topics().createPartitionedTopic(topic, 2);
 
+        @Cleanup
         Producer<String> producer = pulsarClient
                 .newProducer(Schema.STRING)
                 .topic(topic)
                 .create();
 
+        @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                 .subscriptionName("test-sub")
                 .topic(topic)
@@ -1075,12 +1010,11 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testConsumeMultipleSchemaMessages() throws Exception {
-        final String namespace = "test-namespace-" + randomName(16);
-        String ns = PUBLIC_TENANT + "/" + namespace;
-        admin.namespaces().createNamespace(ns, Sets.newHashSet(CLUSTER_NAME));
+        String ns = getNamespace();
         admin.namespaces().setSchemaCompatibilityStrategy(ns, SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
 
         final String autoProducerTopic = getTopicName(ns, "auto_produce_topic");
+        @Cleanup
         Producer<byte[]> autoProducer = pulsarClient.newProducer(Schema.AUTO_PRODUCE_BYTES())
                 .topic(autoProducerTopic)
                 .create();
@@ -1116,6 +1050,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
                 new KeyValue<>(100, new Schemas.PersonThree(40, "kv-separate")),
                 autoProducer, totalMsgCnt);
 
+        @Cleanup
         Consumer<GenericRecord> autoConsumer = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
                 .topic(autoProducerTopic)
                 .subscriptionName("test")
@@ -1252,29 +1187,25 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testAvroSchemaWithHttpLookup() throws Exception {
-        cleanup();
-        isTcpLookup = false;
-        setup();
-        testIncompatibleSchema();
+        @Cleanup
+        PulsarClient httpLookupClient = PulsarClient.builder().serviceUrl(getWebServiceUrl()).build();
+        testIncompatibleSchema(httpLookupClient);
     }
 
     @Test
     public void testAvroSchemaWithTcpLookup() throws Exception {
-        cleanup();
-        isTcpLookup = true;
-        setup();
-        testIncompatibleSchema();
+        @Cleanup
+        PulsarClient tcpLookupClient = PulsarClient.builder().serviceUrl(getBrokerServiceUrl()).build();
+        testIncompatibleSchema(tcpLookupClient);
     }
 
-    private void testIncompatibleSchema() throws Exception {
-        final String namespace = "test-namespace-" + randomName(16);
-        String ns = PUBLIC_TENANT + "/" + namespace;
-        admin.namespaces().createNamespace(ns, Sets.newHashSet(CLUSTER_NAME));
+    private void testIncompatibleSchema(PulsarClient client) throws Exception {
+        String ns = getNamespace();
 
         final String autoProducerTopic = getTopicName(ns, "testEmptySchema");
 
         @Cleanup
-        Consumer<User> consumer = pulsarClient
+        Consumer<User> consumer = client
                 .newConsumer(Schema.AVRO(User.class))
                 .topic(autoProducerTopic)
                 .subscriptionType(SubscriptionType.Shared)
@@ -1282,14 +1213,14 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
                 .subscribe();
 
         @Cleanup
-        Producer<User> userProducer = pulsarClient
+        Producer<User> userProducer = client
                 .newProducer(Schema.AVRO(User.class))
                 .topic(autoProducerTopic)
                 .enableBatching(false)
                 .create();
 
         @Cleanup
-        Producer<byte[]> producer = pulsarClient
+        Producer<byte[]> producer = client
                 .newProducer()
                 .topic(autoProducerTopic)
                 .enableBatching(false)
@@ -1314,8 +1245,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
      */
     @Test(dataProvider = "topicDomain")
     public void testAutoProduceAndSpecifiedConsumer(String domain) throws Exception {
-        final String namespace = PUBLIC_TENANT + "/ns_" + randomName(16);
-        admin.namespaces().createNamespace(namespace, Sets.newHashSet(CLUSTER_NAME));
+        final String namespace = getNamespace();
         final String topicName = domain + namespace + "/tp_" + randomName(16);
         admin.topics().createNonPartitionedTopic(topicName);
 
@@ -1334,14 +1264,13 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testCreateSchemaInParallel() throws Exception {
-        final String namespace = "test-namespace-" + randomName(16);
-        String ns = PUBLIC_TENANT + "/" + namespace;
-        admin.namespaces().createNamespace(ns, Sets.newHashSet(CLUSTER_NAME));
+        String ns = getNamespace();
 
         final String topic = getTopicName(ns, "testCreateSchemaInParallel");
         @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newFixedThreadPool(16);
-        List<CompletableFuture<Producer<Schemas.PersonOne>>> producers = new ArrayList<>(16);
+        List<CompletableFuture<Producer<Schemas.PersonOne>>> producers =
+                Collections.synchronizedList(new ArrayList<>(16));
         CountDownLatch latch = new CountDownLatch(16);
         for (int i = 0; i < 16; i++) {
             executor.execute(() -> {
@@ -1353,9 +1282,9 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         latch.await();
         FutureUtil.waitForAll(producers).join();
         assertEquals(admin.schemas().getAllSchemas(topic).size(), 1);
-        producers.clear();
 
-        List<CompletableFuture<Producer<Schemas.PersonThree>>> producers2 = new ArrayList<>(16);
+        List<CompletableFuture<Producer<Schemas.PersonThree>>> producers2 =
+                Collections.synchronizedList(new ArrayList<>(16));
         CountDownLatch latch2 = new CountDownLatch(16);
         for (int i = 0; i < 16; i++) {
             executor.execute(() -> {
@@ -1383,118 +1312,6 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         producers2.clear();
     }
 
-    /**
-     * Test that when multiple producers concurrently create schema for a brand-new topic,
-     * the orphan BookKeeper ledgers created by the losing requests are properly cleaned up.
-     */
-    @Test
-    public void testConcurrentCreateSchemaNoOrphanLedger() throws Exception {
-        final String namespace = "test-namespace-" + randomName(16);
-        String ns = PUBLIC_TENANT + "/" + namespace;
-        admin.namespaces().createNamespace(ns, Sets.newHashSet(CLUSTER_NAME));
-
-        final String topic = getTopicName(ns, "testConcurrentCreateSchemaNoOrphanLedger");
-        final String schemaName = TopicName.get(topic).getSchemaName();
-
-        PulsarMockBookKeeper mockBk = (PulsarMockBookKeeper) pulsar.getBookKeeperClient();
-
-        // Concurrently create producers with the same schema on a brand-new topic
-        int concurrency = 16;
-        List<CompletableFuture<Producer<Schemas.PersonOne>>> producers = createProducersInParallel(
-                topic, Schema.AVRO(Schemas.PersonOne.class), concurrency);
-        try {
-            FutureUtil.waitForAll(producers).join();
-
-            // Verify only 1 schema version exists
-            assertEquals(admin.schemas().getAllSchemas(topic).size(), 1);
-
-            int schemaLedgerCount = countSchemaLedgers(mockBk, schemaName);
-            assertEquals(schemaLedgerCount, 1,
-                    "Expected exactly 1 schema ledger for the topic, but found "
-                            + schemaLedgerCount + ". Orphan ledgers were not cleaned up.");
-        } finally {
-            closeProducers(producers);
-        }
-    }
-
-    /**
-     * Test that concurrent compatible schema updates clean up ledgers created by requests
-     * that lose the schema locator CAS race.
-     */
-    @Test
-    public void testConcurrentUpdateSchemaNoOrphanLedger() throws Exception {
-        final String namespace = "test-namespace-" + randomName(16);
-        String ns = PUBLIC_TENANT + "/" + namespace;
-        admin.namespaces().createNamespace(ns, Sets.newHashSet(CLUSTER_NAME));
-
-        final String topic = getTopicName(ns, "testConcurrentUpdateSchemaNoOrphanLedger");
-        final String schemaName = TopicName.get(topic).getSchemaName();
-        PulsarMockBookKeeper mockBk = (PulsarMockBookKeeper) pulsar.getBookKeeperClient();
-
-        @Cleanup
-        Producer<Schemas.PersonOne> initialProducer = pulsarClient
-                .newProducer(Schema.AVRO(Schemas.PersonOne.class))
-                .topic(topic)
-                .create();
-        assertEquals(admin.schemas().getAllSchemas(topic).size(), 1);
-
-        int concurrency = 16;
-        List<CompletableFuture<Producer<Schemas.PersonThree>>> producers = createProducersInParallel(
-                topic, Schema.AVRO(Schemas.PersonThree.class), concurrency);
-        try {
-            FutureUtil.waitForAll(producers).join();
-
-            assertEquals(admin.schemas().getAllSchemas(topic).size(), 2);
-            int schemaLedgerCount = countSchemaLedgers(mockBk, schemaName);
-            assertEquals(schemaLedgerCount, 2,
-                    "Expected exactly 2 schema ledgers for the topic, but found "
-                            + schemaLedgerCount + ". Orphan ledgers were not cleaned up.");
-        } finally {
-            closeProducers(producers);
-        }
-    }
-
-    private <T> List<CompletableFuture<Producer<T>>> createProducersInParallel(
-            String topic, Schema<T> schema, int concurrency) throws InterruptedException {
-        @Cleanup("shutdownNow")
-        ExecutorService executor = Executors.newFixedThreadPool(concurrency);
-        List<CompletableFuture<Producer<T>>> producers = Collections.synchronizedList(new ArrayList<>(concurrency));
-        CountDownLatch latch = new CountDownLatch(concurrency);
-        for (int i = 0; i < concurrency; i++) {
-            executor.execute(() -> {
-                try {
-                    producers.add(pulsarClient.newProducer(schema).topic(topic).createAsync());
-                } finally {
-                    latch.countDown();
-                }
-            });
-        }
-        latch.await();
-        return producers;
-    }
-
-    private int countSchemaLedgers(PulsarMockBookKeeper mockBk, String schemaName) {
-        int schemaLedgerCount = 0;
-        for (PulsarMockLedgerHandle lh : mockBk.getLedgerMap().values()) {
-            Map<String, byte[]> metadata = lh.getLedgerMetadata().getCustomMetadata();
-            byte[] schemaIdBytes = metadata.get(LedgerMetadataUtils.METADATA_PROPERTY_SCHEMAID);
-            if (schemaIdBytes != null && schemaName.equals(new String(schemaIdBytes, StandardCharsets.UTF_8))) {
-                schemaLedgerCount++;
-            }
-        }
-        return schemaLedgerCount;
-    }
-
-    private <T> void closeProducers(List<CompletableFuture<Producer<T>>> producers) {
-        producers.forEach(p -> {
-            try {
-                p.join().close();
-            } catch (Exception ignore) {
-            }
-        });
-        producers.clear();
-    }
-
     @EqualsAndHashCode
     static class User implements Serializable {
         private String name;
@@ -1512,13 +1329,11 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
      */
     @Test
     public void testDeletedSchemaLedgerRecovery() throws Exception {
-        final String tenant = PUBLIC_TENANT;
-        final String namespace = "test-namespace-" + randomName(16);
+        final String tenant = SharedPulsarCluster.TENANT_NAME;
+        final String namespace = NamespaceName.get(getNamespace()).getLocalName();
         final String topicOne = "test-multi-version-schema-one";
         final String subName = "test";
         final String topicName = TopicName.get(TopicDomain.persistent.value(), tenant, namespace, topicOne).toString();
-
-        admin.namespaces().createNamespace(tenant + "/" + namespace, Sets.newHashSet(CLUSTER_NAME));
 
         // (1) create schema
         Producer<Schemas.PersonTwo> producer = pulsarClient
@@ -1540,7 +1355,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         consumer.close();
 
         // (2) Delete schema ledger
-        MetadataCache<SchemaLocator> locatorEntryCache = pulsar.getLocalMetadataStore()
+        MetadataCache<SchemaLocator> locatorEntryCache = getPulsar().getLocalMetadataStore()
                 .getMetadataCache(new MetadataSerde<SchemaLocator>() {
                     @Override
                     public byte[] serialize(String path, SchemaLocator value) {
@@ -1555,11 +1370,11 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
                         return loc;
                     }
                 });
-        String path = "/schemas/public/" + namespace + "/test-multi-version-schema-one";
+        String path = "/schemas/" + tenant + "/" + namespace + "/test-multi-version-schema-one";
         SchemaLocator schema = locatorEntryCache.get(path).get().get();
         schema = locatorEntryCache.get(path).get().get();
         long ledgerId = schema.getInfo().getPosition().getLedgerId();
-        pulsar.getBookKeeperClient().deleteLedger(ledgerId);
+        getPulsar().getBookKeeperClient().deleteLedger(ledgerId);
 
         // (3) Topic should recover from deleted schema and should allow to create consumer and producer
         consumer = pulsarClient
@@ -1580,8 +1395,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
     @Test
     @SuppressWarnings("unchecked")
     public void testPendingQueueSizeIfIncompatible() throws Exception {
-        final String namespace = BrokerTestUtil.newUniqueName(PUBLIC_TENANT + "/ns");
-        admin.namespaces().createNamespace(namespace, Sets.newHashSet(CLUSTER_NAME));
+        final String namespace = getNamespace();
         admin.namespaces().setSchemaCompatibilityStrategy(namespace, SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE);
         final String topic = BrokerTestUtil.newUniqueName(namespace + "/tp");
         admin.topics().createNonPartitionedTopic(topic);
@@ -1616,12 +1430,10 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testTopicSchemaMetadata() throws Exception {
-        final String tenant = PUBLIC_TENANT;
-        final String namespace = "test-namespace-" + randomName(16);
+        final String tenant = SharedPulsarCluster.TENANT_NAME;
+        final String namespace = NamespaceName.get(getNamespace()).getLocalName();
         final String topicOne = "metadata-topic";
         final String topicName = TopicName.get(TopicDomain.persistent.value(), tenant, namespace, topicOne).toString();
-
-        admin.namespaces().createNamespace(tenant + "/" + namespace, Sets.newHashSet(CLUSTER_NAME));
 
         @Cleanup
         Producer<Schemas.PersonTwo> producer = pulsarClient

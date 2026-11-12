@@ -22,6 +22,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import java.util.Set;
 import java.util.function.Supplier;
 import lombok.CustomLog;
 import org.apache.pulsar.client.api.Producer;
@@ -56,8 +57,12 @@ public class TestScalableTopicMigration extends PulsarTestSuite {
             String clusterName,
             PulsarClusterSpec.PulsarClusterSpecBuilder specBuilder) {
         specBuilder.numBrokers(numBrokers);
-        specBuilder.enableContainerLog(true);
         return specBuilder;
+    }
+
+    @Override
+    protected boolean isClusterShared() {
+        return true;
     }
 
     @Test(dataProvider = "ServiceUrls", timeOut = 300_000)
@@ -68,8 +73,10 @@ public class TestScalableTopicMigration extends PulsarTestSuite {
         final String topic = "persistent://" + shortTopic;
         final int numPartitions = numBrokers * 2;
 
-        pulsarCluster.createNamespace(nsName);
-        pulsarCluster.createPartitionedTopic(topic, numPartitions);
+        // With the admin client: pulsar-admin in a broker container would start a JVM for every command, and the
+        // command under test is the migration
+        pulsarAdmin.namespaces().createNamespace(namespace, Set.of(pulsarCluster.getClusterName()));
+        pulsarAdmin.topics().createPartitionedTopic(topic, numPartitions);
 
         try (PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl.get()).build()) {
             // Seed data on the regular partitioned topic (lands across the partitions).

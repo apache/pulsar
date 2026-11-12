@@ -151,6 +151,11 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     @Getter
     private volatile Throwable deathException;
 
+    // set by requestStop(): the instance thread exits before its next read
+    private volatile boolean stopRequested;
+    // held by requestStop() while it sets stopRequested and interrupts the instance thread
+    private final Object stopLock = new Object();
+
     // function stats
     private ComponentStatsManager stats;
 
@@ -383,7 +388,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             Consumer<Throwable> asyncErrorHandler = throwable -> currentThread.interrupt();
             AsyncResultConsumer asyncResultConsumer = this::handleResult;
 
-            while (true) {
+            while (!stopRequested) {
                 currentRecord = readInput();
 
                 // increment number of records received from source
@@ -452,9 +457,13 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             if (stats != null) {
                 stats.incrSysExceptions(deathException);
             }
-            // clear possible thread interrupted state so that closing can be handled gracefully
-            Thread.interrupted();
         } finally {
+            // clear possible thread interrupted state so that closing can be handled gracefully. The loop also ends
+            // on a stop request without consuming the stop's interrupt; the lock waits until requestStop() has
+            // delivered it, so that it can't arrive after this point
+            synchronized (stopLock) {
+                Thread.interrupted();
+            }
             log.info("Closing instance");
             close();
         }
@@ -645,6 +654,21 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                         .orElse(null))
                 .exception(e)
                 .log("Failed to decode the value of the input message; the message cannot be processed");
+    }
+
+    /**
+     * Tells the instance thread to stop: it exits before reading the next record, and the interrupt wakes it from a
+     * blocking call. The interrupt alone is not enough: code that runs on the thread can clear it (Netty's
+     * {@code HashedWheelTimer.start()} swallows it when the setup schedules the client's first timeout), and the
+     * thread would then block in the source's read until the caller gives up waiting.
+     *
+     * @param instanceThread the thread that runs this instance
+     */
+    public void requestStop(Thread instanceThread) {
+        synchronized (stopLock) {
+            stopRequested = true;
+            instanceThread.interrupt();
+        }
     }
 
     /**
