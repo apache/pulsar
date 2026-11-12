@@ -84,6 +84,8 @@ dependencies {
     api(libs.jspecify)
     api(libs.picocli)
     api(libs.simpleclient)
+    // PulsarBrokerStarter hands an in-process bookie's stats provider its own PrometheusRegistry.
+    implementation(libs.prometheus.metrics.model)
     implementation(libs.simpleclient.hotspot)
     implementation(libs.simpleclient.caffeine)
     implementation(libs.hdrHistogram)
@@ -115,6 +117,8 @@ dependencies {
     compileOnly(libs.jsr305)
 
     testImplementation(project(":testmocks"))
+    // PulsarBrokerStarterTest starts the bookie stats provider the way the broker does with -rb.
+    testImplementation(project(":pulsar-bookkeeper-prometheus-metrics-provider"))
     testImplementation(testJar(":pulsar-broker-common"))
     testImplementation(testJar(":managed-ledger"))
     testImplementation(testJar(":pulsar-metadata"))
