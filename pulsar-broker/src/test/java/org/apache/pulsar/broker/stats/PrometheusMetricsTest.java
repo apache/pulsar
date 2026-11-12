@@ -35,6 +35,7 @@ import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.prometheus.client.Collector;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -1363,6 +1364,17 @@ public class PrometheusMetricsTest extends BrokerTestBase {
             assertEquals(samples.size(), 1, family);
             assertEquals(samples.iterator().next().tags.get("cluster"), "test", family);
         }
+        // One observation: every configured quantile is exposed and reads as that observation, which is the sum.
+        double latencySum = metrics.get("brk_ledgeroffloader_read_ledger_latency_sum").iterator().next().value;
+        Map<String, Double> quantiles = metrics.get("brk_ledgeroffloader_read_ledger_latency").stream()
+                .collect(Collectors.toMap(m -> m.tags.get("quantile"), m -> m.value));
+        assertEquals(quantiles, Map.of("0.5", latencySum, "0.95", latencySum, "0.99", latencySum,
+                "1.0", latencySum));
+
+        // close() takes every offloader family off the registry again.
+        pulsar.getOffloaderStats().close();
+        assertEquals(PrometheusRegistry.defaultRegistry
+                .scrape(name -> name.startsWith("brk_ledgeroffloader_")).size(), 0);
     }
 
     /** Checks for duplicate type definitions for a metric in the Prometheus metrics output. If the Prometheus parser
