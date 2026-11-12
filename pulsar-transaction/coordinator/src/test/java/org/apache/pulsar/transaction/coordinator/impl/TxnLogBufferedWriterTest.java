@@ -19,6 +19,7 @@
 package org.apache.pulsar.transaction.coordinator.impl;
 
 import static org.apache.pulsar.transaction.coordinator.impl.DisabledTxnLogBufferedWriterMetricsStats.DISABLED_BUFFERED_WRITER_METRICS;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
@@ -37,6 +38,7 @@ import io.prometheus.metrics.model.snapshots.Labels;
 import io.prometheus.metrics.model.snapshots.MetricSnapshot;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -866,6 +868,42 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
             metricsStats.close();
         }
         verifyTheMetricsAreUnregistered();
+    }
+
+    /**
+     * The classic bucket bounds end up in the {@code le} label that dashboards select on. They are fixed when the
+     * histograms are built, so this needs no writer.
+     */
+    @Test
+    public void testHistogramBucketBounds() {
+        PrometheusRegistry registry = new PrometheusRegistry();
+        try (TxnLogBufferedWriterMetricsStats metricsStats = new TxnLogBufferedWriterMetricsStats(
+                metricsPrefix, metricsLabelNames, metricsLabelValues, registry)) {
+            assertClassicUpperBounds(registry, metricsPrefix + "_bufferedwriter_batch_records",
+                    TxnLogBufferedWriterMetricsStats.RECORD_COUNT_PER_ENTRY_BUCKETS);
+            assertClassicUpperBounds(registry, metricsPrefix + "_bufferedwriter_batch_size_bytes",
+                    TxnLogBufferedWriterMetricsStats.BYTES_SIZE_PER_ENTRY_BUCKETS);
+            assertClassicUpperBounds(registry, metricsPrefix + "_bufferedwriter_batch_oldest_record_delay_seconds",
+                    TxnLogBufferedWriterMetricsStats.MAX_DELAY_TIME_BUCKETS);
+        }
+    }
+
+    /** The histogram's classic bucket bounds are the configured ones followed by {@code +Inf}. */
+    private static void assertClassicUpperBounds(PrometheusRegistry registry, String name,
+                                                 double[] configuredBounds) {
+        var snapshots = registry.scrape(name::equals);
+        assertThat(snapshots.size()).as("families named %s", name).isEqualTo(1);
+        assertThat(snapshots.get(0)).as("family %s", name).isInstanceOf(HistogramSnapshot.class);
+        var dataPoints = ((HistogramSnapshot) snapshots.get(0)).getDataPoints();
+        assertThat(dataPoints).as("data points of %s", name).hasSize(1);
+        var buckets = dataPoints.get(0).getClassicBuckets();
+        double[] upperBounds = new double[buckets.size()];
+        for (int i = 0; i < upperBounds.length; i++) {
+            upperBounds[i] = buckets.getUpperBound(i);
+        }
+        double[] expected = Arrays.copyOf(configuredBounds, configuredBounds.length + 1);
+        expected[configuredBounds.length] = Double.POSITIVE_INFINITY;
+        assertThat(upperBounds).as("classic bucket upper bounds of %s", name).containsExactly(expected);
     }
 
     @Test
