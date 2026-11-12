@@ -36,6 +36,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -92,8 +93,9 @@ public class UnloadSchedulerTest {
         doReturn(CompletableFuture.completedFuture(Lists.newArrayList("broker-1", "broker-2")))
                 .when(registry).getAvailableBrokersAsync();
         doReturn(CompletableFuture.completedFuture(null)).when(channel).publishUnloadEventAsync(any());
-        doReturn(CompletableFuture.completedFuture(null)).when(unloadManager)
-                .waitAsync(any(), any(), any(), anyLong(), any());
+        // Publish the unload, as the unload manager does
+        doAnswer(invocation -> invocation.<Supplier<CompletableFuture<Void>>>getArgument(0).get())
+                .when(unloadManager).waitAsync(any(), any(), any(), anyLong(), any());
         UnloadDecision decision = new UnloadDecision();
         Unload unload = new Unload("broker-1", "bundle-1");
         decision.setUnload(unload);

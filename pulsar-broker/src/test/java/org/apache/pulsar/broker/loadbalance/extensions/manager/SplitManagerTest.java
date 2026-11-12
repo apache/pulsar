@@ -58,7 +58,7 @@ public class SplitManagerTest {
         SplitManager manager = new SplitManager(counter);
         var decision = new SplitDecision();
         CompletableFuture<Void> future =
-                manager.waitAsync(FutureUtil.failedFuture(new Exception("test")),
+                manager.waitAsync(() -> FutureUtil.failedFuture(new Exception("test")),
                         bundle, decision, 10, TimeUnit.SECONDS);
 
         assertTrue(future.isCompletedExceptionally());
@@ -68,8 +68,31 @@ public class SplitManagerTest {
         } catch (Exception ex) {
             assertEquals(ex.getCause().getMessage(), "test");
         }
+        assertEquals(manager.getInFlightSplitRequestCount(), 0);
         var counterExpected = new SplitCounter();
         counterExpected.update(SplitDecision.Label.Failure, Unknown);
+        assertEquals(counter.toMetrics(null).toString(),
+                counterExpected.toMetrics(null).toString());
+    }
+
+    @Test(timeOut = 30_000)
+    public void testSplitDoneBeforeItsPublishCompletes() throws Exception {
+        var counter = new SplitCounter();
+        SplitManager manager = new SplitManager(counter);
+        var decision = new SplitDecision();
+        decision.succeed(Sessions);
+        CompletableFuture<Void> published = new CompletableFuture<>();
+        CompletableFuture<Void> future = manager.waitAsync(() -> published, bundle, decision, 20, TimeUnit.SECONDS);
+
+        // The channel tombstones the parent bundle before the publish future completes.
+        manager.handleEvent(bundle, null, null);
+        assertFalse(future.isDone());
+        published.complete(null);
+
+        future.get(5, TimeUnit.SECONDS);
+        assertEquals(manager.getInFlightSplitRequestCount(), 0);
+        var counterExpected = new SplitCounter();
+        counterExpected.update(decision);
         assertEquals(counter.toMetrics(null).toString(),
                 counterExpected.toMetrics(null).toString());
     }
@@ -80,7 +103,7 @@ public class SplitManagerTest {
         SplitManager manager = new SplitManager(counter);
         var decision = new SplitDecision();
         CompletableFuture<Void> future =
-                manager.waitAsync(CompletableFuture.completedFuture(null),
+                manager.waitAsync(() -> CompletableFuture.completedFuture(null),
                         bundle, decision, 3, TimeUnit.SECONDS);
         CompletableFuture<Integer> inFlightRequestCountOnCompletion =
                 captureInFlightRequestCountOnCompletion(future, manager);
@@ -101,7 +124,7 @@ public class SplitManagerTest {
         assertEquals(counter.toMetrics(null).toString(),
                 counterExpected.toMetrics(null).toString());
 
-        CompletableFuture<Void> nextFuture = manager.waitAsync(CompletableFuture.completedFuture(null),
+        CompletableFuture<Void> nextFuture = manager.waitAsync(() -> CompletableFuture.completedFuture(null),
                 bundle, decision, 5, TimeUnit.SECONDS);
         assertFalse(nextFuture.isDone());
         assertEquals(manager.getInFlightSplitRequestCount(), 1);
@@ -116,7 +139,7 @@ public class SplitManagerTest {
         var decision = new SplitDecision();
         decision.succeed(Sessions);
         CompletableFuture<Void> future =
-                manager.waitAsync(CompletableFuture.completedFuture(null),
+                manager.waitAsync(() -> CompletableFuture.completedFuture(null),
                         bundle, decision, 5, TimeUnit.SECONDS);
         CompletableFuture<Integer> inFlightRequestCountOnCompletion =
                 captureInFlightRequestCountOnCompletion(future, manager);
@@ -164,7 +187,7 @@ public class SplitManagerTest {
         SplitManager manager = new SplitManager(counter);
         var decision = new SplitDecision();
         CompletableFuture<Void> future =
-                manager.waitAsync(CompletableFuture.completedFuture(null),
+                manager.waitAsync(() -> CompletableFuture.completedFuture(null),
                         bundle, decision, 5, TimeUnit.SECONDS);
         CompletableFuture<Integer> inFlightRequestCountOnCompletion =
                 captureInFlightRequestCountOnCompletion(future, manager);
@@ -195,7 +218,7 @@ public class SplitManagerTest {
         SplitManager manager = new SplitManager(new SplitCounter());
         var decision = new SplitDecision();
         CompletableFuture<Void> future =
-                manager.waitAsync(CompletableFuture.completedFuture(null),
+                manager.waitAsync(() -> CompletableFuture.completedFuture(null),
                         bundle, decision, 5, TimeUnit.SECONDS);
         CompletableFuture<Integer> inFlightRequestCountOnCompletion =
                 captureInFlightRequestCountOnCompletion(future, manager);
@@ -224,7 +247,7 @@ public class SplitManagerTest {
             for (int i = 0; i < CONCURRENT_REQUEST_COUNT; i++) {
                 registrations.add(CompletableFuture.supplyAsync(() -> {
                     await(start);
-                    return manager.waitAsync(CompletableFuture.completedFuture(null),
+                    return manager.waitAsync(() -> CompletableFuture.completedFuture(null),
                             bundle, decision, 30, TimeUnit.SECONDS);
                 }, executor));
             }
@@ -248,7 +271,7 @@ public class SplitManagerTest {
             String timeoutBundle = "concurrent-timeout";
             List<CompletableFuture<Void>> timeoutWaiters = new ArrayList<>();
             for (int i = 0; i < CONCURRENT_REQUEST_COUNT; i++) {
-                timeoutWaiters.add(manager.waitAsync(CompletableFuture.completedFuture(null),
+                timeoutWaiters.add(manager.waitAsync(() -> CompletableFuture.completedFuture(null),
                         timeoutBundle, decision, 1, TimeUnit.SECONDS));
             }
             assertEquals(manager.getInFlightSplitRequestCount(), 1);
@@ -281,7 +304,7 @@ public class SplitManagerTest {
         for (int i = 0; i < CONCURRENT_REQUEST_COUNT; i++) {
             String requestBundle = "close-race-" + i;
             bundles.add(requestBundle);
-            waiters.add(manager.waitAsync(CompletableFuture.completedFuture(null),
+            waiters.add(manager.waitAsync(() -> CompletableFuture.completedFuture(null),
                     requestBundle, decision, 30, TimeUnit.SECONDS));
         }
         assertEquals(manager.getInFlightSplitRequestCount(), CONCURRENT_REQUEST_COUNT);

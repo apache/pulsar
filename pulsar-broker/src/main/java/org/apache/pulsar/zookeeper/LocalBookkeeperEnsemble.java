@@ -507,13 +507,14 @@ public class LocalBookkeeperEnsemble {
      * Builds and starts a bookie around a provider of its own. The provider is fresh for every attempt: the
      * first build already bound gauges (ledger directory usage, writable directory counts) to the components it
      * created, and the stats logger keeps the first registration, so the cookie retry must not reuse it. On
-     * failure the built bookie is closed and the provider stopped before the exception is rethrown.
+     * failure the built bookie is closed and the provider stopped before the exception is rethrown. That
+     * includes a provider whose own start failed part way, which may already have bound its endpoint.
      */
     private static RunningBookie startBookie(ServerConfiguration conf) throws Exception {
         StatsProvider statsProvider = BookieStatsProviders.create(conf);
-        statsProvider.start(conf);
         LifecycleComponentStack server = null;
         try {
+            statsProvider.start(conf);
             server = BookieStatsProviders.buildBookieServer(conf, statsProvider);
             server.start();
             return new RunningBookie(server, statsProvider);

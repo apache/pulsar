@@ -20,11 +20,31 @@ package org.apache.pulsar.metrics.prometheus.zookeeper;
 
 import io.prometheus.client.Collector;
 import io.prometheus.client.CollectorRegistry;
-import io.prometheus.client.exporter.MetricsServlet;
-import io.prometheus.client.hotspot.DefaultExports;
+import io.prometheus.client.exporter.common.TextFormat;
+import io.prometheus.metrics.expositionformats.PrometheusTextFormatWriter;
+import io.prometheus.metrics.instrumentation.jvm.JvmMetrics;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
+import io.prometheus.metrics.model.snapshots.CounterSnapshot;
+import io.prometheus.metrics.model.snapshots.DataPointSnapshot;
+import io.prometheus.metrics.model.snapshots.GaugeSnapshot;
+import io.prometheus.metrics.model.snapshots.InfoSnapshot;
+import io.prometheus.metrics.model.snapshots.Label;
+import io.prometheus.metrics.model.snapshots.Labels;
+import io.prometheus.metrics.model.snapshots.MetricMetadata;
+import io.prometheus.metrics.model.snapshots.MetricSnapshot;
+import io.prometheus.metrics.model.snapshots.Quantile;
+import io.prometheus.metrics.model.snapshots.SummarySnapshot;
+import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
 import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Enumeration;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
@@ -39,6 +59,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
+import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import lombok.CustomLog;
@@ -63,12 +84,27 @@ import org.slf4j.LoggerFactory;
 /**
  * A Metrics Provider implementation based on https://prometheus.io.
  *
- * @since 3.6.0
+ * <p>The metrics are backed by the Prometheus Java client 1.x ({@code io.prometheus:prometheus-metrics-*}).
+ * By default they are registered in {@link PrometheusRegistry#defaultRegistry} so that all the metrics
+ * of the JVM are available as a single view, which matches the behavior of the former simpleclient based
+ * implementation. Collectors that have not been migrated from the legacy simpleclient registry yet,
+ * such as the log4j2 Prometheus appender configured in {@code conf/log4j2.yaml}, are exposed from
+ * {@code CollectorRegistry.defaultRegistry} as well until #27045 is complete.
  */
 @CustomLog
 public class PrometheusMetricsProvider implements MetricsProvider {
     private static final String LABEL = "key";
     private static final String[] LABELS = {LABEL};
+
+    private static final PrometheusTextFormatWriter TEXT_FORMAT_WRITER = PrometheusTextFormatWriter.create();
+
+    /**
+     * simpleclient 0.16.0 ages summary quantiles over 10 minutes split into 5 buckets, while
+     * Prometheus Java client 1.x defaults to 5 minutes. Keep the old window so that quantiles
+     * of bursty ZooKeeper operations do not expire earlier under the same metric names.
+     */
+    static final long SUMMARY_MAX_AGE_SECONDS = 600;
+    static final int SUMMARY_AGE_BUCKETS = 5;
 
     /**
      * Number of worker threads for reporting Prometheus summary metrics.
@@ -96,7 +132,7 @@ public class PrometheusMetricsProvider implements MetricsProvider {
      * libraries every metrics will be expected as a single view.
      * </p>
      */
-    private final CollectorRegistry collectorRegistry = CollectorRegistry.defaultRegistry;
+    private final PrometheusRegistry collectorRegistry;
     private final RateLogger rateLogger = new RateLogger(
             LoggerFactory.getLogger(PrometheusMetricsProvider.class), 60 * 1000);
     private String host = "0.0.0.0";
@@ -109,6 +145,19 @@ public class PrometheusMetricsProvider implements MetricsProvider {
     private int maxQueueSize = 1000000;
     private long workerShutdownTimeoutMs = 1000;
     private Optional<ExecutorService> executorOptional = Optional.empty();
+
+    public PrometheusMetricsProvider() {
+        this(PrometheusRegistry.defaultRegistry);
+    }
+
+    /**
+     * Constructor that allows isolating a provider instance in its own registry. ZooKeeper creates
+     * the provider through the no-arg constructor; the overload mirrors the BookKeeper stats
+     * provider and keeps tests independent of the process-wide default registry.
+     */
+    PrometheusMetricsProvider(PrometheusRegistry collectorRegistry) {
+        this.collectorRegistry = collectorRegistry;
+    }
 
     @Override
     public void configure(Properties configuration) throws MetricsProviderLifeCycleException {
@@ -132,7 +181,9 @@ public class PrometheusMetricsProvider implements MetricsProvider {
                     .attr("exportJvmInfo", exportJvmInfo)
                     .log("Starting /metrics HTTP endpoint");
             if (exportJvmInfo) {
-                DefaultExports.initialize();
+                // JvmMetrics only registers its collectors the first time it is called for a registry,
+                // which matches the one-time initialization that simpleclient's DefaultExports performed.
+                JvmMetrics.builder().register(collectorRegistry);
             }
             server = new Server(new InetSocketAddress(host, port));
             ServletContextHandler context = new ServletContextHandler();
@@ -184,8 +235,8 @@ public class PrometheusMetricsProvider implements MetricsProvider {
      * Dump all values to the 4lw interface and to the Admin server.
      * <p>
      * This method is not expected to be used to serve metrics to Prometheus. We
-     * are using the MetricsServlet provided by Prometheus for that, leaving the
-     * real representation to the Prometheus Java client.
+     * are using the text exposition format writer provided by Prometheus for that,
+     * leaving the real representation to the Prometheus Java client.
      * </p>
      *
      * @param sink the receiver of data (4lw interface, Admin server or tests)
@@ -193,28 +244,134 @@ public class PrometheusMetricsProvider implements MetricsProvider {
     @Override
     public void dump(BiConsumer<String, Object> sink) {
         sampleGauges();
-        Enumeration<Collector.MetricFamilySamples> samplesFamilies = collectorRegistry.metricFamilySamples();
-        while (samplesFamilies.hasMoreElements()) {
-            Collector.MetricFamilySamples samples = samplesFamilies.nextElement();
-            samples.samples.forEach(sample -> {
-                String key = buildKeyForDump(sample);
-                sink.accept(key, sample.value);
-            });
+        for (MetricSnapshot snapshot : collectorRegistry.scrape()) {
+            for (DataPointSnapshot dataPoint : snapshot.getDataPoints()) {
+                if (dataPoint instanceof CounterSnapshot.CounterDataPointSnapshot counter) {
+                    sink.accept(buildKeyForDump(getCounterName(snapshot.getMetadata()), counter.getLabels()),
+                            counter.getValue());
+                } else if (dataPoint instanceof GaugeSnapshot.GaugeDataPointSnapshot gauge) {
+                    sink.accept(buildKeyForDump(
+                            snapshot.getMetadata().getPrometheusName(), gauge.getLabels()), gauge.getValue());
+                } else if (dataPoint instanceof SummarySnapshot.SummaryDataPointSnapshot summary) {
+                    String name = snapshot.getMetadata().getPrometheusName();
+                    for (Quantile quantile : summary.getQuantiles()) {
+                        sink.accept(buildKeyForDump(name, summary.getLabels(),
+                                "quantile", Double.toString(quantile.getQuantile())), quantile.getValue());
+                    }
+                    sink.accept(buildKeyForDump(name + "_count", summary.getLabels()),
+                            (double) summary.getCount());
+                    sink.accept(buildKeyForDump(name + "_sum", summary.getLabels()), summary.getSum());
+                } else if (dataPoint instanceof InfoSnapshot.InfoDataPointSnapshot info) {
+                    // Info metrics such as jvm_runtime_info carry the runtime labels and a constant
+                    // value of 1, matching the gauge that simpleclient's DefaultExports exposed.
+                    sink.accept(buildKeyForDump(getInfoName(snapshot.getMetadata()), info.getLabels()), 1.0);
+                }
+            }
+        }
+        // Keep exposing collectors that are still registered in the legacy simpleclient registry,
+        // most notably the log4j2 Prometheus appender configured in conf/log4j2.yaml.
+        Enumeration<Collector.MetricFamilySamples> legacyFamilies = legacyMetricFamilySamples();
+        while (legacyFamilies.hasMoreElements()) {
+            for (Collector.MetricFamilySamples.Sample sample : legacyFamilies.nextElement().samples) {
+                sink.accept(buildKeyForDump(sample), sample.value);
+            }
         }
     }
 
+    /**
+     * Returns the sample name of an info metric. The 1.x client strips the {@code _info} suffix from
+     * the metric name and appends it again in the exposition format, so it has to be added explicitly
+     * when building the key for {@link #dump}.
+     */
+    private static String getInfoName(MetricMetadata metadata) {
+        return metadata.getPrometheusName() + "_info";
+    }
+
+    /**
+     * Collectors that have not been migrated from simpleclient 0.x yet (see #27045) still register
+     * in {@link CollectorRegistry#defaultRegistry}. JVM and process collectors are filtered out:
+     * this provider registers {@link JvmMetrics} on the 1.x registry, so exposing the old samples
+     * here would produce two sets of JVM metrics under different names.
+     */
+    private static Enumeration<Collector.MetricFamilySamples> legacyMetricFamilySamples() {
+        List<Collector.MetricFamilySamples> families = new ArrayList<>();
+        Enumeration<Collector.MetricFamilySamples> enumeration =
+                CollectorRegistry.defaultRegistry.metricFamilySamples();
+        while (enumeration.hasMoreElements()) {
+            Collector.MetricFamilySamples filtered = enumeration.nextElement().filter(
+                    name -> !name.startsWith("jvm_") && !name.startsWith("process_"));
+            if (filtered != null) {
+                families.add(filtered);
+            }
+        }
+        return Collections.enumeration(families);
+    }
+
+    /**
+     * Appends the samples of the legacy simpleclient registry in the 0.0.4 text format. The 1.x
+     * writer has already flushed its output to the same stream at this point.
+     */
+    private static void writeLegacyMetrics(OutputStream out) throws IOException {
+        Writer writer = new BufferedWriter(new OutputStreamWriter(out, StandardCharsets.UTF_8));
+        TextFormat.write004(writer, legacyMetricFamilySamples());
+        writer.flush();
+    }
+
+    /**
+     * Returns the sample name of a counter, which is the exposition base name with the {@code _total} suffix.
+     * The 1.x client strips the suffix from the metric name and appends it again in the exposition format, so
+     * the suffix has to be added explicitly when building the key for {@link #dump}.
+     */
+    private static String getCounterName(MetricMetadata metadata) {
+        String name = metadata.getExpositionBasePrometheusName();
+        return name.endsWith("_total") ? name : name + "_total";
+    }
+
+    private static String buildKeyForDump(String name, Labels labels) {
+        return buildKeyForDump(name, labels, null, null);
+    }
+
     private static String buildKeyForDump(Collector.MetricFamilySamples.Sample sample) {
-        StringBuilder keyBuilder = new StringBuilder();
-        keyBuilder.append(sample.name);
-        if (sample.labelNames.size() > 0) {
+        StringBuilder keyBuilder = new StringBuilder(sample.name);
+        if (!sample.labelNames.isEmpty()) {
             keyBuilder.append('{');
             for (int i = 0; i < sample.labelNames.size(); ++i) {
                 if (i > 0) {
                     keyBuilder.append(',');
                 }
-                keyBuilder.append(sample.labelNames.get(i));
+                keyBuilder.append(sample.labelNames.get(i))
+                        .append("=\"")
+                        .append(sample.labelValues.get(i))
+                        .append('"');
+            }
+            keyBuilder.append('}');
+        }
+        return keyBuilder.toString();
+    }
+
+    private static String buildKeyForDump(String name, Labels labels,
+                                          String additionalLabelName, String additionalLabelValue) {
+        StringBuilder keyBuilder = new StringBuilder(name);
+        if (!labels.isEmpty() || additionalLabelName != null) {
+            keyBuilder.append('{');
+            boolean isFirst = true;
+            for (Label label : labels) {
+                if (!isFirst) {
+                    keyBuilder.append(',');
+                }
+                isFirst = false;
+                keyBuilder.append(label.getName());
                 keyBuilder.append("=\"");
-                keyBuilder.append(sample.labelValues.get(i));
+                keyBuilder.append(label.getValue());
+                keyBuilder.append('"');
+            }
+            if (additionalLabelName != null) {
+                if (!isFirst) {
+                    keyBuilder.append(',');
+                }
+                keyBuilder.append(additionalLabelName);
+                keyBuilder.append("=\"");
+                keyBuilder.append(additionalLabelValue);
                 keyBuilder.append('"');
             }
             keyBuilder.append('}');
@@ -369,13 +526,15 @@ public class PrometheusMetricsProvider implements MetricsProvider {
 
     private class PrometheusCounter implements Counter {
 
-        private final io.prometheus.client.Counter inner;
+        private final io.prometheus.metrics.core.metrics.Counter inner;
         private final String name;
 
         public PrometheusCounter(String name) {
             this.name = name;
-            this.inner = io.prometheus.client.Counter
-                    .build(name, name)
+            this.inner = io.prometheus.metrics.core.metrics.Counter
+                    .builder()
+                    .name(name)
+                    .help(name)
                     .register(collectorRegistry);
         }
 
@@ -402,20 +561,27 @@ public class PrometheusMetricsProvider implements MetricsProvider {
 
     private class PrometheusLabelledCounter implements CounterSet {
         private final String name;
-        private final io.prometheus.client.Counter inner;
+        private final io.prometheus.metrics.core.metrics.Counter inner;
 
         public PrometheusLabelledCounter(final String name) {
             this.name = name;
-            this.inner = io.prometheus.client.Counter
-                    .build(name, name)
+            this.inner = io.prometheus.metrics.core.metrics.Counter
+                    .builder()
+                    .name(name)
+                    .help(name)
                     .labelNames(LABELS)
                     .register(collectorRegistry);
         }
 
         @Override
         public void add(final String key, final long delta) {
+            if (key == null) {
+                log.error().attr("delta", delta).attr("metric", name)
+                        .log("Cannot add to a CounterSet with a null key");
+                return;
+            }
             try {
-                inner.labels(key).inc(delta);
+                inner.labelValues(key).inc(delta);
             } catch (final IllegalArgumentException e) {
                 log.error().attr("delta", delta).attr("metric", name)
                         .attr("key", key).exception(e).log("invalid delta for metric");
@@ -425,21 +591,24 @@ public class PrometheusMetricsProvider implements MetricsProvider {
 
     private class PrometheusGaugeWrapper {
 
-        private final io.prometheus.client.Gauge inner;
+        private final io.prometheus.metrics.core.metrics.Gauge inner;
         private final Gauge gauge;
         private final String name;
 
-        public PrometheusGaugeWrapper(String name, Gauge gauge, io.prometheus.client.Gauge prev) {
+        public PrometheusGaugeWrapper(String name, Gauge gauge,
+                                      io.prometheus.metrics.core.metrics.Gauge prev) {
             this.name = name;
             this.gauge = gauge;
             this.inner = prev != null ? prev
-                    : io.prometheus.client.Gauge
-                    .build(name, name)
+                    : io.prometheus.metrics.core.metrics.Gauge
+                    .builder()
+                    .name(name)
+                    .help(name)
                     .register(collectorRegistry);
         }
 
         /**
-         * Call the callack and update Prometheus Gauge. This method is called
+         * Call the callback and update Prometheus Gauge. This method is called
          * when the server is polling for a value.
          */
         private void sample() {
@@ -454,30 +623,39 @@ public class PrometheusMetricsProvider implements MetricsProvider {
 
     /**
      * Prometheus implementation of GaugeSet interface. It wraps the GaugeSet object and
-     * uses the callback API to update the Prometheus Gauge.
+     * sets the values of a labelled Prometheus Gauge when the server is polling.
      */
     private class PrometheusLabelledGaugeWrapper {
+        private final String name;
         private final GaugeSet gaugeSet;
-        private final io.prometheus.client.Gauge inner;
+        private final io.prometheus.metrics.core.metrics.Gauge inner;
 
         private PrometheusLabelledGaugeWrapper(final String name,
                                                final GaugeSet gaugeSet,
-                                               final io.prometheus.client.Gauge prev) {
+                                               final io.prometheus.metrics.core.metrics.Gauge prev) {
+            this.name = name;
             this.gaugeSet = gaugeSet;
-            this.inner = prev != null ? prev :
-                    io.prometheus.client.Gauge
-                            .build(name, name)
-                            .labelNames(LABELS)
-                            .register(collectorRegistry);
+            this.inner = prev != null ? prev
+                    : io.prometheus.metrics.core.metrics.Gauge
+                    .builder()
+                    .name(name)
+                    .help(name)
+                    .labelNames(LABELS)
+                    .register(collectorRegistry);
         }
 
         /**
-         * Call the callback provided by the GaugeSet and update Prometheus Gauge.
-         * This method is called when the server is polling for a value.
+         * Call the callback provided by the GaugeSet and update Prometheus Gauge. This method
+         * is called when the server is polling for a value.
          */
         private void sample() {
-            gaugeSet.values().forEach((key, value) ->
-                this.inner.labels(key).set(value != null ? value.doubleValue() : 0));
+            gaugeSet.values().forEach((key, value) -> {
+                if (key == null) {
+                    throw new IllegalArgumentException(
+                            "Cannot use a null key for the GaugeSet " + name);
+                }
+                this.inner.labelValues(key).set(value != null ? value.doubleValue() : 0);
+            });
         }
 
         private void unregister() {
@@ -487,24 +665,22 @@ public class PrometheusMetricsProvider implements MetricsProvider {
 
     private class PrometheusSummary implements Summary {
 
-        private final io.prometheus.client.Summary inner;
+        private final io.prometheus.metrics.core.metrics.Summary inner;
         private final String name;
 
         public PrometheusSummary(String name, MetricsContext.DetailLevel level) {
             this.name = name;
+            var builder = io.prometheus.metrics.core.metrics.Summary.builder()
+                    .name(name)
+                    .help(name)
+                    .maxAgeSeconds(SUMMARY_MAX_AGE_SECONDS)
+                    .numberOfAgeBuckets(SUMMARY_AGE_BUCKETS)
+                    .quantile(0.5, 0.05); // Add 50th percentile (= median) with 5% tolerated error
             if (level == MetricsContext.DetailLevel.ADVANCED) {
-                this.inner = io.prometheus.client.Summary
-                        .build(name, name)
-                        .quantile(0.5, 0.05) // Add 50th percentile (= median) with 5% tolerated error
-                        .quantile(0.9, 0.01) // Add 90th percentile with 1% tolerated error
-                        .quantile(0.99, 0.001) // Add 99th percentile with 0.1% tolerated error
-                        .register(collectorRegistry);
-            } else {
-                this.inner = io.prometheus.client.Summary
-                        .build(name, name)
-                        .quantile(0.5, 0.05) // Add 50th percentile (= median) with 5% tolerated error
-                        .register(collectorRegistry);
+                builder.quantile(0.9, 0.01) // Add 90th percentile with 1% tolerated error
+                        .quantile(0.99, 0.001); // Add 99th percentile with 0.1% tolerated error
             }
+            this.inner = builder.register(collectorRegistry);
         }
 
         @Override
@@ -524,26 +700,23 @@ public class PrometheusMetricsProvider implements MetricsProvider {
 
     private class PrometheusLabelledSummary implements SummarySet {
 
-        private final io.prometheus.client.Summary inner;
+        private final io.prometheus.metrics.core.metrics.Summary inner;
         private final String name;
 
         public PrometheusLabelledSummary(String name, MetricsContext.DetailLevel level) {
             this.name = name;
+            var builder = io.prometheus.metrics.core.metrics.Summary.builder()
+                    .name(name)
+                    .help(name)
+                    .labelNames(LABELS)
+                    .maxAgeSeconds(SUMMARY_MAX_AGE_SECONDS)
+                    .numberOfAgeBuckets(SUMMARY_AGE_BUCKETS)
+                    .quantile(0.5, 0.05); // Add 50th percentile (= median) with 5% tolerated error
             if (level == MetricsContext.DetailLevel.ADVANCED) {
-                this.inner = io.prometheus.client.Summary
-                        .build(name, name)
-                        .labelNames(LABELS)
-                        .quantile(0.5, 0.05) // Add 50th percentile (= median) with 5% tolerated error
-                        .quantile(0.9, 0.01) // Add 90th percentile with 1% tolerated error
-                        .quantile(0.99, 0.001) // Add 99th percentile with 0.1% tolerated error
-                        .register(collectorRegistry);
-            } else {
-                this.inner = io.prometheus.client.Summary
-                        .build(name, name)
-                        .labelNames(LABELS)
-                        .quantile(0.5, 0.05) // Add 50th percentile (= median) with 5% tolerated error
-                        .register(collectorRegistry);
+                builder.quantile(0.9, 0.01) // Add 90th percentile with 1% tolerated error
+                        .quantile(0.99, 0.001); // Add 99th percentile with 0.1% tolerated error
             }
+            this.inner = builder.register(collectorRegistry);
         }
 
         @Override
@@ -552,8 +725,13 @@ public class PrometheusMetricsProvider implements MetricsProvider {
         }
 
         private void observe(final String key, final long value) {
+            if (key == null) {
+                log.error().attr("value", value).attr("metric", name)
+                        .log("Cannot add to a SummarySet with a null key");
+                return;
+            }
             try {
-                inner.labels(key).observe(value);
+                inner.labelValues(key).observe(value);
             } catch (final IllegalArgumentException err) {
                 log.error().attr("value", value).attr("metric", name)
                         .attr("key", key).exception(err).log("invalid value for metric");
@@ -562,16 +740,20 @@ public class PrometheusMetricsProvider implements MetricsProvider {
 
     }
 
-    class MetricsServletImpl extends MetricsServlet {
+    class MetricsServletImpl extends HttpServlet {
         private static final long serialVersionUID = 1L;
 
         @Override
         protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
             // little trick: update the Gauges before serving data
-            // from Prometheus CollectorRegistry
+            // from the Prometheus registry
             sampleGauges();
-            // serve data using Prometheus built in client.
-            super.doGet(req, resp);
+            resp.setStatus(HttpServletResponse.SC_OK);
+            resp.setContentType(PrometheusTextFormatWriter.CONTENT_TYPE);
+            OutputStream out = resp.getOutputStream();
+            TEXT_FORMAT_WRITER.write(out, collectorRegistry.scrape());
+            // The log4j2 Prometheus appender is still a simpleclient 0.x collector (see #27045).
+            writeLegacyMetrics(out);
         }
     }
 
