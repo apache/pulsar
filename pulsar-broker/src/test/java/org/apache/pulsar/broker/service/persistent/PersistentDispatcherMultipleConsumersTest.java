@@ -21,7 +21,8 @@ package org.apache.pulsar.broker.service.persistent;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.carrotsearch.hppc.ObjectSet;
-import io.prometheus.client.CollectorRegistry;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
+import io.prometheus.metrics.model.snapshots.GaugeSnapshot;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -93,8 +94,7 @@ public class PersistentDispatcherMultipleConsumersTest extends SharedPulsarBaseT
             PersistentDispatcherMultipleConsumers dispatcher =
                     (PersistentDispatcherMultipleConsumers) topic.getSubscription("sub").getDispatcher();
             Awaitility.await().untilAsserted(() -> assertThat(dispatcher.havePendingRead).isTrue());
-            Double pendingBytesBefore = CollectorRegistry.defaultRegistry
-                    .getSampleValue("pulsar_broker_pending_bytes_to_dispatch");
+            double pendingBytesBefore = pendingBytesToDispatch();
             MessageId firstId = null;
             if (replay) {
                 firstId = producer.newMessage().key("same-key").value(1).send();
@@ -182,8 +182,7 @@ public class PersistentDispatcherMultipleConsumersTest extends SharedPulsarBaseT
                 Awaitility.await().untilAsserted(() -> {
                     assertThat(dispatcher.cursor.getNumberOfEntriesInBacklog(false)).isZero();
                     assertThat(dispatcher.isSendInProgress()).isFalse();
-                    assertThat(CollectorRegistry.defaultRegistry
-                            .getSampleValue("pulsar_broker_pending_bytes_to_dispatch")).isEqualTo(pendingBytesBefore);
+                    assertThat(pendingBytesToDispatch()).isEqualTo(pendingBytesBefore);
                     if (dispatcher instanceof PersistentStickyKeyDispatcherMultipleConsumers keyShared) {
                         assertThat(keyShared.getReplayAdditionsHashCount()).isZero();
                         assertThat(keyShared.getReplayReadsInFlight()).isZero();
@@ -206,6 +205,12 @@ public class PersistentDispatcherMultipleConsumersTest extends SharedPulsarBaseT
                 getConfig().setDispatcherDispatchMessagesInSubscriptionThread(originalDispatchMode);
             }
         }
+    }
+
+    private static double pendingBytesToDispatch() {
+        GaugeSnapshot snapshot = (GaugeSnapshot) PrometheusRegistry.defaultRegistry
+                .scrape("pulsar_broker_pending_bytes_to_dispatch"::equals).get(0);
+        return snapshot.getDataPoints().get(0).getValue();
     }
 
     // Concurrent mock calls only run on executors that the test shuts down and joins.
