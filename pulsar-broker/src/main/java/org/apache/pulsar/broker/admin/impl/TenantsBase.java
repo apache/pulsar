@@ -54,6 +54,7 @@ import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 
 public class TenantsBase extends PulsarWebResource {
     @GET
@@ -157,11 +158,17 @@ public class TenantsBase extends PulsarWebResource {
                     asyncResponse.resume(Response.noContent().build());
                 })
                 .exceptionally(ex -> {
-                    log.error()
-                            .attr("tenant", tenant)
-                            .exception(ex)
-                            .log("Failed to create tenant");
-                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                    if (cause instanceof MetadataStoreException.AlreadyExistsException) {
+                        // Another request created the tenant after the existence check of this request
+                        asyncResponse.resume(new RestException(Status.CONFLICT, "Tenant already exist"));
+                    } else {
+                        log.error()
+                                .attr("tenant", tenant)
+                                .exception(ex)
+                                .log("Failed to create tenant");
+                        resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    }
                     return null;
                 });
     }
