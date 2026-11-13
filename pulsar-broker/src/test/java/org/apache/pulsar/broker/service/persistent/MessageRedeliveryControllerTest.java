@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import static org.apache.pulsar.broker.service.StickyKeyConsumerSelector.STICKY_KEY_HASH_NOT_SET;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertEqualsNoOrder;
 import static org.testng.Assert.assertFalse;
@@ -36,6 +37,75 @@ public class MessageRedeliveryControllerTest {
     @DataProvider(name = "allowOutOfOrderDelivery")
     public Object[][] dataProvider() {
         return new Object[][] { { true }, { false } };
+    }
+
+    @Test(dataProvider = "allowOutOfOrderDelivery")
+    public void testReplayLongEntryIds(boolean allowOutOfOrderDelivery) {
+        MessageRedeliveryController controller = new MessageRedeliveryController(allowOutOfOrderDelivery);
+        long boundary = 1L << 32;
+        controller.add(2, 0);
+        controller.add(1, Long.MAX_VALUE);
+        controller.add(1, boundary);
+        controller.add(1, boundary - 1);
+        controller.add(1, 0);
+
+        assertThat(controller.getFirstPositionInReplay()).contains(PositionFactory.create(1, 0));
+        assertThat(controller.getMessagesToReplayNow(3, position -> true)).containsExactly(
+                PositionFactory.create(1, 0), PositionFactory.create(1, boundary - 1),
+                PositionFactory.create(1, boundary));
+        assertThat(controller.getMessagesToReplayNow(2, position -> position.getEntryId() >= boundary))
+                .containsExactly(PositionFactory.create(1, boundary), PositionFactory.create(1, Long.MAX_VALUE));
+
+        controller.remove(1, 0);
+        controller.remove(1, boundary - 1);
+        controller.remove(1, boundary);
+        assertThat(controller.getFirstPositionInReplay()).contains(PositionFactory.create(1, Long.MAX_VALUE));
+        controller.remove(1, Long.MAX_VALUE);
+        assertThat(controller.getMessagesToReplayNow(10, position -> true))
+                .containsExactly(PositionFactory.create(2, 0));
+    }
+
+    @Test(dataProvider = "allowOutOfOrderDelivery")
+    public void testRemoveAllUpToLongEntryIds(boolean allowOutOfOrderDelivery) {
+        MessageRedeliveryController controller = new MessageRedeliveryController(allowOutOfOrderDelivery);
+        long boundary = 1L << 32;
+        controller.add(1, Long.MAX_VALUE, 100);
+        controller.add(2, 0, 100);
+        controller.add(2, boundary - 1, 100);
+        controller.add(2, boundary, 200);
+        controller.add(2, boundary + 5, 300);
+        controller.add(2, Long.MAX_VALUE, 300);
+        controller.add(3, 0, 400);
+
+        controller.removeAllUpTo(2, -1);
+        assertThat(controller.getHash(1, Long.MAX_VALUE)).isNull();
+        assertThat(controller.getFirstPositionInReplay()).contains(PositionFactory.create(2, 0));
+        assertThat(controller.containsStickyKeyHash(100)).isEqualTo(!allowOutOfOrderDelivery);
+
+        controller.removeAllUpTo(2, boundary);
+        assertThat(controller.getMessagesToReplayNow(10, position -> true)).containsExactly(
+                PositionFactory.create(2, boundary + 5), PositionFactory.create(2, Long.MAX_VALUE),
+                PositionFactory.create(3, 0));
+        assertThat(controller.getHash(2, boundary - 1)).isNull();
+        assertThat(controller.getHash(2, boundary)).isNull();
+        assertThat(controller.containsStickyKeyHash(100)).isFalse();
+        assertThat(controller.containsStickyKeyHash(200)).isFalse();
+        assertThat(controller.containsStickyKeyHash(300)).isEqualTo(!allowOutOfOrderDelivery);
+
+        controller.removeAllUpTo(2, Long.MAX_VALUE);
+        assertThat(controller.getMessagesToReplayNow(10, position -> true))
+                .containsExactly(PositionFactory.create(3, 0));
+        assertThat(controller.getHash(2, boundary + 5)).isNull();
+        assertThat(controller.getHash(2, Long.MAX_VALUE)).isNull();
+        assertThat(controller.containsStickyKeyHash(300)).isFalse();
+        assertThat(controller.getHash(3, 0)).isEqualTo(400L);
+
+        controller.removeAllUpTo(3, 0);
+        controller.add(Long.MAX_VALUE, Long.MAX_VALUE, 500);
+        controller.removeAllUpTo(Long.MAX_VALUE, Long.MAX_VALUE);
+        assertThat(controller.isEmpty()).isTrue();
+        assertThat(controller.getHash(Long.MAX_VALUE, Long.MAX_VALUE)).isNull();
+        assertThat(controller.containsStickyKeyHash(500)).isFalse();
     }
 
     @Test(dataProvider = "allowOutOfOrderDelivery", timeOut = 10000)

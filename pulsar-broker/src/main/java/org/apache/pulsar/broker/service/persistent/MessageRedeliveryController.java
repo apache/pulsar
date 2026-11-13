@@ -138,7 +138,7 @@ public class MessageRedeliveryController {
     }
 
     public void removeAllUpTo(long markDeleteLedgerId, long markDeleteEntryId) {
-        boolean bitsCleared = messagesToRedeliver.removeUpTo(markDeleteLedgerId, markDeleteEntryId + 1);
+        boolean bitsCleared = messagesToRedeliver.removeUpToInclusive(markDeleteLedgerId, markDeleteEntryId);
         // Only remove the hashes when bits have been cleared. Removing hashes is a relatively expensive operation,
         // so we should only do it when necessary.
         ConcurrentLongLongPairHashMap positionToStickyKeyHash = this.positionToStickyKeyHash;

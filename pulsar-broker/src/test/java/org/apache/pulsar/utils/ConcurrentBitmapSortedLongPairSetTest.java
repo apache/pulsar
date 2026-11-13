@@ -30,10 +30,134 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import lombok.Cleanup;
 import org.apache.pulsar.common.util.collections.ConcurrentLongPairSet;
+import org.apache.pulsar.common.util.collections.ConcurrentLongPairSet.LongPair;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "utils")
 public class ConcurrentBitmapSortedLongPairSetTest {
+
+    @DataProvider
+    public Object[][] longValues() {
+        return new Object[][] {
+                {Long.MIN_VALUE}, {-1L}, {0L}, {1L}, {(long) Integer.MAX_VALUE}, {Integer.MAX_VALUE + 1L},
+                {(1L << 32) - 1}, {1L << 32}, {(1L << 32) + 1}, {1L << 48}, {Long.MAX_VALUE}
+        };
+    }
+
+    @Test(dataProvider = "longValues")
+    public void testAddAndRemoveLongValues(long value) {
+        ConcurrentBitmapSortedLongPairSet set = new ConcurrentBitmapSortedLongPairSet();
+        set.add(1, value);
+        set.add(1, value);
+        set.add(2, value);
+        assertThat(set.size()).isEqualTo(2);
+        assertThat(set.contains(1, value)).isTrue();
+        assertThat(set.first(LongPair::new)).contains(new LongPair(1, value));
+
+        set.remove(1, value);
+        assertThat(set.contains(1, value)).isFalse();
+        assertThat(set.contains(2, value)).isTrue();
+        assertThat(set.size()).isEqualTo(1);
+        set.remove(2, value);
+        assertThat(set.isEmpty()).isTrue();
+        assertThat(set.first(LongPair::new)).isEmpty();
+
+        set.add(1, value);
+        set.clear();
+        assertThat(set.size()).isZero();
+        assertThat(set.isEmpty()).isTrue();
+    }
+
+    @Test
+    public void testOrderedLongValues() {
+        ConcurrentBitmapSortedLongPairSet set = new ConcurrentBitmapSortedLongPairSet();
+        long[] values = {Long.MIN_VALUE, -1, 0, Integer.MAX_VALUE, Integer.MAX_VALUE + 1L, (1L << 32) - 1,
+                1L << 32, (1L << 32) + 1, 1L << 48, Long.MAX_VALUE - 1, Long.MAX_VALUE};
+        List<LongPair> expected = new ArrayList<>();
+        for (long ledgerId = 1; ledgerId <= 2; ledgerId++) {
+            for (long value : values) {
+                expected.add(new LongPair(ledgerId, value));
+            }
+            for (int i = values.length - 1; i >= 0; i--) {
+                set.add(ledgerId, values[i]);
+            }
+        }
+
+        List<LongPair> actual = new ArrayList<>();
+        set.processItems(LongPair::new, item -> {
+            actual.add(item);
+            return true;
+        });
+        assertThat(actual).containsExactlyElementsOf(expected);
+        assertThat(set.items(7, LongPair::new)).containsExactlyElementsOf(expected.subList(0, 7));
+        assertThat(set.size()).isEqualTo(expected.size());
+
+        actual.clear();
+        set.processItems(LongPair::new, item -> {
+            actual.add(item);
+            return actual.size() < 7;
+        });
+        assertThat(actual).containsExactlyElementsOf(expected.subList(0, 7));
+
+        assertThat(set.contains(1, 2L << 32)).isFalse();
+        set.remove(1, 1L << 32);
+        assertThat(set.contains(1, 1L << 32)).isFalse();
+        assertThat(set.contains(1, 0)).isTrue();
+        assertThat(set.contains(1, 1L << 48)).isTrue();
+        assertThat(set.size()).isEqualTo(expected.size() - 1);
+    }
+
+    @Test(dataProvider = "longValues")
+    public void testRemoveUpToLongBoundary(long value) {
+        ConcurrentBitmapSortedLongPairSet set = new ConcurrentBitmapSortedLongPairSet();
+        set.add(Long.MIN_VALUE, Long.MAX_VALUE);
+        set.add(0, value);
+        set.add(Long.MAX_VALUE, Long.MIN_VALUE);
+
+        assertThat(set.removeUpTo(0, value)).isTrue();
+        assertThat(set.items(10, LongPair::new)).containsExactly(
+                new LongPair(0, value), new LongPair(Long.MAX_VALUE, Long.MIN_VALUE));
+        assertThat(set.removeUpTo(0, value)).isFalse();
+        assertThat(set.removeUpToInclusive(0, value)).isTrue();
+        assertThat(set.removeUpToInclusive(0, value)).isFalse();
+        assertThat(set.items(10, LongPair::new)).containsExactly(new LongPair(Long.MAX_VALUE, Long.MIN_VALUE));
+        assertThat(set.removeUpToInclusive(Long.MAX_VALUE, Long.MIN_VALUE)).isTrue();
+        assertThat(set.isEmpty()).isTrue();
+    }
+
+    @Test
+    public void testRemoveUpToAcrossLongValueRanges() {
+        ConcurrentBitmapSortedLongPairSet set = new ConcurrentBitmapSortedLongPairSet();
+        long boundary = 1L << 32;
+        set.add(1, Long.MAX_VALUE);
+        set.add(2, 0);
+        set.add(2, boundary - 1);
+        set.add(2, boundary);
+        set.add(2, boundary + 5);
+        set.add(2, (1L << 48) + 100);
+        set.add(2, Long.MAX_VALUE);
+        set.add(3, 0);
+
+        assertThat(set.removeUpTo(2, boundary)).isTrue();
+        assertThat(set.items(10, LongPair::new)).containsExactly(new LongPair(2, boundary),
+                new LongPair(2, boundary + 5), new LongPair(2, (1L << 48) + 100),
+                new LongPair(2, Long.MAX_VALUE), new LongPair(3, 0));
+        assertThat(set.removeUpTo(2, boundary)).isFalse();
+
+        assertThat(set.removeUpTo(2, boundary + 11)).isTrue();
+        assertThat(set.removeUpTo(2, boundary + 11)).isFalse();
+        assertThat(set.removeUpTo(2, 1L << 48)).isFalse();
+        assertThat(set.removeUpTo(2, Long.MAX_VALUE)).isTrue();
+        assertThat(set.removeUpTo(2, Long.MAX_VALUE)).isFalse();
+        assertThat(set.items(10, LongPair::new)).containsExactly(
+                new LongPair(2, Long.MAX_VALUE), new LongPair(3, 0));
+
+        assertThat(set.removeUpTo(3, 0)).isTrue();
+        assertThat(set.items(10, LongPair::new)).containsExactly(new LongPair(3, 0));
+        set.remove(3, 0);
+        assertThat(set.isEmpty()).isTrue();
+    }
 
     @Test
     public void testAdd() {
