@@ -150,33 +150,33 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(jvm_memory_bytes_committed{cluster=\"$cluster\", kubernetes_pod_name=~\"$instance\"})",
+              "expr": "sum(jvm_memory_committed_bytes{cluster=\"$cluster\", kubernetes_pod_name=~\"$instance\"})",
               "format": "time_series",
               "hide": false,
               "interval": "",
               "intervalFactor": 2,
               "legendFormat": "Heap size",
-              "metric": "jvm_memory_bytes_committed",
+              "metric": "jvm_memory_committed_bytes",
               "refId": "A",
               "step": 20
             },
             {
-              "expr": "sum(jvm_memory_bytes_used{cluster=\"$cluster\", kubernetes_pod_name=~\"$instance\"})",
+              "expr": "sum(jvm_memory_used_bytes{cluster=\"$cluster\", kubernetes_pod_name=~\"$instance\"})",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 2,
               "legendFormat": "Used",
-              "metric": "jvm_memory_bytes_used",
+              "metric": "jvm_memory_used_bytes",
               "refId": "B",
               "step": 20
             },
             {
-              "expr": "sum(jvm_memory_bytes_max{cluster=\"$cluster\", kubernetes_pod_name=~\"$instance\"})",
+              "expr": "sum(jvm_memory_max_bytes{cluster=\"$cluster\", kubernetes_pod_name=~\"$instance\"})",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 2,
               "legendFormat": "Max",
-              "metric": "jvm_memory_bytes_max",
+              "metric": "jvm_memory_max_bytes",
               "refId": "C",
               "step": 20
             }
@@ -555,33 +555,33 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(jvm_memory_bytes_committed{cluster=\"$cluster\", kubernetes_pod_name=~\"$instance\"})",
+              "expr": "sum(jvm_memory_committed_bytes{cluster=\"$cluster\", kubernetes_pod_name=~\"$instance\"})",
               "format": "time_series",
               "hide": false,
               "interval": "",
               "intervalFactor": 2,
               "legendFormat": "Heap size",
-              "metric": "jvm_memory_bytes_committed",
+              "metric": "jvm_memory_committed_bytes",
               "refId": "A",
               "step": 20
             },
             {
-              "expr": "sum(jvm_memory_bytes_used{cluster=\"$cluster\", kubernetes_pod_name=~\"$instance\"})",
+              "expr": "sum(jvm_memory_used_bytes{cluster=\"$cluster\", kubernetes_pod_name=~\"$instance\"})",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 2,
               "legendFormat": "Used",
-              "metric": "jvm_memory_bytes_used",
+              "metric": "jvm_memory_used_bytes",
               "refId": "B",
               "step": 20
             },
             {
-              "expr": "sum(jvm_memory_bytes_max{cluster=\"$cluster\", kubernetes_pod_name=~\"$instance\"})",
+              "expr": "sum(jvm_memory_max_bytes{cluster=\"$cluster\", kubernetes_pod_name=~\"$instance\"})",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 2,
               "legendFormat": "Max",
-              "metric": "jvm_memory_bytes_max",
+              "metric": "jvm_memory_max_bytes",
               "refId": "C",
               "step": 20
             }
@@ -960,33 +960,33 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(jvm_memory_bytes_committed{cluster=\"$cluster\", kubernetes_pod_name=~\"$instance\"})",
+              "expr": "sum(jvm_memory_committed_bytes{cluster=\"$cluster\", kubernetes_pod_name=~\"$instance\"})",
               "format": "time_series",
               "hide": false,
               "interval": "",
               "intervalFactor": 2,
               "legendFormat": "Heap size",
-              "metric": "jvm_memory_bytes_committed",
+              "metric": "jvm_memory_committed_bytes",
               "refId": "A",
               "step": 20
             },
             {
-              "expr": "sum(jvm_memory_bytes_used{cluster=\"$cluster\", kubernetes_pod_name=~\"$instance\"})",
+              "expr": "sum(jvm_memory_used_bytes{cluster=\"$cluster\", kubernetes_pod_name=~\"$instance\"})",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 2,
               "legendFormat": "Used",
-              "metric": "jvm_memory_bytes_used",
+              "metric": "jvm_memory_used_bytes",
               "refId": "B",
               "step": 20
             },
             {
-              "expr": "sum(jvm_memory_bytes_max{cluster=\"$cluster\", kubernetes_pod_name=~\"$instance\"})",
+              "expr": "sum(jvm_memory_max_bytes{cluster=\"$cluster\", kubernetes_pod_name=~\"$instance\"})",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 2,
               "legendFormat": "Max",
-              "metric": "jvm_memory_bytes_max",
+              "metric": "jvm_memory_max_bytes",
               "refId": "C",
               "step": 20
             }
@@ -1365,33 +1365,33 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(jvm_memory_bytes_committed{cluster=\"$cluster\", kubernetes_pod_name=~\"$instance\"})",
+              "expr": "sum(jvm_memory_committed_bytes{cluster=\"$cluster\", kubernetes_pod_name=~\"$instance\"})",
               "format": "time_series",
               "hide": false,
               "interval": "",
               "intervalFactor": 2,
               "legendFormat": "Heap size",
-              "metric": "jvm_memory_bytes_committed",
+              "metric": "jvm_memory_committed_bytes",
               "refId": "A",
               "step": 20
             },
             {
-              "expr": "sum(jvm_memory_bytes_used{cluster=\"$cluster\", kubernetes_pod_name=~\"$instance\"})",
+              "expr": "sum(jvm_memory_used_bytes{cluster=\"$cluster\", kubernetes_pod_name=~\"$instance\"})",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 2,
               "legendFormat": "Used",
-              "metric": "jvm_memory_bytes_used",
+              "metric": "jvm_memory_used_bytes",
               "refId": "B",
               "step": 20
             },
             {
-              "expr": "sum(jvm_memory_bytes_max{cluster=\"$cluster\", kubernetes_pod_name=~\"$instance\"})",
+              "expr": "sum(jvm_memory_max_bytes{cluster=\"$cluster\", kubernetes_pod_name=~\"$instance\"})",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 2,
               "legendFormat": "Max",
-              "metric": "jvm_memory_bytes_max",
+              "metric": "jvm_memory_max_bytes",
               "refId": "C",
               "step": 20
             }
@@ -1770,33 +1770,33 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(jvm_memory_bytes_committed{cluster=\"$cluster\", kubernetes_pod_name=~\"$instance\"})",
+              "expr": "sum(jvm_memory_committed_bytes{cluster=\"$cluster\", kubernetes_pod_name=~\"$instance\"})",
               "format": "time_series",
               "hide": false,
               "interval": "",
               "intervalFactor": 2,
               "legendFormat": "Heap size",
-              "metric": "jvm_memory_bytes_committed",
+              "metric": "jvm_memory_committed_bytes",
               "refId": "A",
               "step": 20
             },
             {
-              "expr": "sum(jvm_memory_bytes_used{cluster=\"$cluster\", kubernetes_pod_name=~\"$instance\"})",
+              "expr": "sum(jvm_memory_used_bytes{cluster=\"$cluster\", kubernetes_pod_name=~\"$instance\"})",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 2,
               "legendFormat": "Used",
-              "metric": "jvm_memory_bytes_used",
+              "metric": "jvm_memory_used_bytes",
               "refId": "B",
               "step": 20
             },
             {
-              "expr": "sum(jvm_memory_bytes_max{cluster=\"$cluster\", kubernetes_pod_name=~\"$instance\"})",
+              "expr": "sum(jvm_memory_max_bytes{cluster=\"$cluster\", kubernetes_pod_name=~\"$instance\"})",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 2,
               "legendFormat": "Max",
-              "metric": "jvm_memory_bytes_max",
+              "metric": "jvm_memory_max_bytes",
               "refId": "C",
               "step": 20
             }
@@ -2175,33 +2175,33 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "sum(jvm_memory_bytes_committed{cluster=\"$cluster\", kubernetes_pod_name=~\"$instance\"})",
+              "expr": "sum(jvm_memory_committed_bytes{cluster=\"$cluster\", kubernetes_pod_name=~\"$instance\"})",
               "format": "time_series",
               "hide": false,
               "interval": "",
               "intervalFactor": 2,
               "legendFormat": "Heap size",
-              "metric": "jvm_memory_bytes_committed",
+              "metric": "jvm_memory_committed_bytes",
               "refId": "A",
               "step": 20
             },
             {
-              "expr": "sum(jvm_memory_bytes_used{cluster=\"$cluster\", kubernetes_pod_name=~\"$instance\"})",
+              "expr": "sum(jvm_memory_used_bytes{cluster=\"$cluster\", kubernetes_pod_name=~\"$instance\"})",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 2,
               "legendFormat": "Used",
-              "metric": "jvm_memory_bytes_used",
+              "metric": "jvm_memory_used_bytes",
               "refId": "B",
               "step": 20
             },
             {
-              "expr": "sum(jvm_memory_bytes_max{cluster=\"$cluster\", kubernetes_pod_name=~\"$instance\"})",
+              "expr": "sum(jvm_memory_max_bytes{cluster=\"$cluster\", kubernetes_pod_name=~\"$instance\"})",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 2,
               "legendFormat": "Max",
-              "metric": "jvm_memory_bytes_max",
+              "metric": "jvm_memory_max_bytes",
               "refId": "C",
               "step": 20
             }
@@ -2510,7 +2510,7 @@
         "multi": true,
         "name": "instance",
         "options": [],
-        "query": "jvm_memory_bytes_used{cluster=~\"$cluster\", job=~\"$component\", kubernetes_pod_name=~\".+\"}",
+        "query": "jvm_memory_used_bytes{cluster=~\"$cluster\", job=~\"$component\", kubernetes_pod_name=~\".+\"}",
         "refresh": 2,
         "regex": "/.*[^_]kubernetes_pod_name=\\\"([^\\\"]+)\\\".*/",
         "sort": 1,

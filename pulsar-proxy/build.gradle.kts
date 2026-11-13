@@ -50,7 +50,7 @@ dependencies {
     implementation(libs.jersey.hk2)
     implementation(libs.guava)
     implementation(libs.simpleclient)
-    implementation(libs.simpleclient.hotspot)
+    implementation(libs.prometheus.metrics.instrumentation.jvm)
     implementation(libs.simpleclient.servlet)
     implementation(libs.jackson.jakarta.rs.json.provider)
     api(libs.picocli)
