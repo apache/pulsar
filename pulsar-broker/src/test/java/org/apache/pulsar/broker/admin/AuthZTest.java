@@ -62,11 +62,13 @@ public abstract class AuthZTest extends MockedPulsarStandalone {
             tenantManagerAdmin.close();
             tenantManagerAdmin = null;
         }
+        super.close();
         if (authorizationService != null) {
-            Mockito.reset(authorizationService);
+            // The spied service reaches the broker, which references the spy, so Mockito's inline mock maker would
+            // keep both until the JVM exits: release the spy once the broker is closed
+            Mockito.framework().clearInlineMock(authorizationService);
             authorizationService = null;
         }
-        super.close();
     }
 
     @SneakyThrows

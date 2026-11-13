@@ -958,6 +958,9 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
             totalInDeadLetter++;
         } while (totalInDeadLetter < sendMessages);
         deadLetterConsumer.close();
+        // The consumer acknowledges a message only once its DLQ send completes, which can be after the DLQ consumer
+        // received it: closing the consumer before that drops the acknowledgment and leaves the message unacknowledged
+        waitForEmptyBacklog(topic, "my-subscription");
         consumer.close();
         @Cleanup
         PulsarClient newPulsarClient1 = newPulsarClient();
@@ -983,6 +986,7 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
     public void testDeadLetterWithoutConsumerReceiveImmediately() throws PulsarClientException, InterruptedException {
         final String topic = newTopicName();
 
+        @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic(topic)
                 .subscriptionType(SubscriptionType.Shared)
@@ -991,6 +995,7 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
                 .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(1).build())
                 .subscribe();
 
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(topic)
                 .create();

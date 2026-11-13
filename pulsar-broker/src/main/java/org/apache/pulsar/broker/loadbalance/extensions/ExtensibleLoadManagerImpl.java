@@ -466,10 +466,11 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                                     MONITOR_INTERVAL_IN_MILLIS, TimeUnit.MILLISECONDS);
 
                     this.splitScheduler.start();
-                    this.initWaiter.complete(true);
+                    // The role changes waiting for the initWaiter check that the load manager is running
                     if (!state.compareAndSet(State.INIT, State.RUNNING)) {
                         failForUnexpectedState("start");
                     }
+                    this.initWaiter.complete(true);
                     log.info("Started load manager.");
                 } catch (Throwable e) {
                     failStarting(e);
@@ -750,8 +751,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                                                long timeout,
                                                TimeUnit timeoutUnit) {
         Unload unload = unloadDecision.getUnload();
-        CompletableFuture<Void> future = serviceUnitStateChannel.publishUnloadEventAsync(unload);
-        return unloadManager.waitAsync(future, unload.serviceUnit(), unloadDecision, timeout, timeoutUnit)
+        return unloadManager.waitAsync(() -> serviceUnitStateChannel.publishUnloadEventAsync(unload),
+                        unload.serviceUnit(), unloadDecision, timeout, timeoutUnit)
                 .thenRun(() -> unloadCounter.updateUnloadBrokerCount(1));
     }
 
@@ -818,8 +819,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                                                long timeout,
                                                TimeUnit timeoutUnit) {
         Split split = decision.getSplit();
-        CompletableFuture<Void> future = serviceUnitStateChannel.publishSplitEventAsync(split);
-        return splitManager.waitAsync(future, decision.getSplit().serviceUnit(), decision, timeout, timeoutUnit);
+        return splitManager.waitAsync(() -> serviceUnitStateChannel.publishSplitEventAsync(split),
+                split.serviceUnit(), decision, timeout, timeoutUnit);
     }
 
     @Override
@@ -920,7 +921,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
         boolean becameFollower = false;
         while (!Thread.currentThread().isInterrupted()) {
             try {
-                if (!initWaiter.get() || disabled()) {
+                // Not once the broker is disabled, nor once the load manager is closed, which puts it back in INIT
+                if (!initWaiter.get() || !running()) {
                     return;
                 }
                 try {
@@ -936,7 +938,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                     }
                 }
 
-                if (disabled()) {
+                if (!running()) {
                     return;
                 }
                 // Confirm the system topics have been created or create them if they do not exist.
@@ -953,9 +955,9 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                 }
                 break;
             } catch (Throwable e) {
-                if (disabled()) {
+                if (!running()) {
                     log.warn().attr("broker", pulsar.getBrokerId()).exception(e)
-                            .log("The broker: failed to set the role but exit because it's disabled");
+                            .log("The broker: failed to set the role but exit because it's disabled or closed");
                     return;
                 }
                 log.warn().attr("broker", pulsar.getBrokerId()).attr("retrying", ++retry).exception(e)
@@ -969,7 +971,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                 }
             }
         }
-        if (disabled()) {
+        if (!running()) {
             return;
         }
 
@@ -996,7 +998,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
         boolean becameLeader = false;
         while (!Thread.currentThread().isInterrupted()) {
             try {
-                if (!initWaiter.get() || disabled()) {
+                // Not once the broker is disabled, nor once the load manager is closed, which puts it back in INIT
+                if (!initWaiter.get() || !running()) {
                     return;
                 }
                 try {
@@ -1012,7 +1015,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                     }
                 }
 
-                if (disabled()) {
+                if (!running()) {
                     return;
                 }
                 unloadScheduler.close();
@@ -1024,9 +1027,9 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                 serviceUnitStateTableViewSyncer.close();
                 break;
             } catch (Throwable e) {
-                if (disabled()) {
+                if (!running()) {
                     log.warn().attr("broker", pulsar.getBrokerId()).exception(e)
-                            .log("The broker: failed to set the role but exit because it's disabled");
+                            .log("The broker: failed to set the role but exit because it's disabled or closed");
                     return;
                 }
                 log.warn().attr("broker", pulsar.getBrokerId()).attr("retrying", ++retry).exception(e)
@@ -1040,7 +1043,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                 }
             }
         }
-        if (disabled()) {
+        if (!running()) {
             return;
         }
 
@@ -1226,10 +1229,6 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
 
     boolean running() {
         return state.get() == State.RUNNING;
-    }
-
-    private boolean disabled() {
-        return state.get() == State.DISABLED;
     }
 
     private boolean isPersistentSystemTopicUsed() {

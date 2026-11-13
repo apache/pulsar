@@ -31,25 +31,16 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.stats.AnalyzeSubscriptionBacklogResult;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.tests.integration.cli.CombinedSettingsTestSuite;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
-import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
 import org.testng.annotations.Test;
 
-public class AnalyzeBacklogTest extends PulsarTestSuite {
+public class AnalyzeBacklogTest extends CombinedSettingsTestSuite {
 
-    private static final String PREFIX = "PULSAR_PREFIX_";
     private static final String ANALYZE_BACKLOG_TOPIC_NAME = "public/default/analyze-backlog-topic";
     private static final String ANALYZE_BACKLOG_SUBSCRIPTION_NAME = "sub1";
-    private static final int SUBSCRIPTION_BACKLOG_SCAN_MAX_ENTRIES = 10;
     private static final String LINE_SEPARATOR_REGEX = "\\r?\\n";
     private static final String TOPICS_CMD = "topics";
-
-    @Override
-    public void setupCluster() throws Exception {
-        brokerEnvs.put(PREFIX + "subscriptionBacklogScanMaxEntries",
-                String.valueOf(SUBSCRIPTION_BACKLOG_SCAN_MAX_ENTRIES));
-        super.setupCluster();
-    }
 
     @Test
     public void testAnalyzeBacklogUsingDefaultConfig() throws Exception {

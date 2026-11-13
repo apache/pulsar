@@ -682,11 +682,17 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
 
     @Override
     public void releaseUnderreplicatedLedger(long ledgerId) throws ReplicationException.UnavailableException {
+        releaseUnderreplicatedLedger(ledgerId, BLOCKING_CALL_TIMEOUT, MILLISECONDS);
+    }
+
+    @VisibleForTesting
+    void releaseUnderreplicatedLedger(long ledgerId, long timeout, TimeUnit timeoutUnit)
+            throws ReplicationException.UnavailableException {
         log.debug().attr("ledgerId", ledgerId).log("releaseLedger");
         Lock l = heldLocks.get(ledgerId);
         try {
             if (l != null) {
-                releaseLock(ledgerId, l).get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
+                releaseLock(ledgerId, l).get(timeout, timeoutUnit);
             }
         } catch (ExecutionException ee) {
             if (ee.getCause() instanceof MetadataStoreException.NotFoundException) {

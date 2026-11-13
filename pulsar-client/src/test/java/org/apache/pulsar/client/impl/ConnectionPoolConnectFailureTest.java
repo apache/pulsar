@@ -90,8 +90,7 @@ public class ConnectionPoolConnectFailureTest {
                 return CompletableFuture.failedFuture(new UnknownHostException(unresolvedAddress.getHostString()));
             }
         };
-        // A connection asked for after the client has shut down
-        pool.close();
+        // A connection asked for after the event loop has terminated. A closed pool would fail it before connecting.
         eventLoop.shutdownGracefully(0, 0, TimeUnit.SECONDS).sync();
 
         CompletableFuture<ClientCnx> cnxFuture =
@@ -101,5 +100,6 @@ public class ConnectionPoolConnectFailureTest {
                 .withThrowableOfType(ExecutionException.class)
                 .withCauseInstanceOf(PulsarClientException.class);
         assertThat(pool.getPoolSize()).isZero();
+        pool.close();
     }
 }

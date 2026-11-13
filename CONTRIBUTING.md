@@ -72,7 +72,8 @@ Gradle's build-JDK requirement. Use `-PtestJavaVersion=17` as well to run ordina
 ./gradlew :pulsar-broker:assemble
 
 # Source-code conformance across all modules — license headers (rat + spotlessCheck) and checkstyle
-# (checkstyleMain + checkstyleTest). Fast: compiles nothing, never builds shadow jars.
+# (checkstyleMain + checkstyleTest). Fast: compiles nothing, never builds shadow jars. Each module has
+# its own quickCheck and sanityCheck, so `./gradlew :pulsar-broker:quickCheck` checks one module.
 ./gradlew quickCheck
 ./gradlew spotlessApply            # auto-fix license headers
 
@@ -82,6 +83,8 @@ Gradle's build-JDK requirement. Use `-PtestJavaVersion=17` as well to run ordina
 
 # Verify bundled-dependency LICENSE/NOTICE coverage (after changing a runtime dependency)
 ./gradlew checkBinaryLicense
+# Update the jar versions in the distribution LICENSE/NOTICE files after a dependency upgrade
+./gradlew updateBinaryLicense
 
 # Start a standalone Pulsar service (broker + bookie + metadata in one JVM)
 bin/pulsar standalone
@@ -133,7 +136,7 @@ single test that lives in one of those groups you must clear the exclusion:
 CI selects whole groups with `-PtestGroups=<groups>` and `-PexcludedTestGroups=<groups>` (e.g.
 `broker,broker-admin`); locally prefer `--tests` to scope to specific classes instead of running an
 entire group. CI splits `pulsar-broker` tests into groups (see
-`pulsar-build/run_unit_group_gradle.sh` and `gradle/verify-test-groups.gradle.kts`). Tests with no
+`pulsar-build/run_unit_group_gradle.sh` and `build-logic/conventions/src/main/kotlin/VerifyTestGroups.kt`). Tests with no
 group are treated as `other` at runtime. `./gradlew verifyTestGroups` reports group assignments and
 flags tests not covered by any CI group.
 
@@ -148,11 +151,11 @@ fork and `1G` heap, take precedence.
 
 A test task deals its classes to its forks round-robin, in class name order, before any of them runs,
 so a few slow classes can end up on one fork. CI therefore runs most unit test groups as `testShards`.
-With `-PtestShards=4 -PtestShardDurations=<file>` (lines of `<seconds> <class name>`, which CI records
-from the group's previous run), it runs `testShard1` to `testShard4`, test tasks with one fork each
-that run in parallel when the configuration cache is on, with the classes packed longest-first by
-those durations; a class missing from the file goes by a hash of its name. Without recorded
-durations, `testShards` runs `test`.
+With `-PtestShards=4 -PtestShardDurations=<file>` (lines of `<seconds> <class name>`, which CI takes
+from the `unit-test-durations-<GROUP>` artifact of the group's latest successful run on master), it runs
+`testShard1` to `testShard4`, test tasks with one fork each that run in parallel when the configuration
+cache is on, with the classes packed longest-first by those durations; a class missing from the file goes
+by a hash of its name. Without recorded durations, `testShards` runs `test`.
 
 Use `-PtestForkEvery=50` to replace a test JVM after 50 detected test classes, limiting state
 retained across classes. The default is `0` (no class limit). Gradle counts candidate classes
@@ -174,7 +177,9 @@ instead of having retries mask them.
 ### Netty buffer leak detection
 
 Tests enable Netty's `paranoid` leak detection by default, using `ExtendedNettyLeakDetector`
-to include test names in leak reports and write `netty_leak_*.txt` files. Set
+to include test names in leak reports and write `netty_leak_*.txt` files. Leaks are detected with a
+GC after the test methods of each test class and when the test JVM finishes, and a report names the
+test that was running when the leaked buffer was allocated. Set
 `NETTY_LEAK_DUMP_DIR` to choose the output directory (the default is the JVM's temporary directory).
 
 `NETTY_LEAK_DETECTION=report` (the default) reports leaks without failing tests.

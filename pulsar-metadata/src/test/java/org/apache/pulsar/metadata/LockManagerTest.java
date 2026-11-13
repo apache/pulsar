@@ -28,9 +28,12 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import lombok.Cleanup;
@@ -39,12 +42,15 @@ import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException.LockBusyException;
+import org.apache.pulsar.metadata.api.Option;
+import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.coordination.CoordinationService;
 import org.apache.pulsar.metadata.api.coordination.LockManager;
 import org.apache.pulsar.metadata.api.coordination.ResourceLock;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.coordination.impl.CoordinationServiceImpl;
+import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
@@ -382,5 +388,55 @@ public class LockManagerTest extends BaseMetadataStoreTest {
             assertTrue(val.isPresent());
             assertFalse(lock.getLockExpiredFuture().isDone());
         });
+    }
+
+    @Test(dataProvider = "impl")
+    public void releaseWaitsForUpdateInFlight(String provider, Supplier<String> urlSupplier) throws Exception {
+        if (provider.equals("ZooKeeper")) {
+            // FaultInjectionMetadataStore can't wrap the caches of the DualMetadataStore that a ZooKeeper URL
+            // creates. MockZooKeeper covers the ZooKeeper store.
+            return;
+        }
+
+        // Once armed, the store applies a put but holds its outcome back: the lock learns the version that the put
+        // produced only when the test lets it.
+        AtomicBoolean holdPutOutcome = new AtomicBoolean();
+        AtomicReference<CompletableFuture<Stat>> appliedPut = new AtomicReference<>();
+        CompletableFuture<Void> putOutcomeGate = new CompletableFuture<>();
+        @Cleanup
+        MetadataStoreExtended store = new FaultInjectionMetadataStore(MetadataStoreExtended.create(
+                urlSupplier.get(), MetadataStoreConfig.builder().fsyncEnable(false).build())) {
+            @Override
+            public CompletableFuture<Stat> put(String path, byte[] value, Optional<Long> expectedVersion,
+                                               Set<Option> opts) {
+                CompletableFuture<Stat> put = super.put(path, value, expectedVersion, opts);
+                if (!holdPutOutcome.get()) {
+                    return put;
+                }
+                appliedPut.set(put);
+                return put.thenCombine(putOutcomeGate, (stat, __) -> stat);
+            }
+        };
+
+        @Cleanup
+        CoordinationService coordinationService = new CoordinationServiceImpl(store);
+
+        @Cleanup
+        LockManager<String> lockManager = coordinationService.getLockManager(String.class);
+
+        String key = newKey();
+        ResourceLock<String> lock = lockManager.acquireLock(key, "value-1").join();
+
+        holdPutOutcome.set(true);
+        CompletableFuture<Void> update = lock.updateValue("value-2");
+        // The store has applied the update, but the lock still knows the version it replaced
+        appliedPut.get().join();
+        CompletableFuture<Void> release = lock.release();
+
+        putOutcomeGate.complete(null);
+        update.join();
+        release.join();
+        assertEquals(lockManager.readLock(key).join(), Optional.empty());
+        assertTrue(lock.getLockExpiredFuture().isDone());
     }
 }
