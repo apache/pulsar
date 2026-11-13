@@ -18,7 +18,11 @@
  */
 package org.apache.pulsar.internal;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.List;
+import org.apache.commons.lang3.SystemUtils;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.PulsarAdminException.ConnectException;
 import picocli.CommandLine;
@@ -96,21 +100,39 @@ public class CommanderFactory {
      * @param commander Root commander.
      */
     public static void addEnvironmentVariablesFooter(CommandLine commander) {
+        addEnvironmentVariablesFooter(commander, SystemUtils.IS_OS_WINDOWS);
+    }
+
+    /**
+     * The bin\*.cmd scripts on Windows take the classpath from PULSAR_CLASSPATH, do not read PULSAR_MEM and
+     * PULSAR_GC, and do not source conf/pulsar_tools_env.sh.
+     */
+    @VisibleForTesting
+    static void addEnvironmentVariablesFooter(CommandLine commander, boolean windows) {
+        List<String> footer = new ArrayList<>();
+        footer.add("   JAVA_HOME                Java installation to use (default: java on the PATH)");
+        footer.add("   PULSAR_CLIENT_CONF       Configuration file (default: conf/client.conf)");
+        footer.add("   PULSAR_LOG_CONF          Log4j configuration file (default: conf/log4j2.yaml)");
+        footer.add("   PULSAR_EXTRA_OPTS        Extra options to be passed to the JVM");
+        if (windows) {
+            footer.add("   PULSAR_CLASSPATH         Extra paths to add to the classpath");
+        } else {
+            footer.add("   PULSAR_EXTRA_CLASSPATH   Extra paths to add to the classpath");
+            footer.add("   PULSAR_MEM               JVM memory options");
+            footer.add("   PULSAR_GC                JVM garbage collection options");
+        }
+        footer.add("   PULSAR_LOG_DIR           Log directory (default: logs)");
+        footer.add("   PULSAR_LOG_LEVEL         Log level (default: info)");
+        footer.add(windows
+                ? "   PULSAR_LOG_ROOT_LEVEL    Root log level (default: %%PULSAR_LOG_LEVEL%%)"
+                : "   PULSAR_LOG_ROOT_LEVEL    Root log level (default: $PULSAR_LOG_LEVEL)");
+        footer.add("   PULSAR_LOG_FORMAT        Log format, text or json (default: text)");
+        if (!windows) {
+            footer.add("");
+            footer.add("These variables can also be set in conf/pulsar_tools_env.sh");
+        }
         commander.getCommandSpec().usageMessage()
                 .footerHeading("%nEnvironment variables:%n")
-                .footer(
-                        "   JAVA_HOME                Java installation to use (default: java on the PATH)",
-                        "   PULSAR_CLIENT_CONF       Configuration file (default: conf/client.conf)",
-                        "   PULSAR_LOG_CONF          Log4j configuration file (default: conf/log4j2.yaml)",
-                        "   PULSAR_EXTRA_OPTS        Extra options to be passed to the JVM",
-                        "   PULSAR_EXTRA_CLASSPATH   Extra paths to add to the classpath",
-                        "   PULSAR_MEM               JVM memory options",
-                        "   PULSAR_GC                JVM garbage collection options",
-                        "   PULSAR_LOG_DIR           Log directory (default: logs)",
-                        "   PULSAR_LOG_LEVEL         Log level (default: info)",
-                        "   PULSAR_LOG_ROOT_LEVEL    Root log level (default: $PULSAR_LOG_LEVEL)",
-                        "   PULSAR_LOG_FORMAT        Log format, text or json (default: text)",
-                        "",
-                        "These variables can also be set in conf/pulsar_tools_env.sh");
+                .footer(footer.toArray(new String[0]));
     }
 }
