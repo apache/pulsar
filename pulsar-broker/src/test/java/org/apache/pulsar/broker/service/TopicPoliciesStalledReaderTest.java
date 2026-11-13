@@ -83,11 +83,13 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
     private static final String TENANT = "stalled-reader";
     private static final String NAMESPACE = TENANT + "/ns";
     /**
-     * Short, so a read-back that never comes costs the test seconds instead of the default minute. It is set only
-     * once the readers are stalled, and {@link #stalledUpdate} resets it on the thread that reports the stall, before
-     * the broker starts to replace the reader, so that nothing but the stalled wait can time out on a slow host.
+     * Short, so a read-back that never comes costs the test a second instead of the default minute. It is set only
+     * once the readers are stalled, and the operation that reports the stall resets it on the thread that fails its
+     * wait, before the broker starts to replace the reader ({@link #thenRestoreDefaultTimeout}, or
+     * {@code afterNextPolicyDeletion} for a topic deletion), so that nothing but the stalled wait can time out on a
+     * slow host: the setting also bounds the initialization that follows the replacement.
      */
-    private static final int READ_TIMEOUT_SECONDS = 2;
+    private static final int READ_TIMEOUT_SECONDS = 1;
     /**
      * For the operations that have to keep waiting on the stalled reader until another one, issued with
      * {@link #READ_TIMEOUT_SECONDS}, reports the stall. Longer than any test here: a wait takes the timeout in force
@@ -203,10 +205,12 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
 
         stallReaders();
 
-        // While the deletion waits, the topic stays fenced.
+        // While the deletion waits, the topic stays fenced. The future below is the admin client's and completes
+        // after the broker has started to replace the reader, so the default timeout is restored where the broker
+        // deletes the topic's policies, the moment that wait has failed.
+        service.afterNextPolicyDeletion(this::restoreDefaultTimeout);
         assertStallReported(admin.topics().deleteAsync(topic, true), "the topic deletion",
                 PulsarAdminException.class);
-        restoreDefaultTimeout();
 
         // A fenced topic rejects producers with TopicFencedException ("Topic is temporarily unavailable").
         try (Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
@@ -583,6 +587,7 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
         private final List<StallableReader> readers = new CopyOnWriteArrayList<>();
         private final AtomicReference<HeldWrite> nextWriteHold = new AtomicReference<>();
         private final AtomicReference<NamespaceName> unloadBeforeNextReader = new AtomicReference<>();
+        private final AtomicReference<Runnable> afterNextPolicyDeletion = new AtomicReference<>();
         /** The factory the service takes its writers from; its writers consult {@link #nextWriteHold}. */
         private final NamespaceEventsSystemTopicFactory systemTopicFactory;
 
@@ -619,6 +624,26 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
         @Override
         NamespaceEventsSystemTopicFactory getNamespaceEventsSystemTopicFactory() {
             return systemTopicFactory;
+        }
+
+        @Override
+        public CompletableFuture<Void> deleteTopicPoliciesAsync(TopicName topicName, boolean keepGlobalPolicies) {
+            final CompletableFuture<Void> deletion = super.deleteTopicPoliciesAsync(topicName, keepGlobalPolicies);
+            final Runnable callback = afterNextPolicyDeletion.getAndSet(null);
+            if (callback != null) {
+                deletion.whenComplete((__, e) -> callback.run());
+            }
+            return deletion;
+        }
+
+        /**
+         * Runs {@code callback} when the next deletion of a topic's policies is over, on the thread that completes
+         * it: for a deletion that times out on a stalled reader, before the broker starts to replace the reader. It
+         * is for a deletion the broker issues itself, as a topic deletion does, whose future the test never sees.
+         */
+        void afterNextPolicyDeletion(Runnable callback) {
+            assertThat(afterNextPolicyDeletion.compareAndSet(null, callback))
+                    .describedAs("a callback is already armed").isTrue();
         }
 
         List<StallableReader> readers() {
