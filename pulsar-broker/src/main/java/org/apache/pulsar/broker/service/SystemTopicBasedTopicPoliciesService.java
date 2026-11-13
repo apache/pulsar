@@ -350,9 +350,12 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             tracker.setValue(getMessageHandlerTracker(namespaceObject));
             return currentInitFuture;
         });
+        // Read before the wait is registered, so a wait that is visible in the tracker already has its timeout: a
+        // change of the setting made once the wait is counted (pendingReadBackWaits) cannot apply to it.
+        long timeoutSeconds = pulsarService.getConfiguration().getTopicPoliciesCacheInitTimeoutSeconds();
         // Outside compute(): a wait for an event that was already read back completes here, and its callbacks run.
         tracker.getValue().addPendingFuture((MessageIdAdv) messageId, future);
-        scheduleReadBackTimeout(namespaceObject, messageId, future, initFuture.getValue());
+        scheduleReadBackTimeout(namespaceObject, messageId, future, initFuture.getValue(), timeoutSeconds);
         return future;
     }
 
@@ -368,11 +371,12 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
      * @param initFuture the initialization whose reader was expected to read the event back and whose tracker holds
      *                   the wait, or {@code null} when the namespace had none; only that initialization's reader is
      *                   closed
+     * @param timeoutSeconds {@code topicPoliciesCacheInitTimeoutSeconds} as it was before the wait was registered;
+     *                       {@code 0} or less means no timeout
      */
     private void scheduleReadBackTimeout(@NonNull NamespaceName namespace, @NonNull MessageId messageId,
                                          @NonNull CompletableFuture<Void> readBackFuture,
-                                         @Nullable CompletableFuture<Void> initFuture) {
-        long timeoutSeconds = pulsarService.getConfiguration().getTopicPoliciesCacheInitTimeoutSeconds();
+                                         @Nullable CompletableFuture<Void> initFuture, long timeoutSeconds) {
         if (timeoutSeconds <= 0 || readBackFuture.isDone()) {
             return;
         }
@@ -1545,7 +1549,11 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         return policyCacheInitMap.get(namespaceName);
     }
 
-    /** The topic policy updates of {@code namespace} that are waiting for the reader to read their event back. */
+    /**
+     * The topic policy updates of {@code namespace} that are waiting for the reader to read their event back. A wait
+     * counted here has taken its timeout already, so changing {@code topicPoliciesCacheInitTimeoutSeconds} afterwards
+     * does not change how long it waits.
+     */
     @VisibleForTesting
     int pendingReadBackWaits(NamespaceName namespace) {
         TopicPolicyMessageHandlerTracker tracker = topicPolicyMessageHandlerTrackers.get(namespace);
