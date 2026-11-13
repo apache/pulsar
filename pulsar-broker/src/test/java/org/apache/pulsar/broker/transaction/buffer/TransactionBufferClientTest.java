@@ -29,7 +29,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Multimap;
@@ -297,10 +296,14 @@ public class TransactionBufferClientTest extends TransactionTestBase {
         CompletableFuture<Optional<Topic>> originalTopicFuture = topicOwner.getBrokerService().getTopics()
                 .put(failingTopic, CompletableFuture.completedFuture(Optional.of(timingOutTopic)));
         try {
-            assertThrows(ExecutionException.class,
-                    () -> tbClient.commitTxnOnTopic(failingTopic, 1L, 1L, -1L).get());
-            assertThrows(ExecutionException.class,
-                    () -> tbClient.abortTxnOnTopic(failingTopic, 1L, 1L, -1L).get());
+            assertThat(tbClient.commitTxnOnTopic(failingTopic, 1L, 1L, -1L))
+                    .failsWithin(10, TimeUnit.SECONDS)
+                    .withThrowableOfType(ExecutionException.class)
+                    .withCauseInstanceOf(PulsarClientException.ServiceNotReadyException.class);
+            assertThat(tbClient.abortTxnOnTopic(failingTopic, 1L, 1L, -1L))
+                    .failsWithin(10, TimeUnit.SECONDS)
+                    .withThrowableOfType(ExecutionException.class)
+                    .withCauseInstanceOf(PulsarClientException.ServiceNotReadyException.class);
         } finally {
             topicOwner.getBrokerService().getTopics().put(failingTopic, originalTopicFuture);
         }
@@ -514,8 +517,8 @@ public class TransactionBufferClientTest extends TransactionTestBase {
     public void testTransactionBufferPendingRequests() throws Exception {
         // The pending requests gauge asks the handler on every scrape. The Prometheus collectors are shared by
         // every client in the process and bound to the first client's handler, so close the live ones and create
-        // a client bound to a handler the test controls, then check that the scraped value follows it. The next
-        // client created after this test registers new ones.
+        // a client bound to a handler the test controls, then check that the scraped value follows it. The live
+        // clients keep the collectors that were closed, so the brokers are started again at the end.
         PulsarService pulsar = pulsarServiceList.get(0);
         TransactionBufferHandler handler = mock(TransactionBufferHandler.class);
         AtomicInteger pendingCount = new AtomicInteger(3);
@@ -529,6 +532,9 @@ public class TransactionBufferClientTest extends TransactionTestBase {
         } finally {
             stats.close();
         }
+        // If this test fails, TestRetrySupport starts the brokers again before the next test.
+        this.cleanup();
+        this.setup();
     }
 
     private static double scrapePendingRequests(PulsarService pulsar) throws Exception {
