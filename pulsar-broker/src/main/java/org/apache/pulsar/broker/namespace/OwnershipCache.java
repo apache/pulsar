@@ -245,7 +245,10 @@ public class OwnershipCache {
 
         // If we're not the owner, we need to check if anybody else is
         String path = ServiceUnitUtils.path(suName);
-        return lockManager.readLock(path).thenCompose(owner -> {
+        return lockManager.readLock(path)
+                .orTimeout(pulsar.getConfiguration().getMetadataStoreOperationTimeoutSeconds(),
+                        TimeUnit.SECONDS)
+                .thenCompose(owner -> {
             // If the current broker is the owner, attempt to reacquire ownership to avoid cache loss.
             if (owner.isPresent() && owner.get().equals(selfOwnerInfo)) {
                 if (pulsar.isMetadataSessionLost()) {
