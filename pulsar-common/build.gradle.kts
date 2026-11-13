@@ -168,19 +168,24 @@ dependencies {
     implementation(variantOf(libs.netty.transport.native.epoll) { classifier("linux-x86_64") })
     implementation(variantOf(libs.netty.transport.native.epoll) { classifier("linux-aarch_64") })
     implementation(libs.netty.transport.native.unix.common)
+    // The BookKeeper artifacts declare their own, older slog version. Exclude it so that the
+    // published POM carries only libs.slog: Maven picks the nearest declaration, not the highest.
     implementation(libs.bookkeeper.common.allocator) {
         exclude(group = "commons-configuration", module = "commons-configuration2")
         exclude(group = "commons-beanutils", module = "commons-beanutils")
+        exclude(group = "io.github.merlimat.slog", module = "slog")
     }
     implementation(libs.bookkeeper.cpu.affinity) {
         exclude(group = "commons-configuration", module = "commons-configuration2")
         exclude(group = "commons-beanutils", module = "commons-beanutils")
+        exclude(group = "io.github.merlimat.slog", module = "slog")
     }
     api(libs.aircompressor)
     implementation(libs.bookkeeper.circe.checksum) {
         exclude(group = "io.netty")
         exclude(group = "commons-configuration", module = "commons-configuration2")
         exclude(group = "commons-beanutils", module = "commons-beanutils")
+        exclude(group = "io.github.merlimat.slog", module = "slog")
     }
     implementation(libs.netty.tcnative.boringssl.static)
     implementation(variantOf(libs.netty.tcnative.boringssl.static) { classifier("linux-x86_64") })
