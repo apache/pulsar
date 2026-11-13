@@ -22,6 +22,7 @@ import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.doAnswer;
@@ -33,6 +34,7 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.withSettings;
 import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBuf;
@@ -90,6 +92,7 @@ import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.protocol.Commands;
+import org.mockito.MockedStatic;
 import org.apache.pulsar.common.util.Backoff;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
@@ -1052,6 +1055,61 @@ public class ConsumerImplTest {
         assertTrue(firstResult.isDone());
         assertTrue(secondResult.isCompletedExceptionally());
         verify(cnx, times(1)).sendRequestWithId(any(ByteBuf.class), anyLong());
+    }
+
+    @Test
+    public void testSeekAsyncReleasesBufferOnInProgressConflict() {
+        ClientCnx cnx = mock(ClientCnx.class);
+        CompletableFuture<ProducerResponse> clientReq = new CompletableFuture<>();
+        when(cnx.sendRequestWithId(any(ByteBuf.class), anyLong())).thenReturn(clientReq);
+        consumer.setClientCnx(cnx);
+        consumer.setState(HandlerState.State.Ready);
+
+        List<ByteBuf> capturedBuffers = new ArrayList<>();
+        try (MockedStatic<Commands> commands = mockStatic(Commands.class, CALLS_REAL_METHODS)) {
+            commands.when(() -> Commands.newSeek(anyLong(), anyLong(), anyLong()))
+                    .thenAnswer(invocation -> {
+                        ByteBuf buf = (ByteBuf) invocation.callRealMethod();
+                        capturedBuffers.add(buf);
+                        return buf;
+                    });
+
+            CompletableFuture<Void> firstResult = consumer.seekAsync(1L);
+            CompletableFuture<Void> secondResult = consumer.seekAsync(1L);
+
+            assertThat(capturedBuffers).hasSize(2);
+            assertThat(capturedBuffers.get(1).refCnt()).isZero();
+            assertTrue(secondResult.isCompletedExceptionally());
+        }
+    }
+
+    @Test
+    public void testSeekAsyncReleasesBufferOnTimeout() {
+        ScheduledExecutorProvider provider = mock(ScheduledExecutorProvider.class);
+        ScheduledExecutorService scheduledExecutorService = mock(ScheduledExecutorService.class);
+        when(provider.getExecutor()).thenReturn(scheduledExecutorService);
+        when(consumer.getClient().getScheduledExecutorProvider()).thenReturn(provider);
+
+        doAnswer(invocation -> {
+            ((Runnable) invocation.getArgument(0)).run();
+            return null;
+        }).when(scheduledExecutorService).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+
+        List<ByteBuf> capturedBuffers = new ArrayList<>();
+        try (MockedStatic<Commands> commands = mockStatic(Commands.class, CALLS_REAL_METHODS)) {
+            commands.when(() -> Commands.newSeek(anyLong(), anyLong(), anyLong()))
+                    .thenAnswer(invocation -> {
+                        ByteBuf buf = (ByteBuf) invocation.callRealMethod();
+                        capturedBuffers.add(buf);
+                        return buf;
+                    });
+
+            CompletableFuture<Void> result = consumer.seekAsync(1L);
+
+            assertThat(capturedBuffers).hasSize(1);
+            assertThat(capturedBuffers.get(0).refCnt()).isZero();
+            assertTrue(result.isCompletedExceptionally());
+        }
     }
 
     @Test(invocationTimeOut = 1000)
