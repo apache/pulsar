@@ -70,6 +70,6 @@ val generateDummyNar = tasks.register<Copy>("generateDummyNar") {
     rename { "dummy.nar" }
 }
 
-tasks.withType<Test> {
+tasks.withType<Test>().configureEach {
     dependsOn(generateDummyNar)
 }

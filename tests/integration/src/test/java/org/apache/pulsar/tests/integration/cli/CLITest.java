@@ -22,6 +22,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -183,76 +184,77 @@ public class CLITest extends PulsarTestSuite {
     @Test
     public void testCreateUpdateSubscriptionWithPropertiesCommand() throws Exception {
         // Not the topic of testCreateSubscriptionCommand, which already has these subscriptions
-        String topic = "testCreateUpdateSubscriptionWithPropertiesCommand";
+        String topic = "persistent://public/default/testCreateUpdateSubscriptionWithPropertiesCommand";
+        String subscription = "subscription-0";
 
-        String subscriptionPrefix = "subscription-";
+        // Each step runs once rather than once from each broker's container, and the steps alternate between the two
+        // containers, whose CLI connects to its own broker: update-subscription-properties and
+        // get-subscription-properties still run through both brokers, one of which owns the topic while the other
+        // redirects to it
+        BrokerContainer first = pulsarCluster.getBroker(0);
+        BrokerContainer second = pulsarCluster.getBroker(1);
 
-        int i = 0;
-        for (BrokerContainer container : pulsarCluster.getBrokers()) {
-            ContainerExecResult result = container.execCmd(
-                    PulsarCluster.ADMIN_SCRIPT,
-                    "topics",
-                    "create-subscription",
-                    "-p",
-                    "a=b",
-                    "-p",
-                    "c=d",
-                    "persistent://public/default/" + topic,
-                    "--subscription",
-                    "" + subscriptionPrefix + i
-            );
-            result.assertNoOutput();
+        ContainerExecResult result = first.execCmd(
+                PulsarCluster.ADMIN_SCRIPT,
+                "topics",
+                "create-subscription",
+                "-p",
+                "a=b",
+                "-p",
+                "c=d",
+                topic,
+                "--subscription",
+                subscription
+        );
+        result.assertNoOutput();
 
-            ContainerExecResult resultUpdate = container.execCmd(
-                    PulsarCluster.ADMIN_SCRIPT,
-                    "topics",
-                    "update-subscription-properties",
-                    "-p",
-                    "a=e",
-                    "persistent://public/default/" + topic,
-                    "--subscription",
-                    "" + subscriptionPrefix + i
-            );
-            resultUpdate.assertNoOutput();
+        ContainerExecResult resultUpdate = second.execCmd(
+                PulsarCluster.ADMIN_SCRIPT,
+                "topics",
+                "update-subscription-properties",
+                "-p",
+                "a=e",
+                topic,
+                "--subscription",
+                subscription
+        );
+        resultUpdate.assertNoOutput();
 
-            ContainerExecResult resultGet = container.execCmd(
-                    PulsarCluster.ADMIN_SCRIPT,
-                    "topics",
-                    "get-subscription-properties",
-                    "persistent://public/default/" + topic,
-                    "--subscription",
-                    "" + subscriptionPrefix + i
-            );
-            assertEquals(
-                    resultGet.getStdout().trim(), "{\"a\":\"e\"}",
-                    "unexpected output " + resultGet.getStdout() + " - error " + resultGet.getStderr());
+        ContainerExecResult resultGet = second.execCmd(
+                PulsarCluster.ADMIN_SCRIPT,
+                "topics",
+                "get-subscription-properties",
+                topic,
+                "--subscription",
+                subscription
+        );
+        assertEquals(
+                resultGet.getStdout().trim(), "{\"a\":\"e\"}",
+                "unexpected output " + resultGet.getStdout() + " - error " + resultGet.getStderr());
 
-            ContainerExecResult resultClear = container.execCmd(
-                    PulsarCluster.ADMIN_SCRIPT,
-                    "topics",
-                    "update-subscription-properties",
-                    "-c",
-                    "persistent://public/default/" + topic,
-                    "--subscription",
-                    "" + subscriptionPrefix + i
-            );
-            resultClear.assertNoOutput();
+        ContainerExecResult resultClear = first.execCmd(
+                PulsarCluster.ADMIN_SCRIPT,
+                "topics",
+                "update-subscription-properties",
+                "-c",
+                topic,
+                "--subscription",
+                subscription
+        );
+        resultClear.assertNoOutput();
 
-            ContainerExecResult resultGetAfterClear = container.execCmd(
-                    PulsarCluster.ADMIN_SCRIPT,
-                    "topics",
-                    "get-subscription-properties",
-                    "persistent://public/default/" + topic,
-                    "--subscription",
-                    "" + subscriptionPrefix + i
-            );
-            assertEquals(
-                    resultGetAfterClear.getStdout().trim(), "{}",
-                    "unexpected output " + resultGetAfterClear.getStdout()
-                            + " - error " + resultGetAfterClear.getStderr());
-
-            i++;
-        }
+        ContainerExecResult resultGetAfterClear = first.execCmd(
+                PulsarCluster.ADMIN_SCRIPT,
+                "topics",
+                "get-subscription-properties",
+                topic,
+                "--subscription",
+                subscription
+        );
+        assertEquals(
+                resultGetAfterClear.getStdout().trim(), "{}",
+                "unexpected output " + resultGetAfterClear.getStdout()
+                        + " - error " + resultGetAfterClear.getStderr());
     }
 
     @Test
@@ -261,19 +263,15 @@ public class CLITest extends PulsarTestSuite {
         BrokerContainer container = pulsarCluster.getAnyBroker();
         pulsarAdmin.topics().createNonPartitionedTopic(topicName);
 
-        ContainerExecResult result = container.execCmd(
-            PulsarCluster.CLIENT_SCRIPT,
-            "produce",
-            "-m",
-            "\"test topic termination\"",
-            "-n",
-            "1",
-            topicName);
-
-        assertTrue(result.getStdout().contains("1 messages successfully produced"));
+        // The message is produced with the client: pulsar-client in a broker container would start a JVM, and the
+        // command is checked below
+        try (PulsarClient client = PulsarClient.builder().serviceUrl(pulsarCluster.getPlainTextServiceUrl()).build();
+             Producer<byte[]> producer = client.newProducer().topic(topicName).create()) {
+            producer.send("test topic termination".getBytes(StandardCharsets.UTF_8));
+        }
 
         // terminate the topic
-        result = container.execCmd(
+        ContainerExecResult result = container.execCmd(
             PulsarCluster.ADMIN_SCRIPT,
             "topics",
             "terminate",

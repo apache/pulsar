@@ -143,6 +143,7 @@ public class ClientDeduplicationTest extends SharedPulsarBaseTest {
 
         assertEquals(producer.getLastSequenceId(), -1L);
 
+        @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("my-subscription")
                 .subscribe();
 
@@ -202,6 +203,7 @@ public class ClientDeduplicationTest extends SharedPulsarBaseTest {
 
         assertEquals(producer.getLastSequenceId(), -1L);
 
+        @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("my-subscription")
                 .subscribe();
 
@@ -258,6 +260,7 @@ public class ClientDeduplicationTest extends SharedPulsarBaseTest {
 
         assertEquals(producer.getLastSequenceId(), -1L);
 
+        @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("my-subscription")
                 .subscribe();
 
@@ -407,12 +410,14 @@ public class ClientDeduplicationTest extends SharedPulsarBaseTest {
         admin.namespaces().setDeduplicationStatus(getNamespace(), true);
 
         //build producer/consumer
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(topic)
                 .producerName("producer")
                 .sendTimeout(0, TimeUnit.SECONDS)
                 .create();
 
+        @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic(topic)
                 .subscriptionType(SubscriptionType.Exclusive)
