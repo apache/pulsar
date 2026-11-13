@@ -971,6 +971,23 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
             .quantile(1.0)
             .register();
 
+    // Returns the broker the bundle is already preallocated to, unless a pending affinity has to be applied first.
+    // Reads no metadata, so a lookup for an already-placed bundle doesn't wait for unused metadata reads.
+    private Optional<String> getPreallocatedBroker(final ServiceUnitId serviceUnit) {
+        final long startTime = System.nanoTime();
+        synchronized (brokerCandidateCache) {
+            final String bundle = serviceUnit.toString();
+            if (bundleBrokerAffinityMap.containsKey(bundle)) {
+                return Optional.empty();
+            }
+            final Optional<String> broker = Optional.ofNullable(preallocatedBundleToBroker.get(bundle));
+            if (broker.isPresent()) {
+                selectBrokerForAssignment.observe(System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
+            }
+            return broker;
+        }
+    }
+
     /**
      * As the leader broker, find a suitable broker for the assignment of the given bundle.
      *
@@ -980,6 +997,10 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
      */
     @Override
     public Optional<String> selectBrokerForAssignment(final ServiceUnitId serviceUnit) {
+        Optional<String> preallocatedBroker = getPreallocatedBroker(serviceUnit);
+        if (preallocatedBroker.isPresent()) {
+            return preallocatedBroker;
+        }
         final String bundle = serviceUnit.toString();
         return selectBrokerForAssignment(serviceUnit, getAvailableBrokers(),
                 getBundleDataOrDefaultAsync(bundle).join());
@@ -989,16 +1010,24 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
      * Like {@link #selectBrokerForAssignment(ServiceUnitId)}, but reads the broker list and bundle data before taking
      * the lock that serializes broker selection, so that a slow read doesn't block every other lookup's broker
      * selection and the thread waiting for it. Isolation-policy and anti-affinity lookups during selection can still
-     * read the metadata store while holding the lock.
+     * read the metadata store while holding the lock. An already-preallocated bundle with no pending affinity is
+     * returned without reading metadata.
      */
     @Override
     public CompletableFuture<Optional<String>> selectBrokerForAssignmentAsync(final ServiceUnitId serviceUnit) {
-        final String bundle = serviceUnit.toString();
-        final CompletableFuture<BundleData> bundleDataFuture = getBundleDataOrDefaultAsync(bundle);
         // Always take the selection lock on the pulsar executor, not a metadata-store callback thread.
-        return getAvailableBrokersWithTimeoutAsync().thenCombineAsync(bundleDataFuture,
-                (availableBrokers, bundleData) -> selectBrokerForAssignment(serviceUnit, availableBrokers, bundleData),
-                pulsar.getExecutor());
+        return CompletableFuture.supplyAsync(() -> getPreallocatedBroker(serviceUnit), pulsar.getExecutor())
+                .thenCompose(preallocatedBroker -> {
+                    if (preallocatedBroker.isPresent()) {
+                        return CompletableFuture.completedFuture(preallocatedBroker);
+                    }
+                    final String bundle = serviceUnit.toString();
+                    final CompletableFuture<BundleData> bundleDataFuture = getBundleDataOrDefaultAsync(bundle);
+                    return getAvailableBrokersWithTimeoutAsync().thenCombineAsync(bundleDataFuture,
+                            (availableBrokers, bundleData) ->
+                                    selectBrokerForAssignment(serviceUnit, availableBrokers, bundleData),
+                            pulsar.getExecutor());
+                });
     }
 
     private CompletableFuture<Set<String>> getAvailableBrokersWithTimeoutAsync() {
