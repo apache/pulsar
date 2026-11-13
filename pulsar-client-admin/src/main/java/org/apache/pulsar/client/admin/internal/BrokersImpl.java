@@ -200,7 +200,7 @@ public class BrokersImpl extends BaseResource implements Brokers {
 
                     @Override
                     public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
+                        future.completeExceptionally(mapInvocationFailure(throwable));
                     }
                 });
         return future;
