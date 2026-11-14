@@ -343,7 +343,6 @@ jersey-test-framework-grizzly2 = { module = "org.glassfish.jersey.test-framework
 simpleclient-bom = { module = "io.prometheus:simpleclient_bom", version.ref = "prometheus" }
 simpleclient = { module = "io.prometheus:simpleclient", version.ref = "prometheus" }
 simpleclient-hotspot = { module = "io.prometheus:simpleclient_hotspot", version.ref = "prometheus" }
-simpleclient-caffeine = { module = "io.prometheus:simpleclient_caffeine", version.ref = "prometheus" }
 simpleclient-httpserver = { module = "io.prometheus:simpleclient_httpserver", version.ref = "prometheus" }
 simpleclient-servlet = { module = "io.prometheus:simpleclient_servlet", version.ref = "prometheus" }
 simpleclient-common = { module = "io.prometheus:simpleclient_common", version.ref = "prometheus" }
@@ -354,6 +353,8 @@ prometheus-metrics-core = { module = "io.prometheus:prometheus-metrics-core", ve
 prometheus-metrics-model = { module = "io.prometheus:prometheus-metrics-model", version.ref = "prometheus-client-java" }
 prometheus-metrics-instrumentation-jvm = { module = "io.prometheus:prometheus-metrics-instrumentation-jvm", version.ref = "prometheus-client-java" }
 prometheus-metrics-exposition-textformats = { module = "io.prometheus:prometheus-metrics-exposition-textformats", version.ref = "prometheus-client-java" }
+prometheus-metrics-instrumentation-caffeine = { module = "io.prometheus:prometheus-metrics-instrumentation-caffeine", version.ref = "prometheus-client-java" }
+prometheus-metrics-annotations = { module = "io.prometheus:prometheus-metrics-annotations", version.ref = "prometheus-client-java" }
 # OpenTelemetry
 opentelemetry-bom = { module = "io.opentelemetry:opentelemetry-bom", version.ref = "opentelemetry" }
 opentelemetry-bom-alpha = { module = "io.opentelemetry:opentelemetry-bom-alpha", version.ref = "opentelemetry-alpha" }
