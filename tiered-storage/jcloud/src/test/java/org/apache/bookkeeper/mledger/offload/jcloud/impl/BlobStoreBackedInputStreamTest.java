@@ -19,21 +19,16 @@
 package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
 import static org.testng.Assert.assertEquals;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import java.io.IOException;
 import java.io.InputStream;
-import lombok.Cleanup;
-import org.apache.bookkeeper.mledger.offload.jcloud.BlobStoreTestBase;
 import org.testng.annotations.Test;
 
-public class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
+public class BlobStoreBackedInputStreamTest {
 
     @Test
     public void testFillBuffer() throws Exception {
-        @Cleanup
-        BlobStoreBackedInputStreamImpl bis = new BlobStoreBackedInputStreamImpl(
-            blobStore, BUCKET, "testFillBuffer", (k, md) -> {
-        }, 2048, 512);
-
         InputStream is = new InputStream() {
             int count = 10;
 
@@ -46,7 +41,12 @@ public class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
                 }
             }
         };
-        bis.fillBuffer(is, 20);
-        assertEquals(bis.getBuffer().readableBytes(), 10);
+        ByteBuf buffer = Unpooled.buffer(20);
+        try {
+            BlobStoreBackedInputStreamImpl.fillBuffer(buffer, is, 20);
+            assertEquals(buffer.readableBytes(), 10);
+        } finally {
+            buffer.release();
+        }
     }
 }

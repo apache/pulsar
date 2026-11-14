@@ -157,6 +157,33 @@ public interface LedgerOffloaderFactory<T extends LedgerOffloader> extends AutoC
         return create(offloadPolicies, userMetadata, scheduler, readExecutor, offloaderStats);
     }
 
+    /**
+     * Create a ledger offloader with the provided configuration, user-metadata, schema storage,
+     * scheduler, readExecutor, offloaderStats and the broker's settings for reading offloaded ledgers. A factory that
+     * shares state between its offloaders, such as a cache of offloaded data, creates it with the settings of the
+     * first call, since they are the broker's.
+     *
+     * @param offloadPolicies offload policies
+     * @param userMetadata user metadata
+     * @param schemaStorage used for schema lookup in offloader
+     * @param scheduler scheduler
+     * @param readExecutor read executor
+     * @param offloaderStats offloaderStats
+     * @param readCacheConfig the broker's settings for reading offloaded ledgers
+     * @return the offloader instance
+     * @throws IOException when fail to create an offloader
+     */
+    default T create(OffloadPoliciesImpl offloadPolicies,
+                     Map<String, String> userMetadata,
+                     SchemaStorage schemaStorage,
+                     OrderedScheduler scheduler,
+                     OrderedScheduler readExecutor,
+                     LedgerOffloaderStats offloaderStats,
+                     OffloadedReadCacheConfig readCacheConfig)
+            throws IOException {
+        return create(offloadPolicies, userMetadata, schemaStorage, scheduler, readExecutor, offloaderStats);
+    }
+
     @Override
     default void close() throws Exception {
         // no-op
