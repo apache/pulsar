@@ -54,11 +54,16 @@ public class ComponentResource extends BaseResource {
     }
 
     private Set<Entry<String, String>> getAuthHeaders(WebTarget target) throws Exception {
-        // The blocking get() runs on the caller's admin/application thread (addAuthHeaders is invoked
-        // synchronously from the raw-AsyncHttpClient admin operations), never the Netty event loop, and the
-        // SASL warmup completes on the plugin's own JAX-RS client pool — so this cannot deadlock. This
-        // mirrors the blocking authFuture.get() it replaces, now routed through the shared HTTP auth driver
-        // (PIP-478) when the plugin exposes the v5 SASL-over-HTTP capability.
+        // The blocking get() runs on the thread that called the admin operation: addAuthHeaders is invoked
+        // synchronously from the raw-AsyncHttpClient operations below, before any future of theirs exists.
+        // That matters more than it used to, because a v5 SASL warmup now goes over the same connector
+        // these operations submit over: a caller that chains one of them onto a previous admin future runs
+        // here on that connector's IO thread, where waiting holds up the loop the warmup needs. It cannot
+        // hang there — the driver bounds the whole exchange off the loop (CompletableFuture#orTimeout), so
+        // the wait ends in an AuthenticationException at requestTimeoutMs — but it is the reason not to
+        // call these operations from an admin callback. This mirrors the blocking authFuture.get() it
+        // replaces, now routed through the shared HTTP auth driver (PIP-478) when the plugin exposes the
+        // v5 SASL-over-HTTP capability.
         Map<String, String> headers = computeAuthHeaders(target.getUri()).get();
         return (headers == null || headers.isEmpty()) ? null : headers.entrySet();
     }
