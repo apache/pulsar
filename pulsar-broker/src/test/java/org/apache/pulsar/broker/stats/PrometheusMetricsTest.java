@@ -1350,6 +1350,33 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         c2.close();
     }
 
+    @Test
+    public void testBrokerCommonMetricsAreScraped() throws Exception {
+        // The Jetty statistics and the topic list limiter live in the Prometheus Java client 1.x registry; the
+        // broker scrape must still expose them under the legacy names with the cluster label. Jetty counters are
+        // emitted at zero, so they are present without any HTTP traffic.
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsTestUtil.generate(pulsar, false, false, false, statsOut);
+        String metricsStr = statsOut.toString();
+        assertThat(metricsStr).contains("# TYPE jetty_requests_total counter\n")
+                .contains("# TYPE jetty_requests_active gauge\n")
+                .contains("# TYPE pulsar_broker_topic_list_heap_wait_time_ms summary\n");
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+        for (String family : List.of("jetty_requests_total", "jetty_responses_bytes_total", "jetty_stats_seconds",
+                "pulsar_broker_topic_list_heap_memory_limit_bytes", "pulsar_broker_topic_list_direct_queue_size",
+                "pulsar_broker_topic_list_heap_timeout_total")) {
+            Collection<Metric> samples = metrics.get(family);
+            assertEquals(samples.size(), 1, family);
+            assertEquals(samples.iterator().next().tags.get("cluster"), "test", family);
+        }
+        Set<String> codes = new HashSet<>();
+        for (Metric m : metrics.get("jetty_responses_total")) {
+            assertEquals(m.tags.get("cluster"), "test");
+            codes.add(m.tags.get("code"));
+        }
+        assertEquals(codes, Set.of("1xx", "2xx", "3xx", "4xx", "5xx"));
+    }
+
     /** Checks for duplicate type definitions for a metric in the Prometheus metrics output. If the Prometheus parser
      finds a TYPE definition for the same metric more than once, it errors out:
      https://github.com/prometheus/prometheus/blob/f04b1b5559a80a4fd1745cf891ce392a056460c9/vendor/github.com/
