@@ -360,10 +360,15 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
         // both (there is no shared client scheduler here, unlike the PulsarClientImpl funnel).
         ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(
                 new DefaultThreadFactory("pulsar-admin-tls-factory"));
-        PulsarTlsFactory factory = ClientTlsFactorySupport.resolveClientTlsFactory(conf, executor,
-                executor, conf.getOpenTelemetry());
-        this.tlsFactoryOwnership = TlsFactoryOwnership.owning(factory, executor);
-        return factory;
+        try {
+            PulsarTlsFactory factory = ClientTlsFactorySupport.resolveClientTlsFactory(conf, executor,
+                    executor, conf.getOpenTelemetry());
+            this.tlsFactoryOwnership = TlsFactoryOwnership.owning(factory, executor);
+            return factory;
+        } catch (Throwable t) {
+            executor.shutdownNow();
+            throw t;
+        }
     }
 
     /**
