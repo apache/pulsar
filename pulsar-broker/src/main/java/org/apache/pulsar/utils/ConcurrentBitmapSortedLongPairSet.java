@@ -33,18 +33,32 @@ import org.roaringbitmap.RoaringBitmap;
 
 /**
  * A concurrent set of pairs of longs.
- * The right side of the value supports unsigned values up to 2^32.
+ * Both sides support the full range of long values.
  */
 public class ConcurrentBitmapSortedLongPairSet {
 
-    private final NavigableMap<Long, RoaringBitmap> map = new TreeMap<>();
+    // Each bitmap stores the low 32 bits of item2. Ordering by item1 and the signed high 32 bits
+    // of item2 keeps pairs sorted and allows whole ranges to be removed without visiting each item.
+    private final NavigableMap<BitmapKey, RoaringBitmap> map = new TreeMap<>();
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
+
+    private record BitmapKey(long item1, int item2HighBits) implements Comparable<BitmapKey> {
+        private static BitmapKey of(long item1, long item2) {
+            return new BitmapKey(item1, (int) (item2 >> Integer.SIZE));
+        }
+
+        @Override
+        public int compareTo(BitmapKey other) {
+            int result = Long.compare(item1, other.item1);
+            return result != 0 ? result : Integer.compare(item2HighBits, other.item2HighBits);
+        }
+    }
 
     public void add(long item1, long item2) {
         lock.writeLock().lock();
         try {
-            RoaringBitmap bitSet = map.computeIfAbsent(item1, k -> new RoaringBitmap());
-            bitSet.add(item2, item2 + 1);
+            RoaringBitmap bitSet = map.computeIfAbsent(BitmapKey.of(item1, item2), k -> new RoaringBitmap());
+            bitSet.add((int) item2);
         } finally {
             lock.writeLock().unlock();
         }
@@ -53,11 +67,12 @@ public class ConcurrentBitmapSortedLongPairSet {
     public void remove(long item1, long item2) {
         lock.writeLock().lock();
         try {
-            RoaringBitmap bitSet = map.get(item1);
+            BitmapKey key = BitmapKey.of(item1, item2);
+            RoaringBitmap bitSet = map.get(key);
             if (bitSet != null) {
-                bitSet.remove(item2, item2 + 1);
+                bitSet.remove((int) item2);
                 if (bitSet.isEmpty()) {
-                    map.remove(item1, bitSet);
+                    map.remove(key, bitSet);
                 }
             }
         } finally {
@@ -68,35 +83,53 @@ public class ConcurrentBitmapSortedLongPairSet {
     public boolean contains(long item1, long item2) {
         lock.readLock().lock();
         try {
-            RoaringBitmap bitSet = map.get(item1);
-            return bitSet != null && bitSet.contains(item2, item2 + 1);
+            RoaringBitmap bitSet = map.get(BitmapKey.of(item1, item2));
+            return bitSet != null && bitSet.contains((int) item2);
         } finally {
             lock.readLock().unlock();
         }
     }
 
     /**
-     * Remove all items up to (and including) the specified item.
+     * Remove all items strictly before the specified item.
      *
      * @param item1 the first part of the item key
      * @param item2 the second part of the item key
      * @return true if any bits were cleared
      */
     public boolean removeUpTo(long item1, long item2) {
+        return removeUpTo(item1, item2, false);
+    }
+
+    /**
+     * Remove all items up to and including the specified item.
+     *
+     * @param item1 the first part of the item key
+     * @param item2 the second part of the item key
+     * @return true if any bits were cleared
+     */
+    public boolean removeUpToInclusive(long item1, long item2) {
+        return removeUpTo(item1, item2, true);
+    }
+
+    private boolean removeUpTo(long item1, long item2, boolean inclusive) {
+        BitmapKey key = BitmapKey.of(item1, item2);
+        // Only increment the unsigned low 32 bits, so the endpoint cannot overflow even at Long.MAX_VALUE.
+        long end = Integer.toUnsignedLong((int) item2) + (inclusive ? 1 : 0);
         boolean bitsCleared = false;
         lock.writeLock().lock();
         try {
-            Map.Entry<Long, RoaringBitmap> firstEntry = map.firstEntry();
-            while (firstEntry != null && firstEntry.getKey() <= item1) {
-                if (firstEntry.getKey() < item1) {
+            Map.Entry<BitmapKey, RoaringBitmap> firstEntry = map.firstEntry();
+            while (firstEntry != null && firstEntry.getKey().compareTo(key) <= 0) {
+                if (firstEntry.getKey().compareTo(key) < 0) {
                     map.remove(firstEntry.getKey(), firstEntry.getValue());
                     bitsCleared = true;
                 } else {
                     RoaringBitmap bitSet = firstEntry.getValue();
                     if (bitSet != null) {
-                        // any bit below item2, not every one: a sparse prefix has gaps
-                        bitsCleared |= bitSet.intersects(0, item2);
-                        bitSet.remove(0, item2);
+                        // A sparse prefix can have gaps before the endpoint.
+                        bitsCleared |= bitSet.intersects(0, end);
+                        bitSet.remove(0, end);
                         if (bitSet.isEmpty()) {
                             map.remove(firstEntry.getKey(), bitSet);
                             bitsCleared = true;
@@ -143,13 +176,13 @@ public class ConcurrentBitmapSortedLongPairSet {
                                                        ItemProcessor<T> itemProcessor) {
         lock.readLock().lock();
         try {
-            for (Map.Entry<Long, RoaringBitmap> entry : map.entrySet()) {
+            for (Map.Entry<BitmapKey, RoaringBitmap> entry : map.entrySet()) {
                 PeekableIntIterator intIterator = entry.getValue().getIntIterator();
                 boolean continueProcessing = true;
                 while (continueProcessing && intIterator.hasNext()) {
-                    // RoaringBitmap encodes values as unsigned 32-bit integers internally, it's necessary to use
-                    // Integer.toUnsignedLong to convert them to unsigned long values
-                    T item = longPairConverter.apply(entry.getKey(), Integer.toUnsignedLong(intIterator.next()));
+                    long item2 = ((long) entry.getKey().item2HighBits << Integer.SIZE)
+                            | Integer.toUnsignedLong(intIterator.next());
+                    T item = longPairConverter.apply(entry.getKey().item1, item2);
                     continueProcessing = itemProcessor.process(item);
                 }
                 if (!continueProcessing) {
