@@ -41,6 +41,7 @@ import java.util.concurrent.FutureTask;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.impl.AckSetStateUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
@@ -300,10 +301,19 @@ public class ConsumerBlockedPermitAccountingTest {
             ack.setTxnidMostBits(1).setTxnidLeastBits(2);
         }
         assertThat(consumer.messageAcked(ack, true)).isCompletedWithValue(null);
-        assertThat(consumer.getUnackedMessages()).isEqualTo(individualAckMode ? 2 : 0);
+        assertThat(consumer.getUnackedMessages()).isEqualTo(
+                individualAckMode ? (transactional ? 4 : 2) : 0);
         assertThat(consumer.isBlocked()).isFalse();
         assertThat(zeroDispatcherFlowCalls).hasValue(0);
         assertThat(positiveDispatcherFlowCalls).hasValue(0);
+        if (individualAckMode && transactional) {
+            consumer.applyTransactionIndividualAck(
+                    AckSetStateUtil.createPositionWithAckSet(LEDGER_ID, ENTRY_ID, new long[] {0b11L}), 2);
+            assertThat(consumer.getUnackedMessages()).isEqualTo(2);
+            assertThat(consumer.isBlocked()).isFalse();
+            assertThat(zeroDispatcherFlowCalls).hasValue(0);
+            assertThat(positiveDispatcherFlowCalls).hasValue(0);
+        }
     }
 
     @DataProvider(name = "partialAckFailureVariants")
@@ -472,7 +482,7 @@ public class ConsumerBlockedPermitAccountingTest {
     }
 
     @Test
-    public void testTransactionalBatchIndexAckUnblocksAtHalfLimit() {
+    public void testTransactionalBatchIndexAckWaitsForCommit() {
         Consumer consumer = newConsumer(Shared, 1);
         assertThat(consumer.getPendingAcks()
                 .addPendingAckIfAllowed(LEDGER_ID, ENTRY_ID, MAX_UNACKED_MESSAGES, 0)).isTrue();
@@ -491,12 +501,12 @@ public class ConsumerBlockedPermitAccountingTest {
                 .addAckSet(0b1_1111L);
         assertThat(consumer.messageAcked(ack, true)).isCompletedWithValue(null);
 
-        assertThat(consumer.getUnackedMessages()).isEqualTo(MAX_UNACKED_MESSAGES / 2);
-        assertThat(consumer.isBlocked()).isFalse();
-        assertThat(consumer.getAvailablePermits()).isEqualTo(FLOW_PERMITS);
-        assertThat(consumer.getAvailablePermitsForDispatcherRemoval()).isEqualTo(FLOW_PERMITS);
-        assertThat(dispatcherFlowPermits).hasValue(FLOW_PERMITS);
-        assertThat(positiveDispatcherFlowCalls).hasValue(1);
+        assertThat(consumer.getUnackedMessages()).isEqualTo(MAX_UNACKED_MESSAGES);
+        assertThat(consumer.isBlocked()).isTrue();
+        assertThat(consumer.getAvailablePermits()).isZero();
+        assertThat(consumer.getAvailablePermitsForDispatcherRemoval()).isZero();
+        assertThat(dispatcherFlowPermits).hasValue(0);
+        assertThat(positiveDispatcherFlowCalls).hasValue(0);
     }
 
     @Test
