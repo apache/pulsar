@@ -876,43 +876,38 @@ public abstract class AdminResource extends PulsarWebResource {
     private CompletableFuture<Void> provisionPartitionedTopicPath(int numPartitions,
                                                                   boolean createLocalTopicOnly,
                                                                   Map<String, String> properties) {
-        CompletableFuture<Void> future = new CompletableFuture<>();
-        namespaceResources()
-                .getPartitionedTopicResources()
+        return namespaceResources().getPartitionedTopicResources()
                 .createPartitionedTopicAsync(topicName, new PartitionedTopicMetadata(numPartitions, properties))
-                .whenComplete((ignored, ex) -> {
-                    if (ex != null) {
-                        if (ex instanceof AlreadyExistsException) {
-                            if (createLocalTopicOnly) {
-                                future.complete(null);
-                                return;
-                            }
-                            log.warn()
-                                    .attr("topic", topicName)
-                                    .log("Failed to create already existing partitioned topic");
-                            future.completeExceptionally(
-                                    new RestException(Status.CONFLICT, "Partitioned topic already exists"));
-                        } else if (ex instanceof BadVersionException) {
-                            log.warn()
-                                    .attr("topic", topicName)
-                                    .log("Failed to create partitioned topic : concurrent modification");
-                            future.completeExceptionally(
-                                    new RestException(Status.CONFLICT, "Concurrent modification"));
-                        } else {
-                            log.error()
-                                    .attr("topic", topicName)
-                                    .exception(ex)
-                                    .log("Failed to create partitioned topic");
-                            future.completeExceptionally(new RestException(ex.getCause()));
-                        }
-                        return;
+                .handle((ignored, ex) -> {
+                    if (ex == null) {
+                        log.info()
+                                .attr("topic", topicName)
+                                .log("Successfully created partitioned topic");
+                        return null;
                     }
-                    log.info()
+
+                    Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                    if (cause instanceof AlreadyExistsException) {
+                        if (createLocalTopicOnly) {
+                            return null;
+                        }
+                        log.warn()
+                                .attr("topic", topicName)
+                                .log("Failed to create already existing partitioned topic");
+                        throw new RestException(Status.CONFLICT, "Partitioned topic already exists");
+                    }
+                    if (cause instanceof BadVersionException) {
+                        log.warn()
+                                .attr("topic", topicName)
+                                .log("Failed to create partitioned topic : concurrent modification");
+                        throw new RestException(Status.CONFLICT, "Concurrent modification");
+                    }
+                    log.error()
                             .attr("topic", topicName)
-                            .log("Successfully created partitioned topic");
-                    future.complete(null);
+                            .exception(ex)
+                            .log("Failed to create partitioned topic");
+                    throw new RestException(cause != null ? cause : ex);
                 });
-        return future;
     }
 
     protected CompletableFuture<SchemaCompatibilityStrategy> getSchemaCompatibilityStrategyAsync() {
