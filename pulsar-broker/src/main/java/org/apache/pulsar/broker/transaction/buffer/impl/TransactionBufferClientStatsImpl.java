@@ -19,12 +19,13 @@
 package org.apache.pulsar.broker.transaction.buffer.impl;
 
 import io.opentelemetry.api.metrics.ObservableLongUpDownCounter;
-import io.prometheus.client.CollectorRegistry;
-import io.prometheus.client.Counter;
-import io.prometheus.client.Gauge;
-import io.prometheus.client.Summary;
+import io.prometheus.metrics.core.metrics.Counter;
+import io.prometheus.metrics.core.metrics.GaugeWithCallback;
+import io.prometheus.metrics.core.metrics.Summary;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.LongAdder;
 import lombok.NonNull;
@@ -40,6 +41,8 @@ import org.apache.pulsar.opentelemetry.annotations.PulsarDeprecatedMetric;
 
 public final class TransactionBufferClientStatsImpl implements TransactionBufferClientStats {
     private static final double[] QUANTILES = {0.50, 0.75, 0.95, 0.99, 0.999, 0.9999, 1};
+    /** simpleclient's default sliding window for summary quantiles; the 1.x default is 5 minutes. */
+    private static final long QUANTILE_WINDOW_SECONDS = TimeUnit.MINUTES.toSeconds(10);
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
     private final PrometheusStats prometheusStats;
@@ -63,7 +66,7 @@ public final class TransactionBufferClientStatsImpl implements TransactionBuffer
 
     @Override
     public void recordAbortFailed(String topic) {
-        prometheusStats.abortFailed.labels(prometheusStats.labelValues(topic)).inc();
+        prometheusStats.abortFailed.labelValues(prometheusStats.labelValues(topic)).inc();
         getTransactionBufferClientMetrics(topic)
                 .map(PersistentTopicMetrics.TransactionBufferClientMetrics::getAbortFailedCount)
                 .ifPresent(LongAdder::increment);
@@ -71,7 +74,7 @@ public final class TransactionBufferClientStatsImpl implements TransactionBuffer
 
     @Override
     public void recordCommitFailed(String topic) {
-        prometheusStats.commitFailed.labels(prometheusStats.labelValues(topic)).inc();
+        prometheusStats.commitFailed.labelValues(prometheusStats.labelValues(topic)).inc();
         getTransactionBufferClientMetrics(topic)
                 .map(PersistentTopicMetrics.TransactionBufferClientMetrics::getCommitFailedCount)
                 .ifPresent(LongAdder::increment);
@@ -79,7 +82,7 @@ public final class TransactionBufferClientStatsImpl implements TransactionBuffer
 
     @Override
     public void recordAbortLatency(String topic, long nanos) {
-        prometheusStats.abortLatency.labels(prometheusStats.labelValues(topic)).observe(nanos);
+        prometheusStats.abortLatency.labelValues(prometheusStats.labelValues(topic)).observe(nanos);
         getTransactionBufferClientMetrics(topic)
                 .map(PersistentTopicMetrics.TransactionBufferClientMetrics::getAbortSucceededCount)
                 .ifPresent(LongAdder::increment);
@@ -87,7 +90,7 @@ public final class TransactionBufferClientStatsImpl implements TransactionBuffer
 
     @Override
     public void recordCommitLatency(String topic, long nanos) {
-        prometheusStats.commitLatency.labels(prometheusStats.labelValues(topic)).observe(nanos);
+        prometheusStats.commitLatency.labelValues(prometheusStats.labelValues(topic)).observe(nanos);
         getTransactionBufferClientMetrics(topic)
                 .map(PersistentTopicMetrics.TransactionBufferClientMetrics::getCommitSucceededCount)
                 .ifPresent(LongAdder::increment);
@@ -109,7 +112,7 @@ public final class TransactionBufferClientStatsImpl implements TransactionBuffer
     }
 
     /**
-     * The Prometheus collectors. They live in the JVM-wide default {@link CollectorRegistry}, which takes each metric
+     * The Prometheus collectors. They live in the JVM-wide default {@link PrometheusRegistry}, which takes each metric
      * name once, so the clients of all the brokers in a JVM share them: the first client registers them, the first
      * client to close unregisters them, and a client created after that registers new ones.
      */
@@ -126,7 +129,7 @@ public final class TransactionBufferClientStatsImpl implements TransactionBuffer
         private final Summary commitLatency;
 
         @PulsarDeprecatedMetric(newMetricName = PENDING_TRANSACTION_COUNTER)
-        private final Gauge pendingRequests;
+        private final GaugeWithCallback pendingRequests;
 
         private final boolean exposeTopicLevelMetrics;
 
@@ -137,10 +140,10 @@ public final class TransactionBufferClientStatsImpl implements TransactionBuffer
             String[] labelNames = exposeTopicLevelMetrics
                     ? new String[]{"namespace", "topic"} : new String[]{"namespace"};
 
-            this.abortFailed = Counter.build("pulsar_txn_tb_client_abort_failed", "-")
+            this.abortFailed = Counter.builder().name("pulsar_txn_tb_client_abort_failed").help("-")
                     .labelNames(labelNames)
                     .register();
-            this.commitFailed = Counter.build("pulsar_txn_tb_client_commit_failed", "-")
+            this.commitFailed = Counter.builder().name("pulsar_txn_tb_client_commit_failed").help("-")
                     .labelNames(labelNames)
                     .register();
             this.abortLatency =
@@ -148,19 +151,17 @@ public final class TransactionBufferClientStatsImpl implements TransactionBuffer
             this.commitLatency =
                     this.buildSummary("pulsar_txn_tb_client_commit_latency", "-", labelNames);
 
-            this.pendingRequests = Gauge.build("pulsar_txn_tb_client_pending_requests", "-")
-                    .register()
-                    .setChild(new Gauge.Child() {
-                        @Override
-                        public double get() {
-                            return handler.getPendingRequestsCount();
-                        }
-                    });
+            this.pendingRequests = GaugeWithCallback.builder()
+                    .name("pulsar_txn_tb_client_pending_requests")
+                    .help("-")
+                    .callback(callback -> callback.call(handler.getPendingRequestsCount()))
+                    .register();
         }
 
         private Summary buildSummary(String name, String help, String[] labelNames) {
-            Summary.Builder builder = Summary.build(name, help)
-                    .labelNames(labelNames);
+            Summary.Builder builder = Summary.builder().name(name).help(help)
+                    .labelNames(labelNames)
+                    .maxAgeSeconds(QUANTILE_WINDOW_SECONDS);
             for (double quantile : QUANTILES) {
                 builder.quantile(quantile, 0.01D);
             }
@@ -188,11 +189,11 @@ public final class TransactionBufferClientStatsImpl implements TransactionBuffer
         void close() {
             if (this.closed.compareAndSet(false, true)) {
                 instance = null;
-                CollectorRegistry.defaultRegistry.unregister(this.abortFailed);
-                CollectorRegistry.defaultRegistry.unregister(this.commitFailed);
-                CollectorRegistry.defaultRegistry.unregister(this.abortLatency);
-                CollectorRegistry.defaultRegistry.unregister(this.commitLatency);
-                CollectorRegistry.defaultRegistry.unregister(this.pendingRequests);
+                PrometheusRegistry.defaultRegistry.unregister(this.abortFailed);
+                PrometheusRegistry.defaultRegistry.unregister(this.commitFailed);
+                PrometheusRegistry.defaultRegistry.unregister(this.abortLatency);
+                PrometheusRegistry.defaultRegistry.unregister(this.commitLatency);
+                PrometheusRegistry.defaultRegistry.unregister(this.pendingRequests);
             }
         }
     }

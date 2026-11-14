@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
-import io.prometheus.client.Summary;
+import io.prometheus.metrics.core.metrics.Summary;
 import java.time.Clock;
 import java.util.Map;
 import java.util.Set;
@@ -56,8 +56,9 @@ public class ReplicatedSubscriptionsSnapshotBuilder {
 
     @PulsarDeprecatedMetric(newMetricName = OpenTelemetryReplicatedSubscriptionStats.SNAPSHOT_DURATION_METRIC_NAME)
     @Deprecated
-    public static final Summary SNAPSHOT_METRIC = Summary.build("pulsar_replicated_subscriptions_snapshot_ms",
-            "Time taken to create a consistent snapshot across clusters").register();
+    public static final Summary SNAPSHOT_METRIC = Summary.builder()
+            .name("pulsar_replicated_subscriptions_snapshot_ms")
+            .help("Time taken to create a consistent snapshot across clusters").register();
 
     public ReplicatedSubscriptionsSnapshotBuilder(ReplicatedSubscriptionsController controller,
                                                   Set<String> remoteClusters, ServiceConfiguration conf, Clock clock) {

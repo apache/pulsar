@@ -385,18 +385,20 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         }
         Assert.assertTrue(count > 0);
 
-        for (Metric metric : abortedCount) {
-            if (metric.tags.get("subscription").equals(subName) && metric.tags.get("status").equals("succeed")) {
-                assertTrue(metric.tags.get("topic").endsWith(PENDING_ACK_REPLAY_TOPIC));
-                assertTrue(metric.value > 0);
-            }
-        }
-        for (Metric metric : committedCount) {
-            if (metric.tags.get("subscription").equals(subName) && metric.tags.get("status").equals("succeed")) {
-                assertTrue(metric.tags.get("topic").endsWith(PENDING_ACK_REPLAY_TOPIC));
-                assertTrue(metric.value > 0);
-            }
-        }
+        // Half of the transactions were aborted and half committed; each outcome must show up as exactly one
+        // succeeded series for this subscription with that count.
+        List<Metric> aborted = abortedCount.stream()
+                .filter(m -> subName.equals(m.tags.get("subscription")) && "succeed".equals(m.tags.get("status")))
+                .toList();
+        Assert.assertEquals(aborted.size(), 1);
+        assertTrue(aborted.get(0).tags.get("topic").endsWith(PENDING_ACK_REPLAY_TOPIC));
+        Assert.assertEquals(aborted.get(0).value, messageCount / 2.0);
+        List<Metric> committed = committedCount.stream()
+                .filter(m -> subName.equals(m.tags.get("subscription")) && "succeed".equals(m.tags.get("status")))
+                .toList();
+        Assert.assertEquals(committed.size(), 1);
+        assertTrue(committed.get(0).tags.get("topic").endsWith(PENDING_ACK_REPLAY_TOPIC));
+        Assert.assertEquals(committed.get(0).value, messageCount / 2.0);
 
         var otelMetrics = pulsarTestContexts.get(0).getOpenTelemetryMetricReader().collectAllMetrics();
         var commonAttributes = Attributes.builder()

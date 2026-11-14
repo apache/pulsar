@@ -22,8 +22,8 @@ import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowabl
 import com.google.common.annotations.VisibleForTesting;
 import io.github.merlimat.slog.Logger;
 import io.netty.buffer.ByteBuf;
-import io.prometheus.client.Counter;
-import io.prometheus.client.Gauge;
+import io.prometheus.metrics.core.metrics.Counter;
+import io.prometheus.metrics.core.metrics.Gauge;
 import java.io.IOException;
 import java.time.Clock;
 import java.util.Collections;
@@ -141,17 +141,17 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
     @PulsarDeprecatedMetric(
             newMetricName = OpenTelemetryReplicatedSubscriptionStats.SNAPSHOT_OPERATION_COUNT_METRIC_NAME)
     @Deprecated
-    private static final Gauge pendingSnapshotsMetric = Gauge
-            .build("pulsar_replicated_subscriptions_pending_snapshots",
-                    "Counter of currently pending snapshots")
+    private static final Gauge pendingSnapshotsMetric = Gauge.builder()
+            .name("pulsar_replicated_subscriptions_pending_snapshots")
+            .help("Counter of currently pending snapshots")
             .register();
 
     // timeouts use SnapshotOperationResult.TIMEOUT.attributes on the same metric
     @PulsarDeprecatedMetric(
             newMetricName = OpenTelemetryReplicatedSubscriptionStats.SNAPSHOT_OPERATION_COUNT_METRIC_NAME)
     @Deprecated
-    private static final Counter timedoutSnapshotsMetric = Counter
-            .build().name("pulsar_replicated_subscriptions_timedout_snapshots")
+    private static final Counter timedoutSnapshotsMetric = Counter.builder()
+            .name("pulsar_replicated_subscriptions_timedout_snapshots")
             .help("Counter of timed out snapshots").register();
 
     private final OpenTelemetryReplicatedSubscriptionStats stats;

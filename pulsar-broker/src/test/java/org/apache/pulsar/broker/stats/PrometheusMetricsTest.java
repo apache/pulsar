@@ -91,6 +91,8 @@ import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentMessageExpiryMonitor;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.service.persistent.ReplicatedSubscriptionsController;
+import org.apache.pulsar.broker.service.persistent.ReplicatedSubscriptionsSnapshotBuilder;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.client.api.Consumer;
@@ -100,6 +102,8 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.transaction.Transaction;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
@@ -1461,6 +1465,117 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         conf.setTransactionCoordinatorEnabled(false);
         conf.setTransactionLogBatchedWriteEnabled(false);
         conf.setTransactionPendingAckBatchedWriteEnabled(false);
+    }
+
+    @Test
+    public void testTransactionClientAndReplicatedSubscriptionMetricsAreScraped() throws Exception {
+        // The transaction buffer client stats, the pending ack handle stats and the replicated subscription
+        // metrics live in the Prometheus Java client 1.x registry; the broker scrape must still expose them under
+        // the legacy names with the cluster label.
+        cleanup();
+        conf.setTransactionCoordinatorEnabled(true);
+        setup();
+        try {
+            admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
+                    new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet("test")));
+            admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
+            createTransactionCoordinatorAssign();
+            String topic = "persistent://my-property/my-ns/txn-metrics-" + UUID.randomUUID();
+            String subName = "txn-metrics-sub";
+            admin.topics().createNonPartitionedTopic(topic);
+            @Cleanup
+            PulsarClient txnClient = PulsarClient.builder().serviceUrl(lookupUrl.toString())
+                    .enableTransaction(true).build();
+            @Cleanup
+            Consumer<byte[]> consumer = txnClient.newConsumer().topic(topic).subscriptionName(subName).subscribe();
+            @Cleanup
+            Producer<byte[]> producer = txnClient.newProducer().topic(topic).create();
+            producer.send("before-txn".getBytes());
+            Transaction txn = txnClient.newTransaction().withTransactionTimeout(10, TimeUnit.SECONDS).build().get();
+            Message<byte[]> msg = consumer.receive(10, TimeUnit.SECONDS);
+            assertTrue(msg != null);
+            consumer.acknowledgeAsync(msg.getMessageId(), txn).get();
+            producer.newMessage(txn).value("in-txn".getBytes()).send();
+            txn.commit().get();
+            // The replicated subscription families register when their classes initialize, which a broker does
+            // when its first replicated subscriptions controller starts; a controller needs a second cluster.
+            Class.forName(ReplicatedSubscriptionsController.class.getName());
+            Class.forName(ReplicatedSubscriptionsSnapshotBuilder.class.getName());
+
+            // The transaction buffer client and pending ack handle record the commit when the end-of-transaction
+            // responses arrive, after the client's commit future completes.
+            Awaitility.await().untilAsserted(() -> {
+                ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+                PrometheusMetricsTestUtil.generate(pulsar, true, false, false, statsOut);
+                String metricsStr = statsOut.toString();
+                assertThat(metricsStr).contains("# TYPE pulsar_txn_tb_client_commit_latency summary\n");
+                assertThat(metricsStr).contains("# TYPE pulsar_txn_tb_client_pending_requests gauge\n");
+                assertThat(metricsStr).contains("# TYPE pulsar_txn_tp_committed_count_total counter\n");
+                assertThat(metricsStr).contains("# TYPE pulsar_txn_tp_commit_latency summary\n");
+                assertThat(metricsStr).contains("# TYPE pulsar_replicated_subscriptions_pending_snapshots gauge\n");
+                assertThat(metricsStr)
+                        .contains("# TYPE pulsar_replicated_subscriptions_timedout_snapshots_total counter\n");
+                assertThat(metricsStr).contains("# TYPE pulsar_replicated_subscriptions_snapshot_ms summary\n");
+                Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+
+                // The commit on the topic and the commit on the subscription both record under the topic label.
+                List<Metric> commitLatencyCount = metrics.get("pulsar_txn_tb_client_commit_latency_count").stream()
+                        .filter(m -> topic.equals(m.tags.get("topic")))
+                        .collect(Collectors.toList());
+                assertEquals(commitLatencyCount.size(), 1);
+                assertEquals(commitLatencyCount.get(0).tags.get("cluster"), "test");
+                assertEquals(commitLatencyCount.get(0).tags.get("namespace"), "my-property/my-ns");
+                assertEquals(commitLatencyCount.get(0).value, 2.0);
+
+                // Only the series shape is checked here; the gauge needs the handler's queue to back up, which
+                // TransactionBufferClientTest#testTransactionBufferPendingRequests drives with a mocked handler.
+                List<Metric> pending = new ArrayList<>(metrics.get("pulsar_txn_tb_client_pending_requests"));
+                assertEquals(pending.size(), 1);
+                assertEquals(pending.get(0).tags.get("cluster"), "test");
+                assertEquals(pending.get(0).value, 0.0);
+
+                List<Metric> committed = metrics.get("pulsar_txn_tp_committed_count_total").stream()
+                        .filter(m -> topic.equals(m.tags.get("topic")))
+                        .collect(Collectors.toList());
+                assertEquals(committed.size(), 1);
+                assertEquals(committed.get(0).tags.get("cluster"), "test");
+                assertEquals(committed.get(0).tags.get("subscription"), subName);
+                assertEquals(committed.get(0).tags.get("status"), "succeed");
+                assertEquals(committed.get(0).value, 1.0);
+
+                List<Metric> tpLatencyCount = metrics.get("pulsar_txn_tp_commit_latency_count").stream()
+                        .filter(m -> topic.equals(m.tags.get("topic")))
+                        .collect(Collectors.toList());
+                assertEquals(tpLatencyCount.size(), 1);
+                assertEquals(tpLatencyCount.get(0).tags.get("subscription"), subName);
+                assertEquals(tpLatencyCount.get(0).value, 1.0);
+
+                // The quantile series are scraped under the family name itself; each summary keeps its own set.
+                assertEquals(quantilesOf(metrics.get("pulsar_txn_tb_client_commit_latency"), topic),
+                        Set.of(0.5, 0.75, 0.95, 0.99, 0.999, 0.9999, 1.0));
+                assertEquals(quantilesOf(metrics.get("pulsar_txn_tp_commit_latency"), topic),
+                        Set.of(0.5, 0.9, 0.99, 0.999));
+
+                // Static and never touched here: only their presence and the cluster label matter.
+                for (String family : List.of("pulsar_replicated_subscriptions_pending_snapshots",
+                        "pulsar_replicated_subscriptions_timedout_snapshots_total",
+                        "pulsar_replicated_subscriptions_snapshot_ms_count")) {
+                    List<Metric> samples = new ArrayList<>(metrics.get(family));
+                    assertEquals(samples.size(), 1, family);
+                    assertEquals(samples.get(0).tags.get("cluster"), "test", family);
+                }
+            });
+        } finally {
+            conf.setTransactionCoordinatorEnabled(false);
+        }
+    }
+
+    /** The quantile label values of a summary's series for one topic, as numbers so the text format is irrelevant. */
+    private static Set<Double> quantilesOf(Collection<Metric> samples, String topic) {
+        return samples.stream()
+                .filter(m -> topic.equals(m.tags.get("topic")))
+                .map(m -> Double.valueOf(m.tags.get("quantile")))
+                .collect(Collectors.toSet());
     }
 
     /***
