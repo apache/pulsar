@@ -35,7 +35,9 @@ import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
-import io.prometheus.client.CollectorRegistry;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
+import io.prometheus.metrics.model.snapshots.CounterSnapshot;
+import io.prometheus.metrics.model.snapshots.MetricSnapshot;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
@@ -1042,11 +1044,18 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
     }
 
     private int calculateLookupRequestCount() throws Exception {
-        int failures = CollectorRegistry.defaultRegistry.getSampleValue("pulsar_broker_lookup_failures_total")
-                .intValue();
-        int answers = CollectorRegistry.defaultRegistry.getSampleValue("pulsar_broker_lookup_answers_total")
-                .intValue();
-        return failures + answers;
+        return counterValue("pulsar_broker_lookup_failures") + counterValue("pulsar_broker_lookup_answers");
+    }
+
+    /** Reads the only unlabeled counter named {@code name} from the Prometheus Java client 1.x default registry. */
+    private static int counterValue(String name) {
+        List<MetricSnapshot> snapshots = new ArrayList<>();
+        PrometheusRegistry.defaultRegistry.scrape(name::equals).forEach(snapshots::add);
+        assertEquals(snapshots.size(), 1, "Counter " + name + " should be registered once");
+        List<CounterSnapshot.CounterDataPointSnapshot> dataPoints =
+                ((CounterSnapshot) snapshots.get(0)).getDataPoints();
+        assertEquals(dataPoints.size(), 1, "Counter " + name + " should have one unlabeled data point");
+        return (int) dataPoints.get(0).getValue();
     }
 
     @Test(timeOut = 10000)
