@@ -140,8 +140,9 @@ public class TopicCompactionServiceTest extends MockedPulsarServiceBaseTest {
         String markDeletePosition =
                 admin.topics().getInternalStats(topic).cursors.get(COMPACTION_SUBSCRIPTION).markDeletePosition;
         String[] split = markDeletePosition.split(":");
-        compactedTopic.newCompactedLedger(PositionFactory.create(Long.valueOf(split[0]), Long.valueOf(split[1])),
-                compactedLedger).join();
+        Position markDelete = PositionFactory.create(Long.valueOf(split[0]), Long.valueOf(split[1]));
+        compactedTopic.newCompactedLedger(markDelete, compactedLedger).join();
+        compactedTopic.promoteNewCompactedLedger(markDelete);
 
         Position lastCompactedPosition = service.getLastCompactedPosition().join();
         assertEquals(admin.topics().getInternalStats(topic).lastConfirmedEntry, lastCompactedPosition.toString());
