@@ -33,6 +33,8 @@ public class ClientShell extends PulsarClientTool implements ShellCommandsProvid
     public ClientShell(Properties properties) {
         super(properties);
         setCommandName(getName());
+        // The environment variables are read once when the JVM starts, they cannot be changed from the shell
+        getCommander().getCommandSpec().usageMessage().footerHeading("").footer(new String[0]);
     }
 
     @Override

@@ -159,4 +159,14 @@ public class PulsarClientToolTest {
         assertThat(policy.format()).isEqualTo(TlsPolicy.Format.KEYSTORE);
         assertThat(policy.jsseProvider()).isEqualTo("BCJSSE");
     }
+
+    @Test
+    public void testUsageMessageListsEnvironmentVariables() {
+        PulsarClientTool tool = new PulsarClientTool(new Properties());
+        String usage = tool.getCommander().getUsageMessage();
+        assertThat(usage).contains("Environment variables:", "PULSAR_CLIENT_CONF", "PULSAR_EXTRA_OPTS",
+                "PULSAR_LOG_LEVEL");
+        assertThat(tool.getCommander().getSubcommands().get("produce").getUsageMessage())
+                .doesNotContain("Environment variables:");
+    }
 }
