@@ -1143,36 +1143,38 @@ public class TransactionTest extends TransactionTestBase {
 
     @Test
     public void testNoEntryCanBeReadWhenRecovery() throws Exception {
-        String topic = NAMESPACE1 + "/test";
+        String topic = BrokerTestUtil.newUniqueName("persistent://" + NAMESPACE1 + "/test-recovery");
+        admin.topics().createNonPartitionedTopic(topic);
         PersistentTopic persistentTopic =
                 (PersistentTopic) pulsarServiceList.get(0).getBrokerService()
                         .getTopic(TopicName.get(topic).toString(), true)
                         .get()
                         .get();
+        persistentTopic.getTransactionBuffer().checkIfTBRecoverCompletely().get();
 
-        Class<PersistentTopic> persistentTopicClass = PersistentTopic.class;
-        Field filed1 = persistentTopicClass.getDeclaredField("ledger");
-        Field field2 = persistentTopicClass.getDeclaredField("transactionBuffer");
-        filed1.setAccessible(true);
-        field2.setAccessible(true);
-        ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) spy(filed1.get(persistentTopic));
-        filed1.set(persistentTopic, managedLedger);
+        @Cleanup("release")
+        ReferenceCountedWriter<TransactionBufferSnapshot> snapshotWriter = pulsarServiceList.get(0)
+                .getTransactionBufferSnapshotServiceFactory().getTxnBufferSnapshotService()
+                .getReferenceWriter(TopicName.get(topic).getNamespaceObject());
+        Position maxReadPosition = persistentTopic.getMaxReadPosition();
+        TransactionBufferSnapshot snapshot = new TransactionBufferSnapshot(topic,
+                maxReadPosition.getLedgerId(), maxReadPosition.getEntryId(), List.of());
+        snapshotWriter.getFuture().get().writeAsync(topic, snapshot).get();
 
-        TopicTransactionBuffer topicTransactionBuffer = (TopicTransactionBuffer) field2.get(persistentTopic);
-        Field processorField = TopicTransactionBuffer.class.getDeclaredField("snapshotAbortedTxnProcessor");
-        processorField.setAccessible(true);
-        AbortedTxnProcessor abortedTxnProcessor = (AbortedTxnProcessor) processorField.get(topicTransactionBuffer);
-        CompletableFuture<Void> completableFuture = abortedTxnProcessor.takeAbortedTxnsSnapshot(
-                topicTransactionBuffer.getMaxReadPosition());
-        completableFuture.get();
-
+        PersistentTopic recoveryTopic = spy(persistentTopic);
+        ManagedLedger managedLedger = spy(persistentTopic.getManagedLedger());
+        doReturn(managedLedger).when(recoveryTopic).getManagedLedger();
         doReturn(PositionFactory.LATEST).when(managedLedger).getLastConfirmedEntry();
         ManagedCursorImpl managedCursor = mock(ManagedCursorImpl.class);
         doReturn(false).when(managedCursor).hasMoreEntries();
         doReturn(managedCursor).when(managedLedger).newNonDurableCursor(any(), any());
 
-        TopicTransactionBuffer transactionBuffer = new TopicTransactionBuffer(persistentTopic);
-        Awaitility.await().untilAsserted(() -> Assert.assertTrue(transactionBuffer.checkIfReady()));
+        TopicTransactionBuffer transactionBuffer = new TopicTransactionBuffer(recoveryTopic);
+        try {
+            Awaitility.await().untilAsserted(() -> Assert.assertTrue(transactionBuffer.checkIfReady()));
+        } finally {
+            transactionBuffer.closeAsync().get();
+        }
     }
 
     @Test
