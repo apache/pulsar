@@ -502,6 +502,19 @@ public abstract class AbstractReplicator implements Replicator {
     }
 
     /**
+     * Returns whether a subscription/cursor name is a replicator cursor for the given prefix.
+     * <p>
+     * A replicator cursor is the configured prefix followed by a separator: {@code '.'} for a regular
+     * replicator ({@code <prefix>.<remoteCluster>}, see {@link #getReplicatorName(String, String)}) or
+     * {@code '-'} for a shadow replicator (see
+     * {@code ShadowReplicator#getShadowReplicatorName(String, String)}). Without the separator an ordinary
+     * subscription such as {@code pulsar.replication-state} is not a replicator cursor and must not be reserved.
+     */
+    public static boolean isReplicatorCursor(String replicatorPrefix, String name) {
+        return name.startsWith(replicatorPrefix + ".") || name.startsWith(replicatorPrefix + "-");
+    }
+
+    /**
      * Replication can't be started on root-partitioned-topic to avoid producer startup conflict.
      *
      * <pre>
