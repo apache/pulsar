@@ -713,7 +713,7 @@ public class ScalableTopicControllerTest {
     public void testOnConsumerDisconnectUnknownSubscriptionIsNoop() throws Exception {
         controller.initialize().get();
         // Should not throw even though 'ghost' has no coordinator.
-        controller.onConsumerDisconnect("ghost", "c1");
+        controller.onConsumerDisconnect("ghost", "c1", mock(TransportCnx.class));
     }
 
     // --- createSubscription / deleteSubscription ---
@@ -855,9 +855,10 @@ public class ScalableTopicControllerTest {
         controller.createSubscription("sub-a", SubscriptionType.STREAM).get();
         controller.createSubscription("sub-b", SubscriptionType.QUEUE).get();
         controller.registerConsumer("sub-a", "c1", 1L, ScalableConsumerType.STREAM, mock(TransportCnx.class)).get();
-        controller.registerConsumer("sub-a", "c2", 2L, ScalableConsumerType.STREAM, mock(TransportCnx.class)).get();
+        TransportCnx c2Cnx = mock(TransportCnx.class);
+        controller.registerConsumer("sub-a", "c2", 2L, ScalableConsumerType.STREAM, c2Cnx).get();
         // c2 drops its connection: within the grace period it stays registered, disconnected.
-        controller.onConsumerDisconnect("sub-a", "c2");
+        controller.onConsumerDisconnect("sub-a", "c2", c2Cnx);
 
         ScalableTopicStats stats = controller.getStats().get();
 

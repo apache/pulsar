@@ -99,11 +99,11 @@ public class SubscriptionCoordinatorMetricsTest {
         assertThat(rebalances).containsOnly(RebalanceReason.CONSUMER_JOIN).hasSize(5);
 
         Map<ConsumerSession, ConsumerAssignment> beforeDisconnect = coordinator.currentAssignment();
-        coordinator.onConsumerDisconnect("c1");
+        disconnect(coordinator, "c1");
         Runnable firstExpiry = scheduled.get(scheduled.size() - 1);
-        coordinator.onConsumerDisconnect("c5");
+        disconnect(coordinator, "c5");
         assertStats(coordinator, 3, 0, 2, 0);
-        coordinator.onConsumerDisconnect("c5");
+        disconnect(coordinator, "c5");
         assertStats(coordinator, 3, 0, 2, 0);
 
         register(coordinator, "c1", 11);
@@ -187,12 +187,12 @@ public class SubscriptionCoordinatorMetricsTest {
         SubscriptionCoordinator coordinator = coordinator(initialLayout(1), false);
         register(coordinator, "c1", 1);
         register(coordinator, "c2", 2);
-        coordinator.onConsumerDisconnect("c1");
+        disconnect(coordinator, "c1");
         Runnable firstExpiry = scheduled.get(scheduled.size() - 1);
         firstExpiry.run();
         firstExpiry.run();
         assertStats(coordinator, 1, 0, 0, 0);
-        coordinator.onConsumerDisconnect("c2");
+        disconnect(coordinator, "c2");
         scheduled.get(scheduled.size() - 1).run();
         assertStats(coordinator, 0, 0, 0, 0);
         assertThat(rebalances).containsExactly(RebalanceReason.CONSUMER_JOIN,
@@ -256,7 +256,7 @@ public class SubscriptionCoordinatorMetricsTest {
         clearInvocations(remaining);
         CompletableFuture<Void> deletion = new CompletableFuture<>();
         when(resources.unregisterConsumerAsync(any(), anyString(), anyString())).thenReturn(deletion);
-        coordinator.onConsumerDisconnect("c1");
+        disconnect(coordinator, "c1");
         scheduled.get(scheduled.size() - 1).run();
         // Eviction has removed c1, but c2 is still idle until persistence completes and
         // the original rebalance path actually publishes c2's replacement assignment.
@@ -289,12 +289,12 @@ public class SubscriptionCoordinatorMetricsTest {
         clearInvocations(c2, c3);
         CompletableFuture<Void> deletion = new CompletableFuture<>();
         when(resources.unregisterConsumerAsync(any(), anyString(), anyString())).thenReturn(deletion);
-        coordinator.onConsumerDisconnect("c1");
+        disconnect(coordinator, "c1");
         Runnable expiry = scheduled.get(scheduled.size() - 1);
         String reconnectName = reconnectAssignee ? "c2" : "c3";
         TransportCnx reconnected = reconnectAssignee ? c2 : c3;
         TransportCnx peer = reconnectAssignee ? c3 : c2;
-        coordinator.onConsumerDisconnect(reconnectName);
+        disconnect(coordinator, reconnectName);
         expiry.run();
         assertStats(coordinator, 0, 1, 1, 0);
 
@@ -321,7 +321,7 @@ public class SubscriptionCoordinatorMetricsTest {
         register(coordinator, "c1", 1);
         CompletableFuture<Void> deletion = new CompletableFuture<>();
         when(resources.unregisterConsumerAsync(any(), anyString(), anyString())).thenReturn(deletion);
-        coordinator.onConsumerDisconnect("c1");
+        disconnect(coordinator, "c1");
         scheduled.get(scheduled.size() - 1).run();
         assertThat(rebalances).as("eviction waits for its persistence completion")
                 .containsExactly(RebalanceReason.CONSUMER_JOIN);
@@ -436,6 +436,16 @@ public class SubscriptionCoordinatorMetricsTest {
 
     private static void register(SubscriptionCoordinator coordinator, String consumerName, long consumerId) {
         coordinator.registerConsumer(consumerName, consumerId, mock(TransportCnx.class)).join();
+    }
+
+    /** Reports the close of the connection that {@code consumerName} is attached to. */
+    private static void disconnect(SubscriptionCoordinator coordinator, String consumerName) {
+        for (ConsumerSession session : coordinator.getConsumers()) {
+            if (session.getConsumerName().equals(consumerName)) {
+                coordinator.onConsumerDisconnect(consumerName, session.getCnx());
+                return;
+            }
+        }
     }
 
     private static void assertStats(SubscriptionCoordinator coordinator, long active, long idle,
