@@ -141,6 +141,9 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
     /** Current maxReadPosition; never moves above the watermark while recovery-discovered opens exist. */
     private Position maxReadPosition;
 
+    /** Guarded by {@link #lock}; no retained data is dispatchable until recovery has hydrated all state. */
+    private boolean recoveryComplete;
+
     /**
      * Serialised chain for watermark-persist + op-record-cleanup. Each apply enqueues itself on the
      * tail so we never have two in-flight watermark CASes racing.
@@ -172,7 +175,7 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
         this.txnStore = txnStore;
         this.segmentName = topic.getName();
         this.maxReadPositionCallBack = topic.getMaxReadPositionCallBack();
-        this.maxReadPosition = ledger.getLastConfirmedEntry();
+        this.maxReadPosition = PositionFactory.EARLIEST;
         recover();
         this.abortedGcTask = scheduleAbortedGc();
     }
@@ -244,10 +247,8 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
                         synchronized (lock) {
                             watermark = opt.get().value();
                             watermarkVersion = opt.get().version();
-                            // Initialise maxReadPosition at the watermark so we don't expose anything
-                            // above it until in-memory state catches up.
-                            maxReadPosition = PositionFactory.create(
-                                    watermark.ledgerId(), watermark.entryId());
+                            // Keep dispatch blocked until the aborted set and unresolved writes
+                            // below and above this watermark have also been recovered.
                         }
                     }
                 });
@@ -318,6 +319,7 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
                 return;
             }
             synchronized (lock) {
+                recoveryComplete = true;
                 recomputeMaxReadPositionLocked();
             }
             recoveryFuture.complete(null);
@@ -639,7 +641,7 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
         long expectedVersion;
         synchronized (lock) {
             Position desired = maxReadPosition;
-            if (deleted || desired == null) {
+            if (deleted || !recoveryComplete || desired == null) {
                 return CompletableFuture.completedFuture(null);
             }
             if (watermark != null
@@ -692,6 +694,11 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
     // ---- maxReadPosition ---------------------------------------------------
 
     private void recomputeMaxReadPositionLocked() {
+        if (!recoveryComplete) {
+            // Normal publishes and terminal applies can run while metadata recovery is pending.
+            // Neither may expose retained entries before all visibility state has been hydrated.
+            return;
+        }
         Position next;
         Position watermarkPos = (watermark == null) ? null
                 : PositionFactory.create(watermark.ledgerId(), watermark.entryId());
@@ -699,7 +706,10 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
         if (recoveryDiscoveredOpen > 0) {
             // Pinned at the durable watermark while any recovery-discovered open txn remains:
             // we don't know their first positions and mustn't advance past them.
-            next = watermarkPos != null ? watermarkPos : maxReadPosition;
+            // A segment's first OPEN transaction may have crashed before any watermark was
+            // persisted. The constructor's LAC includes its uncommitted entries, so without a
+            // watermark no retained data can be exposed until the recovered transactions resolve.
+            next = watermarkPos != null ? watermarkPos : PositionFactory.EARLIEST;
         } else {
             Position min = null;
             boolean anyOpen = false;

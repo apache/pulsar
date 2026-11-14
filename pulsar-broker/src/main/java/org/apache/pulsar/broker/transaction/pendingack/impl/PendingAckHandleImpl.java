@@ -41,6 +41,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import lombok.Getter;
 import org.apache.bookkeeper.client.api.BKException;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -570,6 +571,15 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         );
     }
 
+    /** Apply hydrated metadata-store ACKs on the pinned executor before recovery changes this handle to Ready. */
+    CompletableFuture<Void> commitRecoveredTxn(TxnID txnID) {
+        return FutureUtil.supplySafely(() -> {
+            CompletableFuture<Void> result = new CompletableFuture<>();
+            internalCommitTxn(txnID, Map.of(), 0L, result);
+            return result;
+        });
+    }
+
     private void addAbortTxnRequest(TxnID txnId, Consumer consumer, long lowWaterMark,
                                     CompletableFuture<Void> completableFuture) {
         acceptQueue.add(() -> internalAbortTxn(txnId, consumer, lowWaterMark, completableFuture));
@@ -967,6 +977,30 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                 break;
             }
         }
+    }
+
+    @Override
+    public CompletableFuture<Void> beforeCursorReset() {
+        return withCreatedStore(PendingAckStore::beforeCursorReset);
+    }
+
+    @Override
+    public CompletableFuture<Void> afterCursorReset(boolean persisted) {
+        return withCreatedStore(store -> store.afterCursorReset(persisted));
+    }
+
+    private CompletableFuture<Void> withCreatedStore(Function<PendingAckStore, CompletableFuture<Void>> action) {
+        // init() publishes the store from a task on the pinned executor. Queue behind that task, so a reset
+        // arriving right after this handle is created still reaches the store that is about to recover.
+        return FutureUtil.supplySafely(() -> CompletableFuture.supplyAsync(() -> {
+            synchronized (PendingAckHandleImpl.this) {
+                return pendingAckStoreFuture;
+            }
+        }, internalPinnedExecutor)).thenCompose(storeFuture -> storeFuture == null
+                ? CompletableFuture.completedFuture(null)
+                // A store that failed to be created has nothing to prepare; the reset proceeds as before.
+                : storeFuture.handle((store, error) -> store).thenCompose(store -> store == null
+                        ? CompletableFuture.completedFuture(null) : action.apply(store)));
     }
 
     @Override
