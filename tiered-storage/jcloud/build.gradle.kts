@@ -53,7 +53,7 @@ dependencies {
         exclude(group = "com.google.inject")
         exclude(group = "com.google.inject.extensions")
     }
-    testImplementation(libs.simpleclient)
+    testImplementation(libs.prometheus.metrics.core)
     // javax.inject is needed by bookkeeper and other deps on the test classpath
     testRuntimeOnly("javax.inject:javax.inject:1")
 }

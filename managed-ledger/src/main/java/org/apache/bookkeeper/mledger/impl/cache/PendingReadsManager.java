@@ -19,7 +19,7 @@
 package org.apache.bookkeeper.mledger.impl.cache;
 
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.createManagedLedgerException;
-import io.prometheus.client.Counter;
+import io.prometheus.metrics.core.metrics.Counter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -43,47 +43,47 @@ import org.apache.pulsar.common.util.FutureUtil;
 public class PendingReadsManager {
 
     private static final Counter COUNT_ENTRIES_READ_FROM_BK = Counter
-            .build()
+            .builder()
             .name("pulsar_ml_cache_pendingreads_entries_read")
             .help("Total number of entries read from BK")
             .register();
 
     private static final Counter COUNT_ENTRIES_NOTREAD_FROM_BK = Counter
-            .build()
+            .builder()
             .name("pulsar_ml_cache_pendingreads_entries_notread")
             .help("Total number of entries not read from BK")
             .register();
 
     private static final Counter COUNT_PENDING_READS_MATCHED = Counter
-            .build()
+            .builder()
             .name("pulsar_ml_cache_pendingreads_matched")
             .help("Pending reads reused with perfect range match")
             .register();
     private static final Counter COUNT_PENDING_READS_MATCHED_INCLUDED = Counter
-            .build()
+            .builder()
             .name("pulsar_ml_cache_pendingreads_matched_included")
             .help("Pending reads reused by attaching to a read with a larger range")
             .register();
     private static final Counter COUNT_PENDING_READS_MISSED = Counter
-            .build()
+            .builder()
             .name("pulsar_ml_cache_pendingreads_missed")
             .help("Pending reads that didn't find a match")
             .register();
 
     private static final Counter COUNT_PENDING_READS_MATCHED_OVERLAPPING_MISS_LEFT = Counter
-            .build()
+            .builder()
             .name("pulsar_ml_cache_pendingreads_matched_overlapping_miss_left")
             .help("Pending reads that didn't find a match but they partially overlap with another read")
             .register();
 
     private static final Counter COUNT_PENDING_READS_MATCHED_BUT_OVERLAPPING_MISS_RIGHT = Counter
-            .build()
+            .builder()
             .name("pulsar_ml_cache_pendingreads_matched_overlapping_miss_right")
             .help("Pending reads that didn't find a match but they partially overlap with another read")
             .register();
 
     private static final Counter COUNT_PENDING_READS_MATCHED_BUT_OVERLAPPING_MISS_BOTH = Counter
-            .build()
+            .builder()
             .name("pulsar_ml_cache_pendingreads_matched_overlapping_miss_both")
             .help("Pending reads that didn't find a match but they partially overlap with another read")
             .register();

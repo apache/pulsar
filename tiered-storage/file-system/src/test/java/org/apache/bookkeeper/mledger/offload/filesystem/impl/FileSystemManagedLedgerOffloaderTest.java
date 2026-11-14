@@ -167,7 +167,7 @@ public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
         LedgerOffloaderStatsImpl offloaderStats = (LedgerOffloaderStatsImpl) this.offloaderStats;
         assertTrue(offloaderStats.getOffloadError(topicName) == 0);
         assertTrue(offloaderStats.getOffloadBytes(topicName) > 0);
-        assertTrue(offloaderStats.getReadLedgerLatency(topicName).count > 0);
+        assertTrue(offloaderStats.getReadLedgerLatency(topicName).getCount() > 0);
         assertTrue(offloaderStats.getWriteStorageError(topicName) == 0);
 
         ReadHandle toTest = offloader.readOffloaded(toWrite.getId(), uuid, map).get();
@@ -180,8 +180,8 @@ public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
 
         assertTrue(offloaderStats.getReadOffloadError(topicName) == 0);
         assertTrue(offloaderStats.getReadOffloadBytes(topicName) > 0);
-        assertTrue(offloaderStats.getReadOffloadDataLatency(topicName).count > 0);
-        assertTrue(offloaderStats.getReadOffloadIndexLatency(topicName).count > 0);
+        assertTrue(offloaderStats.getReadOffloadDataLatency(topicName).getCount() > 0);
+        assertTrue(offloaderStats.getReadOffloadIndexLatency(topicName).getCount() > 0);
     }
 
     @Test
