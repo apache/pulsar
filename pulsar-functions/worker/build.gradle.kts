@@ -80,7 +80,7 @@ dependencies {
     api(libs.jakarta.ws.rs.api)
 
     implementation(libs.simpleclient)
-    implementation(libs.simpleclient.hotspot)
+    implementation(libs.prometheus.metrics.instrumentation.jvm)
     implementation(libs.simpleclient.common)
     implementation(libs.prometheus.metrics.model)
     implementation(libs.prometheus.metrics.exposition.textformats)

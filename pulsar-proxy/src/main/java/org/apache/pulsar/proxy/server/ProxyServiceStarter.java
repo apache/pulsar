@@ -28,7 +28,7 @@ import io.prometheus.client.Collector;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Gauge;
 import io.prometheus.client.Gauge.Child;
-import io.prometheus.client.hotspot.DefaultExports;
+import io.prometheus.metrics.instrumentation.jvm.JvmMetrics;
 import jakarta.servlet.Servlet;
 import java.io.IOException;
 import java.text.DateFormat;
@@ -290,7 +290,7 @@ public class ProxyServiceStarter {
 
         if (!metricsInitialized) {
             // Setup metrics
-            DefaultExports.initialize();
+            JvmMetrics.builder().register();
             CollectorRegistry registry = CollectorRegistry.defaultRegistry;
 
             // Report direct memory from Netty counters
