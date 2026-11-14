@@ -48,6 +48,7 @@ import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.config.validation.ConfigValidationAnnotations;
 import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.functions.proto.ConsumerSpec;
 import org.apache.pulsar.functions.proto.FunctionDetails;
 import org.apache.pulsar.functions.proto.SubscriptionType;
 import org.apache.pulsar.io.core.Sink;
@@ -183,6 +184,44 @@ public class SinkConfigUtilsTest {
                 new Gson().toJson(sinkConfig),
                 JSONCompareMode.STRICT
         );
+    }
+
+    @Test
+    public void testConvertSchemaPropertiesRoundTrip() throws IOException {
+        SinkConfig sinkConfig = new SinkConfig();
+        sinkConfig.setTenant("test-tenant");
+        sinkConfig.setNamespace("test-namespace");
+        sinkConfig.setName("test-sink");
+        sinkConfig.setParallelism(1);
+        sinkConfig.setArchive("builtin://jdbc");
+        sinkConfig.setSourceSubscriptionName("test-subscription");
+        Map<String, String> schemaProperties = new HashMap<>();
+        schemaProperties.put("__alwaysAllowNull", "true");
+        Map<String, String> consumerProperties = new HashMap<>();
+        consumerProperties.put("application", "billing");
+        Map<String, ConsumerConfig> inputSpecs = new HashMap<>();
+        inputSpecs.put("test-input", ConsumerConfig.builder()
+                .isRegexPattern(false)
+                .schemaType("avro")
+                .schemaProperties(schemaProperties)
+                .consumerProperties(consumerProperties)
+                .build());
+        sinkConfig.setInputs(Collections.singleton("test-input"));
+        sinkConfig.setInputSpecs(inputSpecs);
+        sinkConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
+
+        FunctionDetails functionDetails = SinkConfigUtils.convert(sinkConfig,
+                new SinkConfigUtils.ExtractedSinkDetails(null, null, null));
+        ConsumerSpec inputSpec = functionDetails.getSource().getInputSpecs("test-input");
+        assertEquals(1, inputSpec.getSchemaPropertiesCount());
+        assertEquals("true", inputSpec.getSchemaProperties("__alwaysAllowNull"));
+        assertEquals(1, inputSpec.getConsumerPropertiesCount());
+        assertEquals("billing", inputSpec.getConsumerProperties("application"));
+
+        SinkConfig convertedConfig = SinkConfigUtils.convertFromDetails(functionDetails);
+        ConsumerConfig convertedSpec = convertedConfig.getInputSpecs().get("test-input");
+        assertEquals(schemaProperties, convertedSpec.getSchemaProperties());
+        assertEquals(consumerProperties, convertedSpec.getConsumerProperties());
     }
 
     @Test
