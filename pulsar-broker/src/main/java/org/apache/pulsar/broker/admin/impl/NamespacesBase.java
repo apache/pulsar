@@ -38,6 +38,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.SortedSet;
+import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -69,6 +70,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.scalable.AutoScaleConfig;
 import org.apache.pulsar.broker.topiclistlimit.TopicListing;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.client.admin.GetStatsOptions;
 import org.apache.pulsar.client.admin.GrantTopicPermissionOptions;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -114,6 +116,8 @@ import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.data.TopicHashPositions;
+import org.apache.pulsar.common.policies.data.TopicOperation;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.policies.data.ValidateResult;
 import org.apache.pulsar.common.policies.data.impl.AutoTopicCreationOverrideImpl;
@@ -174,6 +178,65 @@ public abstract class NamespacesBase extends AdminResource {
                 .thenAccept(__ -> log.info()
                         .attr("namespace", namespaceName)
                         .log("Created namespace"));
+    }
+
+    /**
+     * Maximum number of in-flight per-topic stats requests when serving a namespace-scoped stats request.
+     * A namespace can contain thousands of topics, so issuing all requests at once would put an
+     * unbounded load on the brokers and on the internal admin client.
+     */
+    private static final int MAX_CONCURRENT_TOPIC_STATS_REQUESTS = 32;
+
+    /**
+     * Collect the stats of every topic in the namespace.
+     *
+     * <p>Stats are only available for topics that are loaded on their owning broker. The per-topic
+     * requests are issued through the internal admin client so that each request is redirected to
+     * the broker that owns the topic. A sliding window limits the number of in-flight requests.
+     * Failures of individual topics (for example a topic that is not loaded) are logged at DEBUG
+     * and the topic is omitted from the result, so that a single unavailable topic does not fail
+     * the whole namespace request.
+     */
+    protected CompletableFuture<Map<String, TopicStats>> internalGetTopicsStatsAsync(
+            List<String> topics, GetStatsOptions statsOptions) {
+        Map<String, TopicStats> result = new ConcurrentHashMap<>();
+        List<CompletableFuture<Void>> tasks = new ArrayList<>(topics.size());
+        List<CompletableFuture<Void>> window = new ArrayList<>(MAX_CONCURRENT_TOPIC_STATS_REQUESTS);
+        for (int i = 0; i < MAX_CONCURRENT_TOPIC_STATS_REQUESTS; i++) {
+            window.add(CompletableFuture.completedFuture(null));
+        }
+        for (int i = 0; i < topics.size(); i++) {
+            final String topic = topics.get(i);
+            final int slot = i % MAX_CONCURRENT_TOPIC_STATS_REQUESTS;
+            CompletableFuture<Void> task = window.get(slot)
+                    .thenCompose(__ -> fetchTopicStatsAsync(topic, statsOptions))
+                    .thenAccept(stats -> {
+                        if (stats != null) {
+                            result.put(topic, stats);
+                        }
+                    });
+            window.set(slot, task);
+            tasks.add(task);
+        }
+        return FutureUtil.waitForAll(tasks).thenApply(__ -> new TreeMap<>(result));
+    }
+
+    private CompletableFuture<TopicStats> fetchTopicStatsAsync(String topic, GetStatsOptions statsOptions) {
+        return validateTopicOperationAsync(TopicName.get(topic), TopicOperation.GET_STATS)
+                .thenCompose(__ -> {
+                    try {
+                        return pulsar().getAdminClient().topics().getStatsAsync(topic, statsOptions);
+                    } catch (PulsarServerException e) {
+                        return FutureUtil.<TopicStats>failedFuture(e);
+                    }
+                })
+                .exceptionally(ex -> {
+                    log.debug()
+                            .attr("topic", topic)
+                            .exception(ex)
+                            .log("Failed to get stats for topic; omitting it from namespace stats");
+                    return null;
+                });
     }
 
     protected CompletableFuture<List<String>> internalGetListOfTopics(AsyncResponse response, Policies policies,
