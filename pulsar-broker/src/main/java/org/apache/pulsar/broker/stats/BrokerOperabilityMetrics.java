@@ -18,9 +18,11 @@
  */
 package org.apache.pulsar.broker.stats;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.opentelemetry.api.metrics.DoubleHistogram;
 import io.opentelemetry.api.metrics.ObservableLongCounter;
-import io.prometheus.client.Counter;
+import io.prometheus.metrics.core.metrics.Counter;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -65,21 +67,21 @@ public class BrokerOperabilityMetrics implements AutoCloseable {
         }
     }
 
-    private static final Counter TOPIC_LOAD_FAILED = Counter.build("topic_load_failed", "-")
-            .labelNames("reason").create().register();
+    private static final Counter TOPIC_LOAD_FAILED = Counter.builder().name("topic_load_failed").help("-")
+            .labelNames("reason").register();
 
     static {
         for (TopicLoadFailureReason reason : TopicLoadFailureReason.values()) {
-            TOPIC_LOAD_FAILED.labels(reason.label());
+            TOPIC_LOAD_FAILED.initLabelValues(reason.label());
         }
     }
 
-    private static final Counter NON_RECOVERABLE_LEDGERS_SKIPPED = Counter.build(
-            "pulsar_broker_non_recoverable_ledgers_skipped_total",
-            "Count of non-recoverable ledgers skipped").register();
-    private static final Counter NON_RECOVERABLE_ENTRIES_SKIPPED = Counter.build(
-            "pulsar_broker_non_recoverable_entries_skipped_total",
-            "Count of non-recoverable entries skipped").register();
+    private static final Counter NON_RECOVERABLE_LEDGERS_SKIPPED = Counter.builder()
+            .name("pulsar_broker_non_recoverable_ledgers_skipped")
+            .help("Count of non-recoverable ledgers skipped").register();
+    private static final Counter NON_RECOVERABLE_ENTRIES_SKIPPED = Counter.builder()
+            .name("pulsar_broker_non_recoverable_entries_skipped")
+            .help("Count of non-recoverable entries skipped").register();
     private final List<Metrics> metricsList;
     private final String localCluster;
     private final DimensionStats topicLoadStats;
@@ -123,9 +125,15 @@ public class BrokerOperabilityMetrics implements AutoCloseable {
             .register();
 
     public BrokerOperabilityMetrics(PulsarService pulsar) {
+        this(pulsar, PrometheusRegistry.defaultRegistry);
+    }
+
+    /** The registry receives this broker's topic load summary; tests pass their own to stay clear of the JVM one. */
+    @VisibleForTesting
+    public BrokerOperabilityMetrics(PulsarService pulsar, PrometheusRegistry registry) {
         this.metricsList = new ArrayList<>();
         this.localCluster = pulsar.getConfiguration().getClusterName();
-        this.topicLoadStats = new DimensionStats("pulsar_topic_load_times", 60);
+        this.topicLoadStats = new DimensionStats("pulsar_topic_load_times", 60, registry);
         this.brokerName = pulsar.getAdvertisedAddress();
         this.connectionTotalCreatedCount = new LongAdder();
         this.connectionTotalClosedCount = new LongAdder();
@@ -183,12 +191,14 @@ public class BrokerOperabilityMetrics implements AutoCloseable {
                 .build();
     }
 
+    /** Releases only what this instance created; the static counters are shared by every broker in the JVM. */
     @Override
-    public void close() throws Exception {
+    public void close() {
         connectionCounter.close();
         connectionCreateCounter.close();
         nonRecoverableLedgersSkippedCounter.close();
         nonRecoverableEntriesSkippedCounter.close();
+        topicLoadStats.close();
     }
 
     public List<Metrics> getMetrics() {
@@ -242,7 +252,7 @@ public class BrokerOperabilityMetrics implements AutoCloseable {
     Metrics getTopicLoadMetrics() {
         Metrics metrics = getDimensionMetrics("pulsar_topic_load_times", "topic_load", topicLoadStats);
         metrics.put("brk_topic_load_failed_count", Arrays.stream(TopicLoadFailureReason.values())
-                .mapToDouble(reason -> TOPIC_LOAD_FAILED.labels(reason.label()).get())
+                .mapToDouble(reason -> TOPIC_LOAD_FAILED.labelValues(reason.label()).get())
                 .sum());
         return metrics;
     }
@@ -272,8 +282,13 @@ public class BrokerOperabilityMetrics implements AutoCloseable {
         topicLoadStats.recordDimensionTimeValue(topicLoadLatencyMs, TimeUnit.MILLISECONDS);
     }
 
+    @VisibleForTesting
+    DimensionStats getTopicLoadStats() {
+        return topicLoadStats;
+    }
+
     public void recordTopicLoadFailed(TopicLoadFailureReason reason) {
-        TOPIC_LOAD_FAILED.labels(reason.label()).inc();
+        TOPIC_LOAD_FAILED.labelValues(reason.label()).inc();
     }
 
     public void recordConnectionCreate() {

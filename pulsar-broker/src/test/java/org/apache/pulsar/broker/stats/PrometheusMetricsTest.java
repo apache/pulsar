@@ -1986,6 +1986,60 @@ public class PrometheusMetricsTest extends BrokerTestBase {
     }
 
     @Test
+    public void testBrokerOperabilityMetricsAreScraped() throws Exception {
+        // The topic load summary and the operability counters live in the Prometheus Java client 1.x registry;
+        // the broker scrape must still expose them under the legacy names with the cluster label.
+        // The summary is per broker but the registry is per JVM: when an earlier test left a broker open, its
+        // summary is the registered one and this broker's observations never reach the scrape (first broker wins,
+        // as with simpleclient). The scraped count is therefore only checked when this broker owns the family.
+        admin.topics().createNonPartitionedTopic("persistent://my-property/my-ns/operability-" + UUID.randomUUID());
+        BrokerOperabilityMetrics operability = pulsar.getBrokerService().getPulsarStats().getBrokerOperabilityMetrics();
+        DimensionStats topicLoadStats = operability.getTopicLoadStats();
+        // Every stats update clears the summary, so the record, the snapshot and the scrape are retried as a unit.
+        Awaitility.await().untilAsserted(() -> {
+            operability.recordTopicLoadTimeValue(5);
+            assertTrue(topicLoadStats.getSnapshot().getDimensionCount() >= 1);
+            ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+            PrometheusMetricsTestUtil.generate(pulsar, false, false, false, statsOut);
+            String metricsStr = statsOut.toString();
+            assertThat(metricsStr).contains("# TYPE pulsar_topic_load_times summary\n");
+            assertThat(metricsStr).contains("# TYPE topic_load_failed_total counter\n");
+            assertThat(metricsStr).contains("# TYPE pulsar_broker_non_recoverable_ledgers_skipped_total counter\n");
+            assertThat(metricsStr).contains("# TYPE pulsar_broker_non_recoverable_entries_skipped_total counter\n");
+            Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+
+            List<Metric> quantiles = new ArrayList<>(metrics.get("pulsar_topic_load_times"));
+            assertEquals(quantiles.size(), 6);
+            for (Metric m : quantiles) {
+                assertEquals(m.tags.get("cluster"), "test");
+                assertTrue(m.tags.containsKey("quantile"));
+            }
+            List<Metric> count = new ArrayList<>(metrics.get("pulsar_topic_load_times_count"));
+            assertEquals(count.size(), 1);
+            assertEquals(count.get(0).tags.get("cluster"), "test");
+            if (topicLoadStats.isRegistered()) {
+                assertTrue(count.get(0).value >= 1, "expected at least one topic load, got " + count.get(0).value);
+            }
+            List<Metric> sum = new ArrayList<>(metrics.get("pulsar_topic_load_times_sum"));
+            assertEquals(sum.size(), 1);
+            assertEquals(sum.get(0).tags.get("cluster"), "test");
+
+            List<Metric> failed = new ArrayList<>(metrics.get("topic_load_failed_total"));
+            assertEquals(failed.size(), BrokerOperabilityMetrics.TopicLoadFailureReason.values().length);
+            for (Metric m : failed) {
+                assertEquals(m.tags.get("cluster"), "test");
+                assertTrue(m.tags.containsKey("reason"));
+            }
+            for (String family : List.of("pulsar_broker_non_recoverable_ledgers_skipped_total",
+                    "pulsar_broker_non_recoverable_entries_skipped_total")) {
+                List<Metric> cm = new ArrayList<>(metrics.get(family));
+                assertEquals(cm.size(), 1, family);
+                assertEquals(cm.get(0).tags.get("cluster"), "test", family);
+            }
+        });
+    }
+
+    @Test
     void testParseMetrics() throws IOException {
         String sampleMetrics = IOUtils.toString(getClass().getClassLoader()
                 .getResourceAsStream("prometheus_metrics_sample.txt"), StandardCharsets.UTF_8);
