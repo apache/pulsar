@@ -18,15 +18,140 @@
  */
 package org.apache.bookkeeper.mledger.offload.jcloud.provider;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockConstruction;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotSame;
+import static org.testng.Assert.assertSame;
+import com.amazonaws.auth.BasicSessionCredentials;
+import com.amazonaws.auth.STSAssumeRoleSessionCredentialsProvider;
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadInfo;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.FutureTask;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
+import org.awaitility.Awaitility;
+import org.jclouds.Constants;
+import org.jclouds.aws.domain.SessionCredentials;
 import org.jclouds.domain.Credentials;
+import org.mockito.MockedConstruction;
 import org.testng.annotations.Test;
 
 public class TieredStorageConfigurationTest {
+
+    @Test
+    public void testStorageCheckUsesIndependentConfiguration() {
+        TieredStorageConfiguration config = new TieredStorageConfiguration(Map.of(
+                TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, "aws-s3",
+                "managedLedgerOffloadBucket", "offload-bucket",
+                "managedLedgerOffloadRegion", "us-east-1"));
+        Supplier<Credentials> credentials = () -> new Credentials("identity", "credential");
+        config.setProviderCredentials(credentials);
+        Properties originalOverrides = config.getOverrides();
+
+        TieredStorageConfiguration checkConfig = config.forStorageCheck(Duration.ofSeconds(2));
+
+        assertNotSame(checkConfig.getConfigProperties(), config.getConfigProperties());
+        assertEquals(checkConfig.getConfigProperties(), config.getConfigProperties());
+        assertSame(checkConfig.getProvider(), config.getProvider());
+        assertSame(checkConfig.getProviderCredentials(), credentials);
+        Properties overrides = checkConfig.getOverrides();
+        assertEquals(overrides.getProperty(Constants.PROPERTY_MAX_RETRIES), "0");
+        assertEquals(overrides.getProperty(Constants.PROPERTY_CONNECTION_TIMEOUT), "2000");
+        assertEquals(overrides.getProperty(Constants.PROPERTY_SO_TIMEOUT), "2000");
+        assertEquals(overrides.getProperty(Constants.PROPERTY_REQUEST_TIMEOUT), "2000");
+        assertEquals(config.getOverrides(), originalOverrides);
+    }
+
+    @Test
+    public void testStorageCheckSharesLazilyInitializedAssumeRoleCredentials() {
+        TieredStorageConfiguration config = new TieredStorageConfiguration(Map.of(
+                TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, "aws-s3",
+                TieredStorageConfiguration.S3_ROLE_FIELD, "arn:aws:iam::123456789012:role/offloader",
+                TieredStorageConfiguration.S3_ROLE_SESSION_NAME_FIELD, "storage-check"));
+        STSAssumeRoleSessionCredentialsProvider roleProvider = mock(STSAssumeRoleSessionCredentialsProvider.class);
+        when(roleProvider.getCredentials()).thenReturn(
+                new BasicSessionCredentials("identity", "credential", "first-token"),
+                new BasicSessionCredentials("identity", "credential", "refreshed-token"));
+        try (MockedConstruction<STSAssumeRoleSessionCredentialsProvider.Builder> builders = mockConstruction(
+                STSAssumeRoleSessionCredentialsProvider.Builder.class,
+                (builder, context) -> when(builder.build()).thenReturn(roleProvider))) {
+            assertThat(config.getCredentials()).isNull();
+
+            TieredStorageConfiguration checkConfig = config.forStorageCheck(Duration.ofSeconds(2));
+            Supplier<Credentials> checkCredentials = checkConfig.getProviderCredentials();
+            Supplier<Credentials> offloadCredentials = config.getProviderCredentials();
+
+            assertThat(checkCredentials).isSameAs(offloadCredentials);
+            assertThat(builders.constructed()).hasSize(1);
+            verify(roleProvider, never()).getCredentials();
+            // Share the provider, not a snapshot of its expiring session credentials.
+            assertThat(checkCredentials.get()).isInstanceOfSatisfying(SessionCredentials.class,
+                    credentials -> assertThat(credentials.getSessionToken()).isEqualTo("first-token"));
+            assertThat(offloadCredentials.get()).isInstanceOfSatisfying(SessionCredentials.class,
+                    credentials -> assertThat(credentials.getSessionToken()).isEqualTo("refreshed-token"));
+        }
+    }
+
+    @Test(timeOut = 30000)
+    public void testStorageCheckSharesCredentialsDuringConcurrentInitialization() throws Exception {
+        AtomicInteger initializations = new AtomicInteger();
+        CountDownLatch initializationStarted = new CountDownLatch(1);
+        CountDownLatch releaseInitialization = new CountDownLatch(1);
+        TieredStorageConfiguration config = new TieredStorageConfiguration(Map.of(
+                TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, "aws-s3",
+                TieredStorageConfiguration.S3_ID_FIELD, "identity",
+                TieredStorageConfiguration.S3_SECRET_FIELD, "credential")) {
+            @Override
+            public void setProviderCredentials(Supplier<Credentials> credentials) {
+                initializations.incrementAndGet();
+                initializationStarted.countDown();
+                try {
+                    assertThat(releaseInitialization.await(10, TimeUnit.SECONDS)).isTrue();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new IllegalStateException(e);
+                }
+                super.setProviderCredentials(credentials);
+            }
+        };
+        FutureTask<Supplier<Credentials>> offloadCredentials = new FutureTask<>(config::getProviderCredentials);
+        FutureTask<Supplier<Credentials>> checkCredentials = new FutureTask<>(
+                () -> config.forStorageCheck(Duration.ofSeconds(2)).getProviderCredentials());
+        Thread offloadThread = new Thread(offloadCredentials, "offload-credentials");
+        Thread checkThread = new Thread(checkCredentials, "storage-check-credentials");
+        try {
+            offloadThread.start();
+            assertThat(initializationStarted.await(10, TimeUnit.SECONDS)).isTrue();
+            checkThread.start();
+            // Hold the first provider before publication until the check either waits for it or creates another.
+            Awaitility.await().until(() -> {
+                ThreadInfo info = ManagementFactory.getThreadMXBean().getThreadInfo(checkThread.threadId());
+                return checkCredentials.isDone() || initializations.get() > 1
+                        || (info != null && info.getThreadState() == Thread.State.BLOCKED
+                        && info.getLockOwnerId() == offloadThread.threadId());
+            });
+            assertThat(initializations.get()).isEqualTo(1);
+        } finally {
+            releaseInitialization.countDown();
+            offloadThread.join(10000);
+            checkThread.join(10000);
+        }
+        assertThat(checkCredentials.get(10, TimeUnit.SECONDS))
+                .isSameAs(offloadCredentials.get(10, TimeUnit.SECONDS));
+        assertThat(initializations.get()).isEqualTo(1);
+    }
 
     /*
      * Previous property names, for backwards-compatibility.

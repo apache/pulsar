@@ -33,6 +33,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
@@ -68,7 +69,9 @@ import org.apache.bookkeeper.mledger.proto.OffloadSegment;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.jclouds.blobstore.BlobStore;
+import org.jclouds.blobstore.BlobStoreContext;
 import org.jclouds.blobstore.domain.Blob;
 import org.jclouds.blobstore.domain.BlobBuilder;
 import org.jclouds.blobstore.domain.MultipartPart;
@@ -191,6 +194,34 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
     @Override
     public Map<String, String> getOffloadDriverMetadata() {
         return config.getOffloadDriverMetadata();
+    }
+
+    @Override
+    public CompletableFuture<Void> checkStorageAsync(Duration timeout) {
+        return FutureUtil.supplySafely(() -> CompletableFuture.runAsync(() -> {
+            Thread thread = Thread.currentThread();
+            ClassLoader previousClassLoader = thread.getContextClassLoader();
+            thread.setContextClassLoader(BlobStoreManagedLedgerOffloader.class.getClassLoader());
+            try {
+                BlobStore store = config.forStorageCheck(timeout).getBlobStore();
+                try (BlobStoreContext context = store.getContext()) {
+                    String bucket = config.getBucket();
+                    if (!store.containerExists(bucket)) {
+                        throw new IOException("Offload storage bucket does not exist: " + bucket);
+                    }
+                    String key = "pulsar-offload-check-" + UUID.randomUUID();
+                    // A failed upload may still have created the object. Always attempt deletion and preserve
+                    // the upload failure if cleanup also fails.
+                    try (AutoCloseable cleanup = () -> store.removeBlob(bucket, key)) {
+                        store.putBlob(bucket, store.blobBuilder(key).payload(new byte[] {0}).build());
+                    }
+                }
+            } catch (Exception error) {
+                throw new CompletionException(error);
+            } finally {
+                thread.setContextClassLoader(previousClassLoader);
+            }
+        }, scheduler));
     }
 
     /**
