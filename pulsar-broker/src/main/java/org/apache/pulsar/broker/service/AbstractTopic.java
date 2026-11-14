@@ -165,9 +165,6 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
     private LongAdder systemTopicBytesInCounter = new LongAdder();
     private final LongAdder filteredEntriesCounter = new LongAdder();
 
-    private static final AtomicLongFieldUpdater<AbstractTopic> RATE_LIMITED_UPDATER =
-            AtomicLongFieldUpdater.newUpdater(AbstractTopic.class, "publishRateLimitedTimes");
-    protected volatile long publishRateLimitedTimes = 0L;
     private static final AtomicLongFieldUpdater<AbstractTopic> TOTAL_RATE_LIMITED_UPDATER =
             AtomicLongFieldUpdater.newUpdater(AbstractTopic.class, "totalPublishRateLimitedCounter");
     protected volatile long totalPublishRateLimitedCounter = 0L;
@@ -1060,8 +1057,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
 
     @Override
     public long increasePublishLimitedTimes() {
-        TOTAL_RATE_LIMITED_UPDATER.incrementAndGet(this);
-        return RATE_LIMITED_UPDATER.incrementAndGet(this);
+        return TOTAL_RATE_LIMITED_UPDATER.incrementAndGet(this);
     }
 
 
