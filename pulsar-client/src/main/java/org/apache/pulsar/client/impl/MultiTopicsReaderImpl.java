@@ -21,7 +21,9 @@ package org.apache.pulsar.client.impl;
 
 import io.github.merlimat.slog.Logger;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -35,6 +37,7 @@ import org.apache.pulsar.client.api.KeySharedPolicy;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageListener;
+import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderDecryptFailListener;
@@ -184,6 +187,13 @@ public class MultiTopicsReaderImpl<T> implements Reader<T> {
     }
 
     @Override
+    public Messages<T> batchReadNext() throws PulsarClientException {
+        Messages<T> messages = multiTopicsConsumer.batchReceive();
+        acknowledgeBatch(messages);
+        return messages;
+    }
+
+    @Override
     public Message<T> readNext(int timeout, TimeUnit unit) throws PulsarClientException {
         Message<T> msg = multiTopicsConsumer.receive(timeout, unit);
         multiTopicsConsumer.tryAcknowledgeMessage(msg);
@@ -194,19 +204,46 @@ public class MultiTopicsReaderImpl<T> implements Reader<T> {
     public CompletableFuture<Message<T>> readNextAsync() {
         CompletableFuture<Message<T>> originalFuture = multiTopicsConsumer.receiveAsync();
         CompletableFuture<Message<T>> result = originalFuture.thenApply(msg -> {
-            multiTopicsConsumer.acknowledgeCumulativeAsync(msg)
-                    .exceptionally(ex -> {
-                        log.warn().attr("messageId", msg.getMessageId())
-                                .exception(ex)
-                                .log("acknowledge message cumulative fail");
-                        return null;
-                    });
+            if (msg != null) {
+                multiTopicsConsumer.acknowledgeCumulativeAsync(msg)
+                        .exceptionally(ex -> {
+                            log.warn().attr("messageId", msg.getMessageId())
+                                    .exception(ex)
+                                    .log("acknowledge message cumulative fail");
+                            return null;
+                        });
+            }
             return msg;
         });
         CompletableFutureCancellationHandler handler = new CompletableFutureCancellationHandler();
         handler.attachToFuture(result);
         handler.setCancelAction(() -> originalFuture.cancel(false));
         return result;
+    }
+
+    @Override
+    public CompletableFuture<Messages<T>> batchReadNextAsync() {
+        CompletableFuture<Messages<T>> originalFuture = multiTopicsConsumer.batchReceiveAsync();
+        CompletableFuture<Messages<T>> result = originalFuture.thenApply(messages -> {
+            acknowledgeBatch(messages);
+            return messages;
+        });
+        CompletableFutureCancellationHandler handler = new CompletableFutureCancellationHandler();
+        handler.attachToFuture(result);
+        handler.setCancelAction(() -> originalFuture.cancel(false));
+        return result;
+    }
+
+    private void acknowledgeBatch(Messages<T> messages) {
+        if (messages == null) {
+            return;
+        }
+        Map<String, Message<T>> lastMessages = new HashMap<>();
+        for (Message<T> message : messages) {
+            TopicMessageId messageId = (TopicMessageId) message.getMessageId();
+            lastMessages.put(messageId.getOwnerTopic(), message);
+        }
+        lastMessages.values().forEach(multiTopicsConsumer::tryAcknowledgeMessage);
     }
 
     @Override
