@@ -38,19 +38,97 @@ public class PrometheusMetricStreams {
      * @param labelsAndValuesArray varargs of label and label value
      */
     void writeSample(String metricName, Number value, String... labelsAndValuesArray) {
+        writeSamplePrefix(metricName, labelsAndValuesArray).write("} ").write(value).write('\n');
+    }
+
+    void writeSample(String metricName, long value, String[] labelsAndValuesArray) {
+        writeSamplePrefix(metricName, labelsAndValuesArray).write("} ").write(value).write('\n');
+    }
+
+    void writeSample(String metricName, double value, String[] labelsAndValuesArray) {
+        writeSamplePrefix(metricName, labelsAndValuesArray).write("} ").write(value).write('\n');
+    }
+
+    void writeSample(String metricName, Number value, String[] labelsAndValuesArray,
+                     String[] additionalLabelsAndValues) {
+        writeSamplePrefix(metricName, labelsAndValuesArray, additionalLabelsAndValues)
+                .write("} ").write(value).write('\n');
+    }
+
+    void writeSample(String metricName, long value, String[] labelsAndValuesArray,
+                     String[] additionalLabelsAndValues) {
+        writeSamplePrefix(metricName, labelsAndValuesArray, additionalLabelsAndValues)
+                .write("} ").write(value).write('\n');
+    }
+
+    void writeSample(String metricName, double value, String[] labelsAndValuesArray,
+                     String[] additionalLabelsAndValues) {
+        writeSamplePrefix(metricName, labelsAndValuesArray, additionalLabelsAndValues)
+                .write("} ").write(value).write('\n');
+    }
+
+    void writeSample(String metricName, Number value, String[] labelsAndValuesArray,
+                     String label, String labelValue) {
+        writeSamplePrefix(metricName, labelsAndValuesArray, label, labelValue)
+                .write("} ").write(value).write('\n');
+    }
+
+    void writeSample(String metricName, long value, String[] labelsAndValuesArray,
+                     String label, String labelValue) {
+        writeSamplePrefix(metricName, labelsAndValuesArray, label, labelValue)
+                .write("} ").write(value).write('\n');
+    }
+
+    void writeSample(String metricName, double value, String[] labelsAndValuesArray,
+                     String label, String labelValue) {
+        writeSamplePrefix(metricName, labelsAndValuesArray, label, labelValue)
+                .write("} ").write(value).write('\n');
+    }
+
+    private SimpleTextOutputStream writeSamplePrefix(String metricName, String[] labelsAndValuesArray) {
         SimpleTextOutputStream stream = initGaugeType(metricName);
         stream.write(metricName).write('{');
+        writeLabels(stream, labelsAndValuesArray);
+        return stream;
+    }
+
+    private SimpleTextOutputStream writeSamplePrefix(String metricName, String[] labelsAndValuesArray,
+                                                     String[] additionalLabelsAndValues) {
+        SimpleTextOutputStream stream = writeSamplePrefix(metricName, labelsAndValuesArray);
+        if (additionalLabelsAndValues == null) {
+            return stream;
+        }
+        if (labelsAndValuesArray.length != 0 && additionalLabelsAndValues.length != 0) {
+            stream.write(',');
+        }
+        writeLabels(stream, additionalLabelsAndValues);
+        return stream;
+    }
+
+    private SimpleTextOutputStream writeSamplePrefix(String metricName, String[] labelsAndValuesArray,
+                                                     String label, String labelValue) {
+        SimpleTextOutputStream stream = writeSamplePrefix(metricName, labelsAndValuesArray);
+        if (labelsAndValuesArray.length != 0) {
+            stream.write(',');
+        }
+        writeLabel(stream, label, labelValue);
+        return stream;
+    }
+
+    private static void writeLabels(SimpleTextOutputStream stream, String[] labelsAndValuesArray) {
         for (int i = 0; i < labelsAndValuesArray.length; i += 2) {
-            String labelValue = labelsAndValuesArray[i + 1];
-            if (labelValue != null && labelValue.indexOf('"') > -1) {
-                labelValue = labelValue.replace("\"", "\\\"");
-            }
-            stream.write(labelsAndValuesArray[i]).write("=\"").write(labelValue).write('\"');
+            writeLabel(stream, labelsAndValuesArray[i], labelsAndValuesArray[i + 1]);
             if (i + 2 != labelsAndValuesArray.length) {
                 stream.write(',');
             }
         }
-        stream.write("} ").write(value).write('\n');
+    }
+
+    private static void writeLabel(SimpleTextOutputStream stream, String label, String labelValue) {
+        if (labelValue != null && labelValue.indexOf('"') > -1) {
+            labelValue = labelValue.replace("\"", "\\\"");
+        }
+        stream.write(label).write("=\"").write(labelValue).write('\"');
     }
 
     /**
