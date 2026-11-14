@@ -1443,6 +1443,12 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
     public boolean isTransferring() {
         return transferring;
     }
+
+    @Override
+    public boolean isInTeardown() {
+        return isFenced;
+    }
+
     public InactiveTopicPolicies getInactiveTopicPolicies() {
         return topicPolicies.getInactiveTopicPolicies().get();
     }
