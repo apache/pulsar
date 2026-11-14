@@ -1612,8 +1612,10 @@ public class BrokerService implements Closeable {
                     systemTopicLoadFuture.thenRun(() -> {
                         final var inserted = new MutableBoolean(false);
                         final var cachedFuture = topics.computeIfAbsent(topicName.toString(), ___ -> {
+                            context.setOwnershipChecker(pulsar.getNamespaceService()
+                                    .newTopicOwnershipChecker(topicName));
                             inserted.setTrue();
-                            return loadOrCreatePersistentTopic(context);
+                            return topicFuture;
                         });
                         if (inserted.isFalse()) {
                             // This case should happen rarely when the same topic is loaded concurrently because we
@@ -1632,6 +1634,8 @@ public class BrokerService implements Closeable {
                             });
                         } else {
                             onTopicCacheEntryAdded(topicName.toString(), cachedFuture);
+                            // Validation can enter the namespace lock. Start it after releasing the topics map lock.
+                            loadOrCreatePersistentTopic(context);
                         }
                     }).exceptionally(e -> {
                         log.warn().attr("topic", topicName).log("Topic creation encountered an exception"
@@ -2373,8 +2377,11 @@ public class BrokerService implements Closeable {
     protected CompletableFuture<Optional<Topic>> loadOrCreatePersistentTopic(TopicLoadingContext context) {
         final var topic = context.getTopicName().toString();
         final var topicFuture = context.getTopicFuture();
+        if (context.getOwnershipChecker() == null) {
+            context.setOwnershipChecker(pulsar.getNamespaceService().newTopicOwnershipChecker(context.getTopicName()));
+        }
         // ServiceUnitNotReadyException is classified as bundle_unloading when the topic future completes.
-        context.trace(TopicLoadingTracePoints.OWNERSHIP, checkTopicNsOwnership(topic))
+        context.trace(TopicLoadingTracePoints.OWNERSHIP, checkTopicNsOwnership(context))
                 .thenRun(() -> {
                     final Semaphore topicLoadSemaphore = topicLoadRequestSemaphore.get();
 
@@ -2465,7 +2472,7 @@ public class BrokerService implements Closeable {
         final var topic = topicName.toString();
         final var topicFuture = context.getTopicFuture();
         // ServiceUnitNotReadyException is classified as bundle_unloading when the topic future completes.
-        context.trace(TopicLoadingTracePoints.OWNERSHIP, checkTopicNsOwnership(topic))
+        context.trace(TopicLoadingTracePoints.OWNERSHIP, checkTopicNsOwnership(context))
                 .thenRun(() -> createPersistentTopic0(context))
                 .exceptionally(e -> {
                     failTopicFuture(topic, topicFuture, e);
@@ -2590,7 +2597,7 @@ public class BrokerService implements Closeable {
             // Check the ownership again right before opening the managed ledger: the steps above can wait for the
             // metadata store, and a broker that stopped serving the bundle meanwhile, such as one that another broker
             // took the bundle over from, must not open, and so recover, the new owner's ledger.
-            context.trace(TopicLoadingTracePoints.OWNERSHIP_BEFORE_OPEN_ML, checkTopicNsOwnership(topic))
+            context.trace(TopicLoadingTracePoints.OWNERSHIP_BEFORE_OPEN_ML, checkTopicNsOwnership(context))
                     .thenRun(() -> {
                 if (topicFuture.isDone()) {
                     // The load has timed out: opening, and so recovering, the managed ledger now would only be
@@ -3047,6 +3054,17 @@ public class BrokerService implements Closeable {
         }
     }
 
+    /** Install the reload gate before the fenced topic can remove its cache entry. */
+    public void requireFreshOwnershipBeforeTopicReadmission(PersistentTopic failedTopic) {
+        topics.computeIfPresent(failedTopic.getName(), (topic, future) -> {
+            if (future.isDone() && !future.isCompletedExceptionally()
+                    && future.join().orElse(null) == failedTopic) {
+                pulsar.getNamespaceService().requireFreshOwnershipBeforeReadmission(TopicName.get(topic));
+            }
+            return future;
+        });
+    }
+
     private void onTopicCacheEntryAdded(String name, CompletableFuture<Optional<Topic>> future) {
         SegmentOwnerState ownerState = segmentOwnerState;
         if (ownerState != null) {
@@ -3268,6 +3286,17 @@ public class BrokerService implements Closeable {
                         return FutureUtil.failedFuture(new ServiceUnitNotReadyException(msg));
                     }
                 }));
+    }
+
+    private CompletableFuture<Void> checkTopicNsOwnership(TopicLoadingContext context) {
+        return FutureUtil.supplySafely(context.getOwnershipChecker()).thenCompose(owned -> {
+            if (owned && !context.isClosed() && !context.getTopicFuture().isCompletedExceptionally()) {
+                return CompletableFuture.completedFuture(null);
+            }
+            return FutureUtil.failedFuture(new ServiceUnitNotReadyException(
+                    "Namespace ownership changed while loading topic " + context.getTopicName()
+                            + ". Please redo the lookup."));
+        });
     }
 
     public CompletableFuture<Integer> unloadServiceUnit(NamespaceBundle serviceUnit,
@@ -4458,7 +4487,8 @@ public class BrokerService implements Closeable {
         TopicLoadingContext topicLoadingContext = contextAndPointPair.getLeft();
         final String topic = topicLoadingContext.getTopicName().toString();
         // ServiceUnitNotReadyException is classified as bundle_unloading when the topic future completes.
-        topicLoadingContext.trace(TopicLoadingTracePoints.OWNERSHIP, checkTopicNsOwnership(topic)).thenRun(() -> {
+        topicLoadingContext.trace(TopicLoadingTracePoints.OWNERSHIP,
+                checkTopicNsOwnership(topicLoadingContext)).thenRun(() -> {
             CompletableFuture<Optional<Topic>> pendingFuture = topicLoadingContext.getTopicFuture();
             final Semaphore topicLoadSemaphore = topicLoadRequestSemaphore.get();
             final boolean acquiredPermit = topicLoadSemaphore.tryAcquire();
@@ -4479,6 +4509,11 @@ public class BrokerService implements Closeable {
             inactivityMonitor.schedule(this::createPendingLoadTopic, 100, MILLISECONDS);
             return null;
         });
+    }
+
+    @VisibleForTesting
+    int getPendingTopicLoadCount() {
+        return pendingTopicLoadingQueue.size();
     }
 
     /**

@@ -850,6 +850,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
 
         if (exception instanceof ManagedLedgerFencedException) {
+            brokerService.requireFreshOwnershipBeforeTopicReadmission(this);
             if (exception instanceof ManagedLedgerFencedByAnotherWriterException
                     && brokerService.getTopicReference(topic).orElse(null) == this
                     && ownershipTakeoverReported.compareAndSet(false, true)) {
@@ -1186,6 +1187,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                             .log("Failed to create compaction subscription");
                 } else if (ex.getCause() instanceof ManagedLedgerFencedException) {
                     // If the topic has been fenced, we cannot continue using it. We need to close and reopen
+                    brokerService.requireFreshOwnershipBeforeTopicReadmission(this);
                     log.warn()
                             .attr("subscription", subscriptionName)
                             .exceptionMessage(ex)
@@ -1296,6 +1298,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         .exceptionMessage(exception)
                         .log("Failed to create subscription for");
                 decrementUsageCount();
+                if (exception instanceof ManagedLedgerFencedException) {
+                    brokerService.requireFreshOwnershipBeforeTopicReadmission(PersistentTopic.this);
+                }
                 subscriptionFuture.completeExceptionally(new PersistenceException(exception));
                 if (exception instanceof ManagedLedgerFencedException) {
                     // If the managed ledger has been fenced, we cannot continue using it. We need to close and reopen

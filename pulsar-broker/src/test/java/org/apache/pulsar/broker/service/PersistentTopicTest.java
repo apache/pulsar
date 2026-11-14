@@ -22,6 +22,7 @@ package org.apache.pulsar.broker.service;
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgsRecordingInvocations;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -33,6 +34,7 @@ import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.matches;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -100,6 +102,7 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerFencedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
@@ -162,6 +165,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore.OperationType;
 import org.awaitility.Awaitility;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.Mockito;
 import org.mockito.stubbing.Answer;
 import org.testng.Assert;
@@ -246,6 +250,11 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         doReturn(true).when(nsSvc).isServiceUnitOwned(any());
         doReturn(CompletableFuture.completedFuture(mock(NamespaceBundle.class))).when(nsSvc).getBundleAsync(any());
         doReturn(CompletableFuture.completedFuture(true)).when(nsSvc).checkBundleOwnership(any(), any());
+        doAnswer(invocation -> {
+            TopicName topicName = invocation.getArgument(0);
+            return (Supplier<CompletableFuture<Boolean>>) () -> brokerService
+                    .checkTopicNsOwnership(topicName.toString()).thenApply(__ -> true);
+        }).when(nsSvc).newTopicOwnershipChecker(any());
         doReturn(CompletableFuture.completedFuture(TopicExistsInfo.newTopicNotExists())).when(nsSvc)
                 .checkTopicExistsAsync(any());
 
@@ -754,6 +763,52 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                 .initialPosition(InitialPosition.Latest).subscriptionProperties(Optional.empty())
                 .startMessageRollbackDurationSec(0).replicatedSubscriptionStateArg(false).keySharedMeta(null)
                 .build();
+    }
+
+    @Test
+    public void testDurableCursorFencingRequiresFreshOwnershipBeforeClose() throws Exception {
+        PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName)
+                .get(30, TimeUnit.SECONDS);
+        ManagedLedgerFencedException fenced = new ManagedLedgerFencedException("cursor open observed fencing");
+        doAnswer(invocation -> {
+            OpenCursorCallback callback = invocation.getArgument(4);
+            callback.openCursorFailed(fenced, invocation.getArgument(5));
+            return null;
+        }).when(ledgerMock).asyncOpenCursor(eq(successSubName), any(InitialPosition.class), any(), any(), any(), any());
+
+        assertThatThrownBy(() -> topic.createSubscription(successSubName, InitialPosition.Latest, false,
+                Collections.emptyMap()).get(30, TimeUnit.SECONDS))
+                .hasRootCause(fenced);
+        topic.close().get(30, TimeUnit.SECONDS);
+        assertThat(brokerService.getTopicReference(successTopicName)).isEmpty();
+
+        InOrder closeOrder = inOrder(pulsarTestContext.getPulsarService().getNamespaceService(), ledgerMock);
+        closeOrder.verify(pulsarTestContext.getPulsarService().getNamespaceService())
+                .requireFreshOwnershipBeforeReadmission(TopicName.get(successTopicName));
+        closeOrder.verify(ledgerMock).asyncClose(any(CloseCallback.class), any());
+    }
+
+    @Test
+    public void testNonDurableSubscriptionFencingRequiresFreshOwnershipBeforeClose() throws Exception {
+        PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName)
+                .get(30, TimeUnit.SECONDS);
+        ManagedLedgerFencedException fenced =
+                new ManagedLedgerFencedException("non-durable cursor open observed fencing");
+        doThrow(fenced).when(ledgerMock).newNonDurableCursor(any(Position.class), eq(successSubName),
+                any(InitialPosition.class), anyBoolean());
+        CommandSubscribe command = new CommandSubscribe().setConsumerId(1).setConsumerName("consumer-name")
+                .setTopic(successTopicName).setSubscription(successSubName).setRequestId(1)
+                .setSubType(SubType.Exclusive).setDurable(false);
+
+        assertThatThrownBy(() -> topic.subscribe(getSubscriptionOption(command)).get(30, TimeUnit.SECONDS))
+                .hasRootCause(fenced);
+        topic.close().get(30, TimeUnit.SECONDS);
+        assertThat(brokerService.getTopicReference(successTopicName)).isEmpty();
+
+        InOrder closeOrder = inOrder(pulsarTestContext.getPulsarService().getNamespaceService(), ledgerMock);
+        closeOrder.verify(pulsarTestContext.getPulsarService().getNamespaceService())
+                .requireFreshOwnershipBeforeReadmission(TopicName.get(successTopicName));
+        closeOrder.verify(ledgerMock).asyncClose(any(CloseCallback.class), any());
     }
 
     @Test
