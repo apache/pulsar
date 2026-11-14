@@ -90,6 +90,15 @@ public class AdminRestTest extends MockedPulsarServiceBaseTest {
         response3.close();
     }
 
+    @Test
+    public void testUnsetNamespaceGroupsAreNull() throws Exception {
+        Assert.assertNull(admin.namespaces().getNamespaceResourceGroup(namespaceName));
+        Assert.assertNull(admin.namespaces().getNamespaceAntiAffinityGroup(namespaceName));
+
+        admin.namespaces().setNamespaceAntiAffinityGroup(namespaceName, "my-group");
+        Assert.assertEquals(admin.namespaces().getNamespaceAntiAffinityGroup(namespaceName), "my-group");
+    }
+
     private String parseResponseEntity(Object entity) throws Exception {
         InputStream in = (InputStream) entity;
         BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(in));
