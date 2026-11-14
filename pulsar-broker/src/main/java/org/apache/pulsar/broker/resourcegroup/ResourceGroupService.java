@@ -20,8 +20,10 @@ package org.apache.pulsar.broker.resourcegroup;
 
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.annotations.VisibleForTesting;
-import io.prometheus.client.Counter;
-import io.prometheus.client.Summary;
+import io.prometheus.metrics.core.datapoints.Timer;
+import io.prometheus.metrics.core.metrics.Counter;
+import io.prometheus.metrics.core.metrics.Summary;
+import io.prometheus.metrics.model.snapshots.SummarySnapshot;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -147,7 +149,7 @@ public class ResourceGroupService implements AutoCloseable{
             throw new PulsarAdminException("Resource group does not exist: " + rgName);
         }
         rg.updateResourceGroup(rgConfig);
-        rgUpdates.labels(rgName).inc();
+        rgUpdates.labelValues(rgName).inc();
     }
 
     public Set<String> resourceGroupGetAll() {
@@ -212,7 +214,7 @@ public class ResourceGroupService implements AutoCloseable{
 
         // Associate this tenant name with the RG.
         this.tenantToRGsMap.put(tenantName, rg);
-        rgTenantRegisters.labels(resourceGroupName).inc();
+        rgTenantRegisters.labelValues(resourceGroupName).inc();
 
         // Ensure schedulers are started if this is the first registration.
         maybeStartSchedulers();
@@ -237,7 +239,7 @@ public class ResourceGroupService implements AutoCloseable{
 
         // Dissociate this tenant name from the RG.
         this.tenantToRGsMap.remove(tenantName, rg);
-        rgTenantUnRegisters.labels(resourceGroupName).inc();
+        rgTenantUnRegisters.labelValues(resourceGroupName).inc();
 
         // If this was the last registration (tenant or namespace), stop schedulers.
         maybeStopSchedulersIfIdle();
@@ -271,7 +273,7 @@ public class ResourceGroupService implements AutoCloseable{
 
         // Associate this NS-name with the RG.
         this.namespaceToRGsMap.put(fqNamespaceName, rg);
-        rgNamespaceRegisters.labels(resourceGroupName).inc();
+        rgNamespaceRegisters.labelValues(resourceGroupName).inc();
 
         // Ensure schedulers are started if this is the first registration.
         maybeStartSchedulers();
@@ -298,7 +300,7 @@ public class ResourceGroupService implements AutoCloseable{
 
         // Dissociate this NS-name from the RG.
         this.namespaceToRGsMap.remove(fqNamespaceName, rg);
-        rgNamespaceUnRegisters.labels(resourceGroupName).inc();
+        rgNamespaceUnRegisters.labelValues(resourceGroupName).inc();
 
         // If this was the last registration (tenant or namespace), stop schedulers.
         maybeStopSchedulersIfIdle();
@@ -375,20 +377,20 @@ public class ResourceGroupService implements AutoCloseable{
             // Update only once in this case.
             // Note that we will update both tenant and namespace RGs in other cases.
             nsRG.incrementLocalUsageStats(monClass, incStats);
-            rgLocalUsageMessages.labels(nsRG.resourceGroupName, monClass.name()).inc(incStats.messages);
-            rgLocalUsageBytes.labels(nsRG.resourceGroupName, monClass.name()).inc(incStats.bytes);
+            rgLocalUsageMessages.labelValues(nsRG.resourceGroupName, monClass.name()).inc(incStats.messages);
+            rgLocalUsageBytes.labelValues(nsRG.resourceGroupName, monClass.name()).inc(incStats.bytes);
             return true;
         }
 
         if (tenantRG != null) {
             tenantRG.incrementLocalUsageStats(monClass, incStats);
-            rgLocalUsageMessages.labels(tenantRG.resourceGroupName, monClass.name()).inc(incStats.messages);
-            rgLocalUsageBytes.labels(tenantRG.resourceGroupName, monClass.name()).inc(incStats.bytes);
+            rgLocalUsageMessages.labelValues(tenantRG.resourceGroupName, monClass.name()).inc(incStats.messages);
+            rgLocalUsageBytes.labelValues(tenantRG.resourceGroupName, monClass.name()).inc(incStats.bytes);
         }
         if (nsRG != null) {
             nsRG.incrementLocalUsageStats(monClass, incStats);
-            rgLocalUsageMessages.labels(nsRG.resourceGroupName, monClass.name()).inc(incStats.messages);
-            rgLocalUsageBytes.labels(nsRG.resourceGroupName, monClass.name()).inc(incStats.bytes);
+            rgLocalUsageMessages.labelValues(nsRG.resourceGroupName, monClass.name()).inc(incStats.messages);
+            rgLocalUsageBytes.labelValues(nsRG.resourceGroupName, monClass.name()).inc(incStats.bytes);
         }
 
         return true;
@@ -508,57 +510,57 @@ public class ResourceGroupService implements AutoCloseable{
 
     // Visibility for testing.
     protected static long getRgQuotaByteCount (String rgName, String monClassName) {
-        return (long) rgCalculatedQuotaBytes.labels(rgName, monClassName).get();
+        return rgCalculatedQuotaBytes.labelValues(rgName, monClassName).getLongValue();
     }
 
     // Visibility for testing.
     protected static long getRgQuotaMessageCount (String rgName, String monClassName) {
-        return (long) rgCalculatedQuotaMessages.labels(rgName, monClassName).get();
+        return rgCalculatedQuotaMessages.labelValues(rgName, monClassName).getLongValue();
     }
 
     // Visibility for testing.
     protected static long getRgLocalUsageByteCount (String rgName, String monClassName) {
-        return (long) rgLocalUsageBytes.labels(rgName, monClassName).get();
+        return rgLocalUsageBytes.labelValues(rgName, monClassName).getLongValue();
     }
 
     // Visibility for testing.
     protected static long getRgLocalUsageMessageCount (String rgName, String monClassName) {
-        return (long) rgLocalUsageMessages.labels(rgName, monClassName).get();
+        return rgLocalUsageMessages.labelValues(rgName, monClassName).getLongValue();
     }
 
     // Visibility for testing.
     protected static long getRgUpdatesCount (String rgName) {
-        return (long) rgUpdates.labels(rgName).get();
+        return rgUpdates.labelValues(rgName).getLongValue();
     }
 
     // Visibility for testing.
     protected static long getRgTenantRegistersCount (String rgName) {
-        return (long) rgTenantRegisters.labels(rgName).get();
+        return rgTenantRegisters.labelValues(rgName).getLongValue();
     }
 
     // Visibility for testing.
     protected static long getRgTenantUnRegistersCount (String rgName) {
-        return (long) rgTenantUnRegisters.labels(rgName).get();
+        return rgTenantUnRegisters.labelValues(rgName).getLongValue();
     }
 
     // Visibility for testing.
     protected static long getRgNamespaceRegistersCount (String rgName) {
-        return (long) rgNamespaceRegisters.labels(rgName).get();
+        return rgNamespaceRegisters.labelValues(rgName).getLongValue();
     }
 
     // Visibility for testing.
     protected static long getRgNamespaceUnRegistersCount (String rgName) {
-        return (long) rgNamespaceUnRegisters.labels(rgName).get();
+        return rgNamespaceUnRegisters.labelValues(rgName).getLongValue();
     }
 
     // Visibility for testing.
-    protected static Summary.Child.Value getRgUsageAggregationLatency() {
-        return rgUsageAggregationLatency.get();
+    protected static SummarySnapshot.SummaryDataPointSnapshot getRgUsageAggregationLatency() {
+        return rgUsageAggregationLatency.collect().getDataPoints().get(0);
     }
 
     // Visibility for testing.
-    protected static Summary.Child.Value getRgQuotaCalculationTime() {
-        return rgQuotaCalculationLatency.get();
+    protected static SummarySnapshot.SummaryDataPointSnapshot getRgQuotaCalculationTime() {
+        return rgQuotaCalculationLatency.collect().getDataPoints().get(0);
     }
 
     // Periodically aggregate the usage from all topics known to the BrokerService.
@@ -567,7 +569,7 @@ public class ResourceGroupService implements AutoCloseable{
         if (!shouldRunPeriodicTasks()) {
             return;
         }
-        final Summary.Timer aggrUsageTimer = rgUsageAggregationLatency.startTimer();
+        final Timer aggrUsageTimer = rgUsageAggregationLatency.startTimer();
         BrokerService bs = this.pulsar.getBrokerService();
         Map<String, TopicStatsImpl> topicStatsMap = bs.getTopicStats();
 
@@ -637,7 +639,7 @@ public class ResourceGroupService implements AutoCloseable{
             return;
         }
         // Calculate the quota for the next window for this RG, based on the observed usage.
-        final Summary.Timer quotaCalcTimer = rgQuotaCalculationLatency.startTimer();
+        final Timer quotaCalcTimer = rgQuotaCalculationLatency.startTimer();
         BytesAndMessagesCount updatedQuota = new BytesAndMessagesCount();
         this.resourceGroupsMap.forEach((rgName, resourceGroup) -> {
             BytesAndMessagesCount globalUsageStats;
@@ -664,10 +666,10 @@ public class ResourceGroupService implements AutoCloseable{
                     BytesAndMessagesCount oldBMCount = resourceGroup.updateLocalQuota(monClass, updatedQuota);
                     // Guard against unconfigured quota settings, for which computeLocalQuota will return negative.
                     if (updatedQuota.messages >= 0) {
-                        rgCalculatedQuotaMessages.labels(rgName, monClass.name()).inc(updatedQuota.messages);
+                        rgCalculatedQuotaMessages.labelValues(rgName, monClass.name()).inc(updatedQuota.messages);
                     }
                     if (updatedQuota.bytes >= 0) {
-                        rgCalculatedQuotaBytes.labels(rgName, monClass.name()).inc(updatedQuota.bytes);
+                        rgCalculatedQuotaBytes.labelValues(rgName, monClass.name()).inc(updatedQuota.bytes);
                     }
                     if (oldBMCount != null) {
                         long messagesIncrement = updatedQuota.messages - oldBMCount.messages;
@@ -873,66 +875,71 @@ public class ResourceGroupService implements AutoCloseable{
     private static final String[] resourceGroupLabel = {"ResourceGroup"};
     private static final String[] resourceGroupMonitoringclassLabels = {"ResourceGroup", "MonitoringClass"};
 
-    private static final Counter rgCalculatedQuotaBytes = Counter.build()
+    private static final Counter rgCalculatedQuotaBytes = Counter.builder()
             .name("pulsar_resource_group_calculated_bytes_quota")
             .help("Bytes quota calculated for resource group")
             .labelNames(resourceGroupMonitoringclassLabels)
             .register();
-    private static final Counter rgCalculatedQuotaMessages = Counter.build()
+    private static final Counter rgCalculatedQuotaMessages = Counter.builder()
             .name("pulsar_resource_group_calculated_messages_quota")
             .help("Messages quota calculated for resource group")
             .labelNames(resourceGroupMonitoringclassLabels)
             .register();
 
-    private static final Counter rgLocalUsageBytes = Counter.build()
+    private static final Counter rgLocalUsageBytes = Counter.builder()
             .name("pulsar_resource_group_bytes_used")
             .help("Bytes locally used within this resource group during the last aggregation interval")
             .labelNames(resourceGroupMonitoringclassLabels)
             .register();
-    private static final Counter rgLocalUsageMessages = Counter.build()
+    private static final Counter rgLocalUsageMessages = Counter.builder()
             .name("pulsar_resource_group_messages_used")
             .help("Messages locally used within this resource group during the last aggregation interval")
             .labelNames(resourceGroupMonitoringclassLabels)
             .register();
 
-    private static final Counter rgUpdates = Counter.build()
+    private static final Counter rgUpdates = Counter.builder()
             .name("pulsar_resource_group_updates")
             .help("Number of update operations on the given resource group")
             .labelNames(resourceGroupLabel)
             .register();
 
-    private static final Counter rgTenantRegisters = Counter.build()
+    private static final Counter rgTenantRegisters = Counter.builder()
             .name("pulsar_resource_group_tenant_registers")
             .help("Number of registrations of tenants")
             .labelNames(resourceGroupLabel)
             .register();
-    private static final Counter rgTenantUnRegisters = Counter.build()
+    private static final Counter rgTenantUnRegisters = Counter.builder()
             .name("pulsar_resource_group_tenant_unregisters")
             .help("Number of un-registrations of tenants")
             .labelNames(resourceGroupLabel)
             .register();
 
-    private static final Counter rgNamespaceRegisters = Counter.build()
+    private static final Counter rgNamespaceRegisters = Counter.builder()
             .name("pulsar_resource_group_namespace_registers")
             .help("Number of registrations of namespaces")
             .labelNames(resourceGroupLabel)
             .register();
-    private static final Counter rgNamespaceUnRegisters = Counter.build()
+    private static final Counter rgNamespaceUnRegisters = Counter.builder()
             .name("pulsar_resource_group_namespace_unregisters")
             .help("Number of un-registrations of namespaces")
             .labelNames(resourceGroupLabel)
             .register();
 
-    private static final Summary rgUsageAggregationLatency = Summary.build()
+    /** simpleclient's default sliding window for summary quantiles; the 1.x default is 5 minutes. */
+    private static final long QUANTILE_WINDOW_SECONDS = TimeUnit.MINUTES.toSeconds(10);
+
+    private static final Summary rgUsageAggregationLatency = Summary.builder()
             .quantile(0.5, 0.05)
             .quantile(0.9, 0.01)
+            .maxAgeSeconds(QUANTILE_WINDOW_SECONDS)
             .name("pulsar_resource_group_aggregate_usage_secs")
             .help("Time required to aggregate usage of all resource groups, in seconds.")
             .register();
 
-    private static final Summary rgQuotaCalculationLatency = Summary.build()
+    private static final Summary rgQuotaCalculationLatency = Summary.builder()
             .quantile(0.5, 0.05)
             .quantile(0.9, 0.01)
+            .maxAgeSeconds(QUANTILE_WINDOW_SECONDS)
             .name("pulsar_resource_group_calculate_quota_secs")
             .help("Time required to calculate quota of all resource groups, in seconds.")
             .register();
