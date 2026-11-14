@@ -30,6 +30,8 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.MockZooKeeper;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -74,6 +76,17 @@ public class AdminApiTenantTest extends MockedPulsarServiceBaseTest {
     public void testDeleteNonExistTenant() {
         String tenant = "test-non-exist-tenant-" + UUID.randomUUID();
         assertThrows(PulsarAdminException.NotFoundException.class, () -> admin.tenants().deleteTenant(tenant));
+    }
+
+    @Test
+    public void testCreateTenantConflictWhenCreatedConcurrently() {
+        String tenant = "test-create-tenant-concurrently-" + UUID.randomUUID();
+        // Simulate a concurrent request that creates the tenant after the existence check of this request
+        mockZooKeeperGlobal.failConditional(KeeperException.Code.NODEEXISTS,
+                (op, path) -> op == MockZooKeeper.Op.CREATE && path.equals("/admin/policies/" + tenant));
+        assertThrows(PulsarAdminException.ConflictException.class,
+                () -> admin.tenants().createTenant(tenant, TenantInfo.builder()
+                        .allowedClusters(Collections.singleton(CLUSTER)).build()));
     }
 
     @Test
