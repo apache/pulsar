@@ -18,14 +18,21 @@
  */
 package org.apache.pulsar.broker.service.scalable;
 
+import static org.apache.pulsar.broker.service.scalable.PrometheusSamples.families;
+import static org.apache.pulsar.broker.service.scalable.PrometheusSamples.getSampleValue;
+import static org.apache.pulsar.broker.service.scalable.PrometheusSamples.registeredFamilies;
+import static org.apache.pulsar.broker.service.scalable.PrometheusSamples.upperBound;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.RETURNS_SELF;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 import io.opentelemetry.api.common.Attributes;
@@ -37,11 +44,12 @@ import io.opentelemetry.sdk.metrics.data.HistogramPointData;
 import io.opentelemetry.sdk.metrics.data.MetricData;
 import io.opentelemetry.sdk.metrics.data.MetricDataType;
 import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
-import io.prometheus.client.Collector;
-import io.prometheus.client.CollectorRegistry;
-import io.prometheus.client.Gauge;
+import io.prometheus.metrics.config.PrometheusProperties;
+import io.prometheus.metrics.config.PrometheusPropertiesLoader;
+import io.prometheus.metrics.core.metrics.Gauge;
+import io.prometheus.metrics.model.registry.MetricType;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -56,6 +64,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.pulsar.broker.service.scalable.ScalableTopicMetrics.RequestType;
 import org.apache.pulsar.broker.service.scalable.ScalableTopicMetrics.WatchType;
+import org.mockito.MockedStatic;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -70,7 +79,7 @@ public class ScalableTopicMetricsTest {
 
     @Test
     public void testSessionAndUpdateExporterParity() {
-        CollectorRegistry registry = new CollectorRegistry();
+        PrometheusRegistry registry = new PrometheusRegistry();
         try (Telemetry telemetry = new Telemetry();
              ScalableTopicMetrics metrics = new ScalableTopicMetrics(telemetry.meter, CLUSTER, registry)) {
             assertSessionsAndUpdates(telemetry, registry, 0, 0, 0, 0);
@@ -93,15 +102,15 @@ public class ScalableTopicMetricsTest {
             MetricData updates = telemetry.metric(ScalableTopicMetrics.WATCH_UPDATE_COUNT_METRIC_NAME);
             assertThat(updates.getLongSumData().isMonotonic()).isTrue();
             assertThat(updates.getUnit()).isEqualTo("{update}");
-            assertThat(family(registry, PROM_SESSIONS).type).isEqualTo(Collector.Type.GAUGE);
-            assertThat(family(registry, "pulsar_scalable_topic_watch_update").type)
-                    .isEqualTo(Collector.Type.COUNTER);
+            assertThat(family(registry, PROM_SESSIONS).type()).isEqualTo(MetricType.GAUGE);
+            assertThat(family(registry, "pulsar_scalable_topic_watch_update").type())
+                    .isEqualTo(MetricType.COUNTER);
         }
     }
 
     @Test
     public void testRequestHistogramExporterParityLabelsAndBuckets() {
-        CollectorRegistry registry = new CollectorRegistry();
+        PrometheusRegistry registry = new PrometheusRegistry();
         AtomicLong nanoTime = new AtomicLong();
         try (Telemetry telemetry = new Telemetry();
              ScalableTopicMetrics metrics =
@@ -135,9 +144,8 @@ public class ScalableTopicMetricsTest {
                     long cumulative = 0;
                     for (int i = 0; i < point.getCounts().size(); i++) {
                         cumulative += point.getCounts().get(i);
-                        String boundary = i < BUCKETS.size()
-                                ? Collector.doubleToGoString(BUCKETS.get(i)) : "+Inf";
-                        assertThat(registry.getSampleValue(PROM_DURATION + "_bucket",
+                        String boundary = i < BUCKETS.size() ? upperBound(BUCKETS.get(i)) : "+Inf";
+                        assertThat(getSampleValue(registry, PROM_DURATION + "_bucket",
                                 new String[]{"cluster", "request_type", "operation_status", "le"},
                                 new String[]{CLUSTER, requestType, status, boundary}))
                                 .as("cumulative bucket %s for %s/%s", boundary, requestType, status)
@@ -150,14 +158,71 @@ public class ScalableTopicMetricsTest {
                     assertThat(cumulative).isEqualTo(durations.size());
                 }
             }
-            Collector.MetricFamilySamples histogram = family(registry, PROM_DURATION);
-            assertThat(histogram.type).isEqualTo(Collector.Type.HISTOGRAM);
-            assertThat(histogram.samples).allSatisfy(sample -> {
-                assertThat(sample.labelNames).contains("cluster", "request_type", "operation_status");
-                assertThat(sample.labelNames).isSubsetOf("cluster", "request_type", "operation_status", "le");
-                assertThat(sample.labelValues.get(sample.labelNames.indexOf("cluster"))).isEqualTo(CLUSTER);
+            PrometheusSamples.Family histogram = family(registry, PROM_DURATION);
+            assertThat(histogram.type()).isEqualTo(MetricType.HISTOGRAM);
+            assertThat(histogram.samples()).allSatisfy(sample -> {
+                assertThat(sample.labelNames()).contains("cluster", "request_type", "operation_status");
+                assertThat(sample.labelNames()).isSubsetOf("cluster", "request_type", "operation_status", "le");
+                assertThat(sample.labelValues().get(sample.labelNames().indexOf("cluster"))).isEqualTo(CLUSTER);
             });
         }
+    }
+
+    /**
+     * Proves that a per-metric {@code histogramClassicUpperBounds} override in the client configuration handed to
+     * the constructor is stripped before the request histogram is built: the scrape still exposes the fixed bounds
+     * and the observation lands in them. This does not cover where the production constructors take their
+     * configuration from; see {@link #testGlobalRuntimeBucketOverridesDoNotReachTheRequestHistogram}.
+     */
+    @Test
+    public void testRuntimeBucketOverridesDoNotReachTheRequestHistogram() {
+        PrometheusRegistry registry = new PrometheusRegistry();
+        AtomicLong nanoTime = new AtomicLong();
+        try (Telemetry telemetry = new Telemetry();
+             ScalableTopicMetrics metrics = new ScalableTopicMetrics(telemetry.meter, CLUSTER, registry,
+                     nanoTime::get, bucketOverrides())) {
+            ScalableTopicMetrics.Request request = metrics.startRequest(RequestType.LOOKUP);
+            nanoTime.addAndGet(TimeUnit.MILLISECONDS.toNanos(30));
+            request.success();
+            assertFixedBoundsAndOneLookup(registry);
+        }
+    }
+
+    /**
+     * Proves that the public constructor builds the request histogram from {@link PrometheusProperties#get()} with
+     * the metric overrides stripped. {@code PrometheusProperties.get()} is stubbed on this thread to carry the
+     * per-metric bucket override, so a plain {@code Histogram.builder()} would pick the override up from the global
+     * configuration, the shared collector would then rebuild the snapshot with a different bucket count, and the
+     * scrape would fail. The test does not touch the real global configuration and needs no forked JVM.
+     */
+    @Test
+    public void testGlobalRuntimeBucketOverridesDoNotReachTheRequestHistogram() {
+        PrometheusProperties overrides = bucketOverrides();
+        PrometheusRegistry registry = new PrometheusRegistry();
+        try (MockedStatic<PrometheusProperties> global = mockStatic(PrometheusProperties.class, CALLS_REAL_METHODS)) {
+            global.when(PrometheusProperties::get).thenReturn(overrides);
+            try (Telemetry telemetry = new Telemetry();
+                 ScalableTopicMetrics metrics = new ScalableTopicMetrics(telemetry.meter, CLUSTER, registry)) {
+                global.verify(PrometheusProperties::get, atLeastOnce());
+                metrics.startRequest(RequestType.LOOKUP).success();
+                assertFixedBoundsAndOneLookup(registry);
+            }
+        }
+    }
+
+    private static PrometheusProperties bucketOverrides() {
+        return PrometheusPropertiesLoader.load(Map.of(
+                "io.prometheus.metrics." + PROM_DURATION + ".histogramClassicUpperBounds", "0.1,1"));
+    }
+
+    private static void assertFixedBoundsAndOneLookup(PrometheusRegistry registry) {
+        List<String> bounds = family(registry, PROM_DURATION).samples().stream()
+                .filter(sample -> sample.name().equals(PROM_DURATION + "_bucket"))
+                .map(sample -> sample.labelValues().get(sample.labelNames().indexOf("le"))).toList();
+        List<String> expected = new ArrayList<>(BUCKETS.stream().map(PrometheusSamples::upperBound).toList());
+        expected.add("+Inf");
+        assertThat(bounds).containsExactlyElementsOf(expected);
+        assertThat(durationSample(registry, "_count", "lookup", "success")).isEqualTo(1);
     }
 
     @DataProvider
@@ -167,7 +232,7 @@ public class ScalableTopicMetricsTest {
 
     @Test(dataProvider = "outcomes")
     public void testOnlyFirstResponseRecordsDuration(boolean success) {
-        CollectorRegistry registry = new CollectorRegistry();
+        PrometheusRegistry registry = new PrometheusRegistry();
         AtomicLong nanoTime = new AtomicLong(TimeUnit.SECONDS.toNanos(3));
         try (Telemetry telemetry = new Telemetry();
              ScalableTopicMetrics metrics =
@@ -193,7 +258,7 @@ public class ScalableTopicMetricsTest {
 
     @Test
     public void testConcurrentResponsesRecordExactlyOnce() throws Exception {
-        CollectorRegistry registry = new CollectorRegistry();
+        PrometheusRegistry registry = new PrometheusRegistry();
         AtomicLong nanoTime = new AtomicLong();
         ExecutorService executor = Executors.newFixedThreadPool(4);
         try (Telemetry telemetry = new Telemetry();
@@ -231,7 +296,7 @@ public class ScalableTopicMetricsTest {
 
     @Test
     public void testCloseUnregistersCollectorAndObservableCallbacks() {
-        CollectorRegistry registry = new CollectorRegistry();
+        PrometheusRegistry registry = new PrometheusRegistry();
         try (Telemetry telemetry = new Telemetry();
              ScalableTopicMetrics metrics = new ScalableTopicMetrics(telemetry.meter, CLUSTER, registry)) {
             metrics.sessionOpened(WatchType.TOPIC);
@@ -245,7 +310,7 @@ public class ScalableTopicMetricsTest {
             metrics.sessionOpened(WatchType.TOPIC);
             metrics.sessionClosed(WatchType.TOPIC);
             metrics.recordWatchUpdate(false);
-            assertThat(Collections.list(registry.metricFamilySamples())).isEmpty();
+            assertThat(registeredFamilies(registry)).isEmpty();
             assertThat(telemetry.reader.collectAllMetrics()).extracting(MetricData::getName)
                     .doesNotContain(ScalableTopicMetrics.WATCH_SESSION_COUNT_METRIC_NAME,
                             ScalableTopicMetrics.WATCH_UPDATE_COUNT_METRIC_NAME);
@@ -259,7 +324,7 @@ public class ScalableTopicMetricsTest {
     @Test
     public void testDefaultRegistrySharedBrokerLifecycle() {
         String cluster = "scalable-metrics-" + UUID.randomUUID();
-        CollectorRegistry registry = CollectorRegistry.defaultRegistry;
+        PrometheusRegistry registry = PrometheusRegistry.defaultRegistry;
         try (Telemetry firstTelemetry = new Telemetry();
              Telemetry secondTelemetry = new Telemetry();
              Telemetry thirdTelemetry = new Telemetry();
@@ -275,17 +340,17 @@ public class ScalableTopicMetricsTest {
             assertThat(sessionSample(registry, cluster, "topic")).isEqualTo(2);
             assertThat(sessionSample(registry, cluster, "namespace")).isEqualTo(1);
             assertThat(updateSample(registry, cluster, "success")).isEqualTo(2);
-            assertThat(registry.getSampleValue(PROM_DURATION + "_count",
+            assertThat(getSampleValue(registry, PROM_DURATION + "_count",
                     new String[]{"cluster", "request_type", "operation_status"},
                     new String[]{cluster, "lookup", "success"})).isEqualTo(2);
-            assertThat(family(registry, PROM_SESSIONS).samples)
-                    .filteredOn(sample -> sample.labelValues.contains(cluster)).hasSize(2);
+            assertThat(family(registry, PROM_SESSIONS).samples())
+                    .filteredOn(sample -> sample.labelValues().contains(cluster)).hasSize(2);
 
             first.close();
             first.close();
             assertThat(sessionSample(registry, cluster, "topic")).isEqualTo(1);
             assertThat(updateSample(registry, cluster, "success")).isEqualTo(2);
-            assertThat(registry.getSampleValue(PROM_DURATION + "_count",
+            assertThat(getSampleValue(registry, PROM_DURATION + "_count",
                     new String[]{"cluster", "request_type", "operation_status"},
                     new String[]{cluster, "lookup", "success"})).isEqualTo(2);
             assertThat(longPoint(secondTelemetry, ScalableTopicMetrics.WATCH_SESSION_COUNT_METRIC_NAME,
@@ -319,7 +384,7 @@ public class ScalableTopicMetricsTest {
 
     @Test
     public void testSharedClusterRetainsCumulativeSamplesUntilLastBrokerCloses() {
-        CollectorRegistry registry = new CollectorRegistry();
+        PrometheusRegistry registry = new PrometheusRegistry();
         AtomicLong firstClock = new AtomicLong();
         AtomicLong secondClock = new AtomicLong();
         AtomicLong replacementClock = new AtomicLong();
@@ -405,7 +470,7 @@ public class ScalableTopicMetricsTest {
             }
             assertThat(cumulativeSamples(registry, CLUSTER)).isEmpty();
         }
-        assertThat(Collections.list(registry.metricFamilySamples())).isEmpty();
+        assertThat(registeredFamilies(registry)).isEmpty();
         try (Telemetry telemetry = new Telemetry();
              ScalableTopicMetrics fresh = new ScalableTopicMetrics(telemetry.meter, CLUSTER, registry)) {
             assertThat(cumulativeSamples(registry, CLUSTER)).hasSize(2)
@@ -422,7 +487,7 @@ public class ScalableTopicMetricsTest {
 
     @Test(dataProvider = "brokerCloseOrders")
     public void testThreeBrokerCloseOrderPreservesExactHistogramSum(int[] closeOrder) {
-        CollectorRegistry registry = new CollectorRegistry();
+        PrometheusRegistry registry = new PrometheusRegistry();
         AtomicLong firstClock = new AtomicLong();
         AtomicLong secondClock = new AtomicLong();
         AtomicLong thirdClock = new AtomicLong();
@@ -452,7 +517,7 @@ public class ScalableTopicMetricsTest {
             }
             brokers.get(closeOrder[2]).close();
             assertThat(cumulativeSamples(registry, CLUSTER)).isEmpty();
-            assertThat(Collections.list(registry.metricFamilySamples())).isEmpty();
+            assertThat(registeredFamilies(registry)).isEmpty();
         }
     }
 
@@ -464,7 +529,7 @@ public class ScalableTopicMetricsTest {
         AtomicBoolean blockClock = new AtomicBoolean();
         AtomicLong firstClock = new AtomicLong();
         AtomicLong survivorClock = new AtomicLong();
-        CollectorRegistry registry = new CollectorRegistry();
+        PrometheusRegistry registry = new PrometheusRegistry();
         try (Telemetry firstTelemetry = new Telemetry();
              Telemetry survivorTelemetry = new Telemetry();
              Telemetry stressTelemetry = new Telemetry();
@@ -504,7 +569,7 @@ public class ScalableTopicMetricsTest {
             assertAcceptedSdkRecordDoesNotBlockClose(executor);
 
             for (int iteration = 0; iteration < 100; iteration++) {
-                CollectorRegistry sharedRegistry = new CollectorRegistry();
+                PrometheusRegistry sharedRegistry = new PrometheusRegistry();
                 AtomicLong clock = new AtomicLong();
                 try (ScalableTopicMetrics closing = new ScalableTopicMetrics(
                         stressTelemetry.meter, CLUSTER, sharedRegistry, clock::get);
@@ -535,7 +600,7 @@ public class ScalableTopicMetricsTest {
                     assertThat(durationSample(sharedRegistry, "_count", "lookup", "success")).isEqualTo(3);
                     assertThat(updateSample(sharedRegistry, CLUSTER, "success")).isEqualTo(3);
                 }
-                assertThat(Collections.list(sharedRegistry.metricFamilySamples())).isEmpty();
+                assertThat(registeredFamilies(sharedRegistry)).isEmpty();
             }
         } finally {
             releaseClock.countDown();
@@ -546,8 +611,8 @@ public class ScalableTopicMetricsTest {
 
     @Test
     public void testSeparateRegistriesAreIndependent() {
-        CollectorRegistry firstRegistry = new CollectorRegistry();
-        CollectorRegistry secondRegistry = new CollectorRegistry();
+        PrometheusRegistry firstRegistry = new PrometheusRegistry();
+        PrometheusRegistry secondRegistry = new PrometheusRegistry();
         try (Telemetry firstTelemetry = new Telemetry();
              Telemetry secondTelemetry = new Telemetry();
              ScalableTopicMetrics first = new ScalableTopicMetrics(firstTelemetry.meter, CLUSTER, firstRegistry);
@@ -557,27 +622,30 @@ public class ScalableTopicMetricsTest {
             assertThat(sessionSample(firstRegistry, CLUSTER, "topic")).isEqualTo(1);
             assertThat(sessionSample(secondRegistry, CLUSTER, "topic")).isEqualTo(0);
             first.close();
-            assertThat(Collections.list(firstRegistry.metricFamilySamples())).isEmpty();
+            assertThat(registeredFamilies(firstRegistry)).isEmpty();
             assertThat(sessionSample(secondRegistry, CLUSTER, "namespace")).isEqualTo(1);
         }
     }
 
     @Test
     public void testFailedRegistrationDoesNotLeakCallbacksOrUnregisterOtherCollector() {
-        CollectorRegistry registry = new CollectorRegistry();
-        Gauge existing = Gauge.build(PROM_SESSIONS, "Existing collector").register(registry);
+        PrometheusRegistry registry = new PrometheusRegistry();
+        // Same name and label schema as the shared collector's gauge, so the registry must reject the second one.
+        Gauge existing = Gauge.builder().name(PROM_SESSIONS).help("Existing collector")
+                .labelNames("cluster", "watch_type").register(registry);
+        existing.labelValues(CLUSTER, "topic").set(0);
         try (Telemetry telemetry = new Telemetry()) {
             assertThatThrownBy(() -> new ScalableTopicMetrics(telemetry.meter, CLUSTER, registry))
                     .isInstanceOf(IllegalArgumentException.class);
             assertThat(telemetry.reader.collectAllMetrics()).isEmpty();
-            assertThat(registry.getSampleValue(PROM_SESSIONS)).isEqualTo(0);
+            assertThat(sessionSample(registry, CLUSTER, "topic")).isEqualTo(0);
         } finally {
             registry.unregister(existing);
         }
     }
 
     private static void assertAcceptedSdkRecordDoesNotBlockClose(ExecutorService executor) throws Exception {
-        CollectorRegistry registry = new CollectorRegistry();
+        PrometheusRegistry registry = new PrometheusRegistry();
         AtomicLong clock = new AtomicLong();
         CountDownLatch sdkEntered = new CountDownLatch(1);
         CountDownLatch releaseSdk = new CountDownLatch(1);
@@ -655,20 +723,19 @@ public class ScalableTopicMetricsTest {
 
     private record CumulativeSample(String name, List<String> labels, List<String> values) {}
 
-    private static Map<CumulativeSample, Double> cumulativeSamples(CollectorRegistry registry, String cluster) {
+    private static Map<CumulativeSample, Double> cumulativeSamples(PrometheusRegistry registry, String cluster) {
         Map<CumulativeSample, Double> samples = new LinkedHashMap<>();
-        for (Collector.MetricFamilySamples family : Collections.list(registry.metricFamilySamples())) {
-            if (family.type != Collector.Type.COUNTER && family.type != Collector.Type.HISTOGRAM) {
+        for (PrometheusSamples.Family family : families(registry)) {
+            if (family.type() != MetricType.COUNTER && family.type() != MetricType.HISTOGRAM) {
                 continue;
             }
-            for (Collector.MetricFamilySamples.Sample sample : family.samples) {
-                int clusterIndex = sample.labelNames.indexOf("cluster");
-                if (clusterIndex >= 0 && sample.labelValues.get(clusterIndex).equals(cluster)
-                        && !sample.name.endsWith("_created")) {
-                    CumulativeSample key = new CumulativeSample(sample.name,
-                            List.copyOf(sample.labelNames), List.copyOf(sample.labelValues));
+            for (PrometheusSamples.Sample sample : family.samples()) {
+                int clusterIndex = sample.labelNames().indexOf("cluster");
+                if (clusterIndex >= 0 && sample.labelValues().get(clusterIndex).equals(cluster)) {
+                    CumulativeSample key = new CumulativeSample(sample.name(),
+                            List.copyOf(sample.labelNames()), List.copyOf(sample.labelValues()));
                     assertThat(samples).as("one cumulative series per label set").doesNotContainKey(key);
-                    samples.put(key, sample.value);
+                    samples.put(key, sample.value());
                 }
             }
         }
@@ -691,7 +758,7 @@ public class ScalableTopicMetricsTest {
         }
     }
 
-    private static void assertCumulativeMultiple(CollectorRegistry registry, String cluster,
+    private static void assertCumulativeMultiple(PrometheusRegistry registry, String cluster,
                                                 Map<CumulativeSample, Double> oneBroker, int multiple) {
         Map<CumulativeSample, Double> actual = cumulativeSamples(registry, cluster);
         assertThat(actual.keySet()).isEqualTo(oneBroker.keySet());
@@ -736,27 +803,27 @@ public class ScalableTopicMetricsTest {
                 .filter(point -> point.getAttributes().equals(attributes)).findFirst().orElseThrow();
     }
 
-    private static Collector.MetricFamilySamples family(CollectorRegistry registry, String name) {
-        return Collections.list(registry.metricFamilySamples()).stream()
-                .filter(family -> family.name.equals(name)).findFirst().orElseThrow();
+    private static PrometheusSamples.Family family(PrometheusRegistry registry, String name) {
+        return families(registry).stream()
+                .filter(family -> family.name().equals(name)).findFirst().orElseThrow();
     }
 
-    private static Double durationSample(CollectorRegistry registry, String suffix, String type, String status) {
-        return registry.getSampleValue(PROM_DURATION + suffix,
+    private static Double durationSample(PrometheusRegistry registry, String suffix, String type, String status) {
+        return getSampleValue(registry, PROM_DURATION + suffix,
                 new String[]{"cluster", "request_type", "operation_status"}, new String[]{CLUSTER, type, status});
     }
 
-    private static Double sessionSample(CollectorRegistry registry, String cluster, String type) {
-        return registry.getSampleValue(PROM_SESSIONS,
+    private static Double sessionSample(PrometheusRegistry registry, String cluster, String type) {
+        return getSampleValue(registry, PROM_SESSIONS,
                 new String[]{"cluster", "watch_type"}, new String[]{cluster, type});
     }
 
-    private static Double updateSample(CollectorRegistry registry, String cluster, String status) {
-        return registry.getSampleValue(PROM_UPDATES,
+    private static Double updateSample(PrometheusRegistry registry, String cluster, String status) {
+        return getSampleValue(registry, PROM_UPDATES,
                 new String[]{"cluster", "operation_status"}, new String[]{cluster, status});
     }
 
-    private static void assertSessionsAndUpdates(Telemetry telemetry, CollectorRegistry registry,
+    private static void assertSessionsAndUpdates(Telemetry telemetry, PrometheusRegistry registry,
                                                 long topics, long namespaces, long successes, long failures) {
         assertThat(longPoint(telemetry, ScalableTopicMetrics.WATCH_SESSION_COUNT_METRIC_NAME, watchAttributes("topic")))
                 .isEqualTo(topics);

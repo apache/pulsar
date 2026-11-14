@@ -35,9 +35,8 @@ import io.netty.channel.DefaultChannelPromise;
 import io.netty.util.concurrent.ImmediateEventExecutor;
 import io.opentelemetry.sdk.metrics.SdkMeterProvider;
 import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
-import io.prometheus.client.CollectorRegistry;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import java.util.ArrayDeque;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -153,7 +152,7 @@ public class DagWatchSessionLookupCompatibilityTest {
         private final MetadataStore store = mock(MetadataStore.class);
         private final ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
         private final Queue<ChannelPromise> writes = new ArrayDeque<>();
-        private final CollectorRegistry registry = new CollectorRegistry();
+        private final PrometheusRegistry registry = new PrometheusRegistry();
         private final InMemoryMetricReader reader = InMemoryMetricReader.create();
         private final SdkMeterProvider provider = SdkMeterProvider.builder().registerMetricReader(reader).build();
         private final ScalableTopicMetrics metrics = new ScalableTopicMetrics(provider.get("test"), "test", registry);
@@ -193,7 +192,7 @@ public class DagWatchSessionLookupCompatibilityTest {
         }
 
         private void collect() {
-            assertThat(Collections.list(registry.metricFamilySamples())).isNotEmpty();
+            assertThat(PrometheusSamples.families(registry)).isNotEmpty();
             assertThat(reader.collectAllMetrics()).isNotEmpty();
         }
 

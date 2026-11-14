@@ -21,9 +21,13 @@ package org.apache.pulsar.broker.service.scalable;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.BatchCallback;
 import io.opentelemetry.api.metrics.Meter;
-import io.prometheus.client.Collector;
-import io.prometheus.client.CollectorRegistry;
-import io.prometheus.client.GaugeMetricFamily;
+import io.prometheus.metrics.model.registry.MultiCollector;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
+import io.prometheus.metrics.model.snapshots.CounterSnapshot;
+import io.prometheus.metrics.model.snapshots.GaugeSnapshot;
+import io.prometheus.metrics.model.snapshots.Labels;
+import io.prometheus.metrics.model.snapshots.MetricFamilyDescriptor;
+import io.prometheus.metrics.model.snapshots.MetricSnapshots;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -31,7 +35,6 @@ import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Supplier;
-import org.apache.pulsar.broker.stats.prometheus.PrometheusCounterMetricFamily;
 
 /** Broker-level segment-owner metrics, with a single source for both export paths. */
 public final class SegmentOwnerMetrics implements AutoCloseable {
@@ -40,7 +43,7 @@ public final class SegmentOwnerMetrics implements AutoCloseable {
     private static final String ATTRIBUTE_PREFIX = "pulsar.scalable_topic.";
     // A JVM can host several brokers (notably in tests). Share registration, not broker state,
     // and sum brokers of the same cluster so the registry never emits duplicate label sets.
-    private static final Map<CollectorRegistry, OwnerCollector> COLLECTORS = new HashMap<>();
+    private static final Map<PrometheusRegistry, OwnerCollector> COLLECTORS = new HashMap<>();
 
     public enum EntryBucketViolation {
         STRADDLING("straddling"), UNSTAMPED_BATCH("unstamped_batch");
@@ -73,14 +76,14 @@ public final class SegmentOwnerMetrics implements AutoCloseable {
     private final LongAdder[] violations = {new LongAdder(), new LongAdder()};
     private final LongAdder[] loadReports = {new LongAdder(), new LongAdder(), new LongAdder()};
     private final BatchCallback callback;
-    private final CollectorRegistry registry;
+    private final PrometheusRegistry registry;
     private boolean closed;
 
     public SegmentOwnerMetrics(Meter meter, String cluster, Supplier<Gauges> gauges) {
-        this(meter, CollectorRegistry.defaultRegistry, cluster, gauges);
+        this(meter, PrometheusRegistry.defaultRegistry, cluster, gauges);
     }
 
-    SegmentOwnerMetrics(Meter meter, CollectorRegistry registry, String cluster, Supplier<Gauges> gauges) {
+    SegmentOwnerMetrics(Meter meter, PrometheusRegistry registry, String cluster, Supplier<Gauges> gauges) {
         this.cluster = cluster;
         this.gauges = gauges;
         this.registry = registry;
@@ -167,46 +170,70 @@ public final class SegmentOwnerMetrics implements AutoCloseable {
         }
     }
 
-    private static final class OwnerCollector extends Collector implements Collector.Describable {
+    private static final class OwnerCollector implements MultiCollector {
+        // Counters are declared without "_total"; the exposition format appends it.
+        private static final MetricFamilyDescriptor LEADERLESS = MetricFamilyDescriptor
+                .gauge(PROMETHEUS_PREFIX + "leaderless_count")
+                .help("Hosted scalable topics without a controller leader.").labelNames("cluster").build();
+        private static final MetricFamilyDescriptor UNWRITABLE = MetricFamilyDescriptor
+                .gauge(PROMETHEUS_PREFIX + "segment_unwritable_count")
+                .help("Hosted active segments whose backing topic is terminated.").labelNames("cluster").build();
+        private static final MetricFamilyDescriptor DRAINING = MetricFamilyDescriptor
+                .gauge(PROMETHEUS_PREFIX + "entry_bucket_draining_count")
+                .help("Entry buckets withheld until their previous owner acknowledges in-flight messages.")
+                .labelNames("cluster").build();
+        private static final MetricFamilyDescriptor VIOLATIONS = MetricFamilyDescriptor
+                .counter(PROMETHEUS_PREFIX + "entry_bucket_violation")
+                .help("Entries that cannot be routed by a single entry bucket.")
+                .labelNames("cluster", "entry_bucket_violation").build();
+        private static final MetricFamilyDescriptor LOAD_REPORTS = MetricFamilyDescriptor
+                .counter(PROMETHEUS_PREFIX + "segment_load_report")
+                .help("Segment load samples by reporting result.").labelNames("cluster", "load_report_result").build();
+        private static final List<MetricFamilyDescriptor> DESCRIPTORS =
+                List.of(LEADERLESS, UNWRITABLE, DRAINING, VIOLATIONS, LOAD_REPORTS);
+
         private final List<SegmentOwnerMetrics> owners = new CopyOnWriteArrayList<>();
 
         @Override
-        public List<MetricFamilySamples> describe() {
-            return families(Map.of());
+        public List<MetricFamilyDescriptor> getMetricFamilyDescriptors() {
+            return DESCRIPTORS;
         }
 
         @Override
-        public List<MetricFamilySamples> collect() {
+        public MetricSnapshots collect() {
             Map<String, Totals> totals = new HashMap<>();
             owners.forEach(owner -> totals.computeIfAbsent(owner.cluster, __ -> new Totals()).add(owner));
-            return families(totals);
-        }
-
-        private static List<MetricFamilySamples> families(Map<String, Totals> totals) {
-            var leaderless = new GaugeMetricFamily(PROMETHEUS_PREFIX + "leaderless_count",
-                    "Hosted scalable topics without a controller leader.", List.of("cluster"));
-            var unwritable = new GaugeMetricFamily(PROMETHEUS_PREFIX + "segment_unwritable_count",
-                    "Hosted active segments whose backing topic is terminated.", List.of("cluster"));
-            var draining = new GaugeMetricFamily(PROMETHEUS_PREFIX + "entry_bucket_draining_count",
-                    "Entry buckets withheld until their previous owner acknowledges in-flight messages.",
-                    List.of("cluster"));
-            var violations = new PrometheusCounterMetricFamily(PROMETHEUS_PREFIX + "entry_bucket_violation",
-                    "Entries that cannot be routed by a single entry bucket.",
-                    List.of("cluster", "entry_bucket_violation"));
-            var loadReports = new PrometheusCounterMetricFamily(PROMETHEUS_PREFIX + "segment_load_report",
-                    "Segment load samples by reporting result.", List.of("cluster", "load_report_result"));
+            List<GaugeSnapshot.GaugeDataPointSnapshot> leaderless = new ArrayList<>();
+            List<GaugeSnapshot.GaugeDataPointSnapshot> unwritable = new ArrayList<>();
+            List<GaugeSnapshot.GaugeDataPointSnapshot> draining = new ArrayList<>();
+            List<CounterSnapshot.CounterDataPointSnapshot> violations = new ArrayList<>();
+            List<CounterSnapshot.CounterDataPointSnapshot> loadReports = new ArrayList<>();
             totals.forEach((cluster, total) -> {
-                leaderless.addMetric(List.of(cluster), total.leaderless);
-                unwritable.addMetric(List.of(cluster), total.unwritable);
-                draining.addMetric(List.of(cluster), total.draining);
+                leaderless.add(gauge(Labels.of("cluster", cluster), total.leaderless));
+                unwritable.add(gauge(Labels.of("cluster", cluster), total.unwritable));
+                draining.add(gauge(Labels.of("cluster", cluster), total.draining));
                 for (EntryBucketViolation value : EntryBucketViolation.values()) {
-                    violations.addMetric(List.of(cluster, value.label), total.violations[value.ordinal()]);
+                    violations.add(counter(Labels.of("cluster", cluster, "entry_bucket_violation", value.label),
+                            total.violations[value.ordinal()]));
                 }
                 for (LoadReportResult value : LoadReportResult.values()) {
-                    loadReports.addMetric(List.of(cluster, value.label), total.loadReports[value.ordinal()]);
+                    loadReports.add(counter(Labels.of("cluster", cluster, "load_report_result", value.label),
+                            total.loadReports[value.ordinal()]));
                 }
             });
-            return new ArrayList<>(List.of(leaderless, unwritable, draining, violations, loadReports));
+            return MetricSnapshots.of(new GaugeSnapshot(LEADERLESS.getMetadata(), leaderless),
+                    new GaugeSnapshot(UNWRITABLE.getMetadata(), unwritable),
+                    new GaugeSnapshot(DRAINING.getMetadata(), draining),
+                    new CounterSnapshot(VIOLATIONS.getMetadata(), violations),
+                    new CounterSnapshot(LOAD_REPORTS.getMetadata(), loadReports));
+        }
+
+        private static GaugeSnapshot.GaugeDataPointSnapshot gauge(Labels labels, long value) {
+            return new GaugeSnapshot.GaugeDataPointSnapshot(value, labels, null);
+        }
+
+        private static CounterSnapshot.CounterDataPointSnapshot counter(Labels labels, long value) {
+            return new CounterSnapshot.CounterDataPointSnapshot(value, labels, null, 0L);
         }
     }
 }

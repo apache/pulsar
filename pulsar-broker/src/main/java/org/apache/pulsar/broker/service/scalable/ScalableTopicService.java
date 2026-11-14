@@ -19,7 +19,7 @@
 package org.apache.pulsar.broker.service.scalable;
 
 import io.opentelemetry.api.OpenTelemetry;
-import io.prometheus.client.CollectorRegistry;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -130,7 +130,7 @@ public class ScalableTopicService {
         }
         try {
             consumerMetrics = new ScalableTopicConsumerMetrics(
-                    brokerService.getPulsar().getOpenTelemetry().getMeter(), CollectorRegistry.defaultRegistry,
+                    brokerService.getPulsar().getOpenTelemetry().getMeter(), PrometheusRegistry.defaultRegistry,
                     brokerService.getPulsar().getConfiguration().getClusterName(), this::consumerStats);
         } catch (RuntimeException e) {
             log.warn().exceptionMessage(e)
