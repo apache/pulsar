@@ -39,7 +39,7 @@ dependencies {
     implementation(libs.okhttp3)
     implementation(libs.commons.lang3)
     implementation(libs.opentelemetry.api)
-    implementation(libs.simpleclient.caffeine)
+    implementation(libs.prometheus.metrics.instrumentation.caffeine)
 
     testImplementation(libs.wiremock)
     testImplementation(libs.jjwt.api)

@@ -87,7 +87,7 @@ dependencies {
     // PulsarBrokerStarter hands an in-process bookie's stats provider its own PrometheusRegistry.
     implementation(libs.prometheus.metrics.model)
     implementation(libs.simpleclient.hotspot)
-    implementation(libs.simpleclient.caffeine)
+    implementation(libs.prometheus.metrics.instrumentation.caffeine)
     implementation(libs.hdrHistogram)
     implementation(libs.gson)
     api(libs.java.semver)

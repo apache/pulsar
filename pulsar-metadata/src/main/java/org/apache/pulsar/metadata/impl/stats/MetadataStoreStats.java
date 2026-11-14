@@ -22,8 +22,10 @@ import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.LongCounter;
-import io.prometheus.client.Counter;
-import io.prometheus.client.Histogram;
+import io.prometheus.metrics.core.datapoints.CounterDataPoint;
+import io.prometheus.metrics.core.datapoints.DistributionDataPoint;
+import io.prometheus.metrics.core.metrics.Counter;
+import io.prometheus.metrics.core.metrics.Histogram;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class MetadataStoreStats implements AutoCloseable {
@@ -40,15 +42,17 @@ public final class MetadataStoreStats implements AutoCloseable {
 
     protected static final String PREFIX = "pulsar_metadata_store_";
 
-    private static final Histogram OPS_LATENCY = Histogram
-            .build(PREFIX + "ops_latency", "-")
-            .unit("ms")
-            .buckets(BUCKETS)
+    // The names keep the unit suffix that simpleclient's unit("ms") / unit("bytes") used to append.
+    private static final Histogram OPS_LATENCY = Histogram.builder()
+            .name(PREFIX + "ops_latency_ms")
+            .help("-")
+            .classicOnly()
+            .classicUpperBounds(BUCKETS)
             .labelNames(METADATA_STORE_LABEL_NAME, OPS_TYPE_LABEL_NAME, STATUS)
             .register();
-    private static final Counter PUT_BYTES = Counter
-            .build(PREFIX + "put", "-")
-            .unit("bytes")
+    private static final Counter PUT_BYTES = Counter.builder()
+            .name(PREFIX + "put_bytes")
+            .help("-")
             .labelNames(METADATA_STORE_LABEL_NAME)
             .register();
 
@@ -58,26 +62,26 @@ public final class MetadataStoreStats implements AutoCloseable {
     private final Attributes attributes;
     private final LongCounter putBytesCounter;
 
-    private final Histogram.Child getOpsSucceedChild;
-    private final Histogram.Child delOpsSucceedChild;
-    private final Histogram.Child putOpsSucceedChild;
-    private final Histogram.Child getOpsFailedChild;
-    private final Histogram.Child delOpsFailedChild;
-    private final Histogram.Child putOpsFailedChild;
-    private final Counter.Child putBytesChild;
+    private final DistributionDataPoint getOpsSucceedChild;
+    private final DistributionDataPoint delOpsSucceedChild;
+    private final DistributionDataPoint putOpsSucceedChild;
+    private final DistributionDataPoint getOpsFailedChild;
+    private final DistributionDataPoint delOpsFailedChild;
+    private final DistributionDataPoint putOpsFailedChild;
+    private final CounterDataPoint putBytesChild;
     private final String metadataStoreName;
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
     public MetadataStoreStats(String metadataStoreName, OpenTelemetry openTelemetry) {
         this.metadataStoreName = metadataStoreName;
 
-        this.getOpsSucceedChild = OPS_LATENCY.labels(metadataStoreName, OPS_TYPE_GET, STATUS_SUCCESS);
-        this.delOpsSucceedChild = OPS_LATENCY.labels(metadataStoreName, OPS_TYPE_DEL, STATUS_SUCCESS);
-        this.putOpsSucceedChild = OPS_LATENCY.labels(metadataStoreName, OPS_TYPE_PUT, STATUS_SUCCESS);
-        this.getOpsFailedChild = OPS_LATENCY.labels(metadataStoreName, OPS_TYPE_GET, STATUS_FAIL);
-        this.delOpsFailedChild = OPS_LATENCY.labels(metadataStoreName, OPS_TYPE_DEL, STATUS_FAIL);
-        this.putOpsFailedChild = OPS_LATENCY.labels(metadataStoreName, OPS_TYPE_PUT, STATUS_FAIL);
-        this.putBytesChild = PUT_BYTES.labels(metadataStoreName);
+        this.getOpsSucceedChild = OPS_LATENCY.labelValues(metadataStoreName, OPS_TYPE_GET, STATUS_SUCCESS);
+        this.delOpsSucceedChild = OPS_LATENCY.labelValues(metadataStoreName, OPS_TYPE_DEL, STATUS_SUCCESS);
+        this.putOpsSucceedChild = OPS_LATENCY.labelValues(metadataStoreName, OPS_TYPE_PUT, STATUS_SUCCESS);
+        this.getOpsFailedChild = OPS_LATENCY.labelValues(metadataStoreName, OPS_TYPE_GET, STATUS_FAIL);
+        this.delOpsFailedChild = OPS_LATENCY.labelValues(metadataStoreName, OPS_TYPE_DEL, STATUS_FAIL);
+        this.putOpsFailedChild = OPS_LATENCY.labelValues(metadataStoreName, OPS_TYPE_PUT, STATUS_FAIL);
+        this.putBytesChild = PUT_BYTES.labelValues(metadataStoreName);
 
         attributes = Attributes.of(METADATA_STORE_NAME, metadataStoreName);
         putBytesCounter = openTelemetry.getMeter("org.apache.pulsar")
