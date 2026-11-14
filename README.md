@@ -269,7 +269,6 @@ Read https://pulsar.apache.org/contribute/setup-ide for setting up IntelliJ IDEA
 
 Pulsar slack channel at https://apache-pulsar.slack.com/
 
-You can self-register at https://communityinviter.com/apps/apache-pulsar/apache-pulsar
 
 ## Security Policy
 
