@@ -211,7 +211,6 @@ public class NamespaceStatsAggregator {
 
             stats.managedLedgerStats.storageSize = mlStats.getStoredMessagesSize();
             stats.managedLedgerStats.storageLogicalSize = mlStats.getStoredMessagesLogicalSize();
-            stats.managedLedgerStats.backlogSize = ml.getEstimatedBacklogSize();
             stats.managedLedgerStats.offloadedStorageUsed = ml.getOffloadedSize();
             stats.backlogQuotaLimit = topic
                     .getBacklogQuota(BacklogQuotaType.destination_storage).getLimitSize();
@@ -248,6 +247,9 @@ public class NamespaceStatsAggregator {
                 .subscriptionBacklogSize(subscriptionBacklogSize)
                 .excludeLastPublishTime(true)
                 .build());
+        if (topic instanceof PersistentTopic) {
+            stats.managedLedgerStats.backlogSize = tStatus.backlogSize;
+        }
         stats.msgInCounter = tStatus.msgInCounter;
         stats.bytesInCounter = tStatus.bytesInCounter;
         stats.msgOutCounter = tStatus.msgOutCounter;

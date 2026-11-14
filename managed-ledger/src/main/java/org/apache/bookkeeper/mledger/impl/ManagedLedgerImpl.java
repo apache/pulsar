@@ -1627,7 +1627,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
-    private long consumedLedgerSize(long ledgerSize, long ledgerEntries, long consumedEntries) {
+    static long consumedLedgerSize(long ledgerSize, long ledgerEntries, long consumedEntries) {
         if (ledgerEntries <= 0) {
             return 0;
         }

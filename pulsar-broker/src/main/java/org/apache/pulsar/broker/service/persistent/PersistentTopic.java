@@ -39,6 +39,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -94,6 +95,7 @@ import org.apache.bookkeeper.mledger.PositionBound;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer.CursorInfo;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerBacklogSizeEstimator;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.util.Futures;
@@ -3278,7 +3280,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         topicStatsStream.writePair("msgThroughputIn", topicStatsHelper.aggMsgThroughputIn);
         topicStatsStream.writePair("msgThroughputOut", topicStatsHelper.aggMsgThroughputOut);
         topicStatsStream.writePair("storageSize", ledger.getTotalSize());
-        topicStatsStream.writePair("backlogSize", ledger.getEstimatedBacklogSize());
+        long backlogSize = ledger.getEstimatedBacklogSize();
+        topicStatsStream.writePair("backlogSize", backlogSize);
         topicStatsStream.writePair("pendingAddEntriesCount", ledger.getPendingAddEntriesCount());
         topicStatsStream.writePair("filteredEntriesCount", getFilteredEntriesCount());
 
@@ -3286,7 +3289,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         nsStats.msgRateOut += topicStatsHelper.aggMsgRateOut;
         nsStats.msgThroughputIn += topicStatsHelper.aggMsgThroughputIn;
         nsStats.msgThroughputOut += topicStatsHelper.aggMsgThroughputOut;
-        nsStats.storageSize += ledger.getEstimatedBacklogSize();
+        nsStats.storageSize += backlogSize;
 
         bundleStats.msgRateIn += topicStatsHelper.aggMsgRateIn;
         bundleStats.msgRateOut += topicStatsHelper.aggMsgRateOut;
@@ -3459,10 +3462,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     compactionRecord.getLastCompactionDurationTimeInMills();
         });
 
-        Map<String, CompletableFuture<SubscriptionStatsImpl>> subscriptionFutures = new HashMap<>();
-        subscriptions.forEach((name, subscription) -> {
-            subscriptionFutures.put(name, subscription.getStatsAsync(getStatsOptions));
-        });
+        Map<String, CompletableFuture<SubscriptionStatsImpl>> subscriptionFutures =
+                getSubscriptionStats(getStatsOptions);
 
         return lastPublishTimeFuture.thenCompose(ignore ->
             FutureUtil.waitForAll(subscriptionFutures.values()).thenCompose(ignore2 -> {
@@ -3509,6 +3510,40 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 return CompletableFuture.completedFuture(stats);
             }
         }));
+    }
+
+    private Map<String, CompletableFuture<SubscriptionStatsImpl>> getSubscriptionStats(
+            GetStatsOptions getStatsOptions) {
+        Map<String, CompletableFuture<SubscriptionStatsImpl>> subscriptionFutures = new HashMap<>();
+        if (!getStatsOptions.isSubscriptionBacklogSize() || subscriptions.size() <= 1) {
+            for (Map.Entry<String, PersistentSubscription> entry : subscriptions.entrySet()) {
+                subscriptionFutures.put(entry.getKey(), entry.getValue().getStatsAsync(getStatsOptions));
+            }
+            return subscriptionFutures;
+        }
+        // Keep using the captured subscription instances if a name is removed or replaced during sampling.
+        Map<PersistentSubscription, Position> positions = new LinkedHashMap<>(subscriptions.size());
+        for (Map.Entry<String, PersistentSubscription> entry : subscriptions.entrySet()) {
+            PersistentSubscription subscription = entry.getValue();
+            // Preserve public overrides before capturing cursor positions for the batch.
+            if (subscription.getClass() != PersistentSubscription.class) {
+                subscriptionFutures.put(entry.getKey(), subscription.getStatsAsync(getStatsOptions));
+                continue;
+            }
+            Position position = subscription.getCursor().getMarkDeletedPosition();
+            if (position == null) {
+                subscriptionFutures.put(entry.getKey(), subscription.getStatsAsync(getStatsOptions));
+                continue;
+            }
+            positions.put(subscription, position);
+        }
+        Map<Position, Long> backlogSizes = ManagedLedgerBacklogSizeEstimator.estimate(ledger, positions.values());
+        for (Map.Entry<PersistentSubscription, Position> entry : positions.entrySet()) {
+            PersistentSubscription subscription = entry.getKey();
+            subscriptionFutures.put(subscription.getName(),
+                    subscription.getStatsAsync(getStatsOptions, backlogSizes.get(entry.getValue())));
+        }
+        return subscriptionFutures;
     }
 
     private Optional<CompactorMXBean> getCompactorMXBean() {
