@@ -90,7 +90,7 @@ class WatchTcAssignmentsDiscovery implements TcDiscovery, ClientCnx.TcAssignment
         if (closed) {
             return;
         }
-        pulsarClient.getAnyBrokerProxyConnection()
+        pulsarClient.getTcAssignmentsWatchConnection()
                 .thenAccept(this::attach)
                 .exceptionally(ex -> {
                     onAttachFailure(ex);
