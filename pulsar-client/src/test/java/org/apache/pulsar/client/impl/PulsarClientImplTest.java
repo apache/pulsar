@@ -24,6 +24,7 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -529,6 +530,45 @@ public class PulsarClientImplTest {
         client.close();
         consumers.forEach(consumer ->
                 assertSame(consumer.getState(), HandlerState.State.Closed));
+    }
+
+    @Test(timeOut = 30_000)
+    public void testGetPartitionsForTopicFailsOnClosedClient() throws Exception {
+        PulsarClientImpl client = (PulsarClientImpl) PulsarClient.builder()
+                .serviceUrl("pulsar://localhost:6650")
+                .build();
+        client.close();
+
+        assertThat(client.getPartitionsForTopic("persistent://public/default/test", true))
+                .failsWithin(Duration.ofSeconds(10))
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(PulsarClientException.AlreadyClosedException.class);
+    }
+
+    @Test(timeOut = 30_000)
+    public void testGetPartitionsForTopicFailsWhenClientClosesDuringLookup() throws Exception {
+        PulsarClientImpl client = (PulsarClientImpl) PulsarClient.builder()
+                .serviceUrl("pulsar://localhost:6650")
+                .build();
+        // The lookup request fails with a retriable error while the client is closing, as when the client closes the
+        // connection the request was sent on
+        CompletableFuture<PartitionedTopicMetadata> lookupResult = new CompletableFuture<>();
+        LookupService lookup = mock(LookupService.class);
+        when(lookup.getPartitionedTopicMetadata(any(TopicName.class), anyBoolean(), anyBoolean()))
+                .thenReturn(lookupResult);
+        doAnswer(invocation -> lookupResult.completeExceptionally(
+                new PulsarClientException.ConnectException("Disconnected from server")))
+                .when(lookup).close();
+        client.setLookup(lookup);
+
+        CompletableFuture<List<String>> partitions =
+                client.getPartitionsForTopic("persistent://public/default/test", true);
+        client.close();
+
+        assertThat(partitions)
+                .failsWithin(Duration.ofSeconds(10))
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(PulsarClientException.AlreadyClosedException.class);
     }
 
     @Test

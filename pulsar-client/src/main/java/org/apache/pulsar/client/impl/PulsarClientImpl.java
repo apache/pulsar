@@ -1929,6 +1929,11 @@ public class PulsarClientImpl implements PulsarClient {
      */
     public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(
             String topic, boolean metadataAutoCreationEnabled, boolean useFallbackForNonPIP344Brokers) {
+        // Not state != Open: the transaction coordinator client calls this from the constructor, before the client is
+        // Open
+        if (isClosed()) {
+            return FutureUtil.failedFuture(new PulsarClientException.AlreadyClosedException("Client already closed"));
+        }
 
         CompletableFuture<PartitionedTopicMetadata> metadataFuture = new CompletableFuture<>();
 
@@ -1978,6 +1983,11 @@ public class PulsarClientImpl implements PulsarClient {
             if (nextDelay <= 0 || isLookupThrottling) {
                 PulsarClientException.setPreviousExceptionCount(e, previousExceptionCount);
                 future.completeExceptionally(e);
+                return null;
+            }
+            // A closing client would discard the retry when it shuts down its executor, leaving the future pending
+            if (isClosed()) {
+                future.completeExceptionally(new PulsarClientException.AlreadyClosedException("Client already closed"));
                 return null;
             }
             previousExceptionCount.getAndIncrement();
