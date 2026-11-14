@@ -104,7 +104,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerNotFoun
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.NonAppendableLedgerOffloader;
 import org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheManagerImpl;
-import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.mutable.MutableBoolean;
@@ -330,6 +329,8 @@ public class BrokerService implements Closeable {
     private final SingleThreadNonConcurrentFixedRateScheduler messageExpiryMonitor;
     private final SingleThreadNonConcurrentFixedRateScheduler compactionMonitor;
     private final SingleThreadNonConcurrentFixedRateScheduler consumedLedgersMonitor;
+    @Getter(AccessLevel.NONE)
+    private final ConsumedLedgersCheckScheduler consumedLedgersCheckScheduler;
     private SingleThreadNonConcurrentFixedRateScheduler deduplicationSnapshotMonitor;
     /** PIP-483: periodic sweep that writes per-segment load records for auto split/merge. */
     private SingleThreadNonConcurrentFixedRateScheduler segmentLoadReporterMonitor;
@@ -456,6 +457,7 @@ public class BrokerService implements Closeable {
         this.compactionMonitor = new SingleThreadNonConcurrentFixedRateScheduler("pulsar-compaction-monitor");
         this.consumedLedgersMonitor =
                 new SingleThreadNonConcurrentFixedRateScheduler("pulsar-consumed-ledgers-monitor");
+        this.consumedLedgersCheckScheduler = new ConsumedLedgersCheckScheduler(topics);
         this.backlogQuotaManager = new BacklogQuotaManager(pulsar);
         this.backlogQuotaChecker = new SingleThreadNonConcurrentFixedRateScheduler("pulsar-backlog-quota-checker");
         this.subscriptionBacklogAgeChecker =
@@ -959,8 +961,7 @@ public class BrokerService implements Closeable {
     protected void startConsumedLedgersMonitor() {
         int interval = pulsar().getConfiguration().getRetentionCheckIntervalInSeconds();
         if (interval > 0) {
-            consumedLedgersMonitor.scheduleAtFixedRateNonConcurrently(this::checkConsumedLedgers,
-                    interval, interval, TimeUnit.SECONDS);
+            consumedLedgersCheckScheduler.start(getConsumedLedgersMonitor(), Duration.ofSeconds(interval));
         }
     }
 
@@ -1041,6 +1042,7 @@ public class BrokerService implements Closeable {
     public CompletableFuture<Void> closeAsync() {
         try {
             log.info("Shutting down Pulsar Broker service");
+            consumedLedgersCheckScheduler.close();
 
             // shutdown executor for ledger deletion
             if (ledgerDeletionExecutorProvider != null) {
@@ -3149,19 +3151,6 @@ public class BrokerService implements Closeable {
                     ((PersistentTopic) t).checkCompaction();
                 }
             });
-    }
-
-    private void checkConsumedLedgers() {
-        forEachTopic((t) -> {
-            if (t instanceof PersistentTopic) {
-                Optional.ofNullable(((PersistentTopic) t).getManagedLedger()).ifPresent(
-                        managedLedger -> {
-                            managedLedger.trimConsumedLedgersInBackground(Futures.NULL_PROMISE);
-                            managedLedger.rolloverCursorsInBackground();
-                        }
-                );
-            }
-        });
     }
 
     public void checkMessageDeduplicationInfo() {
