@@ -2935,88 +2935,226 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(c1.getNumberOfEntriesInBacklog(true), 0);
     }
 
-    @Test(timeOut = 30000, dataProvider = "useOpenRangeSet")
-    void hasBacklogMatchesBacklogCountsAcrossGeneratedOperationSequences(boolean useOpenRangeSet) throws Exception {
-        // Use fixed generated sequences so failures are reproducible from the seed in the assertion message.
-        // This complements the explicit scenarios above by checking mixed add/delete/mark-delete/reset/reopen steps.
-        // The invariant is equivalence with the existing backlog count APIs; this test intentionally doesn't change
-        // the precise/imprecise semantics of hasBacklog(true) or hasBacklog(false).
-        for (long seed : new long[] {
-                0x26058L, 0x5EEDL, 0xBACC10CL, 0xC0FFEE42L,
-                0x1234ABCDL, 0x6A09E667L, 0xBB67AE85L, 0x3C6EF372L
-        }) {
-            assertHasBacklogMatchesBacklogCountsAcrossGeneratedOperationSequence(useOpenRangeSet, seed);
-        }
+    @DataProvider(name = "cursorStateSequences")
+    public Object[][] cursorStateSequences() {
+        return new Object[][]{
+                {false, false, 0x5EEDL, 1},
+                {false, true, 0xBACC10CL, 3},
+                {true, false, 0xC0FFEE42L, 7},
+                {true, true, 0x1234ABCDL, 64}
+        };
     }
 
-    private void assertHasBacklogMatchesBacklogCountsAcrossGeneratedOperationSequence(boolean useOpenRangeSet,
-                                                                                     long seed) throws Exception {
-        String ledgerName = "has_backlog_generated_" + useOpenRangeSet + "_" + Long.toHexString(seed);
-        // Resets select from the full generated history. Retain it so background trimming cannot
-        // delete a reset target or change the backlog between the count and boolean assertions.
+    @Test(dataProvider = "cursorStateSequences", timeOut = 120000)
+    public void testCursorStateAgainstEntryModel(boolean persistAsLongArray, boolean multipleEntriesEnabled,
+                                                 long seed, int entriesPerLedger) throws Exception {
+        String name = "tenant/ns/persistent/reset-model-" + persistAsLongArray
+                + "-" + multipleEntriesEnabled + "-" + seed;
         ManagedLedgerConfig config = defaultConfig()
-                .setMaxEntriesPerLedger(3)
+                .setMaxEntriesPerLedger(entriesPerLedger)
+                .setPersistIndividualAckAsLongArray(persistAsLongArray)
+                // Random resets can revisit any entry, including entries acknowledged before rollover.
                 .setRetentionTime(-1, TimeUnit.MILLISECONDS)
                 .setRetentionSizeInMB(-1);
-        ManagedLedger ledger = factory.open(ledgerName, config);
-        ManagedCursor cursor = ledger.openCursor("c1");
-        List<Position> positions = new ArrayList<>();
+        config.setPersistentUnackedRangesWithMultipleEntriesEnabled(multipleEntriesEnabled);
+        ManagedLedger ledger = factory.open(name, config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("cursor");
+        EntryModel model = new EntryModel();
         Random random = new Random(seed);
-        String seedContext = "seed=0x" + Long.toHexString(seed);
-
+        List<String> history = new ArrayList<>();
+        int step = -1;
         try {
-            assertHasBacklogMatchesBacklogCounts(cursor, seedContext + ", initial state");
-            for (int step = 0; step < 120; step++) {
-                int operationChoice = positions.isEmpty() ? 0 : random.nextInt(100);
-                String operation;
-                if (operationChoice < 40) {
-                    Position position = ledger.addEntry(("entry-" + step).getBytes(Encoding));
-                    positions.add(position);
-                    operation = "add " + position;
-                } else if (operationChoice < 62) {
-                    Position position = randomReadablePosition(random, cursor, positions);
-                    if (position == null) {
-                        position = ledger.addEntry(("entry-" + step).getBytes(Encoding));
-                        positions.add(position);
-                        operation = "add " + position;
-                    } else {
-                        cursor.delete(position);
-                        operation = "delete " + position;
+            history.add("empty initial state");
+            assertStateAndReadAll(cursor, model, random, cursorStateContext(seed, step));
+            appendEntries(ledger, model, 24);
+            history.add("append initial 24 entries");
+            assertStateAndReadAll(cursor, model, random, cursorStateContext(seed, step));
+            for (step = 0; step < 160; step++) {
+                int choice = random.nextInt(100);
+                if (choice < 35) {
+                    int count = 1 + random.nextInt(4);
+                    history.add("append " + count);
+                    appendEntries(ledger, model, count);
+                } else if (choice < 65) {
+                    List<Position> acknowledgements = new ArrayList<>();
+                    List<Integer> indexes = new ArrayList<>();
+                    int start = random.nextInt(model.size());
+                    int count = 1 + random.nextInt(8);
+                    for (int i = 0; i < count; i++) {
+                        // Consecutive entries build ranges, and repeating the first position checks idempotence.
+                        int index = Math.min(start + i, model.size() - 1);
+                        indexes.add(index);
+                        acknowledgements.add(model.positions.get(index));
                     }
-                } else if (operationChoice < 84) {
-                    Position position = randomReadablePosition(random, cursor, positions);
-                    if (position == null) {
-                        position = ledger.addEntry(("entry-" + step).getBytes(Encoding));
-                        positions.add(position);
-                        operation = "add " + position;
+                    indexes.add(start);
+                    acknowledgements.add(model.positions.get(start));
+                    history.add("individual ACK " + indexes);
+                    cursor.delete(acknowledgements);
+                    indexes.forEach(index -> model.acknowledged.set(index, true));
+                } else if (choice < 80) {
+                    int firstAllowed = model.acknowledgedPrefix();
+                    if (firstAllowed == model.size()) {
+                        // After rollover the mark-delete position can be the next ledger's -1 sentinel.
+                        // Re-ACKing the old ledger's last entry would be an invalid backward mark-delete.
+                        history.add("append after all entries acknowledged");
+                        appendEntries(ledger, model, 1);
                     } else {
-                        cursor.markDelete(position);
-                        operation = "markDelete " + position;
+                        int index = firstAllowed + random.nextInt(model.size() - firstAllowed);
+                        history.add("cumulative ACK " + index);
+                        cursor.markDelete(model.positions.get(index));
+                        for (int i = 0; i <= index; i++) {
+                            model.acknowledged.set(i, true);
+                        }
                     }
-                } else if (operationChoice < 94) {
-                    Position position = positions.get(random.nextInt(positions.size()));
-                    cursor.resetCursor(position);
-                    operation = "reset " + position;
+                } else if (choice < 96) {
+                    int resetKind = random.nextInt(4);
+                    int resetIndex;
+                    Position target;
+                    if (resetKind == 0) {
+                        resetIndex = 0;
+                        target = PositionFactory.EARLIEST;
+                    } else if (resetKind == 1) {
+                        resetIndex = model.size();
+                        target = PositionFactory.LATEST;
+                    } else if (resetKind == 2) {
+                        // Select at or before the acknowledged prefix to exercise backward resets.
+                        resetIndex = random.nextInt(Math.min(model.acknowledgedPrefix() + 1, model.size()));
+                        target = model.positions.get(resetIndex);
+                    } else {
+                        // Select after the acknowledged prefix when possible to exercise forward resets.
+                        int firstAllowed = Math.min(model.acknowledgedPrefix(), model.size() - 1);
+                        resetIndex = firstAllowed + random.nextInt(model.size() - firstAllowed);
+                        target = model.positions.get(resetIndex);
+                    }
+                    history.add("reset " + target + " (index " + resetIndex + ")");
+                    cursor.resetCursor(target);
+                    model.reset(resetIndex);
+                    assertResetState(cursor, model, target, resetIndex, cursorStateContext(seed, step));
                 } else {
+                    history.add("close and reopen");
                     ledger.close();
-                    ledger = factory.open(ledgerName, config);
-                    cursor = ledger.openCursor("c1");
-                    operation = "reopen";
+                    ledger = factory.open(name, config);
+                    cursor = (ManagedCursorImpl) ledger.openCursor("cursor");
                 }
-                assertHasBacklogMatchesBacklogCounts(cursor,
-                        seedContext + ", step=" + step + ", operation=" + operation);
+                assertStateAndReadAll(cursor, model, random, cursorStateContext(seed, step));
             }
+        } catch (Exception | AssertionError error) {
+            throw new AssertionError(cursorStateContext(seed, step) + ", operations=" + history, error);
         } finally {
             ledger.close();
         }
     }
 
-    private static Position randomReadablePosition(Random random, ManagedCursor cursor, List<Position> positions) {
-        List<Position> readablePositions = positions.stream()
-                .filter(position -> position.compareTo(cursor.getMarkDeletedPosition()) > 0)
-                .filter(position -> !cursor.isMessageDeleted(position))
-                .collect(Collectors.toList());
-        return readablePositions.isEmpty() ? null : readablePositions.get(random.nextInt(readablePositions.size()));
+    private static void appendEntries(ManagedLedger ledger, EntryModel model, int count) throws Exception {
+        for (int i = 0; i < count; i++) {
+            Position position = ledger.addEntry(payload(model.size()));
+            model.positions.add(position);
+            model.acknowledged.add(false);
+        }
+    }
+
+    private static void assertResetState(ManagedCursorImpl cursor, EntryModel model, Position target,
+                                         int resetIndex, String context) {
+        Position expectedMarkDelete = resetIndex == 0
+                ? PositionFactory.create(model.positions.get(0).getLedgerId(), -1)
+                : model.positions.get(resetIndex - 1);
+        assertThat(cursor.getMarkDeletedPosition()).as("%s: reset mark-delete position", context)
+                .isEqualTo(expectedMarkDelete);
+        assertThat(cursor.getPersistentMarkDeletedPosition()).as("%s: persisted reset position", context)
+                .isEqualTo(expectedMarkDelete);
+        assertThat(cursor.getTotalNonContiguousDeletedMessagesRange()).as("%s: reset clears ACK ranges", context)
+                .isZero();
+        if (target.equals(PositionFactory.EARLIEST)) {
+            assertThat(cursor.getReadPosition()).as("%s: earliest reset read position", context)
+                    .isEqualTo(expectedMarkDelete);
+        } else if (target.equals(PositionFactory.LATEST)) {
+            assertThat(cursor.getReadPosition().compareTo(model.positions.get(model.size() - 1)))
+                    .as("%s: latest reset read position follows all existing entries", context).isPositive();
+        } else {
+            assertThat(cursor.getReadPosition()).as("%s: reset read position", context).isEqualTo(target);
+        }
+    }
+
+    private static void assertStateAndReadAll(ManagedCursorImpl cursor, EntryModel model, Random random,
+                                             String context) throws Exception {
+        List<Position> expected = new ArrayList<>();
+        for (int i = 0; i < model.size(); i++) {
+            Position position = model.positions.get(i);
+            assertThat(cursor.isMessageDeleted(position)).as("%s: ACK for entry %s", context, i)
+                    .isEqualTo(model.acknowledged.get(i));
+            if (!model.acknowledged.get(i)) {
+                expected.add(position);
+            }
+        }
+        assertThat(cursor.getNumberOfEntriesInBacklog(true)).as("%s: precise backlog", context)
+                .isEqualTo(expected.size());
+        assertThat(cursor.getNumberOfEntriesInBacklog(false)).as("%s: estimated backlog", context)
+                .isEqualTo(expected.size());
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) cursor.getManagedLedger();
+        assertThat(ledger.getEntriesAddedCounter() - cursor.getMessagesConsumedCounter())
+                .as("%s: raw backlog counters without the negative-count fallback", context)
+                .isEqualTo(expected.size());
+        assertThat(cursor.hasBacklog()).as("%s: hasBacklog()", context).isEqualTo(!expected.isEmpty());
+        assertThat(cursor.hasBacklog(false)).as("%s: hasBacklog(false)", context).isEqualTo(!expected.isEmpty());
+
+        // Reading must replay every unacknowledged entry in order, and must never resurrect an ACKed entry.
+        // Rewind only changes the read position, leaving the model and the state under test untouched.
+        cursor.rewind();
+        List<Position> actual = new ArrayList<>();
+        for (int read = 0; read <= model.size(); read++) {
+            List<Entry> entries = cursor.readEntries(1 + random.nextInt(11));
+            try {
+                if (entries.isEmpty()) {
+                    break;
+                }
+                for (Entry entry : entries) {
+                    int index = model.positions.indexOf(entry.getPosition());
+                    assertThat(index).as("%s: read position belongs to the generated history", context)
+                            .isNotNegative();
+                    assertThat(entry.getData()).as("%s: payload for entry %s", context, index)
+                            .isEqualTo(payload(index));
+                    actual.add(entry.getPosition());
+                }
+            } finally {
+                entries.forEach(Entry::release);
+            }
+        }
+        assertThat(actual).as("%s: complete read results", context).isEqualTo(expected);
+        assertThat(cursor.hasMoreEntries()).as("%s: read reached the end", context).isFalse();
+        assertThat(cursor.getNumberOfEntriesInBacklog(false)).as("%s: reads leave the ACK count unchanged", context)
+                .isEqualTo(expected.size());
+    }
+
+    private static byte[] payload(int index) {
+        return ("entry-" + index).getBytes(StandardCharsets.UTF_8);
+    }
+
+    private static String cursorStateContext(long seed, int step) {
+        return "seed=0x" + Long.toHexString(seed) + ", step=" + step;
+    }
+
+    /** Deliberately tracks individual entries, independently of cursor counters and range representations. */
+    private static final class EntryModel {
+        private final List<Position> positions = new ArrayList<>();
+        private final List<Boolean> acknowledged = new ArrayList<>();
+
+        int size() {
+            return positions.size();
+        }
+
+        int acknowledgedPrefix() {
+            int prefix = 0;
+            while (prefix < size() && acknowledged.get(prefix)) {
+                prefix++;
+            }
+            return prefix;
+        }
+
+        void reset(int index) {
+            for (int i = 0; i < size(); i++) {
+                acknowledged.set(i, i < index);
+            }
+        }
     }
 
     private static void assertHasBacklogMatchesBacklogCounts(ManagedCursor cursor) {

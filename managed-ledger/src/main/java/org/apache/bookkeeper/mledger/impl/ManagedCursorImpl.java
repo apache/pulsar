@@ -1743,12 +1743,12 @@ public class ManagedCursorImpl implements ManagedCursor {
             individualDeletedMessages.removeAtMost(newMarkDeletePosition.getLedgerId(),
                     newMarkDeletePosition.getEntryId());
 
-            // Entries already acknowledged, which is larger than the new mark deleted position.
+            // Reset discards individual ACKs beyond the new mark-delete position, so undo their consumed count.
             MutableLong ackedEntriesAfterMdPosition = new MutableLong();
-            individualDeletedMessages.forEach((r) -> {
-                for (long i = r.lowerEndpoint().getEntryId() + 1; i <= r.upperEndpoint().getEntryId(); i++) {
-                    ackedEntriesAfterMdPosition.incrementAndGet();
-                }
+            // PositionRangeSet emits open-closed ranges within a single ledger. Count from their bounds instead
+            // of visiting every entry while holding the cursor write lock.
+            individualDeletedMessages.forEachRawRange((lowerLedgerId, lowerEntryId, upperLedgerId, upperEntryId) -> {
+                ackedEntriesAfterMdPosition.add(upperEntryId - lowerEntryId);
                 return true;
             });
             MSG_CONSUMED_COUNTER_UPDATER.addAndGet(ManagedCursorImpl.this,
