@@ -22,14 +22,16 @@ import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.commons.lang3.StringUtils.isNotEmpty;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.prometheus.client.hotspot.BufferPoolsExports;
-import io.prometheus.client.hotspot.ClassLoadingExports;
-import io.prometheus.client.hotspot.GarbageCollectorExports;
-import io.prometheus.client.hotspot.MemoryPoolsExports;
-import io.prometheus.client.hotspot.StandardExports;
-import io.prometheus.client.hotspot.ThreadExports;
-import io.prometheus.client.hotspot.VersionInfoExports;
 import io.prometheus.jmx.JmxCollector;
+import io.prometheus.metrics.instrumentation.jvm.JvmBufferPoolMetrics;
+import io.prometheus.metrics.instrumentation.jvm.JvmClassLoadingMetrics;
+import io.prometheus.metrics.instrumentation.jvm.JvmCompilationMetrics;
+import io.prometheus.metrics.instrumentation.jvm.JvmGarbageCollectorMetrics;
+import io.prometheus.metrics.instrumentation.jvm.JvmMemoryMetrics;
+import io.prometheus.metrics.instrumentation.jvm.JvmNativeMemoryMetrics;
+import io.prometheus.metrics.instrumentation.jvm.JvmRuntimeInfoMetric;
+import io.prometheus.metrics.instrumentation.jvm.JvmThreadsMetrics;
+import io.prometheus.metrics.instrumentation.jvm.ProcessMetrics;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -562,7 +564,8 @@ public class RuntimeUtils {
     public static String getPrometheusMetrics(int metricsPort) throws IOException {
         // An IPv6 host address is not bracketed here, which URI parsing would reject.
         @SuppressWarnings("deprecation")
-        URL url = new URL(String.format("http://%s:%s", InetAddress.getLocalHost().getHostAddress(), metricsPort));
+        URL url = new URL(String.format("http://%s:%s/metrics", InetAddress.getLocalHost().getHostAddress(),
+                metricsPort));
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod("GET");
         try (BufferedReader rd = new BufferedReader(new InputStreamReader(conn.getInputStream()))) {
@@ -593,14 +596,19 @@ public class RuntimeUtils {
         } catch (MalformedObjectNameException ex) {
             System.err.println(ex);
         }
-        // Add the default exports from io.prometheus.client.hotspot.DefaultExports
-        new StandardExports().register(registry);
-        new MemoryPoolsExports().register(registry);
-        new BufferPoolsExports().register(registry);
-        new GarbageCollectorExports().register(registry);
-        new ThreadExports().register(registry);
-        new ClassLoadingExports().register(registry);
-        new VersionInfoExports().register(registry);
+        // The same set as JvmMetrics.builder().register(registry), registered one by one: JvmMetrics keeps every
+        // registry it has seen in a static set, which would retain each LocalRunner registry for the JVM's lifetime.
+        // JvmMemoryPoolAllocationMetrics is left out for the same reason: every registration adds a listener to
+        // the JVM's garbage collector beans that is never removed. simpleclient's set had no such family either.
+        JvmThreadsMetrics.builder().register(registry);
+        JvmBufferPoolMetrics.builder().register(registry);
+        JvmClassLoadingMetrics.builder().register(registry);
+        JvmCompilationMetrics.builder().register(registry);
+        JvmGarbageCollectorMetrics.builder().register(registry);
+        JvmMemoryMetrics.builder().register(registry);
+        JvmNativeMemoryMetrics.builder().register(registry);
+        JvmRuntimeInfoMetric.builder().register(registry);
+        ProcessMetrics.builder().register(registry);
     }
 
     public static String sanitizeFileName(String fileName) {

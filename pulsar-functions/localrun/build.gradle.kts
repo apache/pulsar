@@ -28,7 +28,12 @@ dependencies {
     api(libs.picocli)
     implementation(libs.gson)
     implementation(libs.commons.lang3)
-    implementation(libs.simpleclient.httpserver)
+    implementation(libs.prometheus.metrics.exporter.httpserver) {
+        // Like opentelemetry-exporter-prometheus: use the exposition formats without the shaded protobuf,
+        // so the distribution does not ship both variants
+        exclude(group = "io.prometheus", module = "prometheus-metrics-exposition-formats")
+    }
+    runtimeOnly(libs.prometheus.metrics.exposition.formats.no.protobuf)
     implementation(libs.jackson.databind)
     implementation(libs.grpc.netty)
     implementation(libs.grpc.stub)
