@@ -1544,11 +1544,10 @@ public class PersistentTopicsBase extends AdminResource {
         validateTopicOperationAsync(topicName, TopicOperation.GET_STATS)
         .thenCompose(__ -> validateGlobalNamespaceOwnershipAsync(namespaceName))
         .thenCompose(__ -> getPartitionedTopicMetadataAsync(topicName,
-                authoritative, false)).thenAccept(partitionMetadata -> {
+                authoritative, false)).thenCompose(partitionMetadata -> {
             if (partitionMetadata.partitions == 0) {
-                asyncResponse.resume(new RestException(Status.NOT_FOUND,
+                return FutureUtil.failedFuture(new RestException(Status.NOT_FOUND,
                         getPartitionedTopicNotFoundErrorMessage(topicName.toString())));
-                return;
             }
             PartitionedTopicStatsImpl stats = new PartitionedTopicStatsImpl(partitionMetadata);
             List<CompletableFuture<TopicStats>> topicStatsFutureList = new ArrayList<>(partitionMetadata.partitions);
@@ -1582,7 +1581,7 @@ public class PersistentTopicsBase extends AdminResource {
                 );
             }
 
-            FutureUtil.waitForAll(topicStatsFutureList).handle((result, exception) -> {
+            return FutureUtil.waitForAll(topicStatsFutureList).handle((result, exception) -> {
                 CompletableFuture<TopicStats> statFuture = null;
                 for (int i = 0; i < topicStatsFutureList.size(); i++) {
                     statFuture = topicStatsFutureList.get(i);
@@ -1593,30 +1592,27 @@ public class PersistentTopicsBase extends AdminResource {
                                 stats.getPartitions().put(topicName.getPartition(i).toString(), statFuture.get());
                             }
                         } catch (Exception e) {
-                            asyncResponse.resume(new RestException(e));
-                            return null;
+                            throw new RestException(e);
                         }
                     }
                 }
-                if (perPartition && stats.partitions.isEmpty()) {
-                    namespaceResources().getPartitionedTopicResources()
+                return stats;
+            }).thenCompose(aggregatedStats -> {
+                if (perPartition && aggregatedStats.partitions.isEmpty()) {
+                    return namespaceResources().getPartitionedTopicResources()
                             .partitionedTopicExistsAsync(topicName)
-                            .thenAccept(exists -> {
-                                if (exists) {
-                                    stats.partitions.put(topicName.toString(), new TopicStatsImpl());
-                                    asyncResponse.resume(stats);
-                                } else {
-                                    asyncResponse.resume(
-                                            new RestException(Status.NOT_FOUND,
-                                                    "Internal topics have not been generated yet"));
+                            .thenApply(exists -> {
+                                if (!exists) {
+                                    throw new RestException(Status.NOT_FOUND,
+                                            "Internal topics have not been generated yet");
                                 }
+                                aggregatedStats.partitions.put(topicName.toString(), new TopicStatsImpl());
+                                return aggregatedStats;
                             });
-                } else {
-                    asyncResponse.resume(stats);
                 }
-                return null;
+                return CompletableFuture.completedFuture(aggregatedStats);
             });
-        }).exceptionally(ex -> {
+        }).thenAccept(asyncResponse::resume).exceptionally(ex -> {
             // If the exception is not redirect exception we need to log it.
             if (isNot307And404Exception(ex)) {
                 log.error("[{}] Failed to get partitioned internal stats for {}", clientAppId(), topicName, ex);
