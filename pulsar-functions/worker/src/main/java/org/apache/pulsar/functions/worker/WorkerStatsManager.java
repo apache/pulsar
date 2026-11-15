@@ -170,7 +170,7 @@ public class WorkerStatsManager implements AutoCloseable {
     drainTotalExecutionTimeChild = drainTotalExecutionTime.labelValues(metricsLabels);
 
     if (runAsStandalone) {
-      // JVM gauges stay on the simpleclient default registry until the JVM metrics move as one.
+      // 1.x JvmMetrics does not export these two names, so they stay on the simpleclient default registry.
       io.prometheus.client.Gauge.build("jvm_memory_direct_bytes_used", "-").create()
           .setChild(new io.prometheus.client.Gauge.Child() {
             @Override
