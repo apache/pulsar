@@ -701,8 +701,7 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
         CompletableFuture<Response> completableFuture = responseFuture.toCompletableFuture();
         completableFuture.whenComplete((response, throwable) -> {
             throwable = FutureUtil.unwrapCompletionException(throwable);
-            if (throwable != null && (throwable instanceof CancellationException
-                    || throwable instanceof TimeoutException)) {
+            if (throwable instanceof CancellationException || throwable instanceof TimeoutException) {
                 // abort the request if the future is cancelled or timed out
                 responseFuture.abort(throwable);
             }

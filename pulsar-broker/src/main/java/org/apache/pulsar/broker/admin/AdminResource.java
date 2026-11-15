@@ -767,7 +767,7 @@ public abstract class AdminResource extends PulsarWebResource {
                 TopicsImpl topics = (TopicsImpl) remotePulsarAdmin.topics();
                 topics.createPartitionedTopicAsync(shortTopicName, numPartitions, true, null)
                         .whenComplete((ignore, ex2) -> {
-                    Throwable unwrapEx2 = ex2 == null ? null : FutureUtil.unwrapCompletionException(ex2);
+                    Throwable unwrapEx2 = FutureUtil.unwrapCompletionException(ex2);
                     // Check the partitions count is expected, also after a successful creation: the remote cluster
                     // accepts a local-only creation of an existing partitioned topic with fewer partitions.
                     if (unwrapEx2 == null || unwrapEx2 instanceof PulsarAdminException.ConflictException) {

@@ -1554,8 +1554,7 @@ public class BrokerService implements Closeable {
                     context.setProperties(properties);
                 }
                 topicFuture.whenComplete((optTopic, throwable) -> {
-                    final Throwable unwrapped = throwable == null
-                            ? null : FutureUtil.unwrapCompletionException(throwable);
+                    final Throwable unwrapped = FutureUtil.unwrapCompletionException(throwable);
                     final boolean timedOut = unwrapped instanceof TimeoutException;
                     try {
                         if (throwable == null) {

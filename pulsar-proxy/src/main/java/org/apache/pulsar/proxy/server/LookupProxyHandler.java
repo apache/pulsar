@@ -299,9 +299,6 @@ public class LookupProxyHandler {
 
     private void writePartitionMetadataError(Throwable error, long clientRequestId, ServerError fallbackError) {
         Throwable cause = FutureUtil.unwrapCompletionException(error);
-        if (cause == null) {
-            cause = error;
-        }
         ServerError serverError;
         if (cause instanceof PulsarClientException.TimeoutException
                 || cause instanceof PulsarClientException.ConnectException
