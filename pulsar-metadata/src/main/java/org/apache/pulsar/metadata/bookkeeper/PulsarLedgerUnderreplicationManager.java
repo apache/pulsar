@@ -754,7 +754,7 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
                     return store.delete(lock.getLockPath(), Optional.of(version));
                 })
                 .whenComplete((ignored, error) -> {
-                    Throwable cause = error == null ? null : FutureUtil.unwrapCompletionException(error);
+                    Throwable cause = FutureUtil.unwrapCompletionException(error);
                     if (cause == null || cause instanceof MetadataStoreException.NotFoundException) {
                         heldLocks.remove(ledgerId, lock);
                         result.complete(null);
@@ -796,7 +796,7 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
             // releaseLock() verifies ownership before deleting and drops the held lock once it is gone.
             deleteResults.add(FutureUtil.supplySafely(() -> releaseLock(entry.getKey(), entry.getValue()))
                     .handle((__, error) -> {
-                        Throwable cause = error == null ? null : FutureUtil.unwrapCompletionException(error);
+                        Throwable cause = FutureUtil.unwrapCompletionException(error);
                         if (cause == null || cause instanceof MetadataStoreException.NotFoundException) {
                             return null;
                         }

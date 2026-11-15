@@ -226,13 +226,10 @@ public class FutureUtil {
     }
 
     public static Throwable unwrapCompletionException(Throwable ex) {
-        if (ex instanceof CompletionException) {
-            return unwrapCompletionException(ex.getCause());
-        } else if (ex instanceof ExecutionException) {
-            return unwrapCompletionException(ex.getCause());
-        } else {
-            return ex;
+        while ((ex instanceof CompletionException || ex instanceof ExecutionException) && ex.getCause() != null) {
+            ex = ex.getCause();
         }
+        return ex;
     }
 
     @ThreadSafe
