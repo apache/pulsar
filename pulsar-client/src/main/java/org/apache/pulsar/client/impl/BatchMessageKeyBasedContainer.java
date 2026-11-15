@@ -19,8 +19,8 @@
 package org.apache.pulsar.client.impl;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -164,13 +164,29 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
     }
 
     private String getKey(MessageImpl<?> msg) {
+        if (!msg.hasOrderingKey() && msg.hasKey() && !msg.hasBase64EncodedKey()) {
+            String key = msg.getKey();
+            // ASCII partition keys already match the canonical byte representation, without allocating.
+            if (isAscii(key)) {
+                return key;
+            }
+        }
         if (msg.hasOrderingKey() || msg.hasKey()) {
-            // Normalize the broker's raw sticky-key bytes, regardless of the key's type or encoding.
-            // This encoding is only for the map key; each message's wire metadata stays unchanged.
-            return Base64.getEncoder().encodeToString(Commands.resolveStickyKey(msg.getMessageBuilder()));
+            // ISO-8859-1 maps every byte to one character without loss and snapshots mutable ordering keys.
+            // This representation is only for the map key; each message's wire metadata stays unchanged.
+            return new String(Commands.resolveStickyKey(msg.getMessageBuilder()), StandardCharsets.ISO_8859_1);
         }
         // Keep unkeyed messages together instead of using the per-message producer/sequence fallback.
         return null;
+    }
+
+    private static boolean isAscii(String key) {
+        for (int i = 0; i < key.length(); i++) {
+            if (key.charAt(i) > 0x7f) {
+                return false;
+            }
+        }
+        return true;
     }
 
 }

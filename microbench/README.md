@@ -74,6 +74,20 @@ Running specific benchmarks:
 java -jar microbench/build/libs/microbench-*-benchmarks.jar ".*BenchmarkName.*"
 ```
 
+`KeyBasedBatchGroupingBenchmark` measures key construction, hashing and lookup in a populated batch
+map for 1,024 keys, using ASCII text, UTF-8 text, binary partition keys and ordering keys of 16/64 raw
+bytes. It compares legacy stored-string grouping, canonical Base64, canonical Latin-1, and Latin-1
+with reuse of plain ASCII strings. The legacy approach is a cost reference with known correctness
+issues when key representations are mixed. Setup and message creation are excluded; the reused input
+strings can retain their cached hashes. These are grouping lookup costs, not producer throughput.
+To compare Base64 normalization with the optimized container behavior and record allocation:
+
+```shell
+java -jar microbench/build/libs/microbench-*-benchmarks.jar \
+  'KeyBasedBatchGroupingBenchmark.(normalizedGroupingLookup|candidateGroupingLookup)' \
+  -jvmArgsAppend '-Xms512m -Xmx512m -XX:+UseG1GC' -prof gc
+```
+
 `ManagedLedgerTrimScanBenchmark` compares the original full offload-deletion scan and `List.contains`
 checks with a policy guard and a scan after the ordinary deletion prefix. It uses the managed-ledger
 `ConcurrentSkipListMap` and real ledger metadata, including gaps in ledger IDs and a mix of complete,

@@ -33,6 +33,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
@@ -60,8 +61,14 @@ public class BatchMessageKeyBasedContainerTest {
                 {KeyKind.BYTES, KeyKind.ORDERING, "a"},
                 {KeyKind.ORDERING, KeyKind.BYTES, "a"},
                 {KeyKind.TEXT, KeyKind.BYTES, "\u00e9"},
+                {KeyKind.TEXT, KeyKind.BYTES, "\ud83d\ude80"},
                 {KeyKind.TEXT, KeyKind.BYTES, ""},
-                {KeyKind.ORDERING, KeyKind.TEXT, ""}
+                {KeyKind.ORDERING, KeyKind.TEXT, ""},
+                {KeyKind.TEXT, KeyKind.BYTES, "\0"},
+                {KeyKind.TEXT, KeyKind.BYTES, "before\0after"},
+                {KeyKind.TEXT, KeyKind.BYTES, "\u007f"},
+                {KeyKind.TEXT, KeyKind.BYTES, "before\u007fafter"},
+                {KeyKind.TEXT, KeyKind.BYTES, "\0\u007f"}
         };
     }
 
@@ -129,7 +136,11 @@ public class BatchMessageKeyBasedContainerTest {
         return new Object[][] {
                 {KeyKind.BYTES, new byte[] {'a'}, KeyKind.TEXT, "YQ==".getBytes(StandardCharsets.UTF_8)},
                 {KeyKind.ORDERING, new byte[] {'a'}, KeyKind.TEXT, "YQ==".getBytes(StandardCharsets.UTF_8)},
-                {KeyKind.BYTES, new byte[] {(byte) 0x80}, KeyKind.BYTES, new byte[] {(byte) 0x81}}
+                {KeyKind.BYTES, new byte[] {(byte) 0x80}, KeyKind.BYTES, new byte[] {(byte) 0x81}},
+                {KeyKind.BYTES, new byte[] {(byte) 0x80}, KeyKind.TEXT, "\u0080".getBytes(StandardCharsets.UTF_8)},
+                {KeyKind.BYTES, new byte[] {(byte) 0xff}, KeyKind.TEXT, "\u00ff".getBytes(StandardCharsets.UTF_8)},
+                {KeyKind.BYTES, new byte[] {(byte) 0xc0}, KeyKind.TEXT, "\u00c0".getBytes(StandardCharsets.UTF_8)},
+                {KeyKind.BYTES, new byte[] {(byte) 0x80}, KeyKind.TEXT, "\ufffd".getBytes(StandardCharsets.UTF_8)}
         };
     }
 
@@ -176,6 +187,121 @@ public class BatchMessageKeyBasedContainerTest {
             assertThat(ops.get(1).msgs).containsExactly(first, third);
             assertRoutingKey(ops.get(0), secondKey);
             assertRoutingKey(ops.get(1), firstKey);
+        }
+    }
+
+    @Test
+    public void testEveryByteValueHasAnIndependentBatchIdentity() throws Exception {
+        try (BatchFixture fixture = new BatchFixture()) {
+            for (int value = 0; value < 256; value++) {
+                MessageImpl<?> message = fixture.message(value, KeyKind.BYTES, new byte[] {(byte) value});
+                message.getMessageBuilder().setSchemaVersion(new byte[] {(byte) value});
+                fixture.add(message);
+            }
+            for (int value = 0; value < 256; value++) {
+                MessageImpl<?> message = fixture.message(256 + value, KeyKind.ORDERING, new byte[] {(byte) value});
+                message.getMessageBuilder().setSchemaVersion(new byte[] {(byte) value});
+                assertThat(fixture.container.hasSameSchema(message)).as("same schema for byte %s", value).isTrue();
+                message.getMessageBuilder().setSchemaVersion(new byte[] {(byte) value, 0});
+                assertThat(fixture.container.hasSameSchema(message)).as("different schema for byte %s", value)
+                        .isFalse();
+                message.getMessageBuilder().setSchemaVersion(new byte[] {(byte) value});
+                fixture.add(message);
+            }
+
+            List<ProducerImpl.OpSendMsg> ops = fixture.flush();
+
+            assertThat(ops).as("each raw byte value has its own batch").hasSize(256);
+            for (int value = 0; value < 256; value++) {
+                assertThat(ops.get(value).msgs).extracting(MessageImpl::getSequenceId)
+                        .as("binary and ordering keys for byte %s", value)
+                        .containsExactly((long) value, 256L + value);
+                assertRoutingKey(ops.get(value), new byte[] {(byte) value});
+            }
+        }
+    }
+
+    @DataProvider
+    public Object[][] noncanonicalBase64Keys() {
+        return new Object[][] {{"YQ"}, {"YR=="}};
+    }
+
+    @Test(dataProvider = "noncanonicalBase64Keys")
+    public void testEquivalentBase64SpellingsShareABatch(String encodedKey) throws Exception {
+        try (BatchFixture fixture = new BatchFixture()) {
+            byte[] rawKey = new byte[] {'a'};
+            MessageImpl<?> first = fixture.message(0, KeyKind.BYTES, rawKey);
+            first.getMessageBuilder().setSchemaVersion(new byte[] {1});
+            fixture.add(first);
+            MessageImpl<?> second = fixture.message(1, KeyKind.BYTES, rawKey);
+            second.getMessageBuilder().setPartitionKey(encodedKey).setSchemaVersion(new byte[] {2});
+            assertThat(Commands.resolveStickyKey(second.getMessageBuilder())).isEqualTo(rawKey);
+            assertThat(fixture.container.hasSameSchema(second)).isFalse();
+            second.getMessageBuilder().setSchemaVersion(new byte[] {1});
+            fixture.add(second);
+            MessageImpl<?> third = fixture.message(2, KeyKind.TEXT, rawKey);
+            third.getMessageBuilder().setSchemaVersion(new byte[] {1});
+            fixture.add(third);
+
+            List<ProducerImpl.OpSendMsg> ops = fixture.flush();
+
+            assertThat(ops).hasSize(1);
+            assertThat(ops.get(0).msgs).extracting(MessageImpl::getSequenceId).containsExactly(0L, 1L, 2L);
+            assertRoutingKey(ops.get(0), rawKey);
+            assertThat(second.getKey()).as("the original Base64 spelling is preserved").isEqualTo(encodedKey);
+        }
+    }
+
+    @DataProvider
+    public Object[][] malformedUtf16Keys() {
+        return new Object[][] {
+                {"\ud800", new byte[] {'?'}},
+                {"\udc00", new byte[] {'?'}},
+                {"before\ud800after", "before?after".getBytes(StandardCharsets.UTF_8)},
+                {"\ud800\ud800", new byte[] {'?', '?'}}
+        };
+    }
+
+    @Test(dataProvider = "malformedUtf16Keys")
+    public void testMalformedUtf16GroupingUsesBrokerReplacementBytesBeforeSerialization(String textKey, byte[] rawKey) {
+        try (BatchFixture fixture = new BatchFixture()) {
+            MessageImpl<?> first = fixture.message(0, builder -> builder.key(textKey));
+            assertThat(Commands.resolveStickyKey(first.getMessageBuilder())).isEqualTo(rawKey);
+            first.getMessageBuilder().setSchemaVersion(new byte[] {1});
+            fixture.add(first);
+            MessageImpl<?> binaryKey = fixture.message(1, KeyKind.BYTES, rawKey);
+            binaryKey.getMessageBuilder().setSchemaVersion(new byte[] {2});
+            MessageImpl<?> orderingKey = fixture.message(2, KeyKind.ORDERING, rawKey);
+            orderingKey.getMessageBuilder().setSchemaVersion(new byte[] {2});
+
+            assertThat(fixture.container.hasSameSchema(binaryKey))
+                    .as("the binary key finds the batch for the same pre-serialization replacement bytes")
+                    .isFalse();
+            assertThat(fixture.container.hasSameSchema(orderingKey))
+                    .as("the ordering key finds the batch for the same pre-serialization replacement bytes")
+                    .isFalse();
+        }
+    }
+
+    @Test
+    public void testBatchIdentitySnapshotsCallerOwnedOrderingKey() {
+        try (BatchFixture fixture = new BatchFixture()) {
+            byte[] orderingKey = new byte[] {'a'};
+            MessageImpl<?> first = fixture.message(0, KeyKind.ORDERING, orderingKey);
+            first.getMessageBuilder().setSchemaVersion(new byte[] {1});
+            fixture.add(first);
+            orderingKey[0] = 'b';
+            assertThat(first.getOrderingKey()).as("the caller changed the shared metadata array")
+                    .containsExactly((byte) 'b');
+            MessageImpl<?> originalKey = fixture.message(1, KeyKind.BYTES, new byte[] {'a'});
+            originalKey.getMessageBuilder().setSchemaVersion(new byte[] {2});
+            MessageImpl<?> changedKey = fixture.message(2, KeyKind.BYTES, new byte[] {'b'});
+            changedKey.getMessageBuilder().setSchemaVersion(new byte[] {2});
+
+            assertThat(fixture.container.hasSameSchema(originalKey)).as("the original batch identity is retained")
+                    .isFalse();
+            assertThat(fixture.container.hasSameSchema(changedKey)).as("the mutation does not move the batch")
+                    .isTrue();
         }
     }
 
@@ -338,9 +464,13 @@ public class BatchMessageKeyBasedContainerTest {
         }
 
         MessageImpl<?> message(long sequenceId, KeyKind keyKind, byte[] key) {
+            return message(sequenceId, builder -> keyKind.apply(builder, key));
+        }
+
+        MessageImpl<?> message(long sequenceId, Consumer<TypedMessageBuilder<byte[]>> configureKey) {
             TypedMessageBuilderImpl<byte[]> builder = new TypedMessageBuilderImpl<>(producer, Schema.BYTES);
             builder.value(new byte[] {0}).sequenceId(sequenceId);
-            keyKind.apply(builder, key);
+            configureKey.accept(builder);
             MessageImpl<?> message = (MessageImpl<?>) builder.getMessage();
             message.getMessageBuilder().setProducerName("producer").setPublishTime(1);
             messages.add(message);
