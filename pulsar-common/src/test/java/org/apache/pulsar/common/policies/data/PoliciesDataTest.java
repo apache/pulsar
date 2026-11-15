@@ -23,6 +23,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import com.fasterxml.jackson.core.JsonGenerationException;
 import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Sets;
 import java.io.IOException;
@@ -32,10 +33,40 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import org.apache.pulsar.client.admin.internal.data.AuthPoliciesImpl;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class PoliciesDataTest {
+
+    @DataProvider(name = "authPoliciesTypes")
+    public Object[][] authPoliciesTypes() {
+        return new Object[][] {{AuthPolicies.class}, {AuthPoliciesImpl.class}};
+    }
+
+    @Test(dataProvider = "authPoliciesTypes")
+    public void authPoliciesJsonNames(Class<? extends AuthPolicies> type) throws IOException {
+        ObjectMapper jsonMapper = ObjectMapperFactory.create();
+        AuthPolicies authPolicies = AuthPolicies.builder()
+                .namespaceAuthentication(Map.of("namespace-role", Set.of(AuthAction.consume)))
+                .topicAuthentication(Map.of("persistent://tenant/ns/topic",
+                        Map.of("topic-role", Set.of(AuthAction.produce))))
+                .subscriptionAuthentication(Map.of("subscription", Set.of("subscription-role")))
+                .build();
+        JsonNode expected = jsonMapper.readTree("""
+                {
+                  "namespace_auth": {"namespace-role": ["consume"]},
+                  "destination_auth": {"persistent://tenant/ns/topic": {"topic-role": ["produce"]}},
+                  "subscription_auth_roles": {"subscription": ["subscription-role"]}
+                }
+                """);
+
+        JsonNode actual = jsonMapper.readTree(jsonMapper.writerFor(type).writeValueAsString(authPolicies));
+        assertThat(actual).as("JSON fields serialized from %s", type.getSimpleName()).isEqualTo(expected);
+        assertThat(jsonMapper.treeToValue(expected, type))
+                .as("JSON deserialized as %s", type.getSimpleName()).isEqualTo(authPolicies);
+    }
 
     @Test
     public void policies() {

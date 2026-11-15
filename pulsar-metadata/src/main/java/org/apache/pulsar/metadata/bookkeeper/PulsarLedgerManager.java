@@ -24,10 +24,8 @@ import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
@@ -94,9 +92,7 @@ public class PulsarLedgerManager implements LedgerManager {
     }
 
     private static Throwable mapToBkException(Throwable ex) {
-        if (ex instanceof CompletionException || ex instanceof ExecutionException) {
-            return mapToBkException(ex.getCause());
-        }
+        ex = FutureUtil.unwrapCompletionException(ex);
 
         if (ex instanceof MetadataStoreException.NotFoundException) {
             BKException bke = BKException.create(BKException.Code.NoSuchLedgerExistsOnMetadataServerException);
