@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.admin.internal.http;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.absent;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
@@ -36,6 +37,7 @@ import com.github.tomakehurst.wiremock.stubbing.ServeEvent;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -46,6 +48,8 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.Cleanup;
+import org.apache.pulsar.client.api.v5.auth.HttpAuthHeaders;
+import org.apache.pulsar.client.impl.auth.v5.HttpChallengeTransport;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.tls.impl.TlsContextAcquisition;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -528,6 +532,37 @@ public class AsyncHttpConnectorTest {
             }
             AsyncHttpClientConfigHelper.reloadProperties();
         }
+    }
+
+    /**
+     * The SASL challenge rounds run over this connector's AsyncHttpClient so that they are made with the
+     * TLS, proxy and timeout configuration the admin was built with. Driven against a real server
+     * because what matters is the request that reaches the wire: with no shared resources configured there
+     * is no name resolver to set, and setting a null one on the request would fail it outright.
+     */
+    @Test
+    public void testChallengeTransportIssuesABodilessGetOverTheConnectorsClient() throws Exception {
+        server.stubFor(get(urlEqualTo("/admin/v2/clusters"))
+                .willReturn(aResponse().withStatus(401).withHeader("SASL-State", "negotiate")));
+
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setServiceUrl("http://localhost:" + server.port());
+
+        @Cleanup
+        AsyncHttpConnector connector = new AsyncHttpConnector(5000, 5000,
+                5000, 0, conf, false, null);
+
+        HttpChallengeTransport.Result result = connector.getChallengeTransport()
+                .get(URI.create("http://localhost:" + server.port() + "/admin/v2/clusters"),
+                        HttpAuthHeaders.of("SASL-Token", "initial"), Duration.ofSeconds(10))
+                .get(30, TimeUnit.SECONDS);
+
+        assertEquals(result.statusCode(), 401);
+        assertThat(result.responseHeaders().get("SASL-State")).contains("negotiate");
+        server.verify(getRequestedFor(urlEqualTo("/admin/v2/clusters"))
+                .withHeader("SASL-Token", equalTo("initial"))
+                .withHeader("Accept", equalTo("application/json"))
+                .withRequestBody(absent()));
     }
 
     private Request request(String path) {

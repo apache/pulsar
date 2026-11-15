@@ -76,8 +76,8 @@ public final class HttpAuthenticationDriver {
      * @param services         the client's framework services (may be {@code null} — e.g. the admin path,
      *                         which does not bind them; the SASL body does not require them)
      * @param defaultTransport the transport used when a caller does not supply its own (the built-in SASL
-     *                         plugin's own HTTP client, for the admin path); may be {@code null} when every
-     *                         caller supplies a transport
+     *                         plugin's own HTTP client); may be {@code null} when every caller supplies a
+     *                         transport
      */
     public HttpAuthenticationDriver(Authentication v5, ClientAuthenticationServices services,
             HttpChallengeTransport defaultTransport) {
@@ -203,10 +203,11 @@ public final class HttpAuthenticationDriver {
     /**
      * Issue one transport round bounded by the remaining exchange budget. The deadline check at the top of
      * each round only fires <em>between</em> rounds; a transport whose underlying client applies no read
-     * timeout (the admin path's JAX-RS transport) would otherwise leave the exchange pending forever
-     * against a peer that accepts the connection but never responds. This is the inner, transport-only bound;
-     * {@link #challengeRound} additionally wraps the whole round (evaluation + GET) via
-     * {@link #boundedByRemaining}, so the plugin's challenge evaluation is covered too.
+     * timeout (the built-in SASL plugin's JAX-RS transport, the default when a caller supplies none) would
+     * otherwise leave the exchange pending forever against a peer that accepts the connection but never
+     * responds. This is the inner, transport-only bound; {@link #challengeRound} additionally wraps the
+     * whole round (evaluation + GET) via {@link #boundedByRemaining}, so the plugin's challenge evaluation
+     * is covered too.
      */
     private static CompletableFuture<HttpChallengeTransport.Result> boundedGet(HttpChallengeTransport transport,
             URI uri, HttpAuthHeaders headers, Duration remaining, int round) {

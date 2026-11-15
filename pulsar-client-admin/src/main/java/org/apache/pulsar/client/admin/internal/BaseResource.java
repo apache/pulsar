@@ -59,6 +59,7 @@ import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.auth.v5.AsyncHttpAuthenticationProvider;
 import org.apache.pulsar.client.impl.auth.v5.HttpAuthenticationDriver;
+import org.apache.pulsar.client.impl.auth.v5.HttpChallengeTransport;
 import org.apache.pulsar.client.impl.auth.v5.V5AuthContexts;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -77,6 +78,11 @@ public abstract class BaseResource {
     // PulsarAdmin (tests, embedders), which has no admin pool to borrow and falls back to the framework's
     // shared one — still off the caller thread.
     private volatile Executor blockingAuthExecutor;
+    // The owning admin's challenge transport, backed by an AsyncHttpClient built from the admin's own
+    // configuration, so the SASL warmup rounds are made with its TLS, proxy and timeout settings. Lent the
+    // same way as the executor above, and null for a resource built outside a PulsarAdmin (tests,
+    // embedders), which falls back to the plugin's own default transport.
+    private volatile HttpChallengeTransport challengeTransport;
 
     protected BaseResource(Authentication auth, long requestTimeoutMs) {
         this.auth = auth;
@@ -105,6 +111,29 @@ public abstract class BaseResource {
      */
     Executor blockingAuthExecutorForTest() {
         return blockingAuthExecutor;
+    }
+
+    /**
+     * Lend this resource the owning admin's HTTP challenge transport, so the SASL-style warmup rounds go
+     * over an HTTP client that admin built rather than one the plugin builds for itself. Called once by
+     * {@link PulsarAdminImpl}, before the resource is published.
+     *
+     * @param challengeTransport the owning admin's challenge transport
+     */
+    void setChallengeTransport(HttpChallengeTransport challengeTransport) {
+        this.challengeTransport = challengeTransport;
+    }
+
+    /**
+     * The transport lent by {@link PulsarAdminImpl}, or {@code null} when none was (VisibleForTesting).
+     * Lending is opt-in per construction site, and a resource that misses it still authenticates — it just
+     * falls back to the plugin's own HTTP client — so the only thing that can catch a resource added
+     * without it is a test that reads this.
+     *
+     * @return the lent challenge transport, or {@code null}
+     */
+    HttpChallengeTransport challengeTransportForTest() {
+        return challengeTransport;
     }
 
     public Builder request(final WebTarget target) throws PulsarAdminException {
@@ -151,11 +180,12 @@ public abstract class BaseResource {
      *
      * <p>When the plugin exposes the v5-native SASL-over-HTTP capability (via the
      * {@link AsyncHttpAuthenticationProvider} bridge), the framework {@link HttpAuthenticationDriver} runs
-     * the bounded {@code 401}→resubmit→{@code 200} exchange over the plugin's own HTTP client — a bodiless
-     * {@code GET} to the original URI each round, exactly what the v4 {@code authenticationStage(...)} does
-     * today — and yields the validated role-token headers. Otherwise the deprecated v4
-     * {@code authenticationStage(...)} / {@code newRequestHeader(...)} hooks run verbatim, preserving
-     * behaviour for third-party plugins and single-pass built-ins — but off the calling thread.
+     * the bounded {@code 401}→resubmit→{@code 200} exchange over the transport this resource was lent — a
+     * bodiless {@code GET} to the original URI each round, exactly what the v4
+     * {@code authenticationStage(...)} does today — and yields the validated role-token headers. Otherwise
+     * the deprecated v4 {@code authenticationStage(...)} / {@code newRequestHeader(...)} hooks run
+     * verbatim, preserving behaviour for third-party plugins and single-pass built-ins — but off the
+     * calling thread.
      */
     protected CompletableFuture<Map<String, String>> computeAuthHeaders(URI uri) {
         try {
@@ -164,8 +194,12 @@ public abstract class BaseResource {
                         .filter(HttpAuthenticationDriver::supportsHttpChallenge);
                 if (driver.isPresent()) {
                     Duration budget = Duration.ofMillis(requestTimeoutMs > 0 ? requestTimeoutMs : 60_000L);
-                    // Null transport => the driver uses the plugin's own default transport (its JAX-RS client).
-                    return driver.get().authenticateAsync(uri, null, budget)
+                    // The warmup goes over the transport the owning admin lent, backed by an AsyncHttpClient
+                    // built from the same configuration as the real request's: the plugin's own default
+                    // transport is a bare JAX-RS client that would, for instance, reject a broker certificate
+                    // signed by a private CA this admin was configured to trust. A null transport — a
+                    // resource built outside a PulsarAdmin — still falls back to that default.
+                    return driver.get().authenticateAsync(uri, challengeTransport, budget)
                             .thenApply(headers -> (headers == null || headers.isEmpty()) ? null : headers.asMap());
                 }
             }

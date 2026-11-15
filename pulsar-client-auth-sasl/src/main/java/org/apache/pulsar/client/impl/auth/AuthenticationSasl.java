@@ -99,8 +99,9 @@ public class AuthenticationSasl
     // PIP-478: the client's framework services, late-bound before start(); null until then.
     private transient volatile ClientAuthenticationServices authServices;
     // PIP-478: the framework HTTP auth driver for the SASL-over-HTTP flow, created lazily on the
-    // first HTTP request after start(). Its default transport is this plugin's own JAX-RS client (the
-    // faithful admin-path transport; the lookup path supplies its shared AsyncHttpClient instead).
+    // first HTTP request after start(). Its default transport is this plugin's own JAX-RS client, used
+    // only by a caller that supplies none; the lookup and admin paths both supply a transport backed by
+    // the HTTP client they were configured with.
     //
     // The driver and the services it was built with are ONE immutable value behind ONE volatile, not two
     // fields. Two independently-read volatiles admit a plain temporal interleaving — no reordering needed,
@@ -232,8 +233,9 @@ public class AuthenticationSasl
 
     /**
      * A {@link HttpChallengeTransport} backed by this plugin's own JAX-RS {@link Client} (created in
-     * {@link #start()}) — the faithful transport for the admin-path SASL warmup, matching what
-     * {@code authenticationStage(...)} does today. Each round is a bodiless {@code GET} to the original URI.
+     * {@link #start()}) — the faithful equivalent of what {@code authenticationStage(...)} does today, and
+     * the default for a caller that supplies no transport of its own. Each round is a bodiless {@code GET}
+     * to the original URI.
      * The JAX-RS client itself is created with default, unbounded timeouts, so the per-request {@code timeout}
      * is enforced here by bounding the returned future ({@link CompletableFuture#orTimeout}) AND cancelling the
      * underlying JAX-RS {@link Future} on timeout/failure — the request is bounded, so a peer that accepts the
