@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.CustomLog;
+import org.apache.pulsar.common.protocol.Commands;
 
 /**
  * Key based batch message container.
@@ -163,10 +164,13 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
     }
 
     private String getKey(MessageImpl<?> msg) {
-        if (msg.hasOrderingKey()) {
-            return Base64.getEncoder().encodeToString(msg.getOrderingKey());
+        if (msg.hasOrderingKey() || msg.hasKey()) {
+            // Normalize the broker's raw sticky-key bytes, regardless of the key's type or encoding.
+            // This encoding is only for the map key; each message's wire metadata stays unchanged.
+            return Base64.getEncoder().encodeToString(Commands.resolveStickyKey(msg.getMessageBuilder()));
         }
-        return msg.getKey();
+        // Keep unkeyed messages together instead of using the per-message producer/sequence fallback.
+        return null;
     }
 
 }
