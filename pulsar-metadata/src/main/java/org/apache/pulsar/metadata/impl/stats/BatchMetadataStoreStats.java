@@ -26,13 +26,15 @@ public final class BatchMetadataStoreStats implements AutoCloseable {
     private static final double[] BUCKETS = new double[]{1, 5, 10, 20, 50, 100, 200, 500, 1000};
     private static final String NAME = "name";
 
-    // The names keep the unit suffix that simpleclient's unit("ms") used to append.
+    // The names keep the unit suffix that simpleclient's unit("ms") used to append. Nothing exports exemplars, so
+    // the histograms skip the sampling that 1.x histograms do by default.
     private static final Histogram OPS_WAITING = Histogram.builder()
             .name("pulsar_batch_metadata_store_queue_wait_time_ms")
             .help("-")
             .labelNames(NAME)
             .classicOnly()
             .classicUpperBounds(BUCKETS)
+            .withoutExemplars()
             .register();
     private static final Histogram BATCH_EXECUTE_TIME = Histogram.builder()
             .name("pulsar_batch_metadata_store_batch_execute_time_ms")
@@ -40,6 +42,7 @@ public final class BatchMetadataStoreStats implements AutoCloseable {
             .labelNames(NAME)
             .classicOnly()
             .classicUpperBounds(BUCKETS)
+            .withoutExemplars()
             .register();
     private static final Histogram OPS_PER_BATCH = Histogram.builder()
             .name("pulsar_batch_metadata_store_batch_size")
@@ -47,6 +50,7 @@ public final class BatchMetadataStoreStats implements AutoCloseable {
             .labelNames(NAME)
             .classicOnly()
             .classicUpperBounds(BUCKETS)
+            .withoutExemplars()
             .register();
 
     private final AtomicBoolean closed = new AtomicBoolean(false);

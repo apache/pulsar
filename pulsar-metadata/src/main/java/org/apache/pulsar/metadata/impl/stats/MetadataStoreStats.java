@@ -42,18 +42,21 @@ public final class MetadataStoreStats implements AutoCloseable {
 
     protected static final String PREFIX = "pulsar_metadata_store_";
 
-    // The names keep the unit suffix that simpleclient's unit("ms") / unit("bytes") used to append.
+    // The names keep the unit suffix that simpleclient's unit("ms") / unit("bytes") used to append. Nothing exports
+    // exemplars, so the metrics skip the sampling that 1.x metrics do by default.
     private static final Histogram OPS_LATENCY = Histogram.builder()
             .name(PREFIX + "ops_latency_ms")
             .help("-")
             .classicOnly()
             .classicUpperBounds(BUCKETS)
             .labelNames(METADATA_STORE_LABEL_NAME, OPS_TYPE_LABEL_NAME, STATUS)
+            .withoutExemplars()
             .register();
     private static final Counter PUT_BYTES = Counter.builder()
             .name(PREFIX + "put_bytes")
             .help("-")
             .labelNames(METADATA_STORE_LABEL_NAME)
+            .withoutExemplars()
             .register();
 
     public static final AttributeKey<String> METADATA_STORE_NAME = AttributeKey.stringKey("pulsar.metadata.store.name");
