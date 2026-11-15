@@ -385,7 +385,15 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     private void resumeReceivingFromPausedConsumersIfNeeded() {
-        if (incomingMessages.size() <= getCurrentReceiverQueueSize() / 2 && !pausedConsumers.isEmpty()) {
+        if (pausedConsumers.isEmpty()) {
+            return;
+        }
+        int size = incomingMessages.size();
+        int maxReceiverQueueSize = getCurrentReceiverQueueSize();
+        // A batch receive waits for more messages than the queue holds, and nothing takes from the queue until it
+        // completes: without a resume below the full queue, a batch larger than half of the queue would wait for
+        // its timeout, or forever without one.
+        if (size <= maxReceiverQueueSize / 2 || (size < maxReceiverQueueSize && hasPendingBatchReceive())) {
             while (true) {
                 ConsumerImpl<T> consumer = pausedConsumers.poll();
                 if (consumer == null) {

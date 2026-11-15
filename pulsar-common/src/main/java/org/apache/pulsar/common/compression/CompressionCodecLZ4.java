@@ -74,26 +74,33 @@ public class CompressionCodecLZ4 implements CompressionCodec {
 
         ByteBuf target = allocator.buffer(maxLength, maxLength);
 
-        int compressedLength;
-        if (source.hasMemoryAddress() && target.hasMemoryAddress()) {
-            compressedLength = Lz4RawCompressor.compress(
-                    null,
-                    source.memoryAddress() + source.readerIndex(),
-                    source.readableBytes(),
-                    null,
-                    target.memoryAddress(),
-                    maxLength,
-                    LZ4_TABLE.get());
-        } else {
-            ByteBuffer sourceNio = source.nioBuffer(source.readerIndex(), source.readableBytes());
-            ByteBuffer targetNio = target.nioBuffer(0, maxLength);
-
-            LZ4_COMPRESSOR.get().compress(sourceNio, targetNio);
-            compressedLength = targetNio.position();
-        }
-
+        int compressedLength = compress(source, target, uncompressedLength, maxLength);
         target.writerIndex(compressedLength);
         return target;
+    }
+
+    private static int compress(ByteBuf source, ByteBuf target, int uncompressedLength, int maxLength) {
+        if (source.hasMemoryAddress() && target.hasMemoryAddress()) {
+            return compressRaw(null, source.memoryAddress() + source.readerIndex(), uncompressedLength,
+                    target, maxLength);
+        }
+
+        long arrayBaseOffset = AirliftUtils.heapArrayBaseOffset();
+        if (arrayBaseOffset >= 0 && source.hasArray() && target.hasMemoryAddress()) {
+            long inputOffset = arrayBaseOffset + source.arrayOffset() + source.readerIndex();
+            return compressRaw(source.array(), inputOffset, uncompressedLength, target, maxLength);
+        }
+
+        ByteBuffer sourceNio = source.nioBuffer(source.readerIndex(), uncompressedLength);
+        ByteBuffer targetNio = target.nioBuffer(0, maxLength);
+        LZ4_COMPRESSOR.get().compress(sourceNio, targetNio);
+        return targetNio.position();
+    }
+
+    private static int compressRaw(Object inputBase, long inputOffset, int inputLength, ByteBuf target,
+                                   int maxLength) {
+        return Lz4RawCompressor.compress(inputBase, inputOffset, inputLength, null, target.memoryAddress(),
+                maxLength, LZ4_TABLE.get());
     }
 
     @Override

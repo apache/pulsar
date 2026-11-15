@@ -64,6 +64,8 @@ dependencies {
     api(libs.guava)
     implementation(libs.bookkeeper.circe.checksum) {
         exclude(group = "io.netty")
+        // BookKeeper declares an older slog; keep only libs.slog in the published POM
+        exclude(group = "io.github.merlimat.slog", module = "slog")
     }
     implementation(libs.commons.lang3)
     api(libs.asynchttpclient)

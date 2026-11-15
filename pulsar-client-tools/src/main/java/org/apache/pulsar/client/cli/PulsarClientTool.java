@@ -115,6 +115,7 @@ public class PulsarClientTool implements CommandHook {
         System.setProperty("picocli.version.name.0", "-v");
         commander = CommanderFactory.createRootCommanderWithHook(this, null);
         initCommander(properties);
+        CommanderFactory.addEnvironmentVariablesFooter(commander);
     }
 
     @Override
