@@ -34,7 +34,7 @@ public final class ServiceUnitUtils {
     /**
      * <code>ZooKeeper</code> root path for namespace ownership info.
      */
-    private static final String OWNER_INFO_ROOT = "/namespace";
+    public static final String OWNER_INFO_ROOT = "/namespace";
 
     public static String path(NamespaceBundle suname) {
         // The ephemeral node path for new namespaces should always have bundle name appended

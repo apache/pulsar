@@ -22,8 +22,10 @@ import static java.lang.Thread.sleep;
 import static org.apache.pulsar.broker.resources.LoadBalanceResources.BROKER_TIME_AVERAGE_BASE_PATH;
 import static org.apache.pulsar.broker.resources.LoadBalanceResources.BUNDLE_DATA_BASE_PATH;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -768,6 +770,96 @@ public class ModularLoadManagerImplTest {
         assertTrue(Set.of(pulsar1.getBrokerId(), pulsar2.getBrokerId()).contains(broker));
         // The affinity is consumed, so the next lookup gets the same preallocated broker.
         assertEquals(wrapper.getLeastLoaded(bundle).get().getResourceId(), broker);
+    }
+
+    /**
+     * Makes the placement strategy select {@code firstBroker} for the bundle, then {@code nextBroker}, so that a second
+     * selection of the bundle shows up as a different broker.
+     */
+    private void selectBrokersInOrder(NamespaceBundle bundle, String firstBroker, String nextBroker) {
+        // Without the overload retry, each selection asks the strategy once.
+        pulsar1.getConfiguration().setLoadBalancerBrokerOverloadedThresholdPercentage(Integer.MAX_VALUE);
+        ModularLoadManagerStrategy strategy = mock(ModularLoadManagerStrategy.class);
+        when(strategy.selectBrokerForBundle(any(), eq(bundle.toString()), any(), any(), any()))
+                .thenReturn(Optional.of(firstBroker), Optional.of(nextBroker));
+        primaryLoadManager.setPlacementStrategy(strategy);
+    }
+
+    @Test
+    public void testPreallocationIsKeptUntilTheBrokerReportsTheBundle() throws Exception {
+        NamespaceBundle bundle = makeBundle("tenant-1", "ns-1");
+        primaryLoadManager.updateAll();
+        selectBrokersInOrder(bundle, primaryBrokerId, secondaryBrokerId);
+        assertEquals(primaryLoadManager.selectBrokerForAssignment(bundle), Optional.of(primaryBrokerId));
+
+        // A load report changes while the selected broker is still acquiring the bundle.
+        primaryLoadManager.updateAll();
+
+        // The lookups of the bundle keep resolving to the selected broker, or both brokers would try to acquire it.
+        assertEquals(primaryLoadManager.selectBrokerForAssignment(bundle), Optional.of(primaryBrokerId));
+    }
+
+    @Test
+    public void testPreallocationIsRemovedOnceTheBrokerReportsTheBundle() throws Exception {
+        admin1.clusters().createCluster("use", ClusterData.builder()
+                .serviceUrl(pulsar1.getWebServiceAddress()).build());
+        admin1.tenants().createTenant("tenant-1", new TenantInfoImpl(Set.of(), Set.of("use")));
+        admin1.namespaces().createNamespace("tenant-1/ns-1", 1);
+        NamespaceBundle bundle = makeBundle("tenant-1", "ns-1");
+        primaryLoadManager.updateAll();
+        selectBrokersInOrder(bundle, secondaryBrokerId, primaryBrokerId);
+        assertEquals(primaryLoadManager.selectBrokerForAssignment(bundle), Optional.of(secondaryBrokerId));
+
+        // The selected broker loads the bundle and reports it.
+        pulsar2.getNamespaceService().getOwnershipCache().tryAcquiringOwnership(bundle).get();
+        pulsar2.getBrokerService().getOrCreateTopic("persistent://tenant-1/ns-1/topic").get();
+        pulsar2.getBrokerService().updateRates();
+        secondaryLoadManager.writeBrokerDataOnZooKeeper(true);
+        Awaitility.await().untilAsserted(() -> {
+            primaryLoadManager.updateAll();
+            assertTrue(primaryLoadManager.getLoadData().getBrokerData().get(secondaryBrokerId).getLocalData()
+                    .getBundles().contains(bundle.toString()));
+        });
+
+        // The bundle is no longer preallocated: once it's unloaded, its next assignment selects a broker again.
+        assertEquals(primaryLoadManager.selectBrokerForAssignment(bundle), Optional.of(primaryBrokerId));
+    }
+
+    @Test
+    public void testPreallocationIsRemovedOnceTheBundleIsUnloaded() throws Exception {
+        admin1.clusters().createCluster("use", ClusterData.builder()
+                .serviceUrl(pulsar1.getWebServiceAddress()).build());
+        admin1.tenants().createTenant("tenant-1", new TenantInfoImpl(Set.of(), Set.of("use")));
+        admin1.namespaces().createNamespace("tenant-1/ns-1", 1);
+        NamespaceBundle bundle = makeBundle("tenant-1", "ns-1");
+        primaryLoadManager.updateAll();
+        selectBrokersInOrder(bundle, secondaryBrokerId, primaryBrokerId);
+        assertEquals(primaryLoadManager.selectBrokerForAssignment(bundle), Optional.of(secondaryBrokerId));
+
+        // The selected broker loads the bundle, and unloads it before it reports it, e.g. because a namespace
+        // isolation policy change excludes the broker.
+        pulsar2.getNamespaceService().getOwnershipCache().tryAcquiringOwnership(bundle).get();
+        pulsar2.getNamespaceService().unloadNamespaceBundle(bundle).get();
+
+        // The next assignment of the bundle selects a broker again.
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(primaryLoadManager.selectBrokerForAssignment(bundle), Optional.of(primaryBrokerId)));
+    }
+
+    @Test
+    public void testPreallocationIsRemovedWhenTheBrokerIsGone() throws Exception {
+        NamespaceBundle bundle = makeBundle("tenant-1", "ns-1");
+        primaryLoadManager.updateAll();
+        // A broker that stopped after the bundle was preallocated to it: the leader keeps its load data until the next
+        // update, which may run before reapDeadBrokerPreallocations() sees the broker gone.
+        String goneBroker = "gone-broker:8080";
+        primaryLoadManager.getLoadData().getBrokerData().put(goneBroker, new BrokerData(new LocalBrokerData()));
+        selectBrokersInOrder(bundle, goneBroker, primaryBrokerId);
+        assertEquals(primaryLoadManager.selectBrokerForAssignment(bundle), Optional.of(goneBroker));
+
+        primaryLoadManager.updateAll();
+
+        assertEquals(primaryLoadManager.selectBrokerForAssignment(bundle), Optional.of(primaryBrokerId));
     }
 
     /**
