@@ -28,10 +28,18 @@ import static org.mockito.Mockito.withSettings;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Timeout;
 import io.netty.util.Timer;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Base64;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import org.apache.pulsar.client.api.CompressionType;
@@ -103,31 +111,7 @@ public class BatchMessageKeyBasedContainerTest {
             List<ProducerImpl.OpSendMsg> ops = fixture.flush();
 
             assertThat(ops).hasSize(1);
-            ProducerImpl.OpSendMsg op = ops.get(0);
-            MessageMetadata batchMetadata = metadataOf(op);
-            assertBatchKeyRepresentation(batchMetadata, messages.get(0).getMessageBuilder());
-            ByteBuf batchPayload = op.cmd.getSecond().duplicate();
-            for (int i = 0; i < messages.size(); i++) {
-                SingleMessageMetadata singleMetadata = new SingleMessageMetadata();
-                ByteBuf payload = Commands.deSerializeSingleMessageInBatch(
-                        batchPayload, singleMetadata, i, messages.size());
-                try {
-                    MessageImpl<byte[]> decoded = MessageImpl.create("test-topic",
-                            new BatchMessageIdImpl(1, 2, -1, i), batchMetadata, singleMetadata,
-                            payload, Optional.empty(), null, Schema.BYTES, 0, true,
-                            Commands.DEFAULT_CONSUMER_EPOCH);
-                    try {
-                        assertKeyRepresentation(decoded, messages.get(i));
-                        assertThat(decoded.getSequenceId()).as("the original message sequence id")
-                                .isEqualTo(messages.get(i).getSequenceId());
-                    } finally {
-                        decoded.release();
-                    }
-                } finally {
-                    payload.release();
-                }
-            }
-            assertThat(batchPayload.isReadable()).as("all serialized messages have been decoded").isFalse();
+            assertWireMessages(ops.get(0), messages);
         }
     }
 
@@ -388,6 +372,159 @@ public class BatchMessageKeyBasedContainerTest {
             assertThat(ops.get(0).msgs).allSatisfy(message -> assertThat(message.hasKey()).isFalse());
             assertThat(metadataOf(ops.get(0)).hasPartitionKey()).isFalse();
         }
+    }
+
+    @DataProvider
+    public Object[][] randomSeeds() {
+        return new Object[][] {{0L}, {1L}, {0x5eedL}};
+    }
+
+    @Test(dataProvider = "randomSeeds")
+    public void testRandomizedBatchingMatchesRawStickyKeyModel(long seed) throws Exception {
+        Random random = new Random(seed);
+        for (int round = 0; round < 20; round++) {
+            try (BatchFixture fixture = new BatchFixture()) {
+                Map<ByteBuffer, ExpectedBatch> expected = new LinkedHashMap<>();
+                List<Consumer<TypedMessageBuilder<byte[]>>> keySetters = randomKeySetters(random);
+                for (int sequenceId = 0; sequenceId < keySetters.size(); sequenceId++) {
+                    Consumer<TypedMessageBuilder<byte[]>> setKey = keySetters.get(sequenceId);
+                    byte[] payload = new byte[random.nextInt(33)];
+                    random.nextBytes(payload);
+                    MessageImpl<?> message = fixture.message(sequenceId, builder -> {
+                        setKey.accept(builder);
+                        builder.value(payload);
+                    });
+                    if (message.hasBase64EncodedKey() && message.getKey().endsWith("=") && random.nextBoolean()) {
+                        message.getMessageBuilder().setPartitionKey(message.getKey().replace("=", ""));
+                    }
+                    ByteBuffer key = referenceKey(message.getMessageBuilder());
+                    ExpectedBatch batch = expected.get(key);
+                    if (batch == null) {
+                        batch = new ExpectedBatch(new byte[] {(byte) (expected.size() >>> 8), (byte) expected.size()},
+                                new ArrayList<>());
+                        expected.put(key, batch);
+                    } else {
+                        message.getMessageBuilder().setSchemaVersion(new byte[] {0, 0, 0});
+                        assertThat(fixture.container.hasSameSchema(message))
+                                .as("a different schema for an existing key")
+                                .isFalse();
+                    }
+                    message.getMessageBuilder().setSchemaVersion(batch.schemaVersion());
+                    assertThat(fixture.container.hasSameSchema(message)).as("the reference batch schema").isTrue();
+                    fixture.add(message);
+                    batch.messages().add(message);
+                }
+
+                List<ProducerImpl.OpSendMsg> ops = fixture.flush();
+
+                assertThat(ops).as("one batch per reference key").hasSize(expected.size());
+                Set<ByteBuffer> sentKeys = new HashSet<>();
+                List<MessageImpl<?>> sentMessages = new ArrayList<>();
+                for (ProducerImpl.OpSendMsg op : ops) {
+                    ByteBuffer key = referenceKey(metadataOf(op));
+                    assertThat(sentKeys.add(key)).as("each key is sent in exactly one batch").isTrue();
+                    ExpectedBatch batch = expected.get(key);
+                    assertThat(batch).as("the wire routing key belongs to the reference model").isNotNull();
+                    assertThat(op.msgs).as("messages retain their input order within each key")
+                            .containsExactlyElementsOf(batch.messages());
+                    assertWireMessages(op, batch.messages());
+                    sentMessages.addAll(op.msgs);
+                }
+                assertThat(sentMessages).as("every input message is sent exactly once")
+                        .containsExactlyInAnyOrderElementsOf(fixture.messages);
+            } catch (AssertionError | Exception error) {
+                throw new AssertionError("seed=" + seed + ", round=" + round, error);
+            }
+        }
+    }
+
+    private static List<Consumer<TypedMessageBuilder<byte[]>>> randomKeySetters(Random random) {
+        List<Consumer<TypedMessageBuilder<byte[]>>> setters = new ArrayList<>();
+        List<String> texts = new ArrayList<>(List.of("", "\0", "\u007f", "before\0after", "before\u007fafter"));
+        for (int i = 0; i < 6; i++) {
+            texts.add(randomText(random, i == 0));
+        }
+        for (String text : texts) {
+            byte[] rawKey = text.getBytes(StandardCharsets.UTF_8);
+            setters.add(builder -> builder.key(text));
+            setters.add(builder -> builder.keyBytes(rawKey));
+            setters.add(builder -> builder.key("unrelated-partition").orderingKey(rawKey));
+        }
+        for (int i = 0; i < 6; i++) {
+            byte[] rawKey = new byte[random.nextInt(25)];
+            random.nextBytes(rawKey);
+            byte[] partitionKey = new byte[1 + random.nextInt(8)];
+            random.nextBytes(partitionKey);
+            // This text key collides with the binary key's stored spelling, rather than its raw bytes.
+            String storedKey = Base64.getEncoder().encodeToString(rawKey);
+            setters.add(builder -> builder.key(storedKey));
+            setters.add(builder -> builder.keyBytes(rawKey));
+            setters.add(builder -> builder.keyBytes(rawKey));
+            setters.add(builder -> builder.keyBytes(partitionKey).orderingKey(rawKey));
+        }
+        for (int i = 0; i < 2; i++) {
+            setters.add(builder -> { });
+            setters.add(builder -> builder.key(null));
+            setters.add(builder -> builder.keyBytes(null));
+        }
+        Collections.shuffle(setters, random);
+        return setters;
+    }
+
+    private static String randomText(Random random, boolean asciiOnly) {
+        StringBuilder text = new StringBuilder();
+        int length = random.nextInt(13);
+        for (int i = 0; i < length; i++) {
+            int codePoint = asciiOnly ? random.nextInt(128) : switch (random.nextInt(4)) {
+                case 0 -> random.nextInt(128);
+                case 1 -> 128 + random.nextInt(0xd800 - 128);
+                case 2 -> 0xe000 + random.nextInt(0x10000 - 0xe000);
+                default -> 0x10000 + random.nextInt(0x110000 - 0x10000);
+            };
+            text.appendCodePoint(codePoint);
+        }
+        return text.toString();
+    }
+
+    private static ByteBuffer referenceKey(MessageMetadata metadata) {
+        // Preserve the existing shared batch for unkeyed messages, without the producer/sequence fallback.
+        return metadata.hasOrderingKey() || metadata.hasPartitionKey()
+                ? ByteBuffer.wrap(Commands.resolveStickyKey(metadata).clone()) : null;
+    }
+
+    private record ExpectedBatch(byte[] schemaVersion, List<MessageImpl<?>> messages) { }
+
+    private static void assertWireMessages(ProducerImpl.OpSendMsg op, List<MessageImpl<?>> messages) throws Exception {
+        MessageMetadata batchMetadata = metadataOf(op);
+        assertBatchKeyRepresentation(batchMetadata, messages.get(0).getMessageBuilder());
+        ByteBuf batchPayload = op.cmd.getSecond().duplicate();
+        for (int i = 0; i < messages.size(); i++) {
+            SingleMessageMetadata singleMetadata = messages.size() == 1 ? null : new SingleMessageMetadata();
+            ByteBuf payload = singleMetadata == null ? batchPayload.readRetainedSlice(batchPayload.readableBytes())
+                    : Commands.deSerializeSingleMessageInBatch(batchPayload, singleMetadata, i, messages.size());
+            try {
+                MessageImpl<byte[]> decoded = singleMetadata == null
+                        ? MessageImpl.create("test-topic", new MessageIdImpl(1, 2, -1), batchMetadata,
+                                payload, Optional.empty(), null, Schema.BYTES, 0, true, Commands.DEFAULT_CONSUMER_EPOCH)
+                        : MessageImpl.create("test-topic", new BatchMessageIdImpl(1, 2, -1, i),
+                                batchMetadata, singleMetadata, payload, Optional.empty(), null, Schema.BYTES, 0, true,
+                                Commands.DEFAULT_CONSUMER_EPOCH);
+                try {
+                    MessageImpl<?> original = messages.get(i);
+                    assertKeyRepresentation(decoded, original);
+                    assertThat(decoded.getSequenceId()).as("the original message sequence id")
+                            .isEqualTo(original.getSequenceId());
+                    assertThat(decoded.getData()).as("the original message payload").isEqualTo(original.getData());
+                    assertThat(decoded.getSchemaVersion()).as("the original schema version")
+                            .isEqualTo(original.getSchemaVersion());
+                } finally {
+                    decoded.release();
+                }
+            } finally {
+                payload.release();
+            }
+        }
+        assertThat(batchPayload.isReadable()).as("all serialized messages have been decoded").isFalse();
     }
 
     private static void assertBatchKeyRepresentation(MessageMetadata actual, MessageMetadata expected) {
