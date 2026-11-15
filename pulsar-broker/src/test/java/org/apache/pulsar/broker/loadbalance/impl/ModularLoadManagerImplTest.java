@@ -24,6 +24,7 @@ import static org.apache.pulsar.broker.resources.LoadBalanceResources.BUNDLE_DAT
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -740,6 +741,30 @@ public class ModularLoadManagerImplTest {
     }
 
     @Test
+    public void testPreallocatedBundleLookupDoesNotWaitForMetadata() throws Exception {
+        NamespaceBundle bundle = makeBundle("tenant-1", "ns-1");
+        primaryLoadManager.updateAll();
+        String broker = primaryLoadManager.selectBrokerForAssignmentAsync(bundle).get(10, TimeUnit.SECONDS).get();
+        BundleData bundleData = primaryLoadManager.getBundleDataOrDefaultAsync(bundle.toString()).join();
+        ModularLoadManagerImpl lm = spy(primaryLoadManager);
+        CompletableFuture<BundleData> pendingBundleData = new CompletableFuture<>();
+        CompletableFuture<Set<String>> pendingBrokers = new CompletableFuture<>();
+        doReturn(pendingBundleData).when(lm).getBundleDataOrDefaultAsync(bundle.toString());
+        doReturn(pendingBrokers).when(lm).getAvailableBrokersAsync();
+
+        try {
+            // Hold metadata futures pending to prove the preallocated answer does not wait for them.
+            assertEquals(lm.selectBrokerForAssignmentAsync(bundle).get(1, TimeUnit.SECONDS), Optional.of(broker));
+            assertEquals(CompletableFuture.supplyAsync(() -> lm.selectBrokerForAssignment(bundle), executor)
+                            .get(1, TimeUnit.SECONDS),
+                    Optional.of(broker));
+        } finally {
+            pendingBrokers.complete(Set.of(pulsar1.getBrokerId(), pulsar2.getBrokerId()));
+            pendingBundleData.complete(bundleData != null ? bundleData : new BundleData());
+        }
+    }
+
+    @Test
     public void testBrokerAffinityAppliesToEveryLookupUntilOwned() throws Exception {
         NamespaceBundle bundle = makeBundle("tenant-1", "ns-1");
         primaryLoadManager.updateAll();
@@ -753,6 +778,23 @@ public class ModularLoadManagerImplTest {
 
         for (int i = 0; i < 10; i++) {
             assertEquals(wrapper.getLeastLoaded(bundle).get().getResourceId(), affinityBroker);
+        }
+    }
+
+    @Test
+    public void testBrokerAffinityTakesPrecedenceOverPreallocationAsync() throws Exception {
+        NamespaceBundle bundle = makeBundle("tenant-1", "ns-1");
+        primaryLoadManager.updateAll();
+        String preallocatedBroker = primaryLoadManager.selectBrokerForAssignment(bundle).get();
+        String affinityBroker = preallocatedBroker.equals(pulsar1.getBrokerId())
+                ? pulsar2.getBrokerId() : pulsar1.getBrokerId();
+
+        LoadManager wrapper = pulsar1.getLoadManager().get();
+        wrapper.setNamespaceBundleAffinity(bundle.toString(), affinityBroker);
+
+        for (int i = 0; i < 10; i++) {
+            assertEquals(wrapper.getLeastLoadedAsync(bundle).get(10, TimeUnit.SECONDS).get().getResourceId(),
+                    affinityBroker);
         }
     }
 
