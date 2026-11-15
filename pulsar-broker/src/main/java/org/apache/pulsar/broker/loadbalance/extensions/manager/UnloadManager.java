@@ -67,9 +67,10 @@ public class UnloadManager implements StateChangeListener {
             "brk_lb_disconnect_latency", "Time spent in the load balancing disconnected state on source brokers"),
                 true, false);
 
+        // Nothing exports exemplars, so the histograms skip the sampling that 1.x histograms do by default.
         private static Histogram buildHistogram(String name, String help) {
             return Histogram.builder().name(name).help(help).unit(new Unit("ms")).labelNames("broker", "metric")
-                    .classicOnly().classicUpperBounds(1.0, 10.0, 100.0, 200.0, 1000.0).register();
+                    .classicOnly().classicUpperBounds(1.0, 10.0, 100.0, 200.0, 1000.0).withoutExemplars().register();
         }
         private static final long OP_TIMEOUT_NS = TimeUnit.HOURS.toNanos(1);
 

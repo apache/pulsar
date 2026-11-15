@@ -121,13 +121,14 @@ class SchemaRegistryStats implements AutoCloseable, Runnable {
                 .build();
     }
 
+    // Nothing exports exemplars, so the metrics skip the sampling that 1.x metrics do by default.
     private static Counter buildCounter(String name) {
-        return Counter.builder().name(name).help("-").labelNames(NAMESPACE).register();
+        return Counter.builder().name(name).help("-").labelNames(NAMESPACE).withoutExemplars().register();
     }
 
     private static Summary buildSummary(String name, String help) {
         Summary.Builder builder = Summary.builder().name(name).help(help).labelNames(NAMESPACE)
-                .maxAgeSeconds(QUANTILE_WINDOW_SECONDS);
+                .maxAgeSeconds(QUANTILE_WINDOW_SECONDS).withoutExemplars();
 
         for (double quantile : QUANTILES) {
             builder.quantile(quantile, 0.01D);
