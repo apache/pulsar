@@ -61,8 +61,8 @@ public class ZKSessionWatcher implements AutoCloseable, Watcher {
     private final ScheduledFuture<?> task;
 
     private long disconnectedAt = 0;
-    // Highest handle generation whose SyncConnected event has been processed. A terminal event from an older handle
-    // remains relevant until a newer handle has actually reached the session watcher, not merely been published.
+    // Highest handle generation accepted as writable by the session watcher. A terminal event from an older handle
+    // remains relevant until the watcher has processed a writable connection on a newer handle.
     private long lastConnectedHandleGeneration = UNKNOWN_HANDLE_GENERATION;
 
     // The id of a session that a listener invalidated and that PulsarZooKeeperClient is replacing, or 0. Events of
@@ -176,14 +176,9 @@ public class ZKSessionWatcher implements AutoCloseable, Watcher {
                     .log("Ignoring ZooKeeper session event from a stale handle");
             return;
         }
-        if (!staleHandle && stateSnapshot.event().getState() == KeeperState.SyncConnected
-                && stateSnapshot.handleGeneration() != UNKNOWN_HANDLE_GENERATION) {
-            lastConnectedHandleGeneration = Math.max(lastConnectedHandleGeneration,
-                    stateSnapshot.handleGeneration());
-        }
         log.info().attr("event", stateSnapshot.event()).log("Got ZK session watch event");
         checkState(stateSnapshot.event().getState(), stateSnapshot.clientState(), stateSnapshot.sessionId(),
-                sessionListener);
+                stateSnapshot.handleGeneration(), sessionListener);
     }
 
     private static boolean isTerminalInvalidation(SessionEventSnapshot stateSnapshot) {
@@ -245,9 +240,11 @@ public class ZKSessionWatcher implements AutoCloseable, Watcher {
             PulsarZooKeeperClient.CurrentHandleIdentity expectedIdentity =
                     new PulsarZooKeeperClient.CurrentHandleIdentity(checkedHandleIdentity.handleGeneration(),
                             checkedHandleIdentity.sessionId());
-            List<SessionEvent> notifications = new ArrayList<>(2);
+            List<SessionEvent> notifications = new ArrayList<>(3);
             boolean processed = ((PulsarZooKeeperClient) zk).runStateUpdateIfCurrentHandle(expectedIdentity,
-                    () -> processCurrentProbeState(checkedHandleIdentity, stateSnapshot, notifications::add));
+                    () -> checkState(stateSnapshot.keeperState(), stateSnapshot.clientState(),
+                            checkedHandleIdentity.sessionId(), checkedHandleIdentity.handleGeneration(),
+                            notifications::add));
             if (!processed) {
                 logStaleProbe(checkedHandleIdentity, getCurrentHandleIdentity(), stateSnapshot);
                 return;
@@ -261,18 +258,8 @@ public class ZKSessionWatcher implements AutoCloseable, Watcher {
             logStaleProbe(checkedHandleIdentity, currentHandleIdentity, stateSnapshot);
             return;
         }
-        processCurrentProbeState(checkedHandleIdentity, stateSnapshot, sessionListener);
-    }
-
-    private void processCurrentProbeState(HandleIdentity checkedHandleIdentity, StateSnapshot stateSnapshot,
-                                          Consumer<SessionEvent> notificationSink) {
-        if (stateSnapshot.keeperState() == KeeperState.SyncConnected
-                && checkedHandleIdentity.handleGeneration() != UNKNOWN_HANDLE_GENERATION) {
-            lastConnectedHandleGeneration = Math.max(lastConnectedHandleGeneration,
-                    checkedHandleIdentity.handleGeneration());
-        }
         checkState(stateSnapshot.keeperState(), stateSnapshot.clientState(), checkedHandleIdentity.sessionId(),
-                notificationSink);
+                checkedHandleIdentity.handleGeneration(), sessionListener);
     }
 
     private void logStaleProbe(HandleIdentity checkedHandleIdentity, HandleIdentity currentHandleIdentity,
@@ -287,7 +274,7 @@ public class ZKSessionWatcher implements AutoCloseable, Watcher {
     }
 
     private synchronized void checkState(KeeperState zkClientState, ZooKeeper.States clientState, long sessionId,
-                                         Consumer<SessionEvent> notificationSink) {
+                                         long handleGeneration, Consumer<SessionEvent> notificationSink) {
         switch (zkClientState) {
         case Expired:
             if (currentStatus != SessionEvent.SessionLost) {
@@ -306,7 +293,7 @@ public class ZKSessionWatcher implements AutoCloseable, Watcher {
             break;
 
         case SyncConnected:
-            handleSyncConnected(sessionId, notificationSink);
+            handleSyncConnected(sessionId, handleGeneration, notificationSink);
             break;
 
         case AuthFailed:
@@ -379,42 +366,53 @@ public class ZKSessionWatcher implements AutoCloseable, Watcher {
         }
     }
 
-    private void handleSyncConnected(long sessionId, Consumer<SessionEvent> notificationSink) {
-        if (currentStatus != SessionEvent.SessionReestablished) {
-            if (replacedSessionId != 0 && sessionId == replacedSessionId) {
-                log.info().attr("sessionId", replacedSessionId)
-                        .log("Ignoring the connection of a ZooKeeper session that is being replaced");
-                return;
+    private void handleSyncConnected(long sessionId, long handleGeneration, Consumer<SessionEvent> notificationSink) {
+        boolean newHandle = handleGeneration > lastConnectedHandleGeneration;
+        if (!newHandle && currentStatus == SessionEvent.SessionReestablished) {
+            return;
+        }
+        if (replacedSessionId != 0 && sessionId == replacedSessionId) {
+            log.info().attr("sessionId", replacedSessionId)
+                    .log("Ignoring the connection of a ZooKeeper session that is being replaced");
+            return;
+        }
+
+        // A replacement handle has a new session. Its connection can reach this watcher before the old
+        // handle's queued Expired event, which becomes stale once we advance the connected generation.
+        boolean sessionAlreadyLost = currentStatus == SessionEvent.SessionLost;
+        if (newHandle) {
+            lastConnectedHandleGeneration = handleGeneration;
+        }
+        replacedSessionId = 0;
+        disconnectedAt = 0;
+
+        log.info().attr("currentStatus", currentStatus).log("ZooKeeper client reconnection with server quorum");
+        // Commit the state before notifying the listener, which can invalidate the new session reentrantly.
+        currentStatus = SessionEvent.SessionReestablished;
+        notifyReconnection(notificationSink, newHandle && !sessionAlreadyLost, newHandle || sessionAlreadyLost);
+    }
+
+    private static void notifyReconnection(Consumer<SessionEvent> listener, boolean notifyLoss,
+                                           boolean notifyReestablishment) {
+        try {
+            if (notifyLoss) {
+                listener.accept(SessionEvent.SessionLost);
             }
-            replacedSessionId = 0;
-
-            // since it reconnected to zoo keeper, we reset the disconnected time
-            log.info().attr("currentStatus", currentStatus).log("ZooKeeper client reconnection with server quorum");
-            disconnectedAt = 0;
-
-            SessionEvent previousStatus = currentStatus;
-            // Update the status before notifying the listener: a listener that can't use the new session, such
-            // as ZKMetadataStore when it fails to recreate its persistent watch, calls setSessionReplaced() or
-            // setSessionInvalid() while it's notified, and the status it sets must not be overwritten, or the next
-            // session would not send SessionReestablished again.
-            currentStatus = SessionEvent.SessionReestablished;
+        } finally {
             try {
-                notificationSink.accept(SessionEvent.Reconnected);
+                listener.accept(SessionEvent.Reconnected);
             } finally {
-                if (previousStatus == SessionEvent.SessionLost) {
-                    notificationSink.accept(SessionEvent.SessionReestablished);
+                if (notifyReestablishment) {
+                    listener.accept(SessionEvent.SessionReestablished);
                 }
             }
         }
     }
 
     private void notifySessionListener(List<SessionEvent> notifications) {
-        if (notifications.size() == 2) {
-            try {
-                sessionListener.accept(notifications.get(0));
-            } finally {
-                sessionListener.accept(notifications.get(1));
-            }
+        if (notifications.size() >= 2) {
+            // Only a session reestablishment produces multiple notifications, with SessionLost first if needed.
+            notifyReconnection(sessionListener, notifications.get(0) == SessionEvent.SessionLost, true);
         } else if (notifications.size() == 1) {
             sessionListener.accept(notifications.get(0));
         }
