@@ -52,6 +52,7 @@ dependencies {
     implementation(libs.simpleclient)
     implementation(libs.simpleclient.hotspot)
     implementation(libs.simpleclient.servlet)
+    implementation(libs.prometheus.metrics.core)
     implementation(libs.jackson.jakarta.rs.json.provider)
     api(libs.picocli)
     implementation(libs.log4j.core)
