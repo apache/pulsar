@@ -68,6 +68,12 @@ public class ModularLoadManagerWrapper implements LoadManager {
     }
 
     @Override
+    public CompletableFuture<Optional<ResourceUnit>> getLeastLoadedAsync(final ServiceUnitId serviceUnit) {
+        return loadManager.selectBrokerForAssignmentAsync(serviceUnit)
+                .thenApply(leastLoadedBroker -> leastLoadedBroker.map(this::buildBrokerResourceUnit));
+    }
+
+    @Override
     public List<Metrics> getLoadBalancingMetrics() {
         return loadManager.getLoadBalancingMetrics();
     }

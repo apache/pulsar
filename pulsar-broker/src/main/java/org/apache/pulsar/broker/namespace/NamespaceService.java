@@ -65,7 +65,6 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
-import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.manager.RedirectManagerForLoadManagerMigration;
 import org.apache.pulsar.broker.lookup.LookupResult;
@@ -712,13 +711,7 @@ public class NamespaceService implements AutoCloseable {
 
     // The decentralized decision is authoritative: this broker picked the owner itself.
     private CompletableFuture<Optional<CandidateBrokerSelection>> selectLeastLoadedBroker(NamespaceBundle bundle) {
-        Optional<String> availableBroker;
-        try {
-            availableBroker = getLeastLoadedFromLoadManager(bundle);
-        } catch (Exception e) {
-            return CompletableFuture.failedFuture(e);
-        }
-        return CompletableFuture.completedFuture(
+        return getLeastLoadedFromLoadManager(bundle).thenApply(availableBroker ->
                 availableBroker.map(broker -> new CandidateBrokerSelection(broker, true)));
     }
 
@@ -841,21 +834,21 @@ public class NamespaceService implements AutoCloseable {
      *
      * @param serviceUnit the service unit
      * @return the least loaded brokerId
-     * @throws Exception if an error occurs
      */
-    private Optional<String> getLeastLoadedFromLoadManager(ServiceUnitId serviceUnit) throws Exception {
-        Optional<ResourceUnit> leastLoadedBroker = loadManager.get().getLeastLoaded(serviceUnit);
-        if (leastLoadedBroker.isEmpty()) {
-            log.warn().attr("serviceUnit", serviceUnit).log("No broker is available");
-            return Optional.empty();
-        }
+    private CompletableFuture<Optional<String>> getLeastLoadedFromLoadManager(ServiceUnitId serviceUnit) {
+        return loadManager.get().getLeastLoadedAsync(serviceUnit).thenApply(leastLoadedBroker -> {
+            if (leastLoadedBroker.isEmpty()) {
+                log.warn().attr("serviceUnit", serviceUnit).log("No broker is available");
+                return Optional.empty();
+            }
 
-        String leastLoadedBrokerId = leastLoadedBroker.get().getResourceId();
-        log.debug()
-                .attr("brokerId", pulsar.getBrokerId())
-                .attr("leastLoadedBrokerId", leastLoadedBrokerId)
-                .log("redirecting to the least loaded broker");
-        return Optional.of(leastLoadedBrokerId);
+            String leastLoadedBrokerId = leastLoadedBroker.get().getResourceId();
+            log.debug()
+                    .attr("brokerId", pulsar.getBrokerId())
+                    .attr("leastLoadedBrokerId", leastLoadedBrokerId)
+                    .log("redirecting to the least loaded broker");
+            return Optional.of(leastLoadedBrokerId);
+        });
     }
 
     public CompletableFuture<Void> unloadNamespaceBundle(NamespaceBundle bundle) {
