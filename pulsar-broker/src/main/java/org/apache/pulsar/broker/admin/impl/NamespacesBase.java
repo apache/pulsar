@@ -1451,18 +1451,17 @@ public abstract class NamespacesBase extends AdminResource {
         validatePoliciesReadOnlyAccess();
 
         try {
-            Policies policies = namespaceResources().getPolicies(namespaceName)
-                    .orElseThrow(() -> new RestException(Status.NOT_FOUND,
-                    "Namespace policies does not exist"));
-            if (!checkQuotas(policies, retention)) {
-                log.warn("[{}] Failed to update retention configuration"
-                                + " for namespace {}: conflicts with backlog quota",
-                        clientAppId(), namespaceName);
-                throw new RestException(Status.PRECONDITION_FAILED,
-                        "Retention Quota must exceed configured backlog quota for namespace.");
-            }
-            policies.retention_policies = retention;
-            namespaceResources().setPolicies(namespaceName, p -> policies);
+            updatePolicies(namespaceName, policies -> {
+                if (!checkQuotas(policies, retention)) {
+                    log.warn("[{}] Failed to update retention configuration"
+                                    + " for namespace {}: conflicts with backlog quota",
+                            clientAppId(), namespaceName);
+                    throw new RestException(Status.PRECONDITION_FAILED,
+                            "Retention Quota must exceed configured backlog quota for namespace.");
+                }
+                policies.retention_policies = retention;
+                return policies;
+            });
             log.info("[{}] Successfully updated retention configuration: namespace={}, map={}", clientAppId(),
                     namespaceName, objectWriter().writeValueAsString(retention));
         } catch (RestException pfe) {
@@ -1714,13 +1713,16 @@ public abstract class NamespacesBase extends AdminResource {
 
     protected void internalSetPolicies(String fieldName, Object value) {
         try {
-            Policies policies = namespaceResources().getPolicies(namespaceName)
-                    .orElseThrow(() -> new RestException(Status.NOT_FOUND,
-                    "Namespace policies does not exist"));
             Field field = Policies.class.getDeclaredField(fieldName);
             field.setAccessible(true);
-            field.set(policies, value);
-            namespaceResources().setPolicies(namespaceName, p -> policies);
+            updatePolicies(namespaceName, policies -> {
+                try {
+                    field.set(policies, value);
+                } catch (IllegalAccessException e) {
+                    throw new RestException(e);
+                }
+                return policies;
+            });
             log.info("[{}] Successfully updated {} configuration: namespace={}, value={}", clientAppId(), fieldName,
                     namespaceName, objectWriter().writeValueAsString(value));
 
