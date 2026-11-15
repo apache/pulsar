@@ -97,6 +97,11 @@ public class FileBasedTlsFactory implements PulsarTlsFactory {
     // Stands in for scheduleWithFixedDelay's no-overlap guarantee once the poll body is dispatched.
     private final AtomicBoolean pollInFlight = new AtomicBoolean();
 
+    /** @return the factory-wide settings this factory builds its contexts with */
+    public FileBasedTlsFactorySettings settings() {
+        return settings;
+    }
+
     /**
      * Construct an immutable file-based factory.
      *
@@ -621,7 +626,7 @@ public class FileBasedTlsFactory implements PulsarTlsFactory {
                 if (nettyContext == null || !material.equals(nettyMaterial)) {
                     SslContext built = purpose.role() == TlsPurpose.Role.SERVER
                             ? TlsContexts.buildNettyServerContext(material, policy, settings.engineProvider(),
-                                    settings.requireTrustedClientCert())
+                                    settings.clientAuthMode())
                             : TlsContexts.buildNettyClientContext(material, policy, settings.engineProvider());
                     release(nettyContext);
                     nettyContext = built;

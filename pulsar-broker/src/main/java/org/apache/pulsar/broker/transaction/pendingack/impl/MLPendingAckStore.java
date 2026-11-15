@@ -357,8 +357,9 @@ public class MLPendingAckStore implements PendingAckStore {
                 } else {
                     handleMetadataEntry(position, pendingAckMetadataEntry);
                 }
-                completableFuture.complete(null);
+                // Trim before completing, so the index this append leaves is in place when the caller resumes.
                 clearUselessLogData();
+                completableFuture.complete(null);
             }
 
             @Override

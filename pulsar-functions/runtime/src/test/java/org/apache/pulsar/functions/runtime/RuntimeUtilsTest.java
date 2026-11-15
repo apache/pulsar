@@ -19,17 +19,26 @@
 package org.apache.pulsar.functions.runtime;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.prometheus.metrics.instrumentation.jvm.JvmMetrics;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
+import io.prometheus.metrics.model.snapshots.MetricSnapshot;
+import io.prometheus.metrics.model.snapshots.MetricSnapshots;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.CustomLog;
 import org.apache.pulsar.common.functions.MemoryLimit;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
+import org.apache.pulsar.functions.instance.stats.FunctionCollectorRegistry;
 import org.apache.pulsar.functions.proto.FunctionDetails;
 import org.apache.pulsar.functions.proto.ProcessingGuarantees;
 import org.apache.pulsar.functions.proto.Resources;
@@ -312,5 +321,46 @@ public class RuntimeUtilsTest {
         assertEquals(RuntimeUtils.sanitizeFileName("äöå.txt"), "aoa.txt");
         assertEquals(RuntimeUtils.sanitizeFileName("ÄÖÅ.txt"), "AOA.txt");
         assertNull(RuntimeUtils.sanitizeFileName(null));
+    }
+
+    /**
+     * Every LocalRunner start gets a fresh registry. {@code JvmMetrics.builder().register(registry)} would keep
+     * each of them in a static set for the JVM's lifetime and skip the JVM families on any registry it had
+     * seen, so the collectors are registered one by one. The allocation collector is not among them: it adds a
+     * garbage collector listener per registration that nothing removes.
+     */
+    @Test
+    public void testRegisterDefaultCollectorsOnFreshRegistries() throws Exception {
+        Field registered = JvmMetrics.class.getDeclaredField("REGISTERED");
+        registered.setAccessible(true);
+        int registriesHeldByJvmMetrics = ((Set<?>) registered.get(null)).size();
+
+        FunctionCollectorRegistry first = FunctionCollectorRegistry.getDefaultImplementation();
+        FunctionCollectorRegistry second = FunctionCollectorRegistry.getDefaultImplementation();
+        RuntimeUtils.registerDefaultCollectors(first);
+        RuntimeUtils.registerDefaultCollectors(second);
+
+        Set<String> firstFamilies = families(first);
+        Set<String> secondFamilies = families(second);
+        assertEquals(secondFamilies, firstFamilies);
+        // one family per collector registered by registerDefaultCollectors (native memory only reports with
+        // -XX:NativeMemoryTracking, so it has no family to check here)
+        for (String family : new String[]{"jvm_memory_used_bytes", "jvm_memory_pool_used_bytes", "jvm_threads_current",
+                "jvm_gc_collection_seconds", "jvm_classes_currently_loaded", "jvm_buffer_pool_used_bytes",
+                "jvm_compilation_time_seconds",
+                // registered names: exposed as jvm_runtime_info and process_cpu_seconds_total
+                "jvm_runtime", "process_cpu_seconds", "jmx_scrape_duration_seconds"}) {
+            assertTrue(firstFamilies.contains(family), family + " missing from " + firstFamilies);
+        }
+        assertFalse(firstFamilies.contains("jvm_memory_pool_allocated_bytes"),
+                "the allocation collector leaves a GC listener behind on every registration");
+        // the individual collectors keep no static state; JvmMetrics.REGISTERED must not have grown
+        assertEquals(((Set<?>) registered.get(null)).size(), registriesHeldByJvmMetrics);
+    }
+
+    private static Set<String> families(PrometheusRegistry registry) {
+        MetricSnapshots snapshots = registry.scrape();
+        return snapshots.stream().map(MetricSnapshot::getMetadata)
+                .map(metadata -> metadata.getPrometheusName()).collect(Collectors.toSet());
     }
 }

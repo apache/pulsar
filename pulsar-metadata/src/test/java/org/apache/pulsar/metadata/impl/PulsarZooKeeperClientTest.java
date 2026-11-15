@@ -34,6 +34,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
 import org.apache.bookkeeper.stats.OpStatsLogger;
 import org.apache.bookkeeper.stats.StatsLogger;
+import org.apache.bookkeeper.zookeeper.RetryPolicy;
 import org.apache.pulsar.metadata.BaseMetadataStoreTest;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
@@ -42,6 +43,7 @@ import org.apache.zookeeper.Watcher.Event.KeeperState;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.ZooKeeper.States;
 import org.awaitility.Awaitility;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class PulsarZooKeeperClientTest extends BaseMetadataStoreTest {
@@ -239,6 +241,70 @@ public class PulsarZooKeeperClientTest extends BaseMetadataStoreTest {
         Awaitility.await().atMost(15, TimeUnit.SECONDS)
                 .until(() -> zkClient.getZooKeeperHandle().getState() == States.CONNECTED
                         && !zkClient.isReconnectInProgress());
+    }
+
+    @DataProvider
+    public Object[][] invalidateRecoveredSession() {
+        return new Object[][]{{false}, {true}};
+    }
+
+    @Test(dataProvider = "invalidateRecoveredSession")
+    public void testReplacementConnectsDuringBackoff(boolean invalidateSession) throws Exception {
+        CountDownLatch backoffEntered = new CountDownLatch(1);
+        CountDownLatch resumeRetry = new CountDownLatch(1);
+        RetryPolicy retryPolicy = mock(RetryPolicy.class);
+        when(retryPolicy.allowRetry(eq(1), anyLong())).thenReturn(true);
+        when(retryPolicy.nextRetryWaitTime(eq(1), anyLong())).thenAnswer(invocation -> {
+            backoffEntered.countDown();
+            resumeRetry.await(30, TimeUnit.SECONDS);
+            return 0L;
+        });
+
+        try (PulsarZooKeeperClient zkClient = PulsarZooKeeperClient.newBuilder()
+                .connectString(zks.getConnectionString())
+                .sessionTimeoutMs(3000)
+                .connectRetryPolicy(retryPolicy)
+                .build()) {
+            ZooKeeper replacement;
+            long sessionId;
+            try {
+                zks.stop();
+                try {
+                    zkClient.process(sessionEvent(KeeperState.Expired));
+                    assertThat(backoffEntered.await(10, TimeUnit.SECONDS)).isTrue();
+                    replacement = zkClient.getZooKeeperHandle();
+                    assertThat(replacement).isNotNull();
+                } finally {
+                    zks.start();
+                }
+
+                Awaitility.await().atMost(Duration.ofSeconds(10))
+                        .until(() -> replacement.getState() == States.CONNECTED);
+                assertThat(zkClient.exists("/", false)).isNotNull();
+                assertThat(zkClient.getZooKeeperHandle()).isSameAs(replacement);
+                sessionId = replacement.getSessionId();
+
+                if (invalidateSession) {
+                    // The metadata store can request replacement of a connected session.
+                    zkClient.process(sessionEvent(KeeperState.Expired));
+                }
+            } finally {
+                resumeRetry.countDown();
+            }
+
+            Awaitility.await().atMost(Duration.ofSeconds(10)).until(() -> !zkClient.isReconnectInProgress());
+            ZooKeeper currentHandle = zkClient.getZooKeeperHandle();
+            assertThat(currentHandle.getState()).isEqualTo(States.CONNECTED);
+            if (invalidateSession) {
+                assertThat(currentHandle.getSessionId()).isNotEqualTo(sessionId);
+                assertThat(replacement.getState()).isEqualTo(States.CLOSED);
+            } else {
+                assertThat(currentHandle)
+                        .as("session 0x%x served exists during backoff", sessionId)
+                        .isSameAs(replacement);
+                assertThat(currentHandle.getSessionId()).isEqualTo(sessionId);
+            }
+        }
     }
 
     @Test

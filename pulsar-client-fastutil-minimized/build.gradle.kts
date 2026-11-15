@@ -26,7 +26,7 @@ plugins {
     // Published to Maven so it can be referenced from pulsar-client-original's published metadata
     // (where the full fastutil dependency is replaced by this minimized jar). The broker variant is
     // not published — it is only consumed by the server distribution.
-    id("pulsar.publish-conventions")
+    id("pulsar.public-shaded-library-conventions")
 }
 
 dependencies {

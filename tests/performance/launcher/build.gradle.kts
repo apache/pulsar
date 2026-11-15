@@ -23,15 +23,15 @@ plugins {
 }
 
 // The jonoffcpu agent JAR is mounted into profiled containers rather than loaded here, so it is
-// resolved on its own instead of joining the launcher's classpath.
-val jonoffcpuAgent = configurations.create("jonoffcpuAgent") {
-    isCanBeConsumed = false
-    isTransitive = false
-}
+// resolved on its own in jonoffcpuAgentJar (see ProjectArtifacts.kt)
+// instead of joining the launcher's classpath.
+val jonoffcpuAgentArtifacts = projectJars("jonoffcpuAgentJar")
+val jonoffcpuAgentDependencies = jonoffcpuAgentArtifacts.dependencies
+val jonoffcpuAgent = jonoffcpuAgentArtifacts.files
 
 dependencies {
     implementation(project(":tests:performance:common"))
-    implementation(project(path = ":tests:integration", configuration = "testJar"))
+    implementation(testJar(":tests:integration"))
     // Writes the run and profile reports, charts and flame graphs once a run has finished
     implementation(project(":tests:performance:report-tool"))
     // Checks the workload's settings with the workloads' own model before a cluster starts
@@ -49,7 +49,7 @@ dependencies {
     implementation(project(":pulsar-client-admin-original"))
     // Creates each TLS run's CA and broker certificates, see TlsSettings
     implementation(libs.bcpkix.jdk18on)
-    jonoffcpuAgent(libs.tooling.jonoffcpu.agent)
+    jonoffcpuAgentDependencies(libs.tooling.jonoffcpu.agent)
     // Checks that the brokers' token provider accepts the tokens that JwtSettings creates
     testImplementation(project(":pulsar-broker-common"))
 }
@@ -75,7 +75,7 @@ tasks.named<Test>("test") {
 }
 
 // Checks the network impairments on small containers, with ping and iperf3, see docs/network-conditions.md
-val networkCheck by tasks.registering(Test::class) {
+tasks.register<Test>("networkCheck") {
     description = "Checks that the network impairments do what their settings ask, on small Docker containers"
     group = "verification"
     testClassesDirs = sourceSets["test"].output.classesDirs
@@ -101,9 +101,25 @@ val wolfiTestImage = providers.gradleProperty("inttest.testImageVariant").map {
     }
 }.getOrElse(false)
 
+// The installed workload tools, see SharedBuildArtifacts.kt
+val performanceToolsInstall = files(sharedBuildArtifact(":tests:performance:tools", "performance-tools-install"))
+
+/** Builds the test image that [sharedArtifact] names (see SharedBuildArtifacts.kt) before the task runs. */
+fun JavaExec.usesTestImage(sharedArtifact: String) {
+    inputs.files(sharedBuildArtifact(":tests:java-test-image", sharedArtifact))
+        .withPropertyName(sharedArtifact.substringAfter(':') + "Id")
+        .withPathSensitivity(PathSensitivity.NONE)
+}
+
 fun JavaExec.configurePerformanceLauncher(profiler: Boolean, clusterPulsarImage: Boolean = true) {
-    workingDir(rootProject.projectDir)
-    dependsOn(":tests:performance:tools:installDist")
+    workingDir(rootDir)
+    inputs.files(performanceToolsInstall)
+        .withPropertyName("performanceTools")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+    val toolsInstall = performanceToolsInstall
+    jvmArgumentProviders.add(CommandLineArgumentProvider {
+        listOf("-Dperformance.tools.dir=${toolsInstall.singleFile.absolutePath}")
+    })
     val imageSuffix = if (profiler && wolfiTestImage) "-wolfi" else ""
     environment("PULSAR_TEST_IMAGE_NAME",
         "${providers.gradleProperty("docker.organization").getOrElse("apachepulsar")}/java-test-image:"
@@ -116,19 +132,16 @@ fun JavaExec.configurePerformanceLauncher(profiler: Boolean, clusterPulsarImage:
     val scenarioOverrides = providers.environmentVariablesPrefixedBy("PULSAR_PERFORMANCE_").get() +
         providers.environmentVariablesPrefixedBy("pulsar_performance_").get()
     environment(scenarioOverrides)
-    systemProperty("performance.tools.dir",
-        project(":tests:performance:tools").layout.buildDirectory.dir("install/pulsar-performance-tools")
-            .get().asFile.absolutePath)
     // Root of the reports hierarchy, -Pperformance.reportsDir=<dir> (relative to the repository root, or
     // absolute). Without it the launcher writes to build/performance in the project directory it finds.
     providers.gradleProperty("performance.reportsDir").orNull?.let {
-        systemProperty("performance.reports.dir", rootProject.file(it).absolutePath)
+        systemProperty("performance.reports.dir", rootDir.resolve(it).absolutePath)
     }
     // The metrics stack that collects the brokers' metrics, see tests/performance/docs/metrics.md: its compose file,
     // to start VictoriaMetrics for a run when the stack doesn't run, and -Pperformance.metrics=false to collect none,
     // -Pperformance.metrics.bindAddress and -Pperformance.metrics.grafanaUrl as for its start task
     systemProperty("performance.metrics.composeFile",
-        project(":tests:performance:metrics").layout.projectDirectory.file("compose.yaml").asFile.absolutePath)
+        layout.projectDirectory.file("../metrics/compose.yaml").asFile.absolutePath)
     listOf("metrics", "metrics.bindAddress", "metrics.grafanaUrl").forEach { name ->
         providers.gradleProperty("performance.$name").orNull?.let { systemProperty("performance.$name", it) }
     }
@@ -160,7 +173,7 @@ fun JavaExec.configurePerformanceLauncher(profiler: Boolean, clusterPulsarImage:
     // bookies and the brokers. The workloads keep this repository's test image, and with it its Pulsar client.
     // A comparison sets each side's cluster image itself, so it doesn't build this one.
     providers.gradleProperty("performance.clusterPulsarImage").orNull?.takeIf { clusterPulsarImage }?.let {
-        dependsOn(":tests:java-test-image:dockerBuildCluster")
+        usesTestImage("docker-image:java-test-image-cluster")
         systemProperty("performance.cluster.pulsarImage", it)
         systemProperty("performance.cluster.image",
             "${providers.gradleProperty("docker.organization").getOrElse("apachepulsar")}/java-test-image:cluster-"
@@ -170,7 +183,7 @@ fun JavaExec.configurePerformanceLauncher(profiler: Boolean, clusterPulsarImage:
 
 tasks.named<JavaExec>("run") {
     configurePerformanceLauncher(profiler = false)
-    dependsOn(":tests:java-test-image:dockerBuild")
+    usesTestImage("docker-image:java-test-image")
 }
 
 // Compares two Pulsar clusters on a scenario, see tests/performance/docs/comparing-revisions.md: the runs alternate
@@ -182,7 +195,7 @@ fun JavaExec.configureImageComparison(candidateIsCheckout: Boolean) {
     classpath = sourceSets.main.get().runtimeClasspath
     mainClass.set("org.apache.pulsar.tests.performance.launcher.ImageComparison")
     configurePerformanceLauncher(profiler = false, clusterPulsarImage = false)
-    dependsOn(":tests:java-test-image:dockerBuild")
+    usesTestImage("docker-image:java-test-image")
     if (candidateIsCheckout && providers.gradleProperty("performance.compare.candidateImage").isPresent) {
         doFirst {
             throw GradleException("compareImageWithCheckout compares with this checkout; use compareImages to compare" +
@@ -202,7 +215,7 @@ fun JavaExec.configureImageComparison(candidateIsCheckout: Boolean) {
                 throw GradleException("Set -P$property, such as apachepulsar/pulsar:4.0.14")
             }
         } else {
-            dependsOn(":tests:java-test-image:dockerBuildCompare$side")
+            usesTestImage("docker-image:java-test-image-compare-${side.lowercase()}")
             systemProperty("performance.compare.${side.lowercase()}.pulsarImage", image)
             systemProperty("performance.compare.${side.lowercase()}.image", clusterImage(image))
         }
@@ -237,14 +250,16 @@ tasks.register<JavaExec>("profile") {
     // The agent JAR embeds async-profiler, so nothing needs installing in the image. The cpu event still
     // samples through perf_events, and the off-CPU collector loads eBPF programs, so both need the
     // relaxed kernel limits.
-    dependsOn(if (wolfiTestImage) ":tests:java-test-image:dockerBuildWolfi" else ":tests:java-test-image:dockerBuild",
-        ":tests:integration:tuneKernelPerfEvents")
+    usesTestImage(if (wolfiTestImage) "docker-image:java-test-image-wolfi" else "docker-image:java-test-image")
+    // The tuning only changes the kernel's settings and has no outputs to wire in; the task is documented in
+    // tests/performance/AGENTS.md.
+    dependsOn(":tests:integration:tuneKernelPerfEvents")
     inputs.files(jonoffcpuAgent)
     // The correlator sizes its retention budget at sixty percent of the heap and thins the capture, reporting
     // it, when a capture exceeds it. The heap is stated so that a run's result does not depend on how much
     // memory the host has; a few minutes of broker capture correlates in about 2 GB.
     maxHeapSize = providers.gradleProperty("performance.profile.maxHeapSize").getOrElse("4g")
-    val agentJar = jonoffcpuAgent.elements.map { it.single().asFile.absolutePath }
+    val agentJar = jonoffcpuAgent.flatMap { it.elements }.map { it.single().asFile.absolutePath }
     // The correlator reads the capture stream with a protobuf codec that uses sun.misc.Unsafe, which the
     // JDK reports once as a terminally deprecated call. The option silences that and changes nothing else.
     // It does not exist before JDK 24, so it is decided by the JVM that runs the task.

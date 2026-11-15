@@ -23,10 +23,12 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.CompletableFuture;
@@ -43,7 +45,6 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 import lombok.CustomLog;
 import lombok.Getter;
 import org.apache.pulsar.broker.PulsarService;
@@ -94,21 +95,50 @@ public class TopicListService {
         // topics when the update completes, or with the failure
         private List<BiConsumer<Collection<String>, Throwable>> updateCallbacks = new LinkedList<>();
         private boolean updatingWhileDisconnected;
+        // The last change of each matching topic while the initial topics are listed, since the listing can read
+        // the namespace before the change. Applied to the listed topics, then null.
+        private Map<String, NotificationType> topicChangesWhileListing = new HashMap<>();
+        // The session events received while the initial topics are listed, handled once they are listed, since the
+        // older initial listing would overwrite the topics of an update that a session event starts. Then null.
+        private List<SessionEvent> sessionEventsWhileListing = new ArrayList<>();
 
+        /**
+         * Creates a watcher whose matching topics are initialized by {@link #initializeMatchingTopics(List)}. It must
+         * be registered as a topic listener before the topics are listed, so that it receives the changes the listing
+         * misses.
+         */
         public TopicListWatcher(TopicListService topicListService, long id,
-                                NamespaceName namespace, TopicsPattern topicsPattern, List<String> topics,
+                                NamespaceName namespace, TopicsPattern topicsPattern,
                                 Executor executor, int topicListUpdateMaxQueueSize) {
             this.topicListService = topicListService;
             this.id = id;
             this.namespace = namespace;
             this.topicsPattern = topicsPattern;
             this.executor = executor;
-            this.matchingTopics =
-                    TopicList.filterTopics(topics, topicsPattern, Collectors.toCollection(LinkedHashSet::new));
+            this.matchingTopics = new LinkedHashSet<>();
             // start with in progress state since topic list update will be sent first
             this.sendingInProgress = true;
             this.sendTopicListUpdateTasks =
                     new LinkedBlockingDeque<>(topicListUpdateMaxQueueSize);
+        }
+
+        /**
+         * Initializes the matching topics with the topics listed after the watcher was registered as a topic listener,
+         * and with the topic changes it received meanwhile, then handles the session events it received meanwhile.
+         */
+        synchronized void initializeMatchingTopics(List<String> topics) {
+            TopicList.filterTopicsToStream(topics, topicsPattern).forEach(matchingTopics::add);
+            topicChangesWhileListing.forEach((topic, notificationType) -> {
+                if (notificationType == NotificationType.Created) {
+                    matchingTopics.add(topic);
+                } else {
+                    matchingTopics.remove(topic);
+                }
+            });
+            topicChangesWhileListing = null;
+            List<SessionEvent> sessionEvents = sessionEventsWhileListing;
+            sessionEventsWhileListing = null;
+            sessionEvents.forEach(this::onSessionEvent);
         }
 
         public synchronized Collection<String> getMatchingTopics() {
@@ -127,6 +157,13 @@ public class TopicListService {
             String domainLessTopicName = TopicList.removeTopicDomainScheme(partitionedTopicName);
 
             if (topicsPattern.matches(domainLessTopicName)) {
+                if (topicChangesWhileListing != null) {
+                    // the success response of the watch request sends the topics, including this change
+                    if (notificationType == NotificationType.Created || notificationType == NotificationType.Deleted) {
+                        topicChangesWhileListing.put(topicName, notificationType);
+                    }
+                    return;
+                }
                 List<String> newTopics = Collections.emptyList();
                 List<String> deletedTopics = Collections.emptyList();
                 if (notificationType == NotificationType.Deleted) {
@@ -363,6 +400,10 @@ public class TopicListService {
 
         @Override
         public synchronized void onSessionEvent(SessionEvent event) {
+            if (sessionEventsWhileListing != null) {
+                sessionEventsWhileListing.add(event);
+                return;
+            }
             switch (event) {
                 case SessionReestablished:
                 case Reconnected:
@@ -727,17 +768,17 @@ public class TopicListService {
             return;
         }
         AtomicReference<TopicListWatcher> watcherRef = new AtomicReference<>();
-        Consumer<List<String>> afterListing = topics -> {
-            // register watcher immediately so that we don't lose events
-            TopicListWatcher watcher =
-                    new TopicListWatcher(this, watcherId, namespace, topicsPattern, topics,
-                            connection.ctx().executor(), topicListUpdateMaxQueueSize);
+        Runnable beforeListing = () -> {
+            // Register the watcher before the listing reads the namespace, so that it receives the topic changes that
+            // the listing misses. It applies them to the listed topics.
+            TopicListWatcher watcher = new TopicListWatcher(this, watcherId, namespace, topicsPattern,
+                    connection.ctx().executor(), topicListUpdateMaxQueueSize);
             watcherRef.set(watcher);
             topicResources.registerPersistentTopicListener(watcher);
         };
         BooleanSupplier cancelled = () -> !connection.isActive() || watcherFuture.isDone()
                 || watchers.get(watcherId) != watcherFuture;
-        getTopics(namespace, afterListing, cancelled).whenComplete((topics, exception) -> {
+        getTopics(namespace, beforeListing, cancelled).whenComplete((topics, exception) -> {
             TopicListWatcher w = watcherRef.get();
             if (exception != null) {
                 if (w != null) {
@@ -778,6 +819,7 @@ public class TopicListService {
                     watcherFuture.completeExceptionally(unwrappedException);
                 }
             } else {
+                w.initializeMatchingTopics(topics);
                 if (!watcherFuture.complete(w)) {
                     log.warn()
                             .attr("connection", connection)
@@ -796,17 +838,17 @@ public class TopicListService {
     }
 
     private CompletableFuture<List<String>> getTopics(NamespaceName namespace, long watcherId,
-                                                      Consumer<List<String>> afterListing) {
+                                                      Runnable beforeListing) {
         BooleanSupplier isPermitRequestCancelled = () -> !connection.isActive() || !watchers.containsKey(watcherId);
         if (isPermitRequestCancelled.getAsBoolean()) {
             return CompletableFuture.failedFuture(
                     new AsyncSemaphore.PermitAcquireCancelledException("Permit acquisition was cancelled"));
         }
-        return getTopics(namespace, afterListing, isPermitRequestCancelled);
+        return getTopics(namespace, beforeListing, isPermitRequestCancelled);
     }
 
     private CompletableFuture<List<String>> getTopics(NamespaceName namespace,
-                                                      Consumer<List<String>> afterListing,
+                                                      Runnable beforeListing,
                                                       BooleanSupplier isPermitRequestCancelled) {
         TopicListSizeResultCache.ResultHolder listSizeHolder = pulsar.getBrokerService().getTopicListSizeResultCache()
                 .getTopicListSize(namespace.toString(), CommandGetTopicsOfNamespace.Mode.PERSISTENT);
@@ -816,13 +858,13 @@ public class TopicListService {
             // use heap size limiter to avoid broker getting overwhelmed by a lot of concurrent topic list requests
             return maxTopicListInFlightLimiter.withAcquiredPermits(initialSize,
                             AsyncDualMemoryLimiter.LimitType.HEAP_MEMORY, isPermitRequestCancelled, initialPermits -> {
+                                if (beforeListing != null) {
+                                    beforeListing.run();
+                                }
                                 return namespaceService.getListOfUserTopics(namespace,
                                         CommandGetTopicsOfNamespace.Mode.PERSISTENT).thenComposeAsync(topics -> {
                                     long actualSize = TopicListMemoryLimiter.estimateTopicListSize(topics);
                                     listSizeHolder.updateSize(actualSize);
-                                    if (afterListing != null) {
-                                        afterListing.accept(topics);
-                                    }
                                     if (initialSize != actualSize) {
                                         // use updated permits to slow down responses so that backpressure gets applied
                                         return maxTopicListInFlightLimiter.withUpdatedPermits(initialPermits,

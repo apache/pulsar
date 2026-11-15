@@ -35,9 +35,11 @@ import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.prometheus.client.Collector;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
@@ -116,9 +118,22 @@ import org.testng.annotations.Test;
 @CustomLog
 @Test(groups = "broker")
 public class PrometheusMetricsTest extends BrokerTestBase {
-    @SuppressWarnings("deprecation")
+    // These methods start the broker themselves, with a configuration of their own.
+    private static final Set<String> METHODS_STARTING_OWN_BROKER = Set.of(
+            "testPublishRateLimitedTimes",
+            "testBrokerMetrics",
+            "testStorageReadCacheMissesRate",
+            "testBundlesMetricsWithExtensibleLoadManager",
+            "testDuplicateMetricTypeDefinitions");
 
     @BeforeMethod(alwaysRun = true)
+    public void startBroker(Method method) throws Exception {
+        if (!METHODS_STARTING_OWN_BROKER.contains(method.getName())) {
+            setup();
+        }
+    }
+
+    @SuppressWarnings("deprecation")
     @Override
     protected void setup() throws Exception {
         super.baseSetup();
@@ -175,7 +190,6 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
     @Test
     public void testPublishRateLimitedTimes() throws Exception {
-        cleanup();
         conf.setMaxPublishRatePerTopicInMessages(1);
         conf.setMaxPublishRatePerTopicInBytes(1);
         conf.setBrokerPublisherThrottlingMaxMessageRate(100000);
@@ -260,7 +274,6 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
     @Test
     public void testBrokerMetrics() throws Exception {
-        cleanup();
         conf.setAdditionalSystemCursorNames(Set.of("test-cursor"));
         conf.setTopicLevelPoliciesEnabled(true);
         conf.setSystemTopicEnabled(true);
@@ -719,7 +732,6 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
     @Test(dataProvider = "cacheEnable")
     public void testStorageReadCacheMissesRate(boolean cacheEnable) throws Exception {
-        cleanup();
         conf.setManagedLedgerStatsPeriodSeconds(Integer.MAX_VALUE);
         conf.setManagedLedgerCacheEvictionTimeThresholdMillis(Long.MAX_VALUE);
         conf.setCacheEvictionByMarkDeletedPosition(true);
@@ -1011,7 +1023,6 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
     @Test
     public void testBundlesMetricsWithExtensibleLoadManager() throws Exception {
-        cleanup();
         conf.setLoadManagerClassName(ExtensibleLoadManagerImpl.class.getName());
         conf.setExposeBundlesMetricsInPrometheus(true);
         setup();
@@ -1340,6 +1351,47 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         c2.close();
     }
 
+    @Test
+    public void testManagedLedgerMetricsAreScraped() throws Exception {
+        // The offloader stats and the managed ledger read limiter live in the Prometheus Java client 1.x
+        // registry; the broker scrape must still expose them under the legacy names with the cluster label. The
+        // offloader families only exist once a topic has recorded something, the limiter gauges are static.
+        String topic = "persistent://my-property/my-ns/offloaded";
+        pulsar.getOffloaderStats().recordOffloadError(topic);
+        pulsar.getOffloaderStats().recordReadLedgerLatency(topic, 5, TimeUnit.MILLISECONDS);
+
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsTestUtil.generate(pulsar, false, false, false, statsOut);
+        String metricsStr = statsOut.toString();
+        assertThat(metricsStr).contains("# TYPE brk_ledgeroffloader_offload_error_total counter\n")
+                .contains("# TYPE brk_ledgeroffloader_read_ledger_latency summary\n")
+                .contains("# TYPE pulsar_ml_reads_inflight_bytes gauge\n");
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+        Metric offloadError = metrics.get("brk_ledgeroffloader_offload_error_total").iterator().next();
+        assertEquals(offloadError.tags.get("cluster"), "test");
+        assertEquals(offloadError.tags.get("namespace"), "my-property/my-ns");
+        assertEquals(offloadError.value, 1.0);
+        Metric latencyCount = metrics.get("brk_ledgeroffloader_read_ledger_latency_count").iterator().next();
+        assertEquals(latencyCount.tags.get("namespace"), "my-property/my-ns");
+        assertEquals(latencyCount.value, 1.0);
+        for (String family : List.of("pulsar_ml_reads_inflight_bytes", "pulsar_ml_reads_available_inflight_bytes")) {
+            Collection<Metric> samples = metrics.get(family);
+            assertEquals(samples.size(), 1, family);
+            assertEquals(samples.iterator().next().tags.get("cluster"), "test", family);
+        }
+        // One observation: every configured quantile is exposed and reads as that observation, which is the sum.
+        double latencySum = metrics.get("brk_ledgeroffloader_read_ledger_latency_sum").iterator().next().value;
+        Map<String, Double> quantiles = metrics.get("brk_ledgeroffloader_read_ledger_latency").stream()
+                .collect(Collectors.toMap(m -> m.tags.get("quantile"), m -> m.value));
+        assertEquals(quantiles, Map.of("0.5", latencySum, "0.95", latencySum, "0.99", latencySum,
+                "1.0", latencySum));
+
+        // close() takes every offloader family off the registry again.
+        pulsar.getOffloaderStats().close();
+        assertEquals(PrometheusRegistry.defaultRegistry
+                .scrape(name -> name.startsWith("brk_ledgeroffloader_")).size(), 0);
+    }
+
     /** Checks for duplicate type definitions for a metric in the Prometheus metrics output. If the Prometheus parser
      finds a TYPE definition for the same metric more than once, it errors out:
      https://github.com/prometheus/prometheus/blob/f04b1b5559a80a4fd1745cf891ce392a056460c9/vendor/github.com/
@@ -1360,7 +1412,6 @@ public class PrometheusMetricsTest extends BrokerTestBase {
     // Running the test twice to make sure types are present when generated multiple times
     @Test(invocationCount = 2)
     public void testDuplicateMetricTypeDefinitions() throws Exception {
-        cleanup();
         conf.setTransactionCoordinatorEnabled(true);
         conf.setTransactionLogBatchedWriteEnabled(true);
         conf.setTransactionPendingAckBatchedWriteEnabled(true);

@@ -139,21 +139,25 @@ function ci_record_test_durations() {
         if [[ "$results_dir" == */testShard* ]]; then
           in_order=1
         fi
+        # Gradle writes a class's start time as "2026-11-08T06:15:23.432Z", but "06:15:23Z" on a whole second,
+        # which sorts after "06:15:23.432Z" as text, so the classes are ordered by date and seconds since midnight
         find "$results_dir" -maxdepth 1 -name 'TEST-*.xml' -print0 |
           xargs -0 -r sed -n -E 's/^<testsuite name="([^"]+)".* timestamp="([^"]+)".* time="([0-9.]+)".*/\2 \3 \1/p' |
-          sort |
+          awk '{ split($1, t, /[T:Z]/); printf "%s %.3f %s %s\n", t[1], t[2] * 3600 + t[3] * 60 + t[4], $2, $3 }' |
+          sort -k1,1 -k2,2n |
           awk -v in_order=$in_order '
             {
-              split(substr($1, 12), hms, ":")
-              start[NR] = hms[1] * 3600 + hms[2] * 60 + hms[3]
-              seconds[NR] = $2
-              name[NR] = $3
+              day[NR] = $1
+              start[NR] = $2
+              seconds[NR] = $3
+              name[NR] = $4
             }
             END {
               for (i = 1; i <= NR; i++) {
                 if (in_order && i < NR) {
                   seconds[i] = start[i + 1] - start[i]
-                  if (seconds[i] < 0) {
+                  # the next class started after midnight
+                  if (day[i + 1] != day[i]) {
                     seconds[i] += 86400
                   }
                 }

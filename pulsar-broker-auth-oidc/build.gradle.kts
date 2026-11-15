@@ -47,7 +47,7 @@ dependencies {
     testImplementation(libs.jjwt.jackson)
 }
 
-tasks.withType<Test> {
+tasks.withType<Test>().configureEach {
     environment("KUBECONFIG_TEMPLATE", "src/test/java/resources/fakeKubeConfig.yaml")
     environment("KUBECONFIG", layout.buildDirectory.file("kubeconfig.yaml").get().asFile.absolutePath)
 }

@@ -107,8 +107,8 @@ public class LoadBalancerTest {
 
     @BeforeMethod
     void setup() throws Exception {
-        // Start local bookkeeper ensemble
-        bkEnsemble = new LocalBookkeeperEnsemble(3, 0);
+        // A ZooKeeper server without bookies: the tests write no ledgers
+        bkEnsemble = new LocalBookkeeperEnsemble(0, 0);
         bkEnsemble.start();
         ZkUtils.createFullPathOptimistic(bkEnsemble.getZkClient(),
                 SimpleLoadManagerImpl.LOADBALANCER_DYNAMIC_SETTING_STRATEGY_ZPATH,
@@ -176,7 +176,6 @@ public class LoadBalancerTest {
 
     private void loopUntilLeaderChangesForAllBroker(List<PulsarService> activePulsars, LeaderBroker oldLeader) {
         Awaitility.await()
-            .pollInterval(1, TimeUnit.SECONDS)
             .atMost(MAX_RETRIES, TimeUnit.SECONDS)
             .until(() -> {
                 boolean settled = true;
@@ -668,8 +667,7 @@ public class LoadBalancerTest {
         FieldUtils.writeField(pulsarServices[0].getLoadManager().get(), "lastLoadReport", lr, true);
         updateLastReport(pulsarServices[0].getLoadManager().get(), lr);
 
-        // sleep to wait load ranking be triggered and trigger bundle split
-        Thread.sleep(5000);
+        // the bundle split reads the bundle stats of the load report set above
         pulsarServices[0].getLoadManager().get().doNamespaceBundleSplit();
 
         boolean isAutoUnooadSplitBundleEnabled = pulsarServices[0].getConfiguration()
