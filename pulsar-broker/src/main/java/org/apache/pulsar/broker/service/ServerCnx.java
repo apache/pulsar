@@ -535,7 +535,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         // Notify the scalable-topic controller that this connection's scalable consumers
         // have dropped. The controller marks them disconnected and starts the grace-period
-        // timer; if they reconnect in time, their assignment is preserved.
+        // timer; if they reconnect in time, their assignment is preserved. The report names
+        // this connection, so the controller can ignore it for a consumer that has already
+        // registered again on another one.
         if (!scalableConsumerRegistrations.isEmpty()) {
             var scalableTopicService = service.getScalableTopicService();
             if (scalableTopicService != null) {
@@ -547,7 +549,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         ref.registration().whenComplete((__, ___) -> {
                             try {
                                 scalableTopicService.onConsumerDisconnect(
-                                        ref.topicName(), ref.subscription(), ref.consumerName());
+                                        ref.topicName(), ref.subscription(), ref.consumerName(), this);
                             } catch (Exception e) {
                                 log.warn().attr("consumerName", ref.consumerName())
                                         .exceptionMessage(e)
