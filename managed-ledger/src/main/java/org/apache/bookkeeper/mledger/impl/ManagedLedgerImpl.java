@@ -5757,10 +5757,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return new ManagedLedgerException("Unknown exception");
         }
         Throwable cause = FutureUtil.unwrapCompletionException(t);
-        if (cause == null) {
-            slog.error().exception(t).log("Exception with null cause for ManagedLedgerException");
-            return new ManagedLedgerException("Unknown exception", t);
-        }
         if (cause instanceof org.apache.bookkeeper.client.api.BKException) {
             return createManagedLedgerException(((org.apache.bookkeeper.client.api.BKException) cause).getCode());
         } else if (cause instanceof ManagedLedgerException) {

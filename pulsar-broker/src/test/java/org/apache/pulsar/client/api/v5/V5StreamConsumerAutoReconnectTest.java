@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.api.v5;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import java.lang.reflect.Field;
@@ -25,9 +26,14 @@ import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.v5.config.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.v5.schema.Schema;
+import org.apache.pulsar.client.impl.ClientCnx;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.common.api.proto.ScalableConsumerType;
+import org.apache.pulsar.common.protocol.Commands;
 import org.testng.annotations.Test;
 
 /**
@@ -173,6 +179,74 @@ public class V5StreamConsumerAutoReconnectTest extends V5ClientBaseTest {
                 "alice must keep her segments after auto-reconnect within grace");
         assertEquals(stripPrefix(bobSecond, "second-"), stripPrefix(bobFirst, "first-"),
                 "bob must be unaffected by alice's reconnect");
+    }
+
+    /**
+     * A consumer registers again on a new connection before the broker notices that its
+     * previous connection is gone, as happens when a connection dies on the client's side
+     * first. The late close of the previous connection is not the consumer leaving: the
+     * consumer must stay registered past the grace period and keep getting assignment
+     * updates, so that a consumer joining later is handed a segment the first has let go of.
+     */
+    @Test
+    public void testLateCloseOfPreviousConnectionKeepsConsumerRegistered() throws Exception {
+        String topic = newScalableTopic(2);
+        String subscription = "late-close-sub";
+
+        @Cleanup
+        Producer<String> producer = v5Client.newProducer(Schema.string())
+                .topic(topic)
+                .create();
+
+        // alice's previous connection: a controller session under her name on a connection of
+        // its own, which the broker still takes to be open.
+        @Cleanup
+        PulsarClientImpl previousClient = (PulsarClientImpl) newPulsarClient();
+        ClientCnx previousCnx = previousClient.getConnectionToServiceUrl().get(30, TimeUnit.SECONDS);
+        long requestId = previousClient.newRequestId();
+        previousCnx.sendScalableSessionRequest(
+                Commands.newScalableTopicSubscribe(requestId, topic, subscription, "alice",
+                        previousClient.newConsumerId(), ScalableConsumerType.STREAM),
+                requestId).get(30, TimeUnit.SECONDS);
+
+        // alice registers again on a new connection, and only then does the previous one close.
+        @Cleanup
+        StreamConsumer<String> alice = v5Client.newStreamConsumer(Schema.string())
+                .topic(topic)
+                .subscriptionName(subscription)
+                .consumerName("alice")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.EARLIEST)
+                .subscribe();
+        previousCnx.close();
+
+        // Wait out the grace period the broker would have started for alice, had it taken that
+        // close for her leaving. At its end it would evict her while she still holds her segments.
+        Thread.sleep(TimeUnit.SECONDS.toMillis(
+                getConfig().getScalableTopicConsumerSessionGracePeriodSeconds() + 1));
+
+        // alice is still registered, so bob, joining now, is handed a segment she lets go of.
+        @Cleanup
+        StreamConsumer<String> bob = v5Client.newStreamConsumer(Schema.string())
+                .topic(topic)
+                .subscriptionName(subscription)
+                .consumerName("bob")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.EARLIEST)
+                .subscribe();
+
+        int n = 60;
+        Set<String> sent = new HashSet<>();
+        for (int i = 0; i < n; i++) {
+            String v = "msg-" + i;
+            producer.newMessage().key("k-" + i).value(v).send();
+            sent.add(v);
+        }
+        Set<String> aliceGot = new HashSet<>();
+        Set<String> bobGot = new HashSet<>();
+        Set<String> received = new HashSet<>();
+        drainBoth(alice, bob, n, received, aliceGot, bobGot);
+        assertThat(received).as("messages delivered to alice and bob together").isEqualTo(sent);
+        assertThat(aliceGot).as("messages from the segment alice keeps").isNotEmpty();
+        assertThat(bobGot).as("messages from the segment bob was handed").isNotEmpty();
     }
 
     // --- Helpers ---

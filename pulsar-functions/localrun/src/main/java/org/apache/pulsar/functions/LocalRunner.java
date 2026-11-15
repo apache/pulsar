@@ -23,12 +23,12 @@ import static org.apache.pulsar.common.functions.Utils.inferMissingArguments;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonParser;
-import io.prometheus.client.exporter.HTTPServer;
+import io.prometheus.metrics.exporter.httpserver.HTTPServer;
+import io.prometheus.metrics.exporter.httpserver.MetricsHandler;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.net.InetSocketAddress;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -302,7 +302,6 @@ public class LocalRunner implements AutoCloseable {
         }
     }
 
-    @SuppressWarnings("deprecation")
     public synchronized void stop() {
         if (running.compareAndSet(true, false)) {
             this.notify();
@@ -313,7 +312,7 @@ public class LocalRunner implements AutoCloseable {
             }
 
             if (metricsServer != null) {
-                metricsServer.stop();
+                metricsServer.close();
             }
 
             for (RuntimeSpawner spawner : spawners) {
@@ -715,7 +714,12 @@ public class LocalRunner implements AutoCloseable {
         if (metricsPortStart != null) {
             // starting metrics server
             log.info().attr("port", metricsPortStart).log("Starting metrics server");
-            metricsServer = new HTTPServer(new InetSocketAddress(metricsPortStart), collectorRegistry, true);
+            // The metrics are served on the root path as well, as the simpleclient server did
+            metricsServer = HTTPServer.builder()
+                    .port(metricsPortStart)
+                    .registry(collectorRegistry)
+                    .defaultHandler(new MetricsHandler(collectorRegistry))
+                    .buildAndStart();
         }
     }
 
