@@ -103,6 +103,7 @@ public class WebServer {
 
     private ServerConnector connector;
     private ServerConnector connectorTls;
+    private JettyStatisticsCollector jettyStatisticsCollector;
 
     private ScheduledExecutorService sslRefreshScheduledExecutor;
     // PIP-478 TLS SPI factory (the only server TLS path since the PIP-337 removal).
@@ -344,7 +345,8 @@ public class WebServer {
         StatisticsHandler stats = new StatisticsHandler();
         stats.setHandler(handlerCollection);
         try {
-            PrometheusRegistry.defaultRegistry.register(new JettyStatisticsCollector(stats));
+            jettyStatisticsCollector = new JettyStatisticsCollector(stats);
+            PrometheusRegistry.defaultRegistry.register(jettyStatisticsCollector);
         } catch (IllegalArgumentException e) {
             // Already registered. Eg: in unit tests
         }
@@ -391,7 +393,15 @@ public class WebServer {
     public void stop() throws Exception {
         // PIP-478: dispose the TLS factory subscription and close the factory, if the new path was used.
         releaseTlsResources();
-        server.stop();
+        try {
+            server.stop();
+        } finally {
+            // Registered, the collector keeps the StatisticsHandler and the server reachable after shutdown.
+            if (jettyStatisticsCollector != null) {
+                PrometheusRegistry.defaultRegistry.unregister(jettyStatisticsCollector);
+                jettyStatisticsCollector = null;
+            }
+        }
         webServiceExecutor.stop();
         log.info("Server stopped successfully");
     }
