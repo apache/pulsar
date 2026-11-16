@@ -58,7 +58,11 @@ public class CacheMetricsCollectorTest {
 
     @Test
     public void testLoadingCacheKeepsLegacyMetricNamesAndTypes() throws IOException {
-        LoadingCache<String, Long> cache = Caffeine.newBuilder().recordStats().build(key -> 1L);
+        // A weighted, bounded cache: the collector would report caffeine_cache_weighted_size for it if that
+        // option were enabled, so the absence assertions below only hold because the option is off.
+        LoadingCache<String, Long> cache = Caffeine.newBuilder().recordStats()
+                .maximumWeight(100).weigher((String key, Long value) -> 1).build(key -> 1L);
+        assertThat(cache.policy().eviction().orElseThrow().weightedSize()).isPresent();
         String name = "loading-cache";
         try {
             CacheMetricsCollector.CAFFEINE.addCache(name, cache);
@@ -75,7 +79,8 @@ public class CacheMetricsCollectorTest {
                     .containsEntry("caffeine_cache_loads", 1.0)
                     .containsEntry("caffeine_cache_estimated_size", 1.0)
                     .containsKey("caffeine_cache_load_duration_seconds")
-                    .doesNotContainKey("caffeine_cache_weighted_size");
+                    .doesNotContainKey("caffeine_cache_weighted_size")
+                    .hasSize(9);
 
             // The text exposition keeps the simpleclient names: counters get _total, the weight stays a gauge.
             ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -87,7 +92,9 @@ public class CacheMetricsCollectorTest {
                     .contains("# TYPE caffeine_cache_eviction_weight gauge\n")
                     .contains("caffeine_cache_eviction_weight{cache=\"" + name + "\"} 0.0\n")
                     .contains("# TYPE caffeine_cache_load_duration_seconds summary\n")
-                    .contains("caffeine_cache_load_duration_seconds_count{cache=\"" + name + "\"} 1\n");
+                    .contains("caffeine_cache_load_duration_seconds_count{cache=\"" + name + "\"} 1\n")
+                    .doesNotContain("caffeine_cache_eviction_weight_total")
+                    .doesNotContain("caffeine_cache_weighted_size");
         } finally {
             CacheMetricsCollector.CAFFEINE.removeCache(name);
         }
