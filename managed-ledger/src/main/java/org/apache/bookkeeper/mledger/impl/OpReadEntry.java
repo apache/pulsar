@@ -32,6 +32,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesWithStartCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.NonRecoverableLedgerException;
@@ -89,6 +90,7 @@ class OpReadEntry implements ReadEntriesCallback {
     private int count;
     long maxSizeBytes;
     private ReadEntriesCallback callback;
+    private ReadEntriesWithStartCallback startCallback;
     Object ctx;
 
     // Results
@@ -121,6 +123,7 @@ class OpReadEntry implements ReadEntriesCallback {
         op.count = count;
         op.maxSizeBytes = maxSizeBytes;
         op.callback = callback;
+        op.startCallback = callback instanceof ReadEntriesWithStartCallback observer ? observer : null;
         op.entries = new ArrayList<>();
         if (maxPosition == null) {
             maxPosition = PositionFactory.LATEST;
@@ -132,6 +135,15 @@ class OpReadEntry implements ReadEntriesCallback {
         op.ctx = ctx;
         op.nextReadPosition = PositionFactory.create(op.readPosition);
         return op;
+    }
+
+    void notifyReadStarted() {
+        if (startCallback != null && readPosition.compareTo(maxPosition) <= 0
+                && readPosition.compareTo(cursor.ledger.getLastConfirmedEntry()) <= 0) {
+            var observer = startCallback;
+            startCallback = null;
+            observer.readEntriesStarted(ctx);
+        }
     }
 
     private void internalReadEntriesComplete(List<Entry> returnedEntries) {
@@ -327,6 +339,7 @@ class OpReadEntry implements ReadEntriesCallback {
         cursor = null;
         readPosition = null;
         callback = null;
+        startCallback = null;
         ctx = null;
         entries = null;
         nextReadPosition = null;
