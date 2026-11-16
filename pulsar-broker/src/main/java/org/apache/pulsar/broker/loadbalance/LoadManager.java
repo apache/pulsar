@@ -67,6 +67,19 @@ public interface LoadManager {
      */
     Optional<ResourceUnit> getLeastLoaded(ServiceUnitId su) throws Exception;
 
+    /**
+     * Asynchronous version of {@link #getLeastLoaded(ServiceUnitId)}.
+     * The default implementation calls the synchronous method on the caller's thread. Implementations should override
+     * this method to avoid blocking the caller on metadata reads.
+     */
+    default CompletableFuture<Optional<ResourceUnit>> getLeastLoadedAsync(ServiceUnitId su) {
+        try {
+            return CompletableFuture.completedFuture(getLeastLoaded(su));
+        } catch (Exception e) {
+            return CompletableFuture.failedFuture(e);
+        }
+    }
+
     default CompletableFuture<Optional<LookupResult>> findBrokerServiceUrl(
             Optional<ServiceUnitId> topic, ServiceUnitId bundle, LookupOptions options) {
         throw new UnsupportedOperationException();

@@ -59,6 +59,7 @@ import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.MessageRouter;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -1335,6 +1336,56 @@ public class TopicsConsumerImplTest extends SharedPulsarBaseTest {
         assertEquals(assigned.size(), consumers);
         for (Consumer<?> consumer : consumerList) {
             consumer.close();
+        }
+    }
+
+    // A seek of a partition completes when the broker confirms it. The messages that arrived before the confirmation
+    // may still be on their way through the partition's consumer then, and must not reach the application.
+    @Test(timeOut = testTimeout)
+    public void testSeekDropsMessagesHandedOverAfterTheSeekCompleted() throws Exception {
+        final String topic = TopicName.get(newTopicName()).toString();
+        admin.topics().createPartitionedTopic(topic, 1);
+        final String partition = TopicName.get(topic).getPartition(0).toString();
+        @Cleanup
+        Consumer<Integer> consumer = pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscribe();
+        ConsumerImpl<Integer> partitionConsumer =
+                ((MultiTopicsConsumerImpl<Integer>) consumer).getConsumers().get(0);
+
+        // The partition's consumer handles each message it receives in a task on its internal executor. Hold the
+        // tasks back until the seek has completed.
+        CountDownLatch seekCompleted = new CountDownLatch(1);
+        partitionConsumer.internalPinnedExecutor.execute(() -> {
+            try {
+                seekCompleted.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+        // A client of its own, whose executors the test does not hold
+        @Cleanup
+        PulsarClient producerClient = newPulsarClient();
+        @Cleanup
+        Producer<Integer> producer = producerClient.newProducer(Schema.INT32)
+                .topic(topic)
+                .create();
+        List<MessageId> msgIds = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            msgIds.add(producer.send(i));
+        }
+        // The broker sent the messages before the seek, so the consumer receives them before the seek's confirmation
+        Awaitility.await().untilAsserted(() -> assertEquals(
+                admin.topics().getStats(partition).getSubscriptions().get("sub").getMsgOutCounter(), 10));
+
+        consumer.seek(TopicMessageId.create(partition, msgIds.get(5)));
+        seekCompleted.countDown();
+
+        for (int i = 6; i < 10; i++) {
+            Message<Integer> msg = consumer.receive(10, TimeUnit.SECONDS);
+            assertNotNull(msg);
+            assertEquals(msg.getValue(), i);
         }
     }
 

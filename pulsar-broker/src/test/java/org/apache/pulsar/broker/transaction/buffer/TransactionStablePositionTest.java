@@ -45,8 +45,8 @@ import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClient;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.TopicName;
 import org.awaitility.Awaitility;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -57,23 +57,22 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class TransactionStablePositionTest extends TransactionTestBase {
 
-    private static final String TOPIC = NAMESPACE1 + "/test-topic";
-
-    @BeforeMethod
+    @BeforeClass(alwaysRun = true)
     protected void setup() throws Exception {
-        setUpBase(1, 16, TOPIC, 0);
+        setUpBase(1, 16, null, 0);
         Awaitility.await().until(() -> pulsarClient
                                            .getTransactionCoordinatorClient()
                                            .getState() == TransactionCoordinatorClient.State.READY);
     }
 
-    @AfterMethod(alwaysRun = true)
+    @AfterClass(alwaysRun = true)
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }
 
     @Test
     public void commitTxnTest() throws Exception {
+        final String topic = NAMESPACE1 + "/commitTxnTest";
         Transaction txn = pulsarClient.newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
                 .build().get();
@@ -81,14 +80,14 @@ public class TransactionStablePositionTest extends TransactionTestBase {
         @Cleanup
         Producer<byte[]> producer = pulsarClient
                 .newProducer()
-                .topic(TOPIC)
+                .topic(topic)
                 .sendTimeout(0, TimeUnit.SECONDS)
                 .enableBatching(false)
                 .create();
 
         @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
-                .topic(TOPIC)
+                .topic(topic)
                 .subscriptionName("test")
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscriptionType(SubscriptionType.Failover)
@@ -121,6 +120,7 @@ public class TransactionStablePositionTest extends TransactionTestBase {
 
     @Test
     public void abortTxnTest() throws Exception {
+        final String topic = NAMESPACE1 + "/abortTxnTest";
         Transaction txn = pulsarClient.newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
                 .build().get();
@@ -128,14 +128,14 @@ public class TransactionStablePositionTest extends TransactionTestBase {
         @Cleanup
         Producer<byte[]> producer = pulsarClient
                 .newProducer()
-                .topic(TOPIC)
+                .topic(topic)
                 .sendTimeout(0, TimeUnit.SECONDS)
                 .enableBatching(false)
                 .create();
 
         @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
-                .topic(TOPIC)
+                .topic(topic)
                 .subscriptionName("test")
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscriptionType(SubscriptionType.Failover)
@@ -180,22 +180,20 @@ public class TransactionStablePositionTest extends TransactionTestBase {
 
         final String topicName = NAMESPACE1 + "/testSyncNormalPositionWhenTBRecover-"
                 + clientEnableTransaction + state.name();
-        if (pulsarClient != null) {
-            pulsarClient.shutdown();
-        }
-        pulsarClient = PulsarClient.builder()
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
                 .serviceUrl(getPulsarServiceList().get(0).getBrokerServiceUrl())
                 .statsInterval(0, TimeUnit.SECONDS)
                 .enableTransaction(clientEnableTransaction)
                 .build();
         @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES)
+        Producer<byte[]> producer = client.newProducer(Schema.BYTES)
                 .sendTimeout(0, TimeUnit.SECONDS)
                 .topic(topicName)
                 .create();
 
         if (clientEnableTransaction) {
-            Transaction transaction = pulsarClient.newTransaction()
+            Transaction transaction = client.newTransaction()
                     .withTransactionTimeout(5, TimeUnit.HOURS)
                     .build()
                     .get();

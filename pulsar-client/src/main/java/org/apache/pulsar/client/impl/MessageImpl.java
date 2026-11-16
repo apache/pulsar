@@ -86,6 +86,8 @@ public class MessageImpl<T> implements TraceableMessage, Message<T> {
     private boolean poolMessage;
     @Getter
     private long consumerEpoch;
+    // The number of seeks that the consumer which received the message had completed when the message arrived
+    private long consumerSeekCount;
 
     /**
      * OpenTelemetry tracing span associated with this message.
@@ -293,6 +295,7 @@ public class MessageImpl<T> implements TraceableMessage, Message<T> {
         this.encryptionCtx = other.encryptionCtx;
         this.redeliveryCount = other.redeliveryCount;
         this.consumerEpoch = other.consumerEpoch;
+        this.consumerSeekCount = other.consumerSeekCount;
         if (other.brokerEntryMetadata != null) {
             this.brokerEntryMetadata = new BrokerEntryMetadata().copyFrom(other.brokerEntryMetadata);
         }
@@ -738,6 +741,14 @@ public class MessageImpl<T> implements TraceableMessage, Message<T> {
         return cnx;
     }
 
+    long getConsumerSeekCount() {
+        return consumerSeekCount;
+    }
+
+    void setConsumerSeekCount(long consumerSeekCount) {
+        this.consumerSeekCount = consumerSeekCount;
+    }
+
     public void recycle() {
         if (msgMetadata != null) {
             msgMetadata.clear();
@@ -757,6 +768,7 @@ public class MessageImpl<T> implements TraceableMessage, Message<T> {
         schemaState = SchemaState.None;
         poolMessage = false;
         consumerEpoch = DEFAULT_CONSUMER_EPOCH;
+        consumerSeekCount = 0;
 
         if (recyclerHandle != null) {
             recyclerHandle.recycle(this);

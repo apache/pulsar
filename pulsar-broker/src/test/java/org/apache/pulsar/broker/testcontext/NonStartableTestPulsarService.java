@@ -75,17 +75,18 @@ class NonStartableTestPulsarService extends AbstractTestPulsarService {
         setPulsarResources(pulsarResources);
         setManagedLedgerStorage(managedLedgerClientFactory);
         try {
-            setBrokerService(brokerServiceCustomizer.apply(
-                    spyConfig.getBrokerService().spy(TestBrokerService.class, this, getIoEventLoopGroup())));
+            setBrokerService(brokerServiceCustomizer.apply(registerCollaboratorMock(
+                    spyConfig.getBrokerService().spy(TestBrokerService.class, this, getIoEventLoopGroup()))));
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-        setSchemaRegistryService(spyWithClassAndConstructorArgs(DefaultSchemaRegistryService.class));
-        PulsarClientImpl mockClient = mock(PulsarClientImpl.class);
-        ConnectionPool connectionPool = mock(ConnectionPool.class);
+        setSchemaRegistryService(
+                registerCollaboratorMock(spyWithClassAndConstructorArgs(DefaultSchemaRegistryService.class)));
+        PulsarClientImpl mockClient = registerCollaboratorMock(mock(PulsarClientImpl.class));
+        ConnectionPool connectionPool = registerCollaboratorMock(mock(ConnectionPool.class));
         when(mockClient.getCnxPool()).thenReturn(connectionPool);
         setClient(mockClient);
-        this.namespaceService = mock(NamespaceService.class);
+        this.namespaceService = registerCollaboratorMock(mock(NamespaceService.class));
         try {
             startNamespaceService();
         } catch (PulsarServerException e) {

@@ -165,7 +165,11 @@ public class TransactionMetaStoreHandler extends HandlerState
     @Override
     public boolean connectionFailed(PulsarClientException exception) {
         boolean nonRetriableError = !PulsarClientException.isRetriableError(exception);
-        boolean timeout = System.currentTimeMillis() > lookupDeadline;
+        // A metadata-discovery client is ready once its assignment watch opens, before every
+        // partition handler has connected. Keep a transiently unavailable partition reconnectable
+        // for that watch's lifetime; each queued operation still has its own bounded timeout.
+        // Legacy discovery waits for this connect future, so retain its initial lookup deadline.
+        boolean timeout = !scalable && System.currentTimeMillis() > lookupDeadline;
         if (nonRetriableError || timeout) {
             exception.setPreviousExceptionCount(previousExceptionCount);
             if (connectFuture.completeExceptionally(exception)) {
