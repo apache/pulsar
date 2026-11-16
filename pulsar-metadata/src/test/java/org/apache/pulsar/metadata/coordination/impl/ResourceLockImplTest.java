@@ -37,11 +37,9 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataSerde;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
-import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
-import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /** Resource-lock lifecycle after local ownership-cache loss, without an external metadata service. */
@@ -110,13 +108,8 @@ public class ResourceLockImplTest {
         }
     }
 
-    @DataProvider
-    public Object[][] releaseStates() {
-        return new Object[][] {{false}, {true}};
-    }
-
-    @Test(dataProvider = "releaseStates", timeOut = 10000)
-    public void delayedSameSessionReadCannotReviveReleasingOrReleasedHandle(boolean releaseCompleted) throws Exception {
+    @Test(timeOut = 10000)
+    public void delayedSameSessionReadCannotReviveReleasingHandle() throws Exception {
         try (MetadataStoreExtended backing = newStore()) {
             MetadataStoreExtended store = spy(backing);
             ResourceLockImpl<String> lock = new ResourceLockImpl<>(store, SERDE, PATH,
@@ -124,7 +117,7 @@ public class ResourceLockImplTest {
             lock.acquire(OWNER).get(5, TimeUnit.SECONDS);
             Stat original = backing.get(PATH).get(5, TimeUnit.SECONDS).orElseThrow().getStat();
             // Make the public update encounter a version conflict and re-read the same session's
-            // value. Delay that read's response until release has begun or fully completed.
+            // value. Delay that read's response until release has begun.
             Stat newer = backing.put(PATH, SERDE.serialize(PATH, OWNER), Optional.of(original.getVersion()),
                     EnumSet.of(CreateOption.Ephemeral)).get(5, TimeUnit.SECONDS);
             GetResult observed = backing.get(PATH).get(5, TimeUnit.SECONDS).orElseThrow();
@@ -137,22 +130,54 @@ public class ResourceLockImplTest {
             CompletableFuture<Void> update = lock.updateValue(OWNER);
             readStarted.get(5, TimeUnit.SECONDS);
             backing.delete(PATH, Optional.of(newer.getVersion())).get(5, TimeUnit.SECONDS);
-            CompletableFuture<Void> metadataDelete = new CompletableFuture<>();
-            doReturn(metadataDelete).when(store).delete(PATH, Optional.of(original.getVersion()));
+            // release() marks the handle as releasing right away, but deletes the lock only once
+            // the update in flight completes
             CompletableFuture<Void> release = lock.release();
-            if (releaseCompleted) {
-                metadataDelete.completeExceptionally(new NotFoundException(PATH));
-                release.get(5, TimeUnit.SECONDS);
-            }
 
             metadataRead.complete(Optional.of(observed));
             assertThat(failure(update)).isInstanceOf(IllegalStateException.class);
+            release.get(5, TimeUnit.SECONDS);
+            // The delayed read must not have adopted the version it observed
+            verify(store).delete(PATH, Optional.of(original.getVersion()));
             assertThat(failure(lock.updateValue("must-not-revive"))).isInstanceOf(IllegalStateException.class);
-            if (!releaseCompleted) {
-                metadataDelete.completeExceptionally(new NotFoundException(PATH));
-                release.get(5, TimeUnit.SECONDS);
-            }
             assertThat(lock.getLockExpiredFuture()).isCompleted();
+            assertThat(backing.get(PATH).get(5, TimeUnit.SECONDS)).isEmpty();
+        }
+    }
+
+    @Test(timeOut = 10000)
+    public void releaseDuringStaleLockReacquisitionRemovesReacquiredNode() throws Exception {
+        try (MetadataStoreExtended backing = newStore()) {
+            MetadataStoreExtended store = spy(backing);
+            ResourceLockImpl<String> lock = new ResourceLockImpl<>(store, SERDE, PATH,
+                    mock(ScheduledExecutorService.class));
+            lock.acquire(OWNER).get(5, TimeUnit.SECONDS);
+            Stat acquired = backing.get(PATH).get(5, TimeUnit.SECONDS).orElseThrow().getStat();
+            Stat stale = backing.put(PATH, SERDE.serialize(PATH, OWNER), Optional.of(acquired.getVersion()),
+                    EnumSet.of(CreateOption.Ephemeral)).get(5, TimeUnit.SECONDS);
+            // LocalMemory has only one session. Report the node as created by an earlier session,
+            // so that revalidation deletes it and acquires the lock again.
+            Stat earlierSession = new Stat(PATH, stale.getVersion(), stale.getCreationTimestamp(),
+                    stale.getModificationTimestamp(), true, false);
+            doReturn(CompletableFuture.completedFuture(Optional.of(
+                    new GetResult(SERDE.serialize(PATH, OWNER), earlierSession))))
+                    .when(store).get(PATH);
+            // Apply the deletion of the stale node, but hold back its outcome until release has started
+            CompletableFuture<Void> staleDeleteApplied = new CompletableFuture<>();
+            CompletableFuture<Void> staleDeleteOutcome = new CompletableFuture<>();
+            doAnswer(invocation -> backing.delete(PATH, Optional.of(stale.getVersion()))
+                    .thenRun(() -> staleDeleteApplied.complete(null))
+                    .thenCompose(__ -> staleDeleteOutcome))
+                    .when(store).delete(PATH, Optional.of(stale.getVersion()));
+
+            lock.lockWasInvalidated();
+            staleDeleteApplied.get(5, TimeUnit.SECONDS);
+            CompletableFuture<Void> release = lock.release();
+            staleDeleteOutcome.complete(null);
+
+            release.get(5, TimeUnit.SECONDS);
+            assertThat(lock.getLockExpiredFuture()).isCompleted();
+            // The node that revalidation acquired again must not outlive the released handle
             assertThat(backing.get(PATH).get(5, TimeUnit.SECONDS)).isEmpty();
         }
     }
