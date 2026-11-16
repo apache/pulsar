@@ -30,6 +30,9 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.CustomLog;
 import lombok.Getter;
@@ -53,6 +56,7 @@ import org.apache.pulsar.common.policies.data.BrokerStatus;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.CompactionStats;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
@@ -96,6 +100,7 @@ import org.apache.pulsar.common.policies.data.impl.BrokerStatusImpl;
 import org.apache.pulsar.common.policies.data.impl.BundlesDataImpl;
 import org.apache.pulsar.common.policies.data.impl.DelayedDeliveryPoliciesImpl;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
+import org.apache.pulsar.common.policies.data.stats.CompactionStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.DrainingHashImpl;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentPartitionedTopicStatsImpl;
@@ -136,6 +141,12 @@ public class ObjectMapperFactory {
             return objectReader;
         }
     }
+
+    /**
+     * The concrete class that Jackson instantiates when it deserializes a value declared as one of these
+     * interfaces, in insertion order. Built before the mapper singletons below, which use it.
+     */
+    private static final Map<Class<?>, Class<?>> ABSTRACT_TYPE_MAPPINGS = createAbstractTypeMappings();
 
     private static final AtomicReference<MapperReference> MAPPER_REFERENCE =
             new AtomicReference<>(new MapperReference(createObjectMapperInstance()));
@@ -213,46 +224,78 @@ public class ObjectMapperFactory {
         return getYamlMapper().getObjectMapper();
     }
 
+    private static Map<Class<?>, Class<?>> createAbstractTypeMappings() {
+        Map<Class<?>, Class<?>> mappings = new LinkedHashMap<>();
+        put(mappings, AutoFailoverPolicyData.class, AutoFailoverPolicyDataImpl.class);
+        put(mappings, BrokerNamespaceIsolationData.class, BrokerNamespaceIsolationDataImpl.class);
+        put(mappings, BacklogQuota.class, BacklogQuotaImpl.class);
+        put(mappings, ClusterData.class, ClusterDataImpl.class);
+        put(mappings, FailureDomain.class, FailureDomainImpl.class);
+        put(mappings, NamespaceIsolationData.class, NamespaceIsolationDataImpl.class);
+        put(mappings, TenantInfo.class, TenantInfoImpl.class);
+        put(mappings, OffloadPolicies.class, OffloadPoliciesImpl.class);
+        put(mappings, FunctionStats.class, FunctionStatsImpl.class);
+        put(mappings, FunctionInstanceStats.class, FunctionInstanceStatsImpl.class);
+        put(mappings, FunctionInstanceStatsData.class, FunctionInstanceStatsDataImpl.class);
+        put(mappings, FunctionInstanceStatsDataBase.class, FunctionInstanceStatsDataBaseImpl.class);
+        put(mappings, BundlesData.class, BundlesDataImpl.class);
+        put(mappings, BookieAffinityGroupData.class, BookieAffinityGroupDataImpl.class);
+        put(mappings, AuthPolicies.class, AuthPoliciesImpl.class);
+        put(mappings, AutoTopicCreationOverride.class, AutoTopicCreationOverrideImpl.class);
+        put(mappings, BookieInfo.class, BookieInfoImpl.class);
+        put(mappings, BookiesClusterInfo.class, BookiesClusterInfoImpl.class);
+        put(mappings, BrokerInfo.class, BrokerInfoImpl.class);
+        put(mappings, BrokerStatus.class, BrokerStatusImpl.class);
+        put(mappings, DelayedDeliveryPolicies.class, DelayedDeliveryPoliciesImpl.class);
+        put(mappings, DispatchRate.class, DispatchRateImpl.class);
+        put(mappings, TopicStats.class, TopicStatsImpl.class);
+        put(mappings, ConsumerStats.class, ConsumerStatsImpl.class);
+        put(mappings, DrainingHash.class, DrainingHashImpl.class);
+        put(mappings, NonPersistentPublisherStats.class, NonPersistentPublisherStatsImpl.class);
+        put(mappings, NonPersistentReplicatorStats.class, NonPersistentReplicatorStatsImpl.class);
+        put(mappings, NonPersistentSubscriptionStats.class, NonPersistentSubscriptionStatsImpl.class);
+        put(mappings, NonPersistentTopicStats.class, NonPersistentTopicStatsImpl.class);
+        put(mappings, PartitionedTopicStats.class, PartitionedTopicStatsImpl.class);
+        put(mappings, NonPersistentPartitionedTopicStats.class, NonPersistentPartitionedTopicStatsImpl.class);
+        put(mappings, PublisherStats.class, PublisherStatsImpl.class);
+        put(mappings, ReplicatorStats.class, ReplicatorStatsImpl.class);
+        put(mappings, SubscriptionStats.class, SubscriptionStatsImpl.class);
+        put(mappings, AutoSubscriptionCreationOverride.class, AutoSubscriptionCreationOverrideImpl.class);
+        put(mappings, CompactionStats.class, CompactionStatsImpl.class);
+        return Collections.unmodifiableMap(mappings);
+    }
+
+    private static <T> void put(Map<Class<?>, Class<?>> mappings, Class<T> abstractType,
+                                Class<? extends T> concreteType) {
+        mappings.put(abstractType, concreteType);
+    }
+
+    @SuppressWarnings("unchecked") // createAbstractTypeMappings only adds subtypes of their key
+    private static <T> void addMapping(SimpleAbstractTypeResolver resolver, Class<T> abstractType,
+                                       Class<?> concreteType) {
+        resolver.addMapping(abstractType, (Class<? extends T>) concreteType);
+    }
+
+    /**
+     * Returns the interface-to-implementation mappings that the mappers created by this factory use to
+     * deserialize values declared as an interface type, such as {@code TopicStats} to {@code TopicStatsImpl}.
+     *
+     * <p>The OpenAPI specification generator reads these too, so that it describes each interface with the
+     * properties and JSON names of the implementation that is actually serialized.
+     *
+     * @return an unmodifiable map from each interface to its implementation class
+     */
+    public static Map<Class<?>, Class<?>> getAbstractTypeMappings() {
+        return ABSTRACT_TYPE_MAPPINGS;
+    }
+
     private static void setAnnotationsModule(ObjectMapper mapper) {
         SimpleModule module = new SimpleModule("AnnotationsModule");
 
         // we use customized deserializer to replace jackson annotations in some POJOs
         SimpleAbstractTypeResolver resolver = new SimpleAbstractTypeResolver();
-        resolver.addMapping(AutoFailoverPolicyData.class, AutoFailoverPolicyDataImpl.class);
-        resolver.addMapping(BrokerNamespaceIsolationData.class, BrokerNamespaceIsolationDataImpl.class);
-        resolver.addMapping(BacklogQuota.class, BacklogQuotaImpl.class);
-        resolver.addMapping(ClusterData.class, ClusterDataImpl.class);
-        resolver.addMapping(FailureDomain.class, FailureDomainImpl.class);
-        resolver.addMapping(NamespaceIsolationData.class, NamespaceIsolationDataImpl.class);
-        resolver.addMapping(TenantInfo.class, TenantInfoImpl.class);
-        resolver.addMapping(OffloadPolicies.class, OffloadPoliciesImpl.class);
-        resolver.addMapping(FunctionStats.class, FunctionStatsImpl.class);
-        resolver.addMapping(FunctionInstanceStats.class, FunctionInstanceStatsImpl.class);
-        resolver.addMapping(FunctionInstanceStatsData.class, FunctionInstanceStatsDataImpl.class);
-        resolver.addMapping(FunctionInstanceStatsDataBase.class, FunctionInstanceStatsDataBaseImpl.class);
-        resolver.addMapping(BundlesData.class, BundlesDataImpl.class);
-        resolver.addMapping(BookieAffinityGroupData.class, BookieAffinityGroupDataImpl.class);
-        resolver.addMapping(AuthPolicies.class, AuthPoliciesImpl.class);
-        resolver.addMapping(AutoTopicCreationOverride.class, AutoTopicCreationOverrideImpl.class);
-        resolver.addMapping(BookieInfo.class, BookieInfoImpl.class);
-        resolver.addMapping(BookiesClusterInfo.class, BookiesClusterInfoImpl.class);
-        resolver.addMapping(BrokerInfo.class, BrokerInfoImpl.class);
-        resolver.addMapping(BrokerStatus.class, BrokerStatusImpl.class);
-        resolver.addMapping(DelayedDeliveryPolicies.class, DelayedDeliveryPoliciesImpl.class);
-        resolver.addMapping(DispatchRate.class, DispatchRateImpl.class);
-        resolver.addMapping(TopicStats.class, TopicStatsImpl.class);
-        resolver.addMapping(ConsumerStats.class, ConsumerStatsImpl.class);
-        resolver.addMapping(DrainingHash.class, DrainingHashImpl.class);
-        resolver.addMapping(NonPersistentPublisherStats.class, NonPersistentPublisherStatsImpl.class);
-        resolver.addMapping(NonPersistentReplicatorStats.class, NonPersistentReplicatorStatsImpl.class);
-        resolver.addMapping(NonPersistentSubscriptionStats.class, NonPersistentSubscriptionStatsImpl.class);
-        resolver.addMapping(NonPersistentTopicStats.class, NonPersistentTopicStatsImpl.class);
-        resolver.addMapping(PartitionedTopicStats.class, PartitionedTopicStatsImpl.class);
-        resolver.addMapping(NonPersistentPartitionedTopicStats.class, NonPersistentPartitionedTopicStatsImpl.class);
-        resolver.addMapping(PublisherStats.class, PublisherStatsImpl.class);
-        resolver.addMapping(ReplicatorStats.class, ReplicatorStatsImpl.class);
-        resolver.addMapping(SubscriptionStats.class, SubscriptionStatsImpl.class);
-        resolver.addMapping(AutoSubscriptionCreationOverride.class, AutoSubscriptionCreationOverrideImpl.class);
+        ABSTRACT_TYPE_MAPPINGS.forEach((abstractType, concreteType) ->
+                addMapping(resolver, abstractType, concreteType));
 
         // we use MixIn class to add jackson annotations
         mapper.addMixIn(ResourceQuota.class, ResourceQuotaMixIn.class);
