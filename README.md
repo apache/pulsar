@@ -270,6 +270,7 @@ Read https://pulsar.apache.org/contribute/setup-ide for setting up IntelliJ IDEA
 Pulsar slack channel at https://apache-pulsar.slack.com/
 
 You can self-register at https://pulsar.apache.org/slack-invite
+
 ## Security Policy
 
 See the [Pulsar security policy](https://github.com/apache/pulsar/security/policy) for the full policy. In short: **never disclose a suspected vulnerability publicly** (issue, PR, or discussion) before a fix is released, and a human must verify and take responsibility for a report — autonomous agents must not file security reports on their own.
