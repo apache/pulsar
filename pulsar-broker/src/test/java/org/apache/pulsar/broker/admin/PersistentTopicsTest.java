@@ -2106,6 +2106,24 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testPeekMessageOnSubscriptionStartingWithReplicatorPrefix() throws Exception {
+        // A subscription whose name merely starts with the replicator prefix (default "pulsar.repl") is an
+        // ordinary subscription, not a replicator cursor, so peeking it must read the subscription rather
+        // than route to the replicator lookup (which returns 404 and surfaces as an empty backlog).
+        String topicName = "persistent://" + testTenant + "/" + testNamespaceLocal
+                + "/testPeekReplicatorPrefixSibling";
+        admin.topics().createNonPartitionedTopic(topicName);
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).enableBatching(false).create();
+        producer.send("replay-message".getBytes());
+
+        List<Message<byte[]>> peeked = admin.topics().peekMessages(topicName, "pulsar.replay", 1);
+        assertEquals(peeked.size(), 1);
+        assertEquals(new String(peeked.get(0).getData()), "replay-message");
+    }
+
+    @Test
     public void testPeekMessageWithProperties() throws Exception {
         String topicName = "persistent://" + testTenant + "/" + testNamespaceLocal + "/testPeekMessageWithProperties";
         admin.topics().createNonPartitionedTopic(topicName);
