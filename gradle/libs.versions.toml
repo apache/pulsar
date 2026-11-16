@@ -342,7 +342,6 @@ jersey-test-framework-grizzly2 = { module = "org.glassfish.jersey.test-framework
 # Prometheus
 simpleclient-bom = { module = "io.prometheus:simpleclient_bom", version.ref = "prometheus" }
 simpleclient = { module = "io.prometheus:simpleclient", version.ref = "prometheus" }
-simpleclient-hotspot = { module = "io.prometheus:simpleclient_hotspot", version.ref = "prometheus" }
 simpleclient-caffeine = { module = "io.prometheus:simpleclient_caffeine", version.ref = "prometheus" }
 simpleclient-httpserver = { module = "io.prometheus:simpleclient_httpserver", version.ref = "prometheus" }
 simpleclient-servlet = { module = "io.prometheus:simpleclient_servlet", version.ref = "prometheus" }
