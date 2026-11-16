@@ -47,8 +47,11 @@ import org.apache.pulsar.internal.ShellCommandsProvider;
 import org.apache.pulsar.shell.config.ConfigStore;
 import org.apache.pulsar.shell.config.FileConfigStore;
 import org.jline.console.impl.SystemRegistryImpl;
+import org.jline.reader.Candidate;
+import org.jline.reader.Completer;
 import org.jline.reader.LineReader;
 import org.jline.reader.LineReaderBuilder;
+import org.jline.reader.ParsedLine;
 import org.jline.reader.Parser;
 import org.jline.reader.impl.DefaultParser;
 import org.jline.terminal.Terminal;
@@ -145,6 +148,7 @@ public class PulsarShell {
     private String basePrompt;
     private String prompt;
     private String currentMode;
+    private Completer rootCompleter;
     private final ConfigShell configShell;
     private volatile ExecState execState = ExecState.IDLE;
     /**
@@ -262,7 +266,7 @@ public class PulsarShell {
             LineReaderBuilder readerBuilder = LineReaderBuilder.builder()
                     .terminal(terminal)
                     .parser(parser)
-                    .completer(systemRegistry.completer())
+                    .completer(this::completeForCurrentMode)
                     .variable(LineReader.INDENTATION, 2)
                     .option(LineReader.Option.INSERT_BRACKET, true);
 
@@ -639,6 +643,108 @@ public class PulsarShell {
         this.prompt = createPrompt(this.basePrompt, this.currentMode);
     }
 
+    /**
+     * The commands the shell handles itself, which stay available in every mode.
+     */
+    private static final List<String> SHELL_CONTROL_COMMANDS = List.of("exit", "quit", "exitmode");
+
+    /**
+     * Creates the completer of the shell.
+     *
+     * @return the completer that follows the selected mode
+     */
+    @VisibleForTesting
+    Completer createCompleter() {
+        return this::completeForCurrentMode;
+    }
+
+    /**
+     * Completes the line that is being typed.
+     *
+     * <p>A mode prefixes every dispatched command with the name of the selected provider, so the
+     * completion has to resolve the line against that prefixed command tree to reach the commands
+     * of the provider. The candidates are the names the provider knows, without the prefix, so they
+     * can be typed as they are.
+     *
+     * @param reader the reader that asks for the completion
+     * @param commandLine the line that is being typed
+     * @param candidates the candidates collected so far
+     */
+    private void completeForCurrentMode(LineReader reader, ParsedLine commandLine, List<Candidate> candidates) {
+        if (rootCompleter == null) {
+            return;
+        }
+        if (currentMode == null) {
+            rootCompleter.complete(reader, commandLine, candidates);
+            return;
+        }
+        rootCompleter.complete(reader, new PrefixedParsedLine(commandLine, currentMode), candidates);
+        addShellControlCandidates(commandLine, candidates);
+    }
+
+    /**
+     * Adds the commands the shell handles itself to the candidates of a mode.
+     *
+     * @param commandLine the line that is being typed
+     * @param candidates the candidates collected so far
+     */
+    private static void addShellControlCandidates(ParsedLine commandLine, List<Candidate> candidates) {
+        final String word = commandLine.word();
+        for (String controlCommand : SHELL_CONTROL_COMMANDS) {
+            if (controlCommand.startsWith(word)) {
+                candidates.add(new Candidate(controlCommand, controlCommand, null, null, null, null, true));
+            }
+        }
+    }
+
+    /**
+     * A parsed line with the mode prefix in front of it, so that it resolves against the command
+     * tree the line is dispatched to.
+     */
+    private static final class PrefixedParsedLine implements ParsedLine {
+
+        private final ParsedLine delegate;
+        private final String prefix;
+
+        PrefixedParsedLine(ParsedLine delegate, String prefix) {
+            this.delegate = delegate;
+            this.prefix = prefix;
+        }
+
+        @Override
+        public String word() {
+            return delegate.word();
+        }
+
+        @Override
+        public int wordCursor() {
+            return delegate.wordCursor();
+        }
+
+        @Override
+        public int wordIndex() {
+            return delegate.wordIndex() + 1;
+        }
+
+        @Override
+        public List<String> words() {
+            final List<String> words = new ArrayList<>(delegate.words().size() + 1);
+            words.add(prefix);
+            words.addAll(delegate.words());
+            return words;
+        }
+
+        @Override
+        public String line() {
+            return prefix + " " + delegate.line();
+        }
+
+        @Override
+        public int cursor() {
+            return delegate.cursor() + prefix.length() + 1;
+        }
+    }
+
     static List<String> substituteVariables(List<String> line, Map<String, String> vars) {
         return line.stream().map(s -> PulsarShell.substituteVariables(s, vars)).collect(Collectors.toList());
     }
@@ -680,6 +786,7 @@ public class PulsarShell {
         systemRegistry = new SystemRegistryImpl(parser, terminal, workDir, null);
         systemRegistry.setCommandRegistries(picocliCommands);
         systemRegistry.register("help", picocliCommands);
+        rootCompleter = systemRegistry.completer();
 
         return providerMap;
     }

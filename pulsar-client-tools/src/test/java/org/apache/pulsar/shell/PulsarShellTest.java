@@ -35,6 +35,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -53,9 +54,13 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.cli.CmdProduce;
+import org.jline.reader.Candidate;
+import org.jline.reader.Completer;
 import org.jline.reader.EndOfFileException;
+import org.jline.reader.LineReader;
 import org.jline.reader.Parser;
 import org.jline.reader.UserInterruptException;
+import org.jline.reader.impl.DefaultParser;
 import org.jline.reader.impl.LineReaderImpl;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.TerminalBuilder;
@@ -390,6 +395,59 @@ public class PulsarShellTest {
         testPulsarShell.run((a) -> linereader, () -> terminal);
         verify(testPulsarShell.cmdProduceHolder.get(), times(1)).call();
         assertEquals((int) testPulsarShell.exitCode, 0);
+    }
+
+    @Test
+    public void testCompletionFollowsTheSelectedMode() throws Exception {
+        final Terminal terminal = TerminalBuilder.builder().build();
+        final MockLineReader linereader = new MockLineReader(terminal);
+        final Properties props = new Properties();
+        props.setProperty("webServiceUrl", "http://localhost:8080");
+        linereader.addCmd("admin");
+        linereader.addCmd("quit");
+        final TestPulsarShell testPulsarShell = new TestPulsarShell(new String[]{}, props, pulsarAdmin);
+        try {
+            testPulsarShell.run((a) -> linereader, () -> terminal);
+        } catch (SystemExitCalledException ex) {
+            assertEquals((int) ex.code, 0);
+        }
+
+        final Completer completer = testPulsarShell.createCompleter();
+        final List<Candidate> candidates = complete(linereader, completer, "top");
+        assertTrue(candidates.stream().anyMatch(c -> "topics".equals(c.value())),
+                "the commands of the admin provider should be completed: " + candidates);
+        final List<Candidate> controlCandidates = complete(linereader, completer, "exit");
+        assertTrue(controlCandidates.stream().anyMatch(c -> "exitmode".equals(c.value())),
+                "the shell control commands should stay available: " + controlCandidates);
+    }
+
+    @Test
+    public void testCompletionIsRestoredAfterExitMode() throws Exception {
+        final Terminal terminal = TerminalBuilder.builder().build();
+        final MockLineReader linereader = new MockLineReader(terminal);
+        final Properties props = new Properties();
+        props.setProperty("webServiceUrl", "http://localhost:8080");
+        linereader.addCmd("admin");
+        linereader.addCmd("exitmode");
+        linereader.addCmd("quit");
+        final TestPulsarShell testPulsarShell = new TestPulsarShell(new String[]{}, props, pulsarAdmin);
+        try {
+            testPulsarShell.run((a) -> linereader, () -> terminal);
+        } catch (SystemExitCalledException ex) {
+            assertEquals((int) ex.code, 0);
+        }
+
+        final Completer completer = testPulsarShell.createCompleter();
+        final List<Candidate> candidates = complete(linereader, completer, "top");
+        assertFalse(candidates.stream().anyMatch(c -> "topics".equals(c.value())),
+                "the provider commands should not be completed outside of a mode: " + candidates);
+    }
+
+    private static List<Candidate> complete(LineReader reader, Completer completer, String line) {
+        final List<Candidate> candidates = new ArrayList<>();
+        final Parser parser = new DefaultParser();
+        completer.complete(reader, parser.parse(line, line.length(), Parser.ParseContext.COMPLETE), candidates);
+        return candidates;
     }
 
     @Test
