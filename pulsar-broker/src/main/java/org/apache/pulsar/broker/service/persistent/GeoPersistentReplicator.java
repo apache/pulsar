@@ -284,7 +284,7 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                     headersAndPayload.retain();
                     // sendAsync can complete its callback before returning.
                     handedToProducer = true;
-                    lastSendStartedAt = System.currentTimeMillis();
+                    recordSendStarted();
                     try {
                         producer.sendAsync(msg, callback);
                     } catch (Throwable error) {

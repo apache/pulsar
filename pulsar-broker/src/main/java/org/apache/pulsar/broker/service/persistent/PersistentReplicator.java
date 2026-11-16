@@ -97,21 +97,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
     private static final Logger LOG = Logger.get(PersistentReplicator.class);
     protected final Logger log;
 
-    private static final long HEALTH_WINDOW_MS = TimeUnit.MINUTES.toMillis(1);
-    private static final ReplicatorHealth HEALTHY = new ReplicatorHealth(true, null);
-    private final long createdAt = System.currentTimeMillis();
-    private volatile long pendingSince;
-    private volatile long lastCursorReadStartedAt;
-    protected volatile long lastSendStartedAt;
-    private volatile long lastReplicationSucceededAt;
-    private volatile long lastAcknowledgedAt;
-    private volatile Failure lastProducerStartFailure;
-    private volatile Failure lastReadFailure;
-    private volatile Failure lastPublishFailure;
-    private volatile ProducerRetry lastProducerRetry;
-    private volatile ReplicatorHealth startupFailureHealth;
-    private volatile ReplicatorHealth retryingReadHealth;
-    private volatile boolean waitingForDispatchRate;
+    private final ReplicationDiagnostics diagnostics;
 
     protected final PersistentTopic topic;
     protected final ManagedCursor cursor;
@@ -174,9 +160,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
         this.topic = localTopic;
         this.localSchemaTopicName = TopicName.getPartitionedTopicName(localTopicName).toString();
         this.cursor = Objects.requireNonNull(cursor);
-        if (cursor.hasBacklog()) {
-            pendingSince = createdAt;
-        }
+        this.diagnostics = new ReplicationDiagnostics();
         this.expiryMonitor = new PersistentMessageExpiryMonitor(localTopic,
                 Codec.decode(cursor.getName()), cursor, null);
 
@@ -216,15 +200,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
                 doCloseProducerAsync(producer, () -> {});
                 throw new ClassCastException(producer.getClass().getName() + " can not be cast to ProducerImpl");
             }
-            // Trigger a new read.
-            startupFailureHealth = null;
-            if (producerImpl instanceof GeoReplicationProducerImpl geo) {
-                geo.setRetryListener((reason, position) -> {
-                    if (this.producer == geo) {
-                        lastProducerRetry = new ProducerRetry(System.currentTimeMillis(), reason, position);
-                    }
-                });
-            }
+            diagnostics.producerStarted(producerImpl);
             log.info("Created replicator producer");
             backOff.reset();
             // activate cursor: so, entries can be cached.
@@ -311,10 +287,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
                         .attr("readLimitOnMsg", readLimitOnMsg)
                         .attr("readLimitOnByte", readLimitOnByte)
                         .log("Message-read exceeded topic replicator rate limit");
-                if (pendingSince == 0 && cursor.hasBacklog()) {
-                    pendingSince = System.currentTimeMillis();
-                }
-                waitingForDispatchRate = true;
+                diagnostics.setWaitingForDispatchRate(true);
                 return new ReadLimits(-1, -1);
             }
             // use given permits if no rate limit configured, otherwise limit to returned rate limiter permits
@@ -330,7 +303,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
         int maxReadBatchSize = Math.min(readBatchSize, getMaxReadBatchSize());
         readLimitOnMsg = Math.min(readLimitOnMsg, maxReadBatchSize);
 
-        waitingForDispatchRate = false;
+        diagnostics.setWaitingForDispatchRate(false);
         return new ReadLimits((int) readLimitOnMsg, readLimitOnByte);
     }
 
@@ -558,7 +531,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
             cursor.rewind();
         } else if (limits != null) {
             try {
-                lastCursorReadStartedAt = 0;
+                diagnostics.readRequested();
                 cursor.asyncReadEntriesOrWait(task.readingEntries, limits.bytes, this, task,
                         topic.getMaxReadPosition());
             } catch (Throwable e) {
@@ -600,18 +573,13 @@ public abstract class PersistentReplicator extends AbstractReplicator
 
     @Override
     public void readEntriesStarted(Object ctx) {
-        long now = System.currentTimeMillis();
-        lastCursorReadStartedAt = now;
-        // A publish may race insertion of a newly constructed replicator into the topic's map.
-        if (pendingSince == 0) {
-            pendingSince = now;
-        }
+        diagnostics.readStarted();
     }
 
     @Override
     public void readEntriesComplete(List<Entry> entries, Object ctx) {
         synchronized (inFlightTasks) {
-            retryingReadHealth = null;
+            diagnostics.readCompleted();
             ((InFlightTask) ctx).entries = entries;
         }
         requestReadProcessing(false);
@@ -726,11 +694,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
                         .exception(exception)
                         .log("Message persisted on remote broker");
                 inFlightTask.incCompletedEntries();
-                long now = System.currentTimeMillis();
-                replicator.lastReplicationSucceededAt = now;
-                if (exception == null) {
-                    replicator.lastAcknowledgedAt = now;
-                }
+                replicator.diagnostics.sendCompleted(exception == null);
                 replicator.cursor.asyncDelete(entry.getPosition(), replicator, entry.getPosition());
             }
             entry.release();
@@ -830,22 +794,8 @@ public abstract class PersistentReplicator extends AbstractReplicator
 
     // Called under the task queue lock, before a retry can recycle this batch.
     private void recordReadFailure(InFlightTask task, Throwable cause, ManagedLedgerException exception) {
-        String type = cause.getClass().getSimpleName();
         task.readException = exception;
-        String detail = cause.getMessage();
-        task.readFailureMessage = Objects.requireNonNullElse(detail, type);
-        boolean noDetail = detail == null || detail.isBlank();
-        String summary = noDetail ? type + " (no exception message)" : type;
-        String message = noDetail ? summary : type + ": " + detail;
-        if (task.readPos != null) {
-            message = "readPos=" + task.readPos + " " + message;
-        }
-        long timestamp = System.currentTimeMillis();
-        lastReadFailure = new Failure(timestamp, message);
-        String batch = task.readPos == null ? "a batch" : "the batch starting at " + task.readPos;
-        retryingReadHealth = new ReplicatorHealth(false, "Retrying the source cursor read for " + batch
-                + " after " + summary + ". Check lastReadFailure in stats-internal and the source broker log at "
-                + timestamp + ".");
+        task.readFailureMessage = diagnostics.readFailed(task.readPos, cause);
         task.entries = Collections.emptyList();
     }
 
@@ -1042,30 +992,15 @@ public abstract class PersistentReplicator extends AbstractReplicator
 
     @Override
     protected void producerStartFailed(Throwable error, boolean preparingTopic) {
-        Throwable cause = failureCause(error);
-        String action;
-        if (error instanceof TargetMetadataFailure metadataFailure) {
-            action = metadataFailure.action;
-        } else if (preparingTopic && cause instanceof PulsarAdminException.NotAuthorizedException) {
-            action = "Topic preparation was denied. Verify the replication credentials and topic metadata permissions.";
-        } else if (preparingTopic) {
-            action = "Topic preparation failed. Check both clusters' topic metadata, partition counts and Admin URLs.";
-        } else if (cause instanceof PulsarClientException.AuthorizationException) {
-            action = "Producer creation was denied. Check the replication identity's publish permission on the target.";
-        } else {
-            action = "Producer creation failed. Check the target broker connection and replication credentials.";
-        }
-        lastProducerStartFailure = new Failure(System.currentTimeMillis(), cause.getClass().getSimpleName()
-                + ": " + action);
-        startupFailureHealth = new ReplicatorHealth(false, action + " See lastProducerStartFailure in stats-internal "
-                + "and the source broker log at its timestamp.");
+        diagnostics.producerStartFailed(error, preparingTopic);
+    }
+
+    protected final void recordSendStarted() {
+        diagnostics.sendStarted();
     }
 
     protected void recordPublishFailure(Throwable error) {
-        Throwable cause = failureCause(error);
-        if (!(cause instanceof PulsarClientException.InvalidMessageException)) {
-            lastPublishFailure = new Failure(System.currentTimeMillis(), cause.getClass().getSimpleName());
-        }
+        diagnostics.publishFailed(error);
     }
 
     private static Throwable failureCause(Throwable error) {
@@ -1073,116 +1008,15 @@ public abstract class PersistentReplicator extends AbstractReplicator
     }
 
     void entryPersisted(Position position) {
-        // The first entry after the mark starts a new observation window even after a long idle period.
-        Position mark = cursor.getMarkDeletedPosition();
-        if (mark != null && position.compareTo(mark) > 0 && (pendingSince == 0
-                || (position.getLedgerId() == mark.getLedgerId() && position.getEntryId() == mark.getEntryId() + 1)
-                || (position.getEntryId() == 0 && cursor.getManagedLedger().getPreviousPosition(position)
-                        .compareTo(mark) <= 0))) {
-            pendingSince = System.currentTimeMillis();
-        }
+        diagnostics.entryPersisted(position);
     }
 
     ReplicatorInternalStats internalStats() {
-        var current = producer;
-        var geo = current instanceof GeoReplicationProducerImpl p ? p : null;
-        Integer queueSize = geo == null ? null : geo.getPendingEntryCount();
-        Boolean compatible = geo == null ? null : geo.getSendingMessageSchemaCompatible();
-        List<ReadTask> tasks = new ArrayList<>();
-        synchronized (inFlightTasks) {
-            for (InFlightTask task : inFlightTasks) {
-                if (!task.isDone()) {
-                    tasks.add(new ReadTask(Objects.toString(task.readPos, null), task.readingEntries,
-                            task.entries == null ? null : task.entries.size(), task.completedEntries,
-                            task.skipReadResultDueToCursorRewind, task.readFailureMessage));
-                }
-            }
-        }
-        return new ReplicatorInternalStats(queueSize, producerQueueSize, compatible,
-                lastProducerStartFailure, lastReadFailure, lastPublishFailure, lastProducerRetry, tasks);
+        return diagnostics.internalStats();
     }
 
     void updateReplicationDiagnostics(ReplicatorStatsImpl row) {
-        State lifecycle = state;
-        var current = producer;
-        var geo = current instanceof GeoReplicationProducerImpl p ? p : null;
-        row.replicatorState = lifecycle.name().toUpperCase(Locale.ROOT);
-        row.producerState = geo == null ? null : geo.getReplicationProducerState();
-        long read = lastCursorReadStartedAt;
-        row.lastCursorReadStartedAt = read != 0 && cursor.hasMoreEntries()
-                && cursor.getReadPosition().compareTo(topic.getMaxReadPosition()) <= 0 ? read : null;
-        long send = lastSendStartedAt;
-        row.lastSendStartedAt = send == 0 ? null : send;
-        long success = lastReplicationSucceededAt;
-        row.lastReplicationSucceededAt = success == 0 ? null : success;
-        row.replicatorHealth = health(row, lifecycle, geo);
-    }
-
-    private ReplicatorHealth health(ReplicatorStatsImpl row, State lifecycle, GeoReplicationProducerImpl geo) {
-        if (lifecycle == Terminated || lifecycle == Terminating) {
-            return null;
-        }
-        ReplicatorHealth startup = startupFailureHealth;
-        if (startup != null) {
-            return startup;
-        }
-        int queueSize = geo == null ? 0 : geo.getPendingQueueSize();
-        if (row.replicationBacklog == 0 && queueSize == 0) {
-            return HEALTHY;
-        }
-        long cutoff = System.currentTimeMillis() - HEALTH_WINDOW_MS;
-        long markAdvanced = cursor.getLastMarkDeleteAdvancedAt();
-        if (lastAcknowledgedAt >= cutoff || (markAdvanced >= createdAt && markAdvanced >= cutoff)) {
-            return HEALTHY;
-        }
-        long start = pendingSince;
-        if (start == 0 || start > cutoff) {
-            return null;
-        }
-        if ("TERMINATED".equals(row.producerState)) {
-            return new ReplicatorHealth(false, "The target topic is terminated and cannot accept replicated messages. "
-                    + "Check lastPublishFailure in stats-internal.");
-        }
-        if (geo != null && Boolean.FALSE.equals(geo.getSendingMessageSchemaCompatible())) {
-            return new ReplicatorHealth(false, "The target rejected the schema of the next message to replicate. "
-                    + "Compare the source and target topic schemas and check the target schema compatibility policy.");
-        }
-        if ("REGISTERING_SCHEMA".equals(row.producerState)) {
-            return new ReplicatorHealth(false, "Schema registration on the target is pending. "
-                    + "Check the target broker logs for the registration request.");
-        }
-        if (queueSize > 0) {
-            ProducerRetry retry = lastProducerRetry;
-            if (retry != null && GeoReplicationProducerImpl.DEDUPLICATION_UNDECIDED.equals(retry.reason())
-                    && geo.isQueueHeadAt(retry.sourcePosition())) {
-                return new ReplicatorHealth(false, "The target could not determine whether source entry "
-                        + retry.sourcePosition() + " was already persisted. Check lastProducerRetry in stats-internal "
-                        + "and outstanding writes on the target.");
-            }
-            String latestRetry = retry == null ? "" : " The latest producer retry was " + retry.reason()
-                    + " at " + retry.timestamp() + ". See lastProducerRetry in stats-internal.";
-            return new ReplicatorHealth(false, "Sends await target acknowledgements." + latestRetry
-                    + " Check producerQueueSize, lastPublishFailure and target storage or connection errors.");
-        }
-        if (waitingForDispatchRate) {
-            return new ReplicatorHealth(false, "Check the effective replicatorDispatchRate and its available permits.");
-        }
-        ReplicatorHealth failedRead = retryingReadHealth;
-        if (failedRead != null) {
-            return failedRead;
-        }
-        if (row.lastCursorReadStartedAt != null) {
-            return new ReplicatorHealth(false, "Check inFlightTasks and lastReadFailure in stats-internal "
-                    + "for a stalled source cursor read.");
-        }
-        Position next = cursor.getReadPosition();
-        if (next.compareTo(topic.getMaxReadPosition()) > 0
-                && next.compareTo(cursor.getManagedLedger().getLastConfirmedEntry()) <= 0) {
-            return new ReplicatorHealth(false, "The next cursor entry is beyond the readable position. "
-                    + "Compare readPosition with maxReadPosition in transaction-buffer-stats.");
-        }
-        return new ReplicatorHealth(false, "Check inFlightTasks, the replication cursor and lastPublishFailure "
-                + "in stats-internal.");
+        diagnostics.updateStats(row);
     }
 
     public ReplicatorStatsImpl computeStats() {
@@ -1472,5 +1306,242 @@ public abstract class PersistentReplicator extends AbstractReplicator
     @VisibleForTesting
     String getReplicatorId() {
         return  replicatorId;
+    }
+
+    /** Diagnostic history follows the replicator across producer reconnects. */
+    private final class ReplicationDiagnostics {
+        private static final long HEALTH_WINDOW_MS = TimeUnit.MINUTES.toMillis(1);
+        private static final ReplicatorHealth HEALTHY = new ReplicatorHealth(true, null);
+        private final long createdAt = System.currentTimeMillis();
+        private volatile long pendingSince;
+        private volatile long lastCursorReadStartedAt;
+        private volatile long lastSendStartedAt;
+        private volatile long lastReplicationSucceededAt;
+        private volatile long lastAcknowledgedAt;
+        private volatile Failure lastProducerStartFailure;
+        private volatile Failure lastReadFailure;
+        private volatile Failure lastPublishFailure;
+        private volatile ProducerRetry lastProducerRetry;
+        private volatile ReplicatorHealth startupFailureHealth;
+        private volatile ReplicatorHealth retryingReadHealth;
+        private volatile boolean waitingForDispatchRate;
+
+        private ReplicationDiagnostics() {
+            if (cursor.hasBacklog()) {
+                pendingSince = createdAt;
+            }
+        }
+
+        private void producerStarted(ProducerImpl<?> current) {
+            startupFailureHealth = null;
+            if (current instanceof GeoReplicationProducerImpl geo) {
+                geo.setRetryListener((reason, position) -> {
+                    if (producer == geo) {
+                        lastProducerRetry = new ProducerRetry(System.currentTimeMillis(), reason, position);
+                    }
+                });
+            }
+        }
+
+        private void setWaitingForDispatchRate(boolean waiting) {
+            if (waiting && pendingSince == 0 && cursor.hasBacklog()) {
+                pendingSince = System.currentTimeMillis();
+            }
+            waitingForDispatchRate = waiting;
+        }
+
+        private void readRequested() {
+            lastCursorReadStartedAt = 0;
+        }
+
+        private void readStarted() {
+            long now = System.currentTimeMillis();
+            lastCursorReadStartedAt = now;
+            // A publish may race insertion of a newly constructed replicator into the topic's map.
+            if (pendingSince == 0) {
+                pendingSince = now;
+            }
+        }
+
+        private void readCompleted() {
+            retryingReadHealth = null;
+        }
+
+        /** Records the failure and returns the error text for the in-flight batch. */
+        private String readFailed(Position readPos, Throwable cause) {
+            String type = cause.getClass().getSimpleName();
+            String detail = cause.getMessage();
+            boolean noDetail = detail == null || detail.isBlank();
+            String summary = noDetail ? type + " (no exception message)" : type;
+            String message = noDetail ? summary : type + ": " + detail;
+            if (readPos != null) {
+                message = "readPos=" + readPos + " " + message;
+            }
+            long timestamp = System.currentTimeMillis();
+            lastReadFailure = new Failure(timestamp, message);
+            String batch = readPos == null ? "a batch" : "the batch starting at " + readPos;
+            retryingReadHealth = new ReplicatorHealth(false, "Retrying the source cursor read for " + batch
+                    + " after " + summary + ". Check lastReadFailure in stats-internal and the source broker log at "
+                    + timestamp + ".");
+            return Objects.requireNonNullElse(detail, type);
+        }
+
+        private void sendStarted() {
+            lastSendStartedAt = System.currentTimeMillis();
+        }
+
+        private void sendCompleted(boolean acknowledged) {
+            long now = System.currentTimeMillis();
+            lastReplicationSucceededAt = now;
+            // Skipping an invalid message requests a cursor delete without a target ACK.
+            if (acknowledged) {
+                lastAcknowledgedAt = now;
+            }
+        }
+
+        private void producerStartFailed(Throwable error, boolean preparingTopic) {
+            Throwable cause = failureCause(error);
+            String action;
+            if (error instanceof TargetMetadataFailure metadataFailure) {
+                action = metadataFailure.action;
+            } else if (preparingTopic && cause instanceof PulsarAdminException.NotAuthorizedException) {
+                action = "Topic preparation was denied. Verify the replication credentials "
+                        + "and topic metadata permissions.";
+            } else if (preparingTopic) {
+                action = "Topic preparation failed. Check both clusters' topic metadata, "
+                        + "partition counts and Admin URLs.";
+            } else if (cause instanceof PulsarClientException.AuthorizationException) {
+                action = "Producer creation was denied. Check the replication identity's "
+                        + "publish permission on the target.";
+            } else {
+                action = "Producer creation failed. Check the target broker connection and replication credentials.";
+            }
+            lastProducerStartFailure = new Failure(System.currentTimeMillis(), cause.getClass().getSimpleName()
+                    + ": " + action);
+            startupFailureHealth = new ReplicatorHealth(false, action + " See lastProducerStartFailure "
+                    + "in stats-internal and the source broker log at its timestamp.");
+        }
+
+        private void publishFailed(Throwable error) {
+            Throwable cause = failureCause(error);
+            if (!(cause instanceof PulsarClientException.InvalidMessageException)) {
+                lastPublishFailure = new Failure(System.currentTimeMillis(), cause.getClass().getSimpleName());
+            }
+        }
+
+        private void entryPersisted(Position position) {
+            // The first entry after the mark starts a new observation window even after a long idle period.
+            Position mark = cursor.getMarkDeletedPosition();
+            if (mark != null && position.compareTo(mark) > 0 && (pendingSince == 0
+                    || (position.getLedgerId() == mark.getLedgerId() && position.getEntryId() == mark.getEntryId() + 1)
+                    || (position.getEntryId() == 0 && cursor.getManagedLedger().getPreviousPosition(position)
+                            .compareTo(mark) <= 0))) {
+                pendingSince = System.currentTimeMillis();
+            }
+        }
+
+        private ReplicatorInternalStats internalStats() {
+            var current = producer;
+            var geo = current instanceof GeoReplicationProducerImpl p ? p : null;
+            Integer queueSize = geo == null ? null : geo.getPendingEntryCount();
+            Boolean compatible = geo == null ? null : geo.getSendingMessageSchemaCompatible();
+            List<ReadTask> tasks = new ArrayList<>();
+            synchronized (inFlightTasks) {
+                for (InFlightTask task : inFlightTasks) {
+                    if (!task.isDone()) {
+                        tasks.add(new ReadTask(Objects.toString(task.readPos, null), task.readingEntries,
+                                task.entries == null ? null : task.entries.size(), task.completedEntries,
+                                task.skipReadResultDueToCursorRewind, task.readFailureMessage));
+                    }
+                }
+            }
+            return new ReplicatorInternalStats(queueSize, producerQueueSize, compatible,
+                    lastProducerStartFailure, lastReadFailure, lastPublishFailure, lastProducerRetry, tasks);
+        }
+
+        private void updateStats(ReplicatorStatsImpl row) {
+            State lifecycle = state;
+            var current = producer;
+            var geo = current instanceof GeoReplicationProducerImpl p ? p : null;
+            row.replicatorState = lifecycle.name().toUpperCase(Locale.ROOT);
+            row.producerState = geo == null ? null : geo.getReplicationProducerState();
+            long read = lastCursorReadStartedAt;
+            row.lastCursorReadStartedAt = read != 0 && cursor.hasMoreEntries()
+                    && cursor.getReadPosition().compareTo(topic.getMaxReadPosition()) <= 0 ? read : null;
+            long send = lastSendStartedAt;
+            row.lastSendStartedAt = send == 0 ? null : send;
+            long success = lastReplicationSucceededAt;
+            row.lastReplicationSucceededAt = success == 0 ? null : success;
+            row.replicatorHealth = health(row, lifecycle, geo);
+        }
+
+        private ReplicatorHealth health(ReplicatorStatsImpl row, State lifecycle, GeoReplicationProducerImpl geo) {
+            if (lifecycle == Terminated || lifecycle == Terminating) {
+                return null;
+            }
+            ReplicatorHealth startup = startupFailureHealth;
+            if (startup != null) {
+                return startup;
+            }
+            int queueSize = geo == null ? 0 : geo.getPendingQueueSize();
+            if (row.replicationBacklog == 0 && queueSize == 0) {
+                return HEALTHY;
+            }
+            long cutoff = System.currentTimeMillis() - HEALTH_WINDOW_MS;
+            long markAdvanced = cursor.getLastMarkDeleteAdvancedAt();
+            if (lastAcknowledgedAt >= cutoff || (markAdvanced >= createdAt && markAdvanced >= cutoff)) {
+                return HEALTHY;
+            }
+            long start = pendingSince;
+            if (start == 0 || start > cutoff) {
+                return null;
+            }
+            if ("TERMINATED".equals(row.producerState)) {
+                return new ReplicatorHealth(false, "The target topic is terminated and cannot accept "
+                        + "replicated messages. Check lastPublishFailure in stats-internal.");
+            }
+            if (geo != null && Boolean.FALSE.equals(geo.getSendingMessageSchemaCompatible())) {
+                return new ReplicatorHealth(false, "The target rejected the schema of the next message to replicate. "
+                        + "Compare the source and target topic schemas and check the target schema "
+                        + "compatibility policy.");
+            }
+            if ("REGISTERING_SCHEMA".equals(row.producerState)) {
+                return new ReplicatorHealth(false, "Schema registration on the target is pending. "
+                        + "Check the target broker logs for the registration request.");
+            }
+            if (queueSize > 0) {
+                ProducerRetry retry = lastProducerRetry;
+                if (retry != null && GeoReplicationProducerImpl.DEDUPLICATION_UNDECIDED.equals(retry.reason())
+                        && geo.isQueueHeadAt(retry.sourcePosition())) {
+                    return new ReplicatorHealth(false, "The target could not determine whether source entry "
+                            + retry.sourcePosition() + " was already persisted. Check lastProducerRetry "
+                            + "in stats-internal and outstanding writes on the target.");
+                }
+                String latestRetry = retry == null ? "" : " The latest producer retry was " + retry.reason()
+                        + " at " + retry.timestamp() + ". See lastProducerRetry in stats-internal.";
+                return new ReplicatorHealth(false, "Sends await target acknowledgements." + latestRetry
+                        + " Check producerQueueSize, lastPublishFailure and target storage or connection errors.");
+            }
+            if (waitingForDispatchRate) {
+                return new ReplicatorHealth(false,
+                        "Check the effective replicatorDispatchRate and its available permits.");
+            }
+            ReplicatorHealth failedRead = retryingReadHealth;
+            if (failedRead != null) {
+                return failedRead;
+            }
+            if (row.lastCursorReadStartedAt != null) {
+                return new ReplicatorHealth(false, "Check inFlightTasks and lastReadFailure in stats-internal "
+                        + "for a stalled source cursor read.");
+            }
+            Position next = cursor.getReadPosition();
+            if (next.compareTo(topic.getMaxReadPosition()) > 0
+                    && next.compareTo(cursor.getManagedLedger().getLastConfirmedEntry()) <= 0) {
+                return new ReplicatorHealth(false, "The next cursor entry is beyond the readable position. "
+                        + "Compare readPosition with maxReadPosition in transaction-buffer-stats.");
+            }
+            return new ReplicatorHealth(false, "Check inFlightTasks, the replication cursor and lastPublishFailure "
+                    + "in stats-internal.");
+        }
     }
 }
