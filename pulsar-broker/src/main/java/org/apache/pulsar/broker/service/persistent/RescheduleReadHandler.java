@@ -84,8 +84,10 @@ class RescheduleReadHandler {
                 log.debug().attr("rescheduleDelay", rescheduleDelay).log("Scheduling after ms");
                 executor.schedule(runnable, rescheduleDelay, TimeUnit.MILLISECONDS);
             } else {
-                log.debug("Running immediately");
-                runnable.run();
+                // The caller may hold the pending-acks lock while the callbacks acquire the dispatcher monitor.
+                // Always run asynchronously to avoid reversing the lock order used when adding consumers.
+                log.debug("Scheduling immediately");
+                executor.execute(runnable);
             }
         } else {
             // When there's a scheduled read, update the maxReadOpCounter to carry the state when the later scheduled
