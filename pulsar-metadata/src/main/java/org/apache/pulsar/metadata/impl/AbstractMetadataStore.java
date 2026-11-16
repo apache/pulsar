@@ -1006,6 +1006,9 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         MoreExecutors.shutdownAndAwaitTermination(serDesExecutor, 10, TimeUnit.SECONDS);
         MoreExecutors.shutdownAndAwaitTermination(schedulerExecutor, 10, TimeUnit.SECONDS);
         MoreExecutors.shutdownAndAwaitTermination(eventExecutor, 10, TimeUnit.SECONDS);
+        // Identity-aware removal keeps the metrics of a live store that registered the same names later.
+        CacheMetricsCollector.removeCache(metadataStoreName + "-children", childrenCache);
+        CacheMetricsCollector.removeCache(metadataStoreName + "-exists", existsCache);
         this.metadataStoreStats.close();
     }
 
