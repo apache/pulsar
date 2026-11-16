@@ -95,7 +95,8 @@ public class TransactionAndSchemaAuthZTest extends AuthZTest {
         Consume,
         AdminOrSuperUser,
         CoordinatorRead,
-        Stats
+        Stats,
+        TestSchemaCompatibility
     }
 
     private final String testTopic = "persistent://public/default/" + UUID.randomUUID().toString();
@@ -151,7 +152,7 @@ public class TransactionAndSchemaAuthZTest extends AuthZTest {
                 new Object[] {
                         (ThrowingBiConsumer<PulsarAdmin>) (admin) -> admin.schemas().testCompatibility(
                                 testTopic, SchemaInfo.builder().type(SchemaType.STRING).build()),
-                        OperationAuthType.AdminOrSuperUser
+                        OperationAuthType.TestSchemaCompatibility
                 },
                 new Object[] {
                         (ThrowingBiConsumer<PulsarAdmin>) (admin) -> admin.schemas().deleteSchema(
@@ -297,10 +298,10 @@ public class TransactionAndSchemaAuthZTest extends AuthZTest {
             execFlag = setAuthorizationTopicOperationChecker(subject, TopicOperation.GET_STATS);
         }
 
-        for (AuthAction action : AuthAction.values()) {
-            superUserAdmin.topics().grantPermission(testTopic, subject, Set.of(action));
+        for (AuthAction permission : AuthAction.values()) {
+            superUserAdmin.topics().grantPermission(testTopic, subject, Set.of(permission));
 
-            if (authActionMatchOperation(topicOpType, action)) {
+            if (authActionMatchOperation(topicOpType, permission)) {
                 adminConsumer.accept(subAdmin);
             } else {
                 Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
@@ -330,6 +331,13 @@ public class TransactionAndSchemaAuthZTest extends AuthZTest {
             case Produce -> {
                 if (AuthAction.produce == action) {
                     return true;
+                }
+            }
+            case TestSchemaCompatibility -> {
+                switch (action) {
+                    case consume, produce: {
+                        return true;
+                    }
                 }
             }
             case AdminOrSuperUser, CoordinatorRead -> {

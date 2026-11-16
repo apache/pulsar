@@ -32,6 +32,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.service.GetStatsOptions;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopicMetrics;
@@ -242,7 +243,11 @@ public class NamespaceStatsAggregator {
                     backlogQuotaMetrics.getTimeBasedBacklogQuotaExceededEvictionCount();
         }
 
-        TopicStatsImpl tStatus = topic.getStats(getPreciseBacklog, subscriptionBacklogSize, false);
+        TopicStatsImpl tStatus = topic.getStats(GetStatsOptions.builder()
+                .getPreciseBacklog(getPreciseBacklog)
+                .subscriptionBacklogSize(subscriptionBacklogSize)
+                .excludeLastPublishTime(true)
+                .build());
         stats.msgInCounter = tStatus.msgInCounter;
         stats.bytesInCounter = tStatus.bytesInCounter;
         stats.msgOutCounter = tStatus.msgOutCounter;

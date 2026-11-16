@@ -89,6 +89,7 @@ public class ZeroQueueSizeTest extends SharedPulsarBaseTest {
         final String topicName = newTopicName();
         final String subscriptionName = "my-ex-subscription";
 
+        @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
                 .receiverQueueSize(0).subscribe();
         consumer.receive(10, TimeUnit.SECONDS);
@@ -110,12 +111,14 @@ public class ZeroQueueSizeTest extends SharedPulsarBaseTest {
         final String messagePredicate = "my-message-";
 
         // 2. Create Producer
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
             .create();
 
         // 3. Create Consumer
+        @Cleanup
         ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName(subscriptionName).receiverQueueSize(0).subscribe();
 
@@ -144,6 +147,7 @@ public class ZeroQueueSizeTest extends SharedPulsarBaseTest {
         final String messagePredicate = "my-message-";
 
         // 2. Create Producer
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
@@ -152,6 +156,7 @@ public class ZeroQueueSizeTest extends SharedPulsarBaseTest {
         // 3. Create Consumer
         List<Message<byte[]>> messages = new ArrayList<>();
         CountDownLatch latch = new CountDownLatch(totalMessages);
+        @Cleanup
         ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName(subscriptionName).receiverQueueSize(0).messageListener((cons, msg) -> {
                     assertEquals(((ConsumerImpl) cons).numMessagesInQueue(), 0);
@@ -185,6 +190,7 @@ public class ZeroQueueSizeTest extends SharedPulsarBaseTest {
         final String messagePredicate = "my-message-";
 
         // 2. Create Producer
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
@@ -214,6 +220,9 @@ public class ZeroQueueSizeTest extends SharedPulsarBaseTest {
             assertEquals(consumers[i % numOfSubscribers].numMessagesInQueue(), 0);
             log.info("Consumer received : " + new String(message.getData()));
         }
+        for (ConsumerImpl<?> consumer : consumers) {
+            consumer.close();
+        }
     }
 
     @Test
@@ -223,6 +232,7 @@ public class ZeroQueueSizeTest extends SharedPulsarBaseTest {
         final String messagePredicate = "my-message-";
 
         // 2. Create Producer
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
@@ -250,6 +260,7 @@ public class ZeroQueueSizeTest extends SharedPulsarBaseTest {
             log.info("Consumer received : " + new String(message.getData()));
         }
 
+        @Cleanup
         ConsumerImpl<byte[]> consumer2 = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName(subscriptionName).receiverQueueSize(0).subscriptionType(SubscriptionType.Failover)
                 .consumerName("consumer-2").subscribe();
@@ -440,6 +451,7 @@ public class ZeroQueueSizeTest extends SharedPulsarBaseTest {
                 .batchingMaxPublishDelay(10, TimeUnit.SECONDS)
                 .batchingMaxMessages(5);
 
+        @Cleanup
         Producer<byte[]> producer = producerBuilder.create();
 
         // send a batch message to trigger zeroQueueConsumer to close
@@ -1093,6 +1105,7 @@ public class ZeroQueueSizeTest extends SharedPulsarBaseTest {
         AtomicBoolean running = new AtomicBoolean(false);
 
         final List<Integer> receivedMessages = Collections.synchronizedList(new ArrayList<>());
+        @Cleanup
         final Consumer<Integer> consumer = pulsarClient.newConsumer(Schema.INT32)
                 .topic(topicName)
                 .subscriptionName(subName)
@@ -1109,6 +1122,7 @@ public class ZeroQueueSizeTest extends SharedPulsarBaseTest {
                         object.notifyAll();
                     }
                 }).subscribe();
+        @Cleanup
         final Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
                 .topic(topicName)
                 .enableBatching(false)

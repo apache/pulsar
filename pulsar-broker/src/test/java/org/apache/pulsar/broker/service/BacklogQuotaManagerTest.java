@@ -921,7 +921,6 @@ public class BacklogQuotaManagerTest {
                 }
                 MessageId send = producer.send(content);
             }
-            long lastLedgerCloseTime = System.currentTimeMillis() - 2000;
 
             // 2. Receive msg-0 and ack it.
             String c1MarkDeletePositionBefore =
@@ -932,15 +931,23 @@ public class BacklogQuotaManagerTest {
                     c1MarkDeletePositionBefore);
             log.info().attr("msgId", oldestMessage.getMessageId()).log("Moved subscription 1, by 1 message");
 
-            // 3. Expected the oldestBacklogMessageAgeSeconds is based on last ledger close time
-            long expectedMessageAgeSeconds =
-                    MILLISECONDS.toSeconds(System.currentTimeMillis() - lastLedgerCloseTime);
+            // 3. Expected the oldestBacklogMessageAgeSeconds is based on the close time of the first ledger, which
+            // holds the mark-delete position. The broker computes the age when it serves each request, and the first
+            // metrics scrape pays for RestAssured's startup, which can take seconds: bound the age by each request's
+            // start and end.
             PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic1).get();
+            long ledgerCloseTime = topicRef.getManagedLedger().getLedgersInfo()
+                    .get(((MessageIdImpl) oldestMessage.getMessageId()).getLedgerId()).getTimestamp();
             topicRef.updateOldPositionInfo();
+            long requestStart = System.currentTimeMillis();
             TopicStats topicStats = getTopicStats(topic1);
-            assertThat(topicStats.getOldestBacklogMessageAgeSeconds())
-                    .isCloseTo(expectedMessageAgeSeconds, within(1L));
+            long requestEnd = System.currentTimeMillis();
+            assertThat(topicStats.getOldestBacklogMessageAgeSeconds()).isBetween(
+                    MILLISECONDS.toSeconds(requestStart - ledgerCloseTime),
+                    MILLISECONDS.toSeconds(requestEnd - ledgerCloseTime));
+            requestStart = System.currentTimeMillis();
             Metrics metrics = prometheusMetricsClient.getMetrics();
+            requestEnd = System.currentTimeMillis();
             Metric backlogAgeMetric =
                     metrics.findSingleMetricByNameAndLabels("pulsar_storage_backlog_age_seconds",
                             Pair.of("topic", topic1));
@@ -948,7 +955,9 @@ public class BacklogQuotaManagerTest {
                     entry("cluster", CLUSTER_NAME),
                     entry("namespace", namespace),
                     entry("topic", topic1));
-            assertThat((long) backlogAgeMetric.value).isCloseTo(expectedMessageAgeSeconds, within(2L));
+            assertThat((long) backlogAgeMetric.value).isBetween(
+                    MILLISECONDS.toSeconds(requestStart - ledgerCloseTime),
+                    MILLISECONDS.toSeconds(requestEnd - ledgerCloseTime));
 
             // 4. Move consumer to `end - 1`, then OldestBacklogMessageAgeSeconds should be `-1`, because the
             // second ledger is not closed yet.
@@ -2099,11 +2108,6 @@ public class BacklogQuotaManagerTest {
     public void testAheadProducerOnHoldTimeout() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/quotahold"),
                 new HashMap<>());
-        admin.namespaces().setBacklogQuota("prop/quotahold",
-                BacklogQuota.builder()
-                        .limitSize(10 * 1024)
-                        .retentionPolicy(BacklogQuota.RetentionPolicy.producer_request_hold)
-                        .build());
         @Cleanup
         final PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString())
                 .statsInterval(0, SECONDS).build();
@@ -2118,6 +2122,13 @@ public class BacklogQuotaManagerTest {
         for (int i = 0; i < 10; i++) {
             producer.send(content);
         }
+        // Set the quota once the backlog is full: a background quota check that runs while the send crossing the
+        // quota waits for its ledger to close would disconnect the producer and hold that send until it times out
+        admin.namespaces().setBacklogQuota("prop/quotahold",
+                BacklogQuota.builder()
+                        .limitSize(10 * 1024)
+                        .retentionPolicy(BacklogQuota.RetentionPolicy.producer_request_hold)
+                        .build());
 
         waitForQuotaCheckToDisconnect(producer);
 
@@ -2138,11 +2149,6 @@ public class BacklogQuotaManagerTest {
     public void testProducerException() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/quotahold"),
                 new HashMap<>());
-        admin.namespaces().setBacklogQuota("prop/quotahold",
-                BacklogQuota.builder()
-                        .limitSize(10 * 1024)
-                        .retentionPolicy(BacklogQuota.RetentionPolicy.producer_exception)
-                        .build());
         @Cleanup
         final PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString())
                 .statsInterval(0, SECONDS).build();
@@ -2157,6 +2163,13 @@ public class BacklogQuotaManagerTest {
         for (int i = 0; i < 10; i++) {
             producer.send(content);
         }
+        // Set the quota once the backlog is full: a background quota check that runs while the send crossing the
+        // quota waits for its ledger to close would disconnect the producer and fail that send
+        admin.namespaces().setBacklogQuota("prop/quotahold",
+                BacklogQuota.builder()
+                        .limitSize(10 * 1024)
+                        .retentionPolicy(BacklogQuota.RetentionPolicy.producer_exception)
+                        .build());
 
         waitForQuotaCheckToDisconnect(producer);
 
@@ -2184,11 +2197,6 @@ public class BacklogQuotaManagerTest {
     public void testProducerExceptionAndThenUnblockSizeQuota(boolean dedupTestSet) throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/quotahold"),
                 new HashMap<>());
-        admin.namespaces().setBacklogQuota("prop/quotahold",
-                BacklogQuota.builder()
-                        .limitSize(10 * 1024)
-                        .retentionPolicy(BacklogQuota.RetentionPolicy.producer_exception)
-                        .build());
         @Cleanup
         final PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString())
                 .statsInterval(0, SECONDS).build();
@@ -2207,6 +2215,13 @@ public class BacklogQuotaManagerTest {
         for (int i = 0; i < 10; i++) {
             producer.send(content);
         }
+        // Set the quota once the backlog is full: a background quota check that runs while the send crossing the
+        // quota waits for its ledger to close would disconnect the producer and fail that send
+        admin.namespaces().setBacklogQuota("prop/quotahold",
+                BacklogQuota.builder()
+                        .limitSize(10 * 1024)
+                        .retentionPolicy(BacklogQuota.RetentionPolicy.producer_exception)
+                        .build());
 
         Producer<byte[]> blockedProducer = producer;
         Awaitility.await().pollInterval(100, MILLISECONDS).untilAsserted(() -> {

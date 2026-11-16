@@ -68,12 +68,14 @@ public class UnAcknowledgedMessagesTimeoutTest extends SharedPulsarBaseTest {
         final int totalMessages = 10;
 
         // 1. producer connect
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
                 .enableBatching(false)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition)
                 .create();
 
         // 2. Create consumer
+        @Cleanup
         Consumer<byte[]> consumer = null;
         if (isRedeliveryTracker) {
             consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
@@ -136,12 +138,14 @@ public class UnAcknowledgedMessagesTimeoutTest extends SharedPulsarBaseTest {
         final int totalMessages = 10;
 
         // 1. producer connect
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
                 .enableBatching(false)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition)
                 .create();
 
         // 2. Create consumer
+        @Cleanup
         Consumer<byte[]> consumer = null;
         if (isRedeliveryTracker) {
             consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
@@ -194,13 +198,16 @@ public class UnAcknowledgedMessagesTimeoutTest extends SharedPulsarBaseTest {
         // Special step to create partitioned topic
 
         // 1. producer connect
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
                 .enableBatching(false)
                 .messageRoutingMode(MessageRoutingMode.RoundRobinPartition)
                 .create();
 
         // 2. Create consumer
+        @Cleanup
         Consumer<byte[]> consumer1 = null;
+        @Cleanup
         Consumer<byte[]> consumer2 = null;
         if (isRedeliveryTracker) {
             consumer1 = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
@@ -307,13 +314,16 @@ public class UnAcknowledgedMessagesTimeoutTest extends SharedPulsarBaseTest {
         // Special step to create partitioned topic
 
         // 1. producer connect
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
                 .enableBatching(false)
                 .messageRoutingMode(MessageRoutingMode.RoundRobinPartition)
                 .create();
 
         // 2. Create consumer
+        @Cleanup
         Consumer<byte[]> consumer1 = null;
+        @Cleanup
         Consumer<byte[]> consumer2 = null;
         if (isRedeliveryTracker) {
             consumer1 = pulsarClient.newConsumer()
@@ -446,12 +456,14 @@ public class UnAcknowledgedMessagesTimeoutTest extends SharedPulsarBaseTest {
         final int totalMessages = 3;
 
         // 1. producer connect
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
                 .enableBatching(false)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition)
                 .create();
 
         // 2. Create consumer
+        @Cleanup
         ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName(subscriptionName).receiverQueueSize(7).subscriptionType(SubscriptionType.Shared)
                 .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
@@ -485,15 +497,16 @@ public class UnAcknowledgedMessagesTimeoutTest extends SharedPulsarBaseTest {
     private static Object[][] variationsBackoff() {
         return new Object[][]{
                 // ackTimeOutMillis / minDelayMs / maxDelayMs / multiplier
-                {2000, 1000, 2000, 2, SubscriptionType.Shared},
-                {3000, 1000, 3000, 3, SubscriptionType.Shared},
-                {2000, 1000, 2000, 2, SubscriptionType.Exclusive},
-                {3000, 1000, 3000, 3, SubscriptionType.Exclusive}
+                // 1 s is the shortest ack timeout. The backoff reaches its maximum within the five redeliveries.
+                {1000, 100, 400, 2, SubscriptionType.Shared},
+                {1000, 100, 900, 3, SubscriptionType.Shared},
+                {1000, 100, 400, 2, SubscriptionType.Exclusive},
+                {1000, 100, 900, 3, SubscriptionType.Exclusive}
         };
     }
 
     /**
-     * Each variation waits for five redeliveries, up to 28 s: check them at the same time, each on a topic of its own.
+     * Each variation waits for five redeliveries, up to 9 s: check them at the same time, each on a topic of its own.
      */
     @Test
     public void testCheckUnAcknowledgedMessageRedeliveryTimer() throws Exception {
@@ -523,6 +536,7 @@ public class UnAcknowledgedMessagesTimeoutTest extends SharedPulsarBaseTest {
         final int totalMessages = 3;
 
         // 1. producer connect
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
                 .enableBatching(false)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition)
@@ -530,6 +544,7 @@ public class UnAcknowledgedMessagesTimeoutTest extends SharedPulsarBaseTest {
 
         // 2. Create consumer
         // With the default 1 s tick, the timeout and the backoff each fire up to 1 s late
+        @Cleanup
         ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName(subscriptionName).receiverQueueSize(7).subscriptionType(subscriptionType)
                 .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
@@ -576,12 +591,14 @@ public class UnAcknowledgedMessagesTimeoutTest extends SharedPulsarBaseTest {
     public void testSingleMessageBatch() throws Exception {
         String topicName = newTopicName();
 
+        @Cleanup
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
                 .topic(topicName)
                 .enableBatching(true)
                 .batchingMaxPublishDelay(10, TimeUnit.SECONDS)
                 .create();
 
+        @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topicName)
                 .subscriptionName("subscription")

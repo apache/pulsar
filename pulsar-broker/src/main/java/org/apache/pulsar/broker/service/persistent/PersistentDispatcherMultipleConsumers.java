@@ -729,10 +729,13 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             synchronized (this) {
                 // Replay positions and sticky-key hash counts must be updated under the dispatcher lock.
                 redeliveryMessages.removeAllUpTo(markDeletePosition.getLedgerId(), markDeletePosition.getEntryId());
-            }
-            for (Consumer consumer : consumerList) {
-                consumer.removePendingAcksUpToPositionAndDecrementUnacked(
-                        markDeletePosition.getLedgerId(), markDeletePosition.getEntryId());
+                // removeConsumer debits a removed consumer's unacked messages under the same lock. Holding it here
+                // keeps a consumer that removeConsumer has already debited from being debited again for the same
+                // pending acks: consumerList only holds consumers that are still registered.
+                for (Consumer consumer : consumerList) {
+                    consumer.removePendingAcksUpToPositionAndDecrementUnacked(
+                            markDeletePosition.getLedgerId(), markDeletePosition.getEntryId());
+                }
             }
         }
     }
@@ -978,7 +981,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                 entries.set(i, entryAndMetadata);
             }
             if (metadata != null) {
-                remainingMessages += metadata.getNumMessagesInBatch();
+                remainingMessages += getNumMessagesInBatch(metadata, entry.getDataBuffer());
                 if (!hasChunk && metadata.hasUuid()) {
                     hasChunk = true;
                 }

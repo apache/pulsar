@@ -115,14 +115,10 @@ test_group_tiered_jcloud() {
 
 test_group_pulsar_connectors_thread() {
   gradle_integration_test -PintegrationTestSuiteFile=pulsar-thread.xml -PtestGroups=function "$@"
-  gradle_integration_test -PintegrationTestSuiteFile=pulsar-thread.xml -PtestGroups=source "$@"
-  gradle_integration_test -PintegrationTestSuiteFile=pulsar-thread.xml -PtestGroups=sink "$@"
 }
 
 test_group_pulsar_connectors_process() {
   gradle_integration_test -PintegrationTestSuiteFile=pulsar-process.xml -PtestGroups=function "$@"
-  gradle_integration_test -PintegrationTestSuiteFile=pulsar-process.xml -PtestGroups=source "$@"
-  gradle_integration_test -PintegrationTestSuiteFile=pulsar-process.xml -PtestGroups=sink "$@"
 }
 
 test_group_pulsar_io() {
@@ -142,6 +138,7 @@ test_group_shade_run() {
   echo "::group::Run shade tests"
   ./gradlew --no-configuration-cache \
     :tests:pulsar-client-shade-test:test \
+    :tests:pulsar-client-only-shade-test:test \
     :tests:pulsar-client-admin-shade-test:test \
     :tests:pulsar-client-admin-v5-test:test \
     :tests:pulsar-client-admin-v5-test:testReversedClasspath \

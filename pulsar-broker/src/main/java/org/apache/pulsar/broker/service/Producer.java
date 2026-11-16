@@ -87,7 +87,9 @@ public class Producer {
     private static final AtomicLongFieldUpdater<Producer> pendingPublishAcksUpdater = AtomicLongFieldUpdater
             .newUpdater(Producer.class, "pendingPublishAcks");
 
-    private boolean isClosed = false;
+    private volatile boolean isClosed = false;
+    private boolean removeFromTopicOnClose;
+    private boolean cleanupStarted;
     private final CompletableFuture<Void> closeFuture;
 
     private final PublisherStatsImpl stats;
@@ -401,10 +403,12 @@ public class Producer {
 
         // Check the close future to avoid grabbing the mutex every time the pending acks goes down to 0
         if (newPendingPublishAcks == 0 && !closeFuture.isDone()) {
+            boolean shouldCloseNow;
             synchronized (this) {
-                if (isClosed && !closeFuture.isDone()) {
-                    closeNow(true);
-                }
+                shouldCloseNow = isClosed && !closeFuture.isDone();
+            }
+            if (shouldCloseNow) {
+                closeNow(true);
             }
         }
     }
@@ -786,24 +790,39 @@ public class Producer {
      *
      * @return completable future indicate completion of close
      */
-    public synchronized CompletableFuture<Void> close(boolean removeFromTopic) {
-        log.debug().attr("isClosed", isClosed).log("Closing producer");
+    public CompletableFuture<Void> close(boolean removeFromTopic) {
+        boolean shouldCloseNow = false;
+        synchronized (this) {
+            log.debug().attr("isClosed", isClosed).log("Closing producer");
 
-        if (!isClosed) {
-            isClosed = true;
-            log.debug()
-                    .attr("isActive", cnx.isActive())
-                    .attr("pendingPublishAcks", pendingPublishAcks)
-                    .log("Trying to close producer");
-            if (!cnx.isActive() || pendingPublishAcks == 0) {
-                closeNow(removeFromTopic);
+            if (!isClosed) {
+                isClosed = true;
+                removeFromTopicOnClose = removeFromTopic;
+                log.debug()
+                        .attr("isActive", cnx.isActive())
+                        .attr("pendingPublishAcks", pendingPublishAcks)
+                        .log("Trying to close producer");
+                shouldCloseNow = !cnx.isActive() || pendingPublishAcks == 0;
             }
+        }
+        // closeNow acquires the topic lock, so it must not be called with the monitor held
+        if (shouldCloseNow) {
+            closeNow(removeFromTopic);
         }
         return closeFuture;
     }
 
     public void closeNow(boolean removeFromTopic) {
-        if (removeFromTopic) {
+        boolean removeProducer;
+        synchronized (this) {
+            if (cleanupStarted) {
+                return;
+            }
+            cleanupStarted = true;
+            // The first close request decides: close(false) keeps the producer on the topic for its replacement
+            removeProducer = isClosed ? removeFromTopicOnClose : removeFromTopic;
+        }
+        if (removeProducer) {
             topic.removeProducer(this);
         }
         cnx.removedProducer(this);

@@ -3249,14 +3249,15 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         // between the reads
         // so with a big batchSize this test would take too much
         // we are skipping this check if batchSize is too big
+        // Each entry takes as long as the timeout, which the scan then passes after a batch or two
         if (batchSize <= 5) {
             assertEquals(ScanOutcome.ABORTED, c1.scan(Optional.empty(), (entry -> {
                 try {
-                    Thread.sleep(1000);
+                    Thread.sleep(100);
                 } catch (InterruptedException ie) {
                 }
                 return true;
-            }), batchSize, Long.MAX_VALUE, 1000).get());
+            }), batchSize, Long.MAX_VALUE, 100).get());
         }
         // user code exception
         AtomicReference<Throwable> error = new AtomicReference<>();
@@ -5445,6 +5446,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test
     public void deleteMessagesCheckhMarkDelete() throws Exception {
+        // The mock BookKeeper sleeps 1 ms for each add by default
+        bkc.setDefaultAddEntryDelayMillis(0);
         ManagedLedger ledger = factory.open("my_test_ledger", initManagedLedgerConfig(defaultConfig()));
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
         final int totalEntries = 1000;
@@ -5945,7 +5948,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         }
 
         c1.markDelete(positions.get(0));
-        Thread.sleep(3000);
+        // Mark-deletes are limited to 1 per second: wait for the next one to be persisted, so that it fails
+        Thread.sleep(1500);
         // Simulate BK write error
         bkc.failNow(BKException.Code.NotEnoughBookiesException);
         metadataStore.setAlwaysFail(new MetadataStoreException.BadVersionException(""));

@@ -18,13 +18,20 @@
  */
 package org.apache.pulsar.broker.transaction.coordinator;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import java.net.InetSocketAddress;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
+import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException.CoordinatorNotFoundException;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.naming.SystemTopicNames;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
@@ -96,6 +103,54 @@ public class TransactionMetaStoreAssignmentTest extends TransactionTestBase {
 
         pulsarClient.close();
 
+    }
+
+    @Test
+    public void testScalableHandshakeRequiresElectedLeader() throws Exception {
+        PulsarService leader = awaitTcZeroLeader();
+        PulsarService bundleOwner = pulsarServiceList.stream().filter(broker -> broker != leader).findFirst()
+                .orElseThrow();
+        var assignTopic = SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.getPartition(0);
+        if (!admin.lookups().lookupTopic(assignTopic.toString()).equals(bundleOwner.getBrokerServiceUrl())) {
+            String bundle = admin.lookups().getBundleRange(assignTopic.toString());
+            admin.namespaces().unloadNamespaceBundle(assignTopic.getNamespace(), bundle, bundleOwner.getBrokerId());
+        }
+        Awaitility.await().untilAsserted(() -> {
+            assertThat(admin.lookups().lookupTopic(assignTopic.toString()))
+                    .isEqualTo(bundleOwner.getBrokerServiceUrl());
+            assertThat(bundleOwner.getNamespaceService().isServiceUnitOwned(assignTopic)).isTrue();
+        });
+        assertThat(bundleOwner.getTransactionCoordinatorV5().isLeaderFor(0)).isFalse();
+
+        PulsarClientImpl client = (PulsarClientImpl) leader.getClient();
+        connectToTcZero(client, leader, true);
+        connectToTcZero(client, bundleOwner, false);
+        assertThatThrownBy(() -> connectToTcZero(client, bundleOwner, true))
+                .as("v5 handshake on the assign-topic bundle owner")
+                .hasCauseInstanceOf(CoordinatorNotFoundException.class);
+
+        leader.getTransactionCoordinatorV5().close();
+        assertThatThrownBy(() -> connectToTcZero(client, leader, true))
+                .hasCauseInstanceOf(CoordinatorNotFoundException.class);
+        PulsarService nextLeader = awaitTcZeroLeader();
+        assertThat(nextLeader).isNotSameAs(leader);
+        connectToTcZero(client, nextLeader, true);
+    }
+
+    private PulsarService awaitTcZeroLeader() {
+        return Awaitility.await().until(() -> pulsarServiceList.stream()
+                .filter(broker -> broker.getTransactionCoordinatorV5().isLeaderFor(0))
+                .findFirst().orElse(null), Objects::nonNull);
+    }
+
+    private static void connectToTcZero(PulsarClientImpl client, PulsarService broker, boolean scalable)
+            throws Exception {
+        var address = InetSocketAddress.createUnresolved(broker.getAdvertisedAddress(),
+                broker.getBrokerListenPort().orElseThrow());
+        var cnx = client.getCnxPool().getConnection(address).get(10, TimeUnit.SECONDS);
+        long requestId = client.newRequestId();
+        cnx.sendScalableSessionRequest(Commands.newTcClientConnectRequest(0, requestId, scalable), requestId)
+                .get(10, TimeUnit.SECONDS);
     }
 
     private void checkTransactionCoordinatorNum(int number) {

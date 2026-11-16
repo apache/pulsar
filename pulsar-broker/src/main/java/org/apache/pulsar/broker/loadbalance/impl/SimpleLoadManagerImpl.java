@@ -1460,8 +1460,10 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
             if (cancelMetadataStoreListener != null) {
                 cancelMetadataStoreListener.run();
             }
-            if (loadReports != null) {
-                loadReports.close();
+            // Release only this load manager's lock: the coordination service gives the same lock manager to every
+            // user of its type, like the load manager that replaces this one, and closes it itself
+            if (brokerLock != null) {
+                brokerLock.release().join();
             }
             scheduler.shutdownNow();
             scheduler.awaitTermination(5, TimeUnit.SECONDS);
