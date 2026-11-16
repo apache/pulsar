@@ -136,8 +136,14 @@ public class ZKSessionWatcher implements AutoCloseable, Watcher {
             try {
                 stateSnapshot = future.get(tickTimeMillis, TimeUnit.MILLISECONDS);
             } catch (TimeoutException e) {
-                // Consider zk disconnection if zk operation takes more than TICK_TIME
-                stateSnapshot = new StateSnapshot(KeeperState.Disconnected, zk.getState());
+                ZooKeeper.States clientState = zk.getState();
+                if (clientState == ZooKeeper.States.CONNECTED) {
+                    // A slow response does not establish connection loss or recovery. Wait for a session event
+                    // or a completed probe before reporting a writable connection.
+                    return;
+                }
+                // Keep monitoring a disconnected client's session even when its probe cannot complete.
+                stateSnapshot = new StateSnapshot(getKeeperState(clientState), clientState);
             }
 
             checkStateIfSameSession(checkedHandleIdentity, stateSnapshot);
