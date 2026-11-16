@@ -24,7 +24,8 @@ import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUni
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Label.Failure;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.Unknown;
 import com.google.common.annotations.VisibleForTesting;
-import io.prometheus.client.Histogram;
+import io.prometheus.metrics.core.metrics.Histogram;
+import io.prometheus.metrics.model.snapshots.Unit;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -66,9 +67,10 @@ public class UnloadManager implements StateChangeListener {
             "brk_lb_disconnect_latency", "Time spent in the load balancing disconnected state on source brokers"),
                 true, false);
 
+        // Nothing exports exemplars, so the histograms skip the sampling that 1.x histograms do by default.
         private static Histogram buildHistogram(String name, String help) {
-            return Histogram.build(name, help).unit("ms").labelNames("broker", "metric").
-                    buckets(new double[] {1.0, 10.0, 100.0, 200.0, 1000.0}).register();
+            return Histogram.builder().name(name).help(help).unit(new Unit("ms")).labelNames("broker", "metric")
+                    .classicOnly().classicUpperBounds(1.0, 10.0, 100.0, 200.0, 1000.0).withoutExemplars().register();
         }
         private static final long OP_TIMEOUT_NS = TimeUnit.HOURS.toNanos(1);
 
@@ -94,7 +96,7 @@ public class UnloadManager implements StateChangeListener {
                                 var durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTimeNs);
                                 log.info().attr("operation", this).attr("unit", serviceUnit)
                                         .attr("took", durationMs).log("Operation for service unit took ms");
-                                histogram.labels(brokerId, "bundleUnloading").observe(durationMs);
+                                histogram.labelValues(brokerId, "bundleUnloading").observe(durationMs);
                             }).whenComplete((__, throwable) -> futures.remove(serviceUnit, future));
                     return future;
                 });

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.scalable;
 
+import static org.apache.pulsar.broker.service.scalable.PrometheusSamples.getSampleValue;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -35,7 +36,7 @@ import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.sdk.metrics.SdkMeterProvider;
 import io.opentelemetry.sdk.metrics.data.MetricData;
 import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
-import io.prometheus.client.CollectorRegistry;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -219,7 +220,7 @@ public class ScalableTopicControllerFailoverTest {
         ScalableTopicController first = new ScalableTopicController(topic, heldResources,
                 broker1.brokerService, broker1.coordinationService);
         broker1.controllers.add(first);
-        CollectorRegistry registry = new CollectorRegistry();
+        PrometheusRegistry registry = new PrometheusRegistry();
         var reader = InMemoryMetricReader.create();
         try (var sdk = SdkMeterProvider.builder().registerMetricReader(reader).build();
              var metrics = new ScalableTopicControllerMetrics(sdk.get("interrupted-takeover"), "test-cluster",
@@ -249,7 +250,7 @@ public class ScalableTopicControllerFailoverTest {
             }
             // An obsolete initialization may finish normally or exceptionally; neither is a takeover failure.
             initialization.handle((__, ex) -> null).get(5, TimeUnit.SECONDS);
-            assertThat(registry.getSampleValue(
+            assertThat(getSampleValue(registry,
                     "pulsar_scalable_topic_controller_takeover_duration_seconds_count",
                     new String[]{"cluster", "operation_status"}, new String[]{"test-cluster", "failure"})).isNull();
             Collection<MetricData> collected = reader.collectAllMetrics();
@@ -260,14 +261,14 @@ public class ScalableTopicControllerFailoverTest {
                             assertThat(point.getAttributes()).isEqualTo(Attributes.builder()
                                     .put("pulsar.scalable_topic.operation.status", "success").build());
                         });
-                assertThat(registry.getSampleValue(
+                assertThat(getSampleValue(registry,
                         "pulsar_scalable_topic_controller_takeover_duration_seconds_count",
                         new String[]{"cluster", "operation_status"}, new String[]{"test-cluster", "success"}))
                         .isEqualTo(1);
             } else {
                 assertThat(collected).noneSatisfy(metric -> assertThat(metric.getName())
                         .isEqualTo("pulsar.broker.scalable_topic.controller.takeover.duration"));
-                assertThat(registry.getSampleValue(
+                assertThat(getSampleValue(registry,
                         "pulsar_scalable_topic_controller_takeover_duration_seconds_count",
                         new String[]{"cluster", "operation_status"}, new String[]{"test-cluster", "success"}))
                         .isNull();
@@ -310,7 +311,7 @@ public class ScalableTopicControllerFailoverTest {
                 broker1.brokerService, broker1.coordinationService);
         broker1.controllers.add(first);
         ScalableTopicController second = broker2.newController();
-        CollectorRegistry registry = new CollectorRegistry();
+        PrometheusRegistry registry = new PrometheusRegistry();
         var reader = InMemoryMetricReader.create();
         try (var sdk = SdkMeterProvider.builder().registerMetricReader(reader).build();
              var metrics = new ScalableTopicControllerMetrics(sdk.get("deposed-controller"), "test-cluster",
@@ -341,7 +342,7 @@ public class ScalableTopicControllerFailoverTest {
                     .hasRootCauseInstanceOf(IllegalStateException.class);
 
             String status = succeeds ? "success" : "partial";
-            assertThat(registry.getSampleValue("pulsar_scalable_topic_layout_operation_total",
+            assertThat(getSampleValue(registry, "pulsar_scalable_topic_layout_operation_total",
                     new String[]{"cluster", "operation", "operation_trigger", "operation_status"},
                     new String[]{"test-cluster", operation, "manual", status})).isEqualTo(1);
             Collection<MetricData> collected = reader.collectAllMetrics();
@@ -359,7 +360,7 @@ public class ScalableTopicControllerFailoverTest {
                         assertThat(point.getAttributes()).isEqualTo(Attributes.builder()
                                 .put("pulsar.scalable_topic.operation", operation)
                                 .put("pulsar.scalable_topic.operation.status", status).build());
-                        assertThat(registry.getSampleValue(
+                        assertThat(getSampleValue(registry,
                                 "pulsar_scalable_topic_layout_operation_duration_seconds_count",
                                 new String[]{"cluster", "operation", "operation_status"},
                                 new String[]{"test-cluster", operation, status})).isEqualTo(point.getCount());
@@ -370,7 +371,7 @@ public class ScalableTopicControllerFailoverTest {
                             assertThat(point.getCount()).isEqualTo(1);
                             assertThat(point.getAttributes()).isEqualTo(Attributes.builder()
                                     .put("pulsar.scalable_topic.operation", operation).build());
-                            assertThat(registry.getSampleValue(
+                            assertThat(getSampleValue(registry,
                                     "pulsar_scalable_topic_layout_seal_duration_seconds_count",
                                     new String[]{"cluster", "operation"}, new String[]{"test-cluster", operation}))
                                     .isEqualTo(1);
@@ -378,10 +379,10 @@ public class ScalableTopicControllerFailoverTest {
             } else {
                 assertThat(collected).noneSatisfy(metric -> assertThat(metric.getName())
                         .isEqualTo("pulsar.broker.scalable_topic.layout.seal.duration"));
-                assertThat(registry.getSampleValue("pulsar_scalable_topic_layout_seal_duration_seconds_count",
+                assertThat(getSampleValue(registry, "pulsar_scalable_topic_layout_seal_duration_seconds_count",
                         new String[]{"cluster", "operation"}, new String[]{"test-cluster", operation})).isNull();
             }
-            assertThat(registry.getSampleValue("pulsar_scalable_topic_controller_count",
+            assertThat(getSampleValue(registry, "pulsar_scalable_topic_controller_count",
                     new String[]{"cluster"}, new String[]{"test-cluster"})).isZero();
             assertThat(scalableMetric(collected, "controller.count").getLongSumData().getPoints())
                     .singleElement().satisfies(point -> assertThat(point.getValue()).isZero());
