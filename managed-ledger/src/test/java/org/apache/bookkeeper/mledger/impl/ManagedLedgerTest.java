@@ -5278,7 +5278,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
             @Override
             public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
-                completableFutureA.completeExceptionally(exception.getCause());
+                completableFutureA.completeExceptionally(exception);
             }
         }, null);
 

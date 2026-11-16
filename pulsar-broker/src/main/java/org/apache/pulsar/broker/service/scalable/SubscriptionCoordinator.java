@@ -339,10 +339,20 @@ public class SubscriptionCoordinator {
      * Marks the session disconnected and schedules an eviction task after the grace period.
      * If the consumer reconnects with the same name before the timer fires, the timer is
      * cancelled and no rebalance happens.
+     *
+     * <p>{@code cnx} is the connection that dropped. The report is ignored when the session is
+     * attached to another connection: a consumer that has registered again on a new connection
+     * before the broker noticed its previous one closing (a half-open connection) is still
+     * connected, and the late close of the previous connection must not start its grace period.
      */
-    public synchronized void onConsumerDisconnect(String consumerName) {
+    public synchronized void onConsumerDisconnect(String consumerName, TransportCnx cnx) {
         ConsumerSession session = sessions.get(consumerName);
         if (closed || session == null || !session.isConnected()) {
+            return;
+        }
+        if (session.getCnx() != cnx) {
+            log.debug().attr("consumerName", consumerName)
+                    .log("Ignoring the close of a connection the consumer is no longer attached to");
             return;
         }
         session.markDisconnected();
