@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.util;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
@@ -41,9 +42,35 @@ import lombok.Cleanup;
 import org.assertj.core.util.Lists;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class FutureUtilTest {
+
+    @DataProvider(name = "completionExceptionUnwrapping")
+    public Object[][] completionExceptionUnwrapping() {
+        Throwable businessFailure =
+                new IllegalStateException("Business failure", new IllegalArgumentException("Cause"));
+        Throwable completionFailure = new CompletionException("Completion failed", null);
+        Throwable executionFailure = new ExecutionException("Execution failed", null);
+        return new Object[][] {
+                {null, null},
+                {businessFailure, businessFailure},
+                {new CompletionException(new ExecutionException(businessFailure)), businessFailure},
+                {new ExecutionException(new CompletionException(businessFailure)), businessFailure},
+                {completionFailure, completionFailure},
+                {executionFailure, executionFailure},
+                {new CompletionException(new ExecutionException(completionFailure)), completionFailure},
+                {new ExecutionException(new CompletionException(executionFailure)), executionFailure}
+        };
+    }
+
+    @Test(dataProvider = "completionExceptionUnwrapping")
+    public void testUnwrapCompletionExceptionPreservesInnermostFailure(Throwable failure, Throwable expectedFailure) {
+        assertThat(FutureUtil.unwrapCompletionException(failure))
+                .as("Unwrapped failure")
+                .isSameAs(expectedFailure);
+    }
 
     @Test
     public void testCreateTimeoutException() {

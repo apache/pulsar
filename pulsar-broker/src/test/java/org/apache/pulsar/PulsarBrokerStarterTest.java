@@ -39,6 +39,10 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.util.Arrays;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import lombok.Cleanup;
 import org.apache.bookkeeper.bookie.storage.ldb.DbLedgerStorage;
 import org.apache.bookkeeper.common.allocator.PoolingPolicy;
@@ -57,6 +61,9 @@ import picocli.CommandLine.Option;
 
 @Test(groups = "broker")
 public class PulsarBrokerStarterTest {
+
+    private static final Predicate<String> JVM_FAMILIES =
+            name -> name.startsWith("jvm_") || name.startsWith("process_");
 
     private File createValidBrokerConfigFile() throws FileNotFoundException {
         File testConfigFile = new File("tmp." + System.currentTimeMillis() + ".properties");
@@ -444,6 +451,8 @@ public class PulsarBrokerStarterTest {
             bookieConf.setAllowEphemeralPorts(true);
             bookieConf.setAllocatorPoolingPolicy(PoolingPolicy.UnpooledHeap);
 
+            // A broker started earlier in this JVM registers the JVM metrics on the default registry itself.
+            Set<String> jvmFamiliesBefore = familyNames(JVM_FAMILIES);
             provider = BookieStatsProviders.create(bookieConf);
             provider.start(bookieConf);
             bookieServer = BookieStatsProviders.buildBookieServer(bookieConf, provider);
@@ -456,8 +465,8 @@ public class PulsarBrokerStarterTest {
                     .contains("# TYPE jvm_memory_direct_bytes_used gauge\n")
                     .contains("bookie_SERVER_STATUS");
             // But none of them reached the registry the broker's /metrics scrapes.
-            assertThat(PrometheusRegistry.defaultRegistry.scrape(name -> name.startsWith("jvm_")
-                    || name.startsWith("process_") || name.startsWith("bookie_")).size()).isZero();
+            assertThat(familyNames(name -> name.startsWith("bookie_"))).isEmpty();
+            assertThat(familyNames(JVM_FAMILIES)).isEqualTo(jvmFamiliesBefore);
         } finally {
             if (bookieServer != null) {
                 bookieServer.close();
@@ -472,5 +481,11 @@ public class PulsarBrokerStarterTest {
         ServerConfiguration nullProviderConf = new ServerConfiguration();
         nullProviderConf.setStatsProviderClass(NullStatsProvider.class);
         assertThat(BookieStatsProviders.create(nullProviderConf)).isInstanceOf(NullStatsProvider.class);
+    }
+
+    private static Set<String> familyNames(Predicate<String> filter) {
+        return PrometheusRegistry.defaultRegistry.scrape(filter).stream()
+                .map(snapshot -> snapshot.getMetadata().getPrometheusName())
+                .collect(Collectors.toCollection(TreeSet::new));
     }
 }
