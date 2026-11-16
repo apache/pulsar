@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.functions.instance.stats;
 
-import io.prometheus.client.Collector;
+import io.prometheus.metrics.model.registry.Collector;
 import java.util.HashMap;
 import java.util.Map;
 

@@ -39,8 +39,8 @@ import io.netty.resolver.dns.DnsNameResolverBuilder;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.util.concurrent.Future;
 import io.prometheus.client.CollectorRegistry;
-import io.prometheus.client.Counter;
-import io.prometheus.client.Gauge;
+import io.prometheus.metrics.core.metrics.Counter;
+import io.prometheus.metrics.core.metrics.Gauge;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -156,23 +156,35 @@ public class ProxyService implements Closeable {
     // second factory built from the same broker-client tls* material. Closed with the ProxyService.
     private volatile PulsarTlsFactory lookupClientTlsFactory;
 
-    static final Gauge ACTIVE_CONNECTIONS = Gauge
-            .build("pulsar_proxy_active_connections", "Number of connections currently active in the proxy").create()
+    static final Gauge ACTIVE_CONNECTIONS = Gauge.builder()
+            .name("pulsar_proxy_active_connections")
+            .help("Number of connections currently active in the proxy")
             .register();
 
-    static final Counter NEW_CONNECTIONS = Counter
-            .build("pulsar_proxy_new_connections", "Counter of connections being opened in the proxy").create()
+    // Nothing in the proxy exports exemplars, so its counters skip the sampling that 1.x counters do by default.
+    static final Counter NEW_CONNECTIONS = Counter.builder()
+            .name("pulsar_proxy_new_connections")
+            .help("Counter of connections being opened in the proxy")
+            .withoutExemplars()
             .register();
 
-    static final Counter REJECTED_CONNECTIONS = Counter
-            .build("pulsar_proxy_rejected_connections", "Counter for connections rejected due to throttling").create()
+    static final Counter REJECTED_CONNECTIONS = Counter.builder()
+            .name("pulsar_proxy_rejected_connections")
+            .help("Counter for connections rejected due to throttling")
+            .withoutExemplars()
             .register();
 
-    static final Counter OPS_COUNTER = Counter
-            .build("pulsar_proxy_binary_ops", "Counter of proxy operations").create().register();
+    static final Counter OPS_COUNTER = Counter.builder()
+            .name("pulsar_proxy_binary_ops")
+            .help("Counter of proxy operations")
+            .withoutExemplars()
+            .register();
 
-    static final Counter BYTES_COUNTER = Counter
-            .build("pulsar_proxy_binary_bytes", "Counter of proxy bytes").create().register();
+    static final Counter BYTES_COUNTER = Counter.builder()
+            .name("pulsar_proxy_binary_bytes")
+            .help("Counter of proxy bytes")
+            .withoutExemplars()
+            .register();
 
     @Getter
     private final Set<ProxyConnection> clientCnxs;
