@@ -35,6 +35,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.Schema;
@@ -99,6 +100,53 @@ public class MessageImplTest {
             }
         } finally {
             payload.release();
+        }
+    }
+
+    @Test(dataProvider = "deserializedMessageBufferTypes")
+    public void testPropertiesOfDeserializedMessages(boolean skipBrokerEntryMetadata, boolean directBuffer)
+            throws Exception {
+        List<Map<String, String>> propertiesByMessage = List.of(
+                Map.of("key", "first", "other", "value"), Map.of(), Map.of("key", "updated"));
+        for (Map<String, String> expected : propertiesByMessage) {
+            MessageMetadata metadata = new MessageMetadata().setProducerName("test-producer")
+                    .setSequenceId(1).setPublishTime(1);
+            expected.forEach((key, value) -> metadata.addProperty().setKey(key).setValue(value));
+            ByteBuf serialized = Commands.serializeMetadataAndPayload(ChecksumType.Crc32c, metadata,
+                    Unpooled.EMPTY_BUFFER);
+            try {
+                BrokerEntryMetadata brokerMetadata = new BrokerEntryMetadata().setBrokerTimestamp(2);
+                int brokerMetadataSize = brokerMetadata.getSerializedSize();
+                int inputSize = serialized.readableBytes() + (skipBrokerEntryMetadata
+                        ? Short.BYTES + Integer.BYTES + brokerMetadataSize : 0);
+                ByteBuf input = directBuffer ? Unpooled.directBuffer(inputSize) : Unpooled.buffer(inputSize);
+                try {
+                    if (skipBrokerEntryMetadata) {
+                        input.writeShort(Commands.magicBrokerEntryMetadata);
+                        input.writeInt(brokerMetadataSize);
+                        brokerMetadata.writeTo(input);
+                    }
+                    input.writeBytes(serialized);
+                    MessageImpl<byte[]> message = skipBrokerEntryMetadata
+                            ? MessageImpl.deserializeSkipBrokerEntryMetaData(input) : MessageImpl.deserialize(input);
+                    try {
+                        assertThat(message.getProperties()).as("properties of the current deserialized message")
+                                .containsExactlyInAnyOrderEntriesOf(expected);
+                        assertThat(message.hasProperty("key")).isEqualTo(expected.containsKey("key"));
+                        assertThat(message.getProperty("key")).isEqualTo(expected.get("key"));
+                        assertThat(message.hasProperty("other")).isEqualTo(expected.containsKey("other"));
+                        assertThat(message.getProperty("other")).isEqualTo(expected.get("other"));
+                        assertThat(message.hasProperty("missing")).isFalse();
+                        assertThat(message.getProperty("missing")).isNull();
+                    } finally {
+                        message.recycle();
+                    }
+                } finally {
+                    input.release();
+                }
+            } finally {
+                serialized.release();
+            }
         }
     }
 

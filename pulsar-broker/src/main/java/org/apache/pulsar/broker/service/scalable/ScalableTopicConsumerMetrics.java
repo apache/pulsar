@@ -22,10 +22,13 @@ import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.BatchCallback;
 import io.opentelemetry.api.metrics.Meter;
-import io.prometheus.client.Collector;
-import io.prometheus.client.CollectorRegistry;
-import io.prometheus.client.CounterMetricFamily;
-import io.prometheus.client.GaugeMetricFamily;
+import io.prometheus.metrics.model.registry.MultiCollector;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
+import io.prometheus.metrics.model.snapshots.CounterSnapshot;
+import io.prometheus.metrics.model.snapshots.GaugeSnapshot;
+import io.prometheus.metrics.model.snapshots.Labels;
+import io.prometheus.metrics.model.snapshots.MetricFamilyDescriptor;
+import io.prometheus.metrics.model.snapshots.MetricSnapshots;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -65,18 +68,18 @@ final class ScalableTopicConsumerMetrics implements AutoCloseable {
     private static final List<Attributes> REASON_ATTRIBUTES = REASON_NAMES.stream()
             .map(reason -> Attributes.of(REBALANCE_REASON, reason)).toList();
 
-    // CollectorRegistry is JVM-global in production. Share a registration when tests or embedded
+    // The Prometheus registry is JVM-global in production. Share a registration when tests or embedded
     // deployments run several brokers in one JVM, aggregating their state per cluster on that path.
-    private static final Map<CollectorRegistry, PrometheusCollector> COLLECTORS = new HashMap<>();
+    private static final Map<PrometheusRegistry, PrometheusCollector> COLLECTORS = new HashMap<>();
 
     private final Supplier<ConsumerStats> statsSupplier;
     private final AtomicLongArray rebalances = new AtomicLongArray(REASONS.length);
     private final String cluster;
-    private final CollectorRegistry registry;
+    private final PrometheusRegistry registry;
     private final BatchCallback callback;
     private boolean closed;
 
-    ScalableTopicConsumerMetrics(Meter meter, CollectorRegistry registry, String cluster,
+    ScalableTopicConsumerMetrics(Meter meter, PrometheusRegistry registry, String cluster,
                                 Supplier<ConsumerStats> statsSupplier) {
         this.registry = registry;
         this.cluster = cluster;
@@ -170,7 +173,16 @@ final class ScalableTopicConsumerMetrics implements AutoCloseable {
         }
     }
 
-    private static final class PrometheusCollector extends Collector implements Collector.Describable {
+    private static final class PrometheusCollector implements MultiCollector {
+        private static final MetricFamilyDescriptor CONSUMERS = MetricFamilyDescriptor.gauge(PROM_CONSUMER_COUNT)
+                .help(CONSUMER_DESCRIPTION).labelNames("cluster", "consumer_state").build();
+        private static final MetricFamilyDescriptor BLOCKED = MetricFamilyDescriptor.gauge(PROM_BLOCKED_COUNT)
+                .help(BLOCKED_DESCRIPTION).labelNames("cluster").build();
+        // Declared without "_total"; the exposition format appends it.
+        private static final MetricFamilyDescriptor REBALANCE = MetricFamilyDescriptor.counter(PROM_REBALANCE)
+                .help(REBALANCE_DESCRIPTION).labelNames("cluster", "rebalance_reason").build();
+        private static final List<MetricFamilyDescriptor> DESCRIPTORS = List.of(CONSUMERS, BLOCKED, REBALANCE);
+
         private record SourcesState(List<ScalableTopicConsumerMetrics> sources, Map<String, long[]> retiredRebalances) {
             private static final SourcesState EMPTY = new SourcesState(List.of(), Map.of());
         }
@@ -208,21 +220,15 @@ final class ScalableTopicConsumerMetrics implements AutoCloseable {
         }
 
         @Override
-        public List<MetricFamilySamples> describe() {
-            return List.of(new GaugeMetricFamily(PROM_CONSUMER_COUNT, CONSUMER_DESCRIPTION,
-                            List.of("cluster", "consumer_state")),
-                    new GaugeMetricFamily(PROM_BLOCKED_COUNT, BLOCKED_DESCRIPTION, List.of("cluster")),
-                    new CounterMetricFamily(PROM_REBALANCE, REBALANCE_DESCRIPTION,
-                            List.of("cluster", "rebalance_reason")));
+        public List<MetricFamilyDescriptor> getMetricFamilyDescriptors() {
+            return DESCRIPTORS;
         }
 
         @Override
-        public List<MetricFamilySamples> collect() {
-            var consumers = new GaugeMetricFamily(PROM_CONSUMER_COUNT, CONSUMER_DESCRIPTION,
-                    List.of("cluster", "consumer_state"));
-            var blocked = new GaugeMetricFamily(PROM_BLOCKED_COUNT, BLOCKED_DESCRIPTION, List.of("cluster"));
-            var rebalance = new CounterMetricFamily(PROM_REBALANCE, REBALANCE_DESCRIPTION,
-                    List.of("cluster", "rebalance_reason"));
+        public MetricSnapshots collect() {
+            List<GaugeSnapshot.GaugeDataPointSnapshot> consumers = new ArrayList<>();
+            List<GaugeSnapshot.GaugeDataPointSnapshot> blocked = new ArrayList<>();
+            List<CounterSnapshot.CounterDataPointSnapshot> rebalance = new ArrayList<>();
             SourcesState current = sourcesState;
             Map<String, Snapshot> clusters = new HashMap<>();
             current.retiredRebalances.forEach((cluster, counts) ->
@@ -246,15 +252,20 @@ final class ScalableTopicConsumerMetrics implements AutoCloseable {
                 if (activeClusters.contains(cluster)) {
                     long[] counts = snapshot.consumerCounts();
                     for (int i = 0; i < counts.length; i++) {
-                        consumers.addMetric(List.of(cluster, STATES.get(i)), counts[i]);
+                        consumers.add(new GaugeSnapshot.GaugeDataPointSnapshot(counts[i],
+                                Labels.of("cluster", cluster, "consumer_state", STATES.get(i)), null));
                     }
-                    blocked.addMetric(List.of(cluster), snapshot.stats.blocked());
+                    blocked.add(new GaugeSnapshot.GaugeDataPointSnapshot(snapshot.stats.blocked(),
+                            Labels.of("cluster", cluster), null));
                 }
                 for (int i = 0; i < REASONS.length; i++) {
-                    rebalance.addMetric(List.of(cluster, REASON_NAMES.get(i)), snapshot.rebalances[i]);
+                    rebalance.add(new CounterSnapshot.CounterDataPointSnapshot(snapshot.rebalances[i],
+                            Labels.of("cluster", cluster, "rebalance_reason", REASON_NAMES.get(i)), null, 0L));
                 }
             });
-            return new ArrayList<>(List.of(consumers, blocked, rebalance));
+            return MetricSnapshots.of(new GaugeSnapshot(CONSUMERS.getMetadata(), consumers),
+                    new GaugeSnapshot(BLOCKED.getMetadata(), blocked),
+                    new CounterSnapshot(REBALANCE.getMetadata(), rebalance));
         }
     }
 }

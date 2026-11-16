@@ -18,8 +18,9 @@
  */
 package org.apache.pulsar.broker.web;
 
-import io.prometheus.client.CollectorRegistry;
-import io.prometheus.client.Gauge;
+import com.google.common.annotations.VisibleForTesting;
+import io.prometheus.metrics.core.metrics.GaugeWithCallback;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.pulsar.opentelemetry.annotations.PulsarDeprecatedMetric;
 
@@ -28,16 +29,15 @@ class WebExecutorStats implements AutoCloseable {
     private static final AtomicBoolean CLOSED = new AtomicBoolean(false);
 
     @PulsarDeprecatedMetric(newMetricName = WebExecutorThreadPoolStats.LIMIT_COUNTER)
-    private final Gauge maxThreads;
+    private final GaugeWithCallback maxThreads;
     @PulsarDeprecatedMetric(newMetricName = WebExecutorThreadPoolStats.LIMIT_COUNTER)
-    private final Gauge minThreads;
+    private final GaugeWithCallback minThreads;
     @PulsarDeprecatedMetric(newMetricName = WebExecutorThreadPoolStats.USAGE_COUNTER)
-    private final Gauge idleThreads;
+    private final GaugeWithCallback idleThreads;
     @PulsarDeprecatedMetric(newMetricName = WebExecutorThreadPoolStats.USAGE_COUNTER)
-    private final Gauge activeThreads;
+    private final GaugeWithCallback activeThreads;
     @PulsarDeprecatedMetric(newMetricName = WebExecutorThreadPoolStats.USAGE_COUNTER)
-    private final Gauge currentThreads;
-    private final WebExecutorThreadPool executor;
+    private final GaugeWithCallback currentThreads;
 
     private static volatile WebExecutorStats instance;
 
@@ -49,59 +49,56 @@ class WebExecutorStats implements AutoCloseable {
         return instance;
     }
 
+    /** Closes the current instance, if any, and forgets it, so that the next {@link #getStats} registers again. */
+    @VisibleForTesting
+    static synchronized void resetForTesting() throws Exception {
+        if (instance != null) {
+            instance.close();
+            instance = null;
+        }
+        CLOSED.set(false);
+    }
+
     private WebExecutorStats(WebExecutorThreadPool executor) {
-        this.executor = executor;
-
-        this.maxThreads = Gauge.build("pulsar_web_executor_max_threads", "-").create()
-                .setChild(new Gauge.Child() {
-                    public double get() {
-                        return WebExecutorStats.this.executor.getMaxThreads();
-                    }
-                })
+        this.maxThreads = GaugeWithCallback.builder()
+                .name("pulsar_web_executor_max_threads")
+                .help("-")
+                .callback(callback -> callback.call(executor.getMaxThreads()))
                 .register();
 
-        this.minThreads = Gauge.build("pulsar_web_executor_min_threads", "-").create()
-                .setChild(new Gauge.Child() {
-                    public double get() {
-                        return WebExecutorStats.this.executor.getMinThreads();
-                    }
-                })
+        this.minThreads = GaugeWithCallback.builder()
+                .name("pulsar_web_executor_min_threads")
+                .help("-")
+                .callback(callback -> callback.call(executor.getMinThreads()))
                 .register();
 
-        this.idleThreads = Gauge.build("pulsar_web_executor_idle_threads", "-").create()
-                .setChild(new Gauge.Child() {
-                    public double get() {
-                        return WebExecutorStats.this.executor.getIdleThreads();
-                    }
-                })
+        this.idleThreads = GaugeWithCallback.builder()
+                .name("pulsar_web_executor_idle_threads")
+                .help("-")
+                .callback(callback -> callback.call(executor.getIdleThreads()))
                 .register();
 
-        this.activeThreads = Gauge.build("pulsar_web_executor_active_threads", "-").create()
-                .setChild(new Gauge.Child() {
-                    public double get() {
-                        return WebExecutorStats.this.executor.getThreads()
-                                - WebExecutorStats.this.executor.getIdleThreads();
-                    }
-                })
+        this.activeThreads = GaugeWithCallback.builder()
+                .name("pulsar_web_executor_active_threads")
+                .help("-")
+                .callback(callback -> callback.call(executor.getThreads() - executor.getIdleThreads()))
                 .register();
 
-        this.currentThreads = Gauge.build("pulsar_web_executor_current_threads", "-").create()
-                .setChild(new Gauge.Child() {
-                    public double get() {
-                        return WebExecutorStats.this.executor.getThreads();
-                    }
-                })
+        this.currentThreads = GaugeWithCallback.builder()
+                .name("pulsar_web_executor_current_threads")
+                .help("-")
+                .callback(callback -> callback.call(executor.getThreads()))
                 .register();
     }
 
     @Override
     public void close() throws Exception {
         if (CLOSED.compareAndSet(false, true)) {
-            CollectorRegistry.defaultRegistry.unregister(this.activeThreads);
-            CollectorRegistry.defaultRegistry.unregister(this.maxThreads);
-            CollectorRegistry.defaultRegistry.unregister(this.minThreads);
-            CollectorRegistry.defaultRegistry.unregister(this.idleThreads);
-            CollectorRegistry.defaultRegistry.unregister(this.currentThreads);
+            PrometheusRegistry.defaultRegistry.unregister(this.activeThreads);
+            PrometheusRegistry.defaultRegistry.unregister(this.maxThreads);
+            PrometheusRegistry.defaultRegistry.unregister(this.minThreads);
+            PrometheusRegistry.defaultRegistry.unregister(this.idleThreads);
+            PrometheusRegistry.defaultRegistry.unregister(this.currentThreads);
         }
     }
 }
