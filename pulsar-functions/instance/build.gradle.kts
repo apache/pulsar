@@ -48,6 +48,7 @@ dependencies {
     implementation(libs.prometheus.metrics.exposition.textformats)
     // Only for stats.PrometheusTextFormat, which the functions worker still uses for its own simpleclient registry
     implementation(libs.simpleclient)
+    implementation(libs.prometheus.metrics.instrumentation.caffeine)
     implementation(libs.datasketches.java)
     implementation(libs.jackson.databind)
     api(libs.netty.buffer)
