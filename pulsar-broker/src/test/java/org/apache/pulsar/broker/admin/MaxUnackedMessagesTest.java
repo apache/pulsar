@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.admin;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
-import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -114,12 +113,7 @@ public class MaxUnackedMessagesTest extends SharedPulsarBaseTest {
             }
 
             // client must receive number of messages = unAckedMessagesBufferSize rather all produced messages
-            // Allow up to receiverQueueSize * 3 extra messages buffered in consumers' receiver queues.
-            int actualReceived = messages.size();
-            assertTrue(actualReceived >= unackMsgAllowed
-                            && actualReceived <= unackMsgAllowed + receiverQueueSize * 3,
-                    "Expected received messages in [" + unackMsgAllowed + ", "
-                            + (unackMsgAllowed + receiverQueueSize * 3) + "], but was " + actualReceived);
+            assertEquals(messages.size(), unackMsgAllowed, receiverQueueSize * 3);
 
             // start acknowledging messages
             messages.forEach((m, c) -> {
