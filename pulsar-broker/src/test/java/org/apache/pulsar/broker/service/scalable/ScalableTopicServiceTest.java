@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.scalable;
 
+import static org.apache.pulsar.broker.service.scalable.PrometheusSamples.getSampleValue;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -37,7 +38,7 @@ import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.opentelemetry.api.OpenTelemetry;
-import io.prometheus.client.CollectorRegistry;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -250,12 +251,12 @@ public class ScalableTopicServiceTest {
     }
 
     private Double prometheusValue(String suffix) {
-        return CollectorRegistry.defaultRegistry.getSampleValue("pulsar_scalable_topic_" + suffix,
+        return getSampleValue(PrometheusRegistry.defaultRegistry, "pulsar_scalable_topic_" + suffix,
                 new String[]{"cluster"}, new String[]{clusterName});
     }
 
     private Double prometheusSegments(String state) {
-        return CollectorRegistry.defaultRegistry.getSampleValue("pulsar_scalable_topic_segment_count",
+        return getSampleValue(PrometheusRegistry.defaultRegistry, "pulsar_scalable_topic_segment_count",
                 new String[]{"cluster", "segment_state"}, new String[]{clusterName, state});
     }
 
@@ -683,7 +684,7 @@ public class ScalableTopicServiceTest {
             assertTrue(withoutMetrics.getOrCreateController(topic).get().isLeader());
             assertEquals(withoutMetrics.consumerStats(), new SubscriptionCoordinator.ConsumerStats(1, 0, 0, 0));
             // The healthy service's existing registration and counters must remain untouched.
-            assertEquals(CollectorRegistry.defaultRegistry.getSampleValue("pulsar_scalable_topic_rebalance_total",
+            assertEquals(getSampleValue(PrometheusRegistry.defaultRegistry, "pulsar_scalable_topic_rebalance_total",
                     new String[]{"cluster", "rebalance_reason"}, new String[]{clusterName, "consumer_join"}), 0.0);
         } finally {
             withoutMetrics.close();
@@ -707,10 +708,10 @@ public class ScalableTopicServiceTest {
         assertEquals(service.consumerStats(), new SubscriptionCoordinator.ConsumerStats(1, 0, 0, 0));
         service.releaseController(second).get();
         assertEquals(service.consumerStats(), SubscriptionCoordinator.ConsumerStats.EMPTY);
-        assertEquals(CollectorRegistry.defaultRegistry.getSampleValue("pulsar_scalable_topic_rebalance_total",
+        assertEquals(getSampleValue(PrometheusRegistry.defaultRegistry, "pulsar_scalable_topic_rebalance_total",
                 new String[]{"cluster", "rebalance_reason"}, new String[]{clusterName, "consumer_join"}), 2.0);
         service.start(); // Idempotent: must not reset counters or register another collector.
-        assertEquals(CollectorRegistry.defaultRegistry.getSampleValue("pulsar_scalable_topic_rebalance_total",
+        assertEquals(getSampleValue(PrometheusRegistry.defaultRegistry, "pulsar_scalable_topic_rebalance_total",
                 new String[]{"cluster", "rebalance_reason"}, new String[]{clusterName, "consumer_join"}), 2.0);
     }
 
@@ -725,7 +726,7 @@ public class ScalableTopicServiceTest {
         assertTrue(controller.isLeader());
         assertEquals(resources.listConsumersAsync(topic, "checkpoint").get(), List.of("one"));
         assertEquals(service.consumerStats(), new SubscriptionCoordinator.ConsumerStats(1, 0, 0, 0));
-        assertEquals(CollectorRegistry.defaultRegistry.getSampleValue("pulsar_scalable_topic_consumer_count",
+        assertEquals(getSampleValue(PrometheusRegistry.defaultRegistry, "pulsar_scalable_topic_consumer_count",
                 new String[]{"cluster", "consumer_state"}, new String[]{clusterName, "active"}), null);
         service.registerConsumer(topic, "checkpoint", "two", 2, ScalableConsumerType.CHECKPOINT,
                 mock(TransportCnx.class)).get();

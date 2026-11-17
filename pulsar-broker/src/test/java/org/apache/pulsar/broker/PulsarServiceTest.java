@@ -32,7 +32,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import static org.testng.AssertJUnit.assertSame;
-import io.prometheus.client.CollectorRegistry;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadInfo;
@@ -60,6 +60,7 @@ import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateMetadataStoreTableViewImpl;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.broker.namespace.OwnershipCache;
+import org.apache.pulsar.broker.service.scalable.PrometheusSamples;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.broker.testcontext.SpyConfig;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -350,11 +351,13 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
         String name = "pulsar_scalable_topic_consumer_count";
         String[] labels = {"cluster", "consumer_state"};
         String[] values = {conf.getClusterName(), "active"};
-        assertThat(CollectorRegistry.defaultRegistry.getSampleValue(name, labels, values)).isEqualTo(0.0);
+        assertThat(PrometheusSamples.getSampleValue(PrometheusRegistry.defaultRegistry, name, labels, values))
+                .isEqualTo(0.0);
 
         pulsar.closeAsync().get(30, TimeUnit.SECONDS);
 
-        assertThat(CollectorRegistry.defaultRegistry.getSampleValue(name, labels, values)).isNull();
+        assertThat(PrometheusSamples.getSampleValue(PrometheusRegistry.defaultRegistry, name, labels, values))
+                .isNull();
     }
 
     @Test

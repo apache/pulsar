@@ -342,7 +342,6 @@ jersey-test-framework-grizzly2 = { module = "org.glassfish.jersey.test-framework
 # Prometheus
 simpleclient-bom = { module = "io.prometheus:simpleclient_bom", version.ref = "prometheus" }
 simpleclient = { module = "io.prometheus:simpleclient", version.ref = "prometheus" }
-simpleclient-caffeine = { module = "io.prometheus:simpleclient_caffeine", version.ref = "prometheus" }
 simpleclient-httpserver = { module = "io.prometheus:simpleclient_httpserver", version.ref = "prometheus" }
 simpleclient-servlet = { module = "io.prometheus:simpleclient_servlet", version.ref = "prometheus" }
 simpleclient-common = { module = "io.prometheus:simpleclient_common", version.ref = "prometheus" }
@@ -354,6 +353,7 @@ prometheus-metrics-core = { module = "io.prometheus:prometheus-metrics-core", ve
 prometheus-metrics-model = { module = "io.prometheus:prometheus-metrics-model", version.ref = "prometheus-client-java" }
 prometheus-metrics-instrumentation-jvm = { module = "io.prometheus:prometheus-metrics-instrumentation-jvm", version.ref = "prometheus-client-java" }
 prometheus-metrics-exposition-textformats = { module = "io.prometheus:prometheus-metrics-exposition-textformats", version.ref = "prometheus-client-java" }
+prometheus-metrics-instrumentation-caffeine = { module = "io.prometheus:prometheus-metrics-instrumentation-caffeine", version.ref = "prometheus-client-java" }
 prometheus-metrics-exporter-httpserver = { module = "io.prometheus:prometheus-metrics-exporter-httpserver", version.ref = "prometheus-client-java" }
 prometheus-metrics-exposition-formats-no-protobuf = { module = "io.prometheus:prometheus-metrics-exposition-formats-no-protobuf", version.ref = "prometheus-client-java" }
 # OpenTelemetry
