@@ -20,7 +20,8 @@ package org.apache.pulsar.broker.stats.prometheus.metrics;
 
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.annotations.VisibleForTesting;
-import io.prometheus.client.Collector;
+import io.prometheus.metrics.config.EscapingScheme;
+import io.prometheus.metrics.model.snapshots.PrometheusNaming;
 import java.io.IOException;
 import java.io.Writer;
 import java.util.concurrent.ConcurrentMap;
@@ -83,7 +84,7 @@ public class PrometheusMetricsProvider implements StatsProvider {
                 } else {
                     completeName = StringUtils.join(statsComponents, '_');
                 }
-                return Collector.sanitizeMetricName(completeName);
+                return sanitizeMetricName(completeName);
             }
         });
     }
@@ -122,6 +123,16 @@ public class PrometheusMetricsProvider implements StatsProvider {
     @Override
     public String getStatsName(String... statsComponents) {
         return cachingStatsProvider.getStatsName(statsComponents);
+    }
+
+    /**
+     * Replaces every character that is not valid in a legacy Prometheus metric name with {@code _}, as
+     * simpleclient's {@code Collector.sanitizeMetricName} did. The client 1.x
+     * {@link PrometheusNaming#sanitizeMetricName(String)} is not a replacement: it keeps any UTF-8 name and
+     * strips reserved suffixes such as {@code _total} instead.
+     */
+    static String sanitizeMetricName(String name) {
+        return PrometheusNaming.escapeName(name, EscapingScheme.UNDERSCORE_ESCAPING);
     }
 
     @VisibleForTesting

@@ -48,8 +48,9 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.util.concurrent.GlobalEventExecutor;
 import io.opentelemetry.api.metrics.LongCounter;
 import io.opentelemetry.api.metrics.ObservableLongUpDownCounter;
-import io.prometheus.client.Gauge;
-import io.prometheus.client.Histogram;
+import io.prometheus.metrics.core.metrics.Gauge;
+import io.prometheus.metrics.core.metrics.GaugeWithCallback;
+import io.prometheus.metrics.core.metrics.Histogram;
 import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import java.io.Closeable;
 import java.io.IOException;
@@ -87,6 +88,7 @@ import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
+import java.util.function.IntSupplier;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import lombok.AccessLevel;
@@ -157,7 +159,6 @@ import org.apache.pulsar.broker.service.scalable.SegmentOwnerState;
 import org.apache.pulsar.broker.service.scalable.SegmentTopicPolicies;
 import org.apache.pulsar.broker.stats.BrokerOperabilityMetrics.TopicLoadFailureReason;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
-import org.apache.pulsar.broker.stats.prometheus.metrics.ObserverGauge;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
 import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
 import org.apache.pulsar.broker.storage.ManagedLedgerStorageClass;
@@ -244,10 +245,13 @@ public class BrokerService implements Closeable {
     private static final Supplier<CompletableFuture<Boolean>> ALLOW_NEW_TOPIC =
             () -> CompletableFuture.completedFuture(true);
 
-    private static final Histogram backlogQuotaCheckDuration = Histogram.build()
+    // Nothing exports exemplars, so the histogram skips the sampling that 1.x histograms do by default.
+    private static final Histogram backlogQuotaCheckDuration = Histogram.builder()
             .name("pulsar_storage_backlog_quota_check_duration_seconds")
             .help("The duration of the backlog quota check process.")
-            .buckets(5, 10, 30, 60, 300)
+            .classicOnly()
+            .classicUpperBounds(5, 10, 30, 60, 300)
+            .withoutExemplars()
             .register();
 
     private final PulsarService pulsar;
@@ -305,14 +309,14 @@ public class BrokerService implements Closeable {
     public static final String TOPIC_LOOKUP_USAGE_METRIC_NAME = "pulsar.broker.request.topic.lookup.concurrent.usage";
     public static final String TOPIC_LOOKUP_LIMIT_METRIC_NAME = "pulsar.broker.request.topic.lookup.concurrent.limit";
     @PulsarDeprecatedMetric(newMetricName = TOPIC_LOOKUP_USAGE_METRIC_NAME)
-    private final ObserverGauge pendingLookupRequests;
+    private final GaugeWithCallback pendingLookupRequests;
     private final ObservableLongUpDownCounter pendingLookupOperationsCounter;
     private final ObservableLongUpDownCounter pendingLookupOperationsLimitCounter;
 
     public static final String TOPIC_LOAD_USAGE_METRIC_NAME = "pulsar.broker.topic.load.concurrent.usage";
     public static final String TOPIC_LOAD_LIMIT_METRIC_NAME = "pulsar.broker.topic.load.concurrent.limit";
     @PulsarDeprecatedMetric(newMetricName = TOPIC_LOAD_USAGE_METRIC_NAME)
-    private final ObserverGauge pendingTopicLoadRequests;
+    private final GaugeWithCallback pendingTopicLoadRequests;
     private final ObservableLongUpDownCounter pendingTopicLoadOperationsCounter;
     private final ObservableLongUpDownCounter pendingTopicLoadOperationsLimitCounter;
 
@@ -320,7 +324,7 @@ public class BrokerService implements Closeable {
     private final LongCounter rateLimitedConnectionsCounter;
     @PulsarDeprecatedMetric(newMetricName = CONNECTION_RATE_LIMIT_COUNT_METRIC_NAME)
     @Deprecated
-    private static final Gauge throttledConnectionsGauge = Gauge.build()
+    private static final Gauge throttledConnectionsGauge = Gauge.builder()
             .name("pulsar_broker_throttled_connections")
             .help("Counter of connections throttled because of per-connection limit")
             .register();
@@ -508,9 +512,8 @@ public class BrokerService implements Closeable {
 
         this.defaultServerBootstrap = defaultServerBootstrap();
 
-        this.pendingLookupRequests = ObserverGauge.build("pulsar_broker_lookup_pending_requests", "-")
-                .supplier(this::getPendingLookupRequest)
-                .register();
+        this.pendingLookupRequests = registerGaugeUnlessNameIsTaken(
+                "pulsar_broker_lookup_pending_requests", this::getPendingLookupRequest);
         this.pendingLookupOperationsCounter = pulsar.getOpenTelemetry().getMeter()
                 .upDownCounterBuilder(TOPIC_LOOKUP_USAGE_METRIC_NAME)
                 .setDescription("The number of pending lookup operations in the broker. "
@@ -526,10 +529,8 @@ public class BrokerService implements Closeable {
                 .buildWithCallback(
                         measurement -> measurement.record(pulsar.getConfig().getMaxConcurrentLookupRequest()));
 
-        this.pendingTopicLoadRequests = ObserverGauge.build(
-                        "pulsar_broker_topic_load_pending_requests", "-")
-                .supplier(this::getPendingTopicLoadRequests)
-                .register();
+        this.pendingTopicLoadRequests = registerGaugeUnlessNameIsTaken(
+                "pulsar_broker_topic_load_pending_requests", this::getPendingTopicLoadRequests);
         this.pendingTopicLoadOperationsCounter = pulsar.getOpenTelemetry().getMeter()
                 .upDownCounterBuilder(TOPIC_LOAD_USAGE_METRIC_NAME)
                 .setDescription("The number of pending topic load operations in the broker. "
@@ -599,6 +600,21 @@ public class BrokerService implements Closeable {
     private int getPendingTopicLoadRequests() {
         return pulsar.getConfig().getMaxConcurrentTopicLoadRequest()
                 - topicLoadRequestSemaphore.get().availablePermits();
+    }
+
+    private static GaugeWithCallback registerGaugeUnlessNameIsTaken(String name, IntSupplier currentValue) {
+        GaugeWithCallback gauge = GaugeWithCallback.builder()
+                .name(name)
+                .help("-")
+                .callback(callback -> callback.call(currentValue.getAsInt()))
+                .build();
+        try {
+            PrometheusRegistry.defaultRegistry.register(gauge);
+        } catch (IllegalArgumentException nameIsTakenByAnotherBrokerInThisJvm) {
+            log.debug().attr("gauge", name).exceptionMessage(nameIsTakenByAnotherBrokerInThisJvm)
+                    .log("Prometheus gauge is already registered");
+        }
+        return gauge;
     }
 
     public void addTopicEventListener(TopicEventsListener... listeners) {
@@ -1049,8 +1065,8 @@ public class BrokerService implements Closeable {
             }
 
             // unregister non-static metrics collectors
-            pendingTopicLoadRequests.unregister();
-            pendingLookupRequests.unregister();
+            PrometheusRegistry.defaultRegistry.unregister(pendingTopicLoadRequests);
+            PrometheusRegistry.defaultRegistry.unregister(pendingLookupRequests);
             if (segmentOwnerMetrics != null) {
                 segmentOwnerMetrics.close();
             }
