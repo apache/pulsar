@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.admin;
 
 import static org.apache.pulsar.common.naming.NamespaceName.SYSTEM_NAMESPACE;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
@@ -28,11 +29,16 @@ import static org.testng.Assert.expectThrows;
 import static org.testng.Assert.fail;
 import jakarta.ws.rs.core.Response;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.resources.DynamicConfigurationResources;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyClosedException;
+import org.apache.pulsar.metadata.impl.LocalMemoryMetadataStore;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -51,6 +57,18 @@ public class AdminApiDynamicConfigurationsTest extends MockedPulsarServiceBaseTe
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @Test
+    public void testSetDynamicConfigurationWithCreateReportsClosedStore() throws Exception {
+        try (var store = new LocalMemoryMetadataStore("memory:" + UUID.randomUUID(),
+                MetadataStoreConfig.builder().build())) {
+            DynamicConfigurationResources resources = new DynamicConfigurationResources(store, 5);
+            store.close();
+
+            assertThatThrownBy(() -> resources.setDynamicConfigurationWithCreate(
+                    current -> Map.of("key", "value"))).isInstanceOf(AlreadyClosedException.class);
+        }
     }
 
     @Test

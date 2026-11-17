@@ -18,15 +18,133 @@
  */
 package org.apache.pulsar.broker.resources;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.resources.NamespaceResources.PartitionedTopicResources;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyClosedException;
+import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyExistsException;
+import org.apache.pulsar.metadata.api.MetadataStoreException.ContentDeserializationException;
+import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
+import org.apache.pulsar.metadata.impl.LocalMemoryMetadataStore;
 import org.testng.annotations.Test;
 
 public class NamespaceResourcesTest {
+
+    @Test
+    public void testInvalidPoliciesPreserveDeserializationFailure() throws Exception {
+        try (var store = new LocalMemoryMetadataStore("memory:" + UUID.randomUUID(),
+                MetadataStoreConfig.builder().build())) {
+            NamespaceResources resources = new NamespaceResources(store, 5);
+            NamespaceName namespace = NamespaceName.get("tenant", "namespace");
+            store.put("/admin/policies/" + namespace, "not-json".getBytes(StandardCharsets.UTF_8), Optional.of(-1L))
+                    .get(5, TimeUnit.SECONDS);
+
+            assertThatThrownBy(() -> resources.getPolicies(namespace))
+                    .isInstanceOf(ContentDeserializationException.class);
+        }
+    }
+
+    @Test
+    public void testUpdateMissingPoliciesPreservesNotFound() throws Exception {
+        try (var store = new LocalMemoryMetadataStore("memory:" + UUID.randomUUID(),
+                MetadataStoreConfig.builder().build())) {
+            NamespaceResources resources = new NamespaceResources(store, 5);
+
+            assertThatThrownBy(() -> resources.setPolicies(
+                    NamespaceName.get("tenant", "missing"), policies -> policies))
+                    .isInstanceOf(NotFoundException.class);
+        }
+    }
+
+    @Test
+    public void testDuplicatePoliciesCreationPreservesAlreadyExists() throws Exception {
+        try (var store = new LocalMemoryMetadataStore("memory:" + UUID.randomUUID(),
+                MetadataStoreConfig.builder().build())) {
+            NamespaceResources resources = new NamespaceResources(store, 5);
+            NamespaceName namespace = NamespaceName.get("tenant", "namespace");
+            resources.createPolicies(namespace, new Policies());
+
+            assertThatThrownBy(() -> resources.createPolicies(namespace, new Policies()))
+                    .isInstanceOf(AlreadyExistsException.class);
+        }
+    }
+
+    @Test
+    public void testDeleteMissingPoliciesPreservesNotFound() throws Exception {
+        try (var store = new LocalMemoryMetadataStore("memory:" + UUID.randomUUID(),
+                MetadataStoreConfig.builder().build())) {
+            NamespaceResources resources = new NamespaceResources(store, 5);
+
+            assertThatThrownBy(() -> resources.deletePolicies(NamespaceName.get("tenant", "missing")))
+                    .isInstanceOf(NotFoundException.class);
+        }
+    }
+
+    @Test
+    public void testNamespaceExistsReportsClosedStore() throws Exception {
+        try (var store = new LocalMemoryMetadataStore("memory:" + UUID.randomUUID(),
+                MetadataStoreConfig.builder().build())) {
+            NamespaceResources resources = new NamespaceResources(store, 5);
+            store.close();
+
+            assertThatThrownBy(() -> resources.namespaceExists(NamespaceName.get("tenant", "namespace")))
+                    .isInstanceOf(AlreadyClosedException.class);
+        }
+    }
+
+    @Test
+    public void testPoliciesReadOnlyReportsClosedStore() throws Exception {
+        try (var store = new LocalMemoryMetadataStore("memory:" + UUID.randomUUID(),
+                MetadataStoreConfig.builder().build())) {
+            NamespaceResources resources = new NamespaceResources(store, 5);
+            store.close();
+
+            assertThatThrownBy(resources::getPoliciesReadOnly).isInstanceOf(AlreadyClosedException.class);
+        }
+    }
+
+    @Test
+    public void testDeletePoliciesAsyncReportsClosedStore() throws Exception {
+        try (var store = new LocalMemoryMetadataStore("memory:" + UUID.randomUUID(),
+                MetadataStoreConfig.builder().build())) {
+            NamespaceResources resources = new NamespaceResources(store, 5);
+            store.close();
+
+            assertThat(resources.deletePoliciesAsync(NamespaceName.get("tenant", "namespace")))
+                    .failsWithin(Duration.ofSeconds(5))
+                    .withThrowableOfType(ExecutionException.class)
+                    .havingCause().isInstanceOf(AlreadyClosedException.class);
+        }
+    }
+
+    @Test
+    public void testMarkPartitionedTopicDeletedReportsClosedStore() throws Exception {
+        try (var store = new LocalMemoryMetadataStore("memory:" + UUID.randomUUID(),
+                MetadataStoreConfig.builder().build())) {
+            PartitionedTopicResources resources = new NamespaceResources(store, 5).getPartitionedTopicResources();
+            store.close();
+
+            assertThat(resources.runWithMarkDeleteAsync(TopicName.get("persistent://tenant/namespace/topic"),
+                    () -> CompletableFuture.completedFuture(null)))
+                    .failsWithin(Duration.ofSeconds(5))
+                    .withThrowableOfType(ExecutionException.class)
+                    .havingCause().isInstanceOf(AlreadyClosedException.class);
+        }
+    }
 
     @Test
     public void test_pathIsFromNamespace() {
