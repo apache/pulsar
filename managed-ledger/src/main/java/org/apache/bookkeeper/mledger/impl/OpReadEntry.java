@@ -80,8 +80,8 @@ class OpReadEntry implements ReadEntriesCallback {
     private static final AtomicInteger opReadIdGenerator = new AtomicInteger(1);
     /**
      * id for this read operation. Value can be negative when integer value overflow happens.
-     * Used for waitingReadOp consistency so the the correct instance is handled after the instance has already been
-     * recycled.
+     * A pooled instance gets a new id each time it is created, so logs can tell its reads apart. The cursor's wait
+     * slot does not rely on it: it claims a registration by its never-reused {@code ManagedCursorImpl.WaitingRead}.
      */
     int id;
     ManagedCursorImpl cursor;
