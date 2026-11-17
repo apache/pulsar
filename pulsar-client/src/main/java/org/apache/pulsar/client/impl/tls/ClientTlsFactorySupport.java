@@ -197,8 +197,9 @@ public final class ClientTlsFactorySupport {
     }
 
     /**
-     * Resolve the effective client TLS factory, initialized and (on the v5-builder path) probed. Since the
-     * PIP-337 removal this always returns a non-null factory. Selection precedence (PIP-478):
+     * Resolve the effective client TLS factory, initialized and (on the v5-builder path with transport TLS
+     * enabled) probed. Since the PIP-337 removal this always returns a non-null factory.
+     * Selection precedence (PIP-478):
      * <ol>
      *   <li>a v5-builder-adopted {@code tlsFactory} instance (owned/closed by the client), or a v5
      *       {@code tlsPolicyMap};</li>
@@ -214,8 +215,8 @@ public final class ClientTlsFactorySupport {
      * @param blockingExecutor the framework executor for blocking material loading
      * @param openTelemetry    the telemetry root
      * @return the initialized factory (never {@code null})
-     * @throws Exception if the factory cannot be built / initialized, or (v5-builder path) the fail-fast
-     *         probe of {@link TlsPurpose#CLIENT_DEFAULT} fails
+     * @throws Exception if the factory cannot be built / initialized, or (v5-builder path with transport TLS
+     *         enabled) the fail-fast probe of {@link TlsPurpose#CLIENT_DEFAULT} fails
      */
     public static PulsarTlsFactory resolveClientTlsFactory(ClientConfigurationData conf,
             ScheduledExecutorService scheduler, Executor blockingExecutor, OpenTelemetry openTelemetry)
@@ -278,8 +279,8 @@ public final class ClientTlsFactorySupport {
         }
         try {
             initializeBlocking(factory, initContext(initParams, scheduler, blockingExecutor, openTelemetry));
-            // Fail-fast probe only on the v5-builder path.
-            if (v5BuilderPath) {
+            // A plaintext transport does not need CLIENT_DEFAULT; an adopted factory may serve only CLIENT_OAUTH2.
+            if (v5BuilderPath && conf.isUseTls()) {
                 probe(factory, TlsPurpose.CLIENT_DEFAULT,
                         TlsSynthesisSpec.client(conf.isTlsHostnameVerificationEnable()));
             }
