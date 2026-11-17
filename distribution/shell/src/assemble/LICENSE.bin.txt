@@ -377,11 +377,13 @@ The Apache Software License, Version 2.0
     - netty-resolver-dns-native-macos-4.2.20.Final-osx-aarch_64.jar
     - netty-resolver-dns-native-macos-4.2.20.Final-osx-x86_64.jar
  * Prometheus client
-    - simpleclient-0.16.0.jar
-    - simpleclient_log4j2-0.16.0.jar
-    - simpleclient_tracer_common-0.16.0.jar
-    - simpleclient_tracer_otel-0.16.0.jar
-    - simpleclient_tracer_otel_agent-0.16.0.jar
+    - prometheus-metrics-config-1.8.0.jar
+    - prometheus-metrics-core-1.8.0.jar
+    - prometheus-metrics-model-1.8.0.jar
+    - prometheus-metrics-tracer-common-1.8.0.jar
+    - prometheus-metrics-tracer-initializer-1.8.0.jar
+    - prometheus-metrics-tracer-otel-1.8.0.jar
+    - prometheus-metrics-tracer-otel-agent-1.8.0.jar
  * Log4J
     - log4j-api-2.26.1.jar
     - log4j-core-2.26.1.jar

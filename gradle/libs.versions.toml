@@ -345,7 +345,6 @@ simpleclient = { module = "io.prometheus:simpleclient", version.ref = "prometheu
 simpleclient-httpserver = { module = "io.prometheus:simpleclient_httpserver", version.ref = "prometheus" }
 simpleclient-servlet = { module = "io.prometheus:simpleclient_servlet", version.ref = "prometheus" }
 simpleclient-common = { module = "io.prometheus:simpleclient_common", version.ref = "prometheus" }
-simpleclient-log4j2 = { module = "io.prometheus:simpleclient_log4j2", version.ref = "prometheus" }
 prometheus-jmx-collector = { module = "io.prometheus.jmx:collector", version.ref = "prometheus-jmx" }
 # Prometheus Java client 1.x
 prometheus-metrics-annotations = { module = "io.prometheus:prometheus-metrics-annotations", version.ref = "prometheus-client-java" }
