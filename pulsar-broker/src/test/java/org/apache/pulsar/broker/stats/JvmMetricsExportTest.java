@@ -18,12 +18,17 @@
  */
 package org.apache.pulsar.broker.stats;
 
+import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.Metric;
+import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.parseMetrics;
 import static org.assertj.core.api.Assertions.assertThat;
+import com.google.common.collect.Multimap;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import org.apache.pulsar.PrometheusMetricsTestUtil;
+import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
+import org.apache.pulsar.common.util.DirectMemoryUtils;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
@@ -43,9 +48,7 @@ public class JvmMetricsExportTest extends SharedPulsarBaseTest {
 
     @Test
     public void testBrokerExportsTheJvmMetricsUnderThe1xNames() throws Exception {
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        PrometheusMetricsTestUtil.generate(getPulsar(), false, false, false, out);
-        String metrics = out.toString(StandardCharsets.UTF_8);
+        String metrics = scrape();
 
         RENAMED.forEach((oldName, newName) -> assertThat(metrics)
                 .as("broker /metrics declares %s and not %s", newName, oldName)
@@ -55,5 +58,30 @@ public class JvmMetricsExportTest extends SharedPulsarBaseTest {
                 .as("the Netty direct memory gauges keep their names")
                 .contains("# TYPE jvm_memory_direct_bytes_used gauge\n")
                 .contains("# TYPE jvm_memory_direct_bytes_max gauge\n");
+    }
+
+    @Test
+    public void testBrokerExportsTheNettyDirectMemoryGauges() throws Exception {
+        Multimap<String, Metric> metrics = parseMetrics(scrape());
+        assertThat(metrics.get("jvm_memory_direct_bytes_max")).singleElement()
+                .satisfies(max -> assertThat(max.value).isEqualTo(DirectMemoryUtils.jvmMaxDirectMemory()));
+        assertThat(metrics.get("jvm_memory_direct_bytes_used")).singleElement()
+                .satisfies(used -> assertThat(used.value).isNotNegative());
+    }
+
+    @Test
+    public void testBrokerExportsItsVersionAndCommit() throws Exception {
+        assertThat(parseMetrics(scrape()).get("pulsar_version_info")).singleElement().satisfies(versionInfo -> {
+            assertThat(versionInfo.tags)
+                    .containsEntry("version", PulsarVersion.getVersion())
+                    .containsEntry("commit", PulsarVersion.getGitSha());
+            assertThat(versionInfo.value).isEqualTo(1.0);
+        });
+    }
+
+    private String scrape() throws Exception {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        PrometheusMetricsTestUtil.generate(getPulsar(), false, false, false, out);
+        return out.toString(StandardCharsets.UTF_8);
     }
 }
