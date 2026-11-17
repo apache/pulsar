@@ -53,11 +53,13 @@ public class MetricsExports {
                 .callback(callback -> callback.call(DirectMemoryUtils.jvmMaxDirectMemory()))
                 .register(registry);
 
-        // metric to export pulsar version info
+        // metric to export pulsar version info. Nothing exports exemplars, so the gauge skips the sampling that
+        // 1.x gauges do by default.
         Gauge.builder()
                 .name("pulsar_version_info")
                 .help("-")
                 .labelNames("version", "commit")
+                .withoutExemplars()
                 .register(registry)
                 .labelValues(PulsarVersion.getVersion(), PulsarVersion.getGitSha())
                 .set(1);

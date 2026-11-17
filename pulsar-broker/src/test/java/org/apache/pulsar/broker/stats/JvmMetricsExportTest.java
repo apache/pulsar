@@ -66,7 +66,8 @@ public class JvmMetricsExportTest extends SharedPulsarBaseTest {
         assertThat(metrics.get("jvm_memory_direct_bytes_max")).singleElement()
                 .satisfies(max -> assertThat(max.value).isEqualTo(DirectMemoryUtils.jvmMaxDirectMemory()));
         assertThat(metrics.get("jvm_memory_direct_bytes_used")).singleElement()
-                .satisfies(used -> assertThat(used.value).isNotNegative());
+                .satisfies(used -> assertThat(used.value).as("-1 means the JVM cannot estimate it")
+                        .isGreaterThanOrEqualTo(-1));
     }
 
     @Test
