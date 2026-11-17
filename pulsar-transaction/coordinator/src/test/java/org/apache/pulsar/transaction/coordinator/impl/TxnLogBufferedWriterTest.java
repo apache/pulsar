@@ -72,6 +72,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -84,6 +85,18 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
     private String[] metricsLabelValues = new String[]{"1"};
     private String metricsPrefix = "pulsar_txn_tc";
     private String mlName = "-";
+
+    /**
+     * Metrics stats created by the test methods. They register collectors on the default registry, so they must be
+     * closed even when an assertion fails, otherwise the next test fails with "already in use by another Collector".
+     */
+    private final List<TxnLogBufferedWriterMetricsStats> createdMetricsStats = new ArrayList<>();
+
+    @AfterMethod(alwaysRun = true)
+    public void closeCreatedMetricsStats() {
+        createdMetricsStats.forEach(TxnLogBufferedWriterMetricsStats::close);
+        createdMetricsStats.clear();
+    }
 
     /**
      * Overridden cases:
@@ -824,6 +837,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         TxnLogBufferedWriterMetricsStats metricsStats = new TxnLogBufferedWriterMetricsStats(
                 metricsPrefix, metricsLabelNames, metricsLabelValues, CollectorRegistry.defaultRegistry
         );
+        createdMetricsStats.add(metricsStats);
         ManagedLedger managedLedger = factory.open("tx_test_ledger");
         // Create callback with counter.
         var callbackWithCounter = createCallBackWithCounter();
@@ -1061,6 +1075,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         TxnLogBufferedWriterMetricsStats metricsStats = new TxnLogBufferedWriterMetricsStats(
                 metricsPrefix, metricsLabelNames, metricsLabelValues, CollectorRegistry.defaultRegistry
         );
+        createdMetricsStats.add(metricsStats);
         // Mock managed ledger and write counter.
         MockedManagedLedger mockedManagedLedger = mockManagedLedgerWithWriteCounter(mlName);
         // Create Txn Buffered Writer.
