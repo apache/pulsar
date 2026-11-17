@@ -1009,6 +1009,8 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         // Identity-aware removal keeps the metrics of a live store that registered the same names later.
         CacheMetricsCollector.removeCache(metadataStoreName + "-children", childrenCache);
         CacheMetricsCollector.removeCache(metadataStoreName + "-exists", existsCache);
+        // The caches handed out by this store stay open, so their metrics are removed here.
+        metadataCaches.forEach(MetadataCacheImpl::unregisterMetrics);
         this.metadataStoreStats.close();
     }
 
