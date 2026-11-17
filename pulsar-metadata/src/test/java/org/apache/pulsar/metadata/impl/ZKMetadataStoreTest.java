@@ -22,6 +22,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.AdditionalAnswers.delegatesTo;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import java.nio.charset.StandardCharsets;
@@ -29,13 +31,20 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.apache.pulsar.metadata.TestZKServer;
 import org.apache.pulsar.metadata.api.HasPublicationId;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Option.VerifyPublication;
 import org.apache.pulsar.metadata.api.Stat;
+import org.apache.zookeeper.AsyncCallback.DataCallback;
 import org.apache.zookeeper.AsyncCallback.MultiCallback;
+import org.apache.zookeeper.AsyncCallback.StatCallback;
+import org.apache.zookeeper.AsyncCallback.StringCallback;
+import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.Code;
 import org.apache.zookeeper.MockZooKeeper;
 import org.apache.zookeeper.Op;
@@ -83,7 +92,7 @@ public class ZKMetadataStoreTest {
                 loseNextMultiResponse(client, server);
                 var created = create.writeTo(store, path, -1).join();
                 assertThat(created.getVersion()).isZero();
-                assertThat(created.isCreatedBySelf()).isTrue();
+                assertThat(created).isEqualTo(store.get(path).join().orElseThrow().getStat());
                 assertThat(create.writeTo(store, path, -1).join().getVersion()).isZero();
 
                 Value update = new Value("payload");
@@ -121,6 +130,127 @@ public class ZKMetadataStoreTest {
                 loseNextMultiResponse(client, server);
                 assertThatThrownBy(() -> store.put(path, withoutId, Optional.of(2L)).join())
                         .hasCauseInstanceOf(MetadataStoreException.BadVersionException.class);
+            }
+        }
+    }
+
+    @Test(timeOut = 30_000)
+    public void confirmIndividualCreateAndUpdateAfterTheirRepliesAreLost() throws Exception {
+        var config = MetadataStoreConfig.builder().batchingMaxOperations(2).batchingMaxDelayMillis(60_000).build();
+        try (var server = new TestZKServer();
+             var connected = new ZKMetadataStore(server.getConnectionString(), MetadataStoreConfig.builder().build(),
+                     false)) {
+            server.setMultiReadLimits(100, 64 * 1024);
+            String path = "/publication";
+            ZooKeeper zk = connected.getZkClient();
+            ZooKeeper client = mock(ZooKeeper.class, delegatesTo(zk));
+            connected.put("/existing", new byte[0], Optional.of(-1L)).join();
+            var committed = new AtomicInteger();
+            doAnswer(inv -> {
+                StringCallback callback = inv.getArgument(4);
+                zk.create(path, inv.getArgument(1), inv.getArgument(2), inv.getArgument(3), (rc, p, ctx, name) -> {
+                    if (rc == Code.OK.intValue()) {
+                        committed.incrementAndGet();
+                        rc = Code.CONNECTIONLOSS.intValue();
+                    }
+                    callback.processResult(rc, p, ctx, null);
+                }, null);
+                return null;
+            }).when(client).create(eq(path), any(), any(), any(), any(StringCallback.class), any());
+            doAnswer(inv -> {
+                StatCallback callback = inv.getArgument(3);
+                zk.setData(path, inv.getArgument(1), inv.getArgument(2), (rc, p, ctx, stat) -> {
+                    if (rc == Code.OK.intValue()) {
+                        committed.incrementAndGet();
+                        rc = Code.CONNECTIONLOSS.intValue();
+                    }
+                    callback.processResult(rc, p, ctx, null);
+                }, null);
+                return null;
+            }).when(client).setData(eq(path), any(), anyInt(), any(StatCallback.class), any());
+
+            try (var store = new ZKMetadataStore(client, config)) {
+                for (long expectedVersion : new long[]{-1, 0}) {
+                    Value publication = new Value("x".repeat(96 * 1024));
+                    var conflict = store.put("/existing", new byte[0], Optional.of(-1L));
+                    var write = publication.writeTo(store, path, expectedVersion);
+                    // Crossing the batch threshold flushes the two writes above together. The first fails,
+                    // so ZooKeeper must execute the publication separately.
+                    store.put("/flush-" + expectedVersion, new byte[0], Optional.of(-1L)).join();
+                    assertThatThrownBy(conflict::join)
+                            .hasCauseInstanceOf(MetadataStoreException.BadVersionException.class);
+                    assertThat(write.join().getVersion()).isEqualTo(expectedVersion + 1);
+                    assertThat(zk.getData(path, false, null)).isEqualTo(publication.encode());
+                }
+            }
+            assertThat(committed.get()).isEqualTo(2);
+        }
+    }
+
+    @Test(timeOut = 30_000)
+    public void confirmingCreateFromAnotherSessionReturnsTheReadStat() throws Exception {
+        var config = MetadataStoreConfig.builder().build();
+        try (var server = new TestZKServer();
+             var first = new ZKMetadataStore(server.getConnectionString(), config, false);
+             var second = new ZKMetadataStore(server.getConnectionString(), config, false)) {
+            String path = "/publication";
+            var publication = new Value("cursor");
+            assertThat(publication.writeTo(first, path, -1).join().isCreatedBySelf()).isTrue();
+            assertThat(second.getZkClient().getSessionId()).isNotEqualTo(first.getZkClient().getSessionId());
+            var confirmed = publication.writeTo(second, path, -1).join();
+            assertThat(confirmed).isEqualTo(second.get(path).join().orElseThrow().getStat());
+            assertThat(confirmed.isCreatedBySelf()).isFalse();
+        }
+    }
+
+    @Test(timeOut = 30_000)
+    public void closingStoreFailsPendingVerification() throws Exception {
+        try (var server = MockZooKeeper.newInstance()) {
+            ZooKeeper client = mock(ZooKeeper.class, delegatesTo(server));
+            var store = new ZKMetadataStore(client, false);
+            try {
+                var publication = new Value("cursor");
+                publication.writeTo(store, "/publication", -1).join();
+                var reading = new CompletableFuture<Void>();
+                doAnswer(inv -> {
+                    DataCallback callback = inv.getArgument(2);
+                    callback.processResult(Code.OPERATIONTIMEOUT.intValue(), "/publication", null, null, null);
+                    reading.complete(null);
+                    return null;
+                }).when(client).getData(eq("/publication"), eq(false), any(DataCallback.class), any());
+                var replay = publication.writeTo(store, "/publication", -1);
+                reading.get(5, TimeUnit.SECONDS);
+                store.close();
+                assertThatThrownBy(replay::join)
+                        .hasCauseInstanceOf(MetadataStoreException.AlreadyClosedException.class);
+            } finally {
+                store.close();
+            }
+        }
+    }
+
+    @Test(timeOut = 30_000)
+    public void unconfirmedWriteAndFailedVerificationKeepTheirErrors() throws Exception {
+        try (var server = MockZooKeeper.newInstance()) {
+            ZooKeeper client = mock(ZooKeeper.class, delegatesTo(server));
+            try (var store = new ZKMetadataStore(client, false)) {
+                String path = "/publication";
+                var publication = new Value("cursor");
+                doAnswer(inv -> {
+                    MultiCallback callback = inv.getArgument(1);
+                    callback.processResult(Code.OPERATIONTIMEOUT.intValue(), path, null, null);
+                    return null;
+                }).doAnswer(delegatesTo(server)).when(client).multi(any(), any(MultiCallback.class), any());
+                assertThatThrownBy(() -> publication.writeTo(store, path, -1).join())
+                        .hasRootCauseInstanceOf(KeeperException.OperationTimeoutException.class);
+                publication.writeTo(store, path, -1).join();
+                doAnswer(inv -> {
+                    DataCallback callback = inv.getArgument(2);
+                    callback.processResult(Code.NOAUTH.intValue(), path, null, null, null);
+                    return null;
+                }).when(client).getData(eq(path), eq(false), any(DataCallback.class), any());
+                assertThatThrownBy(() -> publication.writeTo(store, path, -1).join())
+                        .hasRootCauseInstanceOf(KeeperException.NoAuthException.class);
             }
         }
     }

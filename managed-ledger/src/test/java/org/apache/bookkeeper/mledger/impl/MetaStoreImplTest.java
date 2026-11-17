@@ -19,10 +19,13 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.AdditionalAnswers.delegatesTo;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -35,6 +38,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -44,13 +48,20 @@ import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
 import org.apache.bookkeeper.mledger.proto.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
+import org.apache.bookkeeper.test.ZooKeeperUtil;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
+import org.apache.zookeeper.AsyncCallback.DataCallback;
+import org.apache.zookeeper.AsyncCallback.MultiCallback;
+import org.apache.zookeeper.KeeperException.Code;
 import org.apache.zookeeper.MockZooKeeper;
+import org.apache.zookeeper.Op;
+import org.apache.zookeeper.ZooDefs.OpCode;
+import org.apache.zookeeper.ZooKeeper;
 import org.testng.annotations.Test;
 
 public class MetaStoreImplTest extends MockedBookKeeperTestCase {
@@ -246,6 +257,62 @@ public class MetaStoreImplTest extends MockedBookKeeperTestCase {
             assertThat(writeCursorInfo(store, update, created).getVersion()).isOne();
             assertThat(update.getPublication()).isEqualTo(suppliedId);
             assertThat(writeCursorInfo(store, update, created).getVersion()).isOne();
+        }
+    }
+
+    @Test(timeOut = 45_000)
+    void openCursorRecoversAfterVerificationTimeouts() throws Exception {
+        var cluster = new ZooKeeperUtil("/ledgers");
+        try {
+            cluster.startCluster();
+            ZooKeeper zk = cluster.getZooKeeperClient();
+            ZooKeeper client = mock(ZooKeeper.class, delegatesTo(zk));
+            try (var store = new ZKMetadataStore(client)) {
+                var zkFactory = new ManagedLedgerFactoryImpl(store, bkc);
+                try {
+                    var ledger = zkFactory.open("ledger");
+                    String path = "/managed-ledgers/ledger/cursor";
+                    var lostCreate = new AtomicBoolean();
+                    doAnswer(inv -> {
+                        Iterable<Op> ops = inv.getArgument(0);
+                        MultiCallback callback = inv.getArgument(1);
+                        for (Op op : ops) {
+                            if (op.getType() == OpCode.create && op.getPath().equals(path)) {
+                                zk.multi(ops, (rc, p, ctx, results) -> {
+                                    if (rc == Code.OK.intValue() && lostCreate.compareAndSet(false, true)) {
+                                        callback.processResult(Code.CONNECTIONLOSS.intValue(), p, ctx, null);
+                                    } else {
+                                        callback.processResult(rc, p, ctx, results);
+                                    }
+                                }, inv.getArgument(2));
+                                return null;
+                            }
+                        }
+                        zk.multi(ops, callback, inv.getArgument(2));
+                        return null;
+                    }).when(client).multi(any(), any(MultiCallback.class), any());
+                    var reads = new AtomicInteger();
+                    doAnswer(inv -> {
+                        DataCallback callback = inv.getArgument(2);
+                        if (reads.incrementAndGet() <= 2) {
+                            callback.processResult(Code.OPERATIONTIMEOUT.intValue(), path, null, null, null);
+                        } else {
+                            zk.getData(path, false, callback, inv.getArgument(3));
+                        }
+                        return null;
+                    }).when(client).getData(eq(path), eq(false), any(DataCallback.class), any());
+
+                    var cursor = ledger.openCursor("cursor");
+                    assertThat(ledger.openCursor("cursor")).isSameAs(cursor);
+                    assertThat(lostCreate.get()).isTrue();
+                    assertThat(reads.get()).isEqualTo(3);
+                    assertThat(zk.exists(path, false).getVersion()).isZero();
+                } finally {
+                    zkFactory.shutdown();
+                }
+            }
+        } finally {
+            cluster.killCluster();
         }
     }
 

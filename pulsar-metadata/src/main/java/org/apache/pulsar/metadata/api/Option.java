@@ -37,8 +37,8 @@ public sealed interface Option {
     /**
      * Pass this option when the serialized value includes a {@link HasPublicationId#getPublication() publication ID}
      * unique to this logical write.
-     * On a version conflict, a backend can confirm this write by matching the original bytes at the expected
-     * next version.
+     * On a version conflict or a lost write response, a backend can confirm this write by matching the original
+     * bytes at the expected next version. ZooKeeper retries transient verification read failures with backoff.
      *
      * <p><strong>Chain dependent operations explicitly.</strong> If a caller submits {@code get(A)}, {@code put(B)}
      * and {@code get(C)} without chaining their futures, C can complete while B is being retried or read back for
