@@ -154,6 +154,7 @@ import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
+import org.mockito.stubbing.Stubber;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.DataProvider;
@@ -4497,7 +4498,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         AtomicReference<Thread> ackThread = new AtomicReference<>();
         AtomicReference<Throwable> ackFailure = new AtomicReference<>();
         AtomicBoolean ackBlockedByCursorLock = new AtomicBoolean();
-        doAnswer(invocation -> {
+        Stubber injectConcurrentAck = doAnswer(invocation -> {
             if (Thread.currentThread() == callerThread && armed.compareAndSet(true, false)) {
                 Thread thread = new Thread(() -> {
                     try {
@@ -4512,7 +4513,13 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                 ackBlockedByCursorLock.set(cursorLock.hasQueuedThread(thread));
             }
             return invocation.callRealMethod();
-        }).when(ledger).getPositionAfterN(any(), anyLong(), any());
+        });
+        if (skip) {
+            injectConcurrentAck.when(ledger).getPositionAfterN(any(), anyLong(), any());
+        } else {
+            // getNthEntry finds the position from the ledger info and the individually deleted entries instead.
+            injectConcurrentAck.when(ledger).getLedgersInfo();
+        }
 
         // skip or read the 2nd entry that isn't individually deleted: entry 3
         if (skip) {

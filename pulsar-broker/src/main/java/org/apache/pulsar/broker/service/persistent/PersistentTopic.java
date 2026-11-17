@@ -42,6 +42,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -332,6 +333,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             OldestPositionInfo.class,
             "oldestPositionInfo");
     private volatile Map<String, OldestPositionInfo> subscriptionOldestPositionInfos;
+    // Per subscription, the publish timestamp of the entry at each configured backlog age quantile.
+    private volatile Map<String, Map<Double, Long>> subscriptionBacklogAgeQuantileTimestamps;
 
     @Value
     private static class OldestPositionInfo {
@@ -4274,6 +4277,97 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
     }
 
+    /**
+     * Returns the age in seconds of the entry at each configured backlog age quantile of the subscription,
+     * keyed by quantile. Empty when the quantiles are disabled or there is no backlog.
+     */
+    public Map<Double, Long> getBestEffortBacklogAgeQuantileSeconds(String subscriptionName) {
+        Map<String, Map<Double, Long>> allTimestamps = subscriptionBacklogAgeQuantileTimestamps;
+        Map<Double, Long> timestamps = allTimestamps == null ? null : allTimestamps.get(subscriptionName);
+        if (timestamps == null || timestamps.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        long nowMillis = Clock.systemUTC().millis();
+        Map<Double, Long> ages = new TreeMap<>();
+        timestamps.forEach((quantile, timestampMillis) ->
+                ages.put(quantile, Math.max(0, TimeUnit.MILLISECONDS.toSeconds(nowMillis - timestampMillis))));
+        return ages;
+    }
+
+    @VisibleForTesting
+    CompletableFuture<Void> updateSubscriptionBacklogAgeQuantiles(boolean preciseTimeBasedBacklogQuotaCheck) {
+        List<Double> quantiles = brokerService.pulsar().getConfiguration().getSubscriptionBacklogAgeQuantiles();
+        if (!preciseTimeBasedBacklogQuotaCheck || quantiles == null || quantiles.isEmpty()) {
+            subscriptionBacklogAgeQuantileTimestamps = null;
+            return CompletableFuture.completedFuture(null);
+        }
+
+        Map<String, Map<Double, Long>> refreshed = new ConcurrentHashMap<>();
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
+        for (Map.Entry<String, PersistentSubscription> subscriptionEntry : subscriptions.entrySet()) {
+            ManagedCursor cursor = subscriptionEntry.getValue().getCursor();
+            if (!cursor.isDurable()) {
+                continue;
+            }
+            long backlog = cursor.getNumberOfEntriesInBacklog(true);
+            if (backlog <= 0) {
+                continue;
+            }
+            Map<Double, Long> timestamps =
+                    refreshed.computeIfAbsent(subscriptionEntry.getKey(), __ -> new ConcurrentHashMap<>());
+            for (Double quantile : quantiles) {
+                if (quantile == null || quantile.isNaN() || quantile < 0 || quantile > 1) {
+                    continue;
+                }
+                futures.add(readBacklogAgeQuantileTimestamp(cursor, backlog, quantile, timestamps));
+            }
+        }
+        return FutureUtil.waitForAll(futures).thenRun(() -> subscriptionBacklogAgeQuantileTimestamps = refreshed);
+    }
+
+    private CompletableFuture<Void> readBacklogAgeQuantileTimestamp(ManagedCursor cursor, long backlog,
+                                                                    double quantile,
+                                                                    Map<Double, Long> timestamps) {
+        // Entries are counted from the oldest unacknowledged one, so the entry that has a (1 - quantile) share of
+        // the backlog older than it is the nth, with n = ceil(backlog * (1 - quantile)). Quantile 1 is the oldest.
+        // The tolerance keeps products that are an exact integer in real arithmetic, like 10 * (1 - 0.7), but come
+        // out a hair above it in floating point, from rounding up to the next entry.
+        long rank = (long) Math.ceil(backlog * (1 - quantile) - 1e-9);
+        int n = (int) Math.min(Integer.MAX_VALUE, Math.max(1L, rank));
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        try {
+            cursor.asyncGetNthEntry(n, IndividualDeletedEntries.Exclude, new AsyncCallbacks.ReadEntryCallback() {
+                @Override
+                public void readEntryComplete(Entry entry, Object ctx) {
+                    // The entry is null when acks shrank the backlog below n after it was counted.
+                    if (entry != null) {
+                        try {
+                            timestamps.put(quantile, entry.getEntryTimestamp());
+                        } catch (Exception e) {
+                            log.debug().exception(e).attr("quantile", quantile)
+                                    .log("Failed to read the publish time of a backlog age quantile entry");
+                        } finally {
+                            entry.release();
+                        }
+                    }
+                    future.complete(null);
+                }
+
+                @Override
+                public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                    log.debug().exception(exception).attr("quantile", quantile)
+                            .log("Failed to read a backlog age quantile entry");
+                    future.complete(null);
+                }
+            }, null);
+        } catch (Exception e) {
+            log.debug().exception(e).attr("quantile", quantile)
+                    .log("Failed to start reading a backlog age quantile entry");
+            future.complete(null);
+        }
+        return future;
+    }
+
     private Map<String, OldestPositionInfo> getSubscriptionOldestPositionInfos() {
         Map<String, OldestPositionInfo> positionInfos = subscriptionOldestPositionInfos;
         if (positionInfos == null) {
@@ -4289,6 +4383,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     private void clearSubscriptionOldestPositionInfos() {
+        subscriptionBacklogAgeQuantileTimestamps = null;
         Map<String, OldestPositionInfo> positionInfos = subscriptionOldestPositionInfos;
         if (positionInfos != null) {
             positionInfos.clear();
@@ -4513,7 +4608,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             clearSubscriptionOldestPositionInfos();
             return CompletableFuture.completedFuture(null);
         }
-        return updateSubscriptionOldPositionInfos(managedCursorContainer, preciseTimeBasedBacklogQuotaCheck);
+        return updateSubscriptionOldPositionInfos(managedCursorContainer, preciseTimeBasedBacklogQuotaCheck)
+                .thenCompose(__ -> updateSubscriptionBacklogAgeQuantiles(preciseTimeBasedBacklogQuotaCheck));
     }
 
     public CompletableFuture<Void> updateOldPositionInfo() {

@@ -1078,7 +1078,9 @@ public class ManagedCursorImpl implements ManagedCursor {
             Position endPosition = ledger.getLastPosition();
             if (startPosition.compareTo(endPosition) <= 0
                     && getNumberOfEntries(Range.closed(startPosition, endPosition)) >= n) {
-                positionAfterN = getPositionAfterMarkDelete(currentMarkDeletePosition, n, deletedEntries);
+                positionAfterN = deletedEntries == IndividualDeletedEntries.Exclude
+                        ? getNthNotDeletedPositionAfterMarkDelete(currentMarkDeletePosition, n)
+                        : getPositionAfterMarkDelete(currentMarkDeletePosition, n, deletedEntries);
             }
         } finally {
             lock.readLock().unlock();
@@ -2402,6 +2404,59 @@ public class ManagedCursorImpl implements ManagedCursor {
         long numDeletedEntries = deletedEntries == IndividualDeletedEntries.Exclude
                 ? getNumIndividualDeletedEntriesToSkip(markDeletePosition, n) : 0;
         return ledger.getPositionAfterN(markDeletePosition, n + numDeletedEntries, PositionBound.startExcluded);
+    }
+
+    /**
+     * Returns the position of the {@code n}th entry after {@code markDeletePosition} that is not individually
+     * deleted, or null if there are fewer than {@code n}. The result is the same as the one of
+     * {@link #getPositionAfterMarkDelete} with {@link IndividualDeletedEntries#Exclude}, but it counts the deleted
+     * entries of a ledger with bitmap ranks and a binary search instead of walking the deleted ranges, so its cost
+     * doesn't grow with the number of ranges.
+     *
+     * <p>The caller must hold the read lock that markDeletePosition was read under.
+     */
+    Position getNthNotDeletedPositionAfterMarkDelete(Position markDeletePosition, long n) {
+        Position start = ledger.getNextValidPosition(markDeletePosition);
+        Position last = ledger.getLastPosition();
+        if (start.compareTo(last) > 0) {
+            return null;
+        }
+        long remaining = n;
+        for (Map.Entry<Long, LedgerInfo> ledgerEntry
+                : ledger.getLedgersInfo().tailMap(start.getLedgerId(), true).entrySet()) {
+            long ledgerId = ledgerEntry.getKey();
+            if (ledgerId > last.getLedgerId()) {
+                break;
+            }
+            long total = ledgerId == last.getLedgerId() ? last.getEntryId() + 1 : ledgerEntry.getValue().getEntries();
+            long from = ledgerId == start.getLedgerId() ? start.getEntryId() : 0;
+            if (total <= from) {
+                continue;
+            }
+            long deletedBeforeFrom = individualDeletedMessages.countBefore(ledgerId, from);
+            long notDeleted = (total - from)
+                    - (individualDeletedMessages.countBefore(ledgerId, total) - deletedBeforeFrom);
+            if (remaining > notDeleted) {
+                remaining -= notDeleted;
+                continue;
+            }
+            // The number of entries in [from, entryId] that are not deleted never decreases with entryId, so the
+            // nth one is the smallest entryId that reaches n.
+            long low = from;
+            long high = total - 1;
+            while (low < high) {
+                long mid = (low + high) >>> 1;
+                long notDeletedUpToMid = (mid + 1 - from)
+                        - (individualDeletedMessages.countBefore(ledgerId, mid + 1) - deletedBeforeFrom);
+                if (notDeletedUpToMid >= remaining) {
+                    high = mid;
+                } else {
+                    low = mid + 1;
+                }
+            }
+            return PositionFactory.create(ledgerId, low);
+        }
+        return null;
     }
 
     // The caller must hold the read lock that markDeletePosition was read under; acquiring it here again is only

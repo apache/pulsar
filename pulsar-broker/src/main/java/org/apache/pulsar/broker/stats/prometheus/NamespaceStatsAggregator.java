@@ -282,11 +282,13 @@ public class NamespaceStatsAggregator {
             }
         });
 
-        if (topic instanceof PersistentTopic) {
+        if (topic instanceof PersistentTopic persistentTopicForQuantiles) {
             tStatus.subscriptions.forEach((subName, subscriptionStats) -> {
                 AggregatedSubscriptionStats subsStats = stats.subscriptionStats
                         .computeIfAbsent(subName, k -> new AggregatedSubscriptionStats());
                 aggregateTopicStats(stats, subscriptionStats, subsStats);
+                subsStats.backlogAgeQuantileSeconds =
+                        persistentTopicForQuantiles.getBestEffortBacklogAgeQuantileSeconds(subName);
             });
         } else {
             ((NonPersistentTopicStatsImpl) tStatus).getNonPersistentSubscriptions()

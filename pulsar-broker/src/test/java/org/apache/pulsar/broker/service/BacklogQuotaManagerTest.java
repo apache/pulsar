@@ -207,6 +207,7 @@ public class BacklogQuotaManagerTest {
     void createNamespaces() throws Exception {
         config.setPreciseTimeBasedBacklogQuotaCheck(false);
         config.setExposeSubscriptionBacklogAgeInPrometheus(false);
+        config.setSubscriptionBacklogAgeQuantiles(new ArrayList<>());
         createNamespaceForTest("prop/ns-quota");
         createNamespaceForTest("prop/quotahold");
         createNamespaceForTest("prop/quotaholdasync");
@@ -639,6 +640,63 @@ public class BacklogQuotaManagerTest {
             assertThat(metrics.findByNameAndLabels("pulsar_subscription_storage_backlog_age_seconds",
                     Pair.of("topic", topic1), Pair.of("subscription", subName))).isEmpty();
         }
+    }
+
+    @SuppressWarnings("deprecation")
+    @Test
+    public void subscriptionBacklogAgeQuantiles() throws Exception {
+        config.setPreciseTimeBasedBacklogQuotaCheck(true);
+        config.setExposeSubscriptionBacklogAgeInPrometheus(true);
+        config.setSubscriptionBacklogAgeQuantiles(List.of(0.0, 0.5, 0.99));
+
+        try (PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString())
+                .statsInterval(0, SECONDS).build()) {
+            final String topic1 = "persistent://prop/ns-quota/topic-quantiles" + UUID.randomUUID();
+            final String subName = "c1";
+            final int numMsgs = 10;
+
+            Consumer<byte[]> consumer = client.newConsumer().topic(topic1).subscriptionName(subName)
+                    .acknowledgmentGroupTime(0, SECONDS)
+                    .subscribe();
+            Producer<byte[]> producer = createProducer(client, topic1);
+            for (int i = 0; i < numMsgs; i++) {
+                producer.send(new byte[1024]);
+                Thread.sleep(1000);
+            }
+
+            // Receive without acking so that every message stays in the backlog, oldest first.
+            List<Message<byte[]>> messages = new ArrayList<>();
+            for (int i = 0; i < numMsgs; i++) {
+                messages.add(consumer.receive());
+            }
+            refreshSubscriptionBacklogAge(topic1);
+
+            // With 10 entries in the backlog, quantile q maps to entry n = ceil(10 * (1 - q)) from the oldest:
+            // 0.0 -> the newest (10th), 0.5 -> the 5th, 0.99 -> the oldest (1st).
+            Metrics metrics = prometheusMetricsClient.getMetrics();
+            assertQuantileAge(metrics, topic1, subName, "0.0", messages.get(9));
+            assertQuantileAge(metrics, topic1, subName, "0.5", messages.get(4));
+            assertQuantileAge(metrics, topic1, subName, "0.99", messages.get(0));
+
+            // Acking the oldest 5 messages moves the median to what is now the 5th unacked message.
+            for (int i = 0; i < 5; i++) {
+                consumer.acknowledge(messages.get(i));
+            }
+            Awaitility.await().untilAsserted(() -> {
+                refreshSubscriptionBacklogAge(topic1);
+                assertQuantileAge(prometheusMetricsClient.getMetrics(), topic1, subName, "0.99", messages.get(5));
+            });
+            assertQuantileAge(prometheusMetricsClient.getMetrics(), topic1, subName, "0.5", messages.get(7));
+        }
+    }
+
+    private void assertQuantileAge(Metrics metrics, String topic, String subscription, String quantile,
+                                   Message<byte[]> expectedEntry) {
+        Metric metric = metrics.findSingleMetricByNameAndLabels(
+                "pulsar_subscription_storage_backlog_age_quantile_seconds",
+                Pair.of("topic", topic), Pair.of("subscription", subscription), Pair.of("quantile", quantile));
+        long expectedAgeSeconds = MILLISECONDS.toSeconds(System.currentTimeMillis() - expectedEntry.getPublishTime());
+        assertThat((long) metric.value).as("quantile " + quantile).isCloseTo(expectedAgeSeconds, within(2L));
     }
 
     @SuppressWarnings("deprecation")

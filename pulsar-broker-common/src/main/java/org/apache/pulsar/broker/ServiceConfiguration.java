@@ -4085,6 +4085,18 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_METRICS,
+            doc = "Comma-separated quantiles in [0, 1] of the age of the unacknowledged entries in each "
+                    + "subscription's backlog to expose in Prometheus, e.g. 0.5,0.9,0.99.\n"
+                    + " For each quantile the broker reads one entry per subscription per backlog age refresh, "
+                    + "so keep the list short.\n"
+                    + " Requires exposeSubscriptionBacklogAgeInPrometheus=true and "
+                    + "preciseTimeBasedBacklogQuotaCheck=true. The quantiles are over entries, "
+                    + "so a batched entry counts once. Default is empty (disabled)."
+    )
+    private List<Double> subscriptionBacklogAgeQuantiles = new ArrayList<>();
+
+    @FieldContext(
+            category = CATEGORY_METRICS,
             doc = "Enable splitting topic and partition label in Prometheus.\n"
                     + " If enabled, a topic name will split into 2 parts, one is topic name without partition index,\n"
                     + " another one is partition index, e.g. (topic=xxx, partition=0).\n"

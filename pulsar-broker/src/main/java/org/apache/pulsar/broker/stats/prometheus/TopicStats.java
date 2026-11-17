@@ -330,6 +330,12 @@ class TopicStats {
                     subsStats.backlogAgeSeconds, cluster, namespace, topic, sub, splitTopicAndPartitionIndexLabel,
                     customLabelsAndValues);
             }
+            if (exposeSubscriptionBacklogAge) {
+                subsStats.backlogAgeQuantileSeconds.forEach((quantile, ageSeconds) ->
+                    writeSubscriptionMetric(stream, "pulsar_subscription_storage_backlog_age_quantile_seconds",
+                        ageSeconds, cluster, namespace, topic, sub, splitTopicAndPartitionIndexLabel,
+                        mergeArrays(customLabelsAndValues, "quantile", String.valueOf(quantile))));
+            }
             writeSubscriptionMetric(stream, "pulsar_subscription_delayed",
                 subsStats.msgDelayed, cluster, namespace, topic, sub, splitTopicAndPartitionIndexLabel,
                 customLabelsAndValues);

@@ -100,6 +100,8 @@ public class NamespaceStatsAggregatorTest {
         when(topic.getSubscriptions()).thenReturn(subscriptionsMaps);
         when(topic.getReplicators()).thenReturn(new ConcurrentHashMap<>());
         when(topic.getManagedLedger()).thenReturn(ml);
+        when(topic.getBestEffortBacklogAgeQuantileSeconds("my-subscription"))
+                .thenReturn(Map.of(0.5, 30L, 0.99, 45L));
         when(topic.getBacklogQuota(Mockito.any())).thenReturn(Mockito.mock(BacklogQuota.class));
         PersistentTopicMetrics persistentTopicMetrics = new PersistentTopicMetrics();
         when(topic.getPersistentTopicMetrics()).thenReturn(persistentTopicMetrics);
@@ -128,6 +130,25 @@ public class NamespaceStatsAggregatorTest {
         verifySubscriptionMetric(metricStreams, "pulsar_subscription_msg_rate_redeliver", 0.7);
         verifySubscriptionMetric(metricStreams, "pulsar_subscription_unacked_messages", 1L);
         verifySubscriptionMetric(metricStreams, "pulsar_subscription_storage_backlog_age_seconds", 123L);
+        verifyQuantileMetric(metricStreams, "0.5", 30L);
+        verifyQuantileMetric(metricStreams, "0.99", 45L);
+    }
+
+    private void verifyQuantileMetric(PrometheusMetricStreams metricStreams, String quantile, Number value) {
+        Mockito.verify(metricStreams).writeSample("pulsar_subscription_storage_backlog_age_quantile_seconds",
+                value,
+                "cluster",
+                null,
+                "namespace",
+                "tenant/cluster/ns",
+                "topic",
+                "my-topic",
+                "partition",
+                "-1",
+                "quantile",
+                quantile,
+                "subscription",
+                "my-subscription");
     }
 
     private void verifySubscriptionMetric(PrometheusMetricStreams metricStreams, String metricName, Number value) {
