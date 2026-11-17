@@ -337,8 +337,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         MetadataCacheImpl<T> metadataCache =
                 new MetadataCacheImpl<T>(cacheName, this, typeRef, (MetadataCacheConfig<T>) cacheConfig,
                         this.serDesExecutor, this.schedulerExecutor);
-        metadataCaches.add(metadataCache);
-        return metadataCache;
+        return trackMetadataCache(metadataCache);
     }
 
     @SuppressWarnings("unchecked")
@@ -348,8 +347,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         MetadataCacheImpl<T> metadataCache =
                 new MetadataCacheImpl<T>(cacheName, this, typeRef, (MetadataCacheConfig<T>) cacheConfig,
                         this.serDesExecutor, this.schedulerExecutor);
-        metadataCaches.add(metadataCache);
-        return metadataCache;
+        return trackMetadataCache(metadataCache);
     }
 
     @SuppressWarnings("unchecked")
@@ -359,7 +357,15 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         MetadataCacheImpl<T> metadataCache =
                 new MetadataCacheImpl<>(cacheName, this, serde, (MetadataCacheConfig<T>) cacheConfig,
                         this.serDesExecutor, this.schedulerExecutor);
+        return trackMetadataCache(metadataCache);
+    }
+
+    private <T> MetadataCache<T> trackMetadataCache(MetadataCacheImpl<T> metadataCache) {
         metadataCaches.add(metadataCache);
+        if (isClosed()) {
+            // close() may have gone over the caches before this one was added.
+            metadataCache.unregisterMetrics();
+        }
         return metadataCache;
     }
 

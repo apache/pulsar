@@ -127,6 +127,17 @@ public class AbstractMetadataStoreCacheMetricsTest {
                 .doesNotContain(storeName);
     }
 
+    @Test
+    public void testMetadataCacheCreatedAfterCloseLeavesNoMetrics() throws Exception {
+        LocalMemoryMetadataStore store = newStore();
+        store.close();
+
+        // close() has already gone over the caches of the store, so it cannot remove the metrics of this one.
+        store.getMetadataCache(String.class);
+        assertThat(exposedCacheNames()).as("series of a metadata cache created after the store is closed")
+                .doesNotContain(storeName);
+    }
+
     private LocalMemoryMetadataStore newStore() throws Exception {
         return new LocalMemoryMetadataStore("memory:local",
                 MetadataStoreConfig.builder().metadataStoreName(storeName).build());
