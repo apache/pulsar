@@ -88,6 +88,15 @@ java -jar microbench/build/libs/microbench-*-benchmarks.jar ManagedLedgerTrimSca
   -p ledgerCount=10000 -p ordinaryDeletionPercent=0,50 -p policy=ABSENT,POSITIVE_LAG -prof gc
 ```
 
+`InMemoryDelayedDeliveryTrackerBenchmark` measures position lookups (half hits, half misses) across
+1,000 or 100,000 delayed messages, plus adding and draining the same workload across multiple ledgers
+and delivery-time buckets. These are index costs, excluding storage reads and broker dispatch.
+For a focused run with allocation measurements:
+
+```shell
+java -jar microbench/build/libs/microbench-*-benchmarks.jar InMemoryDelayedDeliveryTrackerBenchmark -prof gc
+```
+
 Running specific benchmarks with machine-readable output and saving the output to a file:
 
 ```shell

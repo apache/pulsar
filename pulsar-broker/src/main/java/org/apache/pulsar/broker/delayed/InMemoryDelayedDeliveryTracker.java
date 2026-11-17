@@ -23,6 +23,7 @@ import io.github.merlimat.slog.Logger;
 import io.netty.util.Timer;
 import it.unimi.dsi.fastutil.longs.Long2ObjectAVLTreeMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectRBTreeMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectSortedMap;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -48,6 +49,10 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
     // AVL tree -> OpenHashMap -> LongBitmap
     protected final Long2ObjectSortedMap<Long2ObjectSortedMap<LongBitmap>>
             delayedMessageMap = new Long2ObjectAVLTreeMap<>();
+
+    // The same pending positions, indexed by ledger for the managed-ledger read-skip predicate. Membership reads
+    // run on ledger threads, so access to both indexes is serialized on this tracker, not on the dispatcher.
+    private final Long2ObjectMap<LongBitmap> delayedMessageIndex = new Long2ObjectOpenHashMap<>();
 
     // If we detect that all messages have fixed delay time, such that the delivery is
     // always going to be in FIFO order, then we can avoid pulling all the messages in
@@ -132,7 +137,10 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
     }
 
     @Override
-    public boolean addMessage(long ledgerId, long entryId, long deliverAt) {
+    public synchronized boolean addMessage(long ledgerId, long entryId, long deliverAt) {
+        if (containsMessage(ledgerId, entryId)) {
+            return true;
+        }
         if (deliverAt < 0 || deliverAt <= getCutoffTime()) {
             messagesHaveFixedDelay = false;
             return false;
@@ -153,6 +161,11 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
             long newSize = bitmap.serializedSize();
             memoryUsage.addAndGet(newSize - oldSize);
             delayedMessagesCount.incrementAndGet();
+
+            LongBitmap index = delayedMessageIndex.computeIfAbsent(ledgerId, k -> LongBitmaps.create());
+            long oldIndexSize = index.serializedSize();
+            index.add(entryId);
+            memoryUsage.addAndGet(index.serializedSize() - oldIndexSize);
         }
 
         updateTimer();
@@ -205,7 +218,7 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
      * Return true if there's at least a message that is scheduled to be delivered already.
      */
     @Override
-    public boolean hasMessageAvailable() {
+    public synchronized boolean hasMessageAvailable() {
         boolean hasMessageAvailable = !delayedMessageMap.isEmpty()
                 && delayedMessageMap.firstLongKey() <= getBucketCutoffTime();
         if (!hasMessageAvailable) {
@@ -218,7 +231,7 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
      * Get a set of position of messages that have already reached.
      */
     @Override
-    public NavigableSet<Position> getScheduledMessages(int maxMessages) {
+    public synchronized NavigableSet<Position> getScheduledMessages(int maxMessages) {
         int n = maxMessages;
         NavigableSet<Position> positions = new TreeSet<>();
         long cutoffTime = getBucketCutoffTime();
@@ -234,13 +247,19 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
             for (Long2ObjectMap.Entry<LongBitmap> ledgerEntry : ledgerMap.long2ObjectEntrySet()) {
                 long ledgerId = ledgerEntry.getLongKey();
                 LongBitmap entryIds = ledgerEntry.getValue();
+                LongBitmap index = delayedMessageIndex.get(ledgerId);
                 long cardinality = entryIds.cardinality();
                 long oldSize = entryIds.serializedSize();
+                long oldIndexSize = index.serializedSize();
                 long drained = entryIds.drainTo(n, entryId -> {
                     positions.add(PositionFactory.create(ledgerId, entryId));
+                    index.remove(entryId);
                 });
                 long newSize = entryIds.serializedSize();
-                memoryUsage.addAndGet(newSize - oldSize);
+                memoryUsage.addAndGet(newSize - oldSize + index.serializedSize() - oldIndexSize);
+                if (index.isEmpty()) {
+                    delayedMessageIndex.remove(ledgerId);
+                }
                 delayedMessagesCount.addAndGet(-drained);
                 n -= drained;
                 if (drained == cardinality) {
@@ -275,12 +294,67 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
     }
 
     @Override
-    public CompletableFuture<Void> clear() {
+    public synchronized CompletableFuture<Void> clear() {
         this.delayedMessageMap.clear();
+        this.delayedMessageIndex.clear();
         this.delayedMessagesCount.set(0);
         this.memoryUsage.set(0);
         resetFixedDelayDetection();
+        updateTimer();
         return CompletableFuture.completedFuture(null);
+    }
+
+    /**
+     * Whether this position is still waiting in the delivery-time index. Due positions remain indexed until
+     * {@link #getScheduledMessages(int)} hands them to the replay read, which does not use this predicate.
+     */
+    public synchronized boolean containsMessage(long ledgerId, long entryId) {
+        LongBitmap index = delayedMessageIndex.get(ledgerId);
+        return index != null && index.contains(entryId);
+    }
+
+    /**
+     * Drop positions acknowledged or expired while consumers were disconnected before reusing the index.
+     */
+    public synchronized void removeMessagesUpTo(Position position) {
+        var iterator = delayedMessageMap.values().iterator();
+        while (iterator.hasNext()) {
+            Long2ObjectSortedMap<LongBitmap> ledgerMap = iterator.next();
+            delayedMessagesCount.addAndGet(-removeMessagesUpTo(ledgerMap, position));
+            if (ledgerMap.isEmpty()) {
+                iterator.remove();
+            }
+        }
+        removeMessagesUpTo(delayedMessageIndex, position);
+        if (delayedMessageMap.isEmpty()) {
+            resetFixedDelayDetection();
+        }
+        updateTimer();
+    }
+
+    private long removeMessagesUpTo(Long2ObjectMap<LongBitmap> index, Position position) {
+        long removed = 0;
+        var iterator = index.long2ObjectEntrySet().iterator();
+        while (iterator.hasNext()) {
+            Long2ObjectMap.Entry<LongBitmap> entry = iterator.next();
+            if (entry.getLongKey() > position.getLedgerId()) {
+                continue;
+            }
+            LongBitmap bitmap = entry.getValue();
+            long oldCount = bitmap.cardinality();
+            long oldSize = bitmap.serializedSize();
+            if (entry.getLongKey() < position.getLedgerId() || position.getEntryId() >= bitmap.lastPresentValue()) {
+                bitmap.clear();
+            } else {
+                bitmap.remove(0, position.getEntryId() + 1);
+            }
+            removed += oldCount - bitmap.cardinality();
+            memoryUsage.addAndGet(bitmap.serializedSize() - oldSize);
+            if (bitmap.isEmpty()) {
+                iterator.remove();
+            }
+        }
+        return removed;
     }
 
     /**
@@ -308,12 +382,13 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
     }
 
     @Override
-    public void close() {
+    public synchronized void close() {
+        clear();
         super.close();
     }
 
     @Override
-    public boolean shouldPauseAllDeliveries() {
+    public synchronized boolean shouldPauseAllDeliveries() {
         // Pause deliveries if we know all delays are fixed within the lookahead window
         return fixedDelayDetectionLookahead > 0
                 && messagesHaveFixedDelay
@@ -321,7 +396,7 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
                 && !hasMessageAvailable();
     }
 
-    protected long nextDeliveryTime() {
+    protected synchronized long nextDeliveryTime() {
         return delayedMessageMap.firstLongKey();
     }
 }

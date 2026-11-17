@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.delayed;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
@@ -51,6 +52,74 @@ import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class InMemoryDeliveryTrackerTest extends AbstractDeliveryTrackerTest {
+
+    @Test(dataProvider = "delayedTracker")
+    public void testMembershipAcrossDeliveryAndCleanup(InMemoryDelayedDeliveryTracker tracker) throws Exception {
+        try (tracker) {
+            assertTrue(tracker.addMessage(1, 0, 10));
+            assertTrue(tracker.addMessage(1, 1, 10));
+            assertTrue(tracker.addMessage(1, 2, 20));
+            assertTrue(tracker.addMessage(2, 0, 20));
+            // Re-indexing the same position must not keep a second copy in another delivery-time bucket.
+            assertTrue(tracker.addMessage(1, 2, 30));
+            assertThat(tracker.getNumberOfDelayedMessages()).isEqualTo(4);
+            assertThat(tracker.containsMessage(1, 2)).isTrue();
+            assertThat(tracker.containsMessage(2, 1)).isFalse();
+            assertThat(tracker.containsMessage(3, 0)).isFalse();
+
+            clockTime.set(10);
+            assertThat(tracker.getScheduledMessages(1)).containsExactly(PositionFactory.create(1, 0));
+            assertThat(tracker.containsMessage(1, 0)).isFalse();
+            assertThat(tracker.containsMessage(1, 1)).isTrue();
+            assertThat(tracker.getScheduledMessages(1)).containsExactly(PositionFactory.create(1, 1));
+            assertThat(tracker.containsMessage(1, 2)).isTrue();
+
+            clockTime.set(20);
+            assertThat(tracker.getScheduledMessages(10))
+                    .containsExactly(PositionFactory.create(1, 2), PositionFactory.create(2, 0));
+            assertThat(tracker.containsMessage(1, 2)).isFalse();
+            assertThat(tracker.containsMessage(2, 0)).isFalse();
+            assertThat(tracker.getNumberOfDelayedMessages()).isZero();
+            assertThat(tracker.getBufferMemoryUsage()).isZero();
+
+            tracker.addMessage(3, 0, 30);
+            tracker.clear().get(5, TimeUnit.SECONDS);
+            assertThat(tracker.containsMessage(3, 0)).isFalse();
+            assertThat(tracker.getBufferMemoryUsage()).isZero();
+            tracker.addMessage(4, 0, 30);
+        }
+        assertThat(tracker.containsMessage(4, 0)).isFalse();
+        assertThat(tracker.getNumberOfDelayedMessages()).isZero();
+        assertThat(tracker.getBufferMemoryUsage()).isZero();
+    }
+
+    @Test(dataProvider = "delayedTracker")
+    public void testRemoveAcknowledgedPositionsBeforeRewind(InMemoryDelayedDeliveryTracker tracker) {
+        try (tracker) {
+            tracker.addMessage(1, 0, 10);
+            tracker.addMessage(1, 1, 20);
+            tracker.addMessage(2, 0, 10);
+            tracker.addMessage(2, 1, 20);
+            tracker.addMessage(3, 0, 10);
+            tracker.removeMessagesUpTo(PositionFactory.create(1, -1));
+            assertThat(tracker.getNumberOfDelayedMessages()).isEqualTo(5);
+
+            tracker.removeMessagesUpTo(PositionFactory.create(2, 0));
+            assertThat(tracker.getNumberOfDelayedMessages()).isEqualTo(2);
+            assertThat(tracker.containsMessage(1, 0)).isFalse();
+            assertThat(tracker.containsMessage(1, 1)).isFalse();
+            assertThat(tracker.containsMessage(2, 0)).isFalse();
+            assertThat(tracker.containsMessage(2, 1)).isTrue();
+            assertThat(tracker.containsMessage(3, 0)).isTrue();
+
+            clockTime.set(10);
+            assertThat(tracker.getScheduledMessages(10)).containsExactly(PositionFactory.create(3, 0));
+            tracker.removeMessagesUpTo(PositionFactory.create(3, Long.MAX_VALUE));
+            assertThat(tracker.containsMessage(2, 1)).isFalse();
+            assertThat(tracker.getNumberOfDelayedMessages()).isZero();
+            assertThat(tracker.getBufferMemoryUsage()).isZero();
+        }
+    }
 
     @DataProvider(name = "delayedTracker")
     public Object[][] provider(Method method) throws Exception {
