@@ -531,10 +531,12 @@ public class PrometheusMetricsProvider implements MetricsProvider {
 
         public PrometheusCounter(String name) {
             this.name = name;
+            // Nothing exports exemplars, so the metrics skip the sampling that 1.x metrics do by default.
             this.inner = io.prometheus.metrics.core.metrics.Counter
                     .builder()
                     .name(name)
                     .help(name)
+                    .withoutExemplars()
                     .register(collectorRegistry);
         }
 
@@ -569,6 +571,7 @@ public class PrometheusMetricsProvider implements MetricsProvider {
                     .builder()
                     .name(name)
                     .help(name)
+                    .withoutExemplars()
                     .labelNames(LABELS)
                     .register(collectorRegistry);
         }
@@ -673,6 +676,7 @@ public class PrometheusMetricsProvider implements MetricsProvider {
             var builder = io.prometheus.metrics.core.metrics.Summary.builder()
                     .name(name)
                     .help(name)
+                    .withoutExemplars()
                     .maxAgeSeconds(SUMMARY_MAX_AGE_SECONDS)
                     .numberOfAgeBuckets(SUMMARY_AGE_BUCKETS)
                     .quantile(0.5, 0.05); // Add 50th percentile (= median) with 5% tolerated error
@@ -708,6 +712,7 @@ public class PrometheusMetricsProvider implements MetricsProvider {
             var builder = io.prometheus.metrics.core.metrics.Summary.builder()
                     .name(name)
                     .help(name)
+                    .withoutExemplars()
                     .labelNames(LABELS)
                     .maxAgeSeconds(SUMMARY_MAX_AGE_SECONDS)
                     .numberOfAgeBuckets(SUMMARY_AGE_BUCKETS)
