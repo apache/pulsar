@@ -322,11 +322,13 @@ public class BrokerService implements Closeable {
 
     public static final String CONNECTION_RATE_LIMIT_COUNT_METRIC_NAME = "pulsar.broker.connection.rate_limit.count";
     private final LongCounter rateLimitedConnectionsCounter;
+    // Nothing exports exemplars, so the gauge skips the sampling that 1.x gauges do by default.
     @PulsarDeprecatedMetric(newMetricName = CONNECTION_RATE_LIMIT_COUNT_METRIC_NAME)
     @Deprecated
     private static final Gauge throttledConnectionsGauge = Gauge.builder()
             .name("pulsar_broker_throttled_connections")
             .help("Counter of connections throttled because of per-connection limit")
+            .withoutExemplars()
             .register();
 
     private final SingleThreadNonConcurrentFixedRateScheduler inactivityMonitor;
