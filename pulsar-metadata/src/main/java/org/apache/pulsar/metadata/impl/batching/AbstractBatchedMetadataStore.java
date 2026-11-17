@@ -20,11 +20,13 @@ package org.apache.pulsar.metadata.impl.batching;
 
 import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -37,6 +39,7 @@ import org.apache.pulsar.metadata.api.MetadataEventSynchronizer;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Option;
+import org.apache.pulsar.metadata.api.OptionsHelper;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.impl.AbstractMetadataStore;
 import org.apache.pulsar.metadata.impl.stats.BatchMetadataStoreStats;
@@ -152,7 +155,43 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
                                                Set<Option> opts) {
         OpPut op = new OpPut(path, data, optExpectedVersion, opts);
         enqueue(writeOps, op);
-        return op.getFuture();
+        // After BadVersion, we can confirm the write if its bytes include a unique publication ID and match
+        // the stored bytes at expectedVersion + 1 (version 0 for a create with expected version -1).
+        // Ephemeral nodes also require checking session ownership, and sequential creates use a server-assigned path.
+        if (!opts.contains(Option.VerifyPublication.INSTANCE) || optExpectedVersion.isEmpty()
+                || OptionsHelper.isEphemeral(opts) || OptionsHelper.isSequential(opts)) {
+            return op.getFuture();
+        }
+        return op.getFuture().exceptionallyCompose(error -> {
+            if (error instanceof MetadataStoreException.BadVersionException) {
+                return verifyPublication(op, error);
+            }
+            return CompletableFuture.failedFuture(error);
+        });
+    }
+
+    private CompletableFuture<Stat> verifyPublication(OpPut op, Throwable conflict) {
+        long expectedVersion = op.getOptExpectedVersion().orElseThrow();
+        return storeGet(op.getPath(), op.getOptions()).handle((result, readError) -> {
+            if (readError != null || result.isEmpty()) {
+                throw new CompletionException(conflict);
+            }
+            GetResult stored = result.get();
+            Stat stat = stored.getStat();
+            if (stat.isEphemeral() || stat.getVersion() != expectedVersion + 1) {
+                throw new CompletionException(conflict);
+            }
+            if (!Arrays.equals(stored.getValue(), op.getData())) {
+                log.warn().attr("path", op.getPath()).attr("version", stat.getVersion())
+                        .log("Stored bytes differ from the attempted publication at the expected next version");
+                throw new CompletionException(conflict);
+            }
+            // Preserve the createdBySelf result of the original create callback.
+            return expectedVersion == -1
+                    ? new Stat(stat.getPath(), stat.getVersion(), stat.getCreationTimestamp(),
+                            stat.getModificationTimestamp(), false, true)
+                    : stat;
+        });
     }
 
     @Override

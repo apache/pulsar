@@ -17,9 +17,24 @@
  * under the License.
  */
 
+import io.streamnative.lightproto.gradle.GenerateLightProtoTask
+
 plugins {
     id("pulsar.public-java-library-conventions")
     alias(libs.plugins.lightproto)
+}
+
+// LightProto emits the publication getter from the schema but cannot declare an additional Java interface.
+tasks.named<GenerateLightProtoTask>("generateLightProto") {
+    val cursorSource = outputDirectory.file("org/apache/bookkeeper/mledger/proto/ManagedCursorInfo.java")
+    doLast {
+        val file = cursorSource.get().asFile
+        val source = file.readText()
+        val declaration = "public final class ManagedCursorInfo implements "
+        check(declaration in source) { "Unrecognized LightProto declaration in ${file.name}" }
+        file.writeText(source.replace(declaration, "import org.apache.pulsar.metadata.api.HasPublicationId;\n\n" +
+                "${declaration}HasPublicationId, "))
+    }
 }
 
 dependencies {

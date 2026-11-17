@@ -35,6 +35,19 @@ import java.util.List;
 public sealed interface Option {
 
     /**
+     * Pass this option when the serialized value includes a {@link HasPublicationId#getPublication() publication ID}
+     * unique to this logical write.
+     * On a version conflict, a backend can confirm this write by matching the original bytes at the expected
+     * next version.
+     *
+     * <p><strong>Chain dependent operations explicitly.</strong> If a caller submits {@code get(A)}, {@code put(B)}
+     * and {@code get(C)} without chaining their futures, C can complete while B is being retried or read back for
+     * verification, even if B has already committed. If C depends on B succeeding, submit C from B's success
+     * callback, for example {@code putB.thenCompose(ignored -> store.get(c))}.
+     */
+    enum VerifyPublication implements Option { INSTANCE }
+
+    /**
      * Mark a record as ephemeral — it disappears when the session that created it ends.
      * Only consulted by {@code put}. Equivalent to the legacy
      * {@link org.apache.pulsar.metadata.api.extended.CreateOption#Ephemeral}.
