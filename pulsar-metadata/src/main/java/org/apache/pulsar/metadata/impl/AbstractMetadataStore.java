@@ -362,8 +362,8 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     private <T> MetadataCache<T> trackMetadataCache(MetadataCacheImpl<T> metadataCache) {
         metadataCaches.add(metadataCache);
-        if (isClosed()) {
-            // close() may have gone over the caches before this one was added.
+        boolean closeMayHaveMissedThisCache = isClosed();
+        if (closeMayHaveMissedThisCache) {
             metadataCache.unregisterMetrics();
         }
         return metadataCache;
@@ -1012,12 +1012,14 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         MoreExecutors.shutdownAndAwaitTermination(serDesExecutor, 10, TimeUnit.SECONDS);
         MoreExecutors.shutdownAndAwaitTermination(schedulerExecutor, 10, TimeUnit.SECONDS);
         MoreExecutors.shutdownAndAwaitTermination(eventExecutor, 10, TimeUnit.SECONDS);
-        // Identity-aware removal keeps the metrics of a live store that registered the same names later.
+        unregisterCacheMetrics();
+        this.metadataStoreStats.close();
+    }
+
+    private void unregisterCacheMetrics() {
         CacheMetricsCollector.removeCache(metadataStoreName + "-children", childrenCache);
         CacheMetricsCollector.removeCache(metadataStoreName + "-exists", existsCache);
-        // The caches handed out by this store stay open, so their metrics are removed here.
         metadataCaches.forEach(MetadataCacheImpl::unregisterMetrics);
-        this.metadataStoreStats.close();
     }
 
     @VisibleForTesting

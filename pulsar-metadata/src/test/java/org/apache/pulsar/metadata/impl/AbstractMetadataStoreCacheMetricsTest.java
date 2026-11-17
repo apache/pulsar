@@ -31,33 +31,31 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-/**
- * Verifies that closing a metadata store unregisters the Caffeine metrics of its caches.
- */
 @Test(groups = "metadata")
 public class AbstractMetadataStoreCacheMetricsTest {
     private String storeName;
     private String childrenCacheName;
     private String existsCacheName;
+    private String metadataCacheName;
 
     @BeforeMethod
     public void setUp() {
         storeName = "cache-metrics-" + UUID.randomUUID();
         childrenCacheName = storeName + "-children";
         existsCacheName = storeName + "-exists";
+        metadataCacheName = storeName;
     }
 
     @AfterMethod(alwaysRun = true)
-    public void tearDown() {
-        // Remove only the metric fixtures created by this test; never clear the global registry.
+    public void removeCacheMetricsRegisteredByThisTest() {
         CacheMetricsCollector.CAFFEINE.removeCache(childrenCacheName);
         CacheMetricsCollector.CAFFEINE.removeCache(existsCacheName);
-        CacheMetricsCollector.CAFFEINE.removeCache(storeName);
+        CacheMetricsCollector.CAFFEINE.removeCache(metadataCacheName);
     }
 
     @Test
     public void testCloseRemovesChildrenAndExistsCacheMetrics() throws Exception {
-        LocalMemoryMetadataStore store = newStore();
+        LocalMemoryMetadataStore store = newStoreNamed(storeName);
         try {
             assertThat(exposedCacheNames()).as("cache series exposed while the store is open")
                     .contains(childrenCacheName, existsCacheName);
@@ -68,7 +66,6 @@ public class AbstractMetadataStoreCacheMetricsTest {
         assertThat(exposedCacheNames()).as("cache series exposed after the store is closed")
                 .doesNotContain(childrenCacheName, existsCacheName);
 
-        // A second close must stay a no-op.
         store.close();
         assertThat(exposedCacheNames()).as("cache series exposed after closing the store twice")
                 .doesNotContain(childrenCacheName, existsCacheName);
@@ -76,9 +73,8 @@ public class AbstractMetadataStoreCacheMetricsTest {
 
     @Test
     public void testCloseKeepsMetricsOfLiveStoreWithSameName() throws Exception {
-        LocalMemoryMetadataStore oldStore = newStore();
-        // The newer store registers its caches under the same names, replacing the old store's caches.
-        LocalMemoryMetadataStore liveStore = newStore();
+        LocalMemoryMetadataStore oldStore = newStoreNamed(storeName);
+        LocalMemoryMetadataStore liveStore = newStoreNamed(storeName);
         try {
             oldStore.close();
             assertThat(exposedCacheNames()).as("cache series of the live store after closing the old store")
@@ -93,54 +89,51 @@ public class AbstractMetadataStoreCacheMetricsTest {
 
     @Test
     public void testCloseRemovesMetadataCacheMetrics() throws Exception {
-        LocalMemoryMetadataStore store = newStore();
+        LocalMemoryMetadataStore store = newStoreNamed(storeName);
         try {
-            // A metadata cache registers under the store name, and its user does not have to close it.
             store.getMetadataCache(String.class);
             assertThat(exposedCacheNames()).as("metadata cache series exposed while the store is open")
-                    .contains(storeName);
+                    .contains(metadataCacheName);
         } finally {
             store.close();
         }
 
         assertThat(exposedCacheNames()).as("metadata cache series exposed after the store is closed")
-                .doesNotContain(storeName);
+                .doesNotContain(metadataCacheName);
     }
 
     @Test
     public void testCloseKeepsMetadataCacheMetricsOfLiveStoreWithSameName() throws Exception {
-        LocalMemoryMetadataStore oldStore = newStore();
+        LocalMemoryMetadataStore oldStore = newStoreNamed(storeName);
         oldStore.getMetadataCache(String.class);
-        LocalMemoryMetadataStore liveStore = newStore();
+        LocalMemoryMetadataStore liveStore = newStoreNamed(storeName);
         try {
-            // The newer store's cache registers under the same name, replacing the old store's cache.
             liveStore.getMetadataCache(String.class);
             oldStore.close();
             assertThat(exposedCacheNames())
                     .as("metadata cache series of the live store after closing the old store")
-                    .contains(storeName);
+                    .contains(metadataCacheName);
         } finally {
             liveStore.close();
         }
 
         assertThat(exposedCacheNames()).as("metadata cache series exposed after both stores are closed")
-                .doesNotContain(storeName);
+                .doesNotContain(metadataCacheName);
     }
 
     @Test
     public void testMetadataCacheCreatedAfterCloseLeavesNoMetrics() throws Exception {
-        LocalMemoryMetadataStore store = newStore();
-        store.close();
+        LocalMemoryMetadataStore closedStore = newStoreNamed(storeName);
+        closedStore.close();
 
-        // close() has already gone over the caches of the store, so it cannot remove the metrics of this one.
-        store.getMetadataCache(String.class);
+        closedStore.getMetadataCache(String.class);
         assertThat(exposedCacheNames()).as("series of a metadata cache created after the store is closed")
-                .doesNotContain(storeName);
+                .doesNotContain(metadataCacheName);
     }
 
-    private LocalMemoryMetadataStore newStore() throws Exception {
+    private static LocalMemoryMetadataStore newStoreNamed(String name) throws Exception {
         return new LocalMemoryMetadataStore("memory:local",
-                MetadataStoreConfig.builder().metadataStoreName(storeName).build());
+                MetadataStoreConfig.builder().metadataStoreName(name).build());
     }
 
     private static Set<String> exposedCacheNames() {
