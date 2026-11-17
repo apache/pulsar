@@ -390,6 +390,7 @@ public class LocalBookkeeperEnsemble {
         conf.setJournalSyncData(false);
         conf.setProperty("journalMaxGroupWaitMSec", 0L);
         conf.setAllowLoopback(true);
+        conf.setAdvertisedAddress(advertisedAddress);
         conf.setGcWaitTime(60000);
         conf.setNumAddWorkerThreads(0);
         conf.setNumReadWorkerThreads(0);
