@@ -1183,6 +1183,17 @@ public class PersistentSubscription extends AbstractSubscription {
 
                     return CompletableFuture.completedFuture(null);
                 })
+                // The delayed state is a derived cache of the backlog; a failed clear must not make the
+                // reset unusable. The clear future only settles once every cursor-property write has
+                // completed, so continuing cannot race the reset persistence.
+                .handle((ignore, throwable) -> {
+                    if (throwable != null) {
+                        log.warn()
+                                .exception(throwable)
+                                .log("Failed to clear delayed delivery state before cursor reset, continuing");
+                    }
+                    return null;
+                })
                 .thenCompose(__ -> {
                     CompletableFuture<Boolean> forceReset = new CompletableFuture<>();
                     if (topic.getTopicCompactionService() == null) {
