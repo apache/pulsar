@@ -112,29 +112,29 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
         assertOtelMetricLongSumValue(metricName, 0);
     }
 
-    /**
-     * Verifies: closing the broker service closes the lookup and topic load limit metrics, whose callbacks hold the
-     * PulsarService.
-     */
     @Test
     public void testCloseBrokerServiceClosesLimitMetrics() throws Exception {
         var reader = pulsarTestContext.getOpenTelemetryMetricReader();
-        var controlMetricName = "pulsar.test.control";
-        // A metric that the broker service doesn't own, to show that the reader still collects after the close
-        try (var controlGauge = pulsar.getOpenTelemetry().getMeter().gaugeBuilder(controlMetricName).ofLongs()
+        var metricNotOwnedByBrokerService = "pulsar.test.control";
+        try (var gaugeNotOwnedByBrokerService = pulsar.getOpenTelemetry().getMeter()
+                .gaugeBuilder(metricNotOwnedByBrokerService).ofLongs()
                 .buildWithCallback(measurement -> measurement.record(1))) {
             assertThat(reader.collectAllMetrics())
                     .as("metrics before the broker service closes")
                     .extracting(MetricData::getName)
                     .contains(BrokerService.TOPIC_LOOKUP_LIMIT_METRIC_NAME, BrokerService.TOPIC_LOAD_LIMIT_METRIC_NAME,
-                            controlMetricName);
+                            metricNotOwnedByBrokerService);
 
             pulsar.getBrokerService().closeAsync().get();
 
-            assertThat(reader.collectAllMetrics())
-                    .as("metrics after the broker service closes")
+            var metricsAfterClose = reader.collectAllMetrics();
+            assertThat(metricsAfterClose)
+                    .as("the reader must still collect after the broker service closes")
                     .extracting(MetricData::getName)
-                    .contains(controlMetricName)
+                    .contains(metricNotOwnedByBrokerService);
+            assertThat(metricsAfterClose)
+                    .as("limit metrics after the broker service closes")
+                    .extracting(MetricData::getName)
                     .doesNotContain(BrokerService.TOPIC_LOOKUP_LIMIT_METRIC_NAME,
                             BrokerService.TOPIC_LOAD_LIMIT_METRIC_NAME);
         }
