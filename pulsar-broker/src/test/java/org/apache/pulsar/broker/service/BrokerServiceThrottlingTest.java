@@ -26,6 +26,7 @@ import static org.testng.Assert.fail;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import io.opentelemetry.sdk.metrics.data.MetricData;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -109,6 +110,34 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
         admin.brokers().updateDynamicConfiguration(configName, Integer.toString(0));
         waitAtMost(1, TimeUnit.SECONDS).until(() -> topicLoadRequestSemaphore.get().availablePermits() == 0);
         assertOtelMetricLongSumValue(metricName, 0);
+    }
+
+    /**
+     * Verifies: closing the broker service closes the lookup and topic load limit metrics, whose callbacks hold the
+     * PulsarService.
+     */
+    @Test
+    public void testCloseBrokerServiceClosesLimitMetrics() throws Exception {
+        var reader = pulsarTestContext.getOpenTelemetryMetricReader();
+        var controlMetricName = "pulsar.test.control";
+        // A metric that the broker service doesn't own, to show that the reader still collects after the close
+        try (var controlGauge = pulsar.getOpenTelemetry().getMeter().gaugeBuilder(controlMetricName).ofLongs()
+                .buildWithCallback(measurement -> measurement.record(1))) {
+            assertThat(reader.collectAllMetrics())
+                    .as("metrics before the broker service closes")
+                    .extracting(MetricData::getName)
+                    .contains(BrokerService.TOPIC_LOOKUP_LIMIT_METRIC_NAME, BrokerService.TOPIC_LOAD_LIMIT_METRIC_NAME,
+                            controlMetricName);
+
+            pulsar.getBrokerService().closeAsync().get();
+
+            assertThat(reader.collectAllMetrics())
+                    .as("metrics after the broker service closes")
+                    .extracting(MetricData::getName)
+                    .contains(controlMetricName)
+                    .doesNotContain(BrokerService.TOPIC_LOOKUP_LIMIT_METRIC_NAME,
+                            BrokerService.TOPIC_LOAD_LIMIT_METRIC_NAME);
+        }
     }
 
     /**
