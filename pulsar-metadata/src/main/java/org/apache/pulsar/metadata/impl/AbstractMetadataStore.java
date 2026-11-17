@@ -362,8 +362,8 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     private <T> MetadataCache<T> trackMetadataCache(MetadataCacheImpl<T> metadataCache) {
         metadataCaches.add(metadataCache);
-        boolean closeMayHaveMissedThisCache = isClosed();
-        if (closeMayHaveMissedThisCache) {
+        boolean alreadyClosed = isClosed();
+        if (alreadyClosed) {
             metadataCache.unregisterMetrics();
         }
         return metadataCache;
