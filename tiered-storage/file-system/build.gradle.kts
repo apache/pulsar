@@ -31,9 +31,9 @@ plugins {
 // scoped to test configurations only; production code uses Jetty 12 / Jersey 3 (jakarta).
 configurations.matching { it.name.startsWith("test") }.configureEach {
     resolutionStrategy.force(
-        "org.eclipse.jetty:jetty-server:9.4.58.v20250814",
+        "org.eclipse.jetty:jetty-server:12.1.15",
         "org.eclipse.jetty:jetty-servlet:9.4.58.v20250814",
-        "org.eclipse.jetty:jetty-util:9.4.58.v20250814",
+        "org.eclipse.jetty:jetty-util:12.1.15",
         "org.eclipse.jetty:jetty-security:9.4.58.v20250814",
         "org.eclipse.jetty:jetty-http:9.4.58.v20250814",
         "org.eclipse.jetty:jetty-io:9.4.58.v20250814",
@@ -104,7 +104,7 @@ dependencies {
     testRuntimeOnly("javax.annotation:javax.annotation-api:1.3.2")
     testRuntimeOnly("javax.validation:validation-api:2.0.1.Final")
     // Jetty 9 dependencies needed by Hadoop MiniDFSCluster (version forced above).
-    testImplementation("org.eclipse.jetty:jetty-server:9.4.58.v20250814")
+    testImplementation("org.eclipse.jetty:jetty-server:12.1.15")
     testImplementation("org.eclipse.jetty:jetty-servlet:9.4.58.v20250814")
-    testImplementation("org.eclipse.jetty:jetty-util:9.4.58.v20250814")
+    testImplementation("org.eclipse.jetty:jetty-util:12.1.15")
 }
