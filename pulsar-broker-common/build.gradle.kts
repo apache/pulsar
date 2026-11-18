@@ -52,6 +52,8 @@ dependencies {
     implementation(libs.jetty.compression.gzip)
     implementation(libs.jetty.ee10.servlet)
 
+    testImplementation(testJar(":pulsar-metadata"))
+
     // Non-FIPS BouncyCastle provider for tests that exercise JcaProviders (which resolves
     // org.bouncycastle.jce.provider.BouncyCastleProvider reflectively, on first use). This matches
     // the provider used in production. FIPS is covered separately by the bcfips-include-test

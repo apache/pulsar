@@ -30,116 +30,136 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import org.apache.pulsar.broker.resources.NamespaceResources.PartitionedTopicResources;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.metadata.BaseMetadataStoreTest;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyClosedException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyExistsException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.ContentDeserializationException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
-import org.apache.pulsar.metadata.impl.LocalMemoryMetadataStore;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.testng.annotations.Test;
 
-public class NamespaceResourcesTest {
+public class NamespaceResourcesTest extends BaseMetadataStoreTest {
 
-    @Test
-    public void testInvalidPoliciesPreserveDeserializationFailure() throws Exception {
-        try (var store = new LocalMemoryMetadataStore("memory:" + UUID.randomUUID(),
+    @Test(dataProvider = "impl")
+    public void testInvalidPoliciesPreserveDeserializationFailure(String provider, Supplier<String> urlSupplier)
+            throws Exception {
+        try (MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
                 MetadataStoreConfig.builder().build())) {
             NamespaceResources resources = new NamespaceResources(store, 5);
-            NamespaceName namespace = NamespaceName.get("tenant", "namespace");
+            NamespaceName namespace = NamespaceName.get("tenant-" + UUID.randomUUID(), "namespace");
             store.put("/admin/policies/" + namespace, "not-json".getBytes(StandardCharsets.UTF_8), Optional.of(-1L))
                     .get(5, TimeUnit.SECONDS);
 
             assertThatThrownBy(() -> resources.getPolicies(namespace))
+                    .as(provider + ": invalid policies preserve the deserialization failure")
                     .isInstanceOf(ContentDeserializationException.class);
         }
     }
 
-    @Test
-    public void testUpdateMissingPoliciesPreservesNotFound() throws Exception {
-        try (var store = new LocalMemoryMetadataStore("memory:" + UUID.randomUUID(),
+    @Test(dataProvider = "impl")
+    public void testUpdateMissingPoliciesPreservesNotFound(String provider, Supplier<String> urlSupplier)
+            throws Exception {
+        try (MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
                 MetadataStoreConfig.builder().build())) {
             NamespaceResources resources = new NamespaceResources(store, 5);
+            NamespaceName namespace = NamespaceName.get("tenant-" + UUID.randomUUID(), "missing");
 
-            assertThatThrownBy(() -> resources.setPolicies(
-                    NamespaceName.get("tenant", "missing"), policies -> policies))
+            assertThatThrownBy(() -> resources.setPolicies(namespace, policies -> policies))
+                    .as(provider + ": updating missing policies preserves NotFoundException")
                     .isInstanceOf(NotFoundException.class);
         }
     }
 
-    @Test
-    public void testDuplicatePoliciesCreationPreservesAlreadyExists() throws Exception {
-        try (var store = new LocalMemoryMetadataStore("memory:" + UUID.randomUUID(),
+    @Test(dataProvider = "impl")
+    public void testDuplicatePoliciesCreationPreservesAlreadyExists(String provider, Supplier<String> urlSupplier)
+            throws Exception {
+        try (MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
                 MetadataStoreConfig.builder().build())) {
             NamespaceResources resources = new NamespaceResources(store, 5);
-            NamespaceName namespace = NamespaceName.get("tenant", "namespace");
+            NamespaceName namespace = NamespaceName.get("tenant-" + UUID.randomUUID(), "namespace");
             resources.createPolicies(namespace, new Policies());
 
             assertThatThrownBy(() -> resources.createPolicies(namespace, new Policies()))
+                    .as(provider + ": duplicate policies creation preserves AlreadyExistsException")
                     .isInstanceOf(AlreadyExistsException.class);
         }
     }
 
-    @Test
-    public void testDeleteMissingPoliciesPreservesNotFound() throws Exception {
-        try (var store = new LocalMemoryMetadataStore("memory:" + UUID.randomUUID(),
+    @Test(dataProvider = "impl")
+    public void testDeleteMissingPoliciesPreservesNotFound(String provider, Supplier<String> urlSupplier)
+            throws Exception {
+        try (MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
                 MetadataStoreConfig.builder().build())) {
             NamespaceResources resources = new NamespaceResources(store, 5);
+            NamespaceName namespace = NamespaceName.get("tenant-" + UUID.randomUUID(), "missing");
 
-            assertThatThrownBy(() -> resources.deletePolicies(NamespaceName.get("tenant", "missing")))
+            assertThatThrownBy(() -> resources.deletePolicies(namespace))
+                    .as(provider + ": deleting missing policies preserves NotFoundException")
                     .isInstanceOf(NotFoundException.class);
         }
     }
 
-    @Test
-    public void testNamespaceExistsReportsClosedStore() throws Exception {
-        try (var store = new LocalMemoryMetadataStore("memory:" + UUID.randomUUID(),
+    @Test(dataProvider = "impl")
+    public void testNamespaceExistsReportsClosedStore(String provider, Supplier<String> urlSupplier) throws Exception {
+        try (MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
                 MetadataStoreConfig.builder().build())) {
             NamespaceResources resources = new NamespaceResources(store, 5);
+            NamespaceName namespace = NamespaceName.get("tenant-" + UUID.randomUUID(), "namespace");
             store.close();
 
-            assertThatThrownBy(() -> resources.namespaceExists(NamespaceName.get("tenant", "namespace")))
+            assertThatThrownBy(() -> resources.namespaceExists(namespace))
+                    .as(provider + ": checking namespace existence reports the closed store")
                     .isInstanceOf(AlreadyClosedException.class);
         }
     }
 
-    @Test
-    public void testPoliciesReadOnlyReportsClosedStore() throws Exception {
-        try (var store = new LocalMemoryMetadataStore("memory:" + UUID.randomUUID(),
+    @Test(dataProvider = "impl")
+    public void testPoliciesReadOnlyReportsClosedStore(String provider, Supplier<String> urlSupplier) throws Exception {
+        try (MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
                 MetadataStoreConfig.builder().build())) {
             NamespaceResources resources = new NamespaceResources(store, 5);
             store.close();
 
-            assertThatThrownBy(resources::getPoliciesReadOnly).isInstanceOf(AlreadyClosedException.class);
+            assertThatThrownBy(resources::getPoliciesReadOnly)
+                    .as(provider + ": reading the read-only flag reports the closed store")
+                    .isInstanceOf(AlreadyClosedException.class);
         }
     }
 
-    @Test
-    public void testDeletePoliciesAsyncReportsClosedStore() throws Exception {
-        try (var store = new LocalMemoryMetadataStore("memory:" + UUID.randomUUID(),
+    @Test(dataProvider = "impl")
+    public void testDeletePoliciesAsyncReportsClosedStore(String provider, Supplier<String> urlSupplier)
+            throws Exception {
+        try (MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
                 MetadataStoreConfig.builder().build())) {
             NamespaceResources resources = new NamespaceResources(store, 5);
+            NamespaceName namespace = NamespaceName.get("tenant-" + UUID.randomUUID(), "namespace");
             store.close();
 
-            assertThat(resources.deletePoliciesAsync(NamespaceName.get("tenant", "namespace")))
+            assertThat(resources.deletePoliciesAsync(namespace))
+                    .as(provider + ": deleting policies reports the closed store")
                     .failsWithin(Duration.ofSeconds(5))
                     .withThrowableOfType(ExecutionException.class)
                     .havingCause().isInstanceOf(AlreadyClosedException.class);
         }
     }
 
-    @Test
-    public void testMarkPartitionedTopicDeletedReportsClosedStore() throws Exception {
-        try (var store = new LocalMemoryMetadataStore("memory:" + UUID.randomUUID(),
+    @Test(dataProvider = "impl")
+    public void testMarkPartitionedTopicDeletedReportsClosedStore(String provider, Supplier<String> urlSupplier)
+            throws Exception {
+        try (MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
                 MetadataStoreConfig.builder().build())) {
             PartitionedTopicResources resources = new NamespaceResources(store, 5).getPartitionedTopicResources();
+            TopicName topic = TopicName.get("persistent://tenant-" + UUID.randomUUID() + "/namespace/topic");
             store.close();
 
-            assertThat(resources.runWithMarkDeleteAsync(TopicName.get("persistent://tenant/namespace/topic"),
-                    () -> CompletableFuture.completedFuture(null)))
+            assertThat(resources.runWithMarkDeleteAsync(topic, () -> CompletableFuture.completedFuture(null)))
+                    .as(provider + ": marking the partitioned topic reports the closed store")
                     .failsWithin(Duration.ofSeconds(5))
                     .withThrowableOfType(ExecutionException.class)
                     .havingCause().isInstanceOf(AlreadyClosedException.class);
