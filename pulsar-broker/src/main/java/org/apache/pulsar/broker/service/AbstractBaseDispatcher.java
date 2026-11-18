@@ -23,7 +23,7 @@ import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.isAckSetEmpt
 import static org.apache.pulsar.broker.service.persistent.PersistentTopic.MESSAGE_RATE_BACKOFF_MS;
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
-import io.prometheus.client.Gauge;
+import io.prometheus.metrics.core.metrics.GaugeWithCallback;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -62,10 +62,12 @@ import org.jspecify.annotations.Nullable;
 @CustomLog
 public abstract class AbstractBaseDispatcher extends EntryFilterSupport implements Dispatcher {
 
-    private static final Gauge PENDING_BYTES_TO_DISPATCH = Gauge
-            .build()
+    // Every dispatcher updates this twice per read batch; a striped adder keeps them off one contended atomic.
+    private static final LongAdder PENDING_BYTES_TO_DISPATCH = new LongAdder();
+    private static final GaugeWithCallback PENDING_BYTES_TO_DISPATCH_GAUGE = GaugeWithCallback.builder()
             .name("pulsar_broker_pending_bytes_to_dispatch")
             .help("Amount of bytes loaded in memory to be dispatched to Consumers")
+            .callback(callback -> callback.call(PENDING_BYTES_TO_DISPATCH.sum()))
             .register();
 
     /**
@@ -676,7 +678,7 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
     }
 
     protected final void updatePendingBytesToDispatch(long size) {
-        PENDING_BYTES_TO_DISPATCH.inc(size);
+        PENDING_BYTES_TO_DISPATCH.add(size);
     }
 
     protected int getNumberOfMessagesInBatch(Entry entry) {

@@ -34,7 +34,7 @@ import io.netty.channel.ChannelPromise;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.opentelemetry.api.OpenTelemetry;
-import io.prometheus.client.CollectorRegistry;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import java.io.IOException;
 import java.nio.channels.ClosedChannelException;
 import java.time.Duration;
@@ -49,6 +49,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.service.scalable.ConsumerAssignment;
 import org.apache.pulsar.broker.service.scalable.ConsumerSession;
+import org.apache.pulsar.broker.service.scalable.PrometheusSamples;
 import org.apache.pulsar.broker.service.scalable.ScalableTopicMetrics;
 import org.apache.pulsar.broker.service.scalable.ScalableTopicService;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
@@ -75,7 +76,7 @@ public class ScalableTopicRequestWriteMetricsTest {
     private BrokerService broker;
     private ScalableTopicService scalableService;
     private ScalableTopicMetrics metrics;
-    private CollectorRegistry registry;
+    private PrometheusRegistry registry;
     private EmbeddedChannel channel;
     private ServerCnx cnx;
     private ResponseWriteGate gate;
@@ -103,7 +104,7 @@ public class ScalableTopicRequestWriteMetricsTest {
             interceptedTypes.add(command.getType());
             return null;
         }).when(interceptor).onPulsarCommand(any(), any());
-        registry = new CollectorRegistry();
+        registry = new PrometheusRegistry();
         metrics = new ScalableTopicMetrics(OpenTelemetry.noop().getMeter("write-test"), "test", registry);
         when(broker.getScalableTopicMetrics()).thenReturn(metrics);
         scalableService = ownMock(mock(ScalableTopicService.class));
@@ -387,7 +388,8 @@ public class ScalableTopicRequestWriteMetricsTest {
     }
 
     private double count(String type, String status) {
-        Double result = registry.getSampleValue("pulsar_scalable_topic_request_duration_seconds_count",
+        Double result = PrometheusSamples.getSampleValue(registry,
+                "pulsar_scalable_topic_request_duration_seconds_count",
                 new String[]{"cluster", "request_type", "operation_status"}, new String[]{"test", type, status});
         return result == null ? 0 : result;
     }
