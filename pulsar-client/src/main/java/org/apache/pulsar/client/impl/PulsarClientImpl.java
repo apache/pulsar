@@ -2114,6 +2114,13 @@ public class PulsarClientImpl implements PulsarClient {
         return internalExecutorProvider.getExecutor();
     }
 
+    /**
+     * Whether the calling thread is one of the threads of {@link #getInternalExecutorService()}.
+     */
+    boolean isInternalExecutorThread() {
+        return internalExecutorProvider.isExecutorThread();
+    }
+
     public ScheduledExecutorProvider getScheduledExecutorProvider() {
         return scheduledExecutorProvider;
     }

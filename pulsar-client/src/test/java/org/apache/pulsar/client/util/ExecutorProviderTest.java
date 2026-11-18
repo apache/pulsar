@@ -29,6 +29,21 @@ import org.testng.annotations.Test;
 public class ExecutorProviderTest {
 
     @Test
+    public void testIsExecutorThread() throws Exception {
+        final ExecutorProvider executorProvider = new ExecutorProvider(2, "executor-provider-test");
+        try {
+            assertThat(executorProvider.isExecutorThread()).as("on the test thread").isFalse();
+            // getExecutor() hands out the executors in turn
+            for (int i = 0; i < 2; i++) {
+                assertThat(executorProvider.getExecutor().submit(executorProvider::isExecutorThread)
+                        .get(10, TimeUnit.SECONDS)).as("on the thread of executor %d", i).isTrue();
+            }
+        } finally {
+            executorProvider.shutdownNow();
+        }
+    }
+
+    @Test
     public void testShutdownNowRunsDiscardedCleanupTasksOnceTheExecutorStopped() throws Exception {
         final ExecutorProvider executorProvider = new ExecutorProvider(1, "executor-provider-test");
         final ExecutorService executor = executorProvider.getExecutor();

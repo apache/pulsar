@@ -34,9 +34,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -57,7 +57,6 @@ import org.apache.pulsar.client.api.TopicMetadata;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
-import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 
@@ -67,8 +66,10 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
     private final Logger log;
 
     private final Map<Integer, ProducerImpl<T>> producers = new ConcurrentHashMap<>();
-    // Changed while holding the map's lock
-    private final Map<Integer, LazyStartQueue> lazyStartQueues = new ConcurrentHashMap<>();
+    // The queue of each producer that has one. Changed while holding the map's lock
+    private final Map<ProducerImpl<T>, LazyStartQueue> lazyStartQueues = new ConcurrentHashMap<>();
+    // The threads that are handing queued sends over to a producer
+    private final Set<Thread> handingOverThreads = ConcurrentHashMap.newKeySet();
     private final CompletableFuture<Void> closeStarted = new CompletableFuture<>();
     private final MessageRouter routerPolicy;
     private final PartitionedTopicProducerStatsRecorderImpl stats;
@@ -303,17 +304,24 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
         if (conf.isLazyStartPartitionedProducers()) {
             // The send that started the producer also waits until its creation was handled
             final CompletableFuture<?> created = started != null ? started : producer.producerCreatedFuture();
-            if (!created.isDone() || lazyStartQueues.containsKey(partition)) {
-                if (isOnIoThread()) {
-                    // The IO thread may have to read the creation response itself, so it must not wait for it
-                    return sendWhenCreated(partition, producer, created, message, txn);
+            if (!created.isDone() || lazyStartQueues.containsKey(producer)) {
+                if (mustNotWait()) {
+                    return sendWhenCreated(producer, created, message, txn);
                 }
                 // Other threads wait, so that the producer applies its admission limits and flushes as usual
-                waitForLazyStart(partition, created).join();
+                waitForLazyStart(producer, created).join();
             }
             return sendToCreatedProducer(producer, message, txn);
         }
         return producer.internalSendWithTxnAsync(message, txn);
+    }
+
+    // A thread that the creation of a producer, or the sends queued for it, may need must not wait for them. An IO
+    // thread may have to read the creation response. The internal executor completes the registration of a topic
+    // with a transaction, which a queued send waits for. A thread that hands queued sends over would wait for itself.
+    private boolean mustNotWait() {
+        return handingOverThreads.contains(Thread.currentThread()) || client.isInternalExecutorThread()
+                || isOnIoThread();
     }
 
     private boolean isOnIoThread() {
@@ -347,111 +355,114 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
         });
     }
 
-    private CompletableFuture<?> waitForLazyStart(int partition, CompletableFuture<?> created) {
-        final LazyStartQueue queue = lazyStartQueues.get(partition);
+    private CompletableFuture<?> waitForLazyStart(ProducerImpl<T> producer, CompletableFuture<?> created) {
+        final LazyStartQueue queue = lazyStartQueues.get(producer);
         final CompletableFuture<?> ready = queue == null ? created : CompletableFuture.allOf(created, queue.drained);
         // A producer closed while it is created never completes its creation
         return CompletableFuture.anyOf(ready, closeStarted).handle((ignored, ignoredException) -> null);
     }
 
-    private CompletableFuture<MessageId> sendWhenCreated(int partition, ProducerImpl<T> producer,
-                                                         CompletableFuture<?> created, Message<?> message,
-                                                         Transaction txn) {
-        // The producer applies these limits only once it is created. An IO thread cannot wait for room, so a queued
-        // send that does not fit fails, even with blockIfQueueFull. The memory reserved here goes to the producer
-        // with the send.
+    private CompletableFuture<MessageId> sendWhenCreated(ProducerImpl<T> producer, CompletableFuture<?> created,
+                                                         Message<?> message, Transaction txn) {
+        // The topic is registered while the transaction is open, as for a send to a created producer. The queued
+        // send does not check the transaction again, so a commit that follows it at once still waits for it.
+        final CompletableFuture<Void> registered =
+                txn == null ? null : ((TransactionImpl) txn).registerProducedTopic(producer.getTopic());
         final ByteBuf payload = ((MessageImpl<?>) message).getDataBuffer();
         final int payloadSize = payload.readableBytes();
-        final MemoryLimitController memoryLimit = client.getMemoryLimitController();
-        if (!memoryLimit.tryReserveMemory(payloadSize)) {
-            payload.release();
-            return FutureUtil.failedFuture(new PulsarClientException.MemoryBufferIsFullError(
-                    "Client memory buffer is full", message.getSequenceId()));
-        }
         final CompletableFuture<MessageId> sent = new CompletableFuture<>();
         final LazyStartQueue queue;
         final boolean newQueue;
-        final boolean queueFull;
+        PulsarClientException rejected = null;
         synchronized (lazyStartQueues) {
-            final LazyStartQueue existing = lazyStartQueues.get(partition);
+            final LazyStartQueue existing = lazyStartQueues.get(producer);
             newQueue = existing == null;
-            queueFull = existing != null && conf.getMaxPendingMessages() > 0
-                    && existing.sends.size() >= conf.getMaxPendingMessages();
-            if (queueFull || (existing == null && created.isDone())) {
+            if (existing == null && created.isDone()) {
                 queue = null;
             } else {
+                // The producer applies its limits only once it is created, and this thread cannot wait for room.
+                // So the send takes its permit and its memory from the producer now, or fails, even with
+                // blockIfQueueFull, and brings both along when it is handed over.
+                rejected = producer.tryAdmit(message.getSequenceId(), payloadSize);
                 queue = existing != null ? existing : new LazyStartQueue();
-                queue.sends.add(() -> completeOffDrainingThread(sent,
-                        FutureUtil.supplySafely(() -> sendQueued(producer, message, txn, payloadSize))));
-                if (newQueue) {
-                    lazyStartQueues.put(partition, queue);
+                if (rejected == null) {
+                    queue.sends.add(new QueuedSend(message, payloadSize, registered, sent));
+                    if (newQueue) {
+                        lazyStartQueues.put(producer, queue);
+                    }
                 }
             }
         }
+        if (rejected != null) {
+            payload.release();
+            return FutureUtil.failedFuture(rejected);
+        }
         if (queue == null) {
-            memoryLimit.releaseMemory(payloadSize);
-            if (queueFull) {
-                payload.release();
-                return FutureUtil.failedFuture(new PulsarClientException.ProducerQueueIsFullError(
-                        "Producer send queue is full", message.getSequenceId()));
-            }
             // The creation completed and its queued sends were handed over in the meantime
             return sendToCreatedProducer(producer, message, txn);
         }
         if (newQueue) {
             // A producer closed while it is created never completes its creation
-            CompletableFuture.anyOf(created, closeStarted)
-                    .whenComplete((ignored, e) -> startDrain(partition, producer, queue));
+            CompletableFuture.anyOf(created, closeStarted).whenComplete((ignored, e) -> handOver(producer, queue));
         }
         return sent;
     }
 
-    private void startDrain(int partition, ProducerImpl<T> producer, LazyStartQueue queue) {
-        if (!conf.isBlockIfQueueFull() || closeStarted.isDone()) {
-            // No send waits for room: it fails at once, or the producer is closing
-            drain(partition, producer, queue);
-            return;
-        }
-        // The producer may wait for a permit when it takes the sends, which an IO thread must not do. A cleanup
-        // task still runs when the client shuts the executor down before it ran, so that the sends settle.
-        final ExecutorProvider.CleanupTask drainTask = () -> drain(partition, producer, queue);
-        try {
-            client.getInternalExecutorService().execute(drainTask);
-        } catch (RejectedExecutionException e) {
-            // The executor is shut down, so the sends fail without waiting
-            drainTask.run();
-        }
-    }
-
-    private void drain(int partition, ProducerImpl<T> producer, LazyStartQueue queue) {
+    // Hands the queued sends to their producer, in the order they were made. No thread waits here: a send whose
+    // topic is still being registered with its transaction is handed over by the thread that completes the
+    // registration, or fails on the thread that closes the producer.
+    private void handOver(ProducerImpl<T> producer, LazyStartQueue queue) {
+        final Thread thread = Thread.currentThread();
+        // An interceptor or a callback that sends on this thread meanwhile queues its send, see mustNotWait()
+        final boolean entered = handingOverThreads.add(thread);
         try {
             while (true) {
-                final Runnable send;
+                final QueuedSend send;
+                final boolean registering;
                 synchronized (lazyStartQueues) {
-                    send = queue.sends.poll();
+                    send = queue.sends.peek();
+                    registering = send != null && send.registered() != null && !send.registered().isDone()
+                            && failureAfterLazyStart(producer) == null;
                     if (send == null) {
                         // A later send finds no queue and goes to the created producer directly
-                        lazyStartQueues.remove(partition, queue);
-                        return;
+                        lazyStartQueues.remove(producer, queue);
+                    } else if (!registering) {
+                        queue.sends.poll();
                     }
                 }
-                send.run();
+                if (send == null) {
+                    queue.drained.complete(null);
+                    return;
+                }
+                if (registering) {
+                    CompletableFuture.anyOf(send.registered(), closeStarted)
+                            .whenComplete((ignored, e) -> handOver(producer, queue));
+                    return;
+                }
+                FutureUtil.completeAfter(send.sent(), FutureUtil.supplySafely(() -> sendQueued(producer, send)));
                 if (queue.flushRequested) {
-                    // The next send may wait for a permit that this one holds in a batch
                     producer.triggerFlush();
                 }
             }
         } finally {
-            queue.drained.complete(null);
+            if (entered) {
+                handingOverThreads.remove(thread);
+            }
         }
     }
 
-    // The sends that an IO thread made to a partition while its producer is created, in the order they were made
+    // The sends that threads which must not wait made to a producer while it is created, in the order they were made
     private static final class LazyStartQueue {
-        private final ArrayDeque<Runnable> sends = new ArrayDeque<>();
+        private final ArrayDeque<QueuedSend> sends = new ArrayDeque<>();
         private final CompletableFuture<Void> drained = new CompletableFuture<>();
         // A flush requested while the queue exists covers its sends: each is flushed once it reaches the producer
         private volatile boolean flushRequested;
+    }
+
+    // A queued send, with the size it reserved when it took its permit and its memory from the producer, and the
+    // registration of its topic with its transaction if it has one
+    private record QueuedSend(Message<?> message, int admittedBytes, CompletableFuture<Void> registered,
+                              CompletableFuture<MessageId> sent) {
     }
 
     private CompletableFuture<MessageId> sendToCreatedProducer(ProducerImpl<T> producer, Message<?> message,
@@ -460,39 +471,21 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
         return failure != null ? FutureUtil.failedFuture(failure) : producer.internalSendWithTxnAsync(message, txn);
     }
 
-    // Hands a queued send and its memory reservation to the producer, or releases the reservation when it cannot
-    private CompletableFuture<MessageId> sendQueued(ProducerImpl<T> producer, Message<?> message, Transaction txn,
-                                                    int reservedBytes) {
+    // Hands a queued send to the producer, with its permit and its memory, or gives them back when it cannot
+    private CompletableFuture<MessageId> sendQueued(ProducerImpl<T> producer, QueuedSend send) {
         final PulsarClientException failure = failureAfterLazyStart(producer);
-        if (failure != null) {
-            client.getMemoryLimitController().releaseMemory(reservedBytes);
-            return FutureUtil.failedFuture(failure);
+        final CompletableFuture<Void> registered = send.registered();
+        if (failure == null && (registered == null || !registered.isCompletedExceptionally())) {
+            return producer.internalSendAsync(send.message(), send.admittedBytes());
         }
-        if (txn != null && conf.isBlockIfQueueFull()) {
-            // The send reaches the producer once its topic is registered with the transaction. This thread may wait
-            // for that, so that a flush requested meanwhile reaches the send before the next one is handed over.
-            ((TransactionImpl) txn).registerProducedTopic(producer.getTopic()).exceptionally(e -> null).join();
-        }
-        return producer.internalSendWithTxnAsync(message, txn, reservedBytes);
-    }
-
-    // A queued send that fails as it is handed over completes on an IO thread, like one that fails later, so that
-    // none of its callbacks runs on the thread that drains the queue, where it could wait for that drain
-    private void completeOffDrainingThread(CompletableFuture<MessageId> sent, CompletableFuture<MessageId> dispatched) {
-        if (!dispatched.isDone()) {
-            FutureUtil.completeAfter(sent, dispatched);
-            return;
-        }
-        try {
-            client.eventLoopGroup().execute(() -> FutureUtil.completeAfter(sent, dispatched));
-        } catch (RejectedExecutionException e) {
-            // The client is shut down
-            FutureUtil.completeAfter(sent, dispatched);
-        }
+        producer.releaseAdmission(send.admittedBytes());
+        ((MessageImpl<?>) send.message()).getDataBuffer().release();
+        // A topic that cannot be registered fails the send as it does for a created producer
+        return failure != null ? FutureUtil.failedFuture(failure) : registered.<MessageId>thenApply(ignored -> null);
     }
 
     private PulsarClientException failureAfterLazyStart(ProducerImpl<T> producer) {
-        if (getState() == State.Closing || getState() == State.Closed) {
+        if (closeStarted.isDone() || getState() == State.Closing || getState() == State.Closed) {
             return new PulsarClientException.AlreadyClosedException("Producer already closed");
         }
         if (producer.producerCreatedFuture().isCompletedExceptionally()) {
@@ -517,8 +510,8 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
         if (queues.isEmpty()) {
             return flushProducersAsync();
         }
-        // The queued sends are flushed once they reach their producer, one by one, as each may wait for a permit
-        // that the batch of the one before it holds. The batches of the sends before them are flushed now.
+        // The queued sends are flushed as they reach their producer. The batches of the sends before them are
+        // flushed now.
         queues.forEach(queue -> queue.flushRequested = true);
         return flushProducersAsync()
                 .thenCompose(ignored -> CompletableFuture.allOf(

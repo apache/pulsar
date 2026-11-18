@@ -117,6 +117,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     private static final Logger LOG = Logger.get(ProducerImpl.class);
 
+    // The admitted size of a message that the producer still has to admit itself, see tryAdmit()
+    private static final int NOT_ADMITTED = -1;
+
     // Producer id, used to identify a producer within a single connection
     protected final long producerId;
     // A non-persistent topic cannot carry chunked messages, see isChunkingEnabled()
@@ -414,10 +417,15 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     @Override
     CompletableFuture<MessageId> internalSendAsync(Message<?> message) {
-        return internalSendAsync(message, 0);
+        return internalSendAsync(message, NOT_ADMITTED);
     }
 
-    private CompletableFuture<MessageId> internalSendAsync(Message<?> message, int reservedBytes) {
+    /**
+     * Sends a message that {@link #tryAdmit} admitted, with {@code admittedBytes} as its size. The send takes that
+     * permit and that reservation over instead of acquiring its own, so it never waits for room, and releases them
+     * as it does for any other message, also when it fails before the message is enqueued.
+     */
+    CompletableFuture<MessageId> internalSendAsync(Message<?> message, int admittedBytes) {
         CompletableFuture<MessageId> future = new CompletableFuture<>();
 
         MessageImpl<?> interceptorMessage = (MessageImpl) beforeSend(message);
@@ -433,7 +441,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         pendingBytesUpDownCounter.add(msgSize);
 
         sendAsync(interceptorMessage, new DefaultSendMessageCallback(future, interceptorMessage, msgSize),
-                reservedBytes);
+                admittedBytes);
         return future;
     }
 
@@ -530,31 +538,15 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     @Override
     CompletableFuture<MessageId> internalSendWithTxnAsync(Message<?> message, Transaction txn) {
-        return internalSendWithTxnAsync(message, txn, 0);
-    }
-
-    /**
-     * Sends a message whose size the caller already reserved from the client memory limit, as {@code reservedBytes}.
-     * The send takes that reservation over instead of waiting for one of its own, and releases it as it does for
-     * any other message, also when it fails before the message is enqueued.
-     */
-    CompletableFuture<MessageId> internalSendWithTxnAsync(Message<?> message, Transaction txn, int reservedBytes) {
         if (txn == null) {
-            return internalSendAsync(message, reservedBytes);
+            return internalSendAsync(message);
         } else {
             CompletableFuture<MessageId> completableFuture = new CompletableFuture<>();
             if (!((TransactionImpl) txn).checkIfOpen(completableFuture)) {
-                client.getMemoryLimitController().releaseMemory(reservedBytes);
                 return completableFuture;
             }
-            CompletableFuture<Void> registered = ((TransactionImpl) txn).registerProducedTopic(topic);
-            if (reservedBytes > 0) {
-                registered.exceptionally(e -> {
-                    client.getMemoryLimitController().releaseMemory(reservedBytes);
-                    return null;
-                });
-            }
-            return registered.thenCompose(ignored -> internalSendAsync(message, reservedBytes));
+            return ((TransactionImpl) txn).registerProducedTopic(topic)
+                    .thenCompose(ignored -> internalSendAsync(message));
         }
     }
 
@@ -599,30 +591,33 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
      * </ul>
      */
     public void sendAsync(Message<?> message, SendCallback callback) {
-        sendAsync(message, callback, 0);
+        sendAsync(message, callback, NOT_ADMITTED);
     }
 
-    private void sendAsync(Message<?> message, SendCallback callback, int reservedBytes) {
+    private void sendAsync(Message<?> message, SendCallback callback, int admittedBytes) {
         checkArgument(message instanceof MessageImpl);
         MessageImpl<?> msg = (MessageImpl<?>) message;
         MessageMetadata msgMetadata = msg.getMessageBuilder();
         ByteBuf payload = msg.getDataBuffer();
         final int uncompressedSize = payload.readableBytes();
+        final boolean admitted = admittedBytes != NOT_ADMITTED;
+        // The thread that hands over a message admitted by tryAdmit must not wait for room, for a chunk either
+        final boolean waitForRoom = conf.isBlockIfQueueFull() && !admitted;
 
         if (!isValidProducerState(callback, message.getSequenceId())) {
-            client.getMemoryLimitController().releaseMemory(reservedBytes);
+            if (admitted) {
+                releaseAdmission(admittedBytes);
+            }
             payload.release();
             return;
         }
 
-        // A reservation made by the caller stands in for the one this message would make
-        if (!canEnqueueRequest(callback, message.getSequenceId(), reservedBytes > 0 ? 0 : uncompressedSize)) {
-            client.getMemoryLimitController().releaseMemory(reservedBytes);
+        if (admitted) {
+            // The permit and the reservation of the caller stand in for those this message would take
+            takeOverReservation(admittedBytes, uncompressedSize);
+        } else if (!canEnqueueRequest(callback, message.getSequenceId(), uncompressedSize, waitForRoom)) {
             payload.release();
             return;
-        }
-        if (reservedBytes > 0) {
-            takeOverReservation(reservedBytes, uncompressedSize);
         }
 
         // If compression is enabled, we are compressing, otherwise it will simply use the same buffer
@@ -710,8 +705,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
         // chunked message also sent individually so, try to acquire send-permits
         for (int i = 0; i < (totalChunks - 1); i++) {
-            if (!conf.isBlockIfQueueFull() && !canEnqueueRequest(callback, message.getSequenceId(),
-                    0 /* The memory was already reserved */)) {
+            if (!waitForRoom && !canEnqueueRequest(callback, message.getSequenceId(),
+                    0 /* The memory was already reserved */, waitForRoom)) {
                 compressedPayload.release();
                 client.getMemoryLimitController().releaseMemory(uncompressedSize);
                 semaphoreRelease(i + 1);
@@ -741,8 +736,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         msg.getMessageBuilder().setOrderingKey(orderingKey);
                     }
                 }
-                if (chunkId > 0 && conf.isBlockIfQueueFull() && !canEnqueueRequest(callback,
-                        message.getSequenceId(), 0 /* The memory was already reserved */)) {
+                if (chunkId > 0 && waitForRoom && !canEnqueueRequest(callback,
+                        message.getSequenceId(), 0 /* The memory was already reserved */, waitForRoom)) {
                     compressedPayload.release();
                     // In blocking mode canEnqueueRequest only fails on interruption, before taking this
                     // chunk's permit (and the memory was reserved once for the whole message, the ops of the
@@ -776,7 +771,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                             // permits (non-blocking mode acquires them up front) and their claims on the chunked
                             // context, which only created ops release. The failing chunk's own permit goes through
                             // the outer catch, the earlier chunks' through their own operations.
-                            if (!conf.isBlockIfQueueFull()) {
+                            if (!waitForRoom) {
                                 semaphoreRelease(totalChunks - chunkId - 1);
                             }
                             for (int i = chunkId; i < totalChunks; i++) {
@@ -793,7 +788,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         }
                         client.getMemoryLimitController().releaseMemory(uncompressedSize);
                         int remainingChunks = totalChunks - chunkId - 1;
-                        if (!conf.isBlockIfQueueFull()) {
+                        if (!waitForRoom) {
                             semaphoreRelease(remainingChunks);
                         }
                         chunkedMessageCtx.release(remainingChunks);
@@ -1348,7 +1343,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
     }
 
-    private boolean canEnqueueRequest(SendCallback callback, long sequenceId, int payloadSize) {
+    private boolean canEnqueueRequest(SendCallback callback, long sequenceId, int payloadSize,
+                                      boolean waitForRoom) {
         if (conf.isMemoryLimitAdmittedUpstream()) {
             // The caller already admitted this message against the client memory limit before handing
             // it over (see ProducerConfigurationData#memoryLimitAdmittedUpstream). Only account for the
@@ -1357,23 +1353,15 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             return true;
         }
         try {
-            if (conf.isBlockIfQueueFull()) {
+            if (waitForRoom) {
                 if (semaphore.isPresent()) {
                     semaphore.get().acquire();
                 }
                 client.getMemoryLimitController().reserveMemory(payloadSize);
             } else {
-                if (!semaphore.map(Semaphore::tryAcquire).orElse(true)) {
-                    pendingQueueFullCounter.incrementAndGet();
-                    callback.sendComplete(new PulsarClientException.ProducerQueueIsFullError(
-                            "Producer send queue is full", sequenceId), null);
-                    return false;
-                }
-
-                if (!client.getMemoryLimitController().tryReserveMemory(payloadSize)) {
-                    semaphore.ifPresent(Semaphore::release);
-                    callback.sendComplete(new PulsarClientException.MemoryBufferIsFullError(
-                            "Client memory buffer is full", sequenceId), null);
+                final PulsarClientException rejected = tryAdmit(sequenceId, payloadSize);
+                if (rejected != null) {
+                    callback.sendComplete(rejected, null);
                     return false;
                 }
             }
@@ -1384,6 +1372,33 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
 
         return true;
+    }
+
+    /**
+     * Takes the send permit and reserves the memory of a message without waiting for either, also with
+     * blockIfQueueFull. The caller hands the message over with {@link #internalSendAsync(Message, int)} later, or
+     * gives both back with {@link #releaseAdmission}.
+     *
+     * @return why the message cannot be admitted, or null when it is admitted
+     */
+    PulsarClientException tryAdmit(long sequenceId, int payloadSize) {
+        if (!semaphore.map(Semaphore::tryAcquire).orElse(true)) {
+            pendingQueueFullCounter.incrementAndGet();
+            return new PulsarClientException.ProducerQueueIsFullError("Producer send queue is full", sequenceId);
+        }
+        if (!client.getMemoryLimitController().tryReserveMemory(payloadSize)) {
+            semaphore.ifPresent(Semaphore::release);
+            return new PulsarClientException.MemoryBufferIsFullError("Client memory buffer is full", sequenceId);
+        }
+        return null;
+    }
+
+    /**
+     * Gives back the permit and the memory of a message that {@link #tryAdmit} admitted and that is not sent.
+     */
+    void releaseAdmission(int admittedBytes) {
+        semaphore.ifPresent(Semaphore::release);
+        client.getMemoryLimitController().releaseMemory(admittedBytes);
     }
 
     private static final class WriteInEventLoopCallback implements Runnable {
@@ -1689,12 +1704,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         client.getMemoryLimitController().releaseMemory(op.uncompressedSize);
     }
 
-    private void takeOverReservation(int reservedBytes, int payloadSize) {
+    private void takeOverReservation(int admittedBytes, int payloadSize) {
         // The caller reserved the size of the message it gave, which an interceptor may have changed
-        if (payloadSize > reservedBytes) {
-            client.getMemoryLimitController().forceReserveMemory(payloadSize - reservedBytes);
+        if (payloadSize > admittedBytes) {
+            client.getMemoryLimitController().forceReserveMemory(payloadSize - admittedBytes);
         } else {
-            client.getMemoryLimitController().releaseMemory(reservedBytes - payloadSize);
+            client.getMemoryLimitController().releaseMemory(admittedBytes - payloadSize);
         }
     }
 

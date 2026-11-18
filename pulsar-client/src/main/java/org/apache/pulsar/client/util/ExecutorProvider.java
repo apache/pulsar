@@ -118,6 +118,19 @@ public class ExecutorProvider {
         return executors.get((hash & Integer.MAX_VALUE) % numThreads).getKey();
     }
 
+    /**
+     * Whether the calling thread is one of the threads of this provider's executors.
+     */
+    public boolean isExecutorThread() {
+        final Thread current = Thread.currentThread();
+        for (Pair<ExecutorService, ExtendedThreadFactory> executor : executors) {
+            if (executor.getValue().getThread() == current) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public void shutdownNow() {
         executors.forEach(entry -> {
             ExecutorService executor = entry.getKey();
