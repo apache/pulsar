@@ -842,15 +842,19 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         assertFalse(newerInitFuture.isDone());
         assertNotNull(service.getReaderCaches().get(namespace));
         Mockito.verify(newerReader, Mockito.never()).closeAsync();
-        assertNotNull(service.policiesCache.get(cachedTopic));
+        Assertions.assertThat(service.policiesCache)
+                .describedAs("a stale cleanup must not drop the policies the newer attempt's reader has cached")
+                .containsKey(cachedTopic);
 
-        // Cleaning up the owning attempt does drop its future, close its reader and drop the policies it cached.
+        // Cleaning up the owning attempt does drop its future and close its reader.
         service.cleanupFailedPolicyCacheInit(namespace, newerInitFuture, true);
         assertNull(service.getPoliciesCacheInit(namespace));
         assertTrue(newerInitFuture.isCompletedExceptionally());
         assertNull(service.getReaderCaches().get(namespace));
         Mockito.verify(newerReader, Mockito.times(1)).closeAsync();
-        assertNull(service.policiesCache.get(cachedTopic));
+        Assertions.assertThat(service.policiesCache)
+                .describedAs("the cleanup of the owning attempt must drop the policies its reader has cached")
+                .doesNotContainKey(cachedTopic);
     }
 
     @Test

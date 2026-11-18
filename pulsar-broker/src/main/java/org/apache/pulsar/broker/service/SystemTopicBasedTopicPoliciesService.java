@@ -126,9 +126,9 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             new ConcurrentHashMap<>();
 
     // Namespaces whose next policy cache initialization re-notifies the topic-policy listeners even when
-    // topicPolicyListenerReplayEnabled is off, because its reader replaces one that was closed together with its
-    // initialization (dropInitializationIfCurrent). The value holds the topics that had cached policies before, so
-    // the listeners of those that have none now are told.
+    // topicPolicyListenerReplayEnabled is off, because the initialization before it was dropped together with its
+    // reader (dropInitializationIfCurrent). The value holds the topics that had cached policies before, so the
+    // listeners of those that have none now are told.
     private final Map<NamespaceName, TopicsWithPoliciesBeforeReplacement> listenerReplayPending =
             new ConcurrentHashMap<>();
 
@@ -1024,7 +1024,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
      *                    initialization, and drops the policies that reader had cached; when {@code false}, only
      *                    the init future is dropped, leaving the reader cached for the retry to reuse. That retry
      *                    continues from the position of the reader, so the cached policies stay too: it could not
-     *                    read them again.
+     *                    read them again. Nothing starts the next initialization here; the next topic policy
+     *                    access of the namespace does.
      */
     @VisibleForTesting
     void cleanupFailedPolicyCacheInit(@NonNull NamespaceName namespace,
@@ -1050,7 +1051,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
      * initialization only fills the caches. So that initialization also re-notifies the topic-policy listeners of
      * the namespace, whatever {@code topicPolicyListenerReplayEnabled} says: without it a loaded topic would keep
      * enforcing the policies it had when the reader was closed until its next policy update or reload. Listeners of
-     * a topic whose policies are gone get the {@code null} update that a delivered deletion gives them.
+     * a topic whose policies are gone get the {@code null} update that a delivered deletion gives them. A broker
+     * that owns no bundle of the namespace has no topic of it loaded, so there the replay is not requested.
      *
      * @return whether {@code initFuture} was the current initialization; when not, nothing was touched
      */
@@ -1078,13 +1080,13 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 // The cached policies go in the same step as the initialization they belong to. A policy read takes
                 // its answer inside compute() on this key, from a completed initialization only, and the next
                 // initialization is installed through this map as well, so no read sees the namespace's cache while
-                // it is empty or half rebuilt. A delivery of this reader writes to the cache inside compute() on
-                // this key too, and only while this initialization is still current (applyEventIfCurrent), so a
-                // delivery that the reader had already received when it is closed cannot put a policy back after
-                // this step. The replay is requested here too, so that the next initialization cannot reach the end
-                // of the topic without it.
-                listenerReplayPending.merge(namespace, removeCachedPolicies(namespace),
-                        TopicsWithPoliciesBeforeReplacement::mergedWith);
+                // it is empty or half rebuilt. A late delivery of this reader cannot put a policy back after this
+                // step (applyEventIfCurrent). The replay is requested here too, so that the next initialization
+                // cannot reach the end of the topic without it.
+                TopicsWithPoliciesBeforeReplacement removed = removeCachedPolicies(namespace);
+                if (ownsBundleOf(namespace)) {
+                    listenerReplayPending.merge(namespace, removed, TopicsWithPoliciesBeforeReplacement::mergedWith);
+                }
             }
             dropped.set(true);
             return null;
@@ -1162,9 +1164,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                         log.debug()
                                 .attr("namespaceObject", namespaceObject)
                                 .log("Stop the first pass over the system topic: its initialization was superseded.");
-                        stageFuture.completeExceptionally(new BrokerServiceException(
-                                "Topic policies cache initialization for namespace " + namespaceObject
-                                        + " was superseded while reading " + reader.getSystemTopic().getTopicName()));
+                        stageFuture.completeExceptionally(supersededWhileReading(reader));
                         return;
                     }
                     log.debug()
@@ -1190,7 +1190,27 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 // off by default (topicPolicyListenerReplayEnabled). A reader that replaces one that was closed
                 // with its initialization replays regardless: the topics that are already loaded missed the events
                 // that no reader delivered.
-                TopicsWithPoliciesBeforeReplacement beforeReplacement = listenerReplayPending.remove(namespaceObject);
+                //
+                // Only the first pass of the namespace's current initialization takes the request, in a compute()
+                // step like the one that records it (dropInitializationIfCurrent). A pass can get here after its
+                // initialization was dropped: the answer to a check for more events that the reader sent before it
+                // was closed still arrives. That pass would find the request of its own drop and the cache cleared
+                // with it, and tell the listeners of every topic that its policies are gone.
+                AtomicBoolean superseded = new AtomicBoolean();
+                MutableObject<TopicsWithPoliciesBeforeReplacement> replayRequest = new MutableObject<>();
+                policyCacheInitMap.compute(namespaceObject, (__, currentInitFuture) -> {
+                    if (currentInitFuture == initFuture) {
+                        replayRequest.setValue(listenerReplayPending.remove(namespaceObject));
+                    } else {
+                        superseded.set(true);
+                    }
+                    return currentInitFuture;
+                });
+                if (superseded.get()) {
+                    stageFuture.completeExceptionally(supersededWhileReading(reader));
+                    return;
+                }
+                TopicsWithPoliciesBeforeReplacement beforeReplacement = replayRequest.getValue();
                 if (beforeReplacement != null) {
                     FutureUtil.completeAfter(stageFuture,
                             replayAfterReaderReplacement(namespaceObject, beforeReplacement));
@@ -1201,6 +1221,12 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 }
             }
         });
+    }
+
+    private static BrokerServiceException supersededWhileReading(SystemTopicClient.Reader<PulsarEvent> reader) {
+        TopicName systemTopic = reader.getSystemTopic().getTopicName();
+        return new BrokerServiceException("Topic policies cache initialization for namespace "
+                + systemTopic.getNamespaceObject() + " was superseded while reading " + systemTopic);
     }
 
     /**
@@ -1252,8 +1278,6 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     // tracker, the cached policies and the init future. Used when the whole namespace is unloaded.
     @VisibleForTesting
     void cleanPoliciesCacheInitMap(@NonNull NamespaceName namespace) {
-        listenerReplayPending.remove(namespace);
-
         MutableObject<CompletableFuture<Void>> removedInitFuture = new MutableObject<>();
         MutableObject<CompletableFuture<SystemTopicClient.Reader<PulsarEvent>>> removedReader = new MutableObject<>();
         MutableObject<TopicPolicyMessageHandlerTracker> removedTracker = new MutableObject<>();
@@ -1267,6 +1291,9 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             // untilMessageIdHasBeenRead for what the pairing guarantees.
             removedReader.setValue(readerCaches.remove(namespace));
             removedTracker.setValue(topicPolicyMessageHandlerTrackers.remove(namespace));
+            // In this step too, so that a drop that requests the replay (dropInitializationIfCurrent) either comes
+            // first and has its request removed here, or finds its initialization gone and requests nothing.
+            listenerReplayPending.remove(namespace);
             policiesCache.entrySet().removeIf(entry -> Objects.equals(entry.getKey().getNamespaceObject(), namespace));
             globalPoliciesCache.entrySet()
                     .removeIf(entry -> Objects.equals(entry.getKey().getNamespaceObject(), namespace));
