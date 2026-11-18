@@ -44,6 +44,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -816,12 +817,19 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
     }
 
+    private void observeReplicationBacklog(Position position) {
+        if (!replicators.isEmpty()) {
+            replicators.forEach((cluster, replicator) -> ((PersistentReplicator) replicator).entryPersisted(position));
+        }
+    }
+
     @Override
     public void addComplete(Position pos, ByteBuf entryData, Object ctx) {
         PublishContext publishContext = (PublishContext) ctx;
         Position position = pos;
 
         // Message has been successfully persisted
+        observeReplicationBacklog(position);
         messageDeduplication.recordMessagePersisted(publishContext, position);
 
         // in order to sync the max position when cursor read entries
@@ -2344,10 +2352,18 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return internalCheckReplication();
     }
 
+    protected boolean supportsGeoReplication() {
+        return !NamespaceService.isHeartbeatNamespace(TopicName.get(topic))
+                && !ExtensibleLoadManagerImpl.isInternalTopic(topic);
+    }
+
+    private boolean hasReplicationTargets(List<String> clusters) {
+        return !clusters.isEmpty() && (clusters.size() > 1 || !replicators.isEmpty());
+    }
+
     private CompletableFuture<Void> internalCheckReplication() {
         TopicName name = TopicName.get(topic);
-        if (NamespaceService.isHeartbeatNamespace(name)
-                || ExtensibleLoadManagerImpl.isInternalTopic(topic)) {
+        if (!supportsGeoReplication()) {
             return CompletableFuture.completedFuture(null);
         }
 
@@ -2377,7 +2393,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             //
             // When a topic under the namespace is load in the cluster2, the `cluster1` may be identified as
             // remote cluster and start geo-replication. This check is to avoid the above case.
-            if (!(configuredClusters.size() == 1 && replicators.isEmpty())) {
+            if (hasReplicationTargets(configuredClusters)) {
                 // Check for missing replicators
                 for (String cluster : configuredClusters) {
                     if (cluster.equals(localCluster)) {
@@ -3389,6 +3405,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         replicators.forEach((cluster, replicator) -> {
             ReplicatorStatsImpl replicatorStats = replicator.computeStats();
+            ((PersistentReplicator) replicator).updateReplicationDiagnostics(replicatorStats);
 
             // Add incoming msg rates
             PublisherStatsImpl pubStats = remotePublishersStats.remove(replicator.getRemoteCluster());
@@ -3405,6 +3422,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             replicationInboundSetter.accept(replicatorStats, pubStats);
             stats.replication.put(inboundReplication.key, replicatorStats);
         }
+
+        forEachConfiguredReplicationTarget(cluster -> stats.replication.computeIfAbsent(cluster,
+                ignored -> new ReplicatorStatsImpl()));
 
         stats.storageSize = ledger.getTotalSize();
         stats.backlogSize = ledger.getEstimatedBacklogSize();
@@ -3525,6 +3545,18 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return brokerService.deleteSchema(TopicName.get(getName()));
     }
 
+    private void forEachConfiguredReplicationTarget(java.util.function.Consumer<String> consumer) {
+        List<String> clusters = topicPolicies.getReplicationClusters().get();
+        if (hasReplicationTargets(clusters) && supportsGeoReplication()) {
+            String local = brokerService.pulsar().getConfiguration().getClusterName();
+            for (String cluster : clusters) {
+                if (!cluster.equals(local)) {
+                    consumer.accept(cluster);
+                }
+            }
+        }
+    }
+
     @Override
     public CompletableFuture<PersistentTopicInternalStats> getInternalStats(boolean includeLedgerMetadata) {
 
@@ -3533,6 +3565,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         ledger.getManagedLedgerInternalStats(includeLedgerMetadata)
             .thenCombine(getCompactedTopicContextAsync(), (ledgerInternalStats, compactedTopicContext) -> {
                 PersistentTopicInternalStats stats = new PersistentTopicInternalStats();
+                stats.replicators = new TreeMap<>();
+                forEachConfiguredReplicationTarget(cluster -> stats.replicators.put(cluster, null));
+                replicators.forEach((cluster, replicator) -> {
+                    PersistentReplicator persistent = (PersistentReplicator) replicator;
+                    if (persistent.getState() != AbstractReplicator.State.Terminated) {
+                        stats.replicators.put(cluster, persistent.internalStats());
+                    }
+                });
                 stats.entriesAddedCounter = ledgerInternalStats.getEntriesAddedCounter();
                 stats.numberOfEntries = ledgerInternalStats.getNumberOfEntries();
                 stats.totalSize = ledgerInternalStats.getTotalSize();
@@ -5459,6 +5499,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                 return null;
                             }
                             // Message has been successfully persisted
+                            observeReplicationBacklog(position);
                             try {
                                 messageDeduplication.recordMessagePersisted(publishContext,
                                         position);
