@@ -1061,19 +1061,21 @@ public class ConsumerImplTest {
     public void testSeekAsyncReleasesBufferOnInProgressConflict() {
         ClientCnx cnx = mock(ClientCnx.class);
         CompletableFuture<ProducerResponse> clientReq = new CompletableFuture<>();
-        when(cnx.sendRequestWithId(any(ByteBuf.class), anyLong())).thenReturn(clientReq);
+        when(cnx.sendRequestWithId(any(ByteBuf.class), anyLong())).thenAnswer(inv -> {
+            inv.<ByteBuf>getArgument(0).release();
+            return clientReq;
+        });
         consumer.setClientCnx(cnx);
         consumer.setState(HandlerState.State.Ready);
 
         List<ByteBuf> capturedBuffers = new ArrayList<>();
-        try (MockedStatic<Commands> commands = mockStatic(Commands.class, CALLS_REAL_METHODS)) {
-            commands.when(() -> Commands.newSeek(anyLong(), anyLong(), anyLong()))
-                    .thenAnswer(invocation -> {
-                        ByteBuf buf = (ByteBuf) invocation.callRealMethod();
-                        capturedBuffers.add(buf);
-                        return buf;
-                    });
-
+        try (MockedStatic<Commands> commands = mockStatic(Commands.class, inv -> {
+            Object result = inv.callRealMethod();
+            if ("newSeek".equals(inv.getMethod().getName())) {
+                capturedBuffers.add((ByteBuf) result);
+            }
+            return result;
+        })) {
             CompletableFuture<Void> firstResult = consumer.seekAsync(1L);
             CompletableFuture<Void> secondResult = consumer.seekAsync(1L);
 
@@ -1096,14 +1098,13 @@ public class ConsumerImplTest {
         }).when(scheduledExecutorService).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
 
         List<ByteBuf> capturedBuffers = new ArrayList<>();
-        try (MockedStatic<Commands> commands = mockStatic(Commands.class, CALLS_REAL_METHODS)) {
-            commands.when(() -> Commands.newSeek(anyLong(), anyLong(), anyLong()))
-                    .thenAnswer(invocation -> {
-                        ByteBuf buf = (ByteBuf) invocation.callRealMethod();
-                        capturedBuffers.add(buf);
-                        return buf;
-                    });
-
+        try (MockedStatic<Commands> commands = mockStatic(Commands.class, inv -> {
+            Object result = inv.callRealMethod();
+            if ("newSeek".equals(inv.getMethod().getName())) {
+                capturedBuffers.add((ByteBuf) result);
+            }
+            return result;
+        })) {
             CompletableFuture<Void> result = consumer.seekAsync(1L);
 
             assertThat(capturedBuffers).hasSize(1);
