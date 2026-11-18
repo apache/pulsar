@@ -32,7 +32,7 @@ import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
 /**
- * Coverage for DAG-following on the QueueConsumer:
+ * Coverage for DAG-following on the QueueConsumer.
  * <ul>
  *   <li>An existing subscription transparently drains across a chain of splits.</li>
  *   <li>A brand-new subscription created with EARLIEST after a split replays the sealed

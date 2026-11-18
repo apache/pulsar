@@ -40,6 +40,9 @@ import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.Ipv4Proxy;
+import org.apache.pulsar.broker.service.ServerCnx;
+import org.apache.pulsar.broker.service.Subscription;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.KeySharedPolicy;
 import org.apache.pulsar.client.api.Message;
@@ -581,6 +584,7 @@ public class BrokerEntryCacheTest extends ProducerConsumerBase {
         assertTrue(consumersLatch.await(testDurationSeconds + 10, TimeUnit.SECONDS),
                 "Consumers should complete within timeout");
 
+        waitForDispatchedEntriesToBeReleased(topicName);
         RangeCacheTestUtil.forEachCachedEntry(pulsar, entry -> {
             if (entry.hasExpectedReads()) {
                 assertThat(entry.getReadCountHandler().getExpectedReadCount())
@@ -702,6 +706,7 @@ public class BrokerEntryCacheTest extends ProducerConsumerBase {
                 "Consumers should complete within timeout");
 
         MutableInt expectedReadCountWith1 = new MutableInt(0);
+        waitForDispatchedEntriesToBeReleased(topicName);
         RangeCacheTestUtil.forEachCachedEntry(pulsar, entry -> {
             if (entry.hasExpectedReads()) {
                 assertThat(entry.getReadCountHandler().getExpectedReadCount())
@@ -724,6 +729,22 @@ public class BrokerEntryCacheTest extends ProducerConsumerBase {
         // Clean up consumers
         for (Consumer<Long> consumer : consumers) {
             consumer.close();
+        }
+    }
+
+    /**
+     * Waits for the broker to release the entries that it dispatched to the topic's consumers, which counts their reads
+     * of the cached entries. The broker releases them when its write of them to the consumer's connection completes,
+     * which the connection's event loop handles right after writing them to the socket, so the consumer can receive the
+     * messages before their entries are released. A task that the event loop runs after that write runs after the
+     * release.
+     */
+    private void waitForDispatchedEntriesToBeReleased(String topicName) throws Exception {
+        Topic topic = pulsar.getBrokerService().getTopicReference(topicName).orElseThrow();
+        for (Subscription subscription : topic.getSubscriptions().values()) {
+            for (var consumer : subscription.getConsumers()) {
+                ((ServerCnx) consumer.cnx()).ctx().executor().submit(() -> { }).get(30, TimeUnit.SECONDS);
+            }
         }
     }
 

@@ -48,8 +48,7 @@ public class TableViewBuilderImpl<T> implements TableViewBuilder<T> {
 
     @Override
     public TableViewBuilder<T> loadConf(Map<String, Object> config) {
-        conf = ConfigurationDataUtils.loadData(
-                config, conf, TableViewConfigurationData.class);
+        conf = ConfigurationDataUtils.updateData(config, conf.clone());
         return this;
     }
 

@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.testng.Assert.assertTrue;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -30,7 +32,10 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.OpenClientHandles;
 import org.apache.pulsar.common.protocol.schema.SchemaStorage;
+import org.awaitility.Awaitility;
+import org.testng.ITestResult;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
@@ -53,6 +58,15 @@ public abstract class SharedPulsarBaseTest {
     protected PulsarClient pulsarClient;
 
     private final List<String> namespaces = new ArrayList<>();
+    private OpenClientHandles clientHandlesAtStart;
+
+    /**
+     * Whether the test methods must close the producers and consumers they create on {@link #pulsarClient}, which
+     * outlives them: {@link #cleanupSharedTest} then fails a passed test method that leaves any of them open.
+     */
+    protected boolean checkClientHandlesClosed() {
+        return false;
+    }
 
     /**
      * Returns the unique namespace assigned to the current test method.
@@ -142,23 +156,39 @@ public abstract class SharedPulsarBaseTest {
      */
     @BeforeMethod(alwaysRun = true)
     public void setupSharedTest() throws Exception {
+        clientHandlesAtStart = OpenClientHandles.of(pulsarClient);
         createNewNamespace();
     }
 
     /**
-     * Force-deletes all namespaces created during the test method.
+     * Force-deletes all namespaces created during the test method, after checking that a passed test method closed
+     * its producers and consumers when {@link #checkClientHandlesClosed()}.
      */
     @AfterMethod(alwaysRun = true)
-    public void cleanupSharedTest() throws Exception {
-        for (String ns : namespaces) {
-            try {
-                admin.namespaces().deleteNamespace(ns, true);
-                log.info().attr("testNamespace", ns).log("Deleted test namespace");
-            } catch (Exception e) {
-                log.warn().attr("deleteNamespace", ns).exceptionMessage(e).log("Failed to delete namespace");
+    public void cleanupSharedTest(ITestResult result) throws Exception {
+        try {
+            if (checkClientHandlesClosed() && result.isSuccess()) {
+                // Handles that earlier test classes left open can close meanwhile, so the counts may drop below
+                // the ones at the start. No poll delay: Awaitility's default one would add 100 ms to every method
+                Awaitility.await().pollDelay(Duration.ZERO).untilAsserted(() -> {
+                    OpenClientHandles handles = OpenClientHandles.of(pulsarClient);
+                    assertTrue(handles.producers() <= clientHandlesAtStart.producers()
+                                    && handles.consumers() <= clientHandlesAtStart.consumers(),
+                            result.getMethod().getMethodName() + " left producers or consumers of the shared client"
+                                    + " open: " + clientHandlesAtStart + " at the start, " + handles + " at the end");
+                });
             }
+        } finally {
+            for (String ns : namespaces) {
+                try {
+                    admin.namespaces().deleteNamespace(ns, true);
+                    log.info().attr("testNamespace", ns).log("Deleted test namespace");
+                } catch (Exception e) {
+                    log.warn().attr("deleteNamespace", ns).exceptionMessage(e).log("Failed to delete namespace");
+                }
+            }
+            namespaces.clear();
         }
-        namespaces.clear();
     }
 
     /**

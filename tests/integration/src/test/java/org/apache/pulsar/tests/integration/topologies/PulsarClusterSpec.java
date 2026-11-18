@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.TreeMap;
 import lombok.Builder;
 import lombok.Builder.Default;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.Singular;
@@ -33,12 +34,13 @@ import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.testcontainers.containers.GenericContainer;
 
 /**
- * Spec to build a pulsar cluster.
+ * Spec to build a pulsar cluster. Two specs are equal when they build the same cluster, whatever its name.
  */
 @Builder
 @Accessors(fluent = true)
 @Getter
 @Setter
+@EqualsAndHashCode
 public class PulsarClusterSpec {
 
     /**
@@ -46,6 +48,7 @@ public class PulsarClusterSpec {
      *
      * @return the cluster name.
      */
+    @EqualsAndHashCode.Exclude
     String clusterName;
 
     /**

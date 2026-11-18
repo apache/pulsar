@@ -488,6 +488,7 @@ public class TopicReaderTest extends SharedPulsarBaseTest {
 
         // Write one sync message to ensure everything before got persistend
         producer.send("my-message-10".getBytes());
+        @Cleanup
         Reader<byte[]> reader1 = pulsarClient.newReader()
                 .topic(topicName)
                 .startMessageId(MessageId.earliest).create();
@@ -502,6 +503,7 @@ public class TopicReaderTest extends SharedPulsarBaseTest {
 
         System.out.println("CREATING READER ON MSG ID: " + lastMessageId);
 
+        @Cleanup
         Reader<byte[]> reader2 = pulsarClient.newReader()
                 .topic(topicName)
                 .startMessageId(lastMessageId).create();

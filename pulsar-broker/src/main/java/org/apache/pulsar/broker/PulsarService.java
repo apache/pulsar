@@ -182,6 +182,7 @@ import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.common.util.ThreadDumpUtil;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
+import org.apache.pulsar.common.util.netty.NettyFutureUtil;
 import org.apache.pulsar.compaction.CompactionServiceFactory;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.compaction.PulsarCompactionServiceFactory;
@@ -252,6 +253,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private OrderedScheduler offloaderReadExecutor;
     private OffloadersCache offloadersCache = new OffloadersCache();
     private LedgerOffloader defaultOffloader;
+    private CompletableFuture<Void> offloadStorageCheck;
     private LedgerOffloaderStats offloaderStats;
     private Map<NamespaceName, LedgerOffloader> ledgerOffloaderMap = new ConcurrentHashMap<>();
     private ScheduledFuture<?> loadReportTask = null;
@@ -346,6 +348,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private final ReentrantLock mutex = new ReentrantLock();
     private final Condition isClosedCondition = mutex.newCondition();
     private volatile CompletableFuture<Void> closeFuture;
+    // completes when the broker service has closed; guarded by mutex
+    private CompletableFuture<Void> brokerServiceCloseFuture = CompletableFuture.completedFuture(null);
     // key is listener name, value is pulsar address and pulsar ssl address
     private Map<String, AdvertisedListener> advertisedListeners;
     private volatile HealthChecker healthChecker;
@@ -575,6 +579,11 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 this.resourceGroupServiceManager = null;
             }
 
+            // Close the broker's own admin client before stopping the web service: the graceful stop waits for every
+            // open connection to close, so the admin client's idle connections to this broker would hold it up until
+            // Jetty's shutdown idle timeout (1 s) expires.
+            closeAdminClient();
+
             if (this.webService != null) {
                 try {
                     this.webService.close(waitForWebServiceToStop);
@@ -625,14 +634,15 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             if (this.brokerService != null) {
                 CompletableFuture<Void> brokerCloseFuture = this.brokerService.closeAsync();
                 if (this.transactionMetadataStoreService != null) {
-                    asyncCloseFutures.add(brokerCloseFuture.whenComplete((__, ___) -> {
+                    brokerServiceCloseFuture = brokerCloseFuture.whenComplete((__, ___) -> {
                         // close transactionMetadataStoreService after the broker has been closed
                         this.transactionMetadataStoreService.close();
                         this.transactionMetadataStoreService = null;
-                    }));
+                    });
                 } else {
-                    asyncCloseFutures.add(brokerCloseFuture);
+                    brokerServiceCloseFuture = brokerCloseFuture;
                 }
+                asyncCloseFutures.add(brokerServiceCloseFuture);
                 this.brokerService = null;
             }
 
@@ -651,11 +661,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             }
 
             closeLeaderElectionService();
-
-            if (adminClient != null) {
-                adminClient.close();
-                adminClient = null;
-            }
 
             if (transactionBufferSnapshotServiceFactory != null) {
                 transactionBufferSnapshotServiceFactory.close();
@@ -677,6 +682,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             }
 
             executorServicesShutdown.shutdown(compactorExecutor);
+            if (offloadStorageCheck != null) {
+                offloadStorageCheck.cancel(false);
+            }
             executorServicesShutdown.shutdown(offloaderScheduler);
             executorServicesShutdown.shutdown(offloaderReadExecutor);
             executorServicesShutdown.shutdown(executor);
@@ -768,7 +776,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 openTelemetryTopicStats = null;
             }
 
-            asyncCloseFutures.add(EventLoopUtil.shutdownGracefully(ioEventLoopGroup));
+            asyncCloseFutures.add(shutdownIoEventLoopGroupAfterBrokerService());
 
             // add timeout handling for closing executors
             asyncCloseFutures.add(executorServicesShutdown.handle());
@@ -806,6 +814,10 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             }
             // A failed shutdown step must not leave this service registered with the metadata stores
             unregisterMetadataStoreListeners();
+            // nor its IO event loops running, once the broker service, which uses them, is closing
+            if (brokerService == null) {
+                shutdownIoEventLoopGroupAfterBrokerService();
+            }
             return FutureUtil.failedFuture(pse);
         } finally {
             mutex.unlock();
@@ -822,6 +834,27 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
     private synchronized void resetMetricsServlet() {
         metricsServlet = null;
+    }
+
+    /**
+     * The IO event loops carry the broker service's connections and the channels of the BookKeeper and Pulsar clients
+     * that {@link #closeAsync(boolean)} closes. Shuts them down once the broker service is closed too, without a quiet
+     * period: nothing is left on them, and Netty would wait for a quiet period in 100 ms steps.
+     */
+    private CompletableFuture<Void> shutdownIoEventLoopGroupAfterBrokerService() {
+        CompletableFuture<Void> future = brokerServiceCloseFuture
+                .handle((__, ___) -> null)
+                .thenCompose(__ -> shutdownIoEventLoopGroup());
+        // shut them down also when the close is cancelled or times out
+        FutureUtil.whenCancelledOrTimedOut(future, this::shutdownIoEventLoopGroup);
+        return future;
+    }
+
+    private CompletableFuture<Void> shutdownIoEventLoopGroup() {
+        long timeoutMs = Math.max(0L, (long) (GRACEFUL_SHUTDOWN_TIMEOUT_RATIO_OF_TOTAL_TIMEOUT
+                * getConfiguration().getBrokerShutdownTimeoutMs()));
+        return NettyFutureUtil.toCompletableFutureVoid(
+                ioEventLoopGroup.shutdownGracefully(0, timeoutMs, TimeUnit.MILLISECONDS));
     }
 
     private CompletableFuture<Void> addTimeoutHandling(CompletableFuture<Void> future) {
@@ -903,6 +936,10 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             if (config.isAuthorizationEnabled() && !config.isAuthenticationEnabled()) {
                 throw new IllegalStateException("Invalid broker configuration. Authentication must be enabled with "
                         + "authenticationEnabled=true when authorization is enabled with authorizationEnabled=true.");
+            }
+
+            if (!BindAddressValidator.validateBindAddresses(config, Arrays.asList("pulsar+ssl", "https")).isEmpty()) {
+                config.logTlsClientAuthMode("broker");
             }
 
             if (config.getDefaultRetentionSizeInMB() > 0
@@ -1005,6 +1042,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             offloaderStats = LedgerOffloaderStats.create(config.isExposeManagedLedgerMetricsInPrometheus(),
                     exposeTopicMetrics, offloaderScheduler, interval);
             this.defaultOffloader = createManagedLedgerOffloader(defaultOffloadPolicies);
+            checkOffloadStorage(defaultOffloadPolicies);
 
             setBrokerInterceptor(newBrokerInterceptor());
             // use getter to support mocking getBrokerInterceptor method in tests
@@ -1132,13 +1170,13 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             acquireSLANamespace();
 
-            // start function worker service if necessary
-            this.startWorkerService(brokerService.getAuthenticationService(), brokerService.getAuthorizationService());
-
             // start packages management service if necessary
             if (config.isEnablePackagesManagement()) {
                 this.startPackagesManagementService();
             }
+
+            // start function worker service if necessary
+            this.startWorkerService(brokerService.getAuthenticationService(), brokerService.getAuthorizationService());
 
             // Start the task to publish resource usage, if necessary
             this.resourceUsageTransportManager = DISABLE_RESOURCE_USAGE_TRANSPORT_MANAGER;
@@ -1746,6 +1784,26 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         });
     }
 
+    private void checkOffloadStorage(OffloadPoliciesImpl offloadPolicies) {
+        int timeoutSeconds = config.getManagedLedgerOffloadStorageCheckTimeoutSeconds();
+        if (timeoutSeconds <= 0 || defaultOffloader == NullLedgerOffloader.INSTANCE) {
+            return;
+        }
+        Duration timeout = Duration.ofSeconds(timeoutSeconds);
+        // Invoke plugins off the startup thread, including implementations that throw or block before returning.
+        offloadStorageCheck = FutureUtil.supplySafely(() -> CompletableFuture.supplyAsync(
+                () -> defaultOffloader.checkStorageAsync(timeout),
+                getOffloaderScheduler(offloadPolicies)).thenCompose(future -> future))
+                .orTimeout(timeoutSeconds, TimeUnit.SECONDS);
+        offloadStorageCheck.whenComplete((ignored, error) -> {
+            if (error != null && !(FutureUtil.unwrapCompletionException(error) instanceof CancellationException)) {
+                log.error().attr("driver", offloadPolicies.getManagedLedgerOffloadDriver())
+                        .exception(FutureUtil.unwrapCompletionException(error))
+                        .log("Failed to validate offload storage at startup");
+            }
+        });
+    }
+
     public LedgerOffloader createManagedLedgerOffloader(OffloadPoliciesImpl offloadPolicies)
             throws PulsarServerException {
         try {
@@ -2080,6 +2138,10 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
     public synchronized PulsarAdmin getAdminClient() throws PulsarServerException {
         if (this.adminClient == null) {
+            // The close closes the client once, so a client created once the service is closing could outlive it
+            if (!isRunning()) {
+                throw new PulsarServerException("Broker is not running");
+            }
             try {
                 this.adminClient = getCreateAdminClientBuilder().build();
                 log.info().attr("url", adminClient.getServiceUrl()).log("created admin with url");
@@ -2088,6 +2150,18 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             }
         }
         return this.adminClient;
+    }
+
+    private void closeAdminClient() {
+        PulsarAdmin adminClient;
+        // Under the lock of getAdminClient(), to also close a client that is still being created
+        synchronized (this) {
+            adminClient = this.adminClient;
+            this.adminClient = null;
+        }
+        if (adminClient != null) {
+            adminClient.close();
+        }
     }
 
     protected PulsarAdminBuilder getCreateAdminClientBuilder()

@@ -29,19 +29,20 @@ import lombok.Cleanup;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 public class PulsarClientToolWsTest extends BrokerTestBase {
 
-    @BeforeMethod
+    // The tests share a broker: each one uses a topic of its own
+    @BeforeClass
     @Override
     protected void setup() throws Exception {
         super.baseSetup();
     }
 
-    @AfterMethod(alwaysRun = true)
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();

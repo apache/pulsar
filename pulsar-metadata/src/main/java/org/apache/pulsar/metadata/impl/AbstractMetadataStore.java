@@ -363,6 +363,11 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         return metadataCache;
     }
 
+    /** Remove a cache that has been closed without closing the shared metadata store. */
+    public void unregisterMetadataCache(MetadataCacheImpl<?> cache) {
+        metadataCaches.remove(cache);
+    }
+
     @Override
     public CompletableFuture<Optional<GetResult>> get(String path, Set<Option> opts) {
         if (isClosed()) {
@@ -1002,6 +1007,11 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         MoreExecutors.shutdownAndAwaitTermination(schedulerExecutor, 10, TimeUnit.SECONDS);
         MoreExecutors.shutdownAndAwaitTermination(eventExecutor, 10, TimeUnit.SECONDS);
         this.metadataStoreStats.close();
+    }
+
+    @VisibleForTesting
+    int getMetadataCacheCount() {
+        return metadataCaches.size();
     }
 
     @VisibleForTesting

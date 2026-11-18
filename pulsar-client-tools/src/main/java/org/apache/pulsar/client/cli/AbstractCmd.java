@@ -22,6 +22,7 @@ import java.net.URI;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.Callable;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.pulsar.cli.ClientApi;
 import org.apache.pulsar.cli.ClientApiOptionGroups;
 import picocli.CommandLine.Model.CommandSpec;
@@ -59,6 +60,16 @@ public abstract class AbstractCmd implements Callable<Integer> {
         ClientApi clientApi = ClientApi.resolve(requested, List.of(topic), spec.commandLine());
         ClientApiOptionGroups.validate(spec, clientApi);
         return clientApi;
+    }
+
+    /**
+     * Whether {@code e} comes from the command's thread being interrupted, which is how pulsar-shell stops a
+     * running command on Ctrl-C. That is an expected way for a long-running command to end, so it is not logged
+     * as an error.
+     */
+    static boolean isInterruption(Throwable e) {
+        return Thread.currentThread().isInterrupted()
+                || ExceptionUtils.indexOfType(e, InterruptedException.class) >= 0;
     }
 
     static boolean isWebSocketUrl(String serviceURL) {

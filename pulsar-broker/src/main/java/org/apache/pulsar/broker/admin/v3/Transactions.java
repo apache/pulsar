@@ -523,7 +523,8 @@ public class Transactions extends TransactionsBase {
             @ApiResponse(responseCode = "307", description = "Topic is not owned by this broker!"),
             @ApiResponse(responseCode = "400", description = "Topic is not a persistent topic!"),
             @ApiResponse(responseCode = "409", description = "Concurrent modification"),
-            @ApiResponse(responseCode = "401", description = "This operation requires super-user access")})
+            @ApiResponse(responseCode = "401", description = "This operation requires super-user access "
+                    + "or being the owner of the transaction")})
     public void abortTransaction(@Suspended final AsyncResponse asyncResponse,
                                  @QueryParam("authoritative")
                                  @DefaultValue("false") boolean authoritative,

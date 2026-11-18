@@ -21,6 +21,7 @@ package org.apache.pulsar.client.api;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import lombok.Cleanup;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.testng.Assert;
@@ -113,12 +114,14 @@ public class ExposeMessageRedeliveryCountTest extends SharedPulsarBaseTest {
                 .subscriptionType(SubscriptionType.Shared)
                 .subscribe();
 
+        @Cleanup
         Consumer<String> consumer1 = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topic)
                 .subscriptionName("s1")
                 .subscriptionType(SubscriptionType.Shared)
                 .subscribe();
 
+        @Cleanup
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
                 .topic(topic)
                 .enableBatching(true)

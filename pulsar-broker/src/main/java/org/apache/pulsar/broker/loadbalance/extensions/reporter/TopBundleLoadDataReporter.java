@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.loadbalance.extensions.reporter;
 import com.google.common.annotations.VisibleForTesting;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.RejectedExecutionException;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
@@ -130,14 +131,23 @@ public class TopBundleLoadDataReporter implements LoadDataReporter<TopBundlesLoa
         switch (state) {
             case Releasing, Splitting -> {
                 if (Objects.equals(data.sourceBroker(), brokerId)) {
-                    tombstone();
+                    scheduleTombstone();
                 }
             }
             case Owned -> {
                 if (Objects.equals(data.dstBroker(), brokerId)) {
-                    tombstone();
+                    scheduleTombstone();
                 }
             }
+        }
+    }
+
+    // See BrokerLoadDataReporter.scheduleTombstone(): the channel's event thread must not wait for the store.
+    private void scheduleTombstone() {
+        try {
+            pulsar.getLoadManagerExecutor().execute(this::tombstone);
+        } catch (RejectedExecutionException e) {
+            log.debug().attr("broker", brokerId).log("Skipped the top bundles tombstone: the broker is closing");
         }
     }
 }

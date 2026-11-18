@@ -40,6 +40,7 @@ import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
 import org.apache.pulsar.common.api.proto.CommandTopicMigrated.ResourceType;
 import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.apache.pulsar.common.api.proto.ServerError;
+import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -316,13 +317,12 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
                             ctx.write(coalesced, ctx.voidPromise());
                             coalesced = null;
                         }
-                        // increment ref-count of data and release at the end of process:
-                        // so, we can get chance to call entry.release
+                        ByteBufPair message = cnx.newMessageAndIntercept(consumerId, entry.getLedgerId(),
+                                entry.getEntryId(), partitionIdx, redeliveryCount, metadataAndPayload, ackSet,
+                                topicName, epoch);
+                        // Retain only after construction succeeds; the entry owns the payload until then.
                         metadataAndPayload.retain();
-                        ctx.write(
-                                cnx.newMessageAndIntercept(consumerId, entry.getLedgerId(), entry.getEntryId(),
-                                        partitionIdx, redeliveryCount, metadataAndPayload, ackSet, topicName, epoch),
-                                ctx.voidPromise());
+                        ctx.write(message, ctx.voidPromise());
                     }
                     entriesToRelease.add(entry);
                 }

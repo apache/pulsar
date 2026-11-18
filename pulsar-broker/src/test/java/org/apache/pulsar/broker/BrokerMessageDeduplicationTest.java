@@ -24,6 +24,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -43,6 +44,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.MessageDeduplication;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -102,18 +104,16 @@ public class BrokerMessageDeduplicationTest {
     @Test
     public void markerMessageNotRecordPersistent() {
         Topic.PublishContext context = mock(Topic.PublishContext.class);
+        doReturn("p1").when(context).getProducerName();
          // marker message don't record message persisted.
         doReturn(true).when(context).isMarkerMessage();
         deduplication.recordMessagePersisted(context, null);
+        verify(deduplication, never()).recordMessagePersistedNormal(any(), any());
 
-        // if is not a marker message, we will get NPE. because context is mocked with null value fields.
+        // a message that isn't a marker is recorded
         doReturn(false).when(context).isMarkerMessage();
-        try {
-            deduplication.recordMessagePersisted(context, null);
-            fail();
-        } catch (Exception npe) {
-            assertTrue(npe instanceof NullPointerException);
-        }
+        deduplication.recordMessagePersisted(context, null);
+        verify(deduplication, times(1)).recordMessagePersistedNormal(any(), any());
     }
 
     @Test
@@ -239,6 +239,28 @@ public class BrokerMessageDeduplicationTest {
 
         assertEquals(String.valueOf(deduplication.getStatus()), "Disabled");
         verify(managedLedger, times(1)).asyncDeleteCursor(any(), any(), any());
+    }
+
+    @Test
+    public void checkStatusRetriesCursorDeleteAfterFailureOnInitialDisable() throws Exception {
+        final var deleteCursorCallback = new AtomicReference<AsyncCallbacks.DeleteCursorCallback>();
+        doReturn(false).when(topic).isDeduplicationEnabled();
+        doAnswer(invocation -> {
+            deleteCursorCallback.set(invocation.getArgument(1));
+            return null;
+        }).when(managedLedger).asyncDeleteCursor(any(), any(), any());
+
+        deduplication.checkStatus().get(3, TimeUnit.SECONDS);
+        assertEquals(String.valueOf(deduplication.getStatus()), "Removing");
+        deleteCursorCallback.get().deleteCursorFailed(new ManagedLedgerException("delete failed"), null);
+        assertEquals(String.valueOf(deduplication.getStatus()), "Failed");
+
+        final var retryFuture = deduplication.checkStatus();
+        verify(managedLedger, times(2)).asyncDeleteCursor(any(), any(), any());
+        deleteCursorCallback.get().deleteCursorComplete(null);
+        retryFuture.get(3, TimeUnit.SECONDS);
+
+        assertEquals(String.valueOf(deduplication.getStatus()), "Disabled");
     }
 
     @Test

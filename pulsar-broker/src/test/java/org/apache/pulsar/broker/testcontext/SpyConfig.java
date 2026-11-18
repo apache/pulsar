@@ -98,7 +98,7 @@ public class SpyConfig {
      */
     private final SpyType bookKeeperClient;
     /**
-     * Spy configuration for {@link PulsarService#getCompactionServiceFactory#getCompactor()}.
+     * Spy configuration for {@code PulsarService#getCompactionServiceFactory()#getCompactor()}.
      */
     private final SpyType compactor;
 

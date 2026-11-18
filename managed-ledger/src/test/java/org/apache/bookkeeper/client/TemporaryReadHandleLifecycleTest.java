@@ -51,7 +51,6 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
-import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerAlreadyClosedException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
@@ -61,6 +60,7 @@ import org.apache.bookkeeper.proto.BookkeeperInternalCallbacks.LedgerMetadataLis
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.bookkeeper.versioning.LongVersion;
 import org.apache.bookkeeper.versioning.Versioned;
+import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
 import org.awaitility.Awaitility;
@@ -74,7 +74,6 @@ public class TemporaryReadHandleLifecycleTest extends MockedBookKeeperTestCase {
     private final List<LedgerHandle> openedHandles = new CopyOnWriteArrayList<>();
     private LedgerManager ledgerManager;
     private volatile long delayedReadLedgerId = -1;
-    private volatile boolean failDelayedRead;
     private CompletableFuture<Runnable> delayedRead;
 
     @Override
@@ -82,7 +81,6 @@ public class TemporaryReadHandleLifecycleTest extends MockedBookKeeperTestCase {
         activeListeners.clear();
         openedHandles.clear();
         delayedReadLedgerId = -1;
-        failDelayedRead = false;
         delayedRead = new CompletableFuture<>();
         factory.shutdownAsync().get(5, TimeUnit.SECONDS);
         ledgerManager = mock(LedgerManager.class);
@@ -117,16 +115,10 @@ public class TemporaryReadHandleLifecycleTest extends MockedBookKeeperTestCase {
                     public void asyncReadEntries(long firstEntry, long lastEntry, AsyncCallback.ReadCallback callback,
                                                  Object ctx) {
                         // Use the in-memory ledger's entries while retaining the real handle lifecycle.
-                        Runnable read = () -> {
-                            if (getId() == delayedReadLedgerId && failDelayedRead) {
-                                callback.readComplete(BKException.Code.TimeoutException, this, null, ctx);
-                            } else {
-                                ((LedgerHandle) handle).asyncReadEntries(firstEntry, lastEntry,
-                                        (rc, originalHandle, entries, readCtx) ->
-                                                callback.readComplete(rc, this, entries, readCtx),
-                                        ctx);
-                            }
-                        };
+                        Runnable read = () -> ((LedgerHandle) handle).asyncReadEntries(firstEntry, lastEntry,
+                                (rc, originalHandle, entries, readCtx) ->
+                                        callback.readComplete(rc, this, entries, readCtx),
+                                ctx);
                         if (getId() != delayedReadLedgerId || !delayedRead.complete(read)) {
                             read.run();
                         }
@@ -309,18 +301,98 @@ public class TemporaryReadHandleLifecycleTest extends MockedBookKeeperTestCase {
         }
     }
 
-    @DataProvider(name = "cursorRecoveryCloseOrdering")
-    public Object[][] cursorRecoveryCloseOrdering() {
-        return new Object[][] {{false, false, false}, {true, false, false}, {false, true, false},
-                {true, true, false}, {true, false, true}};
-    }
-
-    @Test(dataProvider = "cursorRecoveryCloseOrdering")
-    public void testLazyRecoveryReleasesListenerAfterManagedLedgerClose(boolean closeBeforeRecovery, boolean failRead,
-                                                                       boolean failLedgerClose) throws Exception {
+    @Test
+    public void testLateRecoveryReleasesListenerWithoutChangingNextOwnersCursor() throws Exception {
         ManagedLedgerConfig config = defaultConfig().setRetentionTime(1, TimeUnit.DAYS).setRetentionSizeInMB(-1)
                 .setMaxUnackedRangesToPersistInMetadataStore(0);
-        ManagedLedger ledger = factory.open("lazy-cursor-close-listener", config);
+        ManagedLedger ledger = factory.open("late-recovery-listener", config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("cursor");
+        Position first = ledger.addEntry(new byte[] {1});
+        Position second = ledger.addEntry(new byte[] {2});
+        cursor.delete(second);
+        long cursorLedgerId = cursor.getCursorLedger();
+        assertThat(cursorLedgerId).isNotEqualTo(-1);
+        ledger.close();
+
+        delayedReadLedgerId = cursorLedgerId;
+        ManagedLedgerImpl previousOwner = (ManagedLedgerImpl) factory.open(ledger.getName(),
+                config.setLazyCursorRecovery(true));
+        Runnable resumeRead = delayedRead.get(5, TimeUnit.SECONDS);
+        LedgerHandle previousHandle = openedHandles.stream().filter(h -> h.getId() == cursorLedgerId)
+                .findFirst().orElseThrow();
+        LedgerMetadataListener previousListener = (LedgerMetadataListener) previousHandle;
+        CompletableFuture<ManagedCursor> recovery = new CompletableFuture<>();
+        AtomicInteger recoveryCallbacks = new AtomicInteger();
+        previousOwner.asyncOpenCursor("cursor", new AsyncCallbacks.OpenCursorCallback() {
+            @Override
+            public void openCursorComplete(ManagedCursor recovered, Object ctx) {
+                recoveryCallbacks.incrementAndGet();
+                recovery.complete(recovered);
+            }
+
+            @Override
+            public void openCursorFailed(ManagedLedgerException exception, Object ctx) {
+                recoveryCallbacks.incrementAndGet();
+                recovery.completeExceptionally(exception);
+            }
+        }, null);
+        ManagedLedger nextOwner = null;
+        boolean resumed = false;
+        try {
+            assertThat(activeListeners).containsExactly(previousListener);
+            Futures.CloseFuture closing = new Futures.CloseFuture();
+            previousOwner.asyncClose(closing, null);
+            closing.get(5, TimeUnit.SECONDS);
+            assertThat(recovery).as("managed-ledger close must not wait for the recovery read").isNotDone();
+            verify(ledgerManager, never()).unregisterLedgerMetadataListener(eq(cursorLedgerId), same(previousListener));
+
+            nextOwner = factory.open(ledger.getName(), config);
+            ManagedCursor nextCursor = nextOwner.openCursor("cursor");
+            LedgerHandle nextHandle = openedHandles.stream()
+                    .filter(h -> h.getId() == cursorLedgerId && h != previousHandle).findFirst().orElseThrow();
+            LedgerMetadataListener nextListener = (LedgerMetadataListener) nextHandle;
+            assertThat(activeListeners).containsExactlyInAnyOrder(previousListener, nextListener);
+            String cursorPath = "/managed-ledgers/" + ledger.getName() + "/cursor";
+            GetResult metadataBeforeRecovery = metadataStore.get(cursorPath).get(5, TimeUnit.SECONDS).orElseThrow();
+
+            resumeRead.run();
+            resumed = true;
+            assertThatThrownBy(() -> recovery.get(5, TimeUnit.SECONDS))
+                    .hasCauseInstanceOf(ManagedLedgerException.class);
+            assertThat(recoveryCallbacks).hasValue(1);
+            Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
+                assertThat(activeListeners).containsExactly(nextListener);
+                verify(ledgerManager).unregisterLedgerMetadataListener(eq(cursorLedgerId), same(previousListener));
+            });
+            verify(ledgerManager).registerLedgerMetadataListener(eq(cursorLedgerId), same(previousListener));
+            verify(ledgerManager, never()).unregisterLedgerMetadataListener(eq(cursorLedgerId), same(nextListener));
+            assertThat(previousOwner.getCursors()).isEmpty();
+            assertThat(previousOwner.getActiveCursors()).isEmpty();
+            assertCursorMetadataUnchanged(cursorPath, metadataBeforeRecovery, cursorLedgerId);
+            assertThat(nextCursor.isMessageDeleted(second)).isTrue();
+            assertThat(nextCursor.getNumberOfEntriesInBacklog(true)).isEqualTo(1);
+            nextCursor.markDelete(first);
+            assertThat(nextCursor.getNumberOfEntriesInBacklog(true)).isZero();
+        } finally {
+            if (!resumed) {
+                resumeRead.run();
+            }
+            try {
+                if (nextOwner != null) {
+                    nextOwner.close();
+                }
+                previousOwner.close();
+            } finally {
+                previousHandle.close();
+            }
+        }
+    }
+
+    @Test
+    public void testWriterCloseFailureReleasesRecoveredListenerWithoutGracefulCursorClose() throws Exception {
+        ManagedLedgerConfig config = defaultConfig().setRetentionTime(1, TimeUnit.DAYS).setRetentionSizeInMB(-1)
+                .setMaxUnackedRangesToPersistInMetadataStore(0);
+        ManagedLedger ledger = factory.open("writer-close-failure-listener", config);
         ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("cursor");
         ledger.addEntry(new byte[] {1});
         Position second = ledger.addEntry(new byte[] {2});
@@ -329,94 +401,40 @@ public class TemporaryReadHandleLifecycleTest extends MockedBookKeeperTestCase {
         assertThat(cursorLedgerId).isNotEqualTo(-1);
         ledger.close();
 
-        delayedReadLedgerId = cursorLedgerId;
-        failDelayedRead = failRead;
-        ManagedLedgerImpl reopened = (ManagedLedgerImpl) factory.open(ledger.getName(),
-                config.setLazyCursorRecovery(true));
-        Runnable resumeRead = delayedRead.get(5, TimeUnit.SECONDS);
+        ManagedLedger reopened = factory.open(ledger.getName(), config);
+        ManagedCursor recovered = reopened.openCursor("cursor");
         LedgerHandle handle = openedHandles.stream().filter(h -> h.getId() == cursorLedgerId).findFirst().orElseThrow();
         LedgerMetadataListener listener = (LedgerMetadataListener) handle;
-        CompletableFuture<ManagedCursor> recovery = new CompletableFuture<>();
-        // Observe the pending recovery through the public API, without accessing the internal cursor map.
-        reopened.asyncOpenCursor("cursor", new AsyncCallbacks.OpenCursorCallback() {
-            @Override
-            public void openCursorComplete(ManagedCursor cursor, Object ctx) {
-                recovery.complete(cursor);
-            }
-
-            @Override
-            public void openCursorFailed(ManagedLedgerException exception, Object ctx) {
-                recovery.completeExceptionally(exception);
-            }
-        }, null);
-        ManagedCursor recovered = null;
-        boolean resumed = false;
+        String cursorPath = "/managed-ledgers/" + ledger.getName() + "/cursor";
+        GetResult metadataBeforeClose = metadataStore.get(cursorPath).get(5, TimeUnit.SECONDS).orElseThrow();
         try {
-            assertThat(recovery).isNotDone();
             assertThat(activeListeners).containsExactly(listener);
             verify(ledgerManager).registerLedgerMetadataListener(eq(cursorLedgerId), same(listener));
+            bkc.failNow(BKException.Code.UnexpectedConditionException);
             Futures.CloseFuture closing = new Futures.CloseFuture();
-            Futures.CloseFuture repeatedClose = new Futures.CloseFuture();
-            if (closeBeforeRecovery) {
-                if (failLedgerClose) {
-                    bkc.failNow(BKException.Code.UnexpectedConditionException);
-                }
-                reopened.asyncClose(closing, null);
-                reopened.asyncClose(repeatedClose, null);
-                assertThat(reopened.getState()).isEqualTo(ManagedLedgerImpl.State.Closed);
-                assertThat(closing).isNotDone();
-                assertThat(repeatedClose).isNotDone();
-                assertThat(recovery).isNotDone();
-            }
-            resumeRead.run();
-            resumed = true;
-            if (failRead) {
-                assertThatThrownBy(() -> recovery.get(5, TimeUnit.SECONDS))
-                        .hasCauseInstanceOf(ManagedLedgerException.class);
-            } else if (closeBeforeRecovery) {
-                assertThatThrownBy(() -> recovery.get(5, TimeUnit.SECONDS))
-                        .hasCauseInstanceOf(ManagedLedgerAlreadyClosedException.class);
-            } else {
-                recovered = recovery.get(5, TimeUnit.SECONDS);
-            }
-            if (!closeBeforeRecovery) {
-                reopened.asyncClose(closing, null);
-            }
-            if (failLedgerClose) {
-                Throwable closeError = closing.handle((ignore, error) -> error).get(5, TimeUnit.SECONDS);
-                assertThat(closeError).isInstanceOf(ManagedLedgerException.class)
-                        .hasMessage(BKException.getMessage(BKException.Code.UnexpectedConditionException)
-                                + " error code: " + BKException.Code.UnexpectedConditionException);
-                Throwable repeatedCloseError = repeatedClose.handle((ignore, error) -> error).get(5, TimeUnit.SECONDS);
-                assertThat(repeatedCloseError).isSameAs(closeError);
-            } else {
-                closing.get(5, TimeUnit.SECONDS);
-                if (closeBeforeRecovery) {
-                    repeatedClose.get(5, TimeUnit.SECONDS);
-                }
-            }
-            reopened.close();
-            assertThat(reopened.getState()).isEqualTo(ManagedLedgerImpl.State.Closed);
+            reopened.asyncClose(closing, null);
+            Throwable closeError = closing.handle((ignore, error) -> error).get(5, TimeUnit.SECONDS);
+            assertThat(closeError).isInstanceOf(ManagedLedgerException.class)
+                    .hasMessage(BKException.getMessage(BKException.Code.UnexpectedConditionException)
+                            + " error code: " + BKException.Code.UnexpectedConditionException);
             assertListenerReleased(handle, listener);
-            if (recovered != null) {
-                assertThat(recovered.isClosed()).isTrue();
-            }
+            assertCursorMetadataUnchanged(cursorPath, metadataBeforeClose, cursorLedgerId);
+            assertThat(recovered.isMessageDeleted(second)).isTrue();
         } finally {
-            if (!resumed) {
-                resumeRead.run();
-            }
             try {
-                if (recovered == null && !recovery.isCompletedExceptionally()) {
-                    recovered = recovery.get(5, TimeUnit.SECONDS);
-                }
-                if (recovered != null) {
-                    recovered.close();
-                }
                 reopened.close();
             } finally {
                 handle.close();
             }
         }
+    }
+
+    private void assertCursorMetadataUnchanged(String path, GetResult before, long cursorLedgerId) throws Exception {
+        GetResult after = metadataStore.get(path).get(5, TimeUnit.SECONDS).orElseThrow();
+        assertThat(after.getValue()).isEqualTo(before.getValue());
+        assertThat(after.getStat().getVersion()).isEqualTo(before.getStat().getVersion());
+        assertThat(bkc.getLedgers()).contains(cursorLedgerId);
+        verify(bkc, never()).asyncDeleteLedger(eq(cursorLedgerId), any(), any());
     }
 
     private void assertListenerReleased(LedgerHandle handle, LedgerMetadataListener listener) {

@@ -1311,6 +1311,126 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         assertEquals(offloader.offloadedLedgers(), Set.of(allLedgerIds.get(0), allLedgerIds.get(1)));
     }
 
+    @Test
+    public void automaticOffloadFailureInBackgroundTaskDoesNotBlockLaterTriggers() throws Exception {
+        // When armed, fail once in the background offload task before it takes the offload mutex. Other callers,
+        // such as the trigger on the caller thread or ledger trimming, are not affected.
+        AtomicBoolean failureArmed = new AtomicBoolean();
+        CountDownLatch failureThrown = new CountDownLatch(1);
+        MockLedgerOffloader offloader = new MockLedgerOffloader() {
+                @Override
+                public boolean isAppendable() {
+                    if (isOnStack("maybeOffload") && failureArmed.compareAndSet(true, false)) {
+                        failureThrown.countDown();
+                        throw new IllegalStateException("injected offloader failure");
+                    }
+                    return super.isAppendable();
+                }
+            };
+        ManagedLedgerConfig config = defaultConfig();
+        config.setMaxEntriesPerLedger(10);
+        config.setRetentionTime(10, TimeUnit.MINUTES);
+        config.setRetentionSizeInMB(10);
+        offloader.getOffloadPolicies().setManagedLedgerOffloadThresholdInBytes(-1L);
+        offloader.getOffloadPolicies().setManagedLedgerOffloadThresholdInSeconds(null);
+        config.setLedgerOffloader(offloader);
+
+        ManagedLedgerImpl ledger =
+                (ManagedLedgerImpl) factory.open("my_test_ledger" + UUID.randomUUID(), config);
+
+        for (int i = 0; i < 25; i++) {
+            ledger.addEntry(buildEntry(10, "entry-" + i));
+        }
+        assertEquals(offloader.offloadedLedgers().size(), 0);
+
+        offloader.getOffloadPolicies().setManagedLedgerOffloadThresholdInBytes(0L);
+        failureArmed.set(true);
+        ledger.maybeOffloadInBackground(ManagedLedgerImpl.AUTOMATIC_OFFLOAD_TRIGGER);
+        assertTrue(failureThrown.await(5, TimeUnit.SECONDS));
+
+        // The failed automatic run must finish so that a later automatic trigger still offloads.
+        ledger.maybeOffloadInBackground(ManagedLedgerImpl.AUTOMATIC_OFFLOAD_TRIGGER);
+
+        assertEventuallyTrue(() -> offloader.offloadedLedgers().size() == 2);
+        List<Long> allLedgerIds = ledger.getLedgersInfoAsList().stream().map(LedgerInfo::getLedgerId).toList();
+        assertEquals(offloader.offloadedLedgers(), Set.of(allLedgerIds.get(0), allLedgerIds.get(1)));
+    }
+
+    @DataProvider(name = "failingLedgerIndex")
+    public Object[][] failingLedgerIndexProvider() {
+        return new Object[][]{
+                // The first ledger fails when the run starts offloading after taking the offload mutex.
+                {0},
+                // The second ledger fails when the loop continues from the first ledger's completion callback.
+                {1}
+        };
+    }
+
+    @Test(dataProvider = "failingLedgerIndex")
+    public void offloadLoopFailureReleasesOffloadMutex(int failingLedgerIndex) throws Exception {
+        // When armed, the offload loop fails once while it starts offloading the ledger at failingLedgerIndex.
+        AtomicInteger loopCallsUntilFailure = new AtomicInteger(-1);
+        CountDownLatch failureThrown = new CountDownLatch(1);
+        MockLedgerOffloader offloader = new MockLedgerOffloader() {
+                @Override
+                public String getOffloadDriverName() {
+                    if (calledFromOffloadLoop()
+                            && loopCallsUntilFailure.getAndUpdate(n -> n >= 0 ? n - 1 : n) == 0) {
+                        failureThrown.countDown();
+                        throw new IllegalStateException("injected offloader failure");
+                    }
+                    return super.getOffloadDriverName();
+                }
+            };
+        ManagedLedgerConfig config = defaultConfig();
+        config.setMaxEntriesPerLedger(10);
+        config.setRetentionTime(10, TimeUnit.MINUTES);
+        config.setRetentionSizeInMB(10);
+        offloader.getOffloadPolicies().setManagedLedgerOffloadThresholdInBytes(-1L);
+        offloader.getOffloadPolicies().setManagedLedgerOffloadThresholdInSeconds(null);
+        config.setLedgerOffloader(offloader);
+
+        ManagedLedgerImpl ledger =
+                (ManagedLedgerImpl) factory.open("my_test_ledger" + UUID.randomUUID(), config);
+
+        for (int i = 0; i < 25; i++) {
+            ledger.addEntry(buildEntry(10, "entry-" + i));
+        }
+        List<Long> ledgerIds = ledger.getLedgersInfoAsList().stream().map(LedgerInfo::getLedgerId).toList();
+        assertEquals(ledgerIds.size(), 3);
+        assertEquals(offloader.offloadedLedgers().size(), 0);
+
+        offloader.getOffloadPolicies().setManagedLedgerOffloadThresholdInBytes(0L);
+        loopCallsUntilFailure.set(failingLedgerIndex);
+        ledger.maybeOffloadInBackground(ManagedLedgerImpl.AUTOMATIC_OFFLOAD_TRIGGER);
+        assertTrue(failureThrown.await(5, TimeUnit.SECONDS));
+
+        // The failed run must release the offload mutex, so an explicit offload is not rejected as in progress.
+        Position offloadTo = PositionFactory.create(ledgerIds.get(2), 0);
+        Awaitility.await().atMost(10, TimeUnit.SECONDS)
+                .ignoreException(ManagedLedgerException.OffloadInProgressException.class)
+                .untilAsserted(() -> ledger.offloadPrefix(offloadTo));
+        assertEquals(offloader.offloadedLedgers(), Set.of(ledgerIds.get(0), ledgerIds.get(1)));
+
+        // The failed automatic run must finish, so the automatic offload triggered by the next rollover runs.
+        for (int i = 25; i < 35; i++) {
+            ledger.addEntry(buildEntry(10, "entry-" + i));
+        }
+        assertEventuallyTrue(() -> offloader.offloadedLedgers().contains(ledgerIds.get(2)));
+    }
+
+    private static boolean isOnStack(String methodName) {
+        return StackWalker.getInstance().walk(frames -> frames.anyMatch(f -> f.getMethodName().equals(methodName)));
+    }
+
+    // Matches only the offload loop's own lookup of the driver name, not lookups from callbacks it completes inline.
+    private static boolean calledFromOffloadLoop() {
+        // Skip this method and the overridden offloader method to reach their caller.
+        String caller = StackWalker.getInstance().walk(frames -> frames.skip(2).findFirst())
+                .map(StackWalker.StackFrame::getMethodName).orElse("");
+        return caller.equals("offloadLoop") || caller.equals("offloadNextLedger");
+    }
+
     @DataProvider(name = "offloadAsSoonAsClosed")
     public Object[][] offloadAsSoonAsClosedProvider() {
         return new Object[][]{

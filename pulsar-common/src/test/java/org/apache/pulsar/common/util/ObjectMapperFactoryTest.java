@@ -18,8 +18,15 @@
  */
 package org.apache.pulsar.common.util;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.Map;
+import org.apache.pulsar.common.policies.data.CompactionStats;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
+import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.policies.data.stats.CompactionStatsImpl;
+import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.stats.Metrics;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -50,4 +57,23 @@ public class ObjectMapperFactoryTest {
         }
     }
 
+    @Test
+    public void testAbstractTypeMappingsDeserializeToImplementation() throws Exception {
+        ObjectMapper objectMapper = ObjectMapperFactory.getMapper().getObjectMapper();
+        assertThat(ObjectMapperFactory.getAbstractTypeMappings())
+                .containsEntry(TopicStats.class, TopicStatsImpl.class)
+                .containsEntry(CompactionStats.class, CompactionStatsImpl.class)
+                .hasSize(36);
+        for (Map.Entry<Class<?>, Class<?>> mapping : ObjectMapperFactory.getAbstractTypeMappings().entrySet()) {
+            assertThat(objectMapper.readValue("{}", mapping.getKey()))
+                    .as("value deserialized as %s", mapping.getKey().getSimpleName())
+                    .isExactlyInstanceOf(mapping.getValue());
+        }
+    }
+
+    @Test
+    public void testAbstractTypeMappingsAreUnmodifiable() {
+        assertThatThrownBy(() -> ObjectMapperFactory.getAbstractTypeMappings().put(Object.class, Object.class))
+                .isInstanceOf(UnsupportedOperationException.class);
+    }
 }

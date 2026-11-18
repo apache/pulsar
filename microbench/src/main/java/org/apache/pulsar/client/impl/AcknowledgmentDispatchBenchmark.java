@@ -61,6 +61,7 @@ public class AcknowledgmentDispatchBenchmark {
     private MessageIdImpl[] messageIds;
 
     @Setup
+    @SuppressWarnings("deprecation") // statsInterval(0) has no non-deprecated equivalent
     public void setup() throws Exception {
         client = (PulsarClientImpl) PulsarClient.builder()
                 .serviceUrl("pulsar://localhost:6650")
