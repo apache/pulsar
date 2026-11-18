@@ -595,8 +595,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                             .thenRun(() -> initializeBookKeeper(callback))
                                             .exceptionally(ex -> {
                                                 callback.initializeFailed(
-                                                        new ManagedLedgerInterceptException(
-                                                                FutureUtil.unwrapCompletionException(ex)));
+                                                        new ManagedLedgerInterceptException(ex.getCause()));
                                                 return null;
                                             });
                                 } else {

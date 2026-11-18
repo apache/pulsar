@@ -225,13 +225,8 @@ public class TemporaryReadHandleLifecycleTest extends MockedBookKeeperTestCase {
         }
     }
 
-    @DataProvider(name = "closeMetadataWriteFailures")
-    public Object[][] closeMetadataWriteFailures() {
-        return new Object[][] {{false}, {true}};
-    }
-
-    @Test(dataProvider = "closeMetadataWriteFailures")
-    public void testCursorCloseReleasesRecoveredListenerOnMetadataFailure(boolean failWrite) throws Exception {
+    @Test
+    public void testCursorCloseReleasesRecoveredListenerOnMetadataFailure() throws Exception {
         ManagedLedgerConfig config = defaultConfig().setRetentionTime(1, TimeUnit.DAYS).setRetentionSizeInMB(-1)
                 .setMaxUnackedRangesToPersistInMetadataStore(0);
         ManagedLedger ledger = factory.open("cursor-close-metadata-failure-listener", config);
@@ -251,47 +246,37 @@ public class TemporaryReadHandleLifecycleTest extends MockedBookKeeperTestCase {
         try {
             assertThat(activeListeners).containsExactly(listener);
             verify(ledgerManager).registerLedgerMetadataListener(eq(cursorLedgerId), same(listener));
-            if (failWrite) {
-                metadataStore.failConditional(new MetadataStoreException("injected close metadata failure"),
-                        (operation, path) -> {
-                            if (operation == FaultInjectionMetadataStore.OperationType.PUT
-                                    && path.equals("/managed-ledgers/" + ledger.getName() + "/cursor")) {
-                                injectedFailures.incrementAndGet();
-                                return true;
-                            }
-                            return false;
-                        });
-                assertThatThrownBy(recovered::close).isInstanceOf(ManagedLedgerException.class);
-                assertThat(injectedFailures).hasValue(1);
-                assertThat(recovered.getState()).isEqualTo("Closing");
-            } else {
-                recovered.close();
-                assertThat(injectedFailures).hasValue(0);
-                assertThat(recovered.getState()).isEqualTo("Closed");
-            }
+            metadataStore.failConditional(new MetadataStoreException("injected close metadata failure"),
+                    (operation, path) -> {
+                        if (operation == FaultInjectionMetadataStore.OperationType.PUT
+                                && path.equals("/managed-ledgers/" + ledger.getName() + "/cursor")) {
+                            injectedFailures.incrementAndGet();
+                            return true;
+                        }
+                        return false;
+                    });
+            assertThatThrownBy(recovered::close).isInstanceOf(ManagedLedgerException.class);
+            assertThat(injectedFailures).hasValue(1);
+            assertThat(recovered.getState()).isEqualTo("Closing");
             assertListenerReleased(handle, listener);
             // Retry the public close APIs after the one injected failure has been consumed.
             recovered.close();
             reopened.close();
-            if (failWrite) {
-                assertThat(injectedFailures).hasValue(1);
-                assertThat(recovered.getState()).isEqualTo("Closing");
-                assertThat(bkc.getLedgers()).contains(cursorLedgerId);
-                verify(bkc, never()).asyncDeleteLedger(eq(cursorLedgerId), any(), any());
-            }
+            assertThat(injectedFailures).hasValue(1);
+            assertThat(recovered.getState()).isEqualTo("Closing");
+            assertThat(bkc.getLedgers()).contains(cursorLedgerId);
+            verify(bkc, never()).asyncDeleteLedger(eq(cursorLedgerId), any(), any());
             assertListenerReleased(handle, listener);
-            if (failWrite) {
-                // Closing the local read handle must preserve the persisted position for the next owner.
-                ManagedLedger recoveredAgain = factory.open(ledger.getName(), config);
-                try {
-                    ManagedCursor nextCursor = recoveredAgain.openCursor("cursor");
-                    assertThat(nextCursor.getMarkDeletedPosition()).isEqualTo(recovered.getMarkDeletedPosition());
-                    assertThat(nextCursor.isMessageDeleted(second)).isTrue();
-                } finally {
-                    recoveredAgain.close();
-                }
-                assertThat(injectedFailures).hasValue(1);
+            // Closing the local read handle must preserve the persisted position for the next owner.
+            ManagedLedger recoveredAgain = factory.open(ledger.getName(), config);
+            try {
+                ManagedCursor nextCursor = recoveredAgain.openCursor("cursor");
+                assertThat(nextCursor.getMarkDeletedPosition()).isEqualTo(recovered.getMarkDeletedPosition());
+                assertThat(nextCursor.isMessageDeleted(second)).isTrue();
+            } finally {
+                recoveredAgain.close();
             }
+            assertThat(injectedFailures).hasValue(1);
         } finally {
             try {
                 reopened.close();

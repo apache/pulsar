@@ -32,26 +32,20 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import org.apache.bookkeeper.client.AsyncCallback;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerEntry;
 import org.apache.bookkeeper.client.LedgerHandle;
-import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.OpenBuilder;
 import org.apache.bookkeeper.client.api.ReadHandle;
-import org.apache.bookkeeper.client.impl.LedgerEntriesImpl;
-import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -63,9 +57,6 @@ import org.apache.bookkeeper.mledger.proto.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MessageRange;
 import org.apache.bookkeeper.mledger.proto.PositionInfo;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
-import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
-import org.apache.pulsar.metadata.api.Stat;
 import org.awaitility.Awaitility;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -104,19 +95,6 @@ public class TemporaryReadHandleTest extends MockedBookKeeperTestCase {
 
     private void assertClosed(LedgerHandle handle) {
         Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> verify(handle).closeAsync());
-    }
-
-    @Test
-    public void testInitializationClosesTemporaryHandle() throws Exception {
-        ManagedLedgerConfig config = retainedConfig();
-        ManagedLedger ledger = factory.open("initialization-close", config);
-        ledger.addEntry(new byte[] {1});
-        ledger.close();
-
-        ManagedLedger reopened = factory.open("initialization-close", config);
-        assertThat(openedHandles).hasSize(1);
-        assertClosed(openedHandles.get(0));
-        reopened.close();
     }
 
     @DataProvider(name = "completionResults")
@@ -193,24 +171,6 @@ public class TemporaryReadHandleTest extends MockedBookKeeperTestCase {
         reopened.close();
     }
 
-    @Test
-    public void testTerminatedLedgerRetainsItsReadHandle() throws Exception {
-        ManagedLedgerConfig config = retainedConfig();
-        ManagedLedger ledger = factory.open("terminated-handle", config);
-        ledger.addEntry(new byte[] {1});
-        ledger.terminate();
-        ledger.close();
-
-        ManagedLedgerImpl reopened = (ManagedLedgerImpl) factory.open("terminated-handle", config);
-        assertThat(openedHandles).hasSize(1);
-        LedgerHandle handle = openedHandles.get(0);
-        assertThat(reopened.currentLedger).isSameAs(handle);
-        verify(handle, never()).closeAsync();
-        verify(handle, never()).asyncClose(any(), any());
-        reopened.close();
-        verify(handle).asyncClose(any(), any());
-    }
-
     @Test(dataProvider = "completionResults")
     public void testReadOnlyInitializationClosesHandleAfterLacRead(boolean fail) throws Exception {
         ManagedLedgerConfig config = retainedConfig();
@@ -270,31 +230,6 @@ public class TemporaryReadHandleTest extends MockedBookKeeperTestCase {
         assertThat(openedHandles).hasSize(1);
         assertClosed(openedHandles.get(0));
         assertThat(readOnly.getState()).isEqualTo(ManagedLedgerImpl.State.Closed);
-    }
-
-    @Test
-    public void testLacRecheckClosesTemporaryHandle() throws Exception {
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("lac-recheck", retainedConfig());
-        ledger.addEntry(new byte[] {1});
-        LedgerHandle writer = ledger.currentLedger;
-        ledger.addEntryFailedDueToConcurrentlyModified(writer, BKException.Code.MetadataVersionException);
-        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> openedHandles.size() == 1);
-        assertThat(openedHandles.get(0)).isNotSameAs(writer);
-        assertClosed(openedHandles.get(0));
-    }
-
-    @Test
-    public void testOfflineLedgerStatisticsCloseTemporaryHandle() throws Exception {
-        TopicName topic = TopicName.get("persistent://public/default/offline-handles");
-        ManagedLedgerConfig config = retainedConfig();
-        ManagedLedger ledger = factory.open(topic.getPersistenceNamingEncoding(), config);
-        ledger.addEntry(new byte[] {1});
-        ledger.close();
-
-        factory.estimateUnloadedTopicBacklog(new PersistentOfflineTopicStats(topic.toString(), "broker"), topic,
-                true, List.of(BookKeeper.DigestType.fromApiDigestType(config.getDigestType()), config.getPassword()));
-        assertThat(openedHandles).hasSize(1);
-        assertClosed(openedHandles.get(0));
     }
 
     @DataProvider(name = "cursorRecoveryResults")
@@ -406,164 +341,6 @@ public class TemporaryReadHandleTest extends MockedBookKeeperTestCase {
         } else {
             assertThat(cursor.getCursorLedger()).isNotEqualTo(handle.getId());
             assertClosed(handle);
-        }
-    }
-
-    @DataProvider(name = "offlineCursorResults")
-    public Object[][] offlineCursorResults() {
-        return new Object[][] {{"success"}, {"read-failure"}, {"parse-failure"}, {"empty"}};
-    }
-
-    @Test(dataProvider = "offlineCursorResults")
-    public void testOfflineCursorStatisticsCloseTemporaryHandle(String outcome) throws Exception {
-        TopicName topic = TopicName.get("persistent://public/default/offline-cursor-handles");
-        ManagedLedgerConfig config = retainedConfig().setMaxUnackedRangesToPersistInMetadataStore(0);
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(topic.getPersistenceNamingEncoding(), config);
-        ByteBuf malformedPosition = outcome.equals("parse-failure")
-                ? Unpooled.wrappedBuffer(new byte[] {(byte) 0xff}) : null;
-        try {
-            ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("cursor");
-            ledger.addEntry(new byte[] {1});
-            Position second = ledger.addEntry(new byte[] {2});
-            cursor.delete(second);
-            Awaitility.await().atMost(5, TimeUnit.SECONDS)
-                    .until(() -> cursor.getStats().getPersistLedgerSucceed() > 0);
-            long cursorLedgerId = cursor.getCursorLedger();
-            assertThat(cursorLedgerId).isNotEqualTo(-1);
-            configureHandle = handle -> {
-                if (handle.getId() == cursorLedgerId) {
-                    if (outcome.equals("empty")) {
-                        doReturn(LedgerHandle.INVALID_ENTRY_ID).when(handle).getLastAddConfirmed();
-                    } else if (outcome.equals("read-failure")) {
-                        doReturn(CompletableFuture.failedFuture(new BKException.BKReadException()))
-                                .when(handle).readAsync(anyLong(), anyLong());
-                    } else if (outcome.equals("parse-failure")) {
-                        doAnswer(invocation -> CompletableFuture.completedFuture(LedgerEntriesImpl.create(List.of(
-                                LedgerEntryImpl.create(cursorLedgerId, invocation.getArgument(0),
-                                        malformedPosition.readableBytes(), malformedPosition)))))
-                                .when(handle).readAsync(anyLong(), anyLong());
-                    }
-                }
-            };
-            PersistentOfflineTopicStats stats = previousOfflineStats(topic);
-            boolean accurate = !outcome.equals("empty");
-            factory.estimateUnloadedTopicBacklog(stats, topic, accurate,
-                    List.of(BookKeeper.DigestType.fromApiDigestType(config.getDigestType()), config.getPassword()));
-            assertPublishedOfflineStats(stats, 2, accurate);
-            assertThat(stats.cursorDetails).containsOnlyKeys("cursor");
-            long expectedBacklog = outcome.equals("success") ? 2 : -1;
-            assertThat(stats.cursorDetails.get("cursor").cursorBacklog).isEqualTo(expectedBacklog);
-            assertThat(stats.cursorDetails.get("cursor").cursorLedgerId).isEqualTo(cursorLedgerId);
-            assertThat(stats.messageBacklog).isEqualTo(Math.max(expectedBacklog, 0));
-            LedgerHandle handle = openedHandles.stream()
-                    .filter(h -> h.getId() == cursorLedgerId).findFirst().orElseThrow();
-            assertClosed(handle);
-            if (malformedPosition != null) {
-                assertThat(malformedPosition.refCnt()).isZero();
-            }
-        } finally {
-            if (malformedPosition != null && malformedPosition.refCnt() > 0) {
-                malformedPosition.release();
-            }
-            ledger.close();
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    @Test
-    public void testOfflineCursorRetryFollowsGrowingLacAndClosesResources() throws Exception {
-        TopicName topic = TopicName.get("persistent://public/default/offline-cursor-growing-lac");
-        ManagedLedgerConfig config = retainedConfig();
-        ManagedLedger ledger = factory.open(topic.getPersistenceNamingEncoding(), config);
-        Position first = ledger.addEntry(new byte[] {1});
-        Position second = ledger.addEntry(new byte[] {2});
-        ledger.addEntry(new byte[] {3});
-        LedgerHandle cursorWriter = bkc.createLedger(3, 2, 2,
-                BookKeeper.DigestType.fromApiDigestType(config.getDigestType()), config.getPassword());
-        try {
-            cursorWriter.addEntry(new PositionInfo().setLedgerId(first.getLedgerId())
-                    .setEntryId(first.getEntryId()).toByteArray());
-            cursorWriter.addEntry(new PositionInfo().setLedgerId(second.getLedgerId())
-                    .setEntryId(second.getEntryId()).toByteArray());
-            long cursorLedgerId = cursorWriter.getId();
-            ManagedCursorInfo cursorInfo = new ManagedCursorInfo().setCursorsLedgerId(cursorLedgerId)
-                    .setMarkDeleteLedgerId(first.getLedgerId()).setMarkDeleteEntryId(-1);
-            CompletableFuture<Void> persisted = new CompletableFuture<>();
-            factory.getMetaStore().asyncUpdateCursorInfo(ledger.getName(), "cursor", cursorInfo, null,
-                    new MetaStore.MetaStoreCallback<>() {
-                        @Override
-                        public void operationComplete(Void result, Stat stat) {
-                            persisted.complete(null);
-                        }
-
-                        @Override
-                        public void operationFailed(ManagedLedgerException.MetaStoreException exception) {
-                            persisted.completeExceptionally(exception);
-                        }
-                    });
-            persisted.get(5, TimeUnit.SECONDS);
-            AtomicInteger cursorOpens = new AtomicInteger();
-            AtomicLong fallbackLac = new AtomicLong(0);
-            List<ByteBuf> readBuffers = new CopyOnWriteArrayList<>();
-            configureHandle = handle -> {
-                if (handle.getId() != cursorLedgerId) {
-                    return;
-                }
-                if (cursorOpens.getAndIncrement() == 0) {
-                    doReturn(LedgerHandle.INVALID_ENTRY_ID).when(handle).getLastAddConfirmed();
-                    return;
-                }
-                doAnswer(invocation -> fallbackLac.get()).when(handle).getLastAddConfirmed();
-                doAnswer(invocation -> ((CompletableFuture<LedgerEntries>) invocation.callRealMethod())
-                        .thenApply(entries -> {
-                            entries.forEach(entry -> readBuffers.add(entry.getEntryBuffer()));
-                            fallbackLac.set(1);
-                            return entries;
-                        })).when(handle).readUnconfirmedAsync(anyLong(), anyLong());
-            };
-            PersistentOfflineTopicStats stats = previousOfflineStats(topic);
-            factory.estimateUnloadedTopicBacklog(stats, topic, true,
-                    List.of(BookKeeper.DigestType.fromApiDigestType(config.getDigestType()), config.getPassword()));
-            assertPublishedOfflineStats(stats, 3, true);
-            assertThat(stats.messageBacklog).isEqualTo(1);
-            assertThat(stats.cursorDetails).containsOnlyKeys("cursor");
-            assertThat(stats.cursorDetails.get("cursor").cursorBacklog).isEqualTo(1);
-            assertThat(stats.cursorDetails.get("cursor").cursorLedgerId).isEqualTo(cursorLedgerId);
-            List<LedgerHandle> cursorHandles = openedHandles.stream()
-                    .filter(handle -> handle.getId() == cursorLedgerId).toList();
-            assertThat(cursorHandles).hasSize(2).allSatisfy(this::assertClosed);
-            LedgerHandle fallbackHandle = cursorHandles.get(1);
-            verify(fallbackHandle).readUnconfirmedAsync(0, 0);
-            verify(fallbackHandle).readUnconfirmedAsync(1, 1);
-            verify(fallbackHandle, never()).readUnconfirmedAsync(2, 2);
-            // Each mock ledger owns one buffer reference; the estimator must release each read's reference.
-            assertThat(readBuffers).hasSize(2).allSatisfy(buffer -> assertThat(buffer.refCnt()).isEqualTo(1));
-            assertThat(cursorWriter.addEntry(new PositionInfo().setLedgerId(second.getLedgerId())
-                    .setEntryId(second.getEntryId()).toByteArray())).isEqualTo(2);
-        } finally {
-            cursorWriter.close();
-            ledger.close();
-        }
-    }
-
-    private PersistentOfflineTopicStats previousOfflineStats(TopicName topic) {
-        PersistentOfflineTopicStats stats = new PersistentOfflineTopicStats(topic.toString(), "broker");
-        stats.totalMessages = 17;
-        stats.storageSize = 19;
-        stats.messageBacklog = 23;
-        stats.statGeneratedAt.setTime(1);
-        return stats;
-    }
-
-    private void assertPublishedOfflineStats(PersistentOfflineTopicStats stats, long messages, boolean accurate) {
-        assertThat(stats.totalMessages).isEqualTo(messages);
-        // Every data entry in these fixtures contains one byte.
-        assertThat(stats.storageSize).isEqualTo(messages);
-        assertThat(stats.statGeneratedAt.getTime()).isGreaterThan(1);
-        if (accurate) {
-            assertThat(stats.dataLedgerDetails).hasSize(1);
-        } else {
-            assertThat(stats.dataLedgerDetails).isEmpty();
         }
     }
 

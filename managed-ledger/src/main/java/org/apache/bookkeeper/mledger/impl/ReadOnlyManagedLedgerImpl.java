@@ -19,6 +19,7 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import com.google.common.collect.Range;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import lombok.CustomLog;
@@ -83,30 +84,32 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
                             .withOrderingKey(name)
                             .execute()
                             .thenAccept(readHandle -> {
+                                CompletableFuture<Long> lacRead;
                                 try {
-                                    readHandle.readLastAddConfirmedAsync().thenAccept(lac -> {
-                                        LedgerInfo info = new LedgerInfo().setLedgerId(lastLedgerId)
-                                                .setEntries(lac + 1).setSize(readHandle.getLength())
-                                                .setTimestamp(clock.millis());
-                                        ledgers.put(lastLedgerId, info);
-                                    }).whenComplete((ignored, error) -> closeReadHandleAsync(readHandle, log))
-                                            .thenRun(() -> future.complete(null)).exceptionally(ex -> {
-                                        if (ex instanceof CompletionException
-                                                && ex.getCause() instanceof IllegalArgumentException) {
-                                            // The last ledger was empty, so we cannot read the last add confirmed.
-                                            LedgerInfo info = new LedgerInfo().setLedgerId(lastLedgerId)
-                                                    .setEntries(0).setSize(0).setTimestamp(clock.millis());
-                                            ledgers.put(lastLedgerId, info);
-                                            future.complete(null);
-                                        } else {
-                                            future.completeExceptionally(new ManagedLedgerException(ex));
-                                        }
-                                        return null;
-                                    });
+                                    lacRead = Objects.requireNonNull(readHandle.readLastAddConfirmedAsync());
                                 } catch (RuntimeException | Error error) {
                                     closeReadHandleAsync(readHandle, log);
                                     throw error;
                                 }
+                                lacRead.thenAccept(lastAddConfirmed -> {
+                                    LedgerInfo info = new LedgerInfo().setLedgerId(lastLedgerId)
+                                            .setEntries(lastAddConfirmed + 1).setSize(readHandle.getLength())
+                                            .setTimestamp(clock.millis());
+                                    ledgers.put(lastLedgerId, info);
+                                }).whenComplete((ignored, error) -> closeReadHandleAsync(readHandle, log))
+                                        .thenRun(() -> future.complete(null)).exceptionally(ex -> {
+                                    if (ex instanceof CompletionException
+                                            && ex.getCause() instanceof IllegalArgumentException) {
+                                        // The last ledger was empty, so we cannot read the last add confirmed.
+                                        LedgerInfo info = new LedgerInfo().setLedgerId(lastLedgerId)
+                                                .setEntries(0).setSize(0).setTimestamp(clock.millis());
+                                        ledgers.put(lastLedgerId, info);
+                                        future.complete(null);
+                                    } else {
+                                        future.completeExceptionally(new ManagedLedgerException(ex));
+                                    }
+                                    return null;
+                                });
                             }).exceptionally(ex -> {
                                 if (ex instanceof CompletionException
                                         && ex.getCause() instanceof ArrayIndexOutOfBoundsException) {
