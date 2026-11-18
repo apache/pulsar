@@ -19,6 +19,9 @@
 package org.apache.pulsar.client.admin.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import jakarta.ws.rs.client.Client;
+import jakarta.ws.rs.client.ClientBuilder;
+import jakarta.ws.rs.client.WebTarget;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.net.URI;
@@ -36,6 +39,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Authentication;
@@ -49,6 +53,7 @@ import org.apache.pulsar.client.api.v5.auth.HttpAuthHeadersProvider;
 import org.apache.pulsar.client.impl.auth.v5.AsyncHttpAuthenticationProvider;
 import org.apache.pulsar.client.impl.auth.v5.HttpAuthenticationDriver;
 import org.apache.pulsar.client.impl.auth.v5.HttpChallengeTransport;
+import org.asynchttpclient.RequestBuilder;
 import org.testng.annotations.Test;
 
 /**
@@ -205,6 +210,13 @@ public class AdminAuthOffloadTest {
 
         CompletableFuture<Map<String, String>> headers(URI uri) {
             return computeAuthHeaders(uri);
+        }
+    }
+
+    /** The minimal concrete {@link ComponentResource}, the base of the raw-AsyncHttpClient operations. */
+    private static final class TestComponentResource extends ComponentResource {
+        TestComponentResource(Authentication auth) {
+            super(auth, 30_000L);
         }
     }
 
@@ -390,6 +402,44 @@ public class AdminAuthOffloadTest {
             assertThat(auth.newRequestHeaderThread.get().getName()).isEqualTo("lent-auth-pool");
         } finally {
             lentPool.shutdownNow();
+        }
+    }
+
+    /**
+     * The operations that submit over the raw AsyncHttpClient — function, source, sink and package uploads and
+     * downloads — compose their headers through {@link ComponentResource#addAuthHeaders}, synchronously, before
+     * any future of theirs exists. A caller that chains one onto a previous admin future therefore runs that
+     * composition on the connector's IO thread, and the v5 warmup now goes over that same connector, so
+     * waiting for the headers there would hold the very loop the warmup needs: with one IO thread, a blocking
+     * wait never sees it complete. The composition must hand back a future instead.
+     */
+    @Test
+    public void composingHeadersForARawRequestNeverWaitsOnTheCallingThread() throws Exception {
+        ExecutorService ioLoop = Executors.newSingleThreadExecutor(r -> new Thread(r, "ahc-io-1"));
+        Client client = ClientBuilder.newClient();
+        try {
+            WebTarget target = client.target("http://broker.example:8080/admin/v2/functions");
+            TestComponentResource resource = new TestComponentResource(new ChallengeAuthentication());
+            // A transport that needs the loop to answer, the way the connector's AsyncHttpClient callback does.
+            AtomicInteger rounds = new AtomicInteger();
+            resource.setChallengeTransport((uri, requestHeaders, timeout) -> CompletableFuture.supplyAsync(
+                    () -> rounds.incrementAndGet() == 1
+                            ? new HttpChallengeTransport.Result(401, HttpAuthHeaders.of("server-state", "negotiate"))
+                            : new HttpChallengeTransport.Result(200, HttpAuthHeaders.of("role-token", "RT")),
+                    ioLoop));
+
+            RequestBuilder builder = new RequestBuilder("GET").setUrl(target.getUri().toASCIIString());
+            CompletableFuture<RequestBuilder> composed = CompletableFuture
+                    .supplyAsync(() -> resource.addAuthHeaders(target, builder), ioLoop)
+                    .thenCompose(headers -> headers);
+
+            assertThat(composed.get(30, TimeUnit.SECONDS).build().getHeaders().get("role-token"))
+                    .as("the warmup must be able to use the loop the composition was started on")
+                    .isEqualTo("RT");
+            assertThat(rounds.get()).isEqualTo(2);
+        } finally {
+            client.close();
+            ioLoop.shutdownNow();
         }
     }
 }

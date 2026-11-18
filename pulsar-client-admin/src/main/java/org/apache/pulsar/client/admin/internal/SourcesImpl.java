@@ -126,8 +126,8 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
                 // If the function code is built in, we don't need to submit here
                 builder.addBodyPart(new FilePart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM));
             }
-            asyncHttpRequestExecutor.executeRequest(addAuthHeaders(source, builder).build())
-                    .toCompletableFuture()
+            addAuthHeaders(source, builder)
+                    .thenCompose(request -> asyncHttpRequestExecutor.executeRequest(request.build()))
                     .thenAccept(response -> {
                         if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
                             future.completeExceptionally(
@@ -204,8 +204,8 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
                 // If the function code is built in, we don't need to submit here
                 builder.addBodyPart(new FilePart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM));
             }
-            asyncHttpRequestExecutor.executeRequest(addAuthHeaders(source, builder).build())
-                    .toCompletableFuture()
+            addAuthHeaders(source, builder)
+                    .thenCompose(request -> asyncHttpRequestExecutor.executeRequest(request.build()))
                     .thenAccept(response -> {
                         if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
                             future.completeExceptionally(

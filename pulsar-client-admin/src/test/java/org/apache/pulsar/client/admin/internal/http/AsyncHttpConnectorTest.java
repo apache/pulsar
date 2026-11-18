@@ -565,6 +565,37 @@ public class AsyncHttpConnectorTest {
                 .withRequestBody(absent()));
     }
 
+    /**
+     * The warmup is submitted through {@link AsyncHttpConnector#executeRequest(Request)} rather than straight
+     * to the AsyncHttpClient, which is built with {@code setFollowRedirect(false)}. So a {@code 3xx} in front
+     * of the broker — an ingress normalising the path, say — is followed here, as it is for the admin request
+     * the warmup precedes, instead of reaching the driver as an unexpected status.
+     */
+    @Test
+    public void testChallengeTransportFollowsARedirectInFrontOfTheBroker() throws Exception {
+        server.stubFor(get(urlEqualTo("/admin/v2/clusters"))
+                .willReturn(aResponse().withStatus(307).withHeader("Location", "/normalised/clusters")));
+        server.stubFor(get(urlEqualTo("/normalised/clusters"))
+                .willReturn(aResponse().withStatus(401).withHeader("SASL-State", "negotiate")));
+
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setServiceUrl("http://localhost:" + server.port());
+
+        @Cleanup
+        AsyncHttpConnector connector = new AsyncHttpConnector(5000, 5000,
+                5000, 0, conf, false, null);
+
+        HttpChallengeTransport.Result result = connector.getChallengeTransport()
+                .get(URI.create("http://localhost:" + server.port() + "/admin/v2/clusters"),
+                        HttpAuthHeaders.of("SASL-Token", "initial"), Duration.ofSeconds(10))
+                .get(30, TimeUnit.SECONDS);
+
+        assertEquals(result.statusCode(), 401);
+        assertThat(result.responseHeaders().get("SASL-State")).contains("negotiate");
+        server.verify(getRequestedFor(urlEqualTo("/normalised/clusters"))
+                .withHeader("SASL-Token", equalTo("initial")));
+    }
+
     private Request request(String path) {
         return new RequestBuilder("GET").setUrl("http://localhost:" + server.port() + path).build();
     }

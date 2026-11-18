@@ -435,7 +435,10 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
      * counterpart of the one {@code HttpClient} gives the lookup path: the SASL warmup rounds are issued by
      * a client built from the admin's own {@code ClientConfigurationData} — the TLS factory the provider
      * shares between its connectors, the proxy and the timeouts — rather than by one the authentication
-     * plugin builds for itself. Each round is a bodiless {@code GET} to the original URI.
+     * plugin builds for itself. Each round is a bodiless {@code GET} to the original URI, submitted through
+     * {@link AsyncHttpConnector#executeRequest(Request)} so that it follows a redirect in front of the
+     * broker the same way the admin request it precedes would: the client is built with
+     * {@code setFollowRedirect(false)} and redirects are followed here instead.
      */
     private final class AhcChallengeTransport implements HttpChallengeTransport {
         @Override
@@ -451,7 +454,7 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
                 if (timeout != null && !timeout.isNegative() && !timeout.isZero()) {
                     builder.setRequestTimeout(timeout);
                 }
-                builder.execute().toCompletableFuture().whenComplete((response, t) -> {
+                executeRequest(builder.build()).whenComplete((response, t) -> {
                     if (t != null) {
                         resultFuture.completeExceptionally(t);
                         return;
