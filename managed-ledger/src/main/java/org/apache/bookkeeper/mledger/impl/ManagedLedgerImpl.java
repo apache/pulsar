@@ -847,8 +847,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                         .attr("remaining", cursorCount.get() - 1)
                                         .attr("cost ms",  System.currentTimeMillis() - timestampStartRecoverCursor)
                                         .log("Recovery for cursor completed");
-                                cursor.setActive();
-                                addCursor(cursor);
+                                if (!tryRegisterRecoveredCursor(cursor)) {
+                                    cursor.closeReadOnlyCursorLedger();
+                                    if (cursorCount.getAndSet(-1) > 0) {
+                                        callback.initializeFailed(
+                                                new ManagedLedgerAlreadyClosedException("Managed ledger is closed"));
+                                    }
+                                    return;
+                                }
 
                                 if (cursorCount.decrementAndGet() == 0) {
                                     // The initialization is now completed, register the jmx mbean
@@ -900,9 +906,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         .log("Lazy recovery for cursor completed");
                 synchronized (ManagedLedgerImpl.this) {
                     failedLazyRecoveryCursors.remove(cursorName);
-                    if (state != State.Closed) {
-                        cursor.setActive();
-                        addCursor(cursor);
+                    if (tryRegisterRecoveredCursor(cursor)) {
                         uninitializedCursors.remove(cursorName).complete(cursor);
                         return;
                     }
@@ -927,6 +931,16 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }
         });
         return cursorRecoveryFuture;
+    }
+
+    private synchronized boolean tryRegisterRecoveredCursor(ManagedCursorImpl cursor) {
+        // Serialize registration with the transition to Closed in asyncClose.
+        if (state == State.Closed) {
+            return false;
+        }
+        cursor.setActive();
+        addCursor(cursor);
+        return true;
     }
 
     private void addCursor(ManagedCursorImpl cursor) {
@@ -1411,6 +1425,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 synchronized (ManagedLedgerImpl.this) {
                     deletingCursors.remove(consumerName, deleteFuture);
                 }
+                // Unload skips normal cursor cleanup in the DeletingFailed state.
+                cursor.closeReadOnlyCursorLedger();
                 callback.deleteCursorFailed(e, ctx);
                 deleteFuture.completeExceptionally(e);
             }
@@ -5665,6 +5681,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     private synchronized void setFenced(ManagedLedgerFencedException pendingAddsException) {
+        if (state == State.Closed) {
+            // Preserve the terminal state so late cursor recovery releases its local handle.
+            return;
+        }
         log.info().log("Moving to Fenced state");
         State prev = STATE_UPDATER.getAndSet(this, State.Fenced);
         if (prev != State.Fenced) {

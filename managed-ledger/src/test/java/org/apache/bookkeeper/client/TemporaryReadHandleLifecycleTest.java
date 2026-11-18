@@ -36,6 +36,7 @@ import java.security.GeneralSecurityException;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -43,6 +44,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 import org.apache.bookkeeper.client.api.OpenBuilder;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.meta.LedgerManager;
@@ -55,6 +57,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.impl.MetaStore;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.bookkeeper.proto.BookkeeperInternalCallbacks.LedgerMetadataListener;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
@@ -93,6 +96,7 @@ public class TemporaryReadHandleLifecycleTest extends MockedBookKeeperTestCase {
         bkc = spy(bkc);
         doAnswer(invocation -> trackOpens((OpenBuilder) invocation.callRealMethod(), context))
                 .when(bkc).newOpenLedgerOp();
+        metadataStore = spy(metadataStore);
         factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
     }
 
@@ -286,6 +290,161 @@ public class TemporaryReadHandleLifecycleTest extends MockedBookKeeperTestCase {
         }
     }
 
+    @SuppressWarnings("unchecked")
+    @Test
+    public void testDeleteMetadataFailureAfterUnloadReleasesRecoveredListener() throws Exception {
+        ManagedLedgerConfig config = defaultConfig().setRetentionTime(1, TimeUnit.DAYS).setRetentionSizeInMB(-1)
+                .setMaxUnackedRangesToPersistInMetadataStore(0);
+        ManagedLedger ledger = factory.open("cursor-delete-metadata-failure-listener", config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("cursor");
+        ledger.addEntry(new byte[] {1});
+        Position second = ledger.addEntry(new byte[] {2});
+        cursor.delete(second);
+        long cursorLedgerId = cursor.getCursorLedger();
+        assertThat(cursorLedgerId).isNotEqualTo(-1);
+        ledger.close();
+
+        ManagedLedger reopened = factory.open(ledger.getName(), config);
+        ManagedCursorImpl recovered = (ManagedCursorImpl) reopened.openCursor("cursor");
+        LedgerHandle handle = openedHandles.stream().filter(h -> h.getId() == cursorLedgerId).findFirst().orElseThrow();
+        LedgerMetadataListener listener = (LedgerMetadataListener) handle;
+        String cursorPath = "/managed-ledgers/" + ledger.getName() + "/cursor";
+        GetResult metadataBeforeDelete = metadataStore.get(cursorPath).get(5, TimeUnit.SECONDS).orElseThrow();
+        CompletableFuture<Void> releaseDelete = new CompletableFuture<>();
+        metadataStore.failConditional(new MetadataStoreException("injected cursor metadata delete failure"),
+                (operation, path) -> operation == FaultInjectionMetadataStore.OperationType.DELETE
+                        && path.equals(cursorPath));
+        doAnswer(invocation -> {
+            CompletableFuture<Void> failedDelete = (CompletableFuture<Void>) invocation.callRealMethod();
+            return releaseDelete.thenCompose(ignored -> failedDelete);
+        }).doCallRealMethod().when(metadataStore).delete(eq(cursorPath), any());
+        CompletableFuture<Void> deletion = new CompletableFuture<>();
+        try {
+            assertThat(activeListeners).containsExactly(listener);
+            reopened.asyncDeleteCursor("cursor", new AsyncCallbacks.DeleteCursorCallback() {
+                @Override
+                public void deleteCursorComplete(Object ctx) {
+                    deletion.complete(null);
+                }
+
+                @Override
+                public void deleteCursorFailed(ManagedLedgerException exception, Object ctx) {
+                    deletion.completeExceptionally(exception);
+                }
+            }, null);
+            assertThat(deletion).isNotDone();
+            Futures.CloseFuture closing = new Futures.CloseFuture();
+            reopened.asyncClose(closing, null);
+            closing.get(5, TimeUnit.SECONDS);
+            releaseDelete.complete(null);
+            assertThatThrownBy(() -> deletion.get(5, TimeUnit.SECONDS))
+                    .hasRootCauseMessage("injected cursor metadata delete failure");
+            assertThat(recovered.getState()).isEqualTo("DeletingFailed");
+            assertListenerReleased(handle, listener);
+            assertCursorMetadataUnchanged(cursorPath, metadataBeforeDelete, cursorLedgerId);
+        } finally {
+            releaseDelete.complete(null);
+            try {
+                reopened.close();
+            } finally {
+                handle.close();
+            }
+        }
+    }
+
+    @Test
+    public void testEagerRecoveryAfterInitializationFailureReleasesListener() throws Exception {
+        ManagedLedgerConfig config = defaultConfig().setRetentionTime(1, TimeUnit.DAYS).setRetentionSizeInMB(-1)
+                .setMaxUnackedRangesToPersistInMetadataStore(0);
+        ManagedLedger ledger = factory.open("eager-recovery-initialization-failure-listener", config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("slow-cursor");
+        ledger.openCursor("failing-cursor");
+        ledger.addEntry(new byte[] {1});
+        Position second = ledger.addEntry(new byte[] {2});
+        cursor.delete(second);
+        long cursorLedgerId = cursor.getCursorLedger();
+        assertThat(cursorLedgerId).isNotEqualTo(-1);
+        ledger.close();
+
+        String cursorPath = "/managed-ledgers/" + ledger.getName() + "/slow-cursor";
+        GetResult metadataBeforeRecovery = metadataStore.get(cursorPath).get(5, TimeUnit.SECONDS).orElseThrow();
+        CompletableFuture<Optional<GetResult>> failingMetadata = new CompletableFuture<>();
+        doReturn(failingMetadata).doCallRealMethod().when(metadataStore)
+                .get(eq("/managed-ledgers/" + ledger.getName() + "/failing-cursor"));
+        factory.shutdownAsync().get(5, TimeUnit.SECONDS);
+        CompletableFuture<ManagedLedgerImpl> initializing = new CompletableFuture<>();
+        Futures.CloseFuture firstClose = new Futures.CloseFuture();
+        factory = new ManagedLedgerFactoryImpl(metadataStore, bkc) {
+            @Override
+            protected ManagedLedgerImpl createManagedLedger(BookKeeper bk, MetaStore store, String name,
+                    ManagedLedgerConfig ledgerConfig, Supplier<CompletableFuture<Boolean>> ownershipChecker) {
+                ManagedLedgerImpl created = new ManagedLedgerImpl(this, bk, store, ledgerConfig,
+                        scheduledExecutor, name, ownershipChecker) {
+                    @Override
+                    public synchronized void asyncClose(AsyncCallbacks.CloseCallback callback, Object ctx) {
+                        super.asyncClose(new AsyncCallbacks.CloseCallback() {
+                            @Override
+                            public void closeComplete(Object context) {
+                                firstClose.closeComplete(context);
+                                callback.closeComplete(context);
+                            }
+
+                            @Override
+                            public void closeFailed(ManagedLedgerException exception, Object context) {
+                                firstClose.closeFailed(exception, context);
+                                callback.closeFailed(exception, context);
+                            }
+                        }, ctx);
+                    }
+                };
+                initializing.complete(created);
+                return created;
+            }
+        };
+        delayedReadLedgerId = cursorLedgerId;
+        CompletableFuture<ManagedLedger> opening = new CompletableFuture<>();
+        factory.asyncOpen(ledger.getName(), config.setLazyCursorRecovery(false),
+                new AsyncCallbacks.OpenLedgerCallback() {
+                    @Override
+                    public void openLedgerComplete(ManagedLedger opened, Object ctx) {
+                        opening.complete(opened);
+                    }
+
+                    @Override
+                    public void openLedgerFailed(ManagedLedgerException exception, Object ctx) {
+                        opening.completeExceptionally(exception);
+                    }
+                }, null, null);
+        Runnable resumeRead = delayedRead.get(5, TimeUnit.SECONDS);
+        LedgerHandle handle = openedHandles.stream().filter(h -> h.getId() == cursorLedgerId).findFirst().orElseThrow();
+        LedgerMetadataListener listener = (LedgerMetadataListener) handle;
+        boolean resumed = false;
+        try {
+            assertThat(activeListeners).containsExactly(listener);
+            assertThat(opening).isNotDone();
+            failingMetadata.completeExceptionally(new MetadataStoreException("injected eager cursor metadata failure"));
+            assertThatThrownBy(() -> opening.get(5, TimeUnit.SECONDS))
+                    .hasRootCauseMessage("injected eager cursor metadata failure");
+            firstClose.get(5, TimeUnit.SECONDS);
+            ManagedLedgerImpl failedLedger = initializing.get(5, TimeUnit.SECONDS);
+            assertThat(failedLedger.getState()).isEqualTo(ManagedLedgerImpl.State.Closed);
+            verify(ledgerManager, never()).unregisterLedgerMetadataListener(eq(cursorLedgerId), same(listener));
+
+            resumeRead.run();
+            resumed = true;
+            assertListenerReleased(handle, listener);
+            assertThat(failedLedger.getCursors()).isEmpty();
+            assertThat(failedLedger.getActiveCursors()).isEmpty();
+            assertCursorMetadataUnchanged(cursorPath, metadataBeforeRecovery, cursorLedgerId);
+        } finally {
+            failingMetadata.completeExceptionally(new MetadataStoreException("test cleanup"));
+            if (!resumed) {
+                resumeRead.run();
+            }
+            handle.close();
+        }
+    }
+
     @Test
     public void testLateRecoveryReleasesListenerWithoutChangingNextOwnersCursor() throws Exception {
         ManagedLedgerConfig config = defaultConfig().setRetentionTime(1, TimeUnit.DAYS).setRetentionSizeInMB(-1)
@@ -321,11 +480,22 @@ public class TemporaryReadHandleLifecycleTest extends MockedBookKeeperTestCase {
                 recovery.completeExceptionally(exception);
             }
         }, null);
+        String ledgerPath = "/managed-ledgers/" + ledger.getName();
+        CompletableFuture<Void> releaseWrite = new CompletableFuture<>();
+        CompletableFuture<Void> writeStarted = new CompletableFuture<>();
+        doAnswer(invocation -> {
+            byte[] value = invocation.getArgument(1);
+            Optional<Long> expectedVersion = invocation.getArgument(2);
+            writeStarted.complete(null);
+            return releaseWrite.thenCompose(ignored -> metadataStore.put(ledgerPath, value, expectedVersion));
+        }).doCallRealMethod().when(metadataStore).put(eq(ledgerPath), any(byte[].class), any());
+        Futures.CloseFuture closing = new Futures.CloseFuture();
         ManagedLedger nextOwner = null;
         boolean resumed = false;
         try {
             assertThat(activeListeners).containsExactly(previousListener);
-            Futures.CloseFuture closing = new Futures.CloseFuture();
+            CompletableFuture<Void> update = previousOwner.asyncAddLedgerProperty(first.getLedgerId(), "key", "value");
+            writeStarted.get(5, TimeUnit.SECONDS);
             previousOwner.asyncClose(closing, null);
             closing.get(5, TimeUnit.SECONDS);
             assertThat(recovery).as("managed-ledger close must not wait for the recovery read").isNotDone();
@@ -337,14 +507,20 @@ public class TemporaryReadHandleLifecycleTest extends MockedBookKeeperTestCase {
                     .filter(h -> h.getId() == cursorLedgerId && h != previousHandle).findFirst().orElseThrow();
             LedgerMetadataListener nextListener = (LedgerMetadataListener) nextHandle;
             assertThat(activeListeners).containsExactlyInAnyOrder(previousListener, nextListener);
-            String cursorPath = "/managed-ledgers/" + ledger.getName() + "/cursor";
+            String cursorPath = ledgerPath + "/cursor";
             GetResult metadataBeforeRecovery = metadataStore.get(cursorPath).get(5, TimeUnit.SECONDS).orElseThrow();
+
+            // The new owner's initialization advances the version, so the held write now fails with BadVersion.
+            releaseWrite.complete(null);
+            assertThatThrownBy(() -> update.get(5, TimeUnit.SECONDS))
+                    .hasRootCauseInstanceOf(MetadataStoreException.BadVersionException.class);
 
             resumeRead.run();
             resumed = true;
             assertThatThrownBy(() -> recovery.get(5, TimeUnit.SECONDS))
-                    .hasCauseInstanceOf(ManagedLedgerException.class);
+                    .hasCauseInstanceOf(ManagedLedgerException.ManagedLedgerAlreadyClosedException.class);
             assertThat(recoveryCallbacks).hasValue(1);
+            assertThat(previousOwner.getState()).isEqualTo(ManagedLedgerImpl.State.Closed);
             Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
                 assertThat(activeListeners).containsExactly(nextListener);
                 verify(ledgerManager).unregisterLedgerMetadataListener(eq(cursorLedgerId), same(previousListener));
@@ -359,6 +535,7 @@ public class TemporaryReadHandleLifecycleTest extends MockedBookKeeperTestCase {
             nextCursor.markDelete(first);
             assertThat(nextCursor.getNumberOfEntriesInBacklog(true)).isZero();
         } finally {
+            releaseWrite.cancel(false);
             if (!resumed) {
                 resumeRead.run();
             }
@@ -366,7 +543,9 @@ public class TemporaryReadHandleLifecycleTest extends MockedBookKeeperTestCase {
                 if (nextOwner != null) {
                     nextOwner.close();
                 }
-                previousOwner.close();
+                if (!closing.isDone()) {
+                    previousOwner.close();
+                }
             } finally {
                 previousHandle.close();
             }
