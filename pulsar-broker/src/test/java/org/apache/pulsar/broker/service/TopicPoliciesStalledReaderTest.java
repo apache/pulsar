@@ -466,8 +466,8 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
 
     @Test(timeOut = 120_000)
     public void testPolicyDeletedAndCompactedAfterInitializationTimeoutIsGone() throws Exception {
-        final TopicName deletedTopic = newTopic();
-        final TopicName otherTopic = newTopic();
+        final TopicName deletedTopic = newTopicNeverLoaded();
+        final TopicName otherTopic = newTopicNeverLoaded();
         final NamespaceName namespace = NamespaceName.get(NAMESPACE);
         setMaxConsumers(deletedTopic, 5).get(30, TimeUnit.SECONDS);
         // A second event, so the first pass of a reader is not over after the policy of the first topic.
@@ -519,7 +519,7 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
 
     @Test(timeOut = 120_000)
     public void testPolicyDeletedAndCompactedAfterReaderWasClosedIsGone() throws Exception {
-        final TopicName deletedTopic = newTopic();
+        final TopicName deletedTopic = newTopicNeverLoaded();
         setMaxConsumers(deletedTopic, 5).get(30, TimeUnit.SECONDS);
 
         closeReadersUnderTheService();
@@ -546,8 +546,8 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
 
     @Test(timeOut = 60_000)
     public void testPolicyReadBeforeFailedFirstPassIsKeptWithTheReader() throws Exception {
-        final TopicName firstTopic = newTopic();
-        final TopicName otherTopic = newTopic();
+        final TopicName firstTopic = newTopicNeverLoaded();
+        final TopicName otherTopic = newTopicNeverLoaded();
         final NamespaceName namespace = NamespaceName.get(NAMESPACE);
         setMaxConsumers(firstTopic, 5).get(30, TimeUnit.SECONDS);
         setMaxConsumers(otherTopic, 6).get(30, TimeUnit.SECONDS);
@@ -593,7 +593,7 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
 
     @Test(timeOut = 90_000)
     public void testListenerLearnsOfPolicyDeletedAfterReaderWasClosed() throws Exception {
-        final TopicName topicName = newTopic();
+        final TopicName topicName = newTopicNeverLoaded();
         final List<Optional<TopicPolicies>> updates = new CopyOnWriteArrayList<>();
         final TopicPolicyListener listener = policies -> updates.add(Optional.ofNullable(policies));
         service.registerListenerAsync(topicName, listener).get(30, TimeUnit.SECONDS);
@@ -718,6 +718,15 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
         final String topic = "persistent://" + NAMESPACE + "/topic-" + UUID.randomUUID();
         admin.topics().createNonPartitionedTopic(topic);
         return TopicName.get(topic);
+    }
+
+    /**
+     * A topic whose policies only the test reads. A loaded topic reads its policies from the service while it
+     * applies an update, and that read starts an initialization of the namespace where a test needs it to have
+     * none.
+     */
+    private static TopicName newTopicNeverLoaded() {
+        return TopicName.get("persistent://" + NAMESPACE + "/never-loaded-" + UUID.randomUUID());
     }
 
     private CompletableFuture<Void> setMaxConsumers(TopicName topicName, int maxConsumers) {
