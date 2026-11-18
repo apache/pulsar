@@ -152,7 +152,9 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
 
         int totalReceived = 0;
         do {
-            Message<byte[]> message = consumer.receive();
+            Message<byte[]> message = consumer.receive(10, TimeUnit.SECONDS);
+            assertNotNull(message, "the consumer stopped receiving before "
+                    + sendMessages * (maxRedeliveryCount + 1) + " deliveries");
             log.info().attr("receivedMessage", message.getMessageId()).attr("value", new String(message.getData()))
                     .log("consumer received message");
             totalReceived++;
@@ -160,7 +162,9 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
 
         int totalInDeadLetter = 0;
         do {
-            Message message = deadLetterConsumer.receive();
+            Message message = deadLetterConsumer.receive(10, TimeUnit.SECONDS);
+            assertNotNull(message, "the dead letter consumer stopped receiving before " + sendMessages
+                    + " messages");
             assertEquals(message.getKey(), "test-key");
             log.info().attr("receivedMessage", message.getMessageId()).attr("value", new String(message.getData()))
                     .log("dead letter consumer received message");
@@ -169,6 +173,9 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
         } while (totalInDeadLetter < sendMessages);
 
         deadLetterConsumer.close();
+        // The consumer acknowledges a message only once its DLQ send completes, which can be after the DLQ consumer
+        // received it: closing the consumer before that drops the acknowledgment and leaves the message unacknowledged
+        waitForEmptyBacklog(topic, "my-subscription");
         consumer.close();
     }
 
@@ -215,7 +222,9 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
 
         int totalReceived = 0;
         do {
-            Message<byte[]> message = consumer.receive();
+            Message<byte[]> message = consumer.receive(10, TimeUnit.SECONDS);
+            assertNotNull(message, "the consumer stopped receiving before "
+                    + sendMessages * (maxRedeliveryCount + 1) + " deliveries");
             log.info().attr("receivedMessage", message.getMessageId()).attr("value", new String(message.getData()))
                     .log("consumer received message");
             totalReceived++;
@@ -223,7 +232,9 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
 
         int totalInDeadLetter = 0;
         do {
-            Message message = deadLetterConsumer.receive();
+            Message message = deadLetterConsumer.receive(10, TimeUnit.SECONDS);
+            assertNotNull(message, "the dead letter consumer stopped receiving before " + sendMessages
+                    + " messages");
             assertEquals(message.getKeyBytes(), key);
             log.info().attr("receivedMessage", message.getMessageId()).attr("value", new String(message.getData()))
                     .log("dead letter consumer received message");
@@ -232,6 +243,9 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
         } while (totalInDeadLetter < sendMessages);
 
         deadLetterConsumer.close();
+        // The consumer acknowledges a message only once its DLQ send completes, which can be after the DLQ consumer
+        // received it: closing the consumer before that drops the acknowledgment and leaves the message unacknowledged
+        waitForEmptyBacklog(topic, "my-subscription");
         consumer.close();
     }
 
@@ -278,7 +292,9 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
 
         int totalReceived = 0;
         do {
-            Message<byte[]> message = consumer.receive();
+            Message<byte[]> message = consumer.receive(10, TimeUnit.SECONDS);
+            assertNotNull(message, "the consumer stopped receiving before "
+                    + sendMessages * (maxRedeliveryCount + 1) + " deliveries");
             log.info().attr("receivedMessage", message.getMessageId()).attr("value", new String(message.getData()))
                     .log("consumer received message");
             totalReceived++;
@@ -286,7 +302,9 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
 
         int totalInDeadLetter = 0;
         do {
-            Message message = deadLetterConsumer.receive();
+            Message message = deadLetterConsumer.receive(10, TimeUnit.SECONDS);
+            assertNotNull(message, "the dead letter consumer stopped receiving before " + sendMessages
+                    + " messages");
             assertEquals(message.getOrderingKey(), key);
             log.info().attr("receivedMessage", message.getMessageId()).attr("value", new String(message.getData()))
                     .log("dead letter consumer received message");
@@ -295,6 +313,9 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
         } while (totalInDeadLetter < sendMessages);
 
         deadLetterConsumer.close();
+        // The consumer acknowledges a message only once its DLQ send completes, which can be after the DLQ consumer
+        // received it: closing the consumer before that drops the acknowledgment and leaves the message unacknowledged
+        waitForEmptyBacklog(topic, "my-subscription");
         consumer.close();
     }
 
