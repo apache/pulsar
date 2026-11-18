@@ -396,6 +396,59 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
                 "Every delayed message should be redelivered exactly once after the reset");
     }
 
+    @Test(timeOut = 60_000)
+    public void testForwardResetSkipsDelayedMessagesAfterReset() throws Exception {
+        String topic = BrokerTestUtil.newUniqueName("persistent://public/default/testResetForwardSkip");
+
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+
+        for (int i = 0; i < 100; i++) {
+            producer.newMessage()
+                    .value("msg-" + i)
+                    .deliverAfter(3, TimeUnit.SECONDS)
+                    .send();
+        }
+
+        PersistentSubscription subscription = (PersistentSubscription) pulsar.getBrokerService()
+                .getTopicReference(topic).get().getSubscription("sub");
+        Awaitility.await().untilAsserted(() ->
+                Assert.assertEquals(subscription.getDispatcher().getNumberOfDelayedMessages(), 100));
+        assertFalse(subscription.getCursor().getCursorProperties().keySet().stream()
+                .filter(key -> key.startsWith(CURSOR_INTERNAL_PROPERTY_PREFIX)).toList().isEmpty());
+
+        consumer.close();
+
+        admin.topics().resetCursor(topic, "sub", MessageId.latest);
+
+        @Cleanup
+        Consumer<String> reconnectedConsumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+        // The delayed messages were already due by the time the reconnected consumer attached. A
+        // stale tracker or pre-reset bucket snapshot would deliver them; a clean reset must not.
+        Message<String> skipped = reconnectedConsumer.receive(8, TimeUnit.SECONDS);
+        assertNull(skipped, "Forward reset must not deliver messages it skipped");
+
+        Awaitility.await().untilAsserted(() ->
+                Assert.assertEquals(subscription.getDispatcher().getNumberOfDelayedMessages(), 0));
+        assertTrue(subscription.getCursor().getCursorProperties().keySet().stream()
+                .filter(key -> key.startsWith(CURSOR_INTERNAL_PROPERTY_PREFIX)).toList().isEmpty(),
+                "Forward reset should remove the pre-reset bucket cursor properties");
+    }
+
     @Test
     public void testResetCleansResidualSnapshotsAfterSubscriptionTypeSwitch() throws Exception {
         String topic = BrokerTestUtil.newUniqueName("persistent://public/default/testResetTypeSwitch");
