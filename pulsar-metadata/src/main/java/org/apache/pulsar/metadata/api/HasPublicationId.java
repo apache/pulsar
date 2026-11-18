@@ -20,6 +20,25 @@ package org.apache.pulsar.metadata.api;
 
 /** A metadata record that persists a unique ID for each logical write and reuses it on retries. */
 public interface HasPublicationId {
-    /** Returns the identifier stored in the record, or null or empty for a record written without one. */
+    /**
+     * Returns the publication ID stored in this record, or null or empty if absent.
+     *
+     * <p>Confirming a write after a bad-version response through this getter would require deserializing the stored
+     * record. Since the publication ID is included in the serialized bytes, the metadata store can compare those
+     * bytes directly, together with the expected next version, to avoid that CPU overhead. Verification therefore
+     * does not need to call this getter.
+     *
+     * <p>This getter and {@link #setPublication(String)} define a readable and writable publication property for
+     * implementing records. Implementations must serialize this property as part of the record. Each logical write
+     * must use a unique publication ID and preserve it across retries of that write.
+     */
     String getPublication();
+
+    /**
+     * Sets the publication ID to include in the serialized record.
+     *
+     * @param publication the unique ID for this logical write, reused across its retries
+     * @return this record
+     */
+    HasPublicationId setPublication(String publication);
 }

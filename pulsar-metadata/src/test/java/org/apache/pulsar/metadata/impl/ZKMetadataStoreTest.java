@@ -53,14 +53,24 @@ import org.testng.annotations.Test;
 
 public class ZKMetadataStoreTest {
 
-    private record Value(String id, String payload) implements HasPublicationId {
+    private static final class Value implements HasPublicationId {
+        private String id;
+        private final String payload;
+
         Value(String payload) {
-            this(UUID.randomUUID().toString(), payload);
+            this.payload = payload;
+            setPublication(UUID.randomUUID().toString());
         }
 
         @Override
         public String getPublication() {
             return id;
+        }
+
+        @Override
+        public Value setPublication(String publication) {
+            this.id = publication;
+            return this;
         }
 
         byte[] encode() {
@@ -114,7 +124,7 @@ public class ZKMetadataStoreTest {
                 loseNextMultiResponse(client, server);
                 assertThatThrownBy(() -> store.put(path, second, Optional.of(0L)).join())
                         .hasCauseInstanceOf(MetadataStoreException.BadVersionException.class);
-                Value changedPayload = new Value(update.id(), "other");
+                Value changedPayload = new Value("other").setPublication(update.getPublication());
                 loseNextMultiResponse(client, server);
                 assertThatThrownBy(() -> changedPayload.writeTo(store, path, 0).join())
                         .hasCauseInstanceOf(MetadataStoreException.BadVersionException.class);
