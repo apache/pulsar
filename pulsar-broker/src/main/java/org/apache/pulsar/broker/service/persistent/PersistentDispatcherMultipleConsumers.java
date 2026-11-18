@@ -1794,10 +1794,18 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     @Override
     public CompletableFuture<Void> clearDelayedMessagesAfterBacklogClear() {
         synchronized (this) {
-            Position markDeletedPosition = cursor.getMarkDeletedPosition();
-            if (markDeletedPosition != null) {
-                messagesPendingDelayedDeliveryTracker.keySet().removeIf(position ->
-                        position.compareTo(markDeletedPosition) <= 0);
+            if (delayedDeliveryTrackerRecoverySkipFuture != null) {
+                // The cursor is moving past the state these positions were read from. Drop every
+                // pre-clear pending position: a late tracker-creation retry must not install them
+                // after a forward reset, and the replay re-derives the positions that remain valid
+                // from the new cursor position.
+                messagesPendingDelayedDeliveryTracker.clear();
+            } else {
+                Position markDeletedPosition = cursor.getMarkDeletedPosition();
+                if (markDeletedPosition != null) {
+                    messagesPendingDelayedDeliveryTracker.keySet().removeIf(position ->
+                            position.compareTo(markDeletedPosition) <= 0);
+                }
             }
             // Keep positions arriving during the clear pending until the old tracker state is
             // cleared, then install them once. The release below runs regardless of the current

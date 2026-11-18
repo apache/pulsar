@@ -1072,7 +1072,7 @@ public class PersistentDispatcherMultipleConsumersTest extends SharedPulsarBaseT
         Mockito.doReturn(FutureUtil.failedFuture(new RuntimeException("failed to create tracker")))
                 .when(factory).newTrackerAsync(Mockito.any());
         PersistentDispatcherMultipleConsumers dispatcher = newDispatcherWithDelayedTrackerFactory(factory);
-        // The reset-path clear filters pending positions against the mark-delete position.
+        // The reset-path clear drops the pending positions before the cursor moves.
         ManagedCursor dispatcherCursor = dispatcher.getCursor();
         Mockito.doReturn(PositionFactory.create(0L, -1L)).when(dispatcherCursor).getMarkDeletedPosition();
         long deliverAtTime = System.currentTimeMillis() + 5_000;
@@ -1089,6 +1089,52 @@ public class PersistentDispatcherMultipleConsumersTest extends SharedPulsarBaseT
             Assert.assertTrue(dispatcher.isDelayedDeliveryTrackerCreatePending());
             CompletableFuture<Void> ordinaryClear = dispatcher.clearDelayedMessages();
             Assert.assertFalse(ordinaryClear.isDone());
+        } finally {
+            // Stop any further retry
+            dispatcher.close(false, Optional.empty()).get(1, TimeUnit.MINUTES);
+        }
+    }
+
+    @Test
+    public void testLateTrackerCreationAfterCursorResetDoesNotInstallPendingMessages() throws Exception {
+        // A creation retry that succeeds after the reset has been released must not install the
+        // pre-reset pending positions: they were read before the cursor moved and are either
+        // discarded by the move or re-derived by the replay from the new position.
+        DelayedDeliveryTrackerFactory factory = Mockito.mock(DelayedDeliveryTrackerFactory.class);
+        CompletableFuture<DelayedDeliveryTracker> gatedRetry = new CompletableFuture<>();
+        AtomicInteger attempts = new AtomicInteger();
+        Mockito.doAnswer(invocation -> {
+            if (attempts.getAndIncrement() == 0) {
+                return FutureUtil.failedFuture(new RuntimeException("failed to create tracker"));
+            }
+            return gatedRetry;
+        }).when(factory).newTrackerAsync(Mockito.any());
+
+        DelayedDeliveryTracker tracker = Mockito.mock(DelayedDeliveryTracker.class);
+        Mockito.doNothing().when(tracker).resetTickTime(Mockito.anyLong());
+
+        PersistentDispatcherMultipleConsumers dispatcher = newDispatcherWithDelayedTrackerFactory(factory);
+        ManagedCursor dispatcherCursor = dispatcher.getCursor();
+        Mockito.doReturn(PositionFactory.create(0L, -1L)).when(dispatcherCursor).getMarkDeletedPosition();
+        long deliverAtTime = System.currentTimeMillis() + 5_000;
+        try {
+            Assert.assertTrue(dispatcher.trackDelayedDelivery(1, 1, newDelayedMessageMetadata(deliverAtTime)));
+            Assert.assertTrue(dispatcher.isDelayedDeliveryTrackerCreatePending());
+
+            CompletableFuture<Void> resetClear = dispatcher.clearDelayedMessagesAfterBacklogClear();
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+                    assertThat(resetClear).isCompletedExceptionally());
+
+            // The reset settled without a successful retry, and the pre-reset pending position is gone.
+            Assert.assertEquals(dispatcher.getDelayedDeliveryTrackerCreatePendingMessages(), 0);
+
+            // A late retry succeeds after the reset has been released. It must install an empty tracker.
+            gatedRetry.complete(tracker);
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+                    assertThat(dispatcher.isDelayedDeliveryTrackerCreatePending()).isFalse());
+            Mockito.verify(tracker, Mockito.never()).addMessage(
+                    Mockito.anyLong(), Mockito.anyLong(), Mockito.anyLong());
+            assertThat(dispatcher.getNumberOfDelayedMessages()).isZero();
         } finally {
             // Stop any further retry
             dispatcher.close(false, Optional.empty()).get(1, TimeUnit.MINUTES);
