@@ -48,19 +48,13 @@ public class InMemoryRedeliveryTracker implements RedeliveryTracker {
 
     @Override
     public int getRedeliveryCount(long ledgerId, long entryId) {
-        long stamp = rwLock.tryOptimisticRead();
-        Long2IntMap entryMap = trackerCache.get(ledgerId);
-        int count = entryMap != null ? entryMap.get(entryId) : 0;
-        if (!rwLock.validate(stamp)) {
-            stamp = rwLock.readLock();
-            try {
-                entryMap = trackerCache.get(ledgerId);
-                count = entryMap != null ? entryMap.get(entryId) : 0;
-            } finally {
-                rwLock.unlockRead(stamp);
-            }
+        long stamp = rwLock.readLock();
+        try {
+            Long2IntMap entryMap = trackerCache.get(ledgerId);
+            return entryMap != null ? entryMap.get(entryId) : 0;
+        } finally {
+            rwLock.unlockRead(stamp);
         }
-        return count;
     }
 
     @Override
