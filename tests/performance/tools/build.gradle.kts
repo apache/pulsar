@@ -39,3 +39,7 @@ application {
     applicationName = "pulsar-performance-tools"
     mainClass.set("org.apache.pulsar.tests.performance.tools.PerformanceTool")
 }
+
+// The installed tools, which the launcher mounts into the workload containers: see SharedBuildArtifacts.kt
+val installDist = tasks.named<Sync>("installDist")
+shareBuildArtifact("performance-tools-install", installDist.map { it.destinationDir }, installDist)

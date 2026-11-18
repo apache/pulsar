@@ -51,6 +51,8 @@ public class PulsarByteBufAllocatorTypeTest {
         };
     }
 
+    // Covers the legacy pulsar.allocator.pooled property.
+    @SuppressWarnings("deprecation")
     @Test(dataProvider = "allocatorTypes")
     public void testAllocatorSelection(String type, String pooled, AllocatorType expected) {
         Properties properties = new Properties();
@@ -86,6 +88,8 @@ public class PulsarByteBufAllocatorTypeTest {
         }
     }
 
+    // Covers the legacy pulsar.allocator.pooled property.
+    @SuppressWarnings("deprecation")
     @Test
     public void testInvalidTypeDoesNotFallBackToLegacyProperty() {
         for (String type : new String[] {"", "invalid"}) {

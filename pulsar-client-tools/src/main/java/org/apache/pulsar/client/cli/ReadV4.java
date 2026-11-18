@@ -75,6 +75,7 @@ final class ReadV4 {
             ReaderBuilder<?> builder = client.newReader(schema)
                     .topic(topic)
                     .startMessageId(parseMessageId(cmd.startMessageId))
+                    .readCompacted(v4.readCompacted)
                     .poolMessages(v4.poolMessages);
 
             if (v4.startMessageIdInclusive) {
@@ -121,8 +122,10 @@ final class ReadV4 {
                 }
             }
         } catch (Exception e) {
-            LOG.error("Error while reading messages");
-            LOG.error(e.getMessage(), e);
+            if (!AbstractCmd.isInterruption(e)) {
+                LOG.error("Error while reading messages");
+                LOG.error(e.getMessage(), e);
+            }
             returnCode = -1;
         } finally {
             LOG.info("{} messages successfully read", numMessagesRead);

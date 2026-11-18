@@ -31,9 +31,11 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.regex.Pattern;
 import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -191,37 +193,14 @@ public class PulsarConfigurationLoader {
                         .attr("field", field.getName())
                         .attr("value", value)
                         .log("Validating configuration field");
-                boolean isRequired = field.getAnnotation(FieldContext.class).required();
-                long minValue = field.getAnnotation(FieldContext.class).minValue();
-                long maxValue = field.getAnnotation(FieldContext.class).maxValue();
-                if (isRequired && isEmpty(value)) {
-                    error.append(String.format("Required %s is null,", field.getName()));
-                }
-
-                if (value != null && Number.class.isAssignableFrom(value.getClass())) {
-                    long fieldVal = ((Number) value).longValue();
-                    boolean valid = fieldVal >= minValue && fieldVal <= maxValue;
-                    if (!valid) {
-                        error.append(String.format("%s value %d doesn't fit in given range (%d, %d),", field.getName(),
-                                fieldVal, minValue, maxValue));
-                    }
-                }
+                Optional<String> validationError = FieldContextValidator.validateParsedValue(field, value);
+                validationError.ifPresent(err -> error.append(err).append(","));
             }
         }
         if (error.length() > 0) {
             throw new IllegalArgumentException(error.substring(0, error.length() - 1));
         }
         return true;
-    }
-
-    private static boolean isEmpty(Object obj) {
-        if (obj == null) {
-            return true;
-        } else if (obj instanceof String) {
-            return StringUtils.isBlank((String) obj);
-        } else {
-            return false;
-        }
     }
 
     /**
@@ -284,10 +263,40 @@ public class PulsarConfigurationLoader {
     }
 
     /**
+     * Value reported by {@link #runtimeConfigurationOverrides(PulsarConfiguration)} in place of the value of a
+     * sensitive configuration key.
+     */
+    static final String MASKED_VALUE = "******";
+
+    /**
+     * Matches configuration key names whose values may hold secrets (passwords, tokens, keys, credentials,
+     * authentication / TLS factory parameters or basic authentication password hashes). The match is a
+     * case-insensitive substring match, so it also covers prefixed pass-through keys such as
+     * {@code brokerClient_authParams} or {@code bookkeeper_*}.
+     */
+    private static final Pattern SENSITIVE_KEY_PATTERN = Pattern.compile(
+            "password|passwd|secret|token|credential|accesskey|privatekey|authparam|authenticationparam"
+                    + "|factoryconfig|basicauth",
+            Pattern.CASE_INSENSITIVE);
+
+    /**
+     * Returns whether the value of the configuration key with the given name may hold a secret and must not be
+     * logged as-is.
+     */
+    static boolean isSensitiveKey(String key) {
+        return key != null && SENSITIVE_KEY_PATTERN.matcher(key).find();
+    }
+
+    private static Object maskIfSensitive(String key, Object value) {
+        return value != null && isSensitiveKey(key) ? MASKED_VALUE : value;
+    }
+
+    /**
      * Returns the subset of configuration whose values differ from the defaults of a freshly-instantiated
-     * configuration of the same class. Any entries in {@link PulsarConfiguration#getProperties()} that are not
-     * declared fields are also included. Useful to log only the user-provided overrides instead of the full
-     * configuration.
+     * configuration of the same class. Any non-blank entries in {@link PulsarConfiguration#getProperties()} that
+     * are not declared fields are also included. Useful to log only the user-provided overrides instead of the full
+     * configuration. Values of keys that may hold secrets (see {@link #isSensitiveKey(String)}) are replaced with
+     * {@link #MASKED_VALUE}.
      */
     public static Map<String, Object> runtimeConfigurationOverrides(PulsarConfiguration conf) {
         try {
@@ -306,7 +315,7 @@ public class PulsarConfigurationLoader {
                 Object current = field.get(conf);
                 Object def = field.get(defaults);
                 if (!Objects.equals(current, def)) {
-                    overrides.put(field.getName(), current);
+                    overrides.put(field.getName(), maskIfSensitive(field.getName(), current));
                 }
             }
             Properties props = conf.getProperties();
@@ -315,9 +324,16 @@ public class PulsarConfigurationLoader {
                     // Keys backed by a declared field were already compared against their defaults above;
                     // the properties file typically lists every setting, so re-adding them here would
                     // print the whole configuration.
-                    if (!declaredFields.contains(key)) {
-                        overrides.put(key, props.getProperty(key));
+                    if (declaredFields.contains(key)) {
+                        continue;
                     }
+                    String value = props.getProperty(key);
+                    // The shipped configuration files list many plugin and offloader keys with an empty value,
+                    // which is equivalent to leaving them unset.
+                    if (StringUtils.isBlank(value)) {
+                        continue;
+                    }
+                    overrides.put(key, maskIfSensitive(key, value));
                 }
             }
             return overrides;

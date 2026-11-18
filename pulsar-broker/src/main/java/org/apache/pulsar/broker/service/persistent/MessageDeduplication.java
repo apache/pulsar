@@ -204,6 +204,8 @@ public class MessageDeduplication {
                             log.error()
                                     .exception(exception)
                                     .log("Deleted deduplication cursor error");
+                            // Leave Removing so the next checkStatus() retries the delete
+                            status = Status.Failed;
                         }
                     }
                 }, null);
@@ -328,6 +330,11 @@ public class MessageDeduplication {
     public MessageDupStatus isDuplicate(PublishContext publishContext, ByteBuf headersAndPayload) {
         setContextPropsIfRepl(publishContext, headersAndPayload);
         if (!isEnabled() || publishContext.isMarkerMessage()) {
+            return MessageDupStatus.NotDup;
+        }
+        if (publishContext.getProducerName() == null) {
+            // The sequence IDs are tracked per producer: a publish without a producer, through the REST produce API,
+            // isn't deduplicated
             return MessageDupStatus.NotDup;
         }
         if (Producer.isRemoteOrShadow(publishContext.getProducerName(), replicatorPrefix)) {
@@ -551,8 +558,12 @@ public class MessageDeduplication {
         if (!isEnabled() || publishContext.isMarkerMessage()) {
             return;
         }
-        if (publishContext.getProducerName().startsWith(replicatorPrefix)
-                && publishContext.supportsReplDedupByLidAndEid()) {
+        String producerName = publishContext.getProducerName();
+        if (producerName == null) {
+            // Not deduplicated (see isDuplicate), but the entry counts toward the snapshot interval: the snapshot moves
+            // the deduplication cursor, which bounds the replay on recovery and holds back the trimming of the ledgers
+            increaseSnapshotCounterAndTakeSnapshotIfNeeded(position);
+        } else if (producerName.startsWith(replicatorPrefix) && publishContext.supportsReplDedupByLidAndEid()) {
             recordMessagePersistedRepl(publishContext, position);
         } else {
             recordMessagePersistedNormal(publishContext, position);

@@ -21,10 +21,12 @@ package org.apache.pulsar.broker.service.schema;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
+import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
+import org.apache.pulsar.broker.stats.TopicInternalInfo;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -33,6 +35,7 @@ import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.LongSchemaVersion;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.schema.Schemas;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -170,5 +173,37 @@ public class ClientGetSchemaTest extends SharedPulsarBaseTest {
         } finally {
             getConfig().setSchemaLedgerForceRecovery(origValue);
         }
+    }
+
+    /**
+     * Verifies that the offline topic internal-info reports the schema ledgers, even when a schema ledger was
+     * deleted, so operators can find the broken ledger without loading the topic.
+     */
+    @Test
+    public void testInternalInfoReportsDeletedSchemaLedger() throws Exception {
+        final String topicOne = newTopicName();
+
+        // (1) create topic with schema
+        Producer<Schemas.PersonTwo> producer = pulsarClient
+                .newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonTwo>builder().withAlwaysAllowNull(false)
+                        .withSupportSchemaVersioning(true).withPojo(Schemas.PersonTwo.class).build()))
+                .topic(topicOne).create();
+
+        producer.close();
+
+        String key = TopicName.get(topicOne).getSchemaName();
+        BookkeeperSchemaStorage schemaStorage = (BookkeeperSchemaStorage) getSchemaStorage();
+        long schemaLedgerId = schemaStorage.getSchemaLedgerList(key).get(0);
+
+        // (2) break schema locator by deleting schema-ledger
+        schemaStorage.getBookKeeper().deleteLedger(schemaLedgerId);
+
+        admin.topics().unload(topicOne);
+
+        // (3) the offline internal-info still lists the deleted schema ledger
+        String info = admin.topics().getInternalInfo(topicOne);
+        TopicInternalInfo internalInfo = ObjectMapperFactory.getMapper().reader()
+                .forType(TopicInternalInfo.class).readValue(info);
+        assertEquals(internalInfo.schemaLedgers, List.of(schemaLedgerId));
     }
 }

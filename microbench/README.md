@@ -74,6 +74,20 @@ Running specific benchmarks:
 java -jar microbench/build/libs/microbench-*-benchmarks.jar ".*BenchmarkName.*"
 ```
 
+`ManagedLedgerTrimScanBenchmark` compares the original full offload-deletion scan and `List.contains`
+checks with a policy guard and a scan after the ordinary deletion prefix. It uses the managed-ledger
+`ConcurrentSkipListMap` and real ledger metadata, including gaps in ledger IDs and a mix of complete,
+incomplete, recent, and already-deleted offloads. Parameters cover 1,000/10,000 ledgers, 0%/50% ordinary
+deletion candidates, and absent, null-lag, negative-lag, zero-lag, and positive-lag policies. Setup checks
+that both algorithms select the same ordered candidates. This measures scan and membership costs with
+result-list allocation; it excludes retention checks, locks, worker scheduling, metadata updates, and
+BookKeeper deletion, so results are not full trim or broker latency. For a focused run with allocation data:
+
+```shell
+java -jar microbench/build/libs/microbench-*-benchmarks.jar ManagedLedgerTrimScanBenchmark \
+  -p ledgerCount=10000 -p ordinaryDeletionPercent=0,50 -p policy=ABSENT,POSITIVE_LAG -prof gc
+```
+
 Running specific benchmarks with machine-readable output and saving the output to a file:
 
 ```shell
