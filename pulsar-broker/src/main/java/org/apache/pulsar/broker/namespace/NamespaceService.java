@@ -149,7 +149,7 @@ public class NamespaceService implements AutoCloseable {
     private static final Pattern LEGACY_BROKER_ID = Pattern.compile("[^:]+:\\d+");
     private static final String ESCAPED_BROKER_ID_PREFIX = "broker-id=";
     private static final String BROKER_ID_NAMESPACE_PATTERN =
-            "(" + LEGACY_BROKER_ID.pattern() + "|" + ESCAPED_BROKER_ID_PREFIX + "((?:[0-9a-f]{2})*))";
+            "(" + LEGACY_BROKER_ID.pattern() + "|" + ESCAPED_BROKER_ID_PREFIX + "((?:[0-9a-f]{2})+))";
     public static final Pattern HEARTBEAT_NAMESPACE_PATTERN = Pattern.compile("pulsar/" + BROKER_ID_NAMESPACE_PATTERN);
     public static final Pattern SLA_NAMESPACE_PATTERN =
             Pattern.compile(SLA_NAMESPACE_PROPERTY + "/" + BROKER_ID_NAMESPACE_PATTERN);

@@ -129,6 +129,7 @@ public class NamespaceServiceBrokerIdTest {
         return new Object[][]{
                 {"public/default", false}, {"pulsar/system", true}, {"pulsar/default", false},
                 {"sla-monitor/default", false}, {"pulsar/broker-id=a", false},
+                {"pulsar/broker-id=", false}, {"sla-monitor/broker-id=", false},
                 {"pulsar/broker-id=zz", false}, {"sla-monitor/broker-id=zz", false},
                 {"pulsar/foo:bar:123", false}, {"sla-monitor/foo:bar:123", false},
                 {"pulsar/::1:8080", false}, {"sla-monitor/::1:8080", false},
