@@ -318,11 +318,14 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         BucketDelayedDeliveryTracker tracker2 = new BucketDelayedDeliveryTracker(
                 dispatcher, timer, 1000, clock, true, localStorage, 4, TimeUnit.MILLISECONDS.toMillis(10), 2, 50);
 
-        // Trigger the segment loading
+        // Trigger the segment loading. Accumulate the results of every call: when the segment
+        // futures complete quickly the first call can already consume (4, 4), leaving later calls
+        // with an empty queue.
         clockTime.set(600);
-        tracker2.getScheduledMessages(10);
+        NavigableSet<Position> scheduledMessages = tracker2.getScheduledMessages(10);
         Awaitility.await().untilAsserted(() -> {
-            assertTrue(tracker2.getScheduledMessages(10).contains(PositionFactory.create(4, 4)));
+            scheduledMessages.addAll(tracker2.getScheduledMessages(10));
+            assertTrue(scheduledMessages.contains(PositionFactory.create(4, 4)));
             verify(localStorage, atLeastOnce()).getBucketSnapshotSegment(anyLong(), anyLong(), anyLong());
         });
     }
