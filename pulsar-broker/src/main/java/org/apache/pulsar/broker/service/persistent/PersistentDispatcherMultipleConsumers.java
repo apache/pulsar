@@ -1625,11 +1625,17 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
 
     private void addPendingMessagesToTracker(DelayedDeliveryTracker tracker) {
         tracker.resetTickTime(topic.getDelayedDeliveryTickTimeMillis());
+        Position markDeletedPosition = cursor.getMarkDeletedPosition();
         try {
             var iterator = messagesPendingDelayedDeliveryTracker.entrySet().iterator();
             while (iterator.hasNext()) {
                 Map.Entry<Position, Long> entry = iterator.next();
                 Position position = entry.getKey();
+                if (markDeletedPosition != null && position.compareTo(markDeletedPosition) <= 0) {
+                    // The cursor moved past this position while the tracker was being created.
+                    iterator.remove();
+                    continue;
+                }
                 if (!tracker.addMessage(position.getLedgerId(), position.getEntryId(), entry.getValue())) {
                     // The delivery time has already passed
                     redeliveryMessages.add(position.getLedgerId(), position.getEntryId());
