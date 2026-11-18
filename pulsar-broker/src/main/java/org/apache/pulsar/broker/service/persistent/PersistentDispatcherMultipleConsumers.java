@@ -1197,6 +1197,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                 // Topic has been terminated and there are no more entries to read
                 // Notify the consumer only if all the messages were already acknowledged
                 checkAndApplyReachedEndOfTopicOrTopicMigration(consumerList);
+                // Keep migration retries and confirm the backlog is empty before stopping.
+                if (!topic.isMigrated() && !cursor.hasBacklog(true)) {
+                    waitTimeMillis = -1;
+                }
             }
         } else if (exception.getCause() instanceof TransactionBufferException.TransactionNotSealedException
                 || exception.getCause() instanceof ManagedLedgerException.OffloadReadHandleClosedException) {
