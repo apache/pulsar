@@ -460,6 +460,59 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
         }
     }
 
+    @Test(timeOut = 120_000)
+    public void testPolicyDeletedAndCompactedAfterInitializationTimeoutIsGone() throws Exception {
+        final TopicName deletedTopic = newTopic();
+        final TopicName otherTopic = newTopic();
+        final NamespaceName namespace = NamespaceName.get(NAMESPACE);
+        setMaxConsumers(deletedTopic, 5).get(30, TimeUnit.SECONDS);
+        // A second event, so the first pass of a reader is not over after the policy of the first topic.
+        setMaxConsumers(otherTopic, 6).get(30, TimeUnit.SECONDS);
+
+        // The reader of the initialization that is to time out: it delivers the policy that is deleted later, and
+        // then stalls. It has that event in hand already, so the initialization caches the policy on the thread
+        // that starts it, before its timeout can fire, however slow the host is.
+        final StallableReader stalledReader = service.prepareNextReader(namespace);
+        assertThat(stalledReader.topicOfEventInHand())
+                .describedAs("the first event of __change_events must be the policy that is deleted below")
+                .isEqualTo(deletedTopic);
+        stalledReader.stall();
+
+        // The unload drops the namespace's policy state, and the lookup makes the broker take the bundle again,
+        // which starts an initialization. The timeout is the one in force when the initialization starts.
+        pulsar.getConfiguration().setTopicPoliciesCacheInitTimeoutSeconds(READ_TIMEOUT_SECONDS);
+        admin.namespaces().unload(NAMESPACE);
+        admin.lookups().lookupTopic(deletedTopic.toString());
+        Awaitility.await().atMost(STALL_REPORTED_WITHIN.plusSeconds(30)).untilAsserted(() ->
+                assertThat(stalledReader.isClosed())
+                        .describedAs("the initialization that got the stalled reader must time out after"
+                                + " topicPoliciesCacheInitTimeoutSeconds=%d and close it", READ_TIMEOUT_SECONDS)
+                        .isTrue());
+        restoreDefaultTimeout();
+        assertThat(stalledReader.holdsEventInHand())
+                .describedAs("the initialization that timed out must have read the policy from the reader")
+                .isFalse();
+
+        // Another broker of the cluster deletes the policy before this broker reads __change_events again, and
+        // compaction drops the key together with its tombstone, so no later reader can learn of the deletion.
+        writeEventAsAnotherBroker(deletedTopic, null);
+        compactChangeEvents();
+        assertThat(TopicPolicyTestUtils.getTopicPoliciesBypassCache(service, deletedTopic, false))
+                .describedAs("a new reader still finds a policy for the topic in the compacted __change_events, so"
+                        + " the deletion was not compacted away and this is not the scenario under test")
+                .isEmpty();
+        assertThat(service.getPoliciesCacheInit(namespace))
+                .describedAs("an initialization ran between the timeout and the compaction: its reader got the"
+                        + " deletion delivered, so this is not the scenario under test")
+                .isNull();
+
+        assertThat(service.getTopicPoliciesAsync(deletedTopic, TopicPoliciesService.GetType.LOCAL_ONLY))
+                .describedAs("the next initialization cannot see the deletion any more, so the policy cache must"
+                        + " not keep what the initialization that timed out had read")
+                .succeedsWithin(Duration.ofSeconds(30))
+                .isEqualTo(Optional.empty());
+    }
+
     /** The limit the loaded topic enforces; the admin API answers from the policy cache instead. */
     private static Integer liveMaxConsumers(PersistentTopic topic) {
         return topic.getHierarchyTopicPolicies().getMaxConsumerPerTopic().get();
@@ -588,6 +641,7 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
         private final AtomicReference<HeldWrite> nextWriteHold = new AtomicReference<>();
         private final AtomicReference<NamespaceName> unloadBeforeNextReader = new AtomicReference<>();
         private final AtomicReference<Runnable> afterNextPolicyDeletion = new AtomicReference<>();
+        private final AtomicReference<StallableReader> nextReader = new AtomicReference<>();
         /** The factory the service takes its writers from; its writers consult {@link #nextWriteHold}. */
         private final NamespaceEventsSystemTopicFactory systemTopicFactory;
 
@@ -604,11 +658,29 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
                 // reader exists: what removeOwnedNamespaceBundleAsync runs for the last bundle of the namespace.
                 cleanPoliciesCacheInitMap(namespace);
             }
+            final StallableReader prepared = nextReader.get();
+            if (prepared != null && namespace.equals(prepared.namespace())
+                    && nextReader.compareAndSet(prepared, null)) {
+                return CompletableFuture.completedFuture(prepared);
+            }
             return super.createSystemTopicClient(namespace).thenApply(reader -> {
                 final StallableReader stallable = new StallableReader(reader);
                 readers.add(stallable);
                 return stallable;
             });
+        }
+
+        /**
+         * Creates the reader that the next initialization of {@code namespace} gets, with the first event of the
+         * namespace's {@code __change_events} in hand: the initialization applies that event on the thread that
+         * starts it, without waiting for the broker.
+         */
+        StallableReader prepareNextReader(NamespaceName namespace) throws Exception {
+            final StallableReader reader =
+                    (StallableReader) createSystemTopicClient(namespace).get(30, TimeUnit.SECONDS);
+            reader.fetchFirstEvent();
+            assertThat(nextReader.compareAndSet(null, reader)).describedAs("a reader is already prepared").isTrue();
+            return reader;
         }
 
         /** Runs the namespace's unload teardown on the thread that next creates a reader for it, just before. */
@@ -786,6 +858,8 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
         private final CompletableFuture<Message<PulsarEvent>> heldDelivery = new CompletableFuture<>();
         private final AtomicReference<Message<PulsarEvent>> heldEvent = new AtomicReference<>();
         private final AtomicBoolean firstReadStalled = new AtomicBoolean();
+        /** The first event of the topic, fetched before the service asks for it ({@link #fetchFirstEvent()}). */
+        private final AtomicReference<Message<PulsarEvent>> eventInHand = new AtomicReference<>();
         private volatile boolean stalled;
         private volatile boolean closed;
 
@@ -820,12 +894,33 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
             heldDelivery.complete(event);
         }
 
-        /** Releases the withheld event that no test delivered. */
+        /** Releases the withheld event that no test delivered, and the event in hand that the service never read. */
         void discardHeldEvent() {
-            final Message<PulsarEvent> event = heldEvent.getAndSet(null);
-            if (event != null) {
-                event.release();
+            for (AtomicReference<Message<PulsarEvent>> held : List.of(heldEvent, eventInHand)) {
+                final Message<PulsarEvent> event = held.getAndSet(null);
+                if (event != null) {
+                    event.release();
+                }
             }
+        }
+
+        NamespaceName namespace() {
+            return delegate.getSystemTopic().getTopicName().getNamespaceObject();
+        }
+
+        /** Reads the first event of the topic, so that the first read of the service gets it without a wait. */
+        void fetchFirstEvent() throws Exception {
+            eventInHand.set(delegate.readNextAsync().get(30, TimeUnit.SECONDS));
+        }
+
+        boolean holdsEventInHand() {
+            return eventInHand.get() != null;
+        }
+
+        /** The topic whose policies the event in hand carries. */
+        TopicName topicOfEventInHand() {
+            final TopicPoliciesEvent event = eventInHand.get().getValue().getTopicPoliciesEvent();
+            return TopicName.get(event.getDomain(), event.getTenant(), event.getNamespace(), event.getTopic());
         }
 
         @Override
@@ -835,6 +930,10 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
 
         @Override
         public CompletableFuture<Message<PulsarEvent>> readNextAsync() {
+            final Message<PulsarEvent> inHand = eventInHand.getAndSet(null);
+            if (inHand != null) {
+                return CompletableFuture.completedFuture(inHand);
+            }
             // Decided on delivery, not on the call: the read that is pending when the stall starts must not
             // deliver either.
             return delegate.readNextAsync().thenCompose(message -> {
@@ -863,6 +962,10 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
 
         @Override
         public CompletableFuture<Boolean> hasMoreEventsAsync() {
+            // A stalled reader has events it does not deliver, so it never reports the end of the topic.
+            if (eventInHand.get() != null || stalled) {
+                return CompletableFuture.completedFuture(true);
+            }
             return delegate.hasMoreEventsAsync();
         }
 
