@@ -26,7 +26,6 @@ import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.MetadataCompressionConfig;
 import org.apache.bookkeeper.mledger.proto.ManagedCursorInfo;
 import org.apache.pulsar.common.api.proto.CompressionType;
-import org.apache.pulsar.metadata.api.HasPublicationId;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -105,8 +104,7 @@ public class ManagedCursorInfoMetadataTest {
         }
         ManagedCursorInfo managedCursorInfo = generateManagedCursorInfo(10000, 1000);
         String id = "66cf3ff5-9329-49e3-a920-ed935feb44e0";
-        HasPublicationId record = managedCursorInfo;
-        record.setPublication(id);
+        managedCursorInfo.setPublication(id);
         for (int i = 0; i < 100; i++) {
             managedCursorInfo.addProperty().setName("property-" + i).setValue(i);
             managedCursorInfo.addCursorProperty().setName("cursor-property-" + i).setValue("value-" + i);
@@ -116,8 +114,7 @@ public class ManagedCursorInfoMetadataTest {
 
         // String fields must still be readable after the decompressed buffer has been released.
         ManagedCursorInfo info = metaStore.parseManagedCursorInfo(metaStore.compressCursorInfo(managedCursorInfo));
-        HasPublicationId parsedRecord = info;
-        assertEquals(parsedRecord.getPublication(), id);
+        assertEquals(info.getPublication(), id);
         assertEquals(info.getPropertiesCount(), 100);
         assertEquals(info.getCursorPropertiesCount(), 100);
         for (int i = 0; i < 100; i++) {

@@ -34,7 +34,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.pulsar.metadata.TestZKServer;
-import org.apache.pulsar.metadata.api.HasPublicationId;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
@@ -53,24 +52,9 @@ import org.testng.annotations.Test;
 
 public class ZKMetadataStoreTest {
 
-    private static final class Value implements HasPublicationId {
-        private String id;
-        private final String payload;
-
+    private record Value(String id, String payload) {
         Value(String payload) {
-            this.payload = payload;
-            setPublication(UUID.randomUUID().toString());
-        }
-
-        @Override
-        public String getPublication() {
-            return id;
-        }
-
-        @Override
-        public Value setPublication(String publication) {
-            this.id = publication;
-            return this;
+            this(UUID.randomUUID().toString(), payload);
         }
 
         byte[] encode() {
@@ -124,7 +108,7 @@ public class ZKMetadataStoreTest {
                 loseNextMultiResponse(client, server);
                 assertThatThrownBy(() -> store.put(path, second, Optional.of(0L)).join())
                         .hasCauseInstanceOf(MetadataStoreException.BadVersionException.class);
-                Value changedPayload = new Value("other").setPublication(update.getPublication());
+                Value changedPayload = new Value(update.id(), "other");
                 loseNextMultiResponse(client, server);
                 assertThatThrownBy(() -> changedPayload.writeTo(store, path, 0).join())
                         .hasCauseInstanceOf(MetadataStoreException.BadVersionException.class);
