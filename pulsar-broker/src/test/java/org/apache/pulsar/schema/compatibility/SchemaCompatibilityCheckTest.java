@@ -26,6 +26,7 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
 import java.util.Collections;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadLocalRandom;
@@ -43,6 +44,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
@@ -372,7 +374,11 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
                 .subscriptionName("test")
                 .topic(fqtn);
 
-        Producer<Schemas.PersonTwo> producer = producerThreeBuilder.create();
+        // The admin call returns once the policy is stored; the broker applies it to the topic, which the
+        // first producer already loaded, asynchronously. Until then the topic still rejects the new schema.
+        Producer<Schemas.PersonTwo> producer = Awaitility.await()
+                .ignoreExceptionsInstanceOf(PulsarClientException.IncompatibleSchemaException.class)
+                .until(producerThreeBuilder::create, Objects::nonNull);
         Consumer<Schemas.PersonTwo> consumerTwo = comsumerBuilder.subscribe();
 
         producer.send(new Schemas.PersonTwo(2, "Lucy"));
