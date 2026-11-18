@@ -314,15 +314,16 @@ class ImmutableBucket {
     }
 
     CompletableFuture<Void> asyncDeleteBucketSnapshot(BucketDelayedMessageIndexStats stats) {
-        long deleteStartTime = System.currentTimeMillis();
-        stats.recordTriggerEvent(BucketDelayedMessageIndexStats.Type.delete);
         String bucketKey = bucketKey();
         CompletableFuture<Optional<Long>> bucketIdFuture = resolveBucketIdForDelete();
 
         return bucketIdFuture.thenCompose(optionalBucketId -> {
             if (optionalBucketId.isEmpty()) {
+                // A failed creation left no snapshot to delete: not a delete attempt, so no metric.
                 return CompletableFuture.completedFuture(null);
             }
+            long deleteStartTime = System.currentTimeMillis();
+            stats.recordTriggerEvent(BucketDelayedMessageIndexStats.Type.delete);
             long bucketId = optionalBucketId.get();
             return executeWithRetry(() -> ctx.bucketSnapshotStorage().deleteBucketSnapshot(bucketId),
                     BucketSnapshotPersistenceException.class, MaxRetryTimes)
