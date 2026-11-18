@@ -1051,7 +1051,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     @VisibleForTesting
     void cleanupFailedPolicyCacheInit(@NonNull NamespaceName namespace,
                                       @NonNull CompletableFuture<Void> initFuture, boolean closeReader) {
-        dropInitializationIfCurrent(namespace, initFuture, closeReader, null);
+        dropInitializationIfCurrent(namespace, initFuture, closeReader,
+                closeReader ? () -> removeCachedPolicies(namespace) : null);
     }
 
     /**
