@@ -400,10 +400,18 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         });
 
         Thread thread2 = new Thread(() -> {
+            final NamespaceName namespace = TopicName.get(topic).getNamespaceObject();
             for (int i = 0; i < 10; i++) {
                 CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerCompletableFuture =
-                        readers.get(TopicName.get(topic).getNamespaceObject());
-                if (readerCompletableFuture != null) {
+                        readers.get(namespace);
+                // Only the reader of an initialization that has finished is closed. Closing a reader during its
+                // first pass over the topic fails that initialization, and the read that waits for it, with
+                // AlreadyClosedException. The reader is taken before the initialization is checked: the two are
+                // installed in one step, so a finished initialization seen afterwards is this reader's, or the
+                // reader is one that the service has closed already.
+                CompletableFuture<Void> initFuture = topicPoliciesService.getPoliciesCacheInit(namespace);
+                if (readerCompletableFuture != null && initFuture != null && initFuture.isDone()
+                        && !initFuture.isCompletedExceptionally()) {
                     readerCompletableFuture.join().closeAsync().join();
                 }
             }
