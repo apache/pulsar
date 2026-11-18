@@ -353,6 +353,8 @@ public class ManagedCursorImpl implements ManagedCursor {
             AtomicLongFieldUpdater.newUpdater(ManagedCursorImpl.class, "lastActive");
     // The last active time (Unix time, milliseconds) of the cursor, negated while the cursor is idle (see markIdle())
     private volatile long lastActive;
+    @Getter
+    private volatile long lastMarkDeleteAdvancedAt;
     // Whether the cursor was idle when it was last persisted: once it is used again, it has to be persisted again, or
     // it would be recovered as idle since before it was used
     private volatile boolean idlePersisted;
@@ -1756,6 +1758,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 MSG_CONSUMED_COUNTER_UPDATER.addAndGet(cursorImpl(), -getNumberOfEntries(
                         Range.openClosed(newMarkDeletePosition, markDeletePosition)));
             } else if (compareRes < 0) {
+                lastMarkDeleteAdvancedAt = clock.millis();
                 long entries = getNumberOfEntries(Range.openClosed(markDeletePosition, newMarkDeletePosition));
                 MSG_CONSUMED_COUNTER_UPDATER.addAndGet(ManagedCursorImpl.this, entries);
             }
@@ -2601,6 +2604,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     .attr("markDeletePosition", newMarkDeletePosition)
                     .attr("skippedEntries", skippedEntries)
                     .log("Moved ack position");
+            lastMarkDeleteAdvancedAt = clock.millis();
             MSG_CONSUMED_COUNTER_UPDATER.addAndGet(this, skippedEntries);
         }
 
