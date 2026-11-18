@@ -137,7 +137,11 @@ public interface Dispatcher {
     }
 
     /**
-     * Clear delayed state after the cursor has successfully discarded its backlog.
+     * Clear delayed state after the cursor has moved past the state the delayed-delivery trackers
+     * were derived from, either because the backlog was successfully discarded or because the
+     * cursor is about to be reset to a different position. Unlike {@link #clearDelayedMessages()}
+     * implementations that create their tracker asynchronously should also settle when a pending
+     * creation has failed, so the caller is not fenced until a later creation retry succeeds.
      */
     default CompletableFuture<Void> clearDelayedMessagesAfterBacklogClear() {
         return clearDelayedMessages();

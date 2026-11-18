@@ -38,6 +38,7 @@ import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTracker;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerFactory;
@@ -742,6 +743,38 @@ public class PersistentDispatcherMultipleConsumersTest extends SharedPulsarBaseT
         DelayedDeliveryTrackerFactory factory = Mockito.mock(DelayedDeliveryTrackerFactory.class);
         Mockito.doReturn(trackerFuture).when(factory).newTrackerAsync(Mockito.any());
         return newDispatcherWithDelayedTrackerFactory(factory);
+    }
+
+    @Test
+    public void testClearAfterCursorResetSettlesOnTrackerCreationFailure() throws Exception {
+        // A cursor reset must not stay fenced behind tracker-creation retries: unlike an ordinary
+        // clear, which keeps waiting until a creation retry succeeds, the reset-path clear settles
+        // (exceptionally) once the current creation attempt has failed.
+        DelayedDeliveryTrackerFactory factory = Mockito.mock(DelayedDeliveryTrackerFactory.class);
+        Mockito.doReturn(FutureUtil.failedFuture(new RuntimeException("failed to create tracker")))
+                .when(factory).newTrackerAsync(Mockito.any());
+        PersistentDispatcherMultipleConsumers dispatcher = newDispatcherWithDelayedTrackerFactory(factory);
+        // The reset-path clear filters pending positions against the mark-delete position.
+        ManagedCursor dispatcherCursor = dispatcher.getCursor();
+        Mockito.doReturn(PositionFactory.create(0L, -1L)).when(dispatcherCursor).getMarkDeletedPosition();
+        long deliverAtTime = System.currentTimeMillis() + 5_000;
+        try {
+            Assert.assertTrue(dispatcher.trackDelayedDelivery(1, 1, newDelayedMessageMetadata(deliverAtTime)));
+            Assert.assertTrue(dispatcher.isDelayedDeliveryTrackerCreatePending());
+
+            CompletableFuture<Void> resetClear = dispatcher.clearDelayedMessagesAfterBacklogClear();
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+                    assertThat(resetClear).isCompletedExceptionally());
+
+            // The reset-path clear settled without a successful retry, and the pending creation
+            // (and the ordinary clear waiting on it) is still pending.
+            Assert.assertTrue(dispatcher.isDelayedDeliveryTrackerCreatePending());
+            CompletableFuture<Void> ordinaryClear = dispatcher.clearDelayedMessages();
+            Assert.assertFalse(ordinaryClear.isDone());
+        } finally {
+            // Stop any further retry
+            dispatcher.close(false, Optional.empty()).get(1, TimeUnit.MINUTES);
+        }
     }
 
     private PersistentDispatcherMultipleConsumers newDispatcherWithDelayedTrackerFactory(

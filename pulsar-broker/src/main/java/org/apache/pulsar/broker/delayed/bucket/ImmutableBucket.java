@@ -142,7 +142,8 @@ class ImmutableBucket {
                                         .exception(ex)
                                         .log("Failed to create bucket snapshot");
                             }
-                        }), BucketSnapshotPersistenceException.class, MaxRetryTimes).thenCompose(newBucketId -> {
+                        }), BucketSnapshotPersistenceException.class, MaxRetryTimes).thenCompose(newBucketId ->
+                deleteSupersededSnapshotLedger(bucketKey, newBucketId).thenCompose(__ -> {
                     setBucketId(newBucketId);
 
                     return putBucketKeyId(bucketKey, newBucketId).exceptionally(ex -> {
@@ -153,7 +154,43 @@ class ImmutableBucket {
                                 .exception(ex)
                                 .log("Failed to record bucketId to cursor property");
                         return null;
-                    }).thenApply(__ -> newBucketId);
+                    }).thenApply(ignored -> newBucketId);
+                }));
+    }
+
+    /**
+     * The cursor property for this bucket key is the only durable reference to a snapshot ledger. A
+     * previous delete of that ledger can have failed (for example a reset whose cleanup continued
+     * with a warning), so before the property is overwritten with the replacement ledger's id, the
+     * superseded ledger is deleted. If that delete fails, the replacement is rolled back and the
+     * save fails: the bucket downgrades to memory mode and the superseded ledger stays reachable
+     * through the unchanged property until a later save retries.
+     */
+    private CompletableFuture<Void> deleteSupersededSnapshotLedger(String bucketKey, long newBucketId) {
+        long supersededBucketId;
+        String supersededBucketIdStr = ctx.cursor().getCursorProperties().get(bucketKey);
+        if (supersededBucketIdStr == null) {
+            return CompletableFuture.completedFuture(null);
+        }
+        try {
+            supersededBucketId = Long.parseLong(supersededBucketIdStr);
+        } catch (NumberFormatException e) {
+            log.warn()
+                    .attr("bucketKey", bucketKey)
+                    .attr("bucketId", supersededBucketIdStr)
+                    .log("Skipping the superseded snapshot ledger delete, the bucket id is malformed");
+            return CompletableFuture.completedFuture(null);
+        }
+        if (supersededBucketId == newBucketId) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return ctx.bucketSnapshotStorage().deleteBucketSnapshot(supersededBucketId)
+                .whenComplete((__, ex) -> {
+                    if (ex != null) {
+                        // Roll back the replacement, so the property keeps referencing the
+                        // superseded ledger and a later save can retry the delete.
+                        ctx.bucketSnapshotStorage().deleteBucketSnapshot(newBucketId);
+                    }
                 });
     }
 
