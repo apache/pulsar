@@ -25,7 +25,7 @@ plugins {
 // Force the versions that jclouds 2.7.0 manages in its parent pom (jakarta namespace, Guice 7.x).
 // The enforced platform pins older javax-era versions for Pulsar, but jclouds-shaded
 // bundles its own copies so they won't conflict at runtime.
-configurations.all {
+configurations.configureEach {
     resolutionStrategy {
         force("com.google.inject:guice:7.0.0")
         force("com.google.inject.extensions:guice-assistedinject:7.0.0")

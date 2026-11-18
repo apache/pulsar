@@ -29,6 +29,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.CustomLog;
@@ -80,6 +82,7 @@ public class CreateSubscriptionTest extends SharedPulsarBaseTest {
 
         assertEquals(admin.topics().getSubscriptions(topic), List.of("sub-1"));
 
+        @Cleanup
         Producer<byte[]> p1 = pulsarClient.newProducer().topic(topic).create();
         p1.send("test-1".getBytes());
         p1.send("test-2".getBytes());
@@ -144,6 +147,63 @@ public class CreateSubscriptionTest extends SharedPulsarBaseTest {
         }
     }
 
+    @Test
+    public void createSubscriptionConcurrently() throws Exception {
+        String topic = newTopicName();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
+        for (int i = 0; i < 3; i++) {
+            producer.send(new byte[10]);
+        }
+        producer.close();
+        // Both creations wait for the same topic load, so both find the subscription missing
+        admin.topics().unload(topic);
+
+        int created = countCreated(List.of(
+                admin.topics().createSubscriptionAsync(topic, "sub-1", MessageId.earliest),
+                admin.topics().createSubscriptionAsync(topic, "sub-1", MessageId.earliest)));
+
+        // The other creation fails as if it had come after the subscription was created
+        assertEquals(created, 1);
+        assertEquals(admin.topics().getSubscriptions(topic), List.of("sub-1"));
+        assertEquals(admin.topics().getStats(topic).getSubscriptions().get("sub-1").getMsgBacklog(), 3);
+    }
+
+    @Test
+    public void createSubscriptionConcurrentlyOnPartitionedTopic() throws Exception {
+        String topic = newTopicName();
+        admin.topics().createPartitionedTopic(topic, 4);
+
+        // No partition is loaded yet, so on each partition both creations wait for the same topic load
+        int created = countCreated(List.of(
+                admin.topics().createSubscriptionAsync(topic, "sub-1", MessageId.earliest),
+                admin.topics().createSubscriptionAsync(topic, "sub-1", MessageId.earliest)));
+
+        // Each partition's subscription is created by one of them; a creation that created none fails with 409
+        assertTrue(created >= 1);
+        for (int i = 0; i < 4; i++) {
+            assertEquals(admin.topics().getSubscriptions(TopicName.get(topic).getPartition(i).toString()),
+                    List.of("sub-1"));
+        }
+    }
+
+    /**
+     * Waits for the creations and returns how many succeeded; any failure must be a 409 Conflict.
+     */
+    private static int countCreated(List<CompletableFuture<Void>> creations) throws Exception {
+        int created = 0;
+        for (CompletableFuture<Void> creation : creations) {
+            try {
+                creation.get(30, TimeUnit.SECONDS);
+                created++;
+            } catch (ExecutionException e) {
+                if (!(e.getCause() instanceof ConflictException)) {
+                    throw e;
+                }
+            }
+        }
+        return created;
+    }
+
     @DataProvider(name = "subscriptionMode")
     public Object[][] subscriptionModeProvider() {
         return new Object[][] { { SubscriptionMode.Durable }, { SubscriptionMode.NonDurable } };
@@ -157,8 +217,9 @@ public class CreateSubscriptionTest extends SharedPulsarBaseTest {
         Map<String, String> map = new HashMap<>();
         map.put("test-topic", "tag1");
         String subName = "my-sub";
-        pulsarClient.newConsumer().subscriptionMode(subscriptionMode).topic(topic).receiverQueueSize(1)
-                .subscriptionProperties(map).subscriptionName(subName).subscribe();
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().subscriptionMode(subscriptionMode).topic(topic)
+                .receiverQueueSize(1).subscriptionProperties(map).subscriptionName(subName).subscribe();
         TopicStats stats = admin.topics().getStats(topic);
         Map<String, String> subProperties = stats.getSubscriptions().get(subName).getSubscriptionProperties();
         assertEquals(subProperties, map);
@@ -171,8 +232,10 @@ public class CreateSubscriptionTest extends SharedPulsarBaseTest {
         pMap.put("topic2", "tag2");
         pMap.put("topic3", "tag3");
         String pSubName = "my-sub-1";
-        pulsarClient.newConsumer().subscriptionMode(subscriptionMode).topic(partitionedTopic).receiverQueueSize(1)
-                .subscriptionProperties(pMap).subscriptionName(pSubName).subscribe();
+        @Cleanup
+        Consumer<byte[]> partitionedConsumer = pulsarClient.newConsumer().subscriptionMode(subscriptionMode)
+                .topic(partitionedTopic).receiverQueueSize(1).subscriptionProperties(pMap).subscriptionName(pSubName)
+                .subscribe();
 
         PartitionedTopicStats pStats = admin.topics().getPartitionedStats(partitionedTopic, false);
         Map<String, String> pSubProperties = pStats.getSubscriptions().get(pSubName)

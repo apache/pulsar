@@ -83,6 +83,7 @@ import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.service.AbstractReplicator;
 import org.apache.pulsar.broker.service.AnalyzeBacklogResult;
 import org.apache.pulsar.broker.service.BrokerServiceException.AlreadyRunningException;
+import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionAlreadyExistsException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionInvalidCursorPosition;
 import org.apache.pulsar.broker.service.GetStatsOptions;
@@ -1729,11 +1730,10 @@ public class PersistentTopicsBase extends AdminResource {
         validateTopicOperationAsync(topicName, TopicOperation.GET_STATS)
         .thenCompose(__ -> validateGlobalNamespaceOwnershipAsync(namespaceName))
         .thenCompose(__ -> getPartitionedTopicMetadataAsync(topicName,
-                authoritative, false)).thenAccept(partitionMetadata -> {
+                authoritative, false)).thenCompose(partitionMetadata -> {
             if (partitionMetadata.partitions == 0) {
-                asyncResponse.resume(new RestException(Status.NOT_FOUND,
+                return FutureUtil.failedFuture(new RestException(Status.NOT_FOUND,
                         getPartitionedTopicNotFoundErrorMessage(topicName.toString())));
-                return;
             }
             PartitionedTopicStatsImpl stats = new PartitionedTopicStatsImpl(partitionMetadata);
             List<CompletableFuture<TopicStats>> topicStatsFutureList = new ArrayList<>(partitionMetadata.partitions);
@@ -1767,7 +1767,7 @@ public class PersistentTopicsBase extends AdminResource {
                 );
             }
 
-            FutureUtil.waitForAll(topicStatsFutureList).handle((result, exception) -> {
+            return FutureUtil.waitForAll(topicStatsFutureList).handle((result, exception) -> {
                 CompletableFuture<TopicStats> statFuture = null;
                 for (int i = 0; i < topicStatsFutureList.size(); i++) {
                     statFuture = topicStatsFutureList.get(i);
@@ -1778,30 +1778,27 @@ public class PersistentTopicsBase extends AdminResource {
                                 stats.getPartitions().put(topicName.getPartition(i).toString(), statFuture.get());
                             }
                         } catch (Exception e) {
-                            asyncResponse.resume(new RestException(e));
-                            return null;
+                            throw new RestException(e);
                         }
                     }
                 }
-                if (perPartition && stats.partitions.isEmpty()) {
-                    namespaceResources().getPartitionedTopicResources()
+                return stats;
+            }).thenCompose(aggregatedStats -> {
+                if (perPartition && aggregatedStats.partitions.isEmpty()) {
+                    return namespaceResources().getPartitionedTopicResources()
                             .partitionedTopicExistsAsync(topicName)
-                            .thenAccept(exists -> {
-                                if (exists) {
-                                    stats.partitions.put(topicName.toString(), new TopicStatsImpl());
-                                    asyncResponse.resume(stats);
-                                } else {
-                                    asyncResponse.resume(
-                                            new RestException(Status.NOT_FOUND,
-                                                    "Internal topics have not been generated yet"));
+                            .thenApply(exists -> {
+                                if (!exists) {
+                                    throw new RestException(Status.NOT_FOUND,
+                                            "Internal topics have not been generated yet");
                                 }
+                                aggregatedStats.partitions.put(topicName.toString(), new TopicStatsImpl());
+                                return aggregatedStats;
                             });
-                } else {
-                    asyncResponse.resume(stats);
                 }
-                return null;
+                return CompletableFuture.completedFuture(aggregatedStats);
             });
-        }).exceptionally(ex -> {
+        }).thenAccept(asyncResponse::resume).exceptionally(ex -> {
             // If the exception is not redirect exception we need to log it.
             if (isNot307And404Exception(ex)) {
                 log.error()
@@ -2728,7 +2725,9 @@ public class PersistentTopicsBase extends AdminResource {
                 throw new RestException(Status.CONFLICT, "Subscription already exists for topic");
             }
 
-            return topic.createSubscription(subscriptionName, InitialPosition.Latest, replicated, properties);
+            // Overlapping requests can all pass the check above: only the one that creates the subscription resets it
+            return ((PersistentTopic) topic).createNewSubscription(subscriptionName, InitialPosition.Latest,
+                    replicated, properties);
         }).thenCompose(subscription -> {
             // Mark the cursor as "inactive" as it was created without a real consumer connected
             ((PersistentSubscription) subscription).deactivateCursor();
@@ -2743,6 +2742,10 @@ public class PersistentTopicsBase extends AdminResource {
             asyncResponse.resume(Response.noContent().build());
         }).exceptionally(ex -> {
             Throwable t = (ex instanceof CompletionException ? ex.getCause() : ex);
+            if (t instanceof SubscriptionAlreadyExistsException) {
+                asyncResponse.resume(new RestException(Status.CONFLICT, "Subscription already exists for topic"));
+                return null;
+            }
             if (!(t instanceof WebApplicationException)) {
                 log.warn()
                         .attr("topic", topicName)
@@ -3924,6 +3927,21 @@ public class PersistentTopicsBase extends AdminResource {
                 });
     }
 
+    protected CompletableFuture<Integer> internalGetMessageTTL(boolean applied, boolean isGlobal) {
+        return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
+            .thenCompose(op -> {
+                Integer topicTTL = op.map(TopicPolicies::getMessageTTLInSeconds).orElse(null);
+                if (topicTTL != null || !applied) {
+                    return CompletableFuture.completedFuture(topicTTL);
+                }
+                return getNamespacePoliciesAsync(namespaceName).thenApply(policies -> {
+                    Integer otherLevelTTL = policies.message_ttl_in_seconds;
+                    return otherLevelTTL == null ? pulsar().getConfiguration().getTtlDurationDefaultInSeconds()
+                            : otherLevelTTL;
+                });
+            });
+    }
+
     protected CompletableFuture<Void> internalSetMessageTTL(Integer ttlInSecondToSet, boolean isGlobal) {
         //Validate message ttl value.
         if (ttlInSecondToSet != null && ttlInSecondToSet < 0) {
@@ -4973,7 +4991,8 @@ public class PersistentTopicsBase extends AdminResource {
                 .thenCompose(__ -> internalGetListAsync(Optional.empty(), null))
                 .thenApply(topics -> {
                     if (!topics.contains(topicName.toString())) {
-                        throw new RestException(Status.NOT_FOUND, "Topic partitions were not yet created");
+                        throw new RestException(Status.NOT_FOUND,
+                                getTopicNotFoundErrorMessage(topicName.toString()));
                     }
                     throw new RestException(Status.NOT_FOUND,
                         getPartitionedTopicNotFoundErrorMessage(topicName.toString()));

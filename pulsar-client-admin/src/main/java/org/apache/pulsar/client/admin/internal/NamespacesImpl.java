@@ -2003,7 +2003,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
             @Override
             public void failed(Throwable throwable) {
-                future.completeExceptionally(getApiException(throwable.getCause()));
+                future.completeExceptionally(mapInvocationFailure(throwable));
             }
         });
         return future;

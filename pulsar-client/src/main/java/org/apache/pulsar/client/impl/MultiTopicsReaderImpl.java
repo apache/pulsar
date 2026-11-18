@@ -151,6 +151,7 @@ public class MultiTopicsReaderImpl<T> implements Reader<T> {
                             .ranges(readerConfiguration.getKeyHashRanges())
             );
         }
+        consumerConfiguration.setAutoUpdatePartitions(readerConfiguration.isAutoUpdatePartitions());
         if (readerConfiguration.isAutoUpdatePartitions()) {
             consumerConfiguration.setAutoUpdatePartitionsIntervalSeconds(
                     readerConfiguration.getAutoUpdatePartitionsIntervalSeconds()

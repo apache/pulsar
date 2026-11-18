@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.stats.prometheus;
 
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGeneratorUtils.generateSystemMetrics;
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGeneratorUtils.getTypeStr;
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.CompositeByteBuf;
@@ -424,14 +425,12 @@ public class PrometheusMetricsGenerator implements AutoCloseable {
 
         if (pulsar.getConfiguration().isExposeManagedLedgerMetricsInPrometheus()) {
             // generate managedLedger metrics
-            parseMetricsToPrometheusMetrics(new ManagedLedgerMetrics(pulsar).generate(),
-                    clusterName, Collector.Type.GAUGE, stream);
+            new ManagedLedgerMetrics(pulsar).generate(stream);
         }
 
         if (pulsar.getConfiguration().isExposeManagedCursorMetricsInPrometheus()) {
             // generate managedCursor metrics
-            parseMetricsToPrometheusMetrics(new ManagedCursorMetrics(pulsar).generate(),
-                    clusterName, Collector.Type.GAUGE, stream);
+            new ManagedCursorMetrics(pulsar).generate(stream);
         }
 
         parseMetricsToPrometheusMetrics(pulsar.getBrokerService()
@@ -443,7 +442,8 @@ public class PrometheusMetricsGenerator implements AutoCloseable {
                 clusterName, Collector.Type.GAUGE, stream);
     }
 
-    private static void parseMetricsToPrometheusMetrics(Collection<Metrics> metrics, String cluster,
+    @VisibleForTesting
+    static void parseMetricsToPrometheusMetrics(Collection<Metrics> metrics, String cluster,
                                                         Collector.Type metricType, SimpleTextOutputStream stream) {
         Set<String> names = new HashSet<>();
         for (Metrics metrics1 : metrics) {
