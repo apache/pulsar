@@ -24,42 +24,42 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
-import org.apache.pulsar.metadata.TestZKServer;
+import org.apache.pulsar.metadata.BaseMetadataStoreTest;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyClosedException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
-import org.apache.pulsar.metadata.impl.LocalMemoryMetadataStore;
 import org.testng.annotations.Test;
 
-public class LocalPoliciesResourcesTest {
+public class LocalPoliciesResourcesTest extends BaseMetadataStoreTest {
 
-    @Test
-    public void testDeleteTenantReportsClosedStore() throws Exception {
-        try (LocalMemoryMetadataStore store = new LocalMemoryMetadataStore("memory:" + UUID.randomUUID(),
+    @Test(dataProvider = "distributedImpl")
+    public void testDeleteTenantReportsClosedStore(String provider, Supplier<String> urlSupplier) throws Exception {
+        try (MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
                 MetadataStoreConfig.builder().build())) {
             LocalPoliciesResources resources = new LocalPoliciesResources(store, 5);
             store.close();
 
             assertThat(store.delete("/admin/local-policies/tenant", Optional.empty()))
-                    .as("the real closed store reports its failure")
+                    .as(provider + ": the real closed store reports its failure")
                     .failsWithin(Duration.ofSeconds(5))
                     .withThrowableOfType(ExecutionException.class)
                     .havingCause().isInstanceOf(AlreadyClosedException.class);
             assertThat(resources.deleteLocalPoliciesTenantAsync("tenant"))
-                    .as("tenant policy deletion propagates the closed store failure")
+                    .as(provider + ": tenant policy deletion propagates the closed store failure")
                     .failsWithin(Duration.ofSeconds(5))
                     .withThrowableOfType(ExecutionException.class)
                     .havingCause().isInstanceOf(AlreadyClosedException.class);
         }
     }
 
-    @Test
-    public void testDeleteTenantRemovesCachedLocalPolicies() throws Exception {
-        try (TestZKServer zks = new TestZKServer();
-                MetadataStoreExtended store = MetadataStoreExtended.create(zks.getConnectionString(),
-                        MetadataStoreConfig.builder().build())) {
+    @Test(dataProvider = "distributedImpl")
+    public void testDeleteTenantRemovesCachedLocalPolicies(String provider, Supplier<String> urlSupplier)
+            throws Exception {
+        try (MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().build())) {
             LocalPoliciesResources resources = new LocalPoliciesResources(store, 10);
             String tenant = "tenant-" + UUID.randomUUID();
             NamespaceName firstNamespace = NamespaceName.get(tenant, "first");
@@ -68,26 +68,25 @@ public class LocalPoliciesResourcesTest {
             resources.createLocalPoliciesAsync(firstNamespace, policies).get(10, TimeUnit.SECONDS);
             resources.createLocalPoliciesAsync(secondNamespace, policies).get(10, TimeUnit.SECONDS);
             assertThat(resources.getLocalPoliciesAsync(firstNamespace).get(10, TimeUnit.SECONDS))
-                    .as("first namespace policies cached before tenant deletion").contains(policies);
+                    .as(provider + ": first namespace policies cached before tenant deletion").contains(policies);
             assertThat(resources.getLocalPoliciesAsync(secondNamespace).get(10, TimeUnit.SECONDS))
-                    .as("second namespace policies cached before tenant deletion").contains(policies);
+                    .as(provider + ": second namespace policies cached before tenant deletion").contains(policies);
 
             resources.deleteLocalPoliciesTenantAsync(tenant).get(10, TimeUnit.SECONDS);
 
             assertThat(resources.getLocalPoliciesAsync(firstNamespace).get(10, TimeUnit.SECONDS))
-                    .as("first namespace policies after tenant deletion").isEmpty();
+                    .as(provider + ": first namespace policies after tenant deletion").isEmpty();
             assertThat(resources.getLocalPoliciesAsync(secondNamespace).get(10, TimeUnit.SECONDS))
-                    .as("second namespace policies after tenant deletion").isEmpty();
+                    .as(provider + ": second namespace policies after tenant deletion").isEmpty();
             assertThat(store.get("/admin/local-policies/" + tenant).get(10, TimeUnit.SECONDS))
-                    .as("tenant node deleted from the store").isEmpty();
+                    .as(provider + ": tenant node deleted from the store").isEmpty();
         }
     }
 
-    @Test
-    public void testDeleteMissingTenantSucceeds() throws Exception {
-        try (TestZKServer zks = new TestZKServer();
-                MetadataStoreExtended store = MetadataStoreExtended.create(zks.getConnectionString(),
-                        MetadataStoreConfig.builder().build())) {
+    @Test(dataProvider = "distributedImpl")
+    public void testDeleteMissingTenantSucceeds(String provider, Supplier<String> urlSupplier) throws Exception {
+        try (MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().build())) {
             LocalPoliciesResources resources = new LocalPoliciesResources(store, 10);
             String tenant = "tenant-" + UUID.randomUUID();
 
@@ -95,11 +94,10 @@ public class LocalPoliciesResourcesTest {
         }
     }
 
-    @Test
-    public void testDeleteTenantTwiceSucceeds() throws Exception {
-        try (TestZKServer zks = new TestZKServer();
-                MetadataStoreExtended store = MetadataStoreExtended.create(zks.getConnectionString(),
-                        MetadataStoreConfig.builder().build())) {
+    @Test(dataProvider = "distributedImpl")
+    public void testDeleteTenantTwiceSucceeds(String provider, Supplier<String> urlSupplier) throws Exception {
+        try (MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().build())) {
             LocalPoliciesResources resources = new LocalPoliciesResources(store, 10);
             String tenant = "tenant-" + UUID.randomUUID();
             NamespaceName namespace = NamespaceName.get(tenant, "namespace");
@@ -109,15 +107,15 @@ public class LocalPoliciesResourcesTest {
             resources.deleteLocalPoliciesTenantAsync(tenant).get(10, TimeUnit.SECONDS);
 
             assertThat(resources.getLocalPoliciesAsync(namespace).get(10, TimeUnit.SECONDS))
-                    .as("namespace policies remain absent after deleting the tenant twice").isEmpty();
+                    .as(provider + ": namespace policies remain absent after deleting the tenant twice").isEmpty();
         }
     }
 
-    @Test
-    public void testDeleteTenantPreservesOtherTenantPolicies() throws Exception {
-        try (TestZKServer zks = new TestZKServer();
-                MetadataStoreExtended store = MetadataStoreExtended.create(zks.getConnectionString(),
-                        MetadataStoreConfig.builder().build())) {
+    @Test(dataProvider = "distributedImpl")
+    public void testDeleteTenantPreservesOtherTenantPolicies(String provider, Supplier<String> urlSupplier)
+            throws Exception {
+        try (MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().build())) {
             LocalPoliciesResources resources = new LocalPoliciesResources(store, 10);
             String tenant = "tenant-" + UUID.randomUUID();
             String otherTenant = "tenant-" + UUID.randomUUID();
@@ -127,16 +125,16 @@ public class LocalPoliciesResourcesTest {
             resources.createLocalPoliciesAsync(namespace, policies).get(10, TimeUnit.SECONDS);
             resources.createLocalPoliciesAsync(otherNamespace, policies).get(10, TimeUnit.SECONDS);
             assertThat(resources.getLocalPoliciesAsync(otherNamespace).get(10, TimeUnit.SECONDS))
-                    .as("other tenant policies cached before deletion").contains(policies);
+                    .as(provider + ": other tenant policies cached before deletion").contains(policies);
 
             resources.deleteLocalPoliciesTenantAsync(tenant).get(10, TimeUnit.SECONDS);
 
             assertThat(resources.getLocalPoliciesAsync(namespace).get(10, TimeUnit.SECONDS))
-                    .as("target tenant policies deleted").isEmpty();
+                    .as(provider + ": target tenant policies deleted").isEmpty();
             assertThat(resources.getLocalPoliciesAsync(otherNamespace).get(10, TimeUnit.SECONDS))
-                    .as("other tenant policies remain readable").contains(policies);
+                    .as(provider + ": other tenant policies remain readable").contains(policies);
             assertThat(store.get("/admin/local-policies/" + otherNamespace).get(10, TimeUnit.SECONDS))
-                    .as("other tenant policies remain in the store").isPresent();
+                    .as(provider + ": other tenant policies remain in the store").isPresent();
         }
     }
 }
