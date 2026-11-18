@@ -822,23 +822,27 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         Mockito.doReturn(CompletableFuture.completedFuture(null)).when(newerReader).closeAsync();
         service.policyCacheInitMap.put(namespace, newerInitFuture);
         service.getReaderCaches().put(namespace, CompletableFuture.completedFuture(newerReader));
+        final TopicName cachedTopic = TopicName.get("persistent", namespace, "identity-guarded-cleanup");
+        service.policiesCache.put(cachedTopic, new TopicPolicies());
 
         // A stale init attempt (A) whose reader was already torn down (e.g. by the timeout cleanup) fires its failure
-        // callback late. Cleaning it up by identity must be a no-op: it must not clobber B's future or close B's reader
-        // (issue #25294 follow-up).
+        // callback late. Cleaning it up by identity must be a no-op: it must not clobber B's future, close B's reader
+        // or drop the policies B's reader has cached (issue #25294 follow-up).
         CompletableFuture<Void> staleInitFuture = new CompletableFuture<>();
         service.cleanupFailedPolicyCacheInit(namespace, staleInitFuture, true);
         assertSame(newerInitFuture, service.getPoliciesCacheInit(namespace));
         assertFalse(newerInitFuture.isDone());
         assertNotNull(service.getReaderCaches().get(namespace));
         Mockito.verify(newerReader, Mockito.never()).closeAsync();
+        assertNotNull(service.policiesCache.get(cachedTopic));
 
-        // Cleaning up the owning attempt does drop its future and close its reader.
+        // Cleaning up the owning attempt does drop its future, close its reader and drop the policies it cached.
         service.cleanupFailedPolicyCacheInit(namespace, newerInitFuture, true);
         assertNull(service.getPoliciesCacheInit(namespace));
         assertTrue(newerInitFuture.isCompletedExceptionally());
         assertNull(service.getReaderCaches().get(namespace));
         Mockito.verify(newerReader, Mockito.times(1)).closeAsync();
+        assertNull(service.policiesCache.get(cachedTopic));
     }
 
     @Test

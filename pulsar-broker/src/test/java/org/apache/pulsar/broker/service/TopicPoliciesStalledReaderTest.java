@@ -74,6 +74,10 @@ import org.testng.annotations.Test;
  * bound to a closed cursor. The stall is reproduced here by a reader that withholds what the real reader receives;
  * everything else is the production path.
  *
+ * <p>When the broker closes a reader together with its initialization (the reader stalled, timed out during its
+ * first pass, or was closed), the policies that reader had cached go with it: the next reader cannot learn of a
+ * deletion that compaction has dropped from the topic meanwhile.
+ *
  * <p>This test replaces the broker's {@code topicPoliciesService} and shortens its timeout, which would leak into
  * every other class sharing a runtime, so it runs its own broker instead of extending {@code SharedPulsarBaseTest}.
  */
@@ -513,6 +517,111 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
                 .isEqualTo(Optional.empty());
     }
 
+    @Test(timeOut = 120_000)
+    public void testPolicyDeletedAndCompactedAfterReaderWasClosedIsGone() throws Exception {
+        final TopicName deletedTopic = newTopic();
+        setMaxConsumers(deletedTopic, 5).get(30, TimeUnit.SECONDS);
+
+        closeReadersUnderTheService();
+
+        // Another broker of the cluster deletes the policy before this broker reads __change_events again, and
+        // compaction drops the key together with its tombstone, so no later reader can learn of the deletion.
+        writeEventAsAnotherBroker(deletedTopic, null);
+        compactChangeEvents();
+        assertThat(TopicPolicyTestUtils.getTopicPoliciesBypassCache(service, deletedTopic, false))
+                .describedAs("a new reader still finds a policy for the topic in the compacted __change_events, so"
+                        + " the deletion was not compacted away and this is not the scenario under test")
+                .isEmpty();
+        assertThat(service.getPoliciesCacheInit(NamespaceName.get(NAMESPACE)))
+                .describedAs("an initialization ran between the close and the compaction: its reader got the"
+                        + " deletion delivered, so this is not the scenario under test")
+                .isNull();
+
+        assertThat(service.getTopicPoliciesAsync(deletedTopic, TopicPoliciesService.GetType.LOCAL_ONLY))
+                .describedAs("the next initialization cannot see the deletion any more, so the policy cache must"
+                        + " not keep what the closed reader had read")
+                .succeedsWithin(Duration.ofSeconds(30))
+                .isEqualTo(Optional.empty());
+    }
+
+    @Test(timeOut = 60_000)
+    public void testPolicyReadBeforeFailedFirstPassIsKeptWithTheReader() throws Exception {
+        final TopicName firstTopic = newTopic();
+        final TopicName otherTopic = newTopic();
+        final NamespaceName namespace = NamespaceName.get(NAMESPACE);
+        setMaxConsumers(firstTopic, 5).get(30, TimeUnit.SECONDS);
+        setMaxConsumers(otherTopic, 6).get(30, TimeUnit.SECONDS);
+
+        // The reader of an initialization whose first pass fails behind the first event, with an error that is
+        // not the reader's close. The broker serves the namespace then, so it keeps that reader for the retry.
+        final StallableReader keptReader = service.prepareNextReader(namespace);
+        assertThat(keptReader.topicOfEventInHand())
+                .describedAs("the first event of __change_events must be the policy of the first topic")
+                .isEqualTo(firstTopic);
+        keptReader.failNextCheckForMoreEvents(
+                new PulsarClientException("Disconnected while getting the last message id"));
+
+        // The unload drops the namespace's policy state, and the lookup makes the broker take the bundle again,
+        // which starts the initialization that fails.
+        admin.namespaces().unload(NAMESPACE);
+        admin.lookups().lookupTopic(firstTopic.toString());
+        Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
+            assertThat(keptReader.failsNextCheckForMoreEvents())
+                    .describedAs("the first pass must have failed behind the first event")
+                    .isFalse();
+            assertThat(service.getPoliciesCacheInit(namespace))
+                    .describedAs("the failed initialization must be dropped")
+                    .isNull();
+        });
+        assertThat(keptReader.isClosed())
+                .describedAs("the reader of the failed first pass was closed, so the retry reads the topic from the"
+                        + " start and this is not the scenario under test")
+                .isFalse();
+
+        // The retry continues behind the first event, so the cache is the only place that holds its policy.
+        assertThat(TopicPolicyTestUtils.getLocalTopicPolicies(service, firstTopic).getMaxConsumerPerTopic())
+                .describedAs("the retry reuses the reader, which is past the policy of the first topic, so the"
+                        + " policy must still be cached")
+                .isEqualTo(5);
+        assertThat(service.getReaderCaches().get(namespace))
+                .describedAs("the retry must have reused the reader of the failed first pass")
+                .isCompletedWithValue(keptReader);
+        assertThat(TopicPolicyTestUtils.getLocalTopicPolicies(service, otherTopic).getMaxConsumerPerTopic())
+                .describedAs("the retry must have read the events behind the failure")
+                .isEqualTo(6);
+    }
+
+    @Test(timeOut = 90_000)
+    public void testListenerLearnsOfPolicyDeletedAfterReaderWasClosed() throws Exception {
+        final TopicName topicName = newTopic();
+        final List<Optional<TopicPolicies>> updates = new CopyOnWriteArrayList<>();
+        final TopicPolicyListener listener = policies -> updates.add(Optional.ofNullable(policies));
+        service.registerListenerAsync(topicName, listener).get(30, TimeUnit.SECONDS);
+        try {
+            setMaxConsumers(topicName, 6).get(30, TimeUnit.SECONDS);
+            Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> assertThat(updates)
+                    .describedAs("the listener must hold a policy before the reader is closed")
+                    .last().matches(update -> update.map(TopicPolicies::getMaxConsumerPerTopic).orElse(0) == 6));
+            updates.clear();
+
+            closeReadersUnderTheService();
+            // Deleted by another broker of the cluster while this broker has no reader on __change_events.
+            writeEventAsAnotherBroker(topicName, null);
+
+            assertThat(service.getTopicPoliciesAsync(topicName, TopicPoliciesService.GetType.LOCAL_ONLY))
+                    .describedAs("the next initialization read the deletion")
+                    .succeedsWithin(Duration.ofSeconds(30))
+                    .isEqualTo(Optional.empty());
+            Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> assertThat(updates)
+                    .describedAs("the topic had a policy before its initialization was discarded and has none"
+                            + " after the next one, so the listener must get the null update a delivered deletion"
+                            + " gives it")
+                    .contains(Optional.empty()));
+        } finally {
+            service.unregisterListener(topicName, listener);
+        }
+    }
+
     /** The limit the loaded topic enforces; the admin API answers from the policy cache instead. */
     private static Integer liveMaxConsumers(PersistentTopic topic) {
         return topic.getHierarchyTopicPolicies().getMaxConsumerPerTopic().get();
@@ -530,6 +639,22 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
                 .isNotEmpty();
         pulsar.getConfiguration().setTopicPoliciesCacheInitTimeoutSeconds(readBackTimeoutSeconds);
         return stalledReaders;
+    }
+
+    /**
+     * Closes the namespace's reader without telling the service, and waits until the service has discarded the
+     * initialization of that reader: its next read fails with {@code AlreadyClosedException}.
+     */
+    private void closeReadersUnderTheService() {
+        final List<StallableReader> readers = service.readers();
+        assertThat(readers)
+                .describedAs("no reader was closed, so the assertions that follow would hold vacuously")
+                .isNotEmpty();
+        readers.forEach(StallableReader::closeAsync);
+        Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() ->
+                assertThat(service.getPoliciesCacheInit(NamespaceName.get(NAMESPACE)))
+                        .describedAs("the service must discard the initialization whose reader was closed")
+                        .isNull());
     }
 
     private static TopicPolicies localPoliciesWithMaxConsumers(int maxConsumers) {
@@ -860,6 +985,7 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
         private final AtomicBoolean firstReadStalled = new AtomicBoolean();
         /** The first event of the topic, fetched before the service asks for it ({@link #fetchFirstEvent()}). */
         private final AtomicReference<Message<PulsarEvent>> eventInHand = new AtomicReference<>();
+        private final AtomicReference<Throwable> nextCheckForMoreEventsFailure = new AtomicReference<>();
         private volatile boolean stalled;
         private volatile boolean closed;
 
@@ -917,6 +1043,15 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
             return eventInHand.get() != null;
         }
 
+        /** Fails the first check for more events that follows the event in hand, once. */
+        void failNextCheckForMoreEvents(Throwable failure) {
+            nextCheckForMoreEventsFailure.set(failure);
+        }
+
+        boolean failsNextCheckForMoreEvents() {
+            return nextCheckForMoreEventsFailure.get() != null;
+        }
+
         /** The topic whose policies the event in hand carries. */
         TopicName topicOfEventInHand() {
             final TopicPoliciesEvent event = eventInHand.get().getValue().getTopicPoliciesEvent();
@@ -965,6 +1100,10 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
             // A stalled reader has events it does not deliver, so it never reports the end of the topic.
             if (eventInHand.get() != null || stalled) {
                 return CompletableFuture.completedFuture(true);
+            }
+            final Throwable failure = nextCheckForMoreEventsFailure.getAndSet(null);
+            if (failure != null) {
+                return CompletableFuture.failedFuture(failure);
             }
             return delegate.hasMoreEventsAsync();
         }
