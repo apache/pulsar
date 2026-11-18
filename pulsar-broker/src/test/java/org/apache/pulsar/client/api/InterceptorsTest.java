@@ -850,6 +850,7 @@ public class InterceptorsTest extends SharedPulsarBaseTest {
             topics.add(newTopicName());
         }
         final int totalNumOfMessages = 100;
+        final long ackTimeoutTickTimeMillis = 100;
         CountDownLatch latch = new CountDownLatch(totalNumOfMessages / 2);
 
         ConsumerInterceptor<String> interceptor = new ConsumerInterceptor<String>() {
@@ -894,7 +895,7 @@ public class InterceptorsTest extends SharedPulsarBaseTest {
                 .subscriptionName("foo")
                 .intercept(interceptor)
                 .ackTimeout(2, TimeUnit.SECONDS)
-                .ackTimeoutTickTime(100, TimeUnit.MILLISECONDS)
+                .ackTimeoutTickTime(ackTimeoutTickTimeMillis, TimeUnit.MILLISECONDS)
                 .subscribe();
 
         for (int i = 0; i < totalNumOfMessages; i++) {
@@ -902,6 +903,11 @@ public class InterceptorsTest extends SharedPulsarBaseTest {
         }
 
         for (int i = 0; i < totalNumOfMessages; i++) {
+            if (i == totalNumOfMessages / 2) {
+                // Receive the second half a few ticks later, so that the unacked messages do not all time out at
+                // the same tick: the Exclusive consumer redelivers them all when the first ones time out
+                Thread.sleep(3 * ackTimeoutTickTimeMillis);
+            }
             Message<String> message = consumer.receive();
 
             if (i % 2 == 0) {
@@ -909,8 +915,8 @@ public class InterceptorsTest extends SharedPulsarBaseTest {
             }
         }
 
-        latch.await();
-        Assert.assertEquals(latch.getCount(), 0);
+        Assert.assertTrue(latch.await(10, TimeUnit.SECONDS),
+                "onAckTimeoutSend missed " + latch.getCount() + " unacked messages");
 
         producer.close();
         consumer.close();

@@ -604,7 +604,7 @@ public class DualMetadataStore implements MetadataStoreExtended {
             return sourceStore.delete(path, sourceVersion);
         });
         return cleanup.whenComplete((ignored, error) -> {
-            Throwable cause = error == null ? null : FutureUtil.unwrapCompletionException(error);
+            Throwable cause = FutureUtil.unwrapCompletionException(error);
             if (sourceVersion.isPresent() && cause != null
                     && !(cause instanceof MetadataStoreException.NotFoundException)) {
                 // Preparation after a failed delete must still recreate the surviving source acquisition.

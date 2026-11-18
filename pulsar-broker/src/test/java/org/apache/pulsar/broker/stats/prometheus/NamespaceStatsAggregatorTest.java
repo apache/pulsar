@@ -31,6 +31,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Consumer;
+import org.apache.pulsar.broker.service.GetStatsOptions;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -95,7 +96,8 @@ public class NamespaceStatsAggregatorTest {
         SubscriptionStatsImpl subStats = new SubscriptionStatsImpl();
         TopicStatsImpl topicStats = new TopicStatsImpl();
         topicStats.subscriptions.put("my-subscription", subStats);
-        when(topic.getStats(false, false, false)).thenReturn(topicStats);
+        GetStatsOptions statsOptions = GetStatsOptions.builder().excludeLastPublishTime(true).build();
+        when(topic.getStats(statsOptions)).thenReturn(topicStats);
         when(topic.getBrokerService()).thenReturn(broker);
         when(topic.getSubscriptions()).thenReturn(subscriptionsMaps);
         when(topic.getReplicators()).thenReturn(new ConcurrentHashMap<>());
@@ -122,6 +124,7 @@ public class NamespaceStatsAggregatorTest {
                 true, true, metricStreams);
 
         // then
+        Mockito.verify(topic).getStats(statsOptions);
         verifySubscriptionMetric(metricStreams, "pulsar_subscription_blocked_on_unacked_messages", 1);
         verifyConsumerMetric(metricStreams, "pulsar_consumer_blocked_on_unacked_messages", 0);
 

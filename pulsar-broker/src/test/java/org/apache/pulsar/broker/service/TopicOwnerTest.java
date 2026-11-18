@@ -32,6 +32,7 @@ import lombok.CustomLog;
 import lombok.SneakyThrows;
 import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.commons.lang3.reflect.FieldUtils;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.lookup.LookupResult;
@@ -45,16 +46,19 @@ import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.mockito.stubbing.Answer;
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 @CustomLog
-public class TopicOwnerTest {
+public class TopicOwnerTest extends TestRetrySupport {
 
     LocalBookkeeperEnsemble bkEnsemble;
     protected PulsarAdmin[] pulsarAdmins = new PulsarAdmin[BROKER_COUNT];
@@ -65,10 +69,15 @@ public class TopicOwnerTest {
     protected PulsarAdmin leaderAdmin;
     protected String testCluster = "my-cluster";
     protected String testTenant = "my-tenant";
-    protected String testNamespace = testTenant + "/my-ns";
+    protected String testNamespace;
+    private MutableObject<PulsarService> leaderAuthorizedBroker;
 
-    @BeforeMethod
-    void setup() throws Exception {
+    // The test methods share the brokers, each with a namespace of its own. After a failed method, the next one
+    // gets new brokers (TestRetrySupport).
+    @BeforeClass(alwaysRun = true)
+    @Override
+    protected void setup() throws Exception {
+        incrementSetupNumber();
         log.info("---- Initializing TopicOwnerTest -----");
         // Start local bookkeeper ensemble
         bkEnsemble = new LocalBookkeeperEnsemble(3, 0);
@@ -110,11 +119,27 @@ public class TopicOwnerTest {
                 .allowedClusters(Sets.newHashSet(testCluster))
                 .build();
         pulsarAdmins[0].tenants().createTenant(testTenant, tenantInfo);
+        leaderAuthorizedBroker = spyLeaderNamespaceServiceForAuthorizedBroker();
+    }
+
+    @BeforeMethod(alwaysRun = true)
+    void createNamespace() throws Exception {
+        // a namespace whose bundles no broker owns yet
+        testNamespace = BrokerTestUtil.newUniqueName(testTenant + "/my-ns");
         pulsarAdmins[0].namespaces().createNamespace(testNamespace, 16);
     }
 
     @AfterMethod(alwaysRun = true)
-    void tearDown() throws Exception {
+    void resetLeaderAuthorizedBroker() {
+        if (leaderAuthorizedBroker != null) {
+            leaderAuthorizedBroker.setValue(null);
+        }
+    }
+
+    @AfterClass(alwaysRun = true)
+    @Override
+    protected void cleanup() throws Exception {
+        markCurrentSetupNumberCleaned();
         for (int i = 0; i < BROKER_COUNT; i++) {
             if (pulsarAdmins[i] != null) {
                 pulsarAdmins[i].close();
@@ -164,11 +189,9 @@ public class TopicOwnerTest {
 
     @Test
     public void testReestablishOwnershipAfterInvalidateCache() throws Exception {
-        String topic1 = "persistent://my-tenant/my-ns/topic-1";
+        String topic1 = "persistent://" + testNamespace + "/topic-1";
         NamespaceService leaderNamespaceService = leaderPulsar.getNamespaceService();
         NamespaceBundle namespaceBundle = leaderNamespaceService.getBundle(TopicName.get(topic1));
-
-        final MutableObject<PulsarService> leaderAuthorizedBroker = spyLeaderNamespaceServiceForAuthorizedBroker();
 
         PulsarService pulsar1 = pulsarServices[1];
 
@@ -196,13 +219,12 @@ public class TopicOwnerTest {
 
     @Test
     public void testConnectToInvalidateBundleCacheBroker() throws Exception {
-        Assert.assertEquals(pulsarAdmins[0].namespaces().getPolicies("my-tenant/my-ns").bundles.getNumBundles(), 16);
+        Assert.assertEquals(pulsarAdmins[0].namespaces().getPolicies(testNamespace).bundles.getNumBundles(), 16);
 
-        final String topic1 = "persistent://my-tenant/my-ns/topic-1";
-        final String topic2 = "persistent://my-tenant/my-ns/topic-2";
+        final String topic1 = "persistent://" + testNamespace + "/topic-1";
+        final String topic2 = "persistent://" + testNamespace + "/topic-2";
 
         // Assign the bundles to different brokers without relying on load-balancer distribution.
-        final MutableObject<PulsarService> leaderAuthorizedBroker = spyLeaderNamespaceServiceForAuthorizedBroker();
         leaderAuthorizedBroker.setValue(pulsarServices[1]);
         String serviceUrlForTopic1 = pulsarAdmins[0].lookups().lookupTopic(topic1);
         Assert.assertEquals(serviceUrlForTopic1, pulsarServices[1].getBrokerServiceUrl());
@@ -211,7 +233,7 @@ public class TopicOwnerTest {
         Assert.assertEquals(serviceUrlForTopic2, pulsarServices[2].getBrokerServiceUrl());
         leaderAuthorizedBroker.setValue(null);
         // All brokers will invalidate bundles cache after namespace bundle split
-        pulsarAdmins[0].namespaces().splitNamespaceBundle("my-tenant/my-ns",
+        pulsarAdmins[0].namespaces().splitNamespaceBundle(testNamespace,
                 pulsarServices[0].getNamespaceService().getBundle(TopicName.get(topic1)).getBundleRange(),
                 true, null);
 
@@ -228,7 +250,7 @@ public class TopicOwnerTest {
     @Test
     public void testLookupPartitionedTopic() throws Exception {
         final int partitions = 5;
-        final String topic = "persistent://my-tenant/my-ns/partitionedTopic";
+        final String topic = "persistent://" + testNamespace + "/partitionedTopic";
 
         pulsarAdmins[0].topics().createPartitionedTopic(topic, partitions);
 
@@ -251,7 +273,7 @@ public class TopicOwnerTest {
 
     @Test
     public void testListNonPersistentTopic() throws Exception {
-        final String topicName = "non-persistent://my-tenant/my-ns/my-topic";
+        final String topicName = "non-persistent://" + testNamespace + "/my-topic";
         pulsarAdmins[0].topics().createPartitionedTopic(topicName, 16);
 
         @Cleanup
@@ -264,11 +286,11 @@ public class TopicOwnerTest {
                 .subscriptionName("my-sub")
                 .subscribe();
 
-        List<String> topics = pulsarAdmins[0].topics().getList("my-tenant/my-ns");
+        List<String> topics = pulsarAdmins[0].topics().getList(testNamespace);
         Assert.assertEquals(topics.size(), 16);
         for (String topic : topics) {
             Assert.assertTrue(topic.contains("non-persistent"));
-            Assert.assertTrue(topic.contains("my-tenant/my-ns/my-topic"));
+            Assert.assertTrue(topic.contains(testNamespace + "/my-topic"));
         }
 
         consumer.close();

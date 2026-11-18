@@ -51,6 +51,13 @@ public class PulsarInitMetadataContainer extends GenericContainer<PulsarInitMeta
         withNetwork(network);
 
         setCommand("sleep 1000000");
+        // The container only sleeps, so its environment is for the initialize-cluster-metadata command run in it: a
+        // short-lived JVM that writes a few metadata nodes and keeps less than 20 MB of heap live. Replace the broker
+        // defaults of conf/pulsar_env.sh, a 2 GB ZGC heap that the JVM pre-touches as it starts, with a small heap
+        // that the Serial GC manages, and compile with C1 only, which makes the command start and finish faster.
+        withEnv("PULSAR_MEM", "-Xmx256m");
+        withEnv("PULSAR_GC", "-XX:+UseSerialGC");
+        withEnv("PULSAR_EXTRA_OPTS", "-XX:TieredStopAtLevel=1");
     }
 
 

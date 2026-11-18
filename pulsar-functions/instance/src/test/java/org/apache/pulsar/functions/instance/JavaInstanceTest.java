@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.instance;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
@@ -25,7 +26,9 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -37,6 +40,7 @@ import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.instance.JavaInstance.AsyncFuncRequest;
 import org.apache.pulsar.functions.proto.FunctionDetails;
 import org.testng.Assert;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @CustomLog
@@ -186,6 +190,30 @@ public class JavaInstanceTest {
         assertNull(result);
         assertSame(userException, resultHolder.get().getUserException());
         instance.close();
+    }
+
+    @DataProvider(name = "asyncFailuresWithoutCause")
+    public Object[][] asyncFailuresWithoutCause() {
+        return new Object[][] {
+                {new CompletionException("Function failed", null)},
+                {new ExecutionException("Function failed", null)}
+        };
+    }
+
+    @Test(dataProvider = "asyncFailuresWithoutCause")
+    public void testAsyncFunctionPreservesFailureWithoutCause(Throwable failure) throws Exception {
+        Function<String, CompletableFuture<String>> function =
+                (input, context) -> CompletableFuture.failedFuture(failure);
+        CompletableFuture<JavaExecutionResult> resultHolder = new CompletableFuture<>();
+        try (JavaInstance instance = new JavaInstance(mock(ContextImpl.class), function, new InstanceConfig())) {
+            JavaExecutionResult result = instance.handleMessage(mock(Record.class), "input",
+                    (record, asyncResult) -> resultHolder.complete(asyncResult), resultHolder::completeExceptionally);
+
+            assertThat(result).as("Async function returns its result through the callback").isNull();
+            assertThat(resultHolder.get(5, TimeUnit.SECONDS).getUserException())
+                    .as("The callback preserves the function failure")
+                    .isSameAs(failure);
+        }
     }
 
     @Test

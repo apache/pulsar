@@ -17,6 +17,8 @@
  * under the License.
  */
 
+import io.github.merlimat.gradle.nar.NarTask
+
 plugins {
     id("pulsar.java-conventions")
     id("pulsar.nar-conventions")
@@ -32,7 +34,7 @@ dependencies {
 }
 
 // Match Maven's nifi-nar-maven-plugin output: customCommands-nar.nar
-tasks.named<io.github.merlimat.gradle.nar.NarTask>("nar") {
+tasks.named<NarTask>("nar") {
     archiveBaseName.set("customCommands")
     archiveClassifier.set("nar")
     archiveVersion.set("")

@@ -28,6 +28,9 @@ import org.apache.pulsar.broker.service.Topic;
 
 /**
  * PublishContext implementation for REST message publishing.
+ *
+ * <p>It has no producer name, so a topic with deduplication enabled doesn't deduplicate the messages: their sequence
+ * IDs are optional, 0 when a request doesn't set them, and the default producer name is shared by every REST client.
  */
 @CustomLog
 public class RestMessagePublishContext implements Topic.PublishContext {

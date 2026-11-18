@@ -360,10 +360,15 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
         // both (there is no shared client scheduler here, unlike the PulsarClientImpl funnel).
         ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(
                 new DefaultThreadFactory("pulsar-admin-tls-factory"));
-        PulsarTlsFactory factory = ClientTlsFactorySupport.resolveClientTlsFactory(conf, executor,
-                executor, conf.getOpenTelemetry());
-        this.tlsFactoryOwnership = TlsFactoryOwnership.owning(factory, executor);
-        return factory;
+        try {
+            PulsarTlsFactory factory = ClientTlsFactorySupport.resolveClientTlsFactory(conf, executor,
+                    executor, conf.getOpenTelemetry());
+            this.tlsFactoryOwnership = TlsFactoryOwnership.owning(factory, executor);
+            return factory;
+        } catch (Throwable t) {
+            executor.shutdownNow();
+            throw t;
+        }
     }
 
     /**
@@ -701,8 +706,7 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
         CompletableFuture<Response> completableFuture = responseFuture.toCompletableFuture();
         completableFuture.whenComplete((response, throwable) -> {
             throwable = FutureUtil.unwrapCompletionException(throwable);
-            if (throwable != null && (throwable instanceof CancellationException
-                    || throwable instanceof TimeoutException)) {
+            if (throwable instanceof CancellationException || throwable instanceof TimeoutException) {
                 // abort the request if the future is cancelled or timed out
                 responseFuture.abort(throwable);
             }

@@ -1457,6 +1457,11 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                     .InvalidTxnStatusException);
         }
 
+        // The broker times the transaction out on its own timer: wait until it has aborted it, or the test methods
+        // that run next would see its timeout
+        TransactionMetadataStoreService tcService = getPulsarServiceList().get(0).getTransactionMetadataStoreService();
+        Awaitility.await().until(() -> tcService.getTxnMeta(transaction.getTxnID()).isCompletedExceptionally());
+
         // cleanup.
         producer.close();
         consumer.close();

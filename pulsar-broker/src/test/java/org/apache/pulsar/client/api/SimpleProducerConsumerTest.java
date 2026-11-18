@@ -23,9 +23,6 @@ import static org.apache.pulsar.common.naming.TopicName.PARTITIONED_TOPIC_SUFFIX
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
@@ -64,6 +61,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
@@ -87,18 +85,14 @@ import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.impl.cache.EntryCacheManager;
 import org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheManagerImpl;
 import org.apache.commons.lang3.RandomUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.BrokerTestUtil;
-import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
-import org.apache.pulsar.broker.storage.ManagedLedgerStorageClass;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
@@ -128,9 +122,12 @@ import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.CursorStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PublisherStats;
+import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -178,28 +175,84 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             pulsarTestContext.getMockBookKeeper().setReadHandleInterceptor(null);
             pulsar.getConfiguration().setForceDeleteTenantAllowed(true);
             pulsar.getConfiguration().setForceDeleteNamespaceAllowed(true);
+            // A producer or a consumer that the test method left open would reconnect to the recreated namespaces and
+            // create its topic again: close them with the client
+            pulsarClient.shutdown();
+            pulsarClient = newPulsarClient(lookupUrl.toString(), 0);
 
-            for (String tenant : admin.tenants().getTenants()) {
-                for (String namespace : admin.namespaces().getNamespaces(tenant)) {
-                    deleteNamespaceWithRetry(namespace, true);
+            if (!recreateBaseNamespacesIfNothingElseChanged()) {
+                for (String tenant : admin.tenants().getTenants()) {
+                    for (String namespace : admin.namespaces().getNamespaces(tenant)) {
+                        deleteNamespaceWithRetry(namespace, true);
+                    }
+                    admin.tenants().deleteTenant(tenant, true);
                 }
-                admin.tenants().deleteTenant(tenant, true);
-            }
 
-            for (String cluster : admin.clusters().getClusters()) {
-                admin.clusters().deleteCluster(cluster);
+                for (String cluster : admin.clusters().getClusters()) {
+                    admin.clusters().deleteCluster(cluster);
+                }
+                super.producerBaseSetup();
             }
 
             pulsar.getConfiguration().setForceDeleteTenantAllowed(false);
             pulsar.getConfiguration().setForceDeleteNamespaceAllowed(false);
             configureDefaults(pulsar.getConfiguration());
-            super.producerBaseSetup();
         } catch (Exception | AssertionError e) {
             log.warn().exception(e).log("Failed to clean up state. Restarting broker");
             log.warn().attr("dump", ThreadDumpUtil.buildThreadDiagnosticString()).log("Thread dump:\n");
             cleanup();
             setup();
         }
+    }
+
+    /**
+     * Deletes and recreates the two namespaces of {@link #producerBaseSetup()}, which drops the topics the test method
+     * created in them, if the test method left the cluster and the tenants as producerBaseSetup() created them: the
+     * test methods of this class only create topics. Every metadata update waits for the next batch of the metadata
+     * store, so deleting and recreating the cluster and the tenants as well would take longer than the namespaces.
+     *
+     * @return false, without changing anything, if the test method changed the cluster or the tenants
+     */
+    private boolean recreateBaseNamespacesIfNothingElseChanged() throws Exception {
+        // As producerBaseSetup() creates them
+        ClusterData clusterData = ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build();
+        TenantInfo tenantInfo = new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test"));
+        Map<String, String> namespaceOfTenant = Map.of("my-property", "my-property/my-ns", "public", "public/default");
+
+        List<CompletableFuture<Boolean>> checks = new ArrayList<>();
+        checks.add(admin.clusters().getClustersAsync().thenApply(List.of("test")::equals));
+        checks.add(admin.clusters().getClusterAsync("test").thenApply(clusterData::equals));
+        checks.add(admin.clusters().getFailureDomainsAsync("test").thenApply(Map::isEmpty));
+        checks.add(admin.clusters().getNamespaceIsolationPoliciesAsync("test").thenApply(Map::isEmpty)
+                // the cluster has no isolation policies
+                .exceptionally(e -> FutureUtil.unwrapCompletionException(e)
+                        instanceof PulsarAdminException.NotFoundException));
+        checks.add(admin.tenants().getTenantsAsync()
+                .thenApply(tenants -> new HashSet<>(tenants).equals(namespaceOfTenant.keySet())));
+        namespaceOfTenant.forEach((tenant, namespace) -> {
+            checks.add(admin.tenants().getTenantInfoAsync(tenant).thenApply(tenantInfo::equals));
+            checks.add(admin.namespaces().getNamespacesAsync(tenant).thenApply(List.of(namespace)::equals));
+        });
+        boolean nothingElseChanged = true;
+        for (CompletableFuture<Boolean> check : checks) {
+            // a check fails when, for example, the test method deleted a tenant
+            nothingElseChanged &= check.exceptionally(e -> false).get();
+        }
+        if (!nothingElseChanged) {
+            return false;
+        }
+        FutureUtil.waitForAll(namespaceOfTenant.values().stream()
+                .map(namespace -> CompletableFuture.runAsync(() -> {
+                    try {
+                        deleteNamespaceWithRetry(namespace, true);
+                        admin.namespaces().createNamespace(namespace, Set.of("test"));
+                    } catch (Exception e) {
+                        throw new CompletionException(e);
+                    }
+                }))
+                .toList())
+                .get();
+        return true;
     }
 
     @DataProvider
@@ -582,6 +635,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic("persistent://my-property/my-ns/my-topic-pr").create();
 
+        awaitInitialPermitsAtBroker(consumer, receiverQueueSize);
         consumer.pause();
 
         for (int i = 0; i < receiverQueueSize * 2; i++) {
@@ -626,6 +680,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                     received.incrementAndGet();
                     latch.get().countDown();
                 }).subscribe();
+        awaitInitialPermitsAtBroker(consumer, receiverQueueSize);
         consumer.pause();
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).enableBatching(false).create();
@@ -1177,26 +1232,6 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     }
 
 
-    @Override
-    protected void beforePulsarStart(PulsarService pulsar) throws Exception {
-        super.beforePulsarStart(pulsar);
-        ManagedLedgerStorage managedLedgerStorage = pulsar.getManagedLedgerStorage();
-        doAnswer(invocation -> {
-            ManagedLedgerStorageClass managedLedgerStorageClass =
-                    (ManagedLedgerStorageClass) spy(invocation.callRealMethod());
-            doAnswer(i0 -> {
-                ManagedLedgerFactory factory = (ManagedLedgerFactory) spy(i0.callRealMethod());
-                doAnswer(i1 -> {
-                    EntryCacheManager manager = (EntryCacheManager) spy(i1.callRealMethod());
-                    doAnswer(i2 -> spy(i2.callRealMethod())).when(manager).getEntryCache(any());
-                    return manager;
-                }).when(factory).getEntryCacheManager();
-                return factory;
-            }).when(managedLedgerStorageClass).getManagedLedgerFactory();
-            return managedLedgerStorageClass;
-        }).when(managedLedgerStorage).getDefaultStorageClass();
-    }
-
     /**
      * Usecase 1: Only 1 Active Subscription - 1 subscriber - Produce Messages - EntryCache should be used -
      * entries should be eligible for eviction : Once active subscription consumes messages.
@@ -1602,6 +1637,16 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     private long getMsgBacklog(Consumer<?> consumer) throws Exception {
         return admin.topics().getStats(consumer.getTopic()).getSubscriptions().get(consumer.getSubscription())
                 .getMsgBacklog();
+    }
+
+    /**
+     * Waits until the broker has the initial permits of a consumer whose topic has no messages yet. The subscribe
+     * future completes before the consumer sends them, and a paused consumer doesn't send them, so a consumer paused
+     * right after subscribe() can get no messages at all instead of its receiver queue size.
+     */
+    private void awaitInitialPermitsAtBroker(Consumer<?> consumer, int receiverQueueSize) {
+        Awaitility.await().untilAsserted(
+                () -> assertEquals(getBrokerConsumer(consumer).getAvailablePermits(), receiverQueueSize));
     }
 
     /**
@@ -3628,7 +3673,13 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                     ("my-message-" + counter).getBytes());
         }
 
-        // 2. pause multi-topic consumer
+        // 2. pause multi-topic consumer. The last receive made room for message 4, and the internal consumer of
+        // partition 0 gives the broker a permit back when it hands message 4 over, unless it is already paused. A
+        // pause doesn't take back the permits the broker has, so wait for that permit: the pause then always comes
+        // after the hand-over
+        ConsumerImpl<?> partition0Consumer = ((MultiTopicsConsumerImpl<?>) consumer).getConsumers().get(0);
+        Awaitility.await().untilAsserted(
+                () -> assertEquals(getBrokerConsumer(partition0Consumer).getAvailablePermits(), 1));
         consumer.pause();
 
         // 3. update partition
@@ -3637,7 +3688,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         // 4. wait for client to update partitions
         Awaitility.await().until(() -> ((MultiTopicsConsumerImpl) consumer).getConsumers().size() == 3);
 
-        // 5. produce 5 more messages
+        // 5. produce 5 more messages: partition 0 gets at least one of them, whether or not the producer has seen the
+        // new partitions yet
         for (int i = 5; i < 10; i++) {
             final String message = "my-message-" + i;
             producer.send(message.getBytes());
@@ -3648,9 +3700,14 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             assertEquals(consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS).getData(),
                 ("my-message-" + counter++).getBytes());
         }
+        // and receive the message that the permit of partition 0 lets the broker dispatch
+        Message<byte[]> permittedMessage = consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        assertNotNull(permittedMessage);
+        assertEquals(permittedMessage.getTopicName(), partition0Consumer.getTopic());
+        counter++;
 
-        // 7. should not consume any messages: the paused consumers, including the ones for the new partitions, give
-        // the broker no permits
+        // 7. should not consume any more messages: the paused consumers, including the ones for the new partitions,
+        // give the broker no permits
         awaitNoPermitsAtBroker((MultiTopicsConsumerImpl<?>) consumer);
         assertNull(consumer.receive(RECEIVE_TIMEOUT_SHORT_MILLIS, TimeUnit.MILLISECONDS));
 
@@ -3692,15 +3749,18 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             .enableBatching(false)
             .create();
 
-        // 1. produce 5 messages per topic
-        for (int i = 0; i < 5; i++) {
+        int receiverQueueSize = 6;
+        // 1. produce fewer messages per topic than half the receiver queue. An internal consumer asks the broker for
+        // more messages once it has handed half its receiver queue over to the multi-topics consumer, so none asks
+        // for more before the pause, whether the pause lands before or after the hand-overs
+        int messagesBeforePause = receiverQueueSize / 2 - 1;
+        for (int i = 0; i < messagesBeforePause; i++) {
             final String message = "my-message-" + i;
             producer1.send(message.getBytes(UTF_8));
             producer2.send(message.getBytes(UTF_8));
             producer3.send(message.getBytes(UTF_8));
         }
 
-        int receiverQueueSize = 6;
         Consumer<byte[]> consumer = pulsarClient
             .newConsumer()
             .topics(Lists.newArrayList(topicNameBase + "1", topicNameBase + "2"))
@@ -3709,12 +3769,6 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             .subscriptionName("test-multi-topic-consumer")
             .subscribe();
 
-        int counter = 0;
-        for (; counter < 2 * (5 - receiverQueueSize); counter++) {
-            assertThat(new String(consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS).getData(), UTF_8))
-                .startsWith("my-message-");
-        }
-
         // 2. pause multi-topic consumer
         consumer.pause();
 
@@ -3722,14 +3776,16 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         ((MultiTopicsConsumerImpl) consumer).subscribeAsync(topicNameBase + "3", true).join();
 
         // 4. produce 5 more messages per topic
-        for (int i = 5; i < 10; i++) {
+        for (int i = messagesBeforePause; i < messagesBeforePause + 5; i++) {
             final String message = "my-message-" + i;
             producer1.send(message.getBytes(UTF_8));
             producer2.send(message.getBytes(UTF_8));
             producer3.send(message.getBytes(UTF_8));
         }
 
-        // 5. empty receiver queues
+        // 5. empty receiver queues: the initial permits of each of the first two consumers let the broker dispatch
+        // a receiver queue of messages to it
+        int counter = 0;
         for (int i = 0; i < 2 * receiverQueueSize; i++) {
             assertThat(new String(consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS).getData(), UTF_8))
                 .startsWith("my-message-");
@@ -3745,14 +3801,15 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         consumer.resume();
 
         // 8. continue to consume
-        while (counter < 30) {
+        int totalMessages = 3 * (messagesBeforePause + 5);
+        while (counter < totalMessages) {
             assertNotNull(consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS));
             counter++;
         }
         // every message was dispatched once, so no more arrive
         awaitAllMessagesDispatched(consumer);
         assertNull(consumer.receive(RECEIVE_TIMEOUT_SHORT_MILLIS, TimeUnit.MILLISECONDS));
-        assertEquals(counter, 30);
+        assertEquals(counter, totalMessages);
 
         producer1.close();
         producer2.close();

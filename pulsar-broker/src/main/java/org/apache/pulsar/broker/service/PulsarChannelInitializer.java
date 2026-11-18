@@ -88,7 +88,7 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
                     pulsar.getExecutor(), pulsar.getExecutor(), pulsar.getOpenTelemetry().getOpenTelemetry());
             TlsFactorySupport.initializeBlocking(this.tlsFactory, initContext);
             this.tlsSubscription = TlsContextAcquisition.acquireNettyContext(this.tlsFactory, TlsPurpose.BROKER,
-                            TlsSynthesisSpec.server(serviceConfig.isTlsRequireTrustedClientCertOnConnect()),
+                            TlsSynthesisSpec.server(serviceConfig.resolveTlsClientAuthMode()),
                             ctx -> this.tlsServerContext = ctx)
                     .get()
                     .orElseThrow(() -> new IllegalStateException(

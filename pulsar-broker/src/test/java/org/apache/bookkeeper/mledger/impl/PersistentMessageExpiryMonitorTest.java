@@ -31,6 +31,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import lombok.CustomLog;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.persistent.PersistentMessageExpiryMonitor;
@@ -162,13 +163,18 @@ public class PersistentMessageExpiryMonitorTest extends ProducerConsumerBase {
         final String cursorName1 = "s1";
         final String cursorName2 = "s2";
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName).create();
-        admin.topics().createSubscriptionAsync(topicName, cursorName1, MessageId.earliest);
-        admin.topics().createSubscriptionAsync(topicName, cursorName2, MessageId.earliest);
+        admin.topics().createSubscription(topicName, cursorName1, MessageId.earliest);
+        admin.topics().createSubscription(topicName, cursorName2, MessageId.earliest);
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
+        ManagedLedgerConfig configBeforeTtlUpdate = ml.getConfig();
         admin.topicPolicies().setMessageTTL(topicName, 1);
+        // Applying the TTL update replaces the managed ledger config, which would drop the settings changed below
         Awaitility.await().untilAsserted(() -> {
             assertEquals(1, persistentTopic.getHierarchyTopicPolicies().getMessageTTLInSeconds().get().intValue());
+            Assert.assertNotSame(ml.getConfig(), configBeforeTtlUpdate);
         });
-        ManagedLedgerImpl ml = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
+        // The TTL update also scheduled an expiry check, which must not run after the messages are published
+        pulsar.getBrokerService().getMessageExpiryMonitor().submit(() -> { }).get();
         ml.getConfig().setMaxEntriesPerLedger(2);
         ml.getConfig().setMinimumRolloverTime(1, TimeUnit.MILLISECONDS);
         long firstLedger = ml.currentLedger.getId();
@@ -178,6 +184,7 @@ public class PersistentMessageExpiryMonitorTest extends ProducerConsumerBase {
             producer.send("" + i);
             Thread.sleep(100);
         }
+        long lastPublishedAt = System.currentTimeMillis();
         System.out.println("maxEntriesPerLedger 2 : " + ml.getConfig().getMaxEntriesPerLedger());
         assertEquals(3, ml.getLedgersInfo().size());
         // Do a injection to count the access of the first ledger.
@@ -192,9 +199,15 @@ public class PersistentMessageExpiryMonitorTest extends ProducerConsumerBase {
             return invocationOnMock.callRealMethod();
         }).when(spyReadHandle).readAsync(anyLong(), anyLong());
         ml.ledgerCache.put(firstLedger, CompletableFuture.completedFuture(spyReadHandle));
+        // Let every message expire, so that the position to expire up to is in the current (open) ledger.
+        Awaitility.await().until(() -> System.currentTimeMillis() - lastPublishedAt > TimeUnit.SECONDS.toMillis(1));
         // Verify: the first ledger will be accessed only once after expiry for two subscriptions.
         persistentTopic.checkMessageExpiry();
-        Thread.sleep(2000);
+        Position lastPosition = ml.getLastConfirmedEntry();
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(lastPosition, ml.getCursors().get(cursorName1).getMarkDeletedPosition());
+            assertEquals(lastPosition, ml.getCursors().get(cursorName2).getMarkDeletedPosition());
+        });
         assertEquals(1, accessedCount.get());
 
         // cleanup.

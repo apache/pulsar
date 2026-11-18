@@ -40,13 +40,14 @@ import io.netty.channel.VoidChannelPromise;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.opentelemetry.api.OpenTelemetry;
-import io.prometheus.client.CollectorRegistry;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
@@ -55,6 +56,7 @@ import org.apache.pulsar.broker.resources.ScalableTopicResources;
 import org.apache.pulsar.broker.service.scalable.ConsumerAssignment;
 import org.apache.pulsar.broker.service.scalable.ConsumerSession;
 import org.apache.pulsar.broker.service.scalable.DagWatchSession;
+import org.apache.pulsar.broker.service.scalable.PrometheusSamples;
 import org.apache.pulsar.broker.service.scalable.ScalableTopicMetrics;
 import org.apache.pulsar.broker.service.scalable.ScalableTopicService;
 import org.apache.pulsar.broker.service.scalable.ScalableTopicsWatcherSession;
@@ -64,6 +66,7 @@ import org.apache.pulsar.common.api.proto.ScalableConsumerAssignment;
 import org.apache.pulsar.common.api.proto.ScalableConsumerType;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.protocol.Commands;
+import org.mockito.Mockito;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -74,11 +77,14 @@ public class ScalableTopicRequestMetricsTest {
     private BrokerService brokerService;
     private ServerCnx cnx;
     private EmbeddedChannel channel;
-    private CollectorRegistry registry;
+    private PrometheusRegistry registry;
     private ScalableTopicMetrics metrics;
     private ServiceConfiguration config;
     private final List<DagWatchSession> dagSessions = new ArrayList<>();
     private final List<ScalableTopicsWatcherSession> namespaceSessions = new ArrayList<>();
+    // Mocks and spies that reference this method's broker, which Mockito's inline mock maker would keep, with the
+    // broker, until the JVM exits: released once the broker is closed.
+    private final List<Object> ownedMocks = new CopyOnWriteArrayList<>();
 
     @BeforeMethod
     public void setup() throws Exception {
@@ -91,7 +97,7 @@ public class ScalableTopicRequestMetricsTest {
         config.setBacklogQuotaCheckEnabled(false);
         context = PulsarTestContext.builderForNonStartableContext().config(config).spyByDefault().build();
         brokerService = context.getBrokerService();
-        registry = new CollectorRegistry();
+        registry = new PrometheusRegistry();
         metrics = new ScalableTopicMetrics(OpenTelemetry.noop().getMeter("test"), "test", registry);
         when(brokerService.getScalableTopicMetrics()).thenReturn(metrics);
     }
@@ -120,6 +126,18 @@ public class ScalableTopicRequestMetricsTest {
         if (context != null) {
             context.close();
         }
+        ownedMocks.forEach(mock -> Mockito.framework().clearInlineMock(mock));
+        ownedMocks.clear();
+        // TestNG keeps this test instance until the run ends
+        context = null;
+        brokerService = null;
+        cnx = null;
+        channel = null;
+    }
+
+    private <T> T ownMock(T mock) {
+        ownedMocks.add(mock);
+        return mock;
     }
 
     @Test
@@ -145,7 +163,7 @@ public class ScalableTopicRequestMetricsTest {
 
     @Test
     public void authorizationFailureIsMeasuredWithoutOpeningWatch() {
-        var authorization = mock(AuthorizationService.class);
+        var authorization = ownMock(mock(AuthorizationService.class));
         when(brokerService.isAuthorizationEnabled()).thenReturn(true);
         when(brokerService.getAuthorizationService()).thenReturn(authorization);
         var allowed = new CompletableFuture<Boolean>();
@@ -167,7 +185,7 @@ public class ScalableTopicRequestMetricsTest {
         var resources = spyScalableResources();
         doReturn(CompletableFuture.completedFuture(new PartitionedTopicMetadata(0)))
                 .when(brokerService).fetchPartitionedTopicMetadataAsync(any());
-        var authorization = mock(AuthorizationService.class);
+        var authorization = ownMock(mock(AuthorizationService.class));
         when(brokerService.isAuthorizationEnabled()).thenReturn(true);
         when(brokerService.getAuthorizationService()).thenReturn(authorization);
         var allowed = new CompletableFuture<Boolean>();
@@ -187,13 +205,13 @@ public class ScalableTopicRequestMetricsTest {
 
     @Test
     public void metricsPreserveSubscribeRegistrationAfterLateAuthorization() {
-        var authorization = mock(AuthorizationService.class);
+        var authorization = ownMock(mock(AuthorizationService.class));
         when(brokerService.isAuthorizationEnabled()).thenReturn(true);
         when(brokerService.getAuthorizationService()).thenReturn(authorization);
         var allowed = new CompletableFuture<Boolean>();
         when(authorization.allowTopicOperationAsync(any(), any(), any(), any(), any(), any()))
                 .thenReturn(allowed);
-        var service = mock(ScalableTopicService.class);
+        var service = ownMock(mock(ScalableTopicService.class));
         when(brokerService.getScalableTopicService()).thenReturn(service);
         when(service.registerConsumer(any(), anyString(), anyString(), anyLong(), any(), any()))
                 .thenReturn(CompletableFuture.completedFuture(new ConsumerAssignment(1, List.of())));
@@ -260,7 +278,7 @@ public class ScalableTopicRequestMetricsTest {
 
     @Test
     public void subscribeMeasuresFirstResponseNotRegistrationCompletion() {
-        var service = mock(ScalableTopicService.class);
+        var service = ownMock(mock(ScalableTopicService.class));
         when(brokerService.getScalableTopicService()).thenReturn(service);
         var registration = new CompletableFuture<ConsumerAssignment>();
         when(service.registerConsumer(any(), anyString(), anyString(), anyLong(), any(), any()))
@@ -286,7 +304,7 @@ public class ScalableTopicRequestMetricsTest {
 
     @Test
     public void subscribeFailureAndUnsubscribeRetry() {
-        var service = mock(ScalableTopicService.class);
+        var service = ownMock(mock(ScalableTopicService.class));
         when(brokerService.getScalableTopicService()).thenReturn(service);
         when(service.registerConsumer(any(), anyString(), anyString(), anyLong(), any(), any()))
                 .thenReturn(CompletableFuture.failedFuture(new IllegalStateException("failed")))
@@ -324,21 +342,21 @@ public class ScalableTopicRequestMetricsTest {
                 return output == null ? super.ctx() : output;
             }
         }
-        var service = mock(ScalableTopicService.class);
+        var service = ownMock(mock(ScalableTopicService.class));
         when(brokerService.getScalableTopicService()).thenReturn(service);
         when(service.registerConsumer(any(), anyString(), anyString(), anyLong(), any(), any()))
                 .thenReturn(CompletableFuture.completedFuture(new ConsumerAssignment(1, List.of())));
         var connection = new DeferredWriteCnx();
         connect(connection);
         Deque<Runnable> notifications = new ArrayDeque<>();
-        EventLoop notifier = mock(EventLoop.class);
+        EventLoop notifier = ownMock(mock(EventLoop.class));
         doAnswer(invocation -> {
             notifications.addLast(invocation.getArgument(0));
             return null;
         }).when(notifier).execute(any(Runnable.class));
-        Channel promiseChannel = mock(Channel.class);
+        Channel promiseChannel = ownMock(mock(Channel.class));
         when(promiseChannel.eventLoop()).thenReturn(notifier);
-        ChannelHandlerContext output = mock(ChannelHandlerContext.class);
+        ChannelHandlerContext output = ownMock(mock(ChannelHandlerContext.class));
         when(output.channel()).thenReturn(channel);
         when(output.voidPromise()).thenReturn(new VoidChannelPromise(promiseChannel, true));
         doAnswer(invocation -> {
@@ -376,7 +394,7 @@ public class ScalableTopicRequestMetricsTest {
                 return alternate == null ? super.getCommandSender() : alternate;
             }
         }
-        var service = mock(ScalableTopicService.class);
+        var service = ownMock(mock(ScalableTopicService.class));
         when(brokerService.getScalableTopicService()).thenReturn(service);
         when(service.registerConsumer(any(), anyString(), anyString(), anyLong(), any(), any()))
                 .thenReturn(CompletableFuture.completedFuture(new ConsumerAssignment(1, List.of())));
@@ -404,8 +422,8 @@ public class ScalableTopicRequestMetricsTest {
     }
 
     private ScalableTopicResources spyScalableResources() {
-        var resources = spy(context.getPulsarService().getPulsarResources().getScalableTopicResources());
-        var pulsarResources = mock(PulsarResources.class);
+        var resources = ownMock(spy(context.getPulsarService().getPulsarResources().getScalableTopicResources()));
+        var pulsarResources = ownMock(mock(PulsarResources.class));
         when(pulsarResources.getScalableTopicResources()).thenReturn(resources);
         doReturn(pulsarResources).when(context.getPulsarService()).getPulsarResources();
         doAnswer(invocation -> {
@@ -432,7 +450,7 @@ public class ScalableTopicRequestMetricsTest {
     }
 
     private double sample(String name, String[] labels, String[] values) {
-        Double value = registry.getSampleValue(name, labels, values);
+        Double value = PrometheusSamples.getSampleValue(registry, name, labels, values);
         return value == null ? 0 : value;
     }
 

@@ -142,7 +142,9 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         assertEquals(factory2.getMbean().getCacheHitsRate(), 0.0);
         assertEquals(factory2.getMbean().getCacheMissesRate(), 0.0);
         assertEquals(factory2.getMbean().getCacheHitsThroughput(), 0.0);
-        assertEquals(factory2.getMbean().getNumberOfCacheEvictions(), 1);
+        // The factory's own stats task also refreshes the per-period counters, and its first run may land after
+        // the eviction, so check the total count that refreshes don't reset
+        assertEquals(factory2.getMbean().getNumberOfCacheEvictionsTotal(), 1);
         assertEquals(factory2.getMbean().getCacheInsertedEntriesCount(), 5);
         assertEquals(factory2.getMbean().getCacheEntriesCount(), 2);
         assertEquals(factory2.getMbean().getCacheEvictedEntriesCount(), 3);
