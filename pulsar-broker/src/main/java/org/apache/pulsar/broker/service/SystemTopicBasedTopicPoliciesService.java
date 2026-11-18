@@ -1020,12 +1020,13 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
      * would drop that newer future and close its reader, pinning the namespace again. Guarding on identity ensures a
      * late failure never clobbers a newer initialization.
      *
+     * <p>Nothing starts the next initialization here; the next topic policy access of the namespace does.
+     *
      * @param closeReader when {@code true}, also closes the reader and message-handler tracker that belong to this
      *                    initialization, and drops the policies that reader had cached; when {@code false}, only
      *                    the init future is dropped, leaving the reader cached for the retry to reuse. That retry
      *                    continues from the position of the reader, so the cached policies stay too: it could not
-     *                    read them again. Nothing starts the next initialization here; the next topic policy
-     *                    access of the namespace does.
+     *                    read them again.
      */
     @VisibleForTesting
     void cleanupFailedPolicyCacheInit(@NonNull NamespaceName namespace,

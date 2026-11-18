@@ -538,7 +538,7 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
 
         reloadNamespaceBundle(firstTopic);
         Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
-            assertThat(keptReader.nextCheckForMoreEventsIsPrepared())
+            assertThat(keptReader.preparedCheckIsStillPending())
                     .describedAs("the first pass must have failed behind the first event")
                     .isFalse();
             assertThat(service.getPoliciesCacheInit(namespace))
@@ -604,14 +604,12 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
                     .isNotEmpty());
             updates.clear();
 
-            // The reader of the initialization that is to time out: it delivers the policy, and its check for
-            // more events is still unanswered when the timeout fires.
-            final StallableReader reader = service.prepareNextReader(NamespaceName.get(NAMESPACE));
-            final CompletableFuture<Boolean> checkForMoreEvents = reader.holdNextCheckForMoreEvents();
+            final StallableReader timedOutReader = service.prepareNextReader(NamespaceName.get(NAMESPACE));
+            final CompletableFuture<Boolean> checkForMoreEvents = timedOutReader.holdNextCheckForMoreEvents();
             pulsar.getConfiguration().setTopicPoliciesCacheInitTimeoutSeconds(READ_TIMEOUT_SECONDS);
             reloadNamespaceBundle(topicName);
             Awaitility.await().atMost(STALL_REPORTED_WITHIN.plusSeconds(30)).untilAsserted(() ->
-                    assertThat(reader.isClosed())
+                    assertThat(timedOutReader.isClosed())
                             .describedAs("the initialization that got the reader must time out after"
                                     + " topicPoliciesCacheInitTimeoutSeconds=%d and close it", READ_TIMEOUT_SECONDS)
                             .isTrue());
@@ -620,6 +618,7 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
             // The answer arrives only now, as the answer to a request that a consumer sent before it was closed
             // does: the topic has no more events. The first pass that gets it is the one of the initialization
             // that timed out.
+            assertNoInitializationRanSince("the timeout");
             checkForMoreEvents.complete(false);
 
             assertThat(TopicPolicyTestUtils.getLocalTopicPolicies(service, topicName).getMaxConsumerPerTopic())
@@ -667,10 +666,6 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
         admin.lookups().lookupTopic(topicName.toString());
     }
 
-    /**
-     * Deletes the policy of {@code topicName} the way another broker of the cluster does, and has compaction drop
-     * the key together with its tombstone, so no later reader can learn of the deletion.
-     */
     private void deleteAsAnotherBrokerAndCompactAway(TopicName topicName) throws Exception {
         writeEventAsAnotherBroker(topicName, null);
         compactChangeEvents();
@@ -683,8 +678,7 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
 
     private void assertNoInitializationRanSince(String when) {
         assertThat(service.getPoliciesCacheInit(NamespaceName.get(NAMESPACE)))
-                .describedAs("an initialization ran since %s: its reader got the deletion delivered, so this is"
-                        + " not the scenario under test", when)
+                .describedAs("an initialization ran since %s, so this is not the scenario under test", when)
                 .isNull();
     }
 
@@ -1103,15 +1097,13 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
             nextCheckForMoreEvents.set(CompletableFuture.failedFuture(failure));
         }
 
-        /** Leaves the check unanswered until the returned future is completed. */
         CompletableFuture<Boolean> holdNextCheckForMoreEvents() {
             final CompletableFuture<Boolean> answer = new CompletableFuture<>();
             nextCheckForMoreEvents.set(answer);
             return answer;
         }
 
-        /** Whether the service has yet to make the check that was failed or held. */
-        boolean nextCheckForMoreEventsIsPrepared() {
+        boolean preparedCheckIsStillPending() {
             return nextCheckForMoreEvents.get() != null;
         }
 
