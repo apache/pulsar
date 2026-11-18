@@ -21,13 +21,16 @@ package org.apache.pulsar.client.impl.v5;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -270,17 +273,36 @@ public class MessageIdV5Test {
     }
 
     @Test
-    public void testFromByteArrayFailsOnlyWithIOExceptionForAnyPrefix() {
-        byte[] bytes = new MessageIdV5(v4(10, 20, 0), 1L, Map.of(0L, v4(1, 2, 0)), "topic://t",
-                Map.of("topic://t", Map.of(0L, v4(1, 1, 0)))).toByteArray();
-        // A prefix that ends between sections is a valid older encoding; any other one is malformed
+    public void testFromByteArrayReadsOlderEncodingsAndRejectsOtherPrefixes() throws Exception {
+        MessageId v4Id = v4(10, 20, 0);
+        Map<Long, MessageId> positions = Map.of(0L, v4(1, 2, 0));
+        String parentTopic = "topic://t";
+        byte[] bytes = new MessageIdV5(v4Id, 1L, positions, parentTopic,
+                Map.of(parentTopic, Map.of(0L, v4(1, 1, 0)))).toByteArray();
+        // An older encoding ends after the v4 id, after the position vector or after the parent topic
+        int afterV4Id = Long.BYTES + Integer.BYTES + v4Id.toByteArray().length;
+        int afterPositions = afterV4Id + Integer.BYTES
+                + Long.BYTES + Integer.BYTES + positions.get(0L).toByteArray().length;
+        int afterParentTopic = afterPositions + Integer.BYTES + parentTopic.getBytes(StandardCharsets.UTF_8).length;
+
         for (int length = 0; length < bytes.length; length++) {
             byte[] prefix = Arrays.copyOf(bytes, length);
-            try {
-                MessageIdV5.fromByteArray(prefix);
-            } catch (IOException expected) {
-                // reported as malformed, as the API documents
+            if (length != afterV4Id && length != afterPositions && length != afterParentTopic) {
+                // A prefix that ends anywhere else is malformed
+                try {
+                    MessageIdV5.fromByteArray(prefix);
+                    fail("A prefix of " + length + " bytes was read as an id");
+                } catch (IOException expected) {
+                    // reported as malformed, as the API documents
+                }
+                continue;
             }
+            MessageIdV5 decoded = MessageIdV5.fromByteArray(prefix);
+            assertEquals(decoded.segmentId(), 1L);
+            assertEquals(decoded.v4MessageId(), v4Id);
+            assertEquals(decoded.positionVector(), length >= afterPositions ? positions : Map.of());
+            assertEquals(decoded.parentTopic(), length >= afterParentTopic ? parentTopic : null);
+            assertNull(decoded.multiTopicVector());
         }
     }
 
