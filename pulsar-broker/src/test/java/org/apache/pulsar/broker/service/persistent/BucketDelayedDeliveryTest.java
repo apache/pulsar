@@ -23,9 +23,11 @@ import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.parseMetrics;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import com.google.common.collect.Multimap;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
@@ -393,6 +395,152 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
         assertEquals(receivedMessages.size(), 100,
                 "Every delayed message should be redelivered exactly once after the reset");
     }
+
+    @Test
+    public void testResetCleansResidualSnapshotsAfterSubscriptionTypeSwitch() throws Exception {
+        String topic = BrokerTestUtil.newUniqueName("persistent://public/default/testResetTypeSwitch");
+
+        @Cleanup
+        Consumer<String> sharedConsumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+
+        for (int i = 0; i < 100; i++) {
+            producer.newMessage()
+                    .value("msg")
+                    .deliverAfter(1, TimeUnit.HOURS)
+                    .send();
+        }
+
+        PersistentSubscription subscription = (PersistentSubscription) pulsar.getBrokerService()
+                .getTopicReference(topic).get().getSubscription("sub");
+        Awaitility.await().untilAsserted(() ->
+                Assert.assertEquals(subscription.getDispatcher().getNumberOfDelayedMessages(), 100));
+        assertFalse(subscription.getCursor().getCursorProperties().keySet().stream()
+                .filter(x -> x.startsWith(CURSOR_INTERNAL_PROPERTY_PREFIX)).toList().isEmpty());
+
+        // Switch the subscription to Exclusive once the Shared consumers are gone. The replacement
+        // single-active dispatcher has no bucket tracker, so its delayed-state clear is a no-op.
+        sharedConsumer.close();
+        @Cleanup
+        Consumer<String> exclusiveConsumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscribe();
+        exclusiveConsumer.close();
+
+        admin.topics().resetCursor(topic, "sub", MessageId.earliest);
+
+        PersistentSubscription resetSubscription = (PersistentSubscription) pulsar.getBrokerService()
+                .getTopicReference(topic).get().getSubscription("sub");
+        List<String> bucketKeysAfterReset = resetSubscription.getCursor().getCursorProperties()
+                .keySet().stream().filter(x -> x.startsWith(CURSOR_INTERNAL_PROPERTY_PREFIX)).toList();
+        assertTrue(bucketKeysAfterReset.isEmpty(),
+                "A reset on a subscription whose dispatcher does not own the bucket snapshots"
+                        + " should still remove the residual bucket cursor properties");
+    }
+
+    @Test(timeOut = 120_000)
+    public void testReplayDeletesSupersededSnapshotLedgerOnReseal() throws Exception {
+        String topic = BrokerTestUtil.newUniqueName("persistent://public/default/testResealSupersede");
+
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+
+        // 60 messages with a 50-entry ledger rollover seal exactly one immutable bucket.
+        for (int i = 0; i < 60; i++) {
+            producer.newMessage()
+                    .value("msg")
+                    .deliverAfter(1, TimeUnit.HOURS)
+                    .send();
+        }
+
+        PersistentSubscription subscription = (PersistentSubscription) pulsar.getBrokerService()
+                .getTopicReference(topic).get().getSubscription("sub");
+        Awaitility.await().untilAsserted(() ->
+                Assert.assertEquals(subscription.getDispatcher().getNumberOfDelayedMessages(), 60));
+        // The snapshot length update caches the snapshot's ledger handle; wait for it so the
+        // failure-slot accounting below is deterministic.
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+            ByteArrayOutputStream output = new ByteArrayOutputStream();
+            PrometheusMetricsTestUtil.generate(pulsar, true, true, true, output);
+            Multimap<String, Metric> metricsMap = parseMetrics(output.toString(StandardCharsets.UTF_8));
+            boolean snapshotSizeRecorded =
+                    metricsMap.get("pulsar_delayed_message_index_bucket_snapshot_size_bytes").stream()
+                            .anyMatch(metric -> topic.equals(metric.tags.get("topic"))
+                                    && metric.tags.containsKey("subscription") && metric.value > 0);
+            assertTrue(snapshotSizeRecorded, "The snapshot length update should have completed");
+        });
+        Map<String, String> bucketPropertiesBefore = new HashMap<>(subscription.getCursor().getCursorProperties());
+        bucketPropertiesBefore.keySet().removeIf(key -> !key.startsWith(CURSOR_INTERNAL_PROPERTY_PREFIX));
+        assertEquals(bucketPropertiesBefore.size(), 1, "Exactly one bucket snapshot should be sealed");
+        String bucketKey = bucketPropertiesBefore.keySet().iterator().next();
+        long supersededLedgerId = Long.parseLong(bucketPropertiesBefore.get(bucketKey));
+
+        consumer.close();
+
+        // Fail every snapshot delete attempt (the tracker's four delete attempts and the
+        // residual-cleanup delete) so the reset continues with a WARN and the bucket cursor
+        // property survives as the only reference to the undeleted ledger.
+        for (int i = 0; i < 6; i++) {
+            pulsarTestContext.getMockBookKeeper().failAfter(i, BKException.Code.LedgerFencedException);
+        }
+
+        admin.topics().resetCursor(topic, "sub", MessageId.earliest);
+
+        Map<String, String> propertiesAfterFailedClear = subscription.getCursor().getCursorProperties();
+        assertEquals(propertiesAfterFailedClear.get(bucketKey), bucketPropertiesBefore.get(bucketKey),
+                "The bucket cursor property should survive the failed snapshot delete");
+
+        // Replaying from the reset position re-seals the same ledger range. Overwriting the bucket
+        // cursor property must delete the superseded snapshot ledger instead of orphaning it.
+        @Cleanup
+        Consumer<String> reconnectedConsumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+        Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() -> {
+            Map<String, String> properties = subscription.getCursor().getCursorProperties();
+            String replacedId = properties.get(bucketKey);
+            assertNotNull(replacedId, "The replay should seal a replacement snapshot for the same range");
+            assertNotEquals(Long.parseLong(replacedId), supersededLedgerId,
+                    "The bucket cursor property should reference the replacement snapshot");
+        });
+        Awaitility.await().untilAsserted(() ->
+                Assert.assertEquals(subscription.getDispatcher().getNumberOfDelayedMessages(), 60));
+
+        assertLedgerDeleted(supersededLedgerId);
+    }
+
+    private void assertLedgerDeleted(long ledgerId) throws Exception {
+        try {
+            pulsarTestContext.getMockBookKeeper().deleteLedger(ledgerId);
+            fail("Ledger " + ledgerId + " should have been deleted");
+        } catch (BKException e) {
+            assertEquals(e.getCode(), BKException.Code.NoSuchLedgerExistsException,
+                    "Ledger " + ledgerId + " should be gone, got " + e.getCode());
+        }
+    }
+
 
     @Test
     public void testIncrementPartitionsDoesNotCopyBucketDelayedDeliveryState() throws Exception {

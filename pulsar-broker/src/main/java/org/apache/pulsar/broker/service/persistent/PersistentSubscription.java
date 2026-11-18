@@ -1170,30 +1170,7 @@ public class PersistentSubscription extends AbstractSubscription {
                             .log("Successfully disconnected consumers from subscription, proceeding with cursor reset");
                     return null;
                 })
-                .thenCompose(__ -> {
-                    if (dispatcher != null) {
-                        return dispatcher.clearDelayedMessages();
-                    }
-
-                    if (topic.isDelayedDeliveryEnabled()
-                            && topic.getBrokerService().getDelayedDeliveryTrackerFactory()
-                            instanceof BucketDelayedDeliveryTrackerFactory bucketDelayedDeliveryTrackerFactory) {
-                        return bucketDelayedDeliveryTrackerFactory.cleanResidualSnapshots(cursor);
-                    }
-
-                    return CompletableFuture.completedFuture(null);
-                })
-                // The delayed state is a derived cache of the backlog; a failed clear must not make the
-                // reset unusable. The clear future only settles once every cursor-property write has
-                // completed, so continuing cannot race the reset persistence.
-                .handle((ignore, throwable) -> {
-                    if (throwable != null) {
-                        log.warn()
-                                .exception(throwable)
-                                .log("Failed to clear delayed delivery state before cursor reset, continuing");
-                    }
-                    return null;
-                })
+                .thenCompose(__ -> clearDelayedStateForReset())
                 .thenCompose(__ -> {
                     CompletableFuture<Boolean> forceReset = new CompletableFuture<>();
                     if (topic.getTopicCompactionService() == null) {
@@ -1267,6 +1244,49 @@ public class PersistentSubscription extends AbstractSubscription {
                     return null;
                 });
         return future;
+    }
+
+    /**
+     * Clears the delayed-delivery state before the cursor is reset, and always completes normally:
+     * the delayed state is a derived cache of the backlog, so a failed clear must not make the reset
+     * unusable. The clear futures only settle once every cursor-property write has completed, so
+     * continuing cannot race the reset persistence. A disconnect failure never reaches this method;
+     * it propagates to the caller as {@link SubscriptionBusyException}.
+     */
+    private CompletableFuture<Void> clearDelayedStateForReset() {
+        CompletableFuture<Void> clearFuture = dispatcher != null
+                ? dispatcher.clearDelayedMessagesAfterBacklogClear()
+                : CompletableFuture.completedFuture(null);
+        return clearFuture
+                .handle((ignore, throwable) -> {
+                    if (throwable != null) {
+                        log.warn()
+                                .exception(throwable)
+                                .log("Failed to clear delayed delivery state before cursor reset, continuing");
+                    }
+                    return null;
+                })
+                .thenCompose(__ -> {
+                    // A dispatcher without a bucket tracker (subscription type switched to
+                    // Exclusive/Failover, or a tracker that fell back to the in-memory
+                    // implementation) leaves the bucket cursor properties behind even on a
+                    // successful clear, and a bucket tracker that already removed them makes this
+                    // a no-op.
+                    if (topic.isDelayedDeliveryEnabled()
+                            && topic.getBrokerService().getDelayedDeliveryTrackerFactory()
+                            instanceof BucketDelayedDeliveryTrackerFactory bucketDelayedDeliveryTrackerFactory) {
+                        return bucketDelayedDeliveryTrackerFactory.cleanResidualSnapshots(cursor)
+                                .handle((ignore, throwable) -> {
+                                    if (throwable != null) {
+                                        log.warn().exception(throwable).log(
+                                                "Failed to clean residual bucket snapshots before cursor reset,"
+                                                        + " continuing");
+                                    }
+                                    return null;
+                                });
+                    }
+                    return CompletableFuture.completedFuture(null);
+                });
     }
 
     @Override
