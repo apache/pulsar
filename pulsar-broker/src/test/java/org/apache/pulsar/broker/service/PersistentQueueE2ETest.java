@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
@@ -33,6 +34,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.CustomLog;
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -123,26 +125,25 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
 
         // both consumers will together consumer all messages
         Message<byte[]> msg;
-        Consumer<byte[]> c = consumer1;
-        while (true) {
-            try {
-                msg = c.receive(1, TimeUnit.SECONDS);
-                c.acknowledge(msg);
-            } catch (PulsarClientException e) {
-                if (c.equals(consumer1)) {
-                    consumer1.close();
-                    c = consumer2;
-                } else {
-                    break;
+        int received = 0;
+        long deadline = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(10);
+        while (received < numMsgs * 2 && System.currentTimeMillis() < deadline) {
+            for (Consumer<byte[]> c : List.of(consumer1, consumer2)) {
+                msg = c.receive(10, TimeUnit.MILLISECONDS);
+                if (msg != null) {
+                    c.acknowledge(msg);
+                    received++;
                 }
             }
         }
+        assertEquals(received, numMsgs * 2);
+        consumer1.close();
 
         rolloverPerIntervalStats();
 
         // 3. messages deleted on individual acks
-        Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
-        assertEquals(subRef.getNumberOfEntriesInBacklog(false), 0);
+        Awaitility.await().untilAsserted(
+                () -> assertEquals(topicRef.getSubscription(subName).getNumberOfEntriesInBacklog(false), 0));
 
         // 4. shared consumer unsubscribe not allowed
         try {
@@ -338,44 +339,47 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
             log.info().attr("message", message).log("Producer produced");
         }
 
-        // 4. Receive messages
+        // 4. Receive messages. How the dispatcher splits them between the consumers depends on timing (25/25 or
+        // 30/20), so take them from both until they got all of them: waiting for the next one on each consumer in
+        // turn costs a receive timeout for every message the other consumer got beyond its share.
         int receivedConsumer1 = 0, receivedConsumer2 = 0;
-        Message<byte[]> message1 = consumer1.receive();
-        Message<byte[]> message2 = consumer2.receive();
-        do {
+        long deadline = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(10);
+        while (receivedConsumer1 + receivedConsumer2 < totalMessages && System.currentTimeMillis() < deadline) {
+            Message<byte[]> message1 = consumer1.receive(10, TimeUnit.MILLISECONDS);
             if (message1 != null) {
                 log.info().attr("data", new String(message1.getData())).log("Consumer 1 Received");
                 receivedConsumer1 += 1;
             }
+            Message<byte[]> message2 = consumer2.receive(10, TimeUnit.MILLISECONDS);
             if (message2 != null) {
                 log.info().attr("data", new String(message2.getData())).log("Consumer 2 Received");
                 receivedConsumer2 += 1;
             }
-            message1 = consumer1.receive(10000, TimeUnit.MILLISECONDS);
-            message2 = consumer2.receive(10000, TimeUnit.MILLISECONDS);
-        } while (message1 != null || message2 != null);
+        }
 
         log.info().attr("value", (receivedConsumer2 + receivedConsumer1)).log("Total receives");
         assertEquals(receivedConsumer2 + receivedConsumer1, totalMessages);
+        assertNoMoreMessages(topicName, subscriptionName, totalMessages, consumer1, consumer2);
 
         // 5. Close Consumer 1
         log.info("Consumer 1 closed");
         consumer1.close();
 
         // 6. Consumer 1's unAcked messages should be sent to Consumer 2
-        for (int i = 0; i < totalMessages; i++) {
-            message2 = consumer2.receive(100, TimeUnit.MILLISECONDS);
+        for (int i = 0; i < receivedConsumer1; i++) {
+            Message<byte[]> message2 = consumer2.receive(10, TimeUnit.SECONDS);
             if (message2 == null) {
-                log.info("Consumer 2 - No Message in Incoming Message Queue, will try again");
-                continue;
+                break;
             }
             log.info().attr("data", new String(message2.getData())).log("Consumer 2 Received");
             receivedConsumer2 += 1;
         }
 
-        newPulsarClient.close();
         log.info().attr("receivedConsumer2", receivedConsumer2).log("Total receives by Consumer 2");
         assertEquals(receivedConsumer2, totalMessages);
+        // Each of Consumer 1's messages was dispatched again once, to Consumer 2
+        assertNoMoreMessages(topicName, subscriptionName, totalMessages + receivedConsumer1, consumer2);
+        newPulsarClient.close();
     }
 
     @Test(timeOut = 60000)
@@ -405,33 +409,45 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
             log.info().attr("message", message).log("Producer produced");
         }
 
-        // 4. Receive messages
+        // 4. Receive messages. How the dispatcher splits them between the consumers depends on timing (5/5 or 2/8),
+        // so take them from both until they got all of them.
         int receivedConsumer1 = 0, receivedConsumer2 = 0;
-        Message<byte[]> message1 = consumer1.receive();
-        Message<byte[]> message2 = consumer2.receive();
-        do {
+        long deadline = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(10);
+        while (receivedConsumer1 + receivedConsumer2 < totalMessages && System.currentTimeMillis() < deadline) {
+            Message<byte[]> message1 = consumer1.receive(10, TimeUnit.MILLISECONDS);
             if (message1 != null) {
                 log.info().attr("data", new String(message1.getData())).log("Consumer 1 Received");
                 receivedConsumer1 += 1;
                 consumer1.acknowledge(message1);
             }
+            Message<byte[]> message2 = consumer2.receive(10, TimeUnit.MILLISECONDS);
             if (message2 != null) {
                 log.info().attr("data", new String(message2.getData())).log("Consumer 2 Received");
                 receivedConsumer2 += 1;
                 consumer2.acknowledge(message2);
             }
-            message1 = consumer1.receive(5000, TimeUnit.MILLISECONDS);
-            message2 = consumer2.receive(5000, TimeUnit.MILLISECONDS);
-        } while (message1 != null || message2 != null);
+        }
 
         log.info().attr("value", (receivedConsumer2 + receivedConsumer1)).log("Total receives");
         assertEquals(receivedConsumer2 + receivedConsumer1, totalMessages);
+        assertNoMoreMessages(topicName, subscriptionName, totalMessages, consumer1, consumer2);
+
+        // Once the acks are in, the dispatcher has nothing left to send and its read waits for new messages
+        AbstractPersistentDispatcherMultipleConsumers dispatcher = (AbstractPersistentDispatcherMultipleConsumers)
+                topicRef.getSubscription(subscriptionName).getDispatcher();
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(admin.topics().getStats(topicName).getSubscriptions().get(subscriptionName)
+                    .getMsgBacklog(), 0);
+            assertTrue(dispatcher.isHavePendingRead());
+        });
 
         // 5. Close Consumer 1 and 2
         log.info("Consumer 1 closed");
         log.info("Consumer 2 closed");
         consumer1.close();
         consumer2.close();
+        // The last disconnect cancelled the pending read
+        assertFalse(dispatcher.isHavePendingRead());
 
         // 6. Producer produces more messages
         for (int i = totalMessages; i < 2 * totalMessages; i++) {
@@ -445,14 +461,37 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
 
         // 8. Check number of messages received
         receivedConsumer1 = 0;
-        message1 = consumer1.receive();
-        while (message1 != null) {
+        for (int i = 0; i < totalMessages; i++) {
+            Message<byte[]> message1 = consumer1.receive(10, TimeUnit.SECONDS);
+            if (message1 == null) {
+                break;
+            }
             log.info().attr("data", new String(message1.getData())).log("Consumer 1 Received");
             receivedConsumer1++;
-            message1 = consumer1.receive(5000, TimeUnit.MILLISECONDS);
         }
         log.info().attr("receivedConsumer2", receivedConsumer2).log("Total receives by Consumer 2");
         assertEquals(receivedConsumer1, totalMessages);
+        assertNoMoreMessages(topicName, subscriptionName, 2 * totalMessages, consumer1);
+    }
+
+    /**
+     * Waits until the subscription has dispatched {@code dispatched} messages in all, then checks that the consumers
+     * get no more, and that it dispatched no more. Without a redelivery trigger (a consumer closing, a redelivery
+     * request, an ack timeout) or new messages, nothing else can come after that.
+     */
+    @SafeVarargs
+    private void assertNoMoreMessages(String topicName, String subscriptionName, long dispatched,
+                                      Consumer<byte[]>... consumers) throws Exception {
+        Awaitility.await().untilAsserted(
+                () -> assertTrue(getMsgOutCounter(topicName, subscriptionName) >= dispatched));
+        for (Consumer<byte[]> consumer : consumers) {
+            assertNull(consumer.receive(200, TimeUnit.MILLISECONDS));
+        }
+        assertEquals(getMsgOutCounter(topicName, subscriptionName), dispatched);
+    }
+
+    private long getMsgOutCounter(String topicName, String subscriptionName) throws PulsarAdminException {
+        return admin.topics().getStats(topicName).getSubscriptions().get(subscriptionName).getMsgOutCounter();
     }
 
     @Test

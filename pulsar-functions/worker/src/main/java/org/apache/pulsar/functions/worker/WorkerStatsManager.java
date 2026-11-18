@@ -24,7 +24,7 @@ import io.opentelemetry.api.metrics.Meter;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Gauge;
 import io.prometheus.client.Summary;
-import io.prometheus.client.hotspot.DefaultExports;
+import io.prometheus.metrics.instrumentation.jvm.JvmMetrics;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.util.List;
@@ -38,7 +38,7 @@ import org.apache.pulsar.opentelemetry.annotations.PulsarDeprecatedMetric;
 public class WorkerStatsManager implements AutoCloseable {
 
   static {
-    DefaultExports.initialize();
+    JvmMetrics.builder().register();
   }
 
   private static final String PULSAR_FUNCTION_WORKER_METRICS_PREFIX = "pulsar_function_worker_";

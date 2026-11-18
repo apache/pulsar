@@ -21,7 +21,7 @@ package org.apache.pulsar.testclient;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
-import java.net.URL;
+import java.net.URI;
 import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
@@ -46,7 +46,9 @@ import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -69,13 +71,17 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
     // produce/consume on scalable (topic://) topics.
     private PulsarClient v5Client;
 
-    @BeforeMethod
+    // The tests share a broker: each one uses topics of its own
+    @BeforeClass
     @Override
     protected void setup() throws Exception {
         ServiceConfiguration serviceConfiguration = getDefaultConf();
         serviceConfiguration.setTopicLevelPoliciesEnabled(false);
         serviceConfiguration.setTransactionCoordinatorEnabled(true);
         super.internalSetup(serviceConfiguration);
+        // Every send and every transactional ack is an add to the mock BookKeeper, which sleeps 1 ms for each by
+        // default
+        pulsarTestContext.getMockBookKeeper().setDefaultAddEntryDelayMillis(0);
         PerfClientUtils.setExitProcedure(code -> {
             log.error().attr("code", code).log("JVM exit code is");
             if (code != 0) {
@@ -91,7 +97,21 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
         pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
                 .createPartitionedTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN,
                         new PartitionedTopicMetadata(1));
+    }
 
+    @AfterClass(alwaysRun = true)
+    @Override
+    protected void cleanup() throws Exception {
+        super.internalCleanup();
+        int exitCode = lastExitCode.get();
+        if (exitCode != 0) {
+            fail("Unexpected JVM exit code " + exitCode);
+        }
+    }
+
+    // A verification client per test, whose close also closes the consumers a test leaves open
+    @BeforeMethod
+    public void createV5Client() throws Exception {
         // transactionPolicy(...) opts the verification client into transactions and routes it to the
         // scalable-topics (v5) coordinator.
         v5Client = PulsarClient.builder()
@@ -101,16 +121,10 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
     }
 
     @AfterMethod(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
+    public void closeV5Client() throws Exception {
         if (v5Client != null) {
             v5Client.close();
             v5Client = null;
-        }
-        super.internalCleanup();
-        int exitCode = lastExitCode.get();
-        if (exitCode != 0) {
-            fail("Unexpected JVM exit code " + exitCode);
         }
     }
 
@@ -121,7 +135,7 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
         String testProduceTopic = testTopic + UUID.randomUUID();
         String testSub = "testSub";
         String args = String.format(argString, testConsumeTopic, testProduceTopic,
-                pulsar.getBrokerServiceUrl(), testSub, new URL(pulsar.getWebServiceAddress()));
+                pulsar.getBrokerServiceUrl(), testSub, URI.create(pulsar.getWebServiceAddress()).toURL());
 
         // Scalable topics must be pre-created (they don't auto-create on produce).
         admin.scalableTopics().createScalableTopic(testConsumeTopic, 1);
@@ -172,7 +186,7 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testProduceTxnMessage() throws Exception {
-        String argString = "%s -r 50 -u %s -m %d -txn";
+        String argString = "%s -r 1000 -u %s -m %d -txn";
         String topic = testTopic + UUID.randomUUID();
         int totalMessage = 100;
         String args = String.format(argString, topic, pulsar.getBrokerServiceUrl(), totalMessage);
@@ -220,8 +234,8 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
     public void testConsumeTxnMessage() throws Exception {
         // A long transaction timeout (-tto) so none of the consumer's transactions time out and abort
         // on the slower scalable-topic path: an aborted txn would release its pending-acked messages
-        // for redelivery and inflate what the verifier sees below.
-        String argString = "%s -r 50 -u %s -txn -ss %s -st %s -sp %s -ntxn %d -tto 60";
+        // for redelivery and inflate what the verifier sees below. The rate (-r) only paces the run.
+        String argString = "%s -r 1000 -u %s -txn -ss %s -st %s -sp %s -ntxn %d -tto 60";
         String subName = "sub";
         String topic = testTopic + UUID.randomUUID();
         // -st is PerformanceConsumer's own SubscriptionType enum (Exclusive); -sp is the v5

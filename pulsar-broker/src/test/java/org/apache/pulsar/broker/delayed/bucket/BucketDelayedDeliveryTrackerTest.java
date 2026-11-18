@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.delayed.bucket;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -48,6 +49,8 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -61,6 +64,7 @@ import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo.LedgerInfo;
 import org.apache.commons.lang3.mutable.MutableLong;
 import org.apache.pulsar.broker.delayed.AbstractDeliveryTrackerTest;
+import org.apache.pulsar.broker.delayed.DispatcherDelayedDeliveryContext;
 import org.apache.pulsar.broker.delayed.MockBucketSnapshotStorage;
 import org.apache.pulsar.broker.delayed.MockManagedCursor;
 import org.apache.pulsar.broker.delayed.proto.SnapshotMetadata;
@@ -296,7 +300,7 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
 
         clockTime.set(1 * 10);
 
-        Awaitility.await().untilAsserted(() -> {
+        Awaitility.await().pollDelay(Duration.ZERO).pollInterval(Duration.ofMillis(1)).untilAsserted(() -> {
             Assert.assertTrue(
                     tracker.getImmutableBuckets().asMapOfRanges().values().stream().noneMatch(x -> x.merging
                             || !x.getSnapshotCreateFuture().get().isDone()));
@@ -304,7 +308,8 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
 
         assertTrue(tracker.hasMessageAvailable());
         Set<Position> scheduledMessages = new TreeSet<>();
-        Awaitility.await().untilAsserted(() -> {
+        // Each call starts loading at most one snapshot segment, so poll without delay
+        Awaitility.await().pollDelay(Duration.ZERO).pollInterval(Duration.ofMillis(1)).untilAsserted(() -> {
             scheduledMessages.addAll(tracker.getScheduledMessages(100));
             assertEquals(scheduledMessages.size(), 1);
         });
@@ -326,7 +331,7 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         assertTrue(tracker2.hasMessageAvailable());
         Set<Position> scheduledMessages2 = new TreeSet<>();
 
-        Awaitility.await().untilAsserted(() -> {
+        Awaitility.await().pollDelay(Duration.ZERO).pollInterval(Duration.ofMillis(1)).untilAsserted(() -> {
             scheduledMessages2.addAll(tracker2.getScheduledMessages(70));
             assertEquals(scheduledMessages2.size(), 70);
         });
@@ -411,7 +416,9 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         clockTime.set(110 * 10);
 
         NavigableSet<Position> scheduledMessages = new TreeSet<>();
-        Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() -> {
+        // Each call starts loading at most one snapshot segment, so poll without delay
+        Awaitility.await().pollDelay(Duration.ZERO).pollInterval(Duration.ofMillis(1))
+                .atMost(30, TimeUnit.SECONDS).untilAsserted(() -> {
             scheduledMessages.addAll(tracker2.getScheduledMessages(110));
             assertEquals(scheduledMessages.size(), 110);
         });
@@ -488,7 +495,9 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         assertEquals(tracker2.getScheduledMessages(100).size(), 0);
 
         Set<Position> scheduledMessages = new TreeSet<>();
-        Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() -> {
+        // Each call starts loading at most one snapshot segment, so poll without delay
+        Awaitility.await().pollDelay(Duration.ZERO).pollInterval(Duration.ofMillis(1))
+                .atMost(30, TimeUnit.SECONDS).untilAsserted(() -> {
             scheduledMessages.addAll(tracker2.getScheduledMessages(100));
             assertEquals(scheduledMessages.size(), delayedMessagesInSnapshotValue);
         });
@@ -570,6 +579,76 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
       tracker.close();
     }
 
+    @Test
+    public void testSkipRecoveryWhileSnapshotReadIsPending() throws Exception {
+        GatedRecoveryLengthStorage storage = new GatedRecoveryLengthStorage();
+        ScheduledExecutorService timeoutExecutor = Executors.newSingleThreadScheduledExecutor();
+        storage.start();
+        try {
+            ManagedCursor cursor = new MockManagedCursor("skip-recovery-cursor");
+            AbstractPersistentDispatcherMultipleConsumers testDispatcher =
+                    mock(AbstractPersistentDispatcherMultipleConsumers.class);
+            doReturn(cursor).when(testDispatcher).getCursor();
+            doReturn("skip-recovery / " + cursor.getName()).when(testDispatcher).getName();
+            Clock testClock = mock(Clock.class);
+            when(testClock.millis()).thenReturn(0L);
+            Timer testTimer = mock(Timer.class);
+            try (BucketDelayedDeliveryTracker producer = new BucketDelayedDeliveryTracker(
+                    testDispatcher, testTimer, 100000, testClock, true, storage, 5, 10, -1, 50)) {
+                for (int i = 1; i <= 6; i++) {
+                    assertThat(producer.addMessage(i, i, i * 100)).isTrue();
+                }
+                Awaitility.await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
+                    assertThat(cursor.getCursorProperties()).hasSize(1);
+                    assertThat(producer.getImmutableBuckets().get(1L).getSnapshotCreateFuture().orElseThrow().isDone())
+                            .isTrue();
+                });
+            }
+
+            Map<String, String> properties = Map.copyOf(cursor.getCursorProperties());
+            storage.gateLength = true;
+            try (BucketDelayedDeliveryTracker tracker = new BucketDelayedDeliveryTracker(
+                    new DispatcherDelayedDeliveryContext(testDispatcher), testTimer, 100000, testClock,
+                    true, storage, 5, 10, -1, 50, false)) {
+                try {
+                    CompletableFuture<Void> skipRecovery = new CompletableFuture<>();
+                    CompletableFuture<BucketDelayedDeliveryTracker> recovery =
+                            tracker.recoverBucketSnapshotAsync(timeoutExecutor, skipRecovery);
+                    // Metadata and segment reads have finished, but the final storage result is held back.
+                    long snapshotLength = storage.lengthRead.get(10, TimeUnit.SECONDS);
+                    assertThat(snapshotLength).isPositive();
+                    assertThat(recovery).isNotDone();
+                    skipRecovery.complete(null);
+                    assertThat(recovery.get(3, TimeUnit.SECONDS)).isSameAs(tracker);
+                    assertThat(tracker.getImmutableBuckets().asMapOfRanges()).isEmpty();
+                    assertThat(tracker.getNumberOfDelayedMessages()).isZero();
+                    assertThat(tracker.getSharedBucketPriorityQueue().size()).isZero();
+                    assertThat(tracker.containsMessage(1, 1)).isFalse();
+                    assertThat(storage.deleteCalls).as("Recovery must retain snapshots until clear()").hasValue(0);
+                    assertThat(cursor.getCursorProperties()).isEqualTo(properties);
+
+                    // Complete the last read inline so all recovery continuations settle before checking again.
+                    storage.releaseLength.complete(snapshotLength);
+                    assertThat(tracker.getNumberOfDelayedMessages()).isZero();
+                    assertThat(tracker.getSharedBucketPriorityQueue().size()).isZero();
+                    assertThat(tracker.containsMessage(1, 1)).isFalse();
+                    assertThat(storage.deleteCalls).as("Late recovery must not start snapshot cleanup").hasValue(0);
+                    assertThat(cursor.getCursorProperties()).isEqualTo(properties);
+
+                    // The bucket is detached from recovery, but retained for clear() to delete.
+                    tracker.clear().get(3, TimeUnit.SECONDS);
+                    assertThat(storage.deleteCalls).as("clear() must delete the detached snapshot").hasValue(1);
+                    assertThat(cursor.getCursorProperties()).isEmpty();
+                } finally {
+                    storage.releaseLength.complete(0L);
+                }
+            }
+        } finally {
+            timeoutExecutor.shutdownNow();
+            storage.close();
+        }
+    }
+
     private static class TrackerWithStorage {
         final BucketDelayedDeliveryTracker tracker;
         final MockBucketSnapshotStorage storage;
@@ -608,6 +687,29 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         public CompletableFuture<Void> deleteBucketSnapshot(long bucketId) {
             deleteCalls.incrementAndGet();
             return super.deleteBucketSnapshot(bucketId);
+        }
+    }
+
+    private static class GatedRecoveryLengthStorage extends RecordingDeleteStorage {
+        final CompletableFuture<Long> lengthRead = new CompletableFuture<>();
+        final CompletableFuture<Long> releaseLength = new CompletableFuture<>();
+        volatile boolean gateLength;
+
+        @Override
+        public CompletableFuture<Long> getBucketSnapshotLength(long bucketId) {
+            CompletableFuture<Long> read = super.getBucketSnapshotLength(bucketId);
+            if (!gateLength) {
+                return read;
+            }
+            read.whenComplete((length, ex) -> {
+                if (ex == null) {
+                    lengthRead.complete(length);
+                } else {
+                    lengthRead.completeExceptionally(ex);
+                    releaseLength.completeExceptionally(ex);
+                }
+            });
+            return releaseLength;
         }
     }
 
@@ -1959,6 +2061,71 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
 
             Awaitility.await().untilAsserted(() ->
                     assertCountersConsistent(tracker));
+
+            tracker.close();
+        } finally {
+            storage.clean();
+        }
+    }
+
+    @Test
+    public void testSegmentLoadTriggersDispatchWithoutWaitingForTimerTick() throws Exception {
+        AbstractPersistentDispatcherMultipleConsumers testDispatcher =
+                mock(AbstractPersistentDispatcherMultipleConsumers.class);
+        Clock testClock = mock(Clock.class);
+        AtomicLong testClockTime = new AtomicLong();
+        when(testClock.millis()).then(x -> testClockTime.get());
+
+        // Snapshot segment reads wait for the test, so that the first dispatch round finds the load pending
+        CompletableFuture<Void> segmentReads = new CompletableFuture<>();
+        MockBucketSnapshotStorage storage = new MockBucketSnapshotStorage() {
+            @Override
+            public CompletableFuture<List<SnapshotSegment>> getBucketSnapshotSegment(long bucketId,
+                                                                                     long firstSegmentEntryId,
+                                                                                     long lastSegmentEntryId) {
+                return segmentReads.thenCompose(__ -> super.getBucketSnapshotSegment(bucketId, firstSegmentEntryId,
+                        lastSegmentEntryId));
+            }
+        };
+        storage.start();
+
+        ManagedCursor cursor = new MockManagedCursor("test_load_trigger_cursor");
+        doReturn(cursor).when(testDispatcher).getCursor();
+        doReturn("persistent://public/default/testLoadTrigger / " + cursor.getName())
+                .when(testDispatcher).getName();
+
+        try {
+            // The timer never runs its tasks, as if its next tick were far away
+            BucketDelayedDeliveryTracker tracker = new BucketDelayedDeliveryTracker(
+                    testDispatcher, mock(Timer.class), 100000, testClock, true, storage,
+                    5, TimeUnit.MILLISECONDS.toMillis(10), -1, 50);
+
+            // Ledgers 1-5 make a bucket of one-message segments once ledger 6 starts. The first segment stays in
+            // memory, the next ones are loaded from the snapshot one at a time.
+            for (int i = 1; i <= 6; i++) {
+                tracker.addMessage(i, i, i * 10);
+            }
+            assertEquals(tracker.getImmutableBuckets().asMapOfRanges().size(), 1);
+            Awaitility.await().untilAsserted(() -> assertTrue(tracker.getImmutableBuckets().asMapOfRanges().values()
+                    .stream().allMatch(bucket -> bucket.getSnapshotCreateFuture().get().isDone())));
+
+            // All messages are due. Reaching the end of the first segment starts loading the second one, and the
+            // loaded segment's messages must be dispatched without waiting for the timer.
+            testClockTime.set(1000);
+            // A triggered dispatch round can run at once: run the first one right away, and keep what it gets
+            AtomicBoolean roundTriggered = new AtomicBoolean();
+            CompletableFuture<NavigableSet<Position>> firstRound = new CompletableFuture<>();
+            doAnswer(invocation -> {
+                if (roundTriggered.compareAndSet(false, true)) {
+                    firstRound.complete(tracker.getScheduledMessages(10));
+                }
+                return null;
+            }).when(testDispatcher).readMoreEntriesAsync();
+            // The first segment's message is its last one: it waits for the second segment to load
+            assertTrue(tracker.getScheduledMessages(10).isEmpty());
+            segmentReads.complete(null);
+            // The round that the load triggers gets it
+            assertThat(firstRound.get(10, TimeUnit.SECONDS)).contains(PositionFactory.create(1, 1));
 
             tracker.close();
         } finally {

@@ -24,6 +24,7 @@ import static org.apache.pulsar.broker.resources.LoadBalanceResources.BUNDLE_DAT
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -43,6 +44,7 @@ import com.google.common.collect.Sets;
 import com.google.common.hash.Hashing;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -157,6 +159,17 @@ public class ModularLoadManagerImplTest {
 
     private ExecutorService executor;
 
+    // These tests use the first broker only (testLoadSheddingPassesBundleNameAndCompletesAttempt starts pulsar3 as
+    // the second one), so the setup doesn't start the second broker for them.
+    private static final Set<String> TESTS_WITHOUT_SECONDARY_BROKER = Set.of(
+            "testBundleDataAggregationDoesNotDeleteAfterLeadershipLoss",
+            "testBundleDataDefaultValue",
+            "testBundleDataWriteStopsWhenLeadershipChangesBeforeMetadataWrite",
+            "testLoadSheddingPassesBundleNameAndCompletesAttempt",
+            "testNamespaceIsolationPoliciesForPrimaryAndSecondaryBrokers",
+            "testNeedBrokerDataUpdate",
+            "testOwnBrokerZnodeByMultipleBroker");
+
     public static class RecordingLoadSheddingStrategy implements LoadSheddingStrategy, ModularLoadManagerStrategy {
         private static final AtomicReference<RecordingLoadSheddingStrategy> INSTANCE = new AtomicReference<>();
 
@@ -250,11 +263,11 @@ public class ModularLoadManagerImplTest {
     }
 
     @BeforeMethod
-    void setup() throws Exception {
+    void setup(Method method) throws Exception {
         executor = new ThreadPoolExecutor(1, 20, 30, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
 
-        // Start local bookkeeper ensemble
-        bkEnsemble = new LocalBookkeeperEnsemble(3, 0);
+        // Start local bookkeeper ensemble: the brokers write their ledgers to a single bookie
+        bkEnsemble = new LocalBookkeeperEnsemble(1, 0);
         bkEnsemble.start();
 
         // Start broker 1
@@ -271,6 +284,9 @@ public class ModularLoadManagerImplTest {
         config1.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         config1.setBrokerServicePort(Optional.of(0));
         config1.setBrokerServicePortTls(Optional.of(0));
+        config1.setManagedLedgerDefaultEnsembleSize(1);
+        config1.setManagedLedgerDefaultWriteQuorum(1);
+        config1.setManagedLedgerDefaultAckQuorum(1);
         config1.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
         config1.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
         config1.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
@@ -278,7 +294,7 @@ public class ModularLoadManagerImplTest {
         pulsar1.start();
 
         primaryBrokerId = pulsar1.getBrokerId();
-        url1 = new URL(pulsar1.getWebServiceAddress());
+        url1 = URI.create(pulsar1.getWebServiceAddress()).toURL();
         admin1 = PulsarAdmin.builder().serviceHttpUrl(url1.toString()).build();
 
         // Start broker 2
@@ -294,11 +310,24 @@ public class ModularLoadManagerImplTest {
         config2.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         config2.setBrokerServicePort(Optional.of(0));
         config2.setBrokerServicePortTls(Optional.of(0));
+        config2.setManagedLedgerDefaultEnsembleSize(1);
+        config2.setManagedLedgerDefaultWriteQuorum(1);
+        config2.setManagedLedgerDefaultAckQuorum(1);
         config2.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
         config2.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
         config2.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
-        pulsar2 = new PulsarService(config2);
-        pulsar2.start();
+        if (TESTS_WITHOUT_SECONDARY_BROKER.contains(method.getName())) {
+            secondaryBrokerId = null;
+            url2 = null;
+            secondaryLoadManager = null;
+        } else {
+            pulsar2 = new PulsarService(config2);
+            pulsar2.start();
+            secondaryBrokerId = pulsar2.getBrokerId();
+            url2 = URI.create(pulsar2.getWebServiceAddress()).toURL();
+            admin2 = PulsarAdmin.builder().serviceHttpUrl(url2.toString()).build();
+            secondaryLoadManager = (ModularLoadManagerImpl) getField(pulsar2.getLoadManager().get(), "loadManager");
+        }
 
         ServiceConfiguration config = new ServiceConfiguration();
         config.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
@@ -312,17 +341,15 @@ public class ModularLoadManagerImplTest {
         config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         config.setBrokerServicePort(Optional.of(0));
         config.setBrokerServicePortTls(Optional.of(0));
+        config.setManagedLedgerDefaultEnsembleSize(1);
+        config.setManagedLedgerDefaultWriteQuorum(1);
+        config.setManagedLedgerDefaultAckQuorum(1);
         config.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
         config.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
         config.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
         pulsar3 = new PulsarService(config);
 
-        secondaryBrokerId = pulsar2.getBrokerId();
-        url2 = new URL(pulsar2.getWebServiceAddress());
-        admin2 = PulsarAdmin.builder().serviceHttpUrl(url2.toString()).build();
-
         primaryLoadManager = (ModularLoadManagerImpl) getField(pulsar1.getLoadManager().get(), "loadManager");
-        secondaryLoadManager = (ModularLoadManagerImpl) getField(pulsar2.getLoadManager().get(), "loadManager");
         nsFactory = new NamespaceBundleFactory(pulsar1, Hashing.crc32());
         sleep(100);
     }
@@ -714,6 +741,30 @@ public class ModularLoadManagerImplTest {
     }
 
     @Test
+    public void testPreallocatedBundleLookupDoesNotWaitForMetadata() throws Exception {
+        NamespaceBundle bundle = makeBundle("tenant-1", "ns-1");
+        primaryLoadManager.updateAll();
+        String broker = primaryLoadManager.selectBrokerForAssignmentAsync(bundle).get(10, TimeUnit.SECONDS).get();
+        BundleData bundleData = primaryLoadManager.getBundleDataOrDefaultAsync(bundle.toString()).join();
+        ModularLoadManagerImpl lm = spy(primaryLoadManager);
+        CompletableFuture<BundleData> pendingBundleData = new CompletableFuture<>();
+        CompletableFuture<Set<String>> pendingBrokers = new CompletableFuture<>();
+        doReturn(pendingBundleData).when(lm).getBundleDataOrDefaultAsync(bundle.toString());
+        doReturn(pendingBrokers).when(lm).getAvailableBrokersAsync();
+
+        try {
+            // Hold metadata futures pending to prove the preallocated answer does not wait for them.
+            assertEquals(lm.selectBrokerForAssignmentAsync(bundle).get(1, TimeUnit.SECONDS), Optional.of(broker));
+            assertEquals(CompletableFuture.supplyAsync(() -> lm.selectBrokerForAssignment(bundle), executor)
+                            .get(1, TimeUnit.SECONDS),
+                    Optional.of(broker));
+        } finally {
+            pendingBrokers.complete(Set.of(pulsar1.getBrokerId(), pulsar2.getBrokerId()));
+            pendingBundleData.complete(bundleData != null ? bundleData : new BundleData());
+        }
+    }
+
+    @Test
     public void testBrokerAffinityAppliesToEveryLookupUntilOwned() throws Exception {
         NamespaceBundle bundle = makeBundle("tenant-1", "ns-1");
         primaryLoadManager.updateAll();
@@ -727,6 +778,23 @@ public class ModularLoadManagerImplTest {
 
         for (int i = 0; i < 10; i++) {
             assertEquals(wrapper.getLeastLoaded(bundle).get().getResourceId(), affinityBroker);
+        }
+    }
+
+    @Test
+    public void testBrokerAffinityTakesPrecedenceOverPreallocationAsync() throws Exception {
+        NamespaceBundle bundle = makeBundle("tenant-1", "ns-1");
+        primaryLoadManager.updateAll();
+        String preallocatedBroker = primaryLoadManager.selectBrokerForAssignment(bundle).get();
+        String affinityBroker = preallocatedBroker.equals(pulsar1.getBrokerId())
+                ? pulsar2.getBrokerId() : pulsar1.getBrokerId();
+
+        LoadManager wrapper = pulsar1.getLoadManager().get();
+        wrapper.setNamespaceBundleAffinity(bundle.toString(), affinityBroker);
+
+        for (int i = 0; i < 10; i++) {
+            assertEquals(wrapper.getLeastLoadedAsync(bundle).get(10, TimeUnit.SECONDS).get().getResourceId(),
+                    affinityBroker);
         }
     }
 
@@ -758,6 +826,9 @@ public class ModularLoadManagerImplTest {
      */
     @Test
     public void testMaxTopicDistributionToBroker() throws Exception {
+        // Ignore the host's real CPU usage: on a busy machine a broker reads as overloaded, and selectBroker then
+        // falls back to all the brokers, the one above the max topics included.
+        pulsar1.getConfiguration().setLoadBalancerCPUResourceWeight(0);
 
         final int totalBundles = 50;
         final NamespaceBundle[] bundles = LoadBalancerTestingUtils.makeBundles(nsFactory, "test", "test",
@@ -774,7 +845,7 @@ public class ModularLoadManagerImplTest {
         String maxTopicOwnedBroker = primaryLoadManager.selectBrokerForAssignment(bundles[0]).get();
 
         for (int i = 1; i < totalBundles; i++) {
-            assertNotEquals(primaryLoadManager.selectBrokerForAssignment(bundles[i]), maxTopicOwnedBroker);
+            assertNotEquals(primaryLoadManager.selectBrokerForAssignment(bundles[i]).get(), maxTopicOwnedBroker);
         }
     }
 
@@ -1170,7 +1241,7 @@ public class ModularLoadManagerImplTest {
         final String namespace = "my-ns";
         String broker1Host = pulsar1.getAdvertisedAddress() + "0";
         final String broker1Address = broker1Host + ":8080";
-        String broker2Host = pulsar2.getAdvertisedAddress() + "1";
+        String broker2Host = pulsar1.getAdvertisedAddress() + "1";
         final String broker2Address = broker2Host + ":8080";
         final String sharedBroker = "broker3:8080";
         admin1.clusters().createCluster(cluster, ClusterData.builder()
@@ -1338,6 +1409,9 @@ public class ModularLoadManagerImplTest {
             config.setBrokerShutdownTimeoutMs(0L);
             config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
             config.setBrokerServicePort(Optional.of(0));
+            config.setManagedLedgerDefaultEnsembleSize(1);
+            config.setManagedLedgerDefaultWriteQuorum(1);
+            config.setManagedLedgerDefaultAckQuorum(1);
             PulsarService pulsar = new PulsarService(config);
             // create znode using different zk-session
             final String brokerZnode = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + pulsar.getAdvertisedAddress() + ":"

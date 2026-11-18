@@ -21,6 +21,7 @@ package org.apache.pulsar.proxy.server;
 
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
 import io.netty.bootstrap.ServerBootstrap;
@@ -38,8 +39,8 @@ import io.netty.resolver.dns.DnsNameResolverBuilder;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.util.concurrent.Future;
 import io.prometheus.client.CollectorRegistry;
-import io.prometheus.client.Counter;
-import io.prometheus.client.Gauge;
+import io.prometheus.metrics.core.metrics.Counter;
+import io.prometheus.metrics.core.metrics.Gauge;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -155,23 +156,35 @@ public class ProxyService implements Closeable {
     // second factory built from the same broker-client tls* material. Closed with the ProxyService.
     private volatile PulsarTlsFactory lookupClientTlsFactory;
 
-    static final Gauge ACTIVE_CONNECTIONS = Gauge
-            .build("pulsar_proxy_active_connections", "Number of connections currently active in the proxy").create()
+    static final Gauge ACTIVE_CONNECTIONS = Gauge.builder()
+            .name("pulsar_proxy_active_connections")
+            .help("Number of connections currently active in the proxy")
             .register();
 
-    static final Counter NEW_CONNECTIONS = Counter
-            .build("pulsar_proxy_new_connections", "Counter of connections being opened in the proxy").create()
+    // Nothing in the proxy exports exemplars, so its counters skip the sampling that 1.x counters do by default.
+    static final Counter NEW_CONNECTIONS = Counter.builder()
+            .name("pulsar_proxy_new_connections")
+            .help("Counter of connections being opened in the proxy")
+            .withoutExemplars()
             .register();
 
-    static final Counter REJECTED_CONNECTIONS = Counter
-            .build("pulsar_proxy_rejected_connections", "Counter for connections rejected due to throttling").create()
+    static final Counter REJECTED_CONNECTIONS = Counter.builder()
+            .name("pulsar_proxy_rejected_connections")
+            .help("Counter for connections rejected due to throttling")
+            .withoutExemplars()
             .register();
 
-    static final Counter OPS_COUNTER = Counter
-            .build("pulsar_proxy_binary_ops", "Counter of proxy operations").create().register();
+    static final Counter OPS_COUNTER = Counter.builder()
+            .name("pulsar_proxy_binary_ops")
+            .help("Counter of proxy operations")
+            .withoutExemplars()
+            .register();
 
-    static final Counter BYTES_COUNTER = Counter
-            .build("pulsar_proxy_binary_bytes", "Counter of proxy bytes").create().register();
+    static final Counter BYTES_COUNTER = Counter.builder()
+            .name("pulsar_proxy_binary_bytes")
+            .help("Counter of proxy bytes")
+            .withoutExemplars()
+            .register();
 
     @Getter
     private final Set<ProxyConnection> clientCnxs;
@@ -229,7 +242,7 @@ public class ProxyService implements Closeable {
         this.authenticationService = authenticationService;
 
         DnsNameResolverBuilder dnsNameResolverBuilder = new DnsNameResolverBuilder()
-                .channelType(EventLoopUtil.getDatagramChannelClass(workerGroup))
+                .datagramChannelType(EventLoopUtil.getDatagramChannelClass(workerGroup))
                 .socketChannelType(EventLoopUtil.getClientSocketChannelClass(workerGroup), true);
         DnsResolverUtil.applyJdkDnsCacheSettings(dnsNameResolverBuilder);
 
@@ -246,17 +259,9 @@ public class ProxyService implements Closeable {
 
         statsExecutor = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("proxy-stats-executor"));
-        statsExecutor.scheduleAtFixedRate(() -> {
-            this.clientCnxs.forEach(cnx -> {
-                if (cnx.getDirectProxyHandler() != null
-                        && cnx.getDirectProxyHandler().getInboundChannelRequestsRate() != null) {
-                    cnx.getDirectProxyHandler().getInboundChannelRequestsRate().calculateRate();
-                }
-            });
-            this.topicStats.forEach((topic, stats) -> {
-                stats.calculate();
-            });
-        }, statsUpdateInterval, statsUpdateInterval, statsUpdateIntervalUnit);
+        // scheduleAtFixedRate cancels all later runs if a run throws, so the task must not propagate exceptions
+        statsExecutor.scheduleAtFixedRate(catchingAndLoggingThrowables(this::updateStats),
+                statsUpdateInterval, statsUpdateInterval, statsUpdateIntervalUnit);
         this.proxyAdditionalServlets = AdditionalServlets.load(proxyConfig);
         this.proxyClientAuthentication = proxyClientAuthentication;
         this.connectionController = new ConnectionController.DefaultConnectionController(
@@ -286,6 +291,9 @@ public class ProxyService implements Closeable {
             throw new IllegalStateException("Invalid proxy configuration. Authentication must be enabled with "
                     + "authenticationEnabled=true when authorization is enabled with authorizationEnabled=true.");
         }
+        if (proxyConfig.getServicePortTls().isPresent() || proxyConfig.getWebServicePortTls().isPresent()) {
+            proxyConfig.logTlsClientAuthMode("proxy");
+        }
 
         if (!isBlank(proxyConfig.getMetadataStoreUrl()) && !isBlank(proxyConfig.getConfigurationMetadataStoreUrl())) {
             localMetadataStore = createLocalMetadataStore();
@@ -301,7 +309,7 @@ public class ProxyService implements Closeable {
         bootstrap.childOption(ChannelOption.ALLOCATOR, PulsarByteBufAllocator.DEFAULT);
         bootstrap.group(acceptorGroup, workerGroup);
         bootstrap.childOption(ChannelOption.TCP_NODELAY, true);
-        bootstrap.childOption(ChannelOption.RCVBUF_ALLOCATOR,
+        bootstrap.childOption(ChannelOption.RECVBUF_ALLOCATOR,
                 new AdaptiveRecvByteBufAllocator(1024, 16 * 1024, 1 * 1024 * 1024));
 
         Class<? extends ServerSocketChannel> serverSocketChannelClass =
@@ -454,7 +462,7 @@ public class ProxyService implements Closeable {
             bootstrap.option(ChannelOption.SO_REUSEADDR, true);
             bootstrap.childOption(ChannelOption.ALLOCATOR, PulsarByteBufAllocator.DEFAULT);
             bootstrap.childOption(ChannelOption.TCP_NODELAY, true);
-            bootstrap.childOption(ChannelOption.RCVBUF_ALLOCATOR,
+            bootstrap.childOption(ChannelOption.RECVBUF_ALLOCATOR,
                     new AdaptiveRecvByteBufAllocator(1024, 16 * 1024, 1 * 1024 * 1024));
 
             EventLoopUtil.enableTriggeredMode(bootstrap);
@@ -477,6 +485,19 @@ public class ProxyService implements Closeable {
                 .attr("extensionName", extensionName)
                 .attr("address", address)
                 .log("Successfully bound extension");
+    }
+
+    private void updateStats() {
+        this.clientCnxs.forEach(cnx -> {
+            // read once: the connection's event loop may clear the handler concurrently
+            DirectProxyHandler directProxyHandler = cnx.getDirectProxyHandler();
+            if (directProxyHandler != null) {
+                directProxyHandler.getInboundChannelRequestsRate().calculateRate();
+            }
+        });
+        this.topicStats.forEach((topic, stats) -> {
+            stats.calculate();
+        });
     }
 
     public BrokerDiscoveryProvider getDiscoveryProvider() {
@@ -508,6 +529,14 @@ public class ProxyService implements Closeable {
         } catch (InterruptedException e) {
             log.info("Shutdown of acceptorGroup interrupted");
             Thread.currentThread().interrupt();
+        }
+
+        // No listener accepts connections any more, the extensions' included (they are on the acceptor group too).
+        // Close the extensions before what they may still use while closing: the open connections, the discovery
+        // provider, the metadata stores and the event loops.
+        if (proxyExtensions != null) {
+            proxyExtensions.close();
+            proxyExtensions = null;
         }
 
         closeAllConnections();
@@ -759,12 +788,15 @@ public class ProxyService implements Closeable {
     }
 
     // Shutdown the event loop.
-    // If graceful is true, will wait for the current requests to be completed, up to 15 seconds.
+    // If graceful is true, will wait for the current requests to be completed, up to 15 seconds. As in the broker,
+    // the quiet period is 1 ms, not Netty's default 2 s that every close would wait out: the listen channels and the
+    // connections are already closed by then. Not 0, which can end an event loop that is running tasks without the
+    // pass that closes its channels.
     // Graceful shutdown can be disabled by setting the gracefulShutdown flag to false. This is used in tests
     // to speed up the shutdown process.
     private Future<?> shutdownEventLoop(EventLoopGroup eventLoop) {
         if (gracefulShutdown) {
-            return eventLoop.shutdownGracefully();
+            return eventLoop.shutdownGracefully(1, 15_000, TimeUnit.MILLISECONDS);
         } else {
             return eventLoop.shutdownGracefully(0, 0, TimeUnit.SECONDS);
         }

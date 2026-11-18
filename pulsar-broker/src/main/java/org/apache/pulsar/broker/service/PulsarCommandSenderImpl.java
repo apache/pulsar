@@ -40,6 +40,7 @@ import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
 import org.apache.pulsar.common.api.proto.CommandTopicMigrated.ResourceType;
 import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.apache.pulsar.common.api.proto.ServerError;
+import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -123,7 +124,19 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
 
     @Override
     public void sendSendError(long producerId, long sequenceId, ServerError error, String errorMsg) {
+        sendReplicationSendError(producerId, sequenceId, error, errorMsg, null, false);
+    }
+
+    @Override
+    public void sendReplicationSendError(long producerId, long sequenceId, ServerError error, String errorMsg,
+                                         long[] sourcePosition, boolean deduplicationUndecided) {
         BaseCommand command = Commands.newSendErrorCommand(producerId, sequenceId, error, errorMsg);
+        if (sourcePosition != null) {
+            command.getSendError().setSourcePosition().setLedgerId(sourcePosition[0]).setEntryId(sourcePosition[1]);
+        }
+        if (deduplicationUndecided) {
+            command.getSendError().setDeduplicationUndecided(true);
+        }
         ByteBuf outBuf = serializeAndIntercept(command);
         writeAndFlush(outBuf);
     }
@@ -316,13 +329,12 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
                             ctx.write(coalesced, ctx.voidPromise());
                             coalesced = null;
                         }
-                        // increment ref-count of data and release at the end of process:
-                        // so, we can get chance to call entry.release
+                        ByteBufPair message = cnx.newMessageAndIntercept(consumerId, entry.getLedgerId(),
+                                entry.getEntryId(), partitionIdx, redeliveryCount, metadataAndPayload, ackSet,
+                                topicName, epoch);
+                        // Retain only after construction succeeds; the entry owns the payload until then.
                         metadataAndPayload.retain();
-                        ctx.write(
-                                cnx.newMessageAndIntercept(consumerId, entry.getLedgerId(), entry.getEntryId(),
-                                        partitionIdx, redeliveryCount, metadataAndPayload, ackSet, topicName, epoch),
-                                ctx.voidPromise());
+                        ctx.write(message, ctx.voidPromise());
                     }
                     entriesToRelease.add(entry);
                 }

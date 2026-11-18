@@ -103,7 +103,7 @@ public class DefaultBrokerTlsFactory extends FileBasedTlsFactory {
         policies.put(TlsPurpose.BROKER_CLIENT, brokerClientPolicy(conf));
 
         FileBasedTlsFactorySettings settings = FileBasedTlsFactorySettings.builder()
-                .requireTrustedClientCert(conf.isTlsRequireTrustedClientCertOnConnect())
+                .clientAuthMode(conf.resolveTlsClientAuthMode())
                 .refreshIntervalSeconds(refreshIntervalSeconds(conf))
                 // Engine selection (JDK vs. OpenSSL) mapped from the broker's tlsProvider field: an explicit
                 // engine literal is honored verbatim, a JSSE provider name selects no engine, and an unset

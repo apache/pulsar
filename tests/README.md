@@ -42,7 +42,8 @@ image, and the Pulsar image it is based on, before running the tests. Gradle bui
 that goes into them has changed, or when the image has been removed, so the tests always run against the current code.
 
 - `-PintegrationTestSuiteFile=<suite>.xml` runs a TestNG suite from
-  [`integration/src/test/resources`](integration/src/test/resources), for example `pulsar-messaging.xml`.
+  [`integration/src/test/resources`](integration/src/test/resources), for example `pulsar-messaging.xml`, and a
+  comma-separated list runs several, one after the other in the same test JVM.
 - `-PtestGroups=<groups>` and `-PexcludedTestGroups=<groups>` select TestNG groups.
 - `-Pdocker.tag=<tag>` builds and uses the images under another tag than `latest`.
 - The `PULSAR_TEST_IMAGE_NAME=<image>` environment variable runs the tests against another image. Gradle builds it
@@ -120,6 +121,7 @@ getting started.
   configuration of a host for consistent results and the guidance for repeatable profiling runs.
 - [`compose`](compose/README.md): Docker Compose files that start a Pulsar cluster.
 - Tests of the packaged clients: [`pulsar-client-shade-test`](pulsar-client-shade-test),
+  [`pulsar-client-only-shade-test`](pulsar-client-only-shade-test) (only the shaded client's published dependencies),
   [`pulsar-client-admin-shade-test`](pulsar-client-admin-shade-test),
   [`pulsar-client-all-shade-test`](pulsar-client-all-shade-test),
   [`pulsar-client-v5-shade-test`](pulsar-client-v5-shade-test),

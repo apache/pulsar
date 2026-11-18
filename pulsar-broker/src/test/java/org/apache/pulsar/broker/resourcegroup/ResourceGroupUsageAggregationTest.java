@@ -68,7 +68,10 @@ public class ResourceGroupUsageAggregationTest extends SharedPulsarBaseTest {
         };
 
         ResourceUsageTopicTransportManager transportMgr = new ResourceUsageTopicTransportManager(pulsar);
-        this.rgs = new ResourceGroupService(pulsar, TimeUnit.MILLISECONDS, transportMgr, dummyQuotaCalc);
+        // The test aggregates the usage itself: in seconds, the service's own aggregation first runs
+        // PUBLISH_INTERVAL_SECS after the tenant registration, after the test. Running concurrently with
+        // the test's, it would count the same messages twice.
+        this.rgs = new ResourceGroupService(pulsar, TimeUnit.SECONDS, transportMgr, dummyQuotaCalc);
     }
 
     @Test

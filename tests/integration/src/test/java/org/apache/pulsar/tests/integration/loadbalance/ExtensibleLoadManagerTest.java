@@ -26,6 +26,11 @@ import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -34,6 +39,7 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
@@ -73,7 +79,10 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
     private static final String DEFAULT_NAMESPACE = DEFAULT_TENANT + "/my-namespace";
     private static final String nsSuffix = "-anti-affinity-enabled";
 
-    private final String clusterName = "MultiLoadManagerTest-" + UUID.randomUUID();
+    // Container names are "<cluster>-<hostname>", and Docker's DNS gives no reverse lookup answer for a name longer
+    // than a DNS label (63 characters). The ZooKeeper client in every container looks up the server's name from its
+    // address before it connects, and would wait 5 s per connection for that lookup to time out.
+    private final String clusterName = "MultiLoadManagerTest-" + UUID.randomUUID().toString().substring(0, 8);
     private final PulsarClusterSpec spec = PulsarClusterSpec.builder()
             .clusterName(clusterName)
             .numBrokers(NUM_BROKERS).build();
@@ -138,19 +147,24 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
         if (pulsarCluster == null) {
             return;
         }
-        pulsarCluster.getBrokers().forEach(brokerContainer -> {
-            if (!brokerContainer.isRunning()) {
-                brokerContainer.start();
-            }
-        });
+        List<BrokerContainer> brokers = new ArrayList<>(pulsarCluster.getBrokers());
+        // Restart the brokers that the previous test method stopped, in parallel. allOf completes only once every
+        // restart has finished, so when one fails, the cluster cleanup that follows can't overlap a restart still
+        // in progress.
+        CompletableFuture.allOf(brokers.stream()
+                .filter(brokerContainer -> !brokerContainer.isRunning())
+                .map(brokerContainer -> CompletableFuture.runAsync(brokerContainer::start))
+                .toArray(CompletableFuture<?>[]::new)).get();
         // Build admin clients once and reuse across poll iterations to avoid the per-tick
         // connection churn (3 brokers x N polls of admin builder/close). Connection setup
         // contends with brokers that are still warming up after a stop/restart.
-        // We only check getActiveBrokers and intentionally avoid a topic lookup probe: the broker
-        // accepts HTTP requests before ServiceUnitStateChannel reaches Started, and a lookup in that
-        // window fails fast with "Invalid channel state:LeaderElectionServiceStarted", which would
-        // make this poll loop spin without ever giving the channel time to finish starting.
-        List<BrokerContainer> brokers = new ArrayList<>(pulsarCluster.getBrokers());
+        // A restarted broker registers itself, and so counts in getActiveBrokers, before its
+        // ServiceUnitStateChannel reaches Started, and until then a lookup that reaches it fails fast
+        // with "Invalid channel state:LeaderElectionServiceStarted". The test methods look up topics
+        // through the proxy, which can route to any broker, so also wait for each broker's
+        // /admin/v2/brokers/ready, which answers 200 only once the broker has finished starting,
+        // channel included.
+        HttpClient httpClient = HttpClient.newHttpClient();
         List<PulsarAdmin> brokerAdmins = new ArrayList<>(brokers.size());
         try {
             for (BrokerContainer brokerContainer : brokers) {
@@ -163,6 +177,12 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
                             BrokerContainer brokerContainer = brokers.get(i);
                             PulsarAdmin brokerAdmin = brokerAdmins.get(i);
                             try {
+                                if (!isReady(httpClient, brokerContainer)) {
+                                    log.info()
+                                            .attr("broker", brokerContainer.getHostName())
+                                            .log("Broker has not finished starting yet");
+                                    return false;
+                                }
                                 if (brokerAdmin.brokers().getActiveBrokers(clusterName).size() != NUM_BROKERS) {
                                     log.info()
                                             .attr("broker", brokerContainer.getHostName())
@@ -183,6 +203,7 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
             );
         } finally {
             brokerAdmins.forEach(PulsarAdmin::close);
+            httpClient.close();
         }
     }
 
@@ -461,6 +482,14 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
                 }
         );
 
+    }
+
+    private static boolean isReady(HttpClient httpClient, BrokerContainer brokerContainer) throws Exception {
+        HttpRequest request = HttpRequest.newBuilder(
+                        URI.create(brokerContainer.getHttpServiceUrl() + "/admin/v2/brokers/ready"))
+                .timeout(Duration.ofSeconds(10))
+                .build();
+        return httpClient.send(request, HttpResponse.BodyHandlers.discarding()).statusCode() == 200;
     }
 
     private void createNonPartitionedTopicAndRetry(String topicName) throws Exception {

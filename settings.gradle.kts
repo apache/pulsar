@@ -27,6 +27,8 @@ pluginManagement {
 
 dependencyResolutionManagement {
     @Suppress("UnstableApiUsage")
+    repositoriesMode = RepositoriesMode.FAIL_ON_PROJECT_REPOS
+    @Suppress("UnstableApiUsage")
     repositories {
         mavenCentral()
         maven {
@@ -285,6 +287,7 @@ include("tests:pulsar-client-shade-test")
 project(":tests:pulsar-client-shade-test").projectDir = file("tests/pulsar-client-shade-test")
 include("tests:pulsar-client-admin-v5-test")
 include("tests:pulsar-client-v5-shade-test")
+include("tests:pulsar-client-only-shade-test")
 include("tests:pulsar-client-v5-all-test")
 include("tests:pulsar-client-admin-shade-test")
 project(":tests:pulsar-client-admin-shade-test").projectDir = file("tests/pulsar-client-admin-shade-test")

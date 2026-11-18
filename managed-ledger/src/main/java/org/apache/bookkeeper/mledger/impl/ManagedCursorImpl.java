@@ -164,10 +164,28 @@ public class ManagedCursorImpl implements ManagedCursor {
             MarkDeleteEntry.class, "lastMarkDeleteEntry");
     protected volatile MarkDeleteEntry lastMarkDeleteEntry;
 
-    protected static final AtomicReferenceFieldUpdater<ManagedCursorImpl, OpReadEntry> WAITING_READ_OP_UPDATER =
-        AtomicReferenceFieldUpdater.newUpdater(ManagedCursorImpl.class, OpReadEntry.class, "waitingReadOp");
+    /**
+     * One registration of a read in {@link #waitingReadOp}. Every registration gets a new instance that is never
+     * reused, so a compare-and-set on it claims exactly that registration, even after its pooled
+     * {@link OpReadEntry} has been recycled and registered again by a later read.
+     */
+    static final class WaitingRead {
+        final OpReadEntry op;
+        final int opReadId;
+
+        WaitingRead(OpReadEntry op) {
+            this.op = op;
+            this.opReadId = op.id;
+        }
+    }
+
+    static final WaitingRead WAITING_READ_FOR_CLOSED_CURSOR =
+            new WaitingRead(OpReadEntry.WAITING_READ_OP_FOR_CLOSED_CURSOR);
+
+    protected static final AtomicReferenceFieldUpdater<ManagedCursorImpl, WaitingRead> WAITING_READ_OP_UPDATER =
+        AtomicReferenceFieldUpdater.newUpdater(ManagedCursorImpl.class, WaitingRead.class, "waitingReadOp");
     @SuppressWarnings("unused")
-    private volatile OpReadEntry waitingReadOp = null;
+    private volatile WaitingRead waitingReadOp = null;
 
     public static final int FALSE = 0;
     public static final int TRUE = 1;
@@ -221,6 +239,10 @@ public class ManagedCursorImpl implements ManagedCursor {
     // because of the rate limiting.
     private volatile boolean isDirty = false;
 
+    // Serializes activity transitions, including changes to the ledger's active-cursor registration.
+    private final Object activityLock = new Object();
+
+    // Guarded by activityLock.
     private boolean alwaysInactive = false;
 
     private static final long NO_MAX_SIZE_LIMIT = ManagedLedgerUtils.NO_MAX_SIZE_LIMIT;
@@ -331,6 +353,8 @@ public class ManagedCursorImpl implements ManagedCursor {
             AtomicLongFieldUpdater.newUpdater(ManagedCursorImpl.class, "lastActive");
     // The last active time (Unix time, milliseconds) of the cursor, negated while the cursor is idle (see markIdle())
     private volatile long lastActive;
+    @Getter
+    private volatile long lastMarkDeleteAdvancedAt;
     // Whether the cursor was idle when it was last persisted: once it is used again, it has to be persisted again, or
     // it would be recovered as idle since before it was used
     private volatile boolean idlePersisted;
@@ -1008,9 +1032,17 @@ public class ManagedCursorImpl implements ManagedCursor {
         PENDING_READ_OPS_UPDATER.incrementAndGet(this);
         // Skip deleted entries.
         boolean skipOnlyMessageDeleted = skipCondition == null;
-        skipCondition = skipCondition == null ? this::isMessageDeleted : skipCondition.or(this::isMessageDeleted);
-        OpReadEntry op = OpReadEntry.create(this, readPosition, numOfEntriesToRead, maxSizeBytes, callback, ctx,
-                maxPosition, skipCondition, true);
+        OpReadEntry op;
+        try {
+            skipCondition = skipCondition == null ? this::isMessageDeleted
+                    : skipCondition.or(this::isMessageDeleted);
+            op = OpReadEntry.create(this, readPosition, numOfEntriesToRead, maxSizeBytes, callback, ctx,
+                    maxPosition, skipCondition, true);
+        } catch (Throwable t) {
+            readOperationCompleted();
+            callback.readEntriesFailed(ManagedLedgerException.getManagedLedgerException(t), ctx);
+            return;
+        }
         op.skipOnlyMessageDeleted = skipOnlyMessageDeleted;
         ledger.asyncReadEntries(op);
     }
@@ -1167,12 +1199,21 @@ public class ManagedCursorImpl implements ManagedCursor {
         } else {
             // Skip deleted entries.
             boolean skipOnlyMessageDeleted = skipCondition == null;
-            skipCondition = skipCondition == null ? this::isMessageDeleted : skipCondition.or(this::isMessageDeleted);
-            OpReadEntry op = OpReadEntry.create(this, readPosition, numberOfEntriesToRead, maxSizeBytes, callback,
-                    ctx, maxPosition, skipCondition, true);
+            OpReadEntry op;
+            try {
+                skipCondition = skipCondition == null ? this::isMessageDeleted
+                        : skipCondition.or(this::isMessageDeleted);
+                op = OpReadEntry.create(this, readPosition, numberOfEntriesToRead, maxSizeBytes, callback,
+                        ctx, maxPosition, skipCondition, true);
+            } catch (Throwable t) {
+                // No read was counted as pending and none was issued: failing through the callback is
+                // the only cleanup needed.
+                callback.readEntriesFailed(ManagedLedgerException.getManagedLedgerException(t), ctx);
+                return;
+            }
             op.skipOnlyMessageDeleted = skipOnlyMessageDeleted;
-            int opReadId = op.id;
-            if (!WAITING_READ_OP_UPDATER.compareAndSet(this, null, op)) {
+            WaitingRead waitingRead = new WaitingRead(op);
+            if (!WAITING_READ_OP_UPDATER.compareAndSet(this, null, waitingRead)) {
                 op.recycle();
                 callback.readEntriesFailed(new ManagedLedgerException.ConcurrentWaitCallbackException(), ctx);
                 return;
@@ -1183,19 +1224,20 @@ public class ManagedCursorImpl implements ManagedCursor {
             // Check again for new entries after the configured time, then if still no entries are available register
             // to be notified
             if (getConfig().getNewEntriesCheckDelayInMillis() > 0) {
-                ledger.getScheduledExecutor().schedule(() -> checkForNewEntries(opReadId, op, callback, ctx),
+                ledger.getScheduledExecutor().schedule(() -> checkForNewEntries(waitingRead, callback, ctx),
                         getConfig().getNewEntriesCheckDelayInMillis(), TimeUnit.MILLISECONDS);
             } else {
                 // If there's no delay, check directly from the same thread
-                checkForNewEntries(opReadId, op, callback, ctx);
+                checkForNewEntries(waitingRead, callback, ctx);
             }
         }
     }
 
-    // Please notice that OpReadEntry might be recycled due to sharing via waitingReadOp field logic
-    // That's why the fields cannot be accessed before the reference is removed from waitingReadOp atomically
-    // and the id matches the removed reference.
-    private void checkForNewEntries(int opReadId, OpReadEntry op, ReadEntriesCallback callback, Object ctx) {
+    // Once registered, the OpReadEntry may be claimed, completed and recycled by another thread, and the pool may
+    // hand the same instance to a later registration. Its fields can only be accessed after this check has claimed
+    // its own registration by removing exactly this WaitingRead from waitingReadOp.
+    private void checkForNewEntries(WaitingRead waitingRead, ReadEntriesCallback callback, Object ctx) {
+        int opReadId = waitingRead.opReadId;
         try {
             log.debug().attr("opReadId", opReadId).log("Re-trying the read for op id");
 
@@ -1216,23 +1258,10 @@ public class ManagedCursorImpl implements ManagedCursor {
             // checked and the time we've asked to be notified by managed ledger
             if (hasMoreEntries()) {
                 log.debug("Found more entries");
-                // Try to cancel the notification request
-                // Clear the waiting read op only if it matches the current instance and the id matches
-                // the opReadId parameter. This avoids recycled OpReadEntry instances from matching since their
-                // ids would be different after recycling.
-                OpReadEntry waitingReadOpItem = WAITING_READ_OP_UPDATER.getAndUpdate(this,
-                        current -> {
-                            if (current == op && current.id == opReadId) {
-                                // update the value to null to cancel the waiting read op
-                                return null;
-                            } else {
-                                // keep the current waiting read op value
-                                return current;
-                            }
-                        });
-                // If the waiting read op was the same as the one we are trying to cancel, it means that it was now
-                // cleared from the waitingReadOp field and therefore "cancelled"
-                if (waitingReadOpItem == op && waitingReadOpItem.id == opReadId) {
+                // Try to cancel the notification request. Only this registration can be claimed: a cancelled and
+                // replaced read installs a new WaitingRead, even when it reuses the same OpReadEntry instance.
+                if (WAITING_READ_OP_UPDATER.compareAndSet(this, waitingRead, null)) {
+                    OpReadEntry op = waitingRead.op;
                     log.debug()
                             .attr("readPosition", op.readPosition)
                             .log("Cancelled notification and scheduled read at");
@@ -1242,10 +1271,22 @@ public class ManagedCursorImpl implements ManagedCursor {
                     log.debug().attr("opReadId", opReadId).log("Notification was already cancelled for op id");
                 }
             } else if (ledger.isTerminated()) {
-                // At this point we registered for notification and still there were no more available
-                // entries.
-                // If the managed ledger was indeed terminated, we need to notify the cursor
-                callback.readEntriesFailed(new NoMoreEntriesToReadException("Topic was terminated"), ctx);
+                synchronized (registerToWaitingCursorsLock) {
+                    if (!WAITING_READ_OP_UPDATER.compareAndSet(this, waitingRead, null)) {
+                        return;
+                    }
+                    // Remove this registration before another read can register the same cursor.
+                    ledger.removeWaitingCursor(this);
+                }
+                // This wait-only read never incremented pendingReadOps. Release it directly,
+                // before a callback can reenter and reuse this OpReadEntry for a new registration.
+                waitingRead.op.recycle();
+                try {
+                    callback.readEntriesFailed(new NoMoreEntriesToReadException("Topic was terminated"), ctx);
+                } catch (Throwable error) {
+                    // An observer failure is not a second completion of the terminal read.
+                    log.debug().exception(error).log("Terminal read callback failed");
+                }
             }
         } catch (Throwable t) {
             callback.readEntriesFailed(new ManagedLedgerException(t), ctx);
@@ -1260,21 +1301,22 @@ public class ManagedCursorImpl implements ManagedCursor {
     @Override
     public boolean cancelPendingReadRequest() {
         log.debug("Cancel pending read request");
-        final OpReadEntry op = WAITING_READ_OP_UPDATER.getAndUpdate(this, current -> {
-            if (current == OpReadEntry.WAITING_READ_OP_FOR_CLOSED_CURSOR) {
+        final WaitingRead waitingRead = WAITING_READ_OP_UPDATER.getAndUpdate(this, current -> {
+            if (current == WAITING_READ_FOR_CLOSED_CURSOR) {
                 return current;
             }
             return null;
         });
-        if (op != null) {
-            op.recycle();
+        if (waitingRead == null || waitingRead == WAITING_READ_FOR_CLOSED_CURSOR) {
+            return false;
         }
-        return op != null && op != OpReadEntry.WAITING_READ_OP_FOR_CLOSED_CURSOR;
+        waitingRead.op.recycle();
+        return true;
     }
 
     public boolean hasPendingReadRequest() {
-        OpReadEntry opReadEntry = WAITING_READ_OP_UPDATER.get(this);
-        return opReadEntry != null && opReadEntry != OpReadEntry.WAITING_READ_OP_FOR_CLOSED_CURSOR;
+        WaitingRead waitingRead = WAITING_READ_OP_UPDATER.get(this);
+        return waitingRead != null && waitingRead != WAITING_READ_FOR_CLOSED_CURSOR;
     }
 
     @Override
@@ -1625,9 +1667,15 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public void setActive() {
-        if (!isActive && !alwaysInactive) {
-            ledger.activateCursor(this);
-            isActive = true;
+        // An overlapping deactivation may follow this already satisfied request.
+        if (isActive) {
+            return;
+        }
+        synchronized (activityLock) {
+            if (!isActive && !alwaysInactive) {
+                ledger.activateCursor(this);
+                isActive = true;
+            }
         }
     }
 
@@ -1638,16 +1686,24 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public void setInactive() {
-        if (isActive) {
-            ledger.deactivateCursor(this);
-            isActive = false;
+        // An overlapping activation may follow this already satisfied request.
+        if (!isActive) {
+            return;
+        }
+        synchronized (activityLock) {
+            if (isActive) {
+                ledger.deactivateCursor(this);
+                isActive = false;
+            }
         }
     }
 
     @Override
     public void setAlwaysInactive() {
-        setInactive();
-        this.alwaysInactive = true;
+        synchronized (activityLock) {
+            setInactive();
+            this.alwaysInactive = true;
+        }
     }
 
     @Override
@@ -1702,6 +1758,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 MSG_CONSUMED_COUNTER_UPDATER.addAndGet(cursorImpl(), -getNumberOfEntries(
                         Range.openClosed(newMarkDeletePosition, markDeletePosition)));
             } else if (compareRes < 0) {
+                lastMarkDeleteAdvancedAt = clock.millis();
                 long entries = getNumberOfEntries(Range.openClosed(markDeletePosition, newMarkDeletePosition));
                 MSG_CONSUMED_COUNTER_UPDATER.addAndGet(ManagedCursorImpl.this, entries);
             }
@@ -1931,6 +1988,12 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
 
         final int totalValidPositions = positions.size() - alreadyAcknowledgedPositions.size();
+        if (totalValidPositions == 0) {
+            // Every position was already acknowledged: the aggregate counts the valid positions, so
+            // without completing here the caller would wait forever.
+            callback.readEntriesComplete(entries, ctx);
+            return alreadyAcknowledgedPositions;
+        }
         final AtomicReference<ManagedLedgerException> exception = new AtomicReference<>();
         ReadEntryCallback cb = new ReadEntryCallback() {
             int pendingCallbacks = totalValidPositions;
@@ -1974,23 +2037,33 @@ public class ManagedCursorImpl implements ManagedCursor {
         };
 
         List<Position> validPositions = new ArrayList<>(totalValidPositions);
-        positions.stream().filter(position -> !alreadyAcknowledgedPositions.contains(position))
-                .forEach(p ->{
-                    // A normal read can complete concurrently and move the read position past p: only move it from p
-                    // to the next position atomically, so that it never goes backward nor skips an entry
-                    Position currentReadPosition = this.readPosition;
-                    if (p.compareTo(currentReadPosition) == 0) {
-                        Position nextReadPosition = p.getNext();
-                        if (READ_POSITION_UPDATER.compareAndSet(this, currentReadPosition, nextReadPosition)) {
-                            ledger.onCursorReadPositionUpdated(this, nextReadPosition);
-                            log.warn()
-                                    .attr("replayPosition", p)
-                                    .attr("readPosition", nextReadPosition)
-                                    .log("Replay position equals read position, setting next readPosition");
+        try {
+            positions.stream().filter(position -> !alreadyAcknowledgedPositions.contains(position))
+                    .forEach(p ->{
+                        // A normal read can complete concurrently and move the read position past p: only
+                        // move it from p to the next position atomically, so that it never goes backward
+                        // nor skips an entry
+                        Position currentReadPosition = this.readPosition;
+                        if (p.compareTo(currentReadPosition) == 0) {
+                            Position nextReadPosition = p.getNext();
+                            if (READ_POSITION_UPDATER.compareAndSet(this, currentReadPosition, nextReadPosition)) {
+                                ledger.onCursorReadPositionUpdated(this, nextReadPosition);
+                                log.warn()
+                                        .attr("replayPosition", p)
+                                        .attr("readPosition", nextReadPosition)
+                                        .log("Replay position equals read position, setting next readPosition");
+                            }
                         }
-                    }
-                    validPositions.add(p);
-                });
+                        validPositions.add(p);
+                    });
+        } catch (Throwable t) {
+            // No read was issued yet: fail every valid position through the aggregate, or it would
+            // never complete
+            ManagedLedgerException replayException = ManagedLedgerException.getManagedLedgerException(t);
+            positions.stream().filter(position -> !alreadyAcknowledgedPositions.contains(position))
+                    .forEach(p -> cb.readEntryFailed(replayException, ctx));
+            return alreadyAcknowledgedPositions;
+        }
         readReplayPositions(validPositions, cb, ctx);
 
         return alreadyAcknowledgedPositions;
@@ -2028,6 +2101,12 @@ public class ManagedCursorImpl implements ManagedCursor {
      * reads gets one for the replay, so that the dispatcher's increment, when it adds the entry to the replay queue
      * again, keeps it cached. Each wanted entry, or its failure, reaches the callback as a single-entry read's would.
      */
+    /**
+     * Issues the replay's reads, cached ones first and the rest from storage in runs. The pending set
+     * assumes a read is issued as soon as its issuer returns normally: an issuer that fails after
+     * submitting the read must report the failure itself rather than throwing, or the position will be
+     * failed twice and the aggregate callback's count will be wrong.
+     */
     private void readReplayPositions(List<Position> replayPositions, ReadEntryCallback cb, Object ctx) {
         ReadEntryCallback singleReadCallback = new ReadEntryCallback() {
             @Override
@@ -2041,41 +2120,66 @@ public class ManagedCursorImpl implements ManagedCursor {
                 cb.readEntryFailed(exception, readCtx);
             }
         };
-        // the positions to read from storage
-        List<Position> positions = new ArrayList<>(replayPositions.size());
-        for (Position position : replayPositions) {
-            if (ledger.entryCache.hasEntry(position)) {
-                ledger.asyncReadEntry(position, REPLAYED_ENTRY_EXPECTED_READ_COUNT, singleReadCallback, ctx);
-            } else {
-                positions.add(position);
-            }
-        }
-        if (positions.isEmpty()) {
-            // the cache had every position
-            return;
-        }
-        positions.sort(null);
-        long averageEntrySize = Math.max(1, ledger.getTotalSize() / Math.max(1, ledger.getNumberOfEntries()));
-        // A range read holds its permits on the inflight reads limiter until its wanted entries are released, which
-        // the callback may keep until the replay's other reads complete. So that the replay's reads can take their
-        // permits together whenever the wanted entries' own reads could, the entries in between take at most the
-        // limiter's bytes that the wanted entries leave, by the per-ledger entry size estimates that the limiter
-        // acquires the permits with. Without an estimate for a ledger, the replay takes no entries in between.
-        long maxReadsInFlightSize = ledger.getFactory().getConfig().getManagedLedgerMaxReadsInFlightSize();
-        long maxGapBytes = Long.MAX_VALUE;
-        if (maxReadsInFlightSize > 0) {
-            maxGapBytes = maxReadsInFlightSize;
+        // The positions whose read was not issued yet: on a failure to issue the reads, they are
+        // failed through the callback so the aggregate - which counts every position - completes.
+        Set<Position> pending = new HashSet<>(replayPositions);
+        try {
+            // the positions to read from storage
+            List<Position> positions = new ArrayList<>(replayPositions.size());
             for (Position position : replayPositions) {
-                long estimatedEntrySize = ledger.getEstimatedReadEntrySize(position.getLedgerId());
-                maxGapBytes = estimatedEntrySize < 0 ? 0 : Math.max(0, maxGapBytes - estimatedEntrySize);
+                if (!pending.contains(position)) {
+                    continue;
+                }
+                if (ledger.entryCache.hasEntry(position)) {
+                    ledger.asyncReadEntry(position, REPLAYED_ENTRY_EXPECTED_READ_COUNT, singleReadCallback, ctx);
+                    pending.remove(position);
+                } else {
+                    positions.add(position);
+                }
             }
-        }
-        for (List<Position> run : replayRuns(positions, averageEntrySize, ledger::getEstimatedReadEntrySize,
-                maxGapBytes)) {
-            if (run.size() == 1) {
-                ledger.asyncReadEntry(run.get(0), REPLAYED_ENTRY_EXPECTED_READ_COUNT, singleReadCallback, ctx);
-            } else {
-                readReplayRange(run, cb, ctx);
+            if (positions.isEmpty()) {
+                // the cache had every position
+                return;
+            }
+            positions.sort(null);
+            long averageEntrySize =
+                    Math.max(1, ledger.getTotalSize() / Math.max(1, ledger.getNumberOfEntries()));
+            // A range read holds its permits on the inflight reads limiter until its wanted entries are released,
+            // which the callback may keep until the replay's other reads complete. So that the replay's reads can
+            // take their permits together whenever the wanted entries' own reads could, the entries in between
+            // take at most the limiter's bytes that the wanted entries leave, by the per-ledger entry size
+            // estimates that the limiter acquires the permits with. Without an estimate for a ledger, the replay
+            // takes no entries in between.
+            long maxReadsInFlightSize = ledger.getFactory().getConfig().getManagedLedgerMaxReadsInFlightSize();
+            long maxGapBytes = Long.MAX_VALUE;
+            if (maxReadsInFlightSize > 0) {
+                maxGapBytes = maxReadsInFlightSize;
+                for (Position position : replayPositions) {
+                    long estimatedEntrySize = ledger.getEstimatedReadEntrySize(position.getLedgerId());
+                    maxGapBytes = estimatedEntrySize < 0 ? 0 : Math.max(0, maxGapBytes - estimatedEntrySize);
+                }
+            }
+            for (List<Position> run : replayRuns(positions, averageEntrySize, ledger::getEstimatedReadEntrySize,
+                    maxGapBytes)) {
+                if (run.size() == 1) {
+                    ledger.asyncReadEntry(run.get(0), REPLAYED_ENTRY_EXPECTED_READ_COUNT, singleReadCallback, ctx);
+                } else {
+                    readReplayRange(run, cb, ctx);
+                }
+                pending.removeAll(run);
+            }
+        } catch (Throwable t) {
+            log.warn().exception(t).log("Failed to issue the reads of a replay");
+            ManagedLedgerException exception = ManagedLedgerException.getManagedLedgerException(t);
+            for (Position position : pending) {
+                try {
+                    cb.readEntryFailed(exception, ctx);
+                } catch (Throwable notifyFailure) {
+                    // Notify the remaining positions even if one notification throws, or the aggregate
+                    // would never complete
+                    log.warn().attr("position", position).exception(notifyFailure)
+                            .log("Failed to deliver a replay read failure");
+                }
             }
         }
     }
@@ -2142,6 +2246,13 @@ public class ManagedCursorImpl implements ManagedCursor {
             @Override
             public void readEntriesComplete(List<Entry> entries, Object readCtx) {
                 for (Entry entry : entries) {
+                    if (entry == null) {
+                        // a slot the range read didn't fill, as when its entry never arrived from storage: a wanted
+                        // position of it stays in wantedEntries and fails below as its own read would
+                        log.warn().attr("ledgerId", ledgerId).attr("firstEntry", firstEntry)
+                                .attr("lastEntry", lastEntry).log("Replay range read delivered a null slot");
+                        continue;
+                    }
                     if (wantedEntries.remove(entry.getEntryId())) {
                         expectReplayRead(entry);
                         cb.readEntryComplete(entry, ctx);
@@ -2493,6 +2604,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     .attr("markDeletePosition", newMarkDeletePosition)
                     .attr("skippedEntries", skippedEntries)
                     .log("Moved ack position");
+            lastMarkDeleteAdvancedAt = clock.millis();
             MSG_CONSUMED_COUNTER_UPDATER.addAndGet(this, skippedEntries);
         }
 
@@ -2590,14 +2702,23 @@ public class ManagedCursorImpl implements ManagedCursor {
             }
         }
 
+        IllegalArgumentException markDeleteFailure = null;
         lock.writeLock().lock();
         try {
             newPosition = setAcknowledgedPosition(newPosition);
         } catch (IllegalArgumentException e) {
-            callback.markDeleteFailed(getManagedLedgerException(e), ctx);
-            return;
+            // A concurrent mark-delete may have already advanced past the requested position. The skip/clear
+            // wrappers treat that failure as completion, so this callback can reenter the dispatcher.
+            // Dispatch can hold its monitor while taking the cursor read lock for replay. Calling back under
+            // this write lock would invert that lock order (cursor -> dispatcher) and could deadlock.
+            // Save the exception and invoke the callback only after finally has released the cursor lock.
+            markDeleteFailure = e;
         } finally {
             lock.writeLock().unlock();
+        }
+        if (markDeleteFailure != null) {
+            callback.markDeleteFailed(getManagedLedgerException(markDeleteFailure), ctx);
+            return;
         }
 
         // Apply rate limiting to mark-delete operations
@@ -3149,6 +3270,11 @@ public class ManagedCursorImpl implements ManagedCursor {
         return Math.abs(lastActive);
     }
 
+    @VisibleForTesting
+    void setLastActive(long lastActive) {
+        this.lastActive = lastActive;
+    }
+
     @Override
     public void updateLastActive() {
         long previous = LAST_ACTIVE_UPDATER.getAndSet(this, System.currentTimeMillis());
@@ -3473,9 +3599,9 @@ public class ManagedCursorImpl implements ManagedCursor {
                 ledger.removeWaitingCursor(this);
             }
         }
-        OpReadEntry opReadEntry = WAITING_READ_OP_UPDATER.getAndSet(this,
-                OpReadEntry.WAITING_READ_OP_FOR_CLOSED_CURSOR);
-        if (opReadEntry != null && opReadEntry != OpReadEntry.WAITING_READ_OP_FOR_CLOSED_CURSOR) {
+        WaitingRead waitingRead = WAITING_READ_OP_UPDATER.getAndSet(this, WAITING_READ_FOR_CLOSED_CURSOR);
+        if (waitingRead != null && waitingRead != WAITING_READ_FOR_CLOSED_CURSOR) {
+            OpReadEntry opReadEntry = waitingRead.op;
             opReadEntry.readEntriesFailed(new CursorAlreadyClosedException("Cursor is closing"), opReadEntry.ctx);
         }
     }
@@ -4065,9 +4191,9 @@ public class ManagedCursorImpl implements ManagedCursor {
     void notifyEntriesAvailable() {
         log.debug("Received managed ledger notification");
 
-        OpReadEntry opReadEntry = WAITING_READ_OP_UPDATER.getAndUpdate(this, current -> {
-            // if the waitingReadOp is WAITING_READ_OP_FOR_CLOSED_CURSOR, keep it as is
-            if (current == OpReadEntry.WAITING_READ_OP_FOR_CLOSED_CURSOR) {
+        WaitingRead waitingRead = WAITING_READ_OP_UPDATER.getAndUpdate(this, current -> {
+            // if the waitingReadOp is WAITING_READ_FOR_CLOSED_CURSOR, keep it as is
+            if (current == WAITING_READ_FOR_CLOSED_CURSOR) {
                 return current;
             } else {
                 // Otherwise, clear the waiting read operation
@@ -4076,11 +4202,12 @@ public class ManagedCursorImpl implements ManagedCursor {
         });
 
         // ignore the notification if the cursor is already closed
-        if (opReadEntry == OpReadEntry.WAITING_READ_OP_FOR_CLOSED_CURSOR) {
+        if (waitingRead == WAITING_READ_FOR_CLOSED_CURSOR) {
             return;
         }
 
-        if (opReadEntry != null) {
+        if (waitingRead != null) {
+            OpReadEntry opReadEntry = waitingRead.op;
             log.debug()
                     .attr("readPosition", opReadEntry.readPosition)
                     .attr("lastConfirmedEntry", ledger.lastConfirmedEntry)

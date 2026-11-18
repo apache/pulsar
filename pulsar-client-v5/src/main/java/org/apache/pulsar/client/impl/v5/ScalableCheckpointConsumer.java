@@ -33,6 +33,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException.AlreadyClosedException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.TopicMessageId;
@@ -88,13 +89,23 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
      * Per-segment v4 readers. Stores futures so concurrent operations (seek, close)
      * can chain on in-flight reader creation without racing against completion.
      */
-    private final ConcurrentHashMap<Long, CompletableFuture<Reader<T>>> segmentReaders = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Long, SegmentReaderFuture<T>> segmentReaders = new ConcurrentHashMap<>();
     /**
-     * Per-segment checkpoint positions: the last message the application received from the segment, or the
-     * position the segment's reader starts after until a message from it is received.
+     * One position tracker per reader attachment. A pending latest-start lookup has no message id yet.
+     * Seed, receive, and removal use per-key computations, so revocation cannot race a seed or receive
+     * into restoring an old attachment. The volatile message id is read by checkpoint snapshots.
      */
-    private final ConcurrentHashMap<Long, org.apache.pulsar.client.api.MessageId> lastReceivedPositions =
-            new ConcurrentHashMap<>();
+    private static final class SegmentPosition {
+        private final Object attachment = new Object();
+        private volatile MessageId messageId;
+    }
+
+    /** The reader owns its position, so a retained checkpoint tracker cannot retain a reader or its future. */
+    private static final class SegmentReaderFuture<T> extends CompletableFuture<Reader<T>> {
+        private final SegmentPosition position = new SegmentPosition();
+    }
+
+    private final ConcurrentHashMap<Long, SegmentPosition> lastReceivedPositions = new ConcurrentHashMap<>();
     private final V5ReceiveQueue<T> receiveQueue;
 
     /**
@@ -109,7 +120,11 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
     /** Sealed segments whose last message is in the receive queue. Guarded by {@code this}. */
     private final Set<Long> drainedSegments = new HashSet<>();
     /** Readers held back until their parents are drained. Guarded by {@code this}. */
-    private final Map<Long, Reader<T>> heldReaders = new HashMap<>();
+    private final Map<Long, HeldReader<T>> heldReaders = new HashMap<>();
+
+    /** A held reader retains its original reader future, even across reassignment. */
+    private record HeldReader<T>(Reader<T> reader, SegmentReaderFuture<T> readerFuture) {
+    }
     /** Sealed segments found read to their end while their read loop waited for a message. */
     private final Set<Long> exhaustedSegments = ConcurrentHashMap.newKeySet();
 
@@ -252,16 +267,38 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
      * caller can pass through the receive result without an extra null-check.
      */
     private Message<T> advanceCheckpoint(Message<T> msg) {
-        if (msg != null && msg.id() instanceof MessageIdV5 id) {
-            lastReceivedPositions.put(id.segmentId(), id.v4MessageId());
+        if (msg instanceof MessageV5<?> message && msg.id() instanceof MessageIdV5 id) {
+            lastReceivedPositions.computeIfPresent(id.segmentId(), (__, position) -> {
+                if (position.attachment == message.checkpointAttachment()) {
+                    position.messageId = id.v4MessageId();
+                }
+                return position;
+            });
         }
         return msg;
     }
 
     @Override
     public Checkpoint checkpoint() {
-        Map<Long, org.apache.pulsar.client.api.MessageId> positions = new HashMap<>(lastReceivedPositions);
+        Map<Long, MessageId> positions = new HashMap<>();
+        lastReceivedPositions.forEach((segmentId, position) -> {
+            MessageId messageId = position.messageId;
+            if (messageId != null) {
+                positions.put(segmentId, messageId);
+            }
+        });
         return new CheckpointV5(positions);
+    }
+
+    @VisibleForTesting
+    int checkpointPositionTrackerCount() {
+        return lastReceivedPositions.size();
+    }
+
+    /** Remove only the position belonging to the reader being detached, never a later attachment. */
+    private void removePosition(long segmentId, SegmentReaderFuture<?> readerFuture) {
+        lastReceivedPositions.computeIfPresent(segmentId, (__, position) ->
+                position == readerFuture.position ? null : position);
     }
 
     @Override
@@ -381,8 +418,8 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
     private void evictFailedSegmentReaders() {
         for (var entry : segmentReaders.entrySet()) {
             var future = entry.getValue();
-            if (future.isCompletedExceptionally()) {
-                segmentReaders.remove(entry.getKey(), future);
+            if (future.isCompletedExceptionally() && segmentReaders.remove(entry.getKey(), future)) {
+                removePosition(entry.getKey(), future);
             }
         }
     }
@@ -398,7 +435,7 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
         }
 
         Set<Long> newlySealed = new HashSet<>();
-        List<Map.Entry<Long, Reader<T>>> released;
+        List<Map.Entry<Long, HeldReader<T>>> released;
         synchronized (this) {
             Set<Long> sealed = new HashSet<>();
             if (layout != null) {
@@ -424,8 +461,8 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
                 log.info().attr("segmentId", entry.getKey())
                         .log("Closing reader for segment removed from assignment");
                 entry.getValue().thenAccept(r -> r.closeAsync());
-                segmentReaders.remove(entry.getKey());
-                lastReceivedPositions.remove(entry.getKey());
+                segmentReaders.remove(entry.getKey(), entry.getValue());
+                removePosition(entry.getKey(), entry.getValue());
             }
         }
 
@@ -446,16 +483,18 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
         for (var seg : assigned) {
             // In segmentReaders before the creation starts, so that a later step of the creation can
             // tell whether the segment still maps to it.
-            var readerFuture = new CompletableFuture<Reader<T>>();
+            var readerFuture = new SegmentReaderFuture<T>();
             var current = segmentReaders.putIfAbsent(seg.segmentId(), readerFuture);
             if (current == null) {
+                lastReceivedPositions.put(seg.segmentId(), readerFuture.position);
                 FutureUtil.completeAfter(readerFuture,
-                        FutureUtil.supplySafely(() -> createSegmentReaderAsync(seg)));
+                        FutureUtil.supplySafely(() -> createSegmentReaderAsync(seg, readerFuture)));
                 current = readerFuture;
             }
             futures.add(current);
         }
-        released.forEach(held -> startReadLoop(held.getValue(), held.getKey()));
+        released.forEach(held -> startReadLoop(held.getValue().reader(), held.getKey(),
+                held.getValue().readerFuture()));
 
         log.info().attr("segments", assignedIds).log("Checkpoint consumer assignment applied");
         return CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new));
@@ -473,8 +512,8 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
     }
 
     /** Remove and return the held readers whose parents have all been drained. */
-    private synchronized List<Map.Entry<Long, Reader<T>>> releaseHeldReaders() {
-        List<Map.Entry<Long, Reader<T>>> released = new ArrayList<>();
+    private synchronized List<Map.Entry<Long, HeldReader<T>>> releaseHeldReaders() {
+        List<Map.Entry<Long, HeldReader<T>>> released = new ArrayList<>();
         for (var it = heldReaders.entrySet().iterator(); it.hasNext(); ) {
             var held = it.next();
             if (parentsDrained(held.getKey())) {
@@ -493,7 +532,8 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
      */
     private void probeSealedSegment(Reader<T> reader, long segmentId) {
         synchronized (this) {
-            if (heldReaders.get(segmentId) == reader || drainedSegments.contains(segmentId)) {
+            HeldReader<T> held = heldReaders.get(segmentId);
+            if ((held != null && held.reader() == reader) || drainedSegments.contains(segmentId)) {
                 // Not started yet (its loop will start on the sealed path), or already done.
                 return;
             }
@@ -536,18 +576,21 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
      * @return false if the segment was already recorded
      */
     private boolean markDrained(long segmentId) {
-        List<Map.Entry<Long, Reader<T>>> released;
+        List<Map.Entry<Long, HeldReader<T>>> released;
         synchronized (this) {
             if (!drainedSegments.add(segmentId)) {
                 return false;
             }
             released = releaseHeldReaders();
         }
-        released.forEach(held -> startReadLoop(held.getValue(), held.getKey()));
+        released.forEach(held -> startReadLoop(held.getValue().reader(), held.getKey(),
+                held.getValue().readerFuture()));
         return true;
     }
 
-    private CompletableFuture<Reader<T>> createSegmentReaderAsync(ActiveSegment segment) {
+    private CompletableFuture<Reader<T>> createSegmentReaderAsync(ActiveSegment segment,
+                                                                 SegmentReaderFuture<T> readerFuture) {
+        SegmentPosition position = readerFuture.position;
         PulsarClientImpl v4Client = client.v4Client();
         org.apache.pulsar.client.api.MessageId startMsgId = resolveStartPosition(segment.segmentId());
 
@@ -560,17 +603,18 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
             segConf.setReaderName(consumerName + "-seg-" + segment.segmentId());
         }
 
-        // What applyAssignment mapped the segment to before starting this creation.
-        CompletableFuture<Reader<T>> readerFuture = segmentReaders.get(segment.segmentId());
+        // The original attachment is passed in, never looked up again after an asynchronous boundary.
         return resolveLatestStartAsync(segConf)
                 .thenCompose(__ -> {
-                    // Until the application receives a message from the segment, a checkpoint resumes
-                    // the segment where its reader starts. A latest start is known only after a lookup,
-                    // when the segment may have left the assignment or have another reader: the position
-                    // is recorded only while the segment maps to this reader, and never over another.
-                    if (readerFuture != null && segmentReaders.get(segment.segmentId()) == readerFuture) {
-                        lastReceivedPositions.putIfAbsent(segment.segmentId(), segConf.getStartMessageId());
-                    }
+                    // Seed only this attachment, atomically with revocation and receive advancement.
+                    // A lookup that outlives its assignment cannot insert a tracker or seed another one.
+                    lastReceivedPositions.computeIfPresent(segment.segmentId(), (ignoredSegmentId, current) -> {
+                        if (current == position && segmentReaders.get(segment.segmentId()) == readerFuture
+                                && current.messageId == null) {
+                            current.messageId = segConf.getStartMessageId();
+                        }
+                        return current;
+                    });
                     return v4Client.createSegmentReaderAsync(segConf, v4Schema);
                 })
                 .thenApply(reader -> {
@@ -578,13 +622,14 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
                     // reading waits for the segment's parents to drain.
                     boolean held;
                     synchronized (this) {
-                        held = !parentsDrained(segment.segmentId());
+                        held = lastReceivedPositions.get(segment.segmentId()) == position
+                                && !parentsDrained(segment.segmentId());
                         if (held) {
-                            heldReaders.put(segment.segmentId(), reader);
+                            heldReaders.put(segment.segmentId(), new HeldReader<>(reader, readerFuture));
                         }
                     }
                     if (!held) {
-                        startReadLoop(reader, segment.segmentId());
+                        startReadLoop(reader, segment.segmentId(), readerFuture);
                     }
                     return reader;
                 })
@@ -598,8 +643,8 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
                         // Either way, the segment's data is gone — skip it silently.
                         log.info().attr("segmentId", segment.segmentId())
                                 .log("Segment backing topic deleted (retention expired); skipping");
-                        segmentReaders.remove(segment.segmentId());
-                        lastReceivedPositions.remove(segment.segmentId());
+                        segmentReaders.remove(segment.segmentId(), readerFuture);
+                        removePosition(segment.segmentId(), readerFuture);
                         // Its data is gone: the segments held back on it have nothing to wait for.
                         markDrained(segment.segmentId());
                         return null;
@@ -692,7 +737,12 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
                 ? reader.readNextAsync() : CompletableFuture.completedFuture(null));
     }
 
-    private void startReadLoop(Reader<T> reader, long segmentId) {
+    private void startReadLoop(Reader<T> reader, long segmentId, SegmentReaderFuture<T> readerFuture) {
+        SegmentPosition position = readerFuture.position;
+        if (closed || segmentReaders.get(segmentId) != readerFuture) {
+            reader.closeAsync();
+            return;
+        }
         readNextAsync(reader, segmentId).thenAccept(v4Msg -> {
             if (v4Msg == null) {
                 onSegmentDrained(reader, segmentId);
@@ -706,9 +756,9 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
             // receiveMulti() instead, where the message crosses into application code.
             // Re-arm only once the buffer has room, so a slow consumer pauses this reader
             // instead of pre-fetching unboundedly.
-            receiveQueue.offer(new MessageV5<>(v4Msg, segmentId)).thenRun(() -> {
+            receiveQueue.offer(new MessageV5<>(v4Msg, segmentId, position.attachment)).thenRun(() -> {
                 if (!closed) {
-                    startReadLoop(reader, segmentId);
+                    startReadLoop(reader, segmentId, readerFuture);
                 }
             });
         }).exceptionally(ex -> {
@@ -743,8 +793,8 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
                 // that no longer exists.
                 log.info().attr("segmentId", segmentId)
                         .log("Segment backing topic deleted (retention expired); closing reader");
-                segmentReaders.remove(segmentId);
-                lastReceivedPositions.remove(segmentId);
+                segmentReaders.remove(segmentId, readerFuture);
+                removePosition(segmentId, readerFuture);
                 reader.closeAsync();
                 markDrained(segmentId);
                 return null;
@@ -754,7 +804,7 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
             // Hop to the v4 client's internal executor so repeated synchronous failures
             // don't grow the stack unboundedly.
             client.v4Client().getInternalExecutorService()
-                    .execute(() -> startReadLoop(reader, segmentId));
+                    .execute(() -> startReadLoop(reader, segmentId, readerFuture));
             return null;
         });
     }

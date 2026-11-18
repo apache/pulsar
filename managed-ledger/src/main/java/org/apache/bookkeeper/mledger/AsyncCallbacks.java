@@ -113,6 +113,11 @@ public interface AsyncCallbacks {
         void readEntriesFailed(ManagedLedgerException exception, Object ctx);
     }
 
+    /** A caller that distinguishes waiting for new entries from reading available entries. */
+    interface ReadEntriesWithStartCallback extends ReadEntriesCallback {
+        void readEntriesStarted(Object ctx);
+    }
+
     /**
      * Completion of a single-entry read. Like {@link ReadEntriesCallback}, callbacks may run inline
      * without fixed thread affinity, and the recipient must release the returned entry after use.
