@@ -47,6 +47,7 @@ import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.ZooKeeper.States;
 import org.apache.zookeeper.client.ZKClientConfig;
 import org.awaitility.Awaitility;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test
@@ -340,6 +341,75 @@ public class ZKSessionWatcherTest {
             watcher.process(new ZKSessionWatcher.SessionEventSnapshot(
                     sessionEvent(KeeperState.Expired), 1, 1, States.CLOSED));
             assertThat(events).containsExactly(SessionEvent.Reconnected, SessionEvent.SessionReestablished);
+        }
+    }
+
+    @DataProvider
+    public Object[][] replacementConnectionOrder() {
+        return new Object[][]{
+                {true, false},
+                {true, true},
+                {false, false},
+                {false, true}
+        };
+    }
+
+    @Test(dataProvider = "replacementConnectionOrder")
+    public void testReplacementConnectsBeforeQueuedExpiration(boolean probeFirst, boolean disconnected)
+            throws Exception {
+        PulsarZooKeeperClient zk = mock(PulsarZooKeeperClient.class);
+        when(zk.getSessionTimeout()).thenReturn(600_000);
+        when(zk.getCurrentHandleGeneration()).thenReturn(1L);
+        when(zk.getSessionId()).thenReturn(1L);
+        List<SessionEvent> events = new CopyOnWriteArrayList<>();
+        AtomicBoolean updatingCurrentHandle = new AtomicBoolean();
+
+        try (ZKSessionWatcher watcher = new ZKSessionWatcher(zk, event -> {
+            assertThat(updatingCurrentHandle.get()).isFalse();
+            events.add(event);
+        }, false)) {
+            if (disconnected) {
+                watcher.process(new ZKSessionWatcher.SessionEventSnapshot(
+                        sessionEvent(KeeperState.Disconnected), 1, 1, States.CONNECTING));
+                assertThat(events).containsExactly(SessionEvent.ConnectionLost);
+                events.clear();
+            }
+
+            PulsarZooKeeperClient.CurrentHandleIdentity replacement =
+                    new PulsarZooKeeperClient.CurrentHandleIdentity(2, 2);
+            when(zk.getCurrentHandleGeneration()).thenReturn(replacement.generation());
+            when(zk.getCurrentHandleIdentity()).thenReturn(replacement);
+            when(zk.getSessionId()).thenReturn(replacement.sessionId());
+            when(zk.getState()).thenReturn(States.CONNECTED);
+            when(zk.runStateUpdateIfCurrentHandle(eq(replacement), any())).thenAnswer(invocation -> {
+                Runnable stateUpdate = invocation.getArgument(1);
+                updatingCurrentHandle.set(true);
+                try {
+                    stateUpdate.run();
+                } finally {
+                    updatingCurrentHandle.set(false);
+                }
+                return true;
+            });
+            completeExistsWith(zk, KeeperException.Code.OK);
+
+            ZKSessionWatcher.SessionEventSnapshot connected = new ZKSessionWatcher.SessionEventSnapshot(
+                    sessionEvent(KeeperState.SyncConnected), 2, 2, States.CONNECTED);
+            if (probeFirst) {
+                watcher.checkConnectionStatus();
+            } else {
+                watcher.process(connected);
+            }
+            assertThat(events).containsExactly(
+                    SessionEvent.SessionLost, SessionEvent.Reconnected, SessionEvent.SessionReestablished);
+
+            // The old expiration and repeated H2 connection observations must not restart recovery.
+            watcher.process(new ZKSessionWatcher.SessionEventSnapshot(
+                    sessionEvent(KeeperState.Expired), 1, 1, States.CLOSED));
+            watcher.process(connected);
+            watcher.checkConnectionStatus();
+            assertThat(events).containsExactly(
+                    SessionEvent.SessionLost, SessionEvent.Reconnected, SessionEvent.SessionReestablished);
         }
     }
 

@@ -20,9 +20,11 @@ package org.apache.pulsar;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import io.prometheus.metrics.model.registry.PrometheusRegistry;
-import io.prometheus.metrics.model.snapshots.MetricSnapshots;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.UUID;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import org.apache.bookkeeper.bookie.storage.ldb.DbLedgerStorage;
 import org.apache.bookkeeper.common.allocator.PoolingPolicy;
 import org.apache.bookkeeper.conf.ServerConfiguration;
@@ -39,8 +41,8 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class StandaloneBookieStatsProviderTest {
 
-    private static final Predicate<String> BOOKIE_OR_JVM =
-            name -> name.startsWith("jvm_") || name.startsWith("process_") || name.startsWith("bookie_");
+    private static final Predicate<String> JVM_FAMILIES =
+            name -> name.startsWith("jvm_") || name.startsWith("process_");
 
     private static ServerConfiguration bookieConfiguration() {
         ServerConfiguration conf = new ServerConfiguration();
@@ -60,37 +62,51 @@ public class StandaloneBookieStatsProviderTest {
         return conf;
     }
 
-    private static void assertBrokerRegistryUntouched(String when) {
-        MetricSnapshots leaked = PrometheusRegistry.defaultRegistry.scrape(BOOKIE_OR_JVM);
-        assertThat(leaked.stream().map(snapshot -> snapshot.getMetadata().getPrometheusName()))
-                .as("metric families the bookie leaked into the broker registry %s", when)
+    private static Set<String> familyNames(Predicate<String> filter) {
+        return PrometheusRegistry.defaultRegistry.scrape(filter).stream()
+                .map(snapshot -> snapshot.getMetadata().getPrometheusName())
+                .collect(Collectors.toCollection(TreeSet::new));
+    }
+
+    /**
+     * A broker started earlier in this JVM registers the JVM metrics on the default registry itself, so the bookie
+     * must leave the JVM families as they were and add no bookie families.
+     */
+    private static void assertBrokerRegistryUntouched(Set<String> jvmFamiliesBefore, String when) {
+        assertThat(familyNames(name -> name.startsWith("bookie_")))
+                .as("bookie families leaked into the broker registry %s", when)
                 .isEmpty();
+        assertThat(familyNames(JVM_FAMILIES))
+                .as("JVM families in the broker registry %s", when)
+                .isEqualTo(jvmFamiliesBefore);
     }
 
     @Test
     public void testBookieOnMetadataStoreStaysOutOfTheBrokerRegistry() throws Exception {
+        Set<String> jvmFamiliesBefore = familyNames(JVM_FAMILIES);
         BKCluster cluster = BKCluster.builder()
                 .baseServerConfiguration(bookieConfiguration())
                 .metadataServiceUri("memory:" + UUID.randomUUID())
                 .numBookies(1)
                 .build();
         try {
-            assertBrokerRegistryUntouched("while the bookie is running");
+            assertBrokerRegistryUntouched(jvmFamiliesBefore, "while the bookie is running");
         } finally {
             cluster.close();
         }
-        assertBrokerRegistryUntouched("after the cluster was closed");
+        assertBrokerRegistryUntouched(jvmFamiliesBefore, "after the cluster was closed");
     }
 
     @Test
     public void testBookieOnZooKeeperStaysOutOfTheBrokerRegistry() throws Exception {
+        Set<String> jvmFamiliesBefore = familyNames(JVM_FAMILIES);
         LocalBookkeeperEnsemble ensemble = new LocalBookkeeperEnsemble(1, 0);
         try {
             ensemble.startStandalone(bookieConfiguration(), false);
-            assertBrokerRegistryUntouched("while the bookie is running");
+            assertBrokerRegistryUntouched(jvmFamiliesBefore, "while the bookie is running");
         } finally {
             ensemble.stop();
         }
-        assertBrokerRegistryUntouched("after the ensemble was stopped");
+        assertBrokerRegistryUntouched(jvmFamiliesBefore, "after the ensemble was stopped");
     }
 }

@@ -18,12 +18,31 @@
  */
 package org.apache.pulsar.common.compression;
 
+import io.netty.util.internal.PlatformDependent;
 import java.nio.ByteBuffer;
 
 /**
  * Utilities.
  */
 public abstract class AirliftUtils {
+
+    static long heapArrayBaseOffset() {
+        return HeapArrayBaseOffset.VALUE;
+    }
+
+    // Resolve the optional Netty method once, when encoding first needs to consider a heap input.
+    private static final class HeapArrayBaseOffset {
+        private static final long VALUE = findOffset();
+
+        private static long findOffset() {
+            try {
+                return PlatformDependent.byteArrayBaseOffset();
+            } catch (IncompatibleClassChangeError ignored) {
+                // Netty may remove or change this internal method. Keep using the ByteBuffer path.
+                return -1;
+            }
+        }
+    }
 
     static ByteBuffer ensureAirliftSupported(ByteBuffer encodedNio) {
         if (!encodedNio.isDirect() && !encodedNio.hasArray()) {
