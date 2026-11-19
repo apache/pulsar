@@ -91,3 +91,8 @@ val verifyMinimizedJar = tasks.register("verifyMinimizedJar") {
 tasks.named("check") {
     dependsOn(verifyMinimizedJar)
 }
+
+// Verify only the published classes: reachability roots are not bundled in this artifact.
+tasks.withType<VerifyJavaCompatibility>().configureEach {
+    classpath.setFrom(tasks.named<ShadowJar>("shadowJar").flatMap { it.archiveFile })
+}

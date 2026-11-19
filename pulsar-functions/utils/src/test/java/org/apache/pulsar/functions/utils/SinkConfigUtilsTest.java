@@ -21,6 +21,8 @@ package org.apache.pulsar.functions.utils;
 import static org.apache.pulsar.common.functions.FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE;
 import static org.apache.pulsar.common.functions.FunctionConfig.ProcessingGuarantees.ATMOST_ONCE;
 import static org.apache.pulsar.common.functions.FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertThrows;
@@ -46,6 +48,7 @@ import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.config.validation.ConfigValidationAnnotations;
 import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.functions.proto.ConsumerSpec;
 import org.apache.pulsar.functions.proto.FunctionDetails;
 import org.apache.pulsar.functions.proto.SubscriptionType;
 import org.apache.pulsar.io.core.Sink;
@@ -181,6 +184,44 @@ public class SinkConfigUtilsTest {
                 new Gson().toJson(sinkConfig),
                 JSONCompareMode.STRICT
         );
+    }
+
+    @Test
+    public void testConvertSchemaPropertiesRoundTrip() throws IOException {
+        SinkConfig sinkConfig = new SinkConfig();
+        sinkConfig.setTenant("test-tenant");
+        sinkConfig.setNamespace("test-namespace");
+        sinkConfig.setName("test-sink");
+        sinkConfig.setParallelism(1);
+        sinkConfig.setArchive("builtin://jdbc");
+        sinkConfig.setSourceSubscriptionName("test-subscription");
+        Map<String, String> schemaProperties = new HashMap<>();
+        schemaProperties.put("__alwaysAllowNull", "true");
+        Map<String, String> consumerProperties = new HashMap<>();
+        consumerProperties.put("application", "billing");
+        Map<String, ConsumerConfig> inputSpecs = new HashMap<>();
+        inputSpecs.put("test-input", ConsumerConfig.builder()
+                .isRegexPattern(false)
+                .schemaType("avro")
+                .schemaProperties(schemaProperties)
+                .consumerProperties(consumerProperties)
+                .build());
+        sinkConfig.setInputs(Collections.singleton("test-input"));
+        sinkConfig.setInputSpecs(inputSpecs);
+        sinkConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
+
+        FunctionDetails functionDetails = SinkConfigUtils.convert(sinkConfig,
+                new SinkConfigUtils.ExtractedSinkDetails(null, null, null));
+        ConsumerSpec inputSpec = functionDetails.getSource().getInputSpecs("test-input");
+        assertEquals(1, inputSpec.getSchemaPropertiesCount());
+        assertEquals("true", inputSpec.getSchemaProperties("__alwaysAllowNull"));
+        assertEquals(1, inputSpec.getConsumerPropertiesCount());
+        assertEquals("billing", inputSpec.getConsumerProperties("application"));
+
+        SinkConfig convertedConfig = SinkConfigUtils.convertFromDetails(functionDetails);
+        ConsumerConfig convertedSpec = convertedConfig.getInputSpecs().get("test-input");
+        assertEquals(schemaProperties, convertedSpec.getSchemaProperties());
+        assertEquals(consumerProperties, convertedSpec.getConsumerProperties());
     }
 
     @Test
@@ -678,5 +719,42 @@ public class SinkConfigUtilsTest {
         sinkConfig.setTimeoutMs(0L);
         SinkConfigUtils.validateAndExtractDetails(sinkConfig, validatableFunction, null,
                 true);
+    }
+
+    @Test
+    public void testConvertClientApi() throws IOException {
+        SinkConfig sinkConfig = createSinkConfig();
+        sinkConfig.setInputSpecs(new HashMap<>());
+        sinkConfig.setInputs(Collections.singletonList("topic://public/default/in"));
+        sinkConfig.setLogTopic(null);
+        FunctionDetails functionDetails = SinkConfigUtils.convert(sinkConfig,
+                new SinkConfigUtils.ExtractedSinkDetails(null, null, null));
+        assertThat(functionDetails.getClientApi()).isEqualTo(FunctionDetails.ClientApi.AUTO);
+        assertThat(SinkConfigUtils.convertFromDetails(functionDetails).getClientApi()).isNull();
+
+        sinkConfig.setClientApi(FunctionConfig.ClientApi.V5);
+        sinkConfig.setRetainKeyOrdering(true);
+        // a stream subscription cannot honor a processing timeout
+        sinkConfig.setTimeoutMs(null);
+        functionDetails = SinkConfigUtils.convert(sinkConfig,
+                new SinkConfigUtils.ExtractedSinkDetails(null, null, null));
+        assertThat(functionDetails.getClientApi()).isEqualTo(FunctionDetails.ClientApi.V5);
+        assertThat(SinkConfigUtils.convertFromDetails(functionDetails).getClientApi())
+                .isEqualTo(FunctionConfig.ClientApi.V5);
+
+        // ordered consumption of persistent:// inputs is not available with the V5 client
+        sinkConfig.setInputs(Collections.singletonList("persistent://public/default/in"));
+        assertThatThrownBy(() -> SinkConfigUtils.convert(sinkConfig,
+                new SinkConfigUtils.ExtractedSinkDetails(null, null, null)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("needs topic:// (scalable) input topics");
+    }
+
+    @Test
+    public void testMergeClientApi() {
+        SinkConfig sinkConfig = createSinkConfig();
+        SinkConfig mergedConfig = SinkConfigUtils.validateUpdate(sinkConfig,
+                createUpdatedSinkConfig("clientApi", FunctionConfig.ClientApi.V5));
+        assertThat(mergedConfig.getClientApi()).isEqualTo(FunctionConfig.ClientApi.V5);
     }
 }

@@ -27,6 +27,8 @@ pluginManagement {
 
 dependencyResolutionManagement {
     @Suppress("UnstableApiUsage")
+    repositoriesMode = RepositoriesMode.FAIL_ON_PROJECT_REPOS
+    @Suppress("UnstableApiUsage")
     repositories {
         mavenCentral()
         maven {
@@ -175,6 +177,10 @@ include("pulsar-broker")
 include("pulsar-package-management:pulsar-package-bookkeeper-storage")
 project(":pulsar-package-management:pulsar-package-bookkeeper-storage").projectDir = file("pulsar-package-management/bookkeeper-storage")
 
+// Tier 6.5 — BookKeeper stats provider on the Prometheus Java client 1.x
+include("pulsar-bookkeeper-prometheus-metrics-provider")
+project(":pulsar-bookkeeper-prometheus-metrics-provider").projectDir = file("bookkeeper-prometheus-metrics-provider")
+
 // Tier 6.5 — jetty upgrade modules
 include("jetty-upgrade:pulsar-zookeeper-prometheus-metrics")
 project(":jetty-upgrade:pulsar-zookeeper-prometheus-metrics").projectDir = file("jetty-upgrade/zookeeper-prometheus-metrics")
@@ -262,6 +268,16 @@ project(":tests:latest-version-image").projectDir = file("tests/docker-images/la
 
 include("tests:integration")
 project(":tests:integration").projectDir = file("tests/integration")
+include("tests:performance:common")
+project(":tests:performance:common").projectDir = file("tests/performance/common")
+include("tests:performance:tools")
+project(":tests:performance:tools").projectDir = file("tests/performance/tools")
+include("tests:performance:report-tool")
+project(":tests:performance:report-tool").projectDir = file("tests/performance/report-tool")
+include("tests:performance:launcher")
+project(":tests:performance:launcher").projectDir = file("tests/performance/launcher")
+include("tests:performance:metrics")
+project(":tests:performance:metrics").projectDir = file("tests/performance/metrics")
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Shade test modules
@@ -271,6 +287,7 @@ include("tests:pulsar-client-shade-test")
 project(":tests:pulsar-client-shade-test").projectDir = file("tests/pulsar-client-shade-test")
 include("tests:pulsar-client-admin-v5-test")
 include("tests:pulsar-client-v5-shade-test")
+include("tests:pulsar-client-only-shade-test")
 include("tests:pulsar-client-v5-all-test")
 include("tests:pulsar-client-admin-shade-test")
 project(":tests:pulsar-client-admin-shade-test").projectDir = file("tests/pulsar-client-admin-shade-test")
@@ -278,3 +295,6 @@ include("tests:pulsar-client-all-shade-test")
 project(":tests:pulsar-client-all-shade-test").projectDir = file("tests/pulsar-client-all-shade-test")
 include("tests:pulsar-client-native-image")
 project(":tests:pulsar-client-native-image").projectDir = file("tests/pulsar-client-native-image")
+
+// Compile and run consumer/API compatibility checks on the minimum supported client JDK.
+include("tests:pulsar-client-java-compatibility")

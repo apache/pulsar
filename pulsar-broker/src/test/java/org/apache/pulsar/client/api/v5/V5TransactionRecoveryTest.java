@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.api.v5;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
@@ -29,14 +31,20 @@ import java.util.UUID;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.service.BrokerServiceException;
+import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.v5.config.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.v5.config.TransactionPolicy;
 import org.apache.pulsar.client.api.v5.schema.Schema;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.scalable.HashRange;
+import org.apache.pulsar.common.scalable.SegmentTopicName;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -99,6 +107,75 @@ public class V5TransactionRecoveryTest extends MockedPulsarServiceBaseTest {
         String name = "topic://" + myNamespace + "/scalable-" + UUID.randomUUID().toString().substring(0, 8);
         admin.scalableTopics().createScalableTopic(name, numInitialSegments);
         return name;
+    }
+
+    @Test
+    public void testDisableScalableTopicsAcrossRestart() throws Exception {
+        assertThat(conf.isScalableTopicsEnabled()).isTrue();
+        String topic = newScalableTopic(1);
+        try (var producer = v5Client.newProducer(Schema.string()).topic(topic).create()) {
+            producer.newMessage().value("before-disable").send();
+        }
+        var metadata = admin.scalableTopics().getMetadata(topic);
+        var segmentInfo = metadata.getSegments().values().iterator().next();
+        String segment = SegmentTopicName.fromParent(TopicName.get(topic),
+                new HashRange(segmentInfo.getHashRange().getStart(), segmentInfo.getHashRange().getEnd()),
+                segmentInfo.getSegmentId()).toString();
+        assertThat(pulsar.getBrokerService().getTopicIfExists(segment).get()).isPresent();
+
+        v5Client.close();
+        restartBroker(config -> config.setScalableTopicsEnabled(false));
+        assertThatThrownBy(() -> newV5Client(Duration.ofSeconds(10)))
+                .hasMessageContaining("Broker does not support scalable-topics transactions");
+        v5Client = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).build();
+        assertThat(pulsar.getPulsarResources().getScalableTopicResources()).isNull();
+        assertThat(pulsar.getBrokerService().getScalableTopicService()).isNull();
+        // The separate transaction setting must not override the feature-wide switch.
+        assertThat(conf.isTransactionCoordinatorScalableTopicsEnabled()).isTrue();
+        assertThat(pulsar.getTransactionCoordinatorV5()).isNull();
+        assertThatThrownBy(() -> admin.scalableTopics().getMetadata(topic))
+                .isInstanceOf(PulsarAdminException.NotFoundException.class);
+        assertThatThrownBy(() -> admin.scalableTopics().createScalableTopic(topic + "-new", 1))
+                .isInstanceOf(PulsarAdminException.NotFoundException.class);
+        for (String name : Set.of(topic, segment)) {
+            assertThatThrownBy(() -> pulsar.getBrokerService().getTopicIfExists(name).get())
+                    .hasCauseInstanceOf(BrokerServiceException.NotAllowedException.class)
+                    .hasMessageContaining("Scalable topics are disabled");
+            assertThatThrownBy(() -> admin.lookups().lookupTopic(name))
+                    .isInstanceOf(PulsarAdminException.PreconditionFailedException.class)
+                    .hasMessageContaining("Scalable topics are disabled");
+        }
+        assertThatThrownBy(() -> v5Client.newProducer(Schema.string()).topic(topic).create())
+                .hasRootCauseInstanceOf(PulsarClientException.class)
+                .hasMessageContaining("Scalable topics are disabled");
+        assertThatThrownBy(() -> v5Client.newQueueConsumer(Schema.string()).topic(topic)
+                .subscriptionName("queue").subscribe())
+                .hasRootCauseInstanceOf(PulsarClientException.class)
+                .hasMessageContaining("Scalable topics are disabled");
+        assertThatThrownBy(() -> v5Client.newStreamConsumer(Schema.string()).topic(topic)
+                .subscriptionName("stream").subscribe())
+                .hasRootCauseInstanceOf(PulsarClientException.class)
+                .hasMessageContaining("Scalable topics are disabled");
+        assertThatThrownBy(() -> v5Client.newCheckpointConsumer(Schema.string()).topic(topic)
+                .consumerGroup("checkpoint").create())
+                .hasRootCauseInstanceOf(PulsarClientException.class)
+                .hasMessageContaining("Scalable topics are disabled");
+        // Ordinary topics remain available to the classic client while scalable topics are disabled.
+        String regular = topic.replace("topic://", "persistent://") + "-regular";
+        try (var producer = pulsarClient.newProducer().topic(regular).create()) {
+            producer.send(new byte[] {1});
+        }
+
+        v5Client.close();
+        restartBroker(config -> config.setScalableTopicsEnabled(true));
+        v5Client = newV5Client(Duration.ofSeconds(10));
+        assertThat(pulsar.getPulsarResources().getScalableTopicResources()).isNotNull();
+        assertThat(pulsar.getBrokerService().getScalableTopicService()).isNotNull();
+        assertThat(admin.scalableTopics().getMetadata(topic).getSegments().keySet())
+                .isEqualTo(metadata.getSegments().keySet());
+        try (var consumer = subscribe(topic, "after-enable")) {
+            assertThat(consumer.receive(Duration.ofSeconds(10)).value()).isEqualTo("before-disable");
+        }
     }
 
     private QueueConsumer<String> subscribe(String topic, String sub) throws Exception {

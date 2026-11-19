@@ -27,15 +27,18 @@ plugins {
 dependencies {
     api(project(":managed-ledger"))
     implementation(project(":pulsar-common"))
+    implementation(libs.re2j)
     implementation(project(":pulsar-client-v5"))
     implementation(libs.mockito.core)
+    implementation(libs.protobuf.java)
     implementation(project(":pulsar-testclient"))
     api(project(":pulsar-broker"))
     implementation(libs.bookkeeper.server)
     implementation(libs.fastutil)
+    compileOnly(libs.swagger.annotations)
     api(libs.guava)
-    api("org.openjdk.jmh:jmh-core:1.37")
-    annotationProcessor("org.openjdk.jmh:jmh-generator-annprocess:1.37")
+    api(libs.tooling.jmh.core)
+    annotationProcessor(libs.tooling.jmh.generator.annprocess)
 }
 
 // Don't build the benchmarks fat JAR during ./gradlew assemble — only on demand

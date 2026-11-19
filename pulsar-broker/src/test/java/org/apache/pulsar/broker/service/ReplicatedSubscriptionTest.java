@@ -39,12 +39,16 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.persistent.GeoPersistentReplicator;
@@ -199,6 +203,91 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
     private void printStats(String topicName) throws PulsarAdminException {
         BrokerTestUtil.logTopicStats(log, admin1, topicName, "admin1");
         BrokerTestUtil.logTopicStats(log, admin2, topicName, "admin2");
+    }
+
+    @DataProvider
+    public Object[][] individualAckSubscriptionTypes() {
+        return new Object[][]{{SubscriptionType.Shared}, {SubscriptionType.Key_Shared}};
+    }
+
+    /**
+     * A subscription update from the remote cluster moves the local mark-delete position without any ack from the
+     * local consumer, so the update must also release the local consumer's pending acks up to that position.
+     */
+    @Test(dataProvider = "individualAckSubscriptionTypes", timeOut = 60_000)
+    public void testSubscriptionUpdateReleasesLocalPendingAcks(SubscriptionType subscriptionType) throws Exception {
+        String namespace = BrokerTestUtil.newUniqueName("pulsar/replicatedsubscriptionpendingacks");
+        String topicName = "persistent://" + namespace + "/mytopic";
+        String subscriptionName = "cluster-subscription";
+
+        admin1.namespaces().createNamespace(namespace);
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"), false);
+
+        @Cleanup
+        PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString())
+                .statsInterval(0, TimeUnit.SECONDS)
+                .build();
+        @Cleanup
+        PulsarClient client2 = PulsarClient.builder().serviceUrl(url2.toString())
+                .statsInterval(0, TimeUnit.SECONDS)
+                .build();
+
+        // r1 acknowledges everything, which drives the subscription updates sent to r2
+        @Cleanup
+        Consumer<byte[]> ackingConsumer = client1.newConsumer()
+                .topic(topicName)
+                .subscriptionName(subscriptionName)
+                .subscriptionType(subscriptionType)
+                .replicateSubscriptionState(true)
+                .messageListener((consumer, message) -> consumer.acknowledgeAsync(message))
+                .subscribe();
+        // r2 has the messages dispatched to its receiver queue and never acknowledges them
+        @Cleanup
+        Consumer<byte[]> nonAckingConsumer = client2.newConsumer()
+                .topic(topicName)
+                .subscriptionName(subscriptionName)
+                .subscriptionType(subscriptionType)
+                .replicateSubscriptionState(true)
+                .subscribe();
+        @Cleanup
+        Producer<byte[]> producer = client1.newProducer().topic(topicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
+
+        producer.send("message".getBytes(StandardCharsets.UTF_8));
+
+        PersistentTopic topic2 = Awaitility.await().until(() -> (PersistentTopic) pulsar2.getBrokerService()
+                .getTopicReference(topicName).orElse(null), Objects::nonNull);
+        var subscription2 = topic2.getSubscription(subscriptionName);
+        org.apache.pulsar.broker.service.Consumer serviceConsumer2 =
+                subscription2.getDispatcher().getConsumers().get(0);
+
+        // the position of the first message delivered to r2's consumer
+        Position firstPendingPosition = Awaitility.await().until(() -> {
+            List<Position> pendingPositions = pendingPositions(serviceConsumer2);
+            return pendingPositions.isEmpty() ? null : pendingPositions.get(0);
+        }, Objects::nonNull);
+
+        // a subscription update needs a completed snapshot, and new snapshots need new messages
+        Awaitility.await().pollInterval(500, TimeUnit.MILLISECONDS).atMost(45, TimeUnit.SECONDS).untilAsserted(() -> {
+            producer.send("message".getBytes(StandardCharsets.UTF_8));
+            Position markDeletePosition = subscription2.getCursor().getMarkDeletedPosition();
+            assertThat(markDeletePosition).isGreaterThanOrEqualTo(firstPendingPosition);
+            assertThat(pendingPositions(serviceConsumer2))
+                    .as("pending acks of r2's consumer at or before mark-delete position %s", markDeletePosition)
+                    .noneMatch(position -> position.compareTo(markDeletePosition) <= 0);
+        });
+        // the stored messages are non-batched, so each pending ack holds exactly one unacked message
+        Awaitility.await().untilAsserted(() -> assertThat(serviceConsumer2.getUnackedMessages())
+                .isEqualTo(serviceConsumer2.getPendingAcks().size()));
+    }
+
+    private static List<Position> pendingPositions(org.apache.pulsar.broker.service.Consumer consumer) {
+        List<Position> positions = new ArrayList<>();
+        consumer.getPendingAcks().forEach((ledgerId, entryId, remainingUnacked, stickyKeyHash) ->
+                positions.add(PositionFactory.create(ledgerId, entryId)));
+        return positions;
     }
 
     /**
@@ -363,6 +452,77 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
         producer1.close();
         client1.close();
         client2.close();
+    }
+
+    @DataProvider
+    public Object[][] replicatedSubscriptionInitiallyEnabled() {
+        return new Object[][] { { false }, { true } };
+    }
+
+    @SuppressWarnings("deprecation")
+    @Test(dataProvider = "replicatedSubscriptionInitiallyEnabled", timeOut = 60_000)
+    public void testEnableReplicatedSubscriptionAfterConsumedDataIsTrimmed(boolean initiallyEnabled) throws Exception {
+        String namespace = BrokerTestUtil.newUniqueName("pulsar/replicatedsubscription-trimmed");
+        String topicName = "persistent://" + namespace + "/topic";
+        String subscriptionName = "sub";
+        admin1.namespaces().createNamespace(namespace);
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"), false);
+
+        @Cleanup
+        PulsarClient client = PulsarClient.builder().serviceUrl(url1.toString()).build();
+        @Cleanup
+        Consumer<String> consumer = client.newConsumer(Schema.STRING).topic(topicName)
+                .subscriptionName(subscriptionName).replicateSubscriptionState(initiallyEnabled)
+                .acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS).subscribe();
+        @Cleanup
+        Producer<String> producer = client.newProducer(Schema.STRING).topic(topicName)
+                .enableBatching(false).create();
+        PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService()
+                .getTopicIfExists(topicName).get().orElseThrow();
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) topic.getManagedLedger();
+        ledger.getConfig().setMaxEntriesPerLedger(1);
+        ledger.getConfig().setMinimumRolloverTime(0, TimeUnit.MILLISECONDS);
+        ledger.getConfig().setRetentionTime(0, TimeUnit.MILLISECONDS);
+        ledger.getConfig().setRetentionSizeInMB(0);
+
+        if (initiallyEnabled) {
+            Awaitility.await().during(2 * config1.getReplicatedSubscriptionsSnapshotFrequencyMillis(),
+                    TimeUnit.MILLISECONDS).untilAsserted(() -> {
+                        assertThat(topic.getReplicatedSubscriptionController()).isPresent();
+                        assertThat(topic.getLastMaxReadPositionMovedForwardTimestamp()).isZero();
+                        assertThat(ledger.getNumberOfEntries()).isZero();
+                    });
+            admin1.topics().setReplicatedSubscriptionStatus(topicName, subscriptionName, false);
+        }
+        assertThat(topic.getReplicatedSubscriptionController()).isEmpty();
+        producer.send("consumed-before-activation");
+        Message<String> message = consumer.receive(10, TimeUnit.SECONDS);
+        assertThat(message).isNotNull();
+        consumer.acknowledge(message);
+        Awaitility.await().untilAsserted(() -> {
+            assertThat(topic.getSubscription(subscriptionName).getCursor().getNumberOfEntriesInBacklog(false))
+                    .isZero();
+            assertThat(topic.getReplicators()).hasSize(1);
+            assertThat(topic.getReplicators().get("r2").getStats().getReplicationBacklog()).isZero();
+        });
+        ledger.rollCurrentLedgerIfFull();
+        Awaitility.await().untilAsserted(() -> {
+            CompletableFuture<Void> trimmed = new CompletableFuture<>();
+            ledger.trimConsumedLedgersInBackground(trimmed);
+            trimmed.get(10, TimeUnit.SECONDS);
+            assertThat(ledger.getNumberOfEntries()).isZero();
+        });
+        assertThat(topic.getLastMaxReadPositionMovedForwardTimestamp()).isZero();
+
+        // Enable through the admin API without publishing any more data. The old data's activity must survive
+        // ledger trimming and still let the two clusters establish a subscription snapshot.
+        admin1.topics().setReplicatedSubscriptionStatus(topicName, subscriptionName, true);
+        Awaitility.await().untilAsserted(() -> {
+            assertThat(topic.getReplicatedSubscriptionController()).isPresent();
+            assertThat(topic.getLastMaxReadPositionMovedForwardTimestamp()).isPositive();
+            assertThat(topic.getReplicatedSubscriptionController().orElseThrow().getLastCompletedSnapshotId())
+                    .isPresent();
+        });
     }
 
     /**
@@ -881,7 +1041,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
     }
 
     /**
-     * Test the replication subscription can work normal in the following cases:
+     * Test the replication subscription can work normal in the following cases.
      *  <p>
      *      1. Do not write data into the original topic when the topic does not configure a remote cluster. {topic1}
      *          1. Publish message to the topic and then wait a moment,

@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.doAnswer;
@@ -33,6 +35,10 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.UnpooledByteBufAllocator;
+import io.opentelemetry.api.common.AttributeKey;
+import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.sdk.metrics.SdkMeterProvider;
+import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
 import jakarta.ws.rs.client.Entity;
 import jakarta.ws.rs.core.MediaType;
 import java.lang.reflect.Field;
@@ -42,20 +48,33 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Properties;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import lombok.Cleanup;
 import lombok.CustomLog;
+import org.apache.bookkeeper.client.BKException;
+import org.apache.bookkeeper.client.api.LastConfirmedAndEntry;
+import org.apache.bookkeeper.client.api.LedgerEntries;
+import org.apache.bookkeeper.client.api.LedgerEntry;
+import org.apache.bookkeeper.client.api.LedgerMetadata;
+import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.OffloadedLedgerHandle;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
@@ -70,6 +89,9 @@ import org.apache.pulsar.broker.service.persistent.PersistentMessageExpiryMonito
 import org.apache.pulsar.broker.service.persistent.PersistentMessageFinder;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil;
+import org.apache.pulsar.broker.stats.OpenTelemetryMessageFinderStats;
+import org.apache.pulsar.broker.stats.OpenTelemetryMessageFinderStats.FindReason;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
@@ -79,6 +101,8 @@ import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataUtils;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
 import org.awaitility.Awaitility;
@@ -298,6 +322,318 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         cursor.close();
         ledger.close();
         factory.shutdown();
+    }
+
+    @Test
+    void testPersistentMessageFinderMetricsWhenFound() throws Exception {
+        String name = "testPersistentMessageFinderMetricsWhenFound";
+        ManagedLedgerConfig config = new ManagedLedgerConfig().setMaxEntriesPerLedger(2);
+        ManagedLedger ledger = factory.open(name, config);
+        // A durable cursor keeps the ledgers from being trimmed in the background
+        ManagedCursor cursor = ledger.openCursor(name);
+        List<Position> positions = new ArrayList<>();
+        List<Long> timestampsAfterEntries = addEntriesSpacedInTime(ledger, 5, positions);
+        // Read the entries from the ledgers rather than from the broker entry cache
+        ledger.close();
+        ledger = factory.open(name, config);
+        cursor = ledger.openCursor(name);
+
+        @Cleanup
+        InMemoryMetricReader reader = InMemoryMetricReader.create();
+        @Cleanup
+        SdkMeterProvider meterProvider = SdkMeterProvider.builder().registerMetricReader(reader).build();
+        OpenTelemetryMessageFinderStats stats = new OpenTelemetryMessageFinderStats(meterProvider.get("test"));
+        AtomicLong entriesRead = new AtomicLong();
+        AtomicLong bytesRead = new AtomicLong();
+        bkc.setReadHandleInterceptor((ledgerId, firstEntry, lastEntry, entries) -> {
+            for (LedgerEntry entry : entries) {
+                entriesRead.incrementAndGet();
+                bytesRead.addAndGet(entry.getLength());
+            }
+            return CompletableFuture.completedFuture(entries);
+        });
+        try {
+            assertThat(findPosition(cursor, timestampsAfterEntries.get(2), stats, FindReason.SEEK).get())
+                    .as("last entry published before the timestamp").isEqualTo(positions.get(2));
+        } finally {
+            bkc.setReadHandleInterceptor(null);
+        }
+
+        var metrics = reader.collectAllMetrics();
+        BrokerOpenTelemetryTestUtil.assertMetricHistogramValue(metrics,
+                OpenTelemetryMessageFinderStats.FIND_DURATION_METRIC_NAME,
+                findAttributes("seek", OpenTelemetryMessageFinderStats.FIND_RESULT, "found"),
+                count -> assertThat(count).as("number of finds").isEqualTo(1L),
+                sum -> assertThat(sum).as("total find duration").isNotNegative());
+        Attributes bookkeeper = findAttributes("seek", OpenTelemetryMessageFinderStats.ENTRY_STORAGE, "bookkeeper");
+        assertThat(entriesRead.get()).as("entries read from BookKeeper").isPositive();
+        BrokerOpenTelemetryTestUtil.assertMetricLongSumValue(metrics,
+                OpenTelemetryMessageFinderStats.FIND_ENTRY_READ_COUNT_METRIC_NAME, bookkeeper,
+                value -> assertThat(value).as("entries read by the find").isEqualTo(entriesRead.get()));
+        BrokerOpenTelemetryTestUtil.assertMetricLongSumValue(metrics,
+                OpenTelemetryMessageFinderStats.FIND_ENTRY_READ_SIZE_METRIC_NAME, bookkeeper,
+                value -> assertThat(value).as("bytes read by the find").isEqualTo(bytesRead.get()));
+
+        cursor.close();
+        ledger.close();
+    }
+
+    @Test
+    void testPersistentMessageFinderMetricsWhenNotFoundForExpiry() throws Exception {
+        String name = "testPersistentMessageFinderMetricsWhenNotFoundForExpiry";
+        ManagedLedger ledger = factory.open(name, new ManagedLedgerConfig());
+        ManagedCursor cursor = ledger.openCursor(name);
+        long timestampBeforeEntries = System.currentTimeMillis() - 1;
+        addEntriesSpacedInTime(ledger, 3, new ArrayList<>());
+
+        @Cleanup
+        InMemoryMetricReader reader = InMemoryMetricReader.create();
+        @Cleanup
+        SdkMeterProvider meterProvider = SdkMeterProvider.builder().registerMetricReader(reader).build();
+        OpenTelemetryMessageFinderStats stats = new OpenTelemetryMessageFinderStats(meterProvider.get("test"));
+        assertThat(findPosition(cursor, timestampBeforeEntries, stats, FindReason.EXPIRY).get())
+                .as("no entry published before the timestamp").isNull();
+
+        var metrics = reader.collectAllMetrics();
+        BrokerOpenTelemetryTestUtil.assertMetricHistogramValue(metrics,
+                OpenTelemetryMessageFinderStats.FIND_DURATION_METRIC_NAME,
+                findAttributes("expiry", OpenTelemetryMessageFinderStats.FIND_RESULT, "not_found"),
+                count -> assertThat(count).as("number of finds").isEqualTo(1L),
+                sum -> assertThat(sum).as("total find duration").isNotNegative());
+        BrokerOpenTelemetryTestUtil.assertMetricLongSumValue(metrics,
+                OpenTelemetryMessageFinderStats.FIND_ENTRY_READ_COUNT_METRIC_NAME,
+                findAttributes("expiry", OpenTelemetryMessageFinderStats.ENTRY_STORAGE, "bookkeeper"),
+                value -> assertThat(value).as("entries read by the find").isPositive());
+
+        cursor.close();
+        ledger.close();
+    }
+
+    @Test
+    void testPersistentMessageFinderMetricsWhenReadFails() throws Exception {
+        String name = "testPersistentMessageFinderMetricsWhenReadFails";
+        ManagedLedgerConfig config = new ManagedLedgerConfig().setMaxEntriesPerLedger(2);
+        ManagedLedger ledger = factory.open(name, config);
+        // A durable cursor keeps the ledgers from being trimmed in the background
+        ManagedCursor cursor = ledger.openCursor(name);
+        List<Long> timestampsAfterEntries = addEntriesSpacedInTime(ledger, 5, new ArrayList<>());
+        // Read the entries from the ledgers rather than from the broker entry cache
+        ledger.close();
+        ledger = factory.open(name, config);
+        cursor = ledger.openCursor(name);
+
+        @Cleanup
+        InMemoryMetricReader reader = InMemoryMetricReader.create();
+        @Cleanup
+        SdkMeterProvider meterProvider = SdkMeterProvider.builder().registerMetricReader(reader).build();
+        OpenTelemetryMessageFinderStats stats = new OpenTelemetryMessageFinderStats(meterProvider.get("test"));
+        bkc.setReadHandleInterceptor((ledgerId, firstEntry, lastEntry, entries) -> {
+            entries.close();
+            return CompletableFuture.failedFuture(new BKException.BKReadException());
+        });
+        try {
+            CompletableFuture<Position> future =
+                    findPosition(cursor, timestampsAfterEntries.get(2), stats, FindReason.SEEK);
+            assertThatThrownBy(future::get).as("find with failing reads").isInstanceOf(ExecutionException.class);
+        } finally {
+            bkc.setReadHandleInterceptor(null);
+        }
+
+        BrokerOpenTelemetryTestUtil.assertMetricHistogramValue(reader.collectAllMetrics(),
+                OpenTelemetryMessageFinderStats.FIND_DURATION_METRIC_NAME,
+                findAttributes("seek", OpenTelemetryMessageFinderStats.FIND_RESULT, "failure"),
+                count -> assertThat(count).as("number of finds").isEqualTo(1L),
+                sum -> assertThat(sum).as("total find duration").isNotNegative());
+
+        cursor.close();
+        ledger.close();
+    }
+
+    @Test
+    void testPersistentMessageFinderMetricsWhenOffloaded() throws Exception {
+        String name = "testPersistentMessageFinderMetricsWhenOffloaded";
+        ManagedLedgerConfig config = new ManagedLedgerConfig().setMaxEntriesPerLedger(2);
+        config.setLedgerOffloader(new BookKeeperBackedLedgerOffloader(config));
+        ManagedLedger ledger = factory.open(name, config);
+        // A durable cursor keeps the ledgers from being trimmed in the background
+        ManagedCursor cursor = ledger.openCursor(name);
+        List<Position> positions = new ArrayList<>();
+        List<Long> timestampsAfterEntries = addEntriesSpacedInTime(ledger, 5, positions);
+        ledger.offloadPrefix(ledger.getLastConfirmedEntry());
+        // Open the read handles of the offloaded ledgers from the offloader
+        ledger.close();
+        ledger = factory.open(name, config);
+        cursor = ledger.openCursor(name);
+
+        @Cleanup
+        InMemoryMetricReader reader = InMemoryMetricReader.create();
+        @Cleanup
+        SdkMeterProvider meterProvider = SdkMeterProvider.builder().registerMetricReader(reader).build();
+        OpenTelemetryMessageFinderStats stats = new OpenTelemetryMessageFinderStats(meterProvider.get("test"));
+        assertThat(findPosition(cursor, timestampsAfterEntries.get(2), stats, FindReason.SEEK).get())
+                .as("last entry published before the timestamp").isEqualTo(positions.get(2));
+
+        BrokerOpenTelemetryTestUtil.assertMetricLongSumValue(reader.collectAllMetrics(),
+                OpenTelemetryMessageFinderStats.FIND_ENTRY_READ_COUNT_METRIC_NAME,
+                findAttributes("seek", OpenTelemetryMessageFinderStats.ENTRY_STORAGE, "offloaded"),
+                value -> assertThat(value).as("entries read from offloaded ledgers").isPositive());
+
+        cursor.close();
+        ledger.close();
+    }
+
+    /**
+     * Adds entries published about 10 ms apart and returns, for each entry, a timestamp between its publish time and
+     * the publish time of the next entry.
+     */
+    private static List<Long> addEntriesSpacedInTime(ManagedLedger ledger, int numEntries, List<Position> positions)
+            throws Exception {
+        List<Long> timestampsAfterEntries = new ArrayList<>();
+        for (int i = 0; i < numEntries; i++) {
+            positions.add(ledger.addEntry(createMessageWrittenToLedger("message" + i)));
+            Thread.sleep(10);
+            timestampsAfterEntries.add(System.currentTimeMillis());
+            Thread.sleep(10);
+        }
+        return timestampsAfterEntries;
+    }
+
+    private static CompletableFuture<Position> findPosition(ManagedCursor cursor, long timestamp,
+                                                            OpenTelemetryMessageFinderStats stats,
+                                                            FindReason reason) {
+        PersistentMessageFinder messageFinder = new PersistentMessageFinder("topicname", cursor, 0, stats, reason);
+        CompletableFuture<Position> future = new CompletableFuture<>();
+        messageFinder.findMessages(timestamp, new AsyncCallbacks.FindEntryCallback() {
+            @Override
+            public void findEntryComplete(Position position, Object ctx) {
+                future.complete(position);
+            }
+
+            @Override
+            public void findEntryFailed(ManagedLedgerException exception, Optional<Position> failedReadPosition,
+                                        Object ctx) {
+                future.completeExceptionally(exception);
+            }
+        });
+        return future;
+    }
+
+    private static Attributes findAttributes(String reason, AttributeKey<String> key, String value) {
+        return Attributes.of(OpenTelemetryMessageFinderStats.FIND_REASON, reason, key, value);
+    }
+
+    /**
+     * Offloader that keeps the offloaded ledgers in BookKeeper and reads them through a read handle marked as
+     * offloaded, like the handles of the tiered storage offloaders.
+     */
+    private class BookKeeperBackedLedgerOffloader implements LedgerOffloader {
+        private final ManagedLedgerConfig config;
+
+        BookKeeperBackedLedgerOffloader(ManagedLedgerConfig config) {
+            this.config = config;
+        }
+
+        @Override
+        public String getOffloadDriverName() {
+            return "bookkeeper-backed";
+        }
+
+        @Override
+        public CompletableFuture<Void> offload(ReadHandle ledger, UUID uid, Map<String, String> extraMetadata) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public CompletableFuture<ReadHandle> readOffloaded(long ledgerId, UUID uid,
+                                                           Map<String, String> offloadDriverMetadata) {
+            return bkc.newOpenLedgerOp()
+                    .withLedgerId(ledgerId)
+                    .withRecovery(false)
+                    .withDigestType(config.getDigestType())
+                    .withPassword(config.getPassword())
+                    .execute()
+                    .thenApply(OffloadedReadHandle::new);
+        }
+
+        @Override
+        public CompletableFuture<Void> deleteOffloaded(long ledgerId, UUID uid,
+                                                       Map<String, String> offloadDriverMetadata) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public OffloadPolicies getOffloadPolicies() {
+            return OffloadPoliciesImpl.create(new Properties());
+        }
+
+        @Override
+        public void close() {
+        }
+    }
+
+    private static class OffloadedReadHandle implements ReadHandle, OffloadedLedgerHandle {
+        private final ReadHandle delegate;
+
+        OffloadedReadHandle(ReadHandle delegate) {
+            this.delegate = delegate;
+        }
+
+        @Override
+        public long getId() {
+            return delegate.getId();
+        }
+
+        @Override
+        public LedgerMetadata getLedgerMetadata() {
+            return delegate.getLedgerMetadata();
+        }
+
+        @Override
+        public CompletableFuture<Void> closeAsync() {
+            return delegate.closeAsync();
+        }
+
+        @Override
+        public CompletableFuture<LedgerEntries> readAsync(long firstEntry, long lastEntry) {
+            return delegate.readAsync(firstEntry, lastEntry);
+        }
+
+        @Override
+        public CompletableFuture<LedgerEntries> readUnconfirmedAsync(long firstEntry, long lastEntry) {
+            return delegate.readUnconfirmedAsync(firstEntry, lastEntry);
+        }
+
+        @Override
+        public CompletableFuture<Long> readLastAddConfirmedAsync() {
+            return delegate.readLastAddConfirmedAsync();
+        }
+
+        @Override
+        public CompletableFuture<Long> tryReadLastAddConfirmedAsync() {
+            return delegate.tryReadLastAddConfirmedAsync();
+        }
+
+        @Override
+        public long getLastAddConfirmed() {
+            return delegate.getLastAddConfirmed();
+        }
+
+        @Override
+        public long getLength() {
+            return delegate.getLength();
+        }
+
+        @Override
+        public boolean isClosed() {
+            return delegate.isClosed();
+        }
+
+        @Override
+        public CompletableFuture<LastConfirmedAndEntry> readLastAddConfirmedAndEntryAsync(long entryId,
+                                                                                          long timeOutInMillis,
+                                                                                          boolean parallel) {
+            return delegate.readLastAddConfirmedAndEntryAsync(entryId, timeOutInMillis, parallel);
+        }
     }
 
     @Test

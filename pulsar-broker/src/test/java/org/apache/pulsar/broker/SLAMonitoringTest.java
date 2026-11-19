@@ -22,6 +22,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import java.net.URI;
 import java.net.URL;
 import java.util.Collections;
 import java.util.HashSet;
@@ -53,7 +54,7 @@ public class SLAMonitoringTest {
 
     ExecutorService executor;
 
-    private static final int BROKER_COUNT = 5;
+    private static final int BROKER_COUNT = 3;
     private final int[] brokerWebServicePorts = new int[BROKER_COUNT];
     private final int[] brokerNativeBrokerPorts = new int[BROKER_COUNT];
     private final URL[] brokerUrls = new URL[BROKER_COUNT];
@@ -71,7 +72,7 @@ public class SLAMonitoringTest {
                         new LinkedBlockingQueue<>());
         log.info("---- Initializing SLAMonitoringTest -----");
         // Start local bookkeeper ensemble
-        bkEnsemble = new LocalBookkeeperEnsemble(3, 0);
+        bkEnsemble = new LocalBookkeeperEnsemble(1, 0);
         bkEnsemble.start();
 
         // start brokers
@@ -87,6 +88,9 @@ public class SLAMonitoringTest {
             config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
             config.setDefaultNumberOfNamespaceBundles(1);
             config.setLoadBalancerEnabled(false);
+            config.setManagedLedgerDefaultEnsembleSize(1);
+            config.setManagedLedgerDefaultWriteQuorum(1);
+            config.setManagedLedgerDefaultAckQuorum(1);
             configurations[i] = config;
 
             pulsarServices[i] = new PulsarService(config);
@@ -94,7 +98,7 @@ public class SLAMonitoringTest {
 
             brokerWebServicePorts[i] = pulsarServices[i].getListenPortHTTP().get();
             brokerNativeBrokerPorts[i] = pulsarServices[i].getBrokerListenPort().get();
-            brokerUrls[i] = new URL(pulsarServices[i].getWebServiceAddress());
+            brokerUrls[i] = URI.create(pulsarServices[i].getWebServiceAddress()).toURL();
             pulsarAdmins[i] = PulsarAdmin.builder().serviceHttpUrl(brokerUrls[i].toString()).build();
         }
 

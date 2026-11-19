@@ -3,7 +3,7 @@
 * **Status**: Adopted, Release 2.5.0
 * **Author**: [Yi Tang](https://github.com/yittg)
 * **Master Issue**: [apache/pulsar#5141](https://github.com/apache/pulsar/issues/5141)
-* **Mailing List discussion**: [lists.apache.org/...](https://lists.apache.org/thread.html/284c98f3d5c3e5fe0f43964b3bbeb665316e69a4f9e97bda78a47026@%3Cdev.pulsar.apache.org%3E)
+* **Mailing List discussion**: [lists.apache.org/...](https://lists.apache.org/thread/n2dzdqf8b3sbwm4j1x789vhkt9mmslgs)
 
 ## Motivation
 

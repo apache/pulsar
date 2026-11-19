@@ -65,6 +65,24 @@ public class KeySelectorLookupBenchmark {
         }
     }
 
+    @State(Scope.Benchmark)
+    public static class Subscription {
+        @Param({"1", "10", "50"})
+        public int consumers;
+        ConsistentHashingStickyKeyConsumerSelector selector;
+        Consumer[] members;
+
+        @Setup
+        public void setup() {
+            selector = new ConsistentHashingStickyKeyConsumerSelector(100, true);
+            members = new Consumer[consumers];
+            for (int i = 0; i < consumers; i++) {
+                members[i] = new NamedConsumer("benchmark-" + i);
+                selector.addConsumer(members[i]).join();
+            }
+        }
+    }
+
     @State(Scope.Thread)
     public static class Keys {
         int next = 12345;
@@ -83,6 +101,21 @@ public class KeySelectorLookupBenchmark {
     public void changeMembership(Ring ring) {
         ring.selector.addConsumer(ring.changing).join();
         ring.selector.removeConsumer(ring.changing);
+    }
+
+    /**
+     * Run with one benchmark thread: every consumer of a subscription reconnects, as when their connections are
+     * lost at the same time, so the selector removes all of them and adds them back.
+     */
+    @Benchmark
+    @OutputTimeUnit(TimeUnit.MICROSECONDS)
+    public void reconnectAllConsumers(Subscription subscription) {
+        for (Consumer consumer : subscription.members) {
+            subscription.selector.removeConsumer(consumer);
+        }
+        for (Consumer consumer : subscription.members) {
+            subscription.selector.addConsumer(consumer).join();
+        }
     }
 
     @Benchmark

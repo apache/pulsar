@@ -75,6 +75,12 @@ if %JAVA_MAJOR_VERSION% GTR 23 (
   set "OPTS=--sun-misc-unsafe-memory-access=allow %OPTS%"
 )
 
+REM Use compact object headers (JEP 519, https://openjdk.org/jeps/519), which shrink object headers from 12 to 8 bytes
+REM and so reduce heap usage and improve cache locality. They are a product feature since JDK 25 and the default from
+REM JDK 27 on (JEP 534, https://openjdk.org/jeps/534). The option is prepended so that the configured options can
+REM override it with -XX:-UseCompactObjectHeaders.
+if %JAVA_MAJOR_VERSION% GEQ 25 if %JAVA_MAJOR_VERSION% LEQ 26 set "OPTS=-XX:+UseCompactObjectHeaders %OPTS%"
+
 if %JAVA_MAJOR_VERSION% GTR 8 (
   set "OPTS=%OPTS% --add-opens java.base/sun.net=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED"
   REM Required by Pulsar client optimized checksum calculation on other than Linux x86_64 platforms

@@ -46,6 +46,9 @@ public class ReadCompletionHandoffBenchmark {
     @Param({"false", "true"})
     public boolean inline;
 
+    @Param({"false", "true"})
+    public boolean dispatcherHandoff;
+
     private SingleThreadExecutor ledger;
     private SingleThreadExecutor dispatcher;
 
@@ -65,7 +68,11 @@ public class ReadCompletionHandoffBenchmark {
             } else {
                 ledger.executeOrRun(() -> read.complete(1));
             }
-            read.thenAcceptAsync(completed::complete, dispatcher);
+            if (dispatcherHandoff) {
+                read.thenAcceptAsync(completed::complete, dispatcher);
+            } else {
+                read.thenAccept(completed::complete);
+            }
         });
         return completed.join();
     }

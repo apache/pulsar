@@ -129,6 +129,13 @@ OPTS="-Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager $OPTS"
 if [[ $JAVA_MAJOR_VERSION -ge 23 ]]; then
   OPTS="--sun-misc-unsafe-memory-access=allow $OPTS"
 fi
+# Use compact object headers (JEP 519, https://openjdk.org/jeps/519), which shrink object headers from 12 to 8 bytes
+# and so reduce heap usage and improve cache locality. They are a product feature since JDK 25 and the default from
+# JDK 27 on (JEP 534, https://openjdk.org/jeps/534). The option is prepended so that the configured options can
+# override it with -XX:-UseCompactObjectHeaders.
+if [[ $JAVA_MAJOR_VERSION -eq 25 || $JAVA_MAJOR_VERSION -eq 26 ]]; then
+  OPTS="-XX:+UseCompactObjectHeaders $OPTS"
+fi
 
 OPTS="-cp $PULSAR_CLASSPATH $OPTS"
 # we should exit on OOM for localrun especially when using ThreadRuntime

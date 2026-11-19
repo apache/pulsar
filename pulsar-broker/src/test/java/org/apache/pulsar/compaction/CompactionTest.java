@@ -21,6 +21,7 @@ package org.apache.pulsar.compaction;
 import static org.apache.pulsar.broker.BrokerTestUtil.newUniqueName;
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithoutRecordingInvocations;
 import static org.apache.pulsar.compaction.Compactor.COMPACTION_SUBSCRIPTION;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.anyLong;
@@ -44,7 +45,6 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -69,7 +69,6 @@ import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.api.OpenBuilder;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
-import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
@@ -139,6 +138,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
     protected BookKeeper bk;
     private PublishingOrderCompactor compactor;
     private volatile java.util.function.Consumer<org.apache.pulsar.broker.service.Consumer> consumerCreated = __ -> {};
+    private int defaultCursorMaxEntriesPerLedger;
 
     @Override
     protected void doInitConf() throws Exception {
@@ -151,6 +151,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
     @Override
     public void setup() throws Exception {
         super.internalSetup();
+        defaultCursorMaxEntriesPerLedger = conf.getManagedLedgerCursorMaxEntriesPerLedger();
         pulsar.getBrokerService().setInterceptor(new MockBrokerInterceptor() {
 
             @Override
@@ -186,6 +187,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod(alwaysRun = true)
     public void beforeMethod() throws Exception {
         admin.namespaces().removeRetention("my-tenant/my-ns");
+        conf.setManagedLedgerCursorMaxEntriesPerLedger(defaultCursorMaxEntriesPerLedger);
         AbstractTwoPhaseCompactor.injectionAfterSeekInPhaseTwo = () -> {};
         AbstractTwoPhaseCompactor.injectionPhaseTwoSeek = RawReader::seekAsync;
         consumerCreated = __ -> {};
@@ -204,6 +206,36 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
     protected PublishingOrderCompactor getCompactor() {
         return compactor;
+    }
+
+    private static final String MARKER_KEY = "__marker";
+
+    /**
+     * Receives the rest of what the consumer would get, without waiting for a receive timeout: publishes a marker
+     * after everything the test wrote and returns the messages received before it. A consumer gets the messages of
+     * a topic in order, so anything else still to come for it arrives before the marker. The marker stays on the
+     * topic, so only use this when the test doesn't read the topic again with another subscription.
+     */
+    private <T> List<Message<T>> receiveUntilMarker(Consumer<T> consumer, Schema<T> schema, T markerValue)
+            throws PulsarClientException {
+        try (Producer<T> producer = pulsarClient.newProducer(schema).topic(consumer.getTopic())
+                .enableBatching(false).create()) {
+            producer.newMessage().key(MARKER_KEY).value(markerValue).send();
+        }
+        List<Message<T>> received = new ArrayList<>();
+        while (true) {
+            Message<T> message = consumer.receive(10, TimeUnit.SECONDS);
+            assertNotNull(message, "The marker message did not arrive");
+            if (MARKER_KEY.equals(message.getKey())) {
+                consumer.acknowledge(message);
+                return received;
+            }
+            received.add(message);
+        }
+    }
+
+    private List<Message<byte[]>> receiveUntilMarker(Consumer<byte[]> consumer) throws PulsarClientException {
+        return receiveUntilMarker(consumer, Schema.BYTES, "marker".getBytes());
     }
 
     @Test
@@ -495,8 +527,12 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
             assertEquals(m.getData(), "content2".getBytes());
         }
 
+        // The subscribe below retries until the operation timeout, which is 30 s by default
+        @Cleanup
+        PulsarClient shortTimeoutClient = PulsarClient.builder().serviceUrl(lookupUrl.toString())
+                .operationTimeout(2, TimeUnit.SECONDS).build();
         stopBroker();
-        try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
+        try (Consumer<byte[]> consumer = shortTimeoutClient.newConsumer().topic(topic).subscriptionName("sub1")
                 .readCompacted(true).subscribe()) {
             consumer.receive();
             fail("Shouldn't have been able to receive anything");
@@ -676,16 +712,10 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         compact(topic);
 
         // Read messages before compaction to get ids
-        List<Message<byte[]>> messages = new ArrayList<>();
+        List<Message<byte[]>> messages;
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
              .subscriptionName("sub1").receiverQueueSize(1).readCompacted(true).subscribe()) {
-            while (true) {
-                Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
-                if (message ==  null) {
-                    break;
-                }
-                messages.add(message);
-            }
+            messages = receiveUntilMarker(consumer);
         }
 
         assertEquals(messages.size(), 3);
@@ -729,16 +759,10 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         compact(topic);
 
-        List<Message<byte[]>> messages = new ArrayList<>();
+        List<Message<byte[]>> messages;
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
              .subscriptionName("sub1").receiverQueueSize(1).readCompacted(true).subscribe()) {
-            while (true) {
-                Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
-                if (message == null) {
-                    break;
-                }
-                messages.add(message);
-            }
+            messages = receiveUntilMarker(consumer);
         }
 
         assertEquals(messages.size(), 2);
@@ -852,15 +876,10 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                 assertEquals(message4.getKey(), "key2");
                 assertEquals(new String(message4.getData()), "my-message-6");
 
-                Message<byte[]> m = consumer.receive(2, TimeUnit.SECONDS);
-                assertNull(m);
+                assertEquals(receiveUntilMarker(consumer), List.of());
             } else {
                 List<Pair<String, String>> result = new ArrayList<>();
-                while (true) {
-                    Message<byte[]> message = consumer.receive(10, TimeUnit.SECONDS);
-                    if (message == null) {
-                        break;
-                    }
+                for (Message<byte[]> message : receiveUntilMarker(consumer)) {
                     result.add(Pair.of(message.getKey(),
                             message.getData() == null ? null : new String(message.getData())));
                 }
@@ -1609,8 +1628,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         // consumer with readCompacted enabled only get compacted entries
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
                 .readCompacted(true).subscribe()) {
-            Message<byte[]> m = consumer.receive(2, TimeUnit.SECONDS);
-            assertNull(m);
+            assertEquals(receiveUntilMarker(consumer), List.of());
         }
     }
 
@@ -1643,8 +1661,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         // consumer with readCompacted enabled only get compacted entries
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
                 .readCompacted(true).subscriptionInitialPosition(SubscriptionInitialPosition.Earliest).subscribe()) {
-            Message<byte[]> m = consumer.receive(2, TimeUnit.SECONDS);
-            assertNull(m);
+            assertEquals(receiveUntilMarker(consumer), List.of());
         }
     }
 
@@ -1698,8 +1715,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
             assertEquals(new String(m1.getValue()), "5");
             assertEquals(m2.getKey(), k2);
             assertEquals(new String(m2.getValue()), "3");
-            Message<byte[]> none = consumer.receive(2, TimeUnit.SECONDS);
-            assertNull(none);
+            assertEquals(receiveUntilMarker(consumer), List.of());
         }
     }
     @Test(timeOut = 20000)
@@ -1756,8 +1772,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
             assertEquals(m2.getKey(), k3);
             assertEquals(new String(m1.getValue()), "5");
             assertEquals(new String(m2.getValue()), "0");
-            Message<byte[]> none = consumer.receive(2, TimeUnit.SECONDS);
-            assertNull(none);
+            assertEquals(receiveUntilMarker(consumer), List.of());
         }
     }
 
@@ -1808,8 +1823,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
             assertNotNull(m1);
             assertEquals(m1.getKey(), k1);
             assertEquals(new String(m1.getValue()), "5");
-            Message<byte[]> none = consumer.receive(2, TimeUnit.SECONDS);
-            assertNull(none);
+            assertEquals(receiveUntilMarker(consumer), List.of());
         }
     }
 
@@ -1859,8 +1873,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
             assertNotNull(m1);
             assertEquals(m1.getKey(), key);
             assertEquals(new String(m1.getValue()), "19");
-            Message<byte[]> none = consumer.receive(2, TimeUnit.SECONDS);
-            assertNull(none);
+            assertEquals(receiveUntilMarker(consumer), List.of());
         }
     }
 
@@ -1912,8 +1925,8 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                 assertEquals(new String(received.getValue()), i + 9 + "");
                 consumer.acknowledge(received);
             }
-            Message<byte[]> none = consumer.receive(2, TimeUnit.SECONDS);
-            assertNull(none);
+            // The marker has an empty value, so it is a tombstone that the compaction below drops
+            assertEquals(receiveUntilMarker(consumer, Schema.BYTES, new byte[0]), List.of());
         }
 
         // 4.Send empty message to delete the key-value in the compacted topic.
@@ -1928,8 +1941,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                 .readCompacted(true)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe()) {
-            Message<byte[]> none = consumer.receive(2, TimeUnit.SECONDS);
-            assertNull(none);
+            assertEquals(receiveUntilMarker(consumer, Schema.BYTES, new byte[0]), List.of());
         }
 
         for (int i = 0; i < messages; i++) {
@@ -1943,6 +1955,10 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                 .readCompacted(true)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe()) {
+            // sub2's marker is after the compaction horizon, before the new messages
+            Message<byte[]> marker = consumer.receive(10, TimeUnit.SECONDS);
+            assertNotNull(marker, "The marker message did not arrive");
+            assertEquals(marker.getKey(), MARKER_KEY);
             for (int i = 0; i < 10; i++) {
                 Message<byte[]> received = consumer.receive();
                 assertNotNull(received);
@@ -1950,8 +1966,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                 assertEquals(new String(received.getValue()), i + 20 + "");
                 consumer.acknowledge(received);
             }
-            Message<byte[]> none = consumer.receive(2, TimeUnit.SECONDS);
-            assertNull(none);
+            assertEquals(receiveUntilMarker(consumer), List.of());
         }
     }
 
@@ -2294,22 +2309,21 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                     .attr("properties", properties)
                     .log("acknowledgeMessage positions: properties");
             compactedLedgerId.set(properties.get(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY));
-            try {
-                return invocationOnMock.callRealMethod();
-            } finally {
-                log.info().attr("positions", positions).log("acknowledgeMessage completed");
-                compactionAckedLatch.countDown();
-                // add delay here to introduce possible races with deletion
-                Thread.sleep(500);
-            }
-        }).when(subscription).acknowledgeMessage(Mockito.any(), Mockito.eq(
+            @SuppressWarnings("unchecked")
+            CompletableFuture<Void> ack = (CompletableFuture<Void>) invocationOnMock.callRealMethod();
+            log.info().attr("positions", positions).log("acknowledgeMessage completed");
+            compactionAckedLatch.countDown();
+            // delay the completion of the ack to introduce possible races with deletion
+            return ack.thenRunAsync(() -> { },
+                    CompletableFuture.delayedExecutor(500, TimeUnit.MILLISECONDS));
+        }).when(subscription).acknowledgeMessageAsync(Mockito.any(), Mockito.eq(
                 CommandAck.AckType.Cumulative), Mockito.any());
 
         // trigger compaction
         admin.topics().triggerCompaction(topicName);
 
         // wait for compaction to acknowledge
-        compactionAckedLatch.await(9, TimeUnit.SECONDS);
+        assertTrue(compactionAckedLatch.await(9, TimeUnit.SECONDS));
 
         // close the producer
         producer.close();
@@ -2387,12 +2401,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                 .subscribe();
 
         List<String> result = new ArrayList<>();
-        while (true) {
-            Message<String> receive = consumer.receive(2, TimeUnit.SECONDS);
-            if (receive == null) {
-                break;
-            }
-
+        for (Message<String> receive : receiveUntilMarker(consumer, Schema.STRING, "marker")) {
             result.add(receive.getValue());
         }
 
@@ -2475,14 +2484,14 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         assertEquals(results, expected);
 
-        Message<String> message = consumer.receive(3, TimeUnit.SECONDS);
-        assertNull(message);
-
         // Make consumer reconnect to broker
         admin.topics().unload(topicName);
 
-        producer.newMessage().key("K").value("V").send();
-        Message<String> message2 = consumer.receive(3, TimeUnit.SECONDS);
+        // Nothing else is delivered after the reconnection, before the new message
+        MessageId newMessageId = producer.newMessage().key("K").value("V").send();
+        Message<String> message2 = consumer.receive(10, TimeUnit.SECONDS);
+        assertNotNull(message2);
+        assertEquals(message2.getMessageId(), newMessageId);
         assertEquals(message2.getValue(), "V");
         consumer.acknowledge(message2);
 
@@ -2685,12 +2694,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                 .subscribe();
 
         List<String> results = new ArrayList<>();
-        while (true) {
-            Message<String> message = consumer.receive(3, TimeUnit.SECONDS);
-            if (message == null) {
-                break;
-            }
-
+        for (Message<String> message : receiveUntilMarker(consumer, Schema.STRING, "marker")) {
             results.add(message.getValue());
             consumer.acknowledge(message);
         }
@@ -2716,20 +2720,22 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         triggerAndWaitCompaction(topic); // update the compaction horizon
 
+        final var topicClosed = new CompletableFuture<Void>();
         AbstractTwoPhaseCompactor.injectionAfterSeekInPhaseTwo = () -> {
             // Simulate the case when the topic is closed during compaction phase two
-            CompletableFuture.runAsync(() -> {
+            FutureUtil.completeAfter(topicClosed, CompletableFuture.runAsync(() -> {
                 final var persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topic).join()
                         .orElseThrow();
                 persistentTopic.close().join();
-            });
+            }));
         };
         // Send a new message so that the compaction won't be skipped
         send.accept("key-2", "value-0");
         send.accept("key-2", "value-1");
         admin.topics().triggerCompaction(topic);
-        Awaitility.await().untilAsserted(() -> assertFalse(pulsar.getBrokerService().getTopics()
-                .containsKey(TopicName.get(topic).toString())));
+        // Wait for the close itself: the producer reconnects and loads the topic again about 100 ms later, so polling
+        // the broker's topic map can miss the time the topic isn't there
+        topicClosed.get(10, TimeUnit.SECONDS);
 
         AbstractTwoPhaseCompactor.injectionAfterSeekInPhaseTwo = () -> {};
 
@@ -2789,6 +2795,98 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         admin.topics().triggerCompaction(topic);
         Awaitility.await().untilAsserted(() -> assertEquals(
                 admin.topics().compactionStatus(topic).status, LongRunningProcessStatus.Status.SUCCESS));
+    }
+
+    /**
+     * A readCompacted reader that already finished the compacted snapshot must receive the tombstones published
+     * afterwards, even when a second compaction removes them before they are read. A reader created after that
+     * compaction still sees only the compacted view.
+     */
+    @Test(timeOut = 30000)
+    public void testReaderReceivesTombstonesWhenCompactionRunsBeforeConsumption() throws Exception {
+        admin.namespaces().setRetention("my-tenant/my-ns", new RetentionPolicies(-1, -1));
+        final String topic = newUniqueName("persistent://my-tenant/my-ns/tombstones-after-snapshot");
+
+        pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
+                .readCompacted(true).subscribe().close();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .enableBatching(false)
+                .create();
+
+        final String keptKey = "key-keep";
+        final List<String> deletedKeys = List.of("key-1", "key-2", "key-3");
+
+        producer.newMessage().key(keptKey).value("value-keep").send();
+        for (String key : deletedKeys) {
+            producer.newMessage().key(key).value("value-" + key).send();
+        }
+        triggerAndWaitCompaction(topic);
+
+        // A receiver queue of 1 keeps all but the first tombstone in the topic until the reader asks for them.
+        @Cleanup
+        Reader<String> reader = pulsarClient.newReader(Schema.STRING)
+                .topic(topic)
+                .readCompacted(true)
+                .receiverQueueSize(1)
+                .startMessageId(MessageId.earliest)
+                .create();
+
+        Map<String, String> receivedValues = new HashMap<>();
+        while (reader.hasMessageAvailable()) {
+            Message<String> message = reader.readNext();
+            receivedValues.put(message.getKey(), message.getValue());
+        }
+        assertEquals(receivedValues, Map.of(
+                keptKey, "value-keep",
+                "key-1", "value-key-1",
+                "key-2", "value-key-2",
+                "key-3", "value-key-3"));
+
+        MessageIdAdv lastTombstoneId = null;
+        for (String key : deletedKeys) {
+            lastTombstoneId = (MessageIdAdv) producer.newMessage().key(key).send();
+        }
+        final Position lastTombstone = PositionFactory.create(lastTombstoneId.getLedgerId(),
+                lastTombstoneId.getEntryId());
+        final PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).orElseThrow();
+        admin.topics().triggerCompaction(topic);
+        Awaitility.await().untilAsserted(() -> {
+            Position horizon = persistentTopic.getTopicCompactionService().getLastCompactedPosition().get();
+            assertNotNull(horizon);
+            assertTrue(horizon.compareTo(lastTombstone) >= 0);
+        });
+
+        final List<String> receivedTombstones = new ArrayList<>();
+        for (int i = 0; i < deletedKeys.size(); i++) {
+            Message<String> message = reader.readNext(5, TimeUnit.SECONDS);
+            assertNotNull(message, "Expected tombstone " + (i + 1) + " of " + deletedKeys.size());
+            assertNull(message.getValue(), "Expected a tombstone for key " + message.getKey());
+            receivedTombstones.add(message.getKey());
+        }
+        assertEquals(receivedTombstones, deletedKeys);
+        // The marker is after the compaction horizon, so both readers get it after the compacted entries
+        MessageId markerId = producer.newMessage().key(MARKER_KEY).value("marker").send();
+        Message<String> marker = reader.readNext(10, TimeUnit.SECONDS);
+        assertNotNull(marker, "The marker message did not arrive");
+        assertEquals(marker.getMessageId(), markerId);
+
+        @Cleanup
+        Reader<String> freshReader = pulsarClient.newReader(Schema.STRING)
+                .topic(topic)
+                .readCompacted(true)
+                .startMessageId(MessageId.earliest)
+                .create();
+        Message<String> message = freshReader.readNext(5, TimeUnit.SECONDS);
+        assertNotNull(message);
+        assertEquals(message.getKey(), keptKey);
+        assertEquals(message.getValue(), "value-keep");
+        marker = freshReader.readNext(10, TimeUnit.SECONDS);
+        assertNotNull(marker, "The marker message did not arrive");
+        assertEquals(marker.getMessageId(), markerId);
     }
 
     @Test
@@ -2933,8 +3031,8 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
      * snapshot, which may still reference a compacted ledger that a newer compaction has already
      * deleted (the snapshot only advances on rollover or graceful close, while the previous
      * compacted ledger is deleted as soon as the compactor subscription's mark-delete is persisted
-     * in the cursor ledger). readCompacted reads must then fall back to the original topic data
-     * instead of failing at or before the stale compaction horizon.
+     * in the cursor ledger). Keep this as an explicit failure: the original entries are not
+     * guaranteed to exist, so recovery must not silently serve an incomplete uncompacted view.
      */
     @Test
     public void testReadCompactedAfterRecoveryRestoredDeletedCompactedLedger() throws Exception {
@@ -2943,14 +3041,12 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         // Roll the cursor ledger over on every persist, so the metadata-store snapshot carries the
         // compactor subscription's mark-delete position and properties. The infinite retention
-        // keeps the consumed data ledgers around: their entries are the fallback data for the
-        // readCompacted reads after the recovery below.
-        PersistentTopic setupTopic = (PersistentTopic)
-                pulsar.getBrokerService().getTopic(topic, true).get().orElseThrow();
-        setupTopic.getManagedLedger().getConfig()
-                .setRetentionTime(-1, TimeUnit.MINUTES)
-                .setRetentionSizeInMB(-1)
-                .setMetadataMaxEntriesPerLedger(1);
+        // keeps the consumed data ledgers around so that the recovered position is not clamped
+        // to a newer ledger. MissingCompactedLedgerTest also covers real retention trimming.
+        // Both go through the broker configuration and the namespace policies: any policy update
+        // reaching the topic replaces its managed-ledger config with one built from them.
+        conf.setManagedLedgerCursorMaxEntriesPerLedger(1);
+        admin.namespaces().setRetention("my-tenant/my-ns", new RetentionPolicies(-1, -1));
 
         try (Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(topic).enableBatching(false).create()) {
@@ -3006,72 +3102,68 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         assertEquals(compactionCursor.getProperties().get(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY),
                 (Long) compactedLedger1);
 
-        // The stale compacted ledger must not stay registered: no compaction horizon is served
-        // and readCompacted falls back to reading the original entries instead of failing.
-        Awaitility.await().until(() ->
-                persistentTopic.getTopicCompactionService().getLastCompactedPosition().get() == null);
-        try (Reader<byte[]> reader = pulsarClient.newReader().topic(topic).readCompacted(true)
-                .startMessageId(MessageId.earliest).create()) {
-            List<String> received = new ArrayList<>();
-            while (reader.hasMessageAvailable()) {
-                Message<byte[]> m = reader.readNext(2, TimeUnit.SECONDS);
-                received.add(m.getKey() + "=" + new String(m.getData()));
-            }
-            assertEquals(received, List.of("k1=v1a", "k2=v2a", "k1=v1b", "k2=v2b"));
-        }
-
-        // a new compaction restores the compacted view
-        try (Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topic).enableBatching(false).create()) {
-            producer.newMessage().key("k3").value("v3".getBytes()).send();
-        }
-        compact(topic);
-        try (Reader<byte[]> reader = pulsarClient.newReader().topic(topic).readCompacted(true)
-                .startMessageId(MessageId.earliest).create()) {
-            Set<String> compacted = new HashSet<>();
-            while (reader.hasMessageAvailable()) {
-                Message<byte[]> m = reader.readNext(2, TimeUnit.SECONDS);
-                compacted.add(m.getKey() + "=" + new String(m.getData()));
-            }
-            assertEquals(compacted, Set.of("k1=v1b", "k2=v2b", "k3=v3"));
-        }
+        // A persisted reference to a missing compacted ledger must remain distinguishable from
+        // a topic with no compacted data, even when the original entries happen to be retained.
+        TopicCompactionService service = persistentTopic.getTopicCompactionService();
+        assertThatThrownBy(() -> service.getLastCompactedPosition().get(5, TimeUnit.SECONDS))
+                .isInstanceOf(ExecutionException.class).hasCauseInstanceOf(BKException.class);
+        assertThatThrownBy(() -> service.getLastMessagePosition().get(5, TimeUnit.SECONDS))
+                .isInstanceOf(ExecutionException.class).hasCauseInstanceOf(BKException.class);
     }
 
-    /**
-     * A read overlapping the missing-ledger reset must complete through the returned future instead
-     * of throwing a synchronous NullPointerException from a torn null check of the context field:
-     * the last-entry read passes the check while the open is still pending, and the missing-ledger
-     * callback clears the field before the composition dereferences it again.
-     */
     @Test
-    public void testReadLastEntryOverlappingMissingCompactedLedgerReset() throws Exception {
-        CompactedTopicImpl compactedTopic = new CompactedTopicImpl(bk);
-        long missingLedgerId = 1234567890L;
-        // Hold the failed open so the last-entry read below overlaps the reset callback.
-        pulsarTestContext.getMockBookKeeper().delay(300);
+    public void testIndividualAcknowledgeWithReconnection() throws Exception {
+        final String topicName = newUniqueName("persistent://my-tenant/my-ns/testIndividualAcknowledge");
+        final String subName = "my-sub";
+        final int numMessages = 10;
+        final int numKeys = 4;
+        // Compaction keeps the last message of each key. The others are never delivered nor acknowledged, so the
+        // individual acks below leave the mark-delete position before the first message.
+        final int backlog = numMessages - numKeys;
 
-        CompletableFuture<CompactedTopicContext> registration =
-                compactedTopic.newCompactedLedger(PositionFactory.create(1, 1), missingLedgerId);
+        pulsarClient.newConsumer().topic(topicName).subscriptionName(subName).readCompacted(true).subscribe()
+                .close();
 
-        // The read must return a future rather than throw while the open is still pending, and it
-        // must complete through that future (exceptionally here) instead of hanging or throwing.
-        CompletableFuture<Entry> lastEntry = compactedTopic.readLastEntryOfCompactedLedger();
-        assertNotNull(lastEntry);
-        try {
-            assertNull(lastEntry.get(5, TimeUnit.SECONDS));
-        } catch (ExecutionException e) {
-            // acceptable: the read observed the failed open
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .enableBatching(false).topic(topicName).create();
+
+        Map<String, String> expected = new HashMap<>();
+        for (int i = 0; i < numMessages; i++) {
+            String key = "key-" + (i % numKeys);
+            String value = "value-" + i;
+            producer.newMessage().key(key).value(value).send();
+            expected.put(key, value);
         }
+        compact(topicName);
 
-        // the registration failed with the missing ledger and the state was reset
-        try {
-            registration.get(5, TimeUnit.SECONDS);
-            fail("registration of a missing compacted ledger should have failed");
-        } catch (ExecutionException e) {
-            assertTrue(e.getCause() instanceof BKException);
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topicName)
+                .subscriptionName(subName).readCompacted(true).subscribe();
+
+        Map<String, String> results = new HashMap<>();
+        for (int i = 0; i < numKeys; i++) {
+            Message<String> message = consumer.receive(10, TimeUnit.SECONDS);
+            assertNotNull(message);
+            results.put(message.getKey(), message.getValue());
+            consumer.acknowledge(message);
         }
-        assertTrue(compactedTopic.getCompactionHorizon().isEmpty());
-        // after the reset, reads answer "no compacted data" again
-        assertNull(compactedTopic.readLastEntryOfCompactedLedger().get(5, TimeUnit.SECONDS));
+        assertEquals(results, expected);
+        Awaitility.await().untilAsserted(() -> assertEquals(
+                admin.topics().getStats(topicName, true).getSubscriptions().get(subName).getMsgBacklog(), backlog));
+
+        // After the reconnection, the dispatcher reads the compacted ledger again before the new message
+        admin.topics().unload(topicName);
+        producer.newMessage().key("key-new").value("value-new").send();
+        Message<String> message = consumer.receive(10, TimeUnit.SECONDS);
+        assertNotNull(message);
+        assertEquals(message.getValue(), "value-new");
+        consumer.acknowledge(message);
+        Awaitility.await().untilAsserted(() -> assertEquals(
+                admin.topics().getStats(topicName, true).getSubscriptions().get(subName).getMsgBacklog(), backlog));
+
+        // A redelivery rewinds the cursor to the mark-delete position
+        consumer.redeliverUnacknowledgedMessages();
+        assertEquals(receiveUntilMarker(consumer, Schema.STRING, "marker"), List.of());
     }
 }

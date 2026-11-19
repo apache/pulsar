@@ -23,6 +23,7 @@
     <test name="pulsar-upgrade-test-suite" preserve-order="true" >
         <classes>
             <class name="org.apache.pulsar.tests.integration.upgrade.PulsarUpgradeDowngradeTest" />
+            <class name="org.apache.pulsar.tests.integration.upgrade.PulsarStandaloneUpgradeTest" />
         </classes>
     </test>
 </suite>

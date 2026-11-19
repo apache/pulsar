@@ -32,11 +32,12 @@ dependencies {
     api(libs.slog)
     implementation(libs.caffeine)
     implementation(libs.simpleclient)
-    implementation(libs.simpleclient.caffeine)
+    implementation(libs.prometheus.metrics.instrumentation.caffeine)
+    implementation(libs.prometheus.metrics.model)
 
     testImplementation(project(":buildtools"))
     testImplementation(project(":testmocks"))
-    testImplementation(project(path = ":managed-ledger", configuration = "testJar"))
+    testImplementation(testJar(":managed-ledger"))
     testImplementation(libs.bookkeeper.common) { artifact { classifier = "tests" } }
     testImplementation(libs.zookeeper) { artifact { classifier = "tests" } }
     testImplementation(libs.oxia.testcontainers)

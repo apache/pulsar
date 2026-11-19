@@ -84,6 +84,10 @@ public interface AsyncSemaphore {
         public PermitAcquireException(String message) {
             super(message);
         }
+
+        public PermitAcquireException(String message, Throwable cause) {
+            super(message, cause);
+        }
     }
 
     /**
@@ -116,6 +120,18 @@ public interface AsyncSemaphore {
 
         public PermitAcquireAlreadyClosedException(String message) {
             super(message);
+        }
+    }
+
+    /**
+     * Exception used when the requested permits are larger than the maximum number of permits, so the request
+     * can never be granted.
+     */
+    class PermitAcquireLimitExceededException extends PermitAcquireException {
+        private static final long serialVersionUID = 1L;
+
+        public PermitAcquireLimitExceededException(String message, Throwable cause) {
+            super(message, cause);
         }
     }
 

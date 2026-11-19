@@ -26,6 +26,7 @@ import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.client.api.v5.Message;
 import org.apache.pulsar.client.api.v5.MessageId;
 import org.apache.pulsar.client.api.v5.Producer;
@@ -73,10 +74,10 @@ public class V5StreamConsumerAckWatermarkTest extends V5ClientBaseTest {
         }
         MessageId last = receiveAll(consumer, n);
 
-        var segments = admin.scalableTopics().getStats(topic).getSegments().values();
+        var segments = admin.scalableTopics().getStats(topic).getLayout().getSegments().values();
         assertEquals(segments.size(), 1, "single-segment topic");
-        var brokerSub = getTopicReference(segments.iterator().next().name()).orElseThrow()
-                .getSubscription(subscription);
+        var brokerSub = (PersistentSubscription) getTopicReference(segments.iterator().next().getName())
+                .orElseThrow().getSubscription(subscription);
 
         // Between issuing the ack and observing its completion: rewind the cursor to the start,
         // which throws the consumer off and redelivers everything, and drain that redelivery so
@@ -84,6 +85,15 @@ public class V5StreamConsumerAckWatermarkTest extends V5ClientBaseTest {
         impl.beforeAckWatermarkUpdateHook = () -> {
             impl.beforeAckWatermarkUpdateHook = null;
             try {
+                // The ack has been written to the connection, but the broker may not have applied it yet.
+                // The cursor applies operations in arrival order, so a rewind that overtakes the ack is
+                // undone by it: wait until the ack has been applied and persisted before rewinding.
+                var cursor = brokerSub.getCursor();
+                Awaitility.await().untilAsserted(() -> {
+                    assertEquals(subscriptionBacklog(topic, subscription), 0L, "the ack must have been applied");
+                    assertEquals(cursor.getPersistentMarkDeletedPosition(), cursor.getMarkDeletedPosition(),
+                            "the ack must have been persisted");
+                });
                 brokerSub.resetCursor(PositionFactory.EARLIEST).get(10, TimeUnit.SECONDS);
                 receiveAll(consumer, n);
             } catch (Exception e) {
@@ -115,8 +125,8 @@ public class V5StreamConsumerAckWatermarkTest extends V5ClientBaseTest {
     /** Backlog of {@code subscription} across the scalable topic's segments, read broker-side. */
     private long subscriptionBacklog(String topic, String subscription) throws Exception {
         long total = 0;
-        for (var seg : admin.scalableTopics().getStats(topic).getSegments().values()) {
-            var ref = getTopicReference(seg.name());
+        for (var seg : admin.scalableTopics().getStats(topic).getLayout().getSegments().values()) {
+            var ref = getTopicReference(seg.getName());
             if (ref.isEmpty()) {
                 continue;
             }

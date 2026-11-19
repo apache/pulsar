@@ -2,9 +2,8 @@
 
 * **Status**: Merged
 * **Author**: Ivan Kelly, Matteo Merli
-* **Pull Request**:
-* **Mailing List discussion**:
 * **Release**: 2.4.0
+* **Mailing List discussion**: https://lists.apache.org/thread/pv84t1joyzgb0jdcvkqlofnmj0xdb1bd
 
 ## Goal
 

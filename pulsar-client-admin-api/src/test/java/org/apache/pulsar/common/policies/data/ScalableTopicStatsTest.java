@@ -22,142 +22,87 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNotSame;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.util.List;
 import org.testng.annotations.Test;
 
 public class ScalableTopicStatsTest {
 
-    // --- outer class: ScalableTopicStats ---
-
     @Test
-    public void testNoArgsConstructorDefaults() {
+    public void testDefaults() {
         ScalableTopicStats stats = new ScalableTopicStats();
-        assertEquals(stats.getEpoch(), 0L);
-        assertEquals(stats.getTotalSegments(), 0);
-        assertEquals(stats.getActiveSegments(), 0);
-        assertEquals(stats.getSealedSegments(), 0);
-        // Default maps are non-null — callers can put entries without a NullPointerException.
-        assertNotNull(stats.getSegments());
+        assertEquals(stats.getMsgRateIn(), 0.0);
+        assertEquals(stats.getBacklogSize(), 0L);
+        // Nested objects and collections are non-null so the broker can fill them directly.
+        assertNotNull(stats.getLayout());
+        assertEquals(stats.getLayout().getEpoch(), 0L);
+        assertNotNull(stats.getLayout().getSegments());
+        assertNotNull(stats.getProducers());
         assertNotNull(stats.getSubscriptions());
-        assertTrue(stats.getSegments().isEmpty());
+        assertTrue(stats.getLayout().getSegments().isEmpty());
+        assertTrue(stats.getProducers().isEmpty());
         assertTrue(stats.getSubscriptions().isEmpty());
     }
 
     @Test
-    public void testBuilderPopulatesFields() {
-        Map<Long, ScalableTopicStats.SegmentStats> segMap = new LinkedHashMap<>();
-        segMap.put(0L, new ScalableTopicStats.SegmentStats("segment://t/n/topic/0000-ffff-0", "ACTIVE"));
-
-        Map<String, ScalableTopicStats.SubscriptionStats> subMap = new LinkedHashMap<>();
-        subMap.put("sub-a", new ScalableTopicStats.SubscriptionStats(3));
-
-        ScalableTopicStats stats = ScalableTopicStats.builder()
-                .epoch(7L)
-                .totalSegments(5)
-                .activeSegments(3)
-                .sealedSegments(2)
-                .segments(segMap)
-                .subscriptions(subMap)
-                .build();
-
-        assertEquals(stats.getEpoch(), 7L);
-        assertEquals(stats.getTotalSegments(), 5);
-        assertEquals(stats.getActiveSegments(), 3);
-        assertEquals(stats.getSealedSegments(), 2);
-        assertEquals(stats.getSegments().get(0L).name(), "segment://t/n/topic/0000-ffff-0");
-        assertEquals(stats.getSegments().get(0L).state(), "ACTIVE");
-        assertEquals(stats.getSubscriptions().get("sub-a").consumerCount(), 3);
-    }
-
-    @Test
-    public void testBuilderWithoutMapsUsesEmptyDefaults() {
-        ScalableTopicStats stats = ScalableTopicStats.builder().build();
-        assertNotNull(stats.getSegments());
-        assertNotNull(stats.getSubscriptions());
-        assertTrue(stats.getSegments().isEmpty());
-        assertTrue(stats.getSubscriptions().isEmpty());
-    }
-
-    @Test
-    public void testBuilderDefaultMapIsFreshPerInstance() {
-        // @Builder.Default should give each built instance its own map — otherwise two
-        // instances would share state and mutations to one would leak into the other.
-        ScalableTopicStats a = ScalableTopicStats.builder().build();
-        ScalableTopicStats b = ScalableTopicStats.builder().build();
-        assertNotSame(a.getSegments(), b.getSegments());
+    public void testDefaultCollectionsAreFreshPerInstance() {
+        ScalableTopicStats a = new ScalableTopicStats();
+        ScalableTopicStats b = new ScalableTopicStats();
+        assertNotSame(a.getLayout(), b.getLayout());
+        assertNotSame(a.getLayout().getSegments(), b.getLayout().getSegments());
+        assertNotSame(a.getProducers(), b.getProducers());
         assertNotSame(a.getSubscriptions(), b.getSubscriptions());
     }
 
     @Test
+    public void testSegmentStatsState() {
+        ScalableTopicStats.LayoutSegment segment = new ScalableTopicStats.LayoutSegment();
+        assertNull(segment.getOwnerBroker());
+        assertNotNull(segment.getParentIds());
+        assertNotNull(segment.getChildIds());
+
+        segment.setState("ACTIVE");
+        assertTrue(segment.isActive());
+        assertFalse(segment.isSealed());
+
+        segment.setState("SEALED");
+        assertFalse(segment.isActive());
+        assertTrue(segment.isSealed());
+    }
+
+    @Test
+    public void testNestedDefaults() {
+        ScalableTopicStats.SubscriptionStats sub = new ScalableTopicStats.SubscriptionStats();
+        assertNull(sub.getType());
+        assertNotNull(sub.getSegments());
+        assertNotNull(sub.getConsumers());
+
+        ScalableTopicStats.ConsumerStats consumer = new ScalableTopicStats.ConsumerStats();
+        assertFalse(consumer.isConnected());
+        assertNotNull(consumer.getSegmentIds());
+    }
+
+    @Test
     public void testEqualsAndHashCode() {
-        ScalableTopicStats a = ScalableTopicStats.builder()
-                .epoch(1L).totalSegments(2).activeSegments(2).build();
-        ScalableTopicStats b = ScalableTopicStats.builder()
-                .epoch(1L).totalSegments(2).activeSegments(2).build();
-        ScalableTopicStats c = ScalableTopicStats.builder()
-                .epoch(2L).totalSegments(2).activeSegments(2).build();
+        ScalableTopicStats a = new ScalableTopicStats();
+        a.getLayout().setEpoch(1L);
+        ScalableTopicStats.LayoutSegment seg = new ScalableTopicStats.LayoutSegment();
+        seg.setName("segment://t/ns/topic/0000-ffff-0");
+        seg.setChildIds(List.of(1L, 2L));
+        a.getLayout().getSegments().put(0L, seg);
+
+        ScalableTopicStats b = new ScalableTopicStats();
+        b.getLayout().setEpoch(1L);
+        ScalableTopicStats.LayoutSegment seg2 = new ScalableTopicStats.LayoutSegment();
+        seg2.setName("segment://t/ns/topic/0000-ffff-0");
+        seg2.setChildIds(List.of(1L, 2L));
+        b.getLayout().getSegments().put(0L, seg2);
 
         assertEquals(a, b);
         assertEquals(a.hashCode(), b.hashCode());
-        assertFalse(a.equals(c));
-    }
 
-    @Test
-    public void testAllArgsConstructor() {
-        Map<Long, ScalableTopicStats.SegmentStats> segments = Map.of(
-                0L, new ScalableTopicStats.SegmentStats("segment://t/n/topic/0000-7fff-0", "SEALED"));
-        Map<String, ScalableTopicStats.SubscriptionStats> subs = Map.of(
-                "sub-1", new ScalableTopicStats.SubscriptionStats(0));
-
-        ScalableTopicStats stats = new ScalableTopicStats(3L, 4, 2, 2, segments, subs);
-
-        assertEquals(stats.getEpoch(), 3L);
-        assertEquals(stats.getTotalSegments(), 4);
-        assertEquals(stats.getActiveSegments(), 2);
-        assertEquals(stats.getSealedSegments(), 2);
-        assertEquals(stats.getSegments(), segments);
-        assertEquals(stats.getSubscriptions(), subs);
-    }
-
-    // --- nested record: SegmentStats ---
-
-    @Test
-    public void testSegmentStatsRecordAccessors() {
-        ScalableTopicStats.SegmentStats seg = new ScalableTopicStats.SegmentStats(
-                "segment://tenant/ns/my-topic/0000-3fff-2", "ACTIVE");
-        assertEquals(seg.name(), "segment://tenant/ns/my-topic/0000-3fff-2");
-        assertEquals(seg.state(), "ACTIVE");
-    }
-
-    @Test
-    public void testSegmentStatsEqualsAndHashCode() {
-        ScalableTopicStats.SegmentStats a = new ScalableTopicStats.SegmentStats("seg-a", "ACTIVE");
-        ScalableTopicStats.SegmentStats b = new ScalableTopicStats.SegmentStats("seg-a", "ACTIVE");
-        ScalableTopicStats.SegmentStats c = new ScalableTopicStats.SegmentStats("seg-a", "SEALED");
-
-        assertEquals(a, b);
-        assertEquals(a.hashCode(), b.hashCode());
-        assertFalse(a.equals(c));
-    }
-
-    // --- nested record: SubscriptionStats ---
-
-    @Test
-    public void testSubscriptionStatsRecordAccessor() {
-        ScalableTopicStats.SubscriptionStats sub = new ScalableTopicStats.SubscriptionStats(42);
-        assertEquals(sub.consumerCount(), 42);
-    }
-
-    @Test
-    public void testSubscriptionStatsEqualsAndHashCode() {
-        ScalableTopicStats.SubscriptionStats a = new ScalableTopicStats.SubscriptionStats(3);
-        ScalableTopicStats.SubscriptionStats b = new ScalableTopicStats.SubscriptionStats(3);
-        ScalableTopicStats.SubscriptionStats c = new ScalableTopicStats.SubscriptionStats(4);
-
-        assertEquals(a, b);
-        assertEquals(a.hashCode(), b.hashCode());
-        assertFalse(a.equals(c));
+        b.getLayout().setEpoch(2L);
+        assertFalse(a.equals(b));
     }
 }

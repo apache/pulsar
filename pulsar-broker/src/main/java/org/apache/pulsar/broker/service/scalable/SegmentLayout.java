@@ -291,9 +291,9 @@ public class SegmentLayout {
     }
 
     /**
-     * Prune an expired segment from the DAG. The segment must be sealed and have no
-     * children that are still in the DAG (i.e., children have already been pruned or
-     * the segment is a leaf that was sealed).
+     * Prune an expired segment from the DAG. The segment must be sealed. It is dropped from
+     * its children's parent lists without linking them to its own parents, so callers prune
+     * a segment only once none of its parents are left in the DAG (ancestors first).
      *
      * @param segmentId the segment to prune
      * @return a new SegmentLayout with the segment removed
@@ -337,8 +337,8 @@ public class SegmentLayout {
 
     /**
      * Convert back to metadata for persistence, carrying over the non-layout fields
-     * (properties, per-topic auto-scale policy) from the record being replaced. Layout
-     * mutations must never silently drop fields they don't model.
+     * (properties, per-topic auto-scale policy, deleted mark) from the record being replaced.
+     * Layout mutations must never silently drop fields they don't model.
      */
     public ScalableTopicMetadata toMetadata(ScalableTopicMetadata original) {
         return ScalableTopicMetadata.builder()
@@ -347,6 +347,7 @@ public class SegmentLayout {
                 .segments(new LinkedHashMap<>(allSegments))
                 .properties(original.getProperties())
                 .autoScalePolicy(original.getAutoScalePolicy())
+                .deleted(original.isDeleted())
                 .build();
     }
 

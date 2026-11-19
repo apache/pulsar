@@ -340,6 +340,10 @@ public class TopicName implements ServiceUnitId {
      * <p>Any {@code -partition-K} suffix is stripped, so a partition name like
      * {@code persistent://t/n/x-partition-3} resolves to the base topic's scalable
      * identity {@code topic://t/n/x}, not {@code topic://t/n/x-partition-3}.
+     *
+     * <p>The local name is spliced verbatim: topic name parsing never URL-decodes,
+     * so encoding it here would derive a different identity than the same topic
+     * spelled directly in the {@code topic://} domain.
      */
     public TopicName toScalableTopic() {
         if (domain == TopicDomain.topic) {
@@ -347,7 +351,7 @@ public class TopicName implements ServiceUnitId {
         }
         TopicName base = isPartitioned() ? get(getPartitionedTopicName()) : this;
         return get(TopicDomain.topic.value() + "://" + base.getNamespace()
-                + "/" + base.getEncodedLocalName());
+                + "/" + base.getLocalName());
     }
 
     /**
@@ -358,12 +362,29 @@ public class TopicName implements ServiceUnitId {
         return partitionIndex;
     }
 
+    /**
+     * Returns whether this name refers to a single partition of a partitioned topic, that is, whether its local name
+     * ends with {@value #PARTITIONED_TOPIC_SUFFIX} followed by the partition index.
+     * Eg:
+     * <ul>
+     *  <li><code>persistent://prop/ns/my-topic-partition-1</code> --> {@code true}
+     *  <li><code>persistent://prop/ns/my-topic</code> --> {@code false}, for both the partitioned topic itself
+     *  and a non-partitioned topic
+     * </ul>
+     * The index must be a non-negative integer without leading zeros, so names such as {@code my-topic-partition-01}
+     * or {@code my-topic-partition--1} are not considered partitions.
+     *
+     * @return {@code true} if this is a topic partition, {@code false} otherwise
+     * @see #getPartitionIndex()
+     * @see #getPartitionedTopicName()
+     */
     public boolean isPartitioned() {
         return partitionIndex != -1;
     }
 
     /**
-     * For partitions in a topic, return the base partitioned topic name.
+     * Returns the name of the partitioned topic this partition belongs to. If this name is not a partition
+     * (see {@link #isPartitioned()}), the name is returned unchanged.
      * Eg:
      * <ul>
      *  <li><code>persistent://prop/ns/my-topic-partition-1</code> -->

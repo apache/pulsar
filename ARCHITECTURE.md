@@ -94,8 +94,9 @@ concurrency model.
 ## Build infrastructure
 
 Apache Pulsar uses a **Gradle** build (migrated from Maven via PIP-463; some older tooling and docs
-elsewhere still reference Maven). The wrapper `./gradlew` requires **JDK 21, 25 or 26** (bytecode targets
-Java 17). See [`CONTRIBUTING.md` → Building](CONTRIBUTING.md#building) for the build and lint commands.
+elsewhere still reference Maven). The wrapper `./gradlew` requires **JDK 21, 25 or 26** (server bytecode
+targets Java 21; client/API bytecode targets Java 17). See
+[`CONTRIBUTING.md` → Building](CONTRIBUTING.md#building) for the build and lint commands.
 
 - `settings.gradle.kts` — all modules, organized in dependency tiers (Tier 0 has no internal deps,
   higher tiers build on lower ones).
@@ -122,6 +123,28 @@ preserved. Most importantly:
 Always use the Gradle project path (left of any `--tests`), e.g. `./gradlew :pulsar-client-original:test`.
 Check `settings.gradle.kts` when a path is ambiguous.
 
+### Java compatibility boundaries
+
+`pulsar.java-conventions` defaults main sources to Java 21 and explicitly lists the Java 17 client
+and public API dependency closure. This includes both client generations, admin/auth/crypto clients,
+TLS/HTTP SPIs, shared common/package APIs, and the Functions/IO interfaces. Functions implementations,
+brokers, and other server components target Java 21. Client CLI tools also remain Java 17 compatible.
+`pulsarJavaVersion` and `pulsarClientJavaVersion` control these targets (defaults 21 and 17).
+Test sources default to `pulsarJavaVersion` so client tests can use server fixtures; the dedicated
+consumer tests use `pulsarClientJavaVersion` for compilation and their runtime toolchain.
+The bytecode check and published JVM metadata follow the configured client target.
+
+When adding a client dependency, keep its full compile/runtime closure Java 17 compatible. JVM
+variant attributes reject Java 21 project dependencies; `verifyClientJavaCompatibility` also checks
+class-file versions of dependencies without Gradle metadata and the final shaded client jars.
+Multi-release jars are checked using the entries selected by Java 17. This verifies bytecode, not
+all possible reflective or JDK API usage in third-party libraries; the Java 17 consumer tests provide
+runtime coverage. Do not mark a server implementation as Java 17 just to bypass a dependency error.
+
+The client fastutil minimizer reads CLI classes as build-only reachability roots. Its published jar has no
+transitive project dependencies and is checked as Java 17.
+`buildtools` and `testmocks` also stay Java 17 so the consumer compatibility tests can load them.
+
 ### Changing the build
 
 When editing `build-logic/`, `settings.gradle.kts`, a module `build.gradle.kts`, `gradle.properties`,
@@ -141,14 +164,29 @@ When editing `build-logic/`, `settings.gradle.kts`, a module `build.gradle.kts`,
   build degrades to running without the cache instead of failing.
 - **Published modules must not depend on internal modules** at compile/runtime scope — the artifact
   would be unresolvable from Maven Central. A module is published only when it applies
-  `pulsar.public-java-library-conventions`.
+  `pulsar.public-java-library-conventions`, `pulsar.public-shaded-library-conventions` (a shaded jar
+  with its dependency-reduced POM) or `pulsar.nar-conventions` (only the `.nar`). Each of them adds
+  its own contents to the publication, so the order in which a module applies plugins doesn't matter.
+- **Don't reach into other projects.** No `evaluationDependsOn`, `project(":x").tasks` /
+  `.layout` / `.plugins`, `subprojects {}` or `afterEvaluate {}`, and no `dependsOn(":x:task")` for a
+  task whose files you need. Share a build output through configurations instead:
+  `shareBuildArtifact` / `sharedBuildArtifact` (`SharedBuildArtifacts.kt`) for files such as Docker
+  image IDs or installed distributions, `projectJars` / `projectNars` / `runtimeJars`
+  (`ProjectArtifacts.kt`) for other projects' archives, and `testJar(":x")` (`TestJars.kt`) for a
+  module's test classes. Use them as task inputs (`inputs.files(...)`, `from(...)`), which also
+  builds them first. A lifecycle task, such as the root `docker` or `serverDistTar`, may still
+  depend on another project's task by path. A project that applies the Shadow plugin must be listed
+  in `PulsarShadedProjects.paths`, which `sanityCheck` uses.
 - **After a dependency change**, run `./gradlew checkBinaryLicense` and update the distribution
-  `LICENSE`/`NOTICE`; justify any genuinely new dependency (see
+  `LICENSE`/`NOTICE` (`./gradlew updateBinaryLicense` updates the versions of the jars they reference); justify any genuinely new dependency (see
   [`CODING.md` → Dependencies](CODING.md#dependencies)).
 - **Follow the [Gradle best practices](https://docs.gradle.org/current/userguide/best_practices_index.html)**
   — AI agents should read the
-  [AsciiDoc source](https://github.com/gradle/gradle/blob/master/platforms/documentation/docs/src/docs/userguide/best-practices/best_practices_index.adoc),
-  which is plain text and cheaper to parse than the rendered HTML.
+  [Markdown rendering](https://docs.gradle.org/current/userguide/best_practices_index.md)
+  (replace `.html` with `.md` in any user guide URL), which is plain text and cheaper to parse
+  than the rendered HTML. The
+  [AsciiDoc source](https://github.com/gradle/gradle/blob/master/platforms/documentation/docs/src/docs/userguide/best-practices/best_practices_index.adoc)
+  is an alternative.
 
 Before finishing a build change, confirm the affected task and `./gradlew help` run clean with
 `--configuration-cache`, and that `assemble` and `quickCheck` (license headers + checkstyle across

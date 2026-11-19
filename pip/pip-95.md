@@ -1,9 +1,8 @@
 # PIP-95: Smart Listener Selection with Multiple Bind Addresses
 
 * * **Author**: Eron Wright
-* **Pull Request**:
 * **Mailing List discussion**: ([discussion](https://mail-archives.apache.org/mod_mbox/pulsar-dev/202109.mbox/%3CCAGkx0%3DRxNB6p4szhwELZ5EMt1O9_6KjBjYfsnzd-4E0%2BVcH%2BEQ%40mail.gmail.com%3E)) ([vote](https://mail-archives.apache.org/mod_mbox/pulsar-dev/202109.mbox/%3cCAGkx0=TLCiWjLsgJh=NhCEEh68cKS=WtBbd_K3a_q1-N3b2dkQ@mail.gmail.com%3e))
-* **Release**:
+* **Mailing List voting**: https://lists.apache.org/thread/hkqw6ntwwvdsy4rgtk933p1ds3o4dmb3
 
 ### Motivation
 

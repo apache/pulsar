@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service;
 
 import com.google.common.collect.Sets;
 import com.google.common.io.Resources;
+import java.net.URI;
 import java.net.URL;
 import java.util.Collections;
 import java.util.Optional;
@@ -90,8 +91,8 @@ public abstract class GeoReplicationWithConfigurationSyncTestBase extends TestRe
         pulsar1.start();
         ns1 = pulsar1.getBrokerService();
 
-        url1 = new URL(pulsar1.getWebServiceAddress());
-        urlTls1 = new URL(pulsar1.getWebServiceAddressTls());
+        url1 = URI.create(pulsar1.getWebServiceAddress()).toURL();
+        urlTls1 = URI.create(pulsar1.getWebServiceAddressTls()).toURL();
         admin1 = PulsarAdmin.builder().serviceHttpUrl(url1.toString()).build();
         client1 = PulsarClient.builder().serviceUrl(url1.toString()).build();
 
@@ -101,8 +102,8 @@ public abstract class GeoReplicationWithConfigurationSyncTestBase extends TestRe
         pulsar2.start();
         ns2 = pulsar2.getBrokerService();
 
-        url2 = new URL(pulsar2.getWebServiceAddress());
-        urlTls2 = new URL(pulsar2.getWebServiceAddressTls());
+        url2 = URI.create(pulsar2.getWebServiceAddress()).toURL();
+        urlTls2 = URI.create(pulsar2.getWebServiceAddressTls()).toURL();
         admin2 = PulsarAdmin.builder().serviceHttpUrl(url2.toString()).build();
         client2 = PulsarClient.builder().serviceUrl(url2.toString()).build();
     }

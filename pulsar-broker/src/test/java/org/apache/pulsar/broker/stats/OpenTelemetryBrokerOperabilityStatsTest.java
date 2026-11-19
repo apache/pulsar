@@ -21,22 +21,61 @@ package org.apache.pulsar.broker.stats;
 import static io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions.assertThat;
 import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricHistogramValue;
 import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricLongSumValue;
+import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.parseMetrics;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.awaitility.Awaitility.await;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.same;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.embedded.EmbeddedChannel;
+import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.sdk.metrics.data.MetricData;
+import java.io.ByteArrayOutputStream;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.bookkeeper.mledger.impl.ImmutablePositionImpl;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
+import org.apache.pulsar.PrometheusMetricsTestUtil;
 import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.service.BrokerTestBase;
+import org.apache.pulsar.broker.service.ServerCnx;
+import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.MessageIdAdv;
+import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.common.api.proto.BaseCommand;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
+import org.apache.pulsar.common.api.proto.ServerError;
+import org.apache.pulsar.common.intercept.InterceptException;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes.ConnectionCreateStatus;
+import org.assertj.core.api.Assertions;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class OpenTelemetryBrokerOperabilityStatsTest extends BrokerTestBase {
+    private BrokerInterceptor brokerInterceptor;
 
     @BeforeMethod(alwaysRun = true)
     @Override
@@ -48,6 +87,8 @@ public class OpenTelemetryBrokerOperabilityStatsTest extends BrokerTestBase {
     protected void customizeMainPulsarTestContextBuilder(PulsarTestContext.Builder pulsarTestContextBuilder) {
         super.customizeMainPulsarTestContextBuilder(pulsarTestContextBuilder);
         pulsarTestContextBuilder.enableOpenTelemetry(true);
+        brokerInterceptor = mock(BrokerInterceptor.class, CALLS_REAL_METHODS);
+        pulsarTestContextBuilder.brokerInterceptor(brokerInterceptor);
     }
 
     @AfterMethod(alwaysRun = true)
@@ -113,6 +154,215 @@ public class OpenTelemetryBrokerOperabilityStatsTest extends BrokerTestBase {
                 actual -> assertThat(actual).isGreaterThanOrEqualTo(1));
         assertMetricLongSumValue(metrics, BrokerOperabilityMetrics.CONNECTION_CREATE_COUNTER_METRIC_NAME,
                 ConnectionCreateStatus.FAILURE.attributes, 1);
+    }
+
+    @Test
+    public void testProducerCreationFailureMetrics() throws Exception {
+        var topicName = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/producer-creation-metrics");
+        var attributes = Attributes.builder().put("pulsar.producer.create.error", "IncompatibleSchema").build();
+        var metricName = "pulsar.broker.producer.create.failure.count";
+        @Cleanup
+        var producer = pulsarClient.newProducer(Schema.STRING).topic(topicName).create();
+        assertMetricLongSumValue(pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics(),
+                metricName, attributes, 0);
+
+        assertThatThrownBy(() -> pulsarClient.newProducer(Schema.INT32).topic(topicName).create())
+                .isInstanceOf(PulsarClientException.IncompatibleSchemaException.class);
+        assertMetricLongSumValue(pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics(),
+                metricName, attributes, 1);
+        assertMetricLongSumValue(pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics(),
+                metricName, attributes, 1);
+
+        var out = new ByteArrayOutputStream();
+        PrometheusMetricsTestUtil.generate(pulsar, false, false, false, out);
+        Assertions.assertThat(parseMetrics(out.toString(StandardCharsets.UTF_8))
+                .get("pulsar_producer_create_fail_count")).anySatisfy(metric -> {
+                    Assertions.assertThat(metric.tags).containsEntry("error", "IncompatibleSchema");
+                    Assertions.assertThat(metric.value).isEqualTo(1);
+                });
+    }
+
+    @DataProvider
+    public Object[][] interceptedCommands() {
+        return new Object[][] {
+                {BaseCommand.Type.PRODUCER, ServerError.NotAllowedError.getValue(), ServerError.NotAllowedError},
+                {BaseCommand.Type.PRODUCER, Integer.MAX_VALUE, ServerError.UnknownError},
+                {BaseCommand.Type.SUBSCRIBE, ServerError.NotAllowedError.getValue(), ServerError.NotAllowedError}
+        };
+    }
+
+    @Test(dataProvider = "interceptedCommands")
+    public void testInterceptedProducerCreationFailureMetrics(BaseCommand.Type commandType, int errorCode,
+                                                            ServerError expectedError) throws Exception {
+        var topicName = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/intercepted-producer-metrics");
+        var serverCnx = new ServerCnx(pulsar);
+        doAnswer(invocation -> {
+            BaseCommand command = invocation.getArgument(0);
+            if (command.getType() == commandType) {
+                throw new InterceptException(errorCode, "rejected by interceptor");
+            }
+            return null;
+        }).when(brokerInterceptor).onPulsarCommand(any(), same(serverCnx));
+        var channel = new EmbeddedChannel(new LengthFieldBasedFrameDecoder(5 * 1024 * 1024, 0, 4, 0, 4), serverCnx);
+        try {
+            channel.writeInbound(Commands.newConnect("none", "", null));
+            Assertions.assertThat(readResponse(channel).getType()).isEqualTo(BaseCommand.Type.CONNECTED);
+            assertProducerCreationFailureMetrics(expectedError, 0);
+
+            if (commandType == BaseCommand.Type.PRODUCER) {
+                channel.writeInbound(Commands.newProducer(topicName, 1, 1, "producer", Map.of(), false));
+            } else {
+                channel.writeInbound(Commands.newSubscribe(topicName, "subscription", 1, 1,
+                        SubType.Exclusive, 0, "consumer", 0));
+            }
+            var response = readResponse(channel);
+            Assertions.assertThat(response.getType()).isEqualTo(BaseCommand.Type.ERROR);
+            Assertions.assertThat(response.getError().getRequestId()).isEqualTo(1);
+            Assertions.assertThat(response.getError().getError()).isEqualTo(expectedError);
+            Assertions.assertThat(response.getError().getMessage()).isEqualTo("rejected by interceptor");
+            channel.runPendingTasks();
+            Assertions.assertThat(channel.outboundMessages()).isEmpty();
+            long expectedCount = commandType == BaseCommand.Type.PRODUCER ? 1 : 0;
+            assertProducerCreationFailureMetrics(expectedError, expectedCount);
+            assertProducerCreationFailureMetrics(expectedError, expectedCount);
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    private static BaseCommand readResponse(EmbeddedChannel channel) {
+        await().atMost(Duration.ofSeconds(5)).until(() -> {
+            channel.runPendingTasks();
+            return !channel.outboundMessages().isEmpty();
+        });
+        ByteBuf frame = channel.readOutbound();
+        try {
+            frame.readInt();
+            int commandSize = frame.readInt();
+            var command = new BaseCommand();
+            command.parseFrom(frame, commandSize);
+            return new BaseCommand().copyFrom(command);
+        } finally {
+            frame.release();
+        }
+    }
+
+    private void assertProducerCreationFailureMetrics(ServerError error, long expectedCount) throws Exception {
+        var attributes = Attributes.of(OpenTelemetryAttributes.PULSAR_PRODUCER_CREATE_ERROR, error.name());
+        assertMetricLongSumValue(pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics(),
+                BrokerOperabilityMetrics.PRODUCER_CREATE_FAILURE_COUNTER_METRIC_NAME, attributes, expectedCount);
+        var out = new ByteArrayOutputStream();
+        PrometheusMetricsTestUtil.generate(pulsar, false, false, false, out);
+        Assertions.assertThat(parseMetrics(out.toString(StandardCharsets.UTF_8))
+                .get("pulsar_producer_create_fail_count"))
+                .filteredOn(metric -> error.name().equals(metric.tags.get("error")))
+                .singleElement().satisfies(metric -> Assertions.assertThat(metric.value).isEqualTo(expectedCount));
+    }
+
+    @Test
+    public void testNonRecoverableDataMetrics() throws Exception {
+        BrokerOperabilityMetrics brokerOperabilityMetrics = pulsar.getBrokerService()
+                .getPulsarStats().getBrokerOperabilityMetrics();
+
+        // Test initial state - should be 0
+        var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
+        assertMetricLongSumValue(metrics, BrokerOperabilityMetrics.NON_RECOVERABLE_LEDGERS_SKIPPED_COUNTER_METRIC_NAME,
+                Attributes.empty(), 0);
+        assertMetricLongSumValue(metrics, BrokerOperabilityMetrics.NON_RECOVERABLE_ENTRIES_SKIPPED_COUNTER_METRIC_NAME,
+                Attributes.empty(), 0);
+
+        // Test recording ledger skip metrics
+        brokerOperabilityMetrics.recordNonRecoverableLedgerSkipped();
+        brokerOperabilityMetrics.recordNonRecoverableLedgerSkipped();
+
+        // Test recording entry skip metrics
+        brokerOperabilityMetrics.recordNonRecoverableEntriesSkipped();
+        brokerOperabilityMetrics.recordNonRecoverableEntriesSkipped();
+        brokerOperabilityMetrics.recordNonRecoverableEntriesSkipped();
+
+        // Verify the metrics have been updated
+        metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
+        assertMetricLongSumValue(metrics, BrokerOperabilityMetrics.NON_RECOVERABLE_LEDGERS_SKIPPED_COUNTER_METRIC_NAME,
+                Attributes.empty(), 2);
+        assertMetricLongSumValue(metrics, BrokerOperabilityMetrics.NON_RECOVERABLE_ENTRIES_SKIPPED_COUNTER_METRIC_NAME,
+                Attributes.empty(), 3);
+    }
+
+    @Test
+    public void testEndToEndManagedLedgerCallbackIntegration() throws Exception {
+        BrokerOperabilityMetrics brokerOperabilityMetrics = pulsar.getBrokerService()
+                .getPulsarStats().getBrokerOperabilityMetrics();
+
+        // Get initial metric values
+        Collection<MetricData> initialMetrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
+        long initialLedgersSkipped = getMetricValue(initialMetrics,
+                BrokerOperabilityMetrics.NON_RECOVERABLE_LEDGERS_SKIPPED_COUNTER_METRIC_NAME);
+        long initialEntriesSkipped = getMetricValue(initialMetrics,
+                BrokerOperabilityMetrics.NON_RECOVERABLE_ENTRIES_SKIPPED_COUNTER_METRIC_NAME);
+
+        // Test end-to-end callback integration by creating a real topic and subscription
+        // This ensures we're testing the actual callback that BrokerService sets up during topic creation
+        String topicName = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/testEndToEndCallback");
+
+        // Create a consumer, which will automatically create the topic and subscription
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName("test-subscription")
+                .subscribe();
+        @Cleanup
+        Producer<byte[]> producer =  pulsarClient.newProducer()
+                .topic(topicName)
+                .enableBatching(false)
+                .create();
+
+        List<MessageIdAdv> messageIds = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            messageIds.add((MessageIdAdv) producer.newMessage().value(("message-" + i).getBytes()).send());
+        }
+
+        // Get the topic instance from the broker service
+        Topic topic = pulsar.getBrokerService().getTopicIfExists(topicName).get().get();
+        PersistentTopic persistentTopic = (PersistentTopic) topic;
+
+        // Get the managed ledger and cursor from the topic - these have the callback configured by BrokerService
+        ManagedLedger managedLedger = persistentTopic.getManagedLedger();
+        PersistentSubscription subscription = persistentTopic.getSubscription("test-subscription");
+        ManagedCursorImpl cursor = (ManagedCursorImpl) subscription.getCursor();
+
+        long ledgerId = messageIds.get(0).getLedgerId();
+        long firstEntryId = messageIds.get(0).getEntryId();
+        long lastEntryId = messageIds.get(messageIds.size() - 1).getEntryId();
+
+        // Test skipNonRecoverableLedger - this should trigger the callback set up by BrokerService
+        managedLedger.skipNonRecoverableLedger(ledgerId);
+        cursor.skipNonRecoverableEntries(new ImmutablePositionImpl(ledgerId, firstEntryId),
+                new ImmutablePositionImpl(ledgerId, lastEntryId + 1));
+
+        // Verify the metrics were updated through the callback chain
+        Collection<MetricData> finalMetrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
+
+        // Verify that the ledger skip metrics increased by 1 (we called skipNonRecoverableLedger once)
+        assertMetricLongSumValue(finalMetrics,
+                BrokerOperabilityMetrics.NON_RECOVERABLE_LEDGERS_SKIPPED_COUNTER_METRIC_NAME,
+                Attributes.empty(), initialLedgersSkipped + 1);
+
+        // Verify that the entries skip metrics increased by 10 (10 entries skipped)
+        assertMetricLongSumValue(finalMetrics,
+                BrokerOperabilityMetrics.NON_RECOVERABLE_ENTRIES_SKIPPED_COUNTER_METRIC_NAME,
+                Attributes.empty(), initialEntriesSkipped + 10);
+    }
+
+    private long getMetricValue(Collection<MetricData> metrics,
+                                String metricName) {
+        return metrics.stream()
+                .filter(m -> m.getName().equals(metricName))
+                .findFirst()
+                .map(metricData -> metricData.getLongSumData().getPoints().stream()
+                        .findFirst()
+                        .map(point -> point.getValue())
+                        .orElse(0L))
+                .orElse(0L);
     }
 
     @Test

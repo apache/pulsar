@@ -133,7 +133,7 @@ public class PerformanceProducerCompletionTest {
     @Test(dataProvider = "failureOrigins")
     public void errorHandlerFailureRemainsExceptional(boolean accountingFailure) {
         IllegalArgumentException handlerFailure = new IllegalArgumentException("classification failed");
-        PerformanceProducerV4 producer = new PerformanceProducerV4() {
+        PerformanceProducerV4 producer = new PerformanceProducerV4(new PerformanceProducer()) {
             @Override
             protected boolean isAlreadyClosedException(Throwable cause) {
                 throw handlerFailure;
@@ -174,8 +174,8 @@ public class PerformanceProducerCompletionTest {
 
     @Test
     public void exitOnFailureRunsAfterFailureAccounting() {
-        PerformanceProducerV4 producer = new PerformanceProducerV4();
-        producer.exitOnFailure = true;
+        PerformanceProducerV4 producer = new PerformanceProducerV4(new PerformanceProducer());
+        producer.arguments.exitOnFailure = true;
         try (MockedStatic<PerfClientUtils> utils = mockStatic(PerfClientUtils.class)) {
             utils.when(() -> PerfClientUtils.exit(1)).thenAnswer(invocation -> {
                 assertThat(producer.getMessagesFailed()).isEqualTo(1);
@@ -191,6 +191,10 @@ public class PerformanceProducerCompletionTest {
 
     private static final class RecordingProducer extends PerformanceProducerV4 {
         private Throwable observedCause;
+
+        RecordingProducer() {
+            super(new PerformanceProducer());
+        }
 
         @Override
         protected boolean isAlreadyClosedException(Throwable cause) {

@@ -33,6 +33,7 @@ import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.security.MockedPulsarStandalone;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 
@@ -61,11 +62,13 @@ public abstract class AuthZTest extends MockedPulsarStandalone {
             tenantManagerAdmin.close();
             tenantManagerAdmin = null;
         }
+        super.close();
         if (authorizationService != null) {
-            Mockito.reset(authorizationService);
+            // The spied service reaches the broker, which references the spy, so Mockito's inline mock maker would
+            // keep both until the JVM exits: release the spy once the broker is closed
+            Mockito.framework().clearInlineMock(authorizationService);
             authorizationService = null;
         }
-        super.close();
     }
 
     @SneakyThrows
@@ -76,15 +79,19 @@ public abstract class AuthZTest extends MockedPulsarStandalone {
                 getPulsarService().getBrokerService().getAuthorizationService());
         FieldUtils.writeField(getPulsarService().getBrokerService(), "authorizationService",
                 authorizationService, true);
-        Mockito.doAnswer(invocationOnMock -> {
+        Answer<Object> allowTopicOperationAsyncAnswer = invocationOnMock -> {
             Consumer<InvocationOnMock> localAllowTopicOperationAsyncHandler =
                     allowTopicOperationAsyncHandler;
             if (localAllowTopicOperationAsyncHandler != null) {
                 localAllowTopicOperationAsyncHandler.accept(invocationOnMock);
             }
             return invocationOnMock.callRealMethod();
-        }).when(authorizationService).allowTopicOperationAsync(Mockito.any(), Mockito.any(), Mockito.any(),
-                Mockito.any(), Mockito.any());
+        };
+        Mockito.doAnswer(allowTopicOperationAsyncAnswer).when(authorizationService).allowTopicOperationAsync(
+                Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
+        // used for operations on a subscription
+        Mockito.doAnswer(allowTopicOperationAsyncAnswer).when(authorizationService).allowTopicOperationAsync(
+                Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
         doReturn(true)
                 .when(authorizationService).isValidOriginalPrincipal(Mockito.any(), Mockito.any(), Mockito.any());
         Mockito.doAnswer(invocationOnMock -> {

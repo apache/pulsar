@@ -90,6 +90,12 @@ fi
 
 BOOKIE_EXTRA_OPTS="${BOOKIE_EXTRA_OPTS} ${PULSAR_EXTRA_OPTS}"
 
+# Use Netty's adaptive allocator for Pulsar's default allocator, and pin Netty's own default allocator to it (Netty
+# 4.2's default). The options are prepended to OPTS so that the configured options override them; since the named
+# setting takes precedence over -Dpulsar.allocator.type, select another allocator for general operations with
+# -Dpulsar.allocator.default.type=pooled in BOOKIE_EXTRA_OPTS.
+OPTS="-Dpulsar.allocator.default.type=adaptive -Dio.netty.allocator.type=adaptive $OPTS"
+
 # Add extra paths to the bookkeeper classpath
 # BOOKIE_EXTRA_CLASSPATH=
 

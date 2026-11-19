@@ -77,6 +77,51 @@ public interface TableViewBuilder<T> {
     CompletableFuture<TableView<T>> createAsync();
 
     /**
+     * Creates a {@link TableView} instance where the values are produced by a user-defined
+     * {@link TableViewMessageMapper mapper} from each message.
+     *
+     * <p>This provides a flexible way to create a key-value view over a topic, allowing users to extract data
+     * from the message payload, properties, and other metadata into a custom object of type {@code V}. To get
+     * a view of the full {@link Message} objects, use {@code msg -> msg} as the mapper. Message pooling is not
+     * used for mapped table views, so it is safe to keep a reference to the {@link Message} instance passed to
+     * the mapper. A retained {@link Message} holds more than its payload, though: it also keeps its metadata,
+     * schema and a reference to the connection it was received on. For a topic with many keys, prefer a
+     * mapper that copies the needed fields into a value object over {@code msg -> msg}.
+     *
+     * <p>A keyed message with an empty payload is a tombstone: the key is removed from the view and the mapper
+     * is not called for it. If the mapper returns {@code null}, the message is also treated as a tombstone.
+     * If the mapper throws, the message is skipped and {@link TableViewMessageMapper#onMappingError} is
+     * called; the key keeps its previous value.
+     *
+     * <p>A {@code topicCompactionStrategyClassName} loaded with {@link #loadConf(Map)} is rejected for
+     * mapped table views: a {@code TopicCompactionStrategy} compares values of the topic's schema type, which
+     * a mapped table view does not store.
+     *
+     * @param mapper the mapper that produces the value of type {@code V} for each {@link Message}
+     * @param <V> the type of the values in the {@link TableView}
+     * @return the {@link TableView} instance
+     * @throws PulsarClientException
+     *              if the tableView creation fails
+     * @throws IllegalArgumentException
+     *              if the mapper is {@code null} or a topic compaction strategy is configured
+     */
+    <V> TableView<V> createMapped(TableViewMessageMapper<T, V> mapper) throws PulsarClientException;
+
+    /**
+     * Creates a {@link TableView} instance in asynchronous mode where the values are produced by a
+     * user-defined {@link TableViewMessageMapper mapper} from each message.
+     *
+     * <p>See {@link #createMapped(TableViewMessageMapper)} for the mapping contract.
+     *
+     * @param mapper the mapper that produces the value of type {@code V} for each {@link Message}
+     * @param <V> the type of the values in the {@link TableView}
+     * @return a future that can be used to access the {@link TableView} instance when it's ready; it fails
+     *         with {@link IllegalArgumentException} if the mapper is {@code null} or a topic compaction
+     *         strategy is configured
+     */
+    <V> CompletableFuture<TableView<V>> createMappedAsync(TableViewMessageMapper<T, V> mapper);
+
+    /**
      * Set the topic name of the {@link TableView}.
      *
      * @param topic the name of the topic to create the {@link TableView}

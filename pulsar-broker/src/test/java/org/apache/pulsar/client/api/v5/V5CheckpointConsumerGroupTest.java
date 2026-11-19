@@ -23,11 +23,16 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.v5.schema.Schema;
+import org.apache.pulsar.common.policies.data.AutoScalePolicyOverride;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
@@ -99,6 +104,77 @@ public class V5CheckpointConsumerGroupTest extends V5ClientBaseTest {
         assertTrue(!aGot.isEmpty() && !bGot.isEmpty(),
                 "controller must split segments across both consumers"
                         + " (a=" + aGot.size() + " b=" + bGot.size() + ")");
+    }
+
+    @Test
+    public void testMembersOutnumberingSegmentsDeliverEachMessageOnce() throws Exception {
+        // One segment with the default entry-bucket budget (N = 4) and three members: the members
+        // outnumber the segments. A checkpoint consumer reads through per-segment Readers, so the
+        // segment must stay with exactly one member while the surplus members stay idle.
+        String topic = newScalableTopic(1);
+        // Pin the layout: the consumer-count auto-scale rule could otherwise split the segment and
+        // hide the surplus case under test.
+        admin.scalableTopics().setAutoScalePolicy(topic,
+                AutoScalePolicyOverride.builder().enabled(false).build());
+        String group = "group-surplus";
+
+        @Cleanup
+        Producer<String> producer = v5Client.newProducer(Schema.string())
+                .topic(topic)
+                .create();
+
+        // Fixed names make the assignment stable as members join: the controller orders members
+        // by name, so the first member keeps the segment and no rebalance moves it mid-test.
+        int memberCount = 3;
+        List<CheckpointConsumer<String>> members = new ArrayList<>();
+        for (int i = 0; i < memberCount; i++) {
+            members.add(track(v5Client.newCheckpointConsumer(Schema.string())
+                    .topic(topic)
+                    .consumerGroup(group)
+                    .consumerName("member-" + i)
+                    .startPosition(Checkpoint.earliest())
+                    .create()));
+        }
+        Awaitility.await().untilAsserted(() -> {
+            var sub = admin.scalableTopics().getStats(topic).getSubscriptions().get(group);
+            assertNotNull(sub);
+            assertEquals(sub.getConsumers().size(), memberCount);
+        });
+
+        int n = 100;
+        Set<String> sent = new HashSet<>();
+        for (int i = 0; i < n; i++) {
+            String v = "v-" + i;
+            producer.newMessage().key("k-" + (i % 16)).value(v).send();
+            sent.add(v);
+        }
+
+        Map<String, Integer> deliveries = new ConcurrentHashMap<>();
+        List<Set<String>> perMember = new ArrayList<>();
+        List<Thread> drainers = new ArrayList<>();
+        for (CheckpointConsumer<String> member : members) {
+            Set<String> mine = ConcurrentHashMap.newKeySet();
+            perMember.add(mine);
+            drainers.add(drainTo(member, deliveries, mine));
+        }
+        for (Thread t : drainers) {
+            t.join();
+        }
+
+        assertEquals(deliveries.keySet(), sent, "every message must be delivered across the group");
+        Map<String, Integer> duplicates = new TreeMap<>();
+        deliveries.forEach((v, count) -> {
+            if (count > 1) {
+                duplicates.put(v, count);
+            }
+        });
+        assertTrue(duplicates.isEmpty(), "each message must be delivered exactly once across the group;"
+                + " per-member counts=" + perMember.stream().map(Set::size).toList()
+                + " duplicated=" + duplicates);
+
+        var sub = admin.scalableTopics().getStats(topic).getSubscriptions().get(group);
+        long owners = sub.getConsumers().stream().filter(c -> !c.getSegmentIds().isEmpty()).count();
+        assertEquals(owners, 1, "the single segment must be assigned to exactly one member");
     }
 
     @Test
@@ -242,9 +318,9 @@ public class V5CheckpointConsumerGroupTest extends V5ClientBaseTest {
         Awaitility.await().atMost(Duration.ofSeconds(90)).untilAsserted(() -> {
             var stats = admin.scalableTopics().getStats(topic);
             var sub = stats.getSubscriptions().get(group);
-            assertTrue(sub == null || sub.consumerCount() == 0,
+            assertTrue(sub == null || sub.getConsumers().isEmpty(),
                     "group '" + group + "' must leave no consumers behind, got "
-                            + (sub == null ? "null" : sub.consumerCount() + " consumers"));
+                            + (sub == null ? "null" : sub.getConsumers().size() + " consumers"));
         });
     }
 
@@ -266,6 +342,25 @@ public class V5CheckpointConsumerGroupTest extends V5ClientBaseTest {
             }
         }
         return received;
+    }
+
+    private Thread drainTo(CheckpointConsumer<String> consumer, Map<String, Integer> deliveries,
+                           Set<String> mine) {
+        Thread t = new Thread(() -> {
+            try {
+                while (true) {
+                    Message<String> msg = consumer.receive(Duration.ofSeconds(1));
+                    if (msg == null) {
+                        return;
+                    }
+                    deliveries.merge(msg.value(), 1, Integer::sum);
+                    mine.add(msg.value());
+                }
+            } catch (Exception ignored) {
+            }
+        }, "checkpoint-consumer-drainer");
+        t.start();
+        return t;
     }
 
     private Thread drainTo(CheckpointConsumer<String> consumer, Set<String> all, Set<String> mine) {

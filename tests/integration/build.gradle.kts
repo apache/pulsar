@@ -17,17 +17,20 @@
  * under the License.
  */
 
+import org.gradle.api.tasks.testing.logging.TestExceptionFormat
+
 plugins {
     id("pulsar.java-conventions")
 }
 
 dependencies {
     implementation(libs.slog)
+    testImplementation(project(":tests:performance:common"))
     testImplementation(libs.gson)
     testImplementation(project(":pulsar-functions:pulsar-functions-api-examples"))
     testImplementation(project(":pulsar-broker"))
     testImplementation(project(":pulsar-broker-common"))
-    testImplementation(project(path = ":pulsar-broker-common", configuration = "testJar"))
+    testImplementation(testJar(":pulsar-broker-common"))
     testImplementation(project(":pulsar-common"))
     testImplementation(project(":pulsar-client-original"))
     testImplementation(project(":pulsar-client-api-v5"))
@@ -72,14 +75,11 @@ dependencies {
     }
 }
 
-// Copy certificate-authority resources to test output
-val copyCertificateAuthority = tasks.register<Copy>("copyCertificateAuthority") {
-    from("${rootDir}/tests/certificate-authority")
-    into(layout.buildDirectory.dir("resources/test/certificate-authority"))
-}
-
-tasks.named("processTestResources") {
-    dependsOn(copyCertificateAuthority)
+// Add the certificate-authority resources to the test resources
+tasks.named<ProcessResources>("processTestResources") {
+    from(layout.projectDirectory.dir("../certificate-authority")) {
+        into("certificate-authority")
+    }
 }
 
 // Tests are skipped by default — only run when explicitly invoked via the integration test runner
@@ -96,21 +96,39 @@ val integrationTestExcludedGroups = providers.gradleProperty("excludedTestGroups
 val integrationTestAsyncProfilerDir = providers.gradleProperty("inttest.asyncprofiler.dir")
     .getOrElse(layout.buildDirectory.get().asFile.absolutePath)
 // Stamped into the async-profiler output file names so that profiles recorded from different
-// revisions can be told apart when they are compared. Resolved here rather than left to the caller:
-// a value nobody passes only produces empty segments in the file name. `git rev-parse` is
+// revisions can be told apart when they are compared. Resolved by the build rather than left to the
+// caller: a value nobody passes only produces empty segments in the file name. `git rev-parse` is
 // best-effort — a tree built without git, or without a .git directory, simply leaves the commit id
 // out of the name — and -Pgit.commit.id.abbrev overrides it. Nothing has to pass a timestamp in;
 // the profiler expands the run timestamp itself.
-val gitCommitIdAbbrev = providers.gradleProperty("git.commit.id.abbrev").orNull
-    ?: runCatching {
-        providers.exec {
-            commandLine("git", "rev-parse", "--short", "HEAD")
-            isIgnoreExitValue = true
-        }.standardOutput.asText.get().trim()
-    }.getOrDefault("")
+// Kept as a provider that only a task action reads: a process output obtained while configuring
+// becomes a configuration cache input, and the cache would then be discarded on every commit,
+// cherry-pick or rebase.
+val gitCommitIdAbbrev = providers.gradleProperty("git.commit.id.abbrev")
+    .orElse(providers.exec {
+        commandLine("git", "rev-parse", "--short", "HEAD")
+        isIgnoreExitValue = true
+    }.standardOutput.asText.map { it.trim() })
 // Must match the image that :tests:java-test-image:dockerBuildWithAsyncProfiler tags.
 val dockerOrganization = providers.gradleProperty("docker.organization").getOrElse("apachepulsar")
 val dockerTag = providers.gradleProperty("docker.tag").getOrElse("latest")
+// The image that integrationTest runs against: PULSAR_TEST_IMAGE_NAME, or else the image that
+// :tests:latest-version-image:dockerBuild builds. The ID of the image is an input of integrationTest,
+// which builds the image first, and Gradle skips the build when nothing that goes into the image has
+// changed, so that the tests don't run against a stale image. -Pinttest.skipDockerBuild skips building
+// it, for CI jobs that load an image that an earlier job built.
+val integrationTestImage = providers.environmentVariable("PULSAR_TEST_IMAGE_NAME")
+    .getOrElse("${dockerOrganization}/pulsar-test-latest-version:${dockerTag}")
+// The project and shared build artifact (see SharedBuildArtifacts.kt) of each image this repository builds
+val integrationTestImageBuild = mapOf(
+    "${dockerOrganization}/pulsar-test-latest-version:${dockerTag}" to
+        (":tests:latest-version-image" to "docker-image:pulsar-test-latest-version"),
+    "${dockerOrganization}/java-test-image:${dockerTag}" to
+        (":tests:java-test-image" to "docker-image:java-test-image"),
+)[integrationTestImage]
+val skipDockerBuild = providers.gradleProperty("inttest.skipDockerBuild")
+    .map { it.isEmpty() || it.toBoolean() }
+    .getOrElse(false)
 val ideaActive = providers.systemProperty("idea.active").map { it.toBoolean() }.getOrElse(false)
 // When `--tests` is passed on the CLI, let TestNG discover tests directly from the classpath
 // instead of restricting discovery to the suite XML — unless -PintegrationTestSuiteFile was
@@ -135,7 +153,13 @@ fun Test.configureIntegrationTestDefaults(defaultProfiledComponents: String = ""
     providers.gradleProperty("inttest.asyncprofiler.outputformat").orNull?.let {
         systemProperty("inttest.asyncprofiler.outputformat", it)
     }
-    systemProperty("git.commit.id.abbrev", gitCommitIdAbbrev)
+    // Copied into a local so the action does not capture the script object (see tuneKernelPerfEvents).
+    val commitId = gitCommitIdAbbrev
+    doFirst {
+        val test = this as Test
+        // Obtaining the output fails on a tree built without git; the name then carries no commit id.
+        test.systemProperty("git.commit.id.abbrev", runCatching { commitId.get() }.getOrDefault(""))
+    }
 
     // Cluster components to attach async-profiler to, which is also what decides whether this run
     // counts as a profiling run.
@@ -163,16 +187,27 @@ fun Test.configureIntegrationTestDefaults(defaultProfiledComponents: String = ""
         events("passed", "skipped", "failed")
         showExceptions = true
         showStackTraces = true
-        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+        exceptionFormat = TestExceptionFormat.FULL
     }
 }
 
 val integrationTest = tasks.register<Test>("integrationTest") {
+    group = "verification"
+    description = "Runs the integration tests against Pulsar clusters in Docker containers"
     configureIntegrationTestDefaults()
+
+    environment("PULSAR_TEST_IMAGE_NAME", integrationTestImage)
+    if (integrationTestImageBuild != null && !skipDockerBuild) {
+        val (imageProject, imageArtifact) = integrationTestImageBuild
+        inputs.files(sharedBuildArtifact(imageProject, imageArtifact))
+            .withPropertyName("testImageId")
+            .withPathSensitivity(PathSensitivity.NONE)
+    }
 
     if (!ideaActive && (!hasCliTestsFilter || integrationTestSuiteFileExplicit)) {
         useTestNG {
-            suites("src/test/resources/${integrationTestSuiteFile}")
+            // A comma-separated list runs the suites one after the other in one test JVM
+            suites(*integrationTestSuiteFile.split(",").map { "src/test/resources/${it.trim()}" }.toTypedArray())
             if (!integrationTestGroups.isNullOrEmpty()) {
                 includeGroups(integrationTestGroups)
             }
@@ -198,10 +233,15 @@ val integrationTest = tasks.register<Test>("integrationTest") {
 // applied to the kernel that runs the containers (the Docker VM on macOS, the host on Linux) by a
 // privileged throwaway container. Skip it with -Pinttest.asyncprofiler.skipPerfEventTuning when the
 // values are already set, when the Docker setup disallows privileged containers, or when profiling
-// with an engine that does not need perf_events.
-val skipPerfEventTuning = providers.gradleProperty("inttest.asyncprofiler.skipPerfEventTuning").isPresent
+// with an engine that does not need perf_events. The property skips it when it is empty or true, so
+// that a later skipPerfEventTuning=false in gradle.properties can override an earlier true.
+// tests/performance/environment/scripts/configure-perf-test-environment.sh sets it while the TuneD
+// profile that applies these settings is active.
+val skipPerfEventTuning = providers.gradleProperty("inttest.asyncprofiler.skipPerfEventTuning")
+    .map { it.isEmpty() || it.toBoolean() }
+    .getOrElse(false)
 val tuneKernelPerfEvents = tasks.register<Exec>("tuneKernelPerfEvents") {
-    description = "Relax the kernel perf_event limits that async-profiler's cpu engine needs"
+    description = "Relax the kernel perf_event and BPF limits that the profilers need"
     // Copied into a local: a task action that captured the script-level val would capture the
     // script object with it, which the configuration cache cannot serialize.
     val skip = skipPerfEventTuning
@@ -211,14 +251,21 @@ val tuneKernelPerfEvents = tasks.register<Exec>("tuneKernelPerfEvents") {
         "docker", "run", "--rm", "--privileged",
         "--cap-add", "SYS_ADMIN", "--security-opt", "seccomp=unconfined",
         "alpine:3.24", "sh", "-c",
-        "echo 1 > /proc/sys/kernel/perf_event_paranoid "
+        // The BPF syscall gate that jonoffcpu's collector needs, written first and separated by ';' rather
+        // than chained: on a kernel where the value already reads 1 the write fails with EPERM, and 1 is a
+        // one-way latch until the next boot, so chaining would fail everything below over a setting that is
+        // out of reach anyway.
+        "echo 0 > /proc/sys/kernel/unprivileged_bpf_disabled; "
+            + "echo 1 > /proc/sys/kernel/perf_event_paranoid "
             + "&& echo 0 > /proc/sys/kernel/kptr_restrict "
             + "&& echo 1024 > /proc/sys/kernel/perf_event_max_stack "
             + "&& echo 2048 > /proc/sys/kernel/perf_event_mlock_kb "
-            // also optimize for -XX:+UseTransparentHugePages
+            // also optimize for -XX:+UseTransparentHugePages. With defrag=madvise, the madvised heap is
+            // compacted into huge pages when it is touched, so -XX:+AlwaysPreTouch gets them at startup
+            // instead of depending on memory fragmentation and khugepaged collapsing them later.
             + "&& echo madvise > /sys/kernel/mm/transparent_hugepage/enabled "
             + "&& echo advise > /sys/kernel/mm/transparent_hugepage/shmem_enabled "
-            + "&& echo defer > /sys/kernel/mm/transparent_hugepage/defrag "
+            + "&& echo madvise > /sys/kernel/mm/transparent_hugepage/defrag "
             + "&& echo 1 > /sys/kernel/mm/transparent_hugepage/khugepaged/defrag"
     )
     // Best effort: profiling still works without it, only with less accurate native stacks, so a
@@ -244,8 +291,17 @@ tasks.register<Test>("profilingIntegrationTest") {
     // itself and does not depend on this; every other integration test does, since they default off.
     configureIntegrationTestDefaults(defaultProfiledComponents = "broker")
 
-    // Build the test image that carries the profiler, and prepare the kernel for it.
-    dependsOn(":tests:java-test-image:dockerBuildWithAsyncProfiler", tuneKernelPerfEvents)
+    // Resolve the harness environment through a Provider so configuration-cache reuse tracks scenario
+    // and output overrides instead of retaining an earlier profiling invocation's environment.
+    environment(providers.environmentVariablesPrefixedBy("PULSAR_PROFILING_").get() +
+        providers.environmentVariablesPrefixedBy("pulsar_profiling_").get())
+
+    // Build the test image that carries the profiler, and prepare the kernel for it. The tuning only
+    // changes the kernel's settings and has no outputs to wire in, so it stays a task dependency.
+    inputs.files(sharedBuildArtifact(":tests:java-test-image", "docker-image:java-test-image-asyncprofiler"))
+        .withPropertyName("testImageId")
+        .withPathSensitivity(PathSensitivity.NONE)
+    dependsOn(tuneKernelPerfEvents)
 
     // Target the test directly rather than through a suite XML, so that --tests can point this at
     // any other integration test without a suite file having to exist for it.

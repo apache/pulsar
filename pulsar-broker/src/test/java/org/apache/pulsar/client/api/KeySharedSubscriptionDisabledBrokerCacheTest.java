@@ -50,13 +50,10 @@ import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.StickyKeyDispatcher;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
-import org.apache.pulsar.tests.KeySharedImplementationType;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
-import org.testng.annotations.DataProvider;
-import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-impl")
@@ -64,33 +61,9 @@ import org.testng.annotations.Test;
 public class KeySharedSubscriptionDisabledBrokerCacheTest extends ProducerConsumerBase {
     private static final List<String> keys = Arrays.asList("0", "1", "2", "3", "4", "5", "6", "7", "8", "9");
     private static final String SUBSCRIPTION_NAME = "key_shared";
-    private final KeySharedImplementationType implementationType;
-
-    // Comment out the next line (Factory annotation) to run tests manually in IntelliJ, one-by-one
-    @Factory
-    public static Object[] createTestInstances() {
-        return KeySharedImplementationType.generateTestInstances(KeySharedSubscriptionDisabledBrokerCacheTest::new);
-    }
-
-    public KeySharedSubscriptionDisabledBrokerCacheTest() {
-        // set the default implementation type for manual running in IntelliJ
-        this(KeySharedImplementationType.PIP379);
-    }
-
-    public KeySharedSubscriptionDisabledBrokerCacheTest(KeySharedImplementationType implementationType) {
-        this.implementationType = implementationType;
-    }
-
-    @DataProvider(name = "currentImplementationType")
-    public Object[] currentImplementationType() {
-        return new Object[]{ implementationType };
-    }
-
     @BeforeClass(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
-        conf.setSubscriptionKeySharedUseClassicPersistentImplementation(implementationType.classic);
-        conf.setSubscriptionSharedUseClassicPersistentImplementation(implementationType.classic);
         this.conf.setUnblockStuckSubscriptionEnabled(false);
         this.conf.setSubscriptionKeySharedUseConsistentHashing(true);
         conf.setManagedLedgerCacheSizeMB(0);
@@ -156,8 +129,8 @@ public class KeySharedSubscriptionDisabledBrokerCacheTest extends ProducerConsum
         return dispatcher.getSelector();
     }
 
-    @Test(dataProvider = "currentImplementationType", invocationCount = 1)
-    public void testMessageOrderInSingleConsumerReconnect(KeySharedImplementationType impl) throws Exception {
+    @Test(invocationCount = 1)
+    public void testMessageOrderInSingleConsumerReconnect() throws Exception {
         String topic = newUniqueName("testMessageOrderInSingleConsumerReconnect");
         int numberOfKeys = 100;
         long pauseTime = 100L;

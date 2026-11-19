@@ -52,6 +52,7 @@ public class ShadowTopicRealBkTest {
         bk.start();
         final int zkPort = bk.getZookeeperPort();
         final var config = new ServiceConfiguration();
+        config.setEnableShadowTopics(true);
         config.setClusterName(cluster);
         config.setAdvertisedAddress("localhost");
         config.setBrokerServicePort(Optional.of(0));

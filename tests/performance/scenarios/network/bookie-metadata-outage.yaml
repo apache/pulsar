@@ -1,0 +1,40 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# Every bookie is cut off from ZooKeeper for 45 s of the measurement, past the session timeout, in the failover cluster,
+# while the brokers still reach the bookies and ZooKeeper; the consumers' connections are reset 20 s in, so that the
+# consumers reconnect, look their topics up and subscribe again. Writing to and reading from a bookie doesn't need
+# ZooKeeper, so the bookies should keep serving the brokers. Pulsar's default configuration runs the AutoRecovery daemon
+# inside each bookie (autoRecoveryDaemonEnabled=true), which reacts to the lost metadata session; compare with --set
+# cluster.bookies.env.autoRecoveryDaemonEnabled=false. The test image doesn't restart a bookie that exits.
+#
+# Look for: whether the bookies stay up, in their logs in the checkout's build/container-logs, the brokers' failures to
+# create ledgers (BKNotEnoughBookiesException), and whether publishing goes on and every message is delivered.
+
+extends: failover-cluster.yaml
+network:
+  impairments:
+    bookie-metadata-outage:
+      between: [bookies, zookeeper]
+      partition: true
+      start: 30s
+      duration: 45s
+    reset-applications:
+      from: applications
+      to: brokers
+      reset: true
+      start: 50s

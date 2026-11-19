@@ -57,3 +57,8 @@ public class DemoFunction implements HookFunction<String, String>{
 }
 ```
 It is quite simple and clear to use in function processing code.
+
+# Links
+
+* Mailing List discussion thread: https://lists.apache.org/thread/9422tg96mg1o4b1w057l5dvnno82scx6
+* Mailing List voting thread: https://lists.apache.org/thread/to18r5v782qx7hcbfkczg1f5bg0mvjl0

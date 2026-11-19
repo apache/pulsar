@@ -19,6 +19,8 @@
 package org.apache.pulsar.broker.service;
 
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgsRecordingInvocations;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
@@ -33,9 +35,12 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockAuthenticationProvider;
@@ -48,11 +53,14 @@ import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.scalable.ScalableTopicService;
 import org.apache.pulsar.broker.service.utils.ClientChannelHelper;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
+import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandConnected;
 import org.apache.pulsar.common.api.proto.CommandScalableTopicSubscribeResponse;
 import org.apache.pulsar.common.api.proto.CommandScalableTopicUpdate;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.ScalableConsumerType;
 import org.apache.pulsar.common.api.proto.ServerError;
+import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.protocol.Commands;
@@ -256,6 +264,86 @@ public class ScalableTopicBinaryAuthZTest {
         verify(authorizationService, never()).allowTopicOperationAsync(any(), any(), any(), any());
     }
 
+    @Test
+    public void testDisabledCommandsReturnErrors() throws Exception {
+        svcConfig.setScalableTopicsEnabled(false);
+        svcConfig.setTransactionCoordinatorEnabled(true);
+        svcConfig.setTransactionCoordinatorScalableTopicsEnabled(true);
+        configureAuthAndConnect(AUTHORIZED_ROLE);
+
+        List<Supplier<ByteBuf>> commands = List.of(
+                () -> Commands.newScalableTopicLookup(1, TOPIC),
+                () -> Commands.newScalableTopicClose(1),
+                () -> Commands.newScalableTopicSubscribe(1, TOPIC, SUBSCRIPTION,
+                        "consumer", 1, ScalableConsumerType.STREAM),
+                () -> Commands.newScalableTopicUnsubscribe(1, 1),
+                () -> Commands.newWatchScalableTopics(1, "public/default", null, null),
+                () -> Commands.newWatchScalableTopicsClose(1),
+                () -> Commands.newWatchTcAssignments(1),
+                () -> Commands.newWatchTcAssignmentsClose(1),
+                () -> Commands.newTcClientConnectRequest(0, 1, true),
+                () -> Commands.newTxn(0, 1, 10000, true),
+                () -> Commands.newAddPartitionToTxn(1, 0, 0, List.of(TOPIC), true),
+                () -> Commands.newAddSubscriptionToTxn(1, 0, 0, List.of(), true),
+                () -> Commands.serializeWithSize(Commands.newEndTxn(1, 0, 0, TxnAction.COMMIT, true)));
+        for (Supplier<ByteBuf> command : commands) {
+            channel.writeInbound(command.get());
+            BaseCommand response = readProtocolResponse();
+            ServerError error = switch (response.getType()) {
+                case SCALABLE_TOPIC_UPDATE -> response.getScalableTopicUpdate().getError();
+                case SCALABLE_TOPIC_SUBSCRIBE_RESPONSE -> response.getScalableTopicSubscribeResponse().getError();
+                case WATCH_SCALABLE_TOPICS_UPDATE -> response.getWatchScalableTopicsUpdate().getError();
+                case WATCH_TC_ASSIGNMENTS_UPDATE -> response.getWatchTcAssignmentsUpdate().getError();
+                case TC_CLIENT_CONNECT_RESPONSE -> response.getTcClientConnectResponse().getError();
+                case NEW_TXN_RESPONSE -> response.getNewTxnResponse().getError();
+                case ADD_PARTITION_TO_TXN_RESPONSE -> response.getAddPartitionToTxnResponse().getError();
+                case ADD_SUBSCRIPTION_TO_TXN_RESPONSE -> response.getAddSubscriptionToTxnResponse().getError();
+                case END_TXN_RESPONSE -> response.getEndTxnResponse().getError();
+                case ERROR -> response.getError().getError();
+                default -> throw new AssertionError("Unexpected response: " + response.getType());
+            };
+            assertThat(error).as("error for %s", response.getType()).isEqualTo(ServerError.NotAllowedError);
+        }
+        verify(authorizationService, never()).allowTopicOperationAsync(any(), any(), any(), any());
+    }
+
+    @Test
+    public void testDisabledTopicDomainsRejectedByLookupAndPartitionMetadata() throws Exception {
+        svcConfig.setScalableTopicsEnabled(false);
+        configureAuthAndConnect(AUTHORIZED_ROLE);
+        for (String topic : List.of("topic://public/default/test", "segment://public/default/test/0000-ffff-0")) {
+            channel.writeInbound(Commands.newLookup(topic, false, 1));
+            var lookup = readProtocolResponse().getLookupTopicResponse();
+            assertThat(lookup.getError()).isEqualTo(ServerError.InvalidTopicName);
+            assertThat(lookup.getMessage()).contains("Scalable topics are disabled");
+            channel.writeInbound(Commands.newPartitionMetadataRequest(topic, 2, true));
+            assertThat(readProtocolResponse().getPartitionMetadataResponse().getError())
+                    .isEqualTo(ServerError.InvalidTopicName);
+            channel.writeInbound(Commands.newProducer(topic, 1, 3, "producer", Map.of(), false));
+            assertThat(readProtocolResponse().getError().getError()).isEqualTo(ServerError.InvalidTopicName);
+            channel.writeInbound(Commands.newSubscribe(topic, "subscription", 1, 4,
+                    SubType.Shared, 0, "consumer", 0));
+            assertThat(readProtocolResponse().getError().getError()).isEqualTo(ServerError.InvalidTopicName);
+        }
+    }
+
+    private BaseCommand readProtocolResponse() {
+        await().until(() -> {
+            channel.runPendingTasks();
+            return !channel.outboundMessages().isEmpty();
+        });
+        ByteBuf frame = channel.readOutbound();
+        try {
+            frame.readInt(); // frame size
+            int commandSize = frame.readInt();
+            BaseCommand command = new BaseCommand();
+            command.parseFrom(frame, commandSize);
+            return new BaseCommand().copyFrom(command);
+        } finally {
+            frame.release();
+        }
+    }
+
     private void configureAuthAndConnect(String role) throws Exception {
         AuthenticationService authenticationService = mock(AuthenticationService.class);
         AuthenticationProvider authenticationProvider = new MockAuthenticationProvider();
@@ -276,6 +364,11 @@ public class ScalableTopicBinaryAuthZTest {
 
         Object response = readResponse();
         assertTrue(response instanceof CommandConnected, "Expected CommandConnected, got " + response);
+        var flags = ((CommandConnected) response).getFeatureFlags();
+        assertThat(flags.isSupportsScalableTopics()).isEqualTo(svcConfig.isScalableTopicsEnabled());
+        if (!svcConfig.isScalableTopicsEnabled()) {
+            assertThat(flags.isSupportsTcMetadataDiscovery()).isFalse();
+        }
     }
 
     private void resetChannel() throws Exception {

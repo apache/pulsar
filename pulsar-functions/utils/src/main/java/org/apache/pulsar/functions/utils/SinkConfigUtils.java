@@ -157,6 +157,9 @@ public class SinkConfigUtils {
                 if (spec.getReceiverQueueSize() != null) {
                     bldr.setReceiverQueueSize().setValue(spec.getReceiverQueueSize());
                 }
+                if (spec.getSchemaProperties() != null) {
+                    spec.getSchemaProperties().forEach(bldr::putSchemaProperties);
+                }
                 if (spec.getCryptoConfig() != null) {
                     bldr.setCryptoSpec().copyFrom(CryptoUtils.convert(spec.getCryptoConfig()));
                 }
@@ -273,6 +276,9 @@ public class SinkConfigUtils {
             functionDetails.setCustomRuntimeOptions(sinkConfig.getCustomRuntimeOptions());
         }
 
+        functionDetails.setClientApi(FunctionCommon.convertClientApi(sinkConfig.getClientApi()));
+        ClientApiResolver.resolve(functionDetails);
+
         return FunctionConfigUtils.validateFunctionDetails(functionDetails);
     }
 
@@ -306,6 +312,9 @@ public class SinkConfigUtils {
                         input.getMessagePayloadProcessorSpec()));
             }
             consumerConfig.setRegexPattern(input.isIsRegexPattern());
+            Map<String, String> schemaProps = new HashMap<>();
+            input.forEachSchemaProperties(schemaProps::put);
+            consumerConfig.setSchemaProperties(schemaProps);
             Map<String, String> consumerProps = new HashMap<>();
             input.forEachConsumerProperties(consumerProps::put);
             consumerConfig.setConsumerProperties(consumerProps);
@@ -331,6 +340,7 @@ public class SinkConfigUtils {
         if (!isEmpty(functionDetails.getLogTopic())) {
             sinkConfig.setLogTopic(functionDetails.getLogTopic());
         }
+        sinkConfig.setClientApi(FunctionCommon.convertClientApi(functionDetails.getClientApi()));
 
         sinkConfig.setProcessingGuarantees(convertProcessingGuarantee(functionDetails.getProcessingGuarantees()));
 
@@ -635,6 +645,9 @@ public class SinkConfigUtils {
         }
         if (!StringUtils.isEmpty(newConfig.getLogTopic())) {
             mergedConfig.setLogTopic(newConfig.getLogTopic());
+        }
+        if (newConfig.getClientApi() != null) {
+            mergedConfig.setClientApi(newConfig.getClientApi());
         }
 
         if (newConfig.getInputs() != null) {

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.worker.rest;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.opentelemetry.api.OpenTelemetry;
 import jakarta.servlet.DispatcherType;
 import java.util.ArrayList;
@@ -46,6 +47,7 @@ import org.apache.pulsar.functions.worker.rest.api.v2.WorkerApiV2Resource;
 import org.apache.pulsar.functions.worker.rest.api.v2.WorkerStatsApiV2Resource;
 import org.apache.pulsar.jetty.metrics.JettyStatisticsCollector;
 import org.apache.pulsar.jetty.tls.JettyTlsFactory;
+import org.apache.pulsar.jetty.tls.PulsarSslConnectionFactory;
 import org.apache.pulsar.tls.PulsarTlsFactory;
 import org.apache.pulsar.tls.TlsFactoryInitContext;
 import org.apache.pulsar.tls.TlsPolicy;
@@ -64,7 +66,6 @@ import org.eclipse.jetty.server.ProxyConnectionFactory;
 import org.eclipse.jetty.server.SecureRequestCustomizer;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
-import org.eclipse.jetty.server.SslConnectionFactory;
 import org.eclipse.jetty.server.handler.ContextHandlerCollection;
 import org.eclipse.jetty.server.handler.DefaultHandler;
 import org.eclipse.jetty.server.handler.QoSHandler;
@@ -98,7 +99,7 @@ public class WorkerServer {
         this.authenticationService = authenticationService;
         this.webServerExecutor = new WebExecutorThreadPool(this.workerConfig.getNumHttpServerThreads(), "function-web",
                 this.workerConfig.getHttpServerThreadPoolQueueSize());
-        this.filterInitializer = new FilterInitializer(workerConfig, authenticationService);
+        this.filterInitializer = new FilterInitializer(workerConfig, authenticationService, workerOpenTelemetry());
         init();
     }
 
@@ -178,6 +179,7 @@ public class WorkerServer {
         if (this.workerConfig.getTlsEnabled()) {
             log.info().attr("port", this.workerConfig.getWorkerPortTls())
                     .log("Configuring https server");
+            this.workerConfig.logTlsClientAuthMode("functions-worker");
             try {
                 this.scheduledExecutorService = Executors
                         .newSingleThreadScheduledExecutor(new ExecutorProvider
@@ -189,7 +191,8 @@ public class WorkerServer {
                 if (workerConfig.isWebServiceHaProxyProtocolEnabled()) {
                     connectionFactories.add(new ProxyConnectionFactory());
                 }
-                connectionFactories.add(new SslConnectionFactory(sslCtxFactory, httpConnectionFactory.getProtocol()));
+                connectionFactories.add(
+                        new PulsarSslConnectionFactory(sslCtxFactory, httpConnectionFactory.getProtocol()));
                 connectionFactories.add(httpConnectionFactory);
                 // org.eclipse.jetty.server.AbstractConnectionFactory.getFactories contains similar logic
                 // this is needed for TLS authentication
@@ -215,11 +218,12 @@ public class WorkerServer {
         private final List<FilterHolder> filterHolders = new ArrayList<>();
         private final FilterHolder authenticationFilterHolder;
 
-        FilterInitializer(WorkerConfig config, AuthenticationService authenticationService) {
+        FilterInitializer(WorkerConfig config, AuthenticationService authenticationService,
+                          OpenTelemetry openTelemetry) {
             if (config.isHttpRequestsLimitEnabled()) {
                 filterHolders.add(new FilterHolder(
                         new RateLimitingFilter(config.getHttpRequestsMaxPerSecond(),
-                                OpenTelemetry.noop().getMeter(PulsarWorkerOpenTelemetry.INSTRUMENTATION_SCOPE_NAME))));
+                                openTelemetry.getMeter(PulsarWorkerOpenTelemetry.INSTRUMENTATION_SCOPE_NAME))));
             }
 
             if (config.isAuthenticationEnabled()) {
@@ -344,7 +348,7 @@ public class WorkerServer {
             TlsFactorySupport.initializeBlocking(this.tlsFactory, initContext);
             this.reloadableServerTls = JettyTlsFactory.createReloadingServerFactory(this.tlsFactory, TlsPurpose.WEB,
                     scheduledExecutorService,
-                    config.getTlsProvider(), config.isTlsRequireTrustedClientCertOnConnect(),
+                    config.getTlsProvider(), config.resolveTlsClientAuthMode(),
                     config.isTlsAllowInsecureConnection(), config.getWebServiceTlsCiphers(),
                     config.getWebServiceTlsProtocols());
             return this.reloadableServerTls.sslContextFactory();
@@ -361,7 +365,8 @@ public class WorkerServer {
         }
     }
 
-    private static PulsarTlsFactory buildDefaultWebTlsFactory(WorkerConfig config) {
+    @VisibleForTesting
+    static PulsarTlsFactory buildDefaultWebTlsFactory(WorkerConfig config) {
         TlsPolicy.Builder policyBuilder = TlsPolicy.builder()
                 .allowInsecureConnection(config.isTlsAllowInsecureConnection())
                 .protocols(toList(config.getWebServiceTlsProtocols()))
@@ -390,7 +395,7 @@ public class WorkerServer {
         Map<TlsPurpose, TlsPolicy> policies = Map.of(TlsPurpose.WEB, policyBuilder.build());
         // The Jetty web path uses a JDK SSLContext, so the Netty engine selection is irrelevant here.
         FileBasedTlsFactorySettings settings = FileBasedTlsFactorySettings.builder()
-                .requireTrustedClientCert(config.isTlsRequireTrustedClientCertOnConnect())
+                .clientAuthMode(config.resolveTlsClientAuthMode())
                 .refreshIntervalSeconds(FileBasedTlsFactorySettings.refreshIntervalSecondsFromConfig(
                         config.getTlsCertRefreshCheckDurationSec()))
                 .build();

@@ -18,7 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.rawEntryConfig;
+import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.defaultConfig;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -26,6 +26,8 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -46,6 +48,7 @@ import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.cache.EntryCache;
 import org.apache.bookkeeper.mledger.impl.cache.EntryCacheDisabled;
 import org.apache.bookkeeper.mledger.impl.cache.EntryCacheManager;
+import org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheManagerImpl;
 import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.awaitility.Awaitility;
@@ -65,13 +68,13 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         when(ml1.getMbean()).thenReturn(new ManagedLedgerMBeanImpl(ml1));
         when(ml1.getExecutor()).thenReturn((ThreadBoundExecutor) bkExecutor.chooseThread());
         when(ml1.getFactory()).thenReturn(factory);
-        when(ml1.getConfig()).thenReturn(rawEntryConfig());
+        when(ml1.getConfig()).thenReturn(defaultConfig());
         when(ml1.isBatchReadEnabled()).thenReturn(true);
 
         ml2 = mock(ManagedLedgerImpl.class);
         when(ml2.getScheduledExecutor()).thenReturn(executor);
         when(ml2.getName()).thenReturn("cache2");
-        when(ml2.getConfig()).thenReturn(rawEntryConfig());
+        when(ml2.getConfig()).thenReturn(defaultConfig());
         when(ml2.isBatchReadEnabled()).thenReturn(true);
     }
 
@@ -139,7 +142,9 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         assertEquals(factory2.getMbean().getCacheHitsRate(), 0.0);
         assertEquals(factory2.getMbean().getCacheMissesRate(), 0.0);
         assertEquals(factory2.getMbean().getCacheHitsThroughput(), 0.0);
-        assertEquals(factory2.getMbean().getNumberOfCacheEvictions(), 1);
+        // The factory's own stats task also refreshes the per-period counters, and its first run may land after
+        // the eviction, so check the total count that refreshes don't reset
+        assertEquals(factory2.getMbean().getNumberOfCacheEvictionsTotal(), 1);
         assertEquals(factory2.getMbean().getCacheInsertedEntriesCount(), 5);
         assertEquals(factory2.getMbean().getCacheEntriesCount(), 2);
         assertEquals(factory2.getMbean().getCacheEvictedEntriesCount(), 3);
@@ -170,6 +175,38 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         assertEquals(factory2.getMbean().getCacheInsertedEntriesCount(), 2);
         assertEquals(factory2.getMbean().getCacheEntriesCount(), 2);
         assertEquals(factory2.getMbean().getCacheEvictedEntriesCount(), 0);
+    }
+
+    @Test
+    public void updateCopyEntriesWithoutClearingExistingCache() throws Exception {
+        ManagedLedgerFactoryConfig config = new ManagedLedgerFactoryConfig();
+        config.setMaxCacheSize(100);
+
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc, config);
+        RangeEntryCacheManagerImpl cacheManager =
+                (RangeEntryCacheManagerImpl) factory2.getEntryCacheManager();
+        EntryCache cache = cacheManager.getEntryCache(ml1);
+
+        ByteBuf retainedData = Unpooled.buffer().writeByte(1);
+        EntryImpl retainedEntry = EntryImpl.create(1, 0, retainedData);
+        retainedData.release();
+        assertTrue(cache.insert(retainedEntry));
+        retainedEntry.release();
+        assertEquals(retainedData.refCnt(), 1);
+
+        cacheManager.updateCopyEntriesInCache(true);
+        assertTrue(factory2.getConfig().isCopyEntriesInCache());
+        assertEquals(retainedData.refCnt(), 1);
+        ByteBuf copiedData = Unpooled.buffer().writeByte(2);
+        EntryImpl copiedEntry = EntryImpl.create(1, 1, copiedData);
+        copiedData.release();
+        assertTrue(cache.insert(copiedEntry));
+        copiedEntry.release();
+        assertEquals(copiedData.refCnt(), 0);
+
+        cache.clear();
+        assertEquals(retainedData.refCnt(), 0);
     }
 
     @Test
@@ -266,7 +303,7 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         ManagedLedgerFactoryImpl factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc, config);
 
         EntryCacheManager cacheManager = factory2.getEntryCacheManager();
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory2.open("ledger", rawEntryConfig());
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory2.open("ledger", defaultConfig());
         EntryCache cache1 = ledger.entryCache;
 
         for (int i = 0; i < 10; i++) {
@@ -295,7 +332,7 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         config.setCacheEvictionWatermark(0.8);
         config.setCacheEvictionIntervalMs(1000);
 
-        ManagedLedgerConfig managedLedgerConfig = rawEntryConfig();
+        ManagedLedgerConfig managedLedgerConfig = defaultConfig();
         managedLedgerConfig.setCacheEvictionByExpectedReadCount(false);
         managedLedgerConfig.setCacheEvictionByMarkDeletedPosition(false);
 
@@ -375,7 +412,7 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         @Cleanup("shutdown")
         ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, config);
 
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("test", rawEntryConfig());
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("test", defaultConfig());
         ManagedCursor c1 = ledger.openCursor("c1");
         c1.setActive();
         ManagedCursor c2 = ledger.openCursor("c2");

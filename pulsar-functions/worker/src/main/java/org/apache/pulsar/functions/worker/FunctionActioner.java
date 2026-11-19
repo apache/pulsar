@@ -53,6 +53,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.io.BatchSourceConfig;
+import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
@@ -70,7 +71,9 @@ import org.apache.pulsar.functions.proto.SourceSpec;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 import org.apache.pulsar.functions.utils.Actions;
+import org.apache.pulsar.functions.utils.ClientApiResolver;
 import org.apache.pulsar.functions.utils.FunctionCommon;
+import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.utils.SourceConfigUtils;
 import org.apache.pulsar.functions.utils.ValidatableFunctionPackage;
 import org.apache.pulsar.functions.utils.io.Connector;
@@ -164,6 +167,8 @@ public class FunctionActioner {
             if (!packageUrlValidator.isValidPackageUrl(componentType, packagePath)) {
                 throw new IllegalArgumentException("Package URL " + packagePath + " is not valid");
             }
+            // Package URLs may not be strict URIs; keep URL(String)'s lenient parsing.
+            @SuppressWarnings("deprecation")
             URL url = new URL(packagePath);
             File pkgFile = new File(url.toURI());
             packageFile = pkgFile.getAbsolutePath();
@@ -235,6 +240,9 @@ public class FunctionActioner {
             instanceConfig.setAdditionalJavaRuntimeArguments(workerConfig.getAdditionalJavaRuntimeArguments());
         }
         instanceConfig.setIgnoreUnknownConfigFields(workerConfig.isIgnoreUnknownConfigFields());
+        instanceConfig.setPulsarClientMemoryLimit(functionDetails.hasPulsarClientMemoryLimit()
+                ? FunctionConfigUtils.convertPulsarClientMemoryLimit(functionDetails.getPulsarClientMemoryLimit())
+                : workerConfig.getPulsarClientMemoryLimit());
         return instanceConfig;
     }
 
@@ -398,18 +406,25 @@ public class FunctionActioner {
         }
 
         cleanupFunctionFiles(functionRuntimeInfo);
+    }
+
+    /**
+     * Deletes the subscriptions of a terminated function and its batch source's resources. It retries for up to 10 s
+     * while an instance on another worker still uses a subscription, so it must not run on a thread that processes
+     * assignments.
+     */
+    public void cleanupTerminatedFunction(FunctionDetails details) {
+        String fqfn = FunctionCommon.getFullyQualifiedName(details);
 
         //cleanup subscriptions
         if (details.getSource().isCleanupSubscription()) {
             details.getSource().forEachInputSpecs((topic, consumerSpec) -> {
-                String subscriptionName = isBlank(functionRuntimeInfo.getFunctionInstance()
-                        .getFunctionMetaData().getFunctionDetails().getSource().getSubscriptionName())
-                        ? InstanceUtils.getDefaultSubscriptionName(functionRuntimeInfo
-                        .getFunctionInstance().getFunctionMetaData().getFunctionDetails())
-                        : functionRuntimeInfo.getFunctionInstance().getFunctionMetaData()
-                        .getFunctionDetails().getSource().getSubscriptionName();
+                String subscriptionName = isBlank(details.getSource().getSubscriptionName())
+                        ? InstanceUtils.getDefaultSubscriptionName(details)
+                        : details.getSource().getSubscriptionName();
 
                 deleteSubscription(topic, consumerSpec, subscriptionName,
+                        details.getClientApi() == FunctionDetails.ClientApi.V5,
                         String.format("Cleaning up subscriptions for function %s", fqfn));
             });
         }
@@ -419,7 +434,7 @@ public class FunctionActioner {
     }
 
     private void deleteSubscription(String topic, ConsumerSpec consumerSpec,
-                                    String subscriptionName, String msg) {
+                                    String subscriptionName, boolean usesClientV5, String msg) {
         try {
             Actions.newBuilder()
                     .addAction(
@@ -430,7 +445,7 @@ public class FunctionActioner {
                         .supplier(
                           getDeleteSubscriptionSupplier(topic,
                             consumerSpec.isIsRegexPattern(),
-                            subscriptionName)
+                            subscriptionName, usesClientV5)
                         )
                         .build())
                     .run();
@@ -439,13 +454,52 @@ public class FunctionActioner {
         }
     }
 
+    /**
+     * Returns the scalable topic that a {@code persistent://} topic was migrated to, or {@code null} if it was not
+     * migrated. The V5 client keeps consuming a migrated input under its {@code persistent://} name, so the
+     * subscription to delete is the scalable topic's, which spans the legacy topic and the new segments.
+     */
+    private String migratedScalableTopic(String topic) {
+        TopicName topicName = TopicName.get(TopicName.get(topic).getPartitionedTopicName());
+        String scalableTopic = TopicDomain.topic.value() + "://" + topicName.getNamespace() + "/"
+                + topicName.getLocalName();
+        try {
+            pulsarAdmin.scalableTopics().getMetadata(scalableTopic);
+            return scalableTopic;
+        } catch (PulsarAdminException e) {
+            if (!(e instanceof PulsarAdminException.NotFoundException)) {
+                // fall back to the persistent:// subscription, as for a topic that was not migrated
+                log.warn().attr("topic", topic).exceptionMessage(e)
+                        .log("Failed to check whether the topic was migrated to a scalable topic");
+            }
+            return null;
+        }
+    }
+
     private Supplier<Actions.ActionResult> getDeleteSubscriptionSupplier(
       String topic, boolean isRegex, String subscriptionName) {
+        return getDeleteSubscriptionSupplier(topic, isRegex, subscriptionName, false);
+    }
+
+    /**
+     * @param usesClientV5 whether the component reads its inputs with the V5 client, which follows a
+     *                     {@code persistent://} input that PIP-475 has migrated to a scalable topic
+     */
+    private Supplier<Actions.ActionResult> getDeleteSubscriptionSupplier(
+      String topic, boolean isRegex, String subscriptionName, boolean usesClientV5) {
         return () -> {
             try {
+                String scalableTopic = null;
+                if (!isRegex) {
+                    scalableTopic = ClientApiResolver.isScalableTopic(topic) ? topic
+                            : usesClientV5 ? migratedScalableTopic(topic) : null;
+                }
                 if (isRegex) {
                     pulsarAdmin.namespaces().unsubscribeNamespace(TopicName
                       .get(topic).getNamespace(), subscriptionName);
+                } else if (scalableTopic != null) {
+                    // a scalable topic's subscription spans its segments and its consumer group
+                    pulsarAdmin.scalableTopics().deleteSubscription(scalableTopic, subscriptionName);
                 } else {
                     pulsarAdmin.topics().deleteSubscription(topic,
                       subscriptionName);

@@ -18,7 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.rawEntryConfig;
+import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.defaultConfig;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import lombok.Cleanup;
@@ -57,7 +57,7 @@ public class ManagedLedgerFactoryChangeLedgerPathTest extends BookKeeperClusterT
         @Cleanup("shutdown")
         ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, configuration);
 
-        ManagedLedgerConfig config = rawEntryConfig();
+        ManagedLedgerConfig config = defaultConfig();
         config.setEnsembleSize(1)
             .setWriteQuorumSize(1)
             .setAckQuorumSize(1);
@@ -92,7 +92,7 @@ public class ManagedLedgerFactoryChangeLedgerPathTest extends BookKeeperClusterT
         ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, configuration,
                 managedLedgerFactoryConfig);
 
-        ManagedLedgerConfig config = rawEntryConfig();
+        ManagedLedgerConfig config = defaultConfig();
         config.setEnsembleSize(1)
                 .setWriteQuorumSize(1)
                 .setAckQuorumSize(1);

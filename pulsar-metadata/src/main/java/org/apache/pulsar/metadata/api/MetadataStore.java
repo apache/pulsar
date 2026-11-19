@@ -30,6 +30,7 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
+import org.apache.pulsar.metadata.impl.ListenerRegistrationWarnings;
 
 /**
  * Metadata store client interface.
@@ -245,8 +246,40 @@ public interface MetadataStore extends AutoCloseable {
      *
      * @param listener
      *            a consumer of notifications
+     * @deprecated use {@link #registerCancellableListener(Consumer)}, and run the returned callback when the
+     *             listener is no longer needed. Implementations implement
+     *             {@link #registerCancellableListener(Consumer)} instead of this method.
      */
-    void registerListener(Consumer<Notification> listener);
+    @Deprecated
+    default void registerListener(Consumer<Notification> listener) {
+        ListenerRegistrationWarnings.deprecatedMethodCalled("MetadataStore.registerListener",
+                "registerCancellableListener");
+        registerCancellableListener(listener);
+    }
+
+    /**
+     * Register a listener that will be called on changes in the underlying store.
+     *
+     * <p>The caller must run the returned callback when the listener is no longer needed, at the latest when the
+     * component that registered it is closed, so that the store stops notifying it and doesn't keep it reachable.
+     * Running the callback more than once has no further effect.
+     *
+     * <p>Implementations must override this method. The default implementation is only there for the
+     * implementations that were written for the deprecated {@link #registerListener(Consumer)}: it registers the
+     * listener with that method and returns a callback that can't unregister it. Since the default implementations
+     * of the two methods call each other, an implementation that overrides neither fails with a
+     * {@link StackOverflowError} when a listener is registered.
+     *
+     * @param listener
+     *            a consumer of notifications
+     * @return a callback that unregisters the listener
+     */
+    default Runnable registerCancellableListener(Consumer<Notification> listener) {
+        ListenerRegistrationWarnings.cancellableMethodNotImplemented(getClass(),
+                "MetadataStore.registerCancellableListener");
+        registerListener(listener);
+        return () -> { };
+    }
 
     /**
      * Create a metadata cache specialized for a specific class.
@@ -348,12 +381,16 @@ public interface MetadataStore extends AutoCloseable {
      * </ul>
      *
      * <p>On stores that support secondary indexes natively (e.g. Oxia), this is a single store-side
-     * range scan over the index. On stores that don't (e.g. ZooKeeper), it falls back to listing
-     * all children under {@code scanPathPrefix}, fetching each record, and applying
-     * {@code fallbackFilter}; the fallback also enforces the {@code [fromKey, toKey]} bounds.
+     * range scan over the index: the index range decides which records are returned, and
+     * {@code fallbackFilter} is not applied, so callers that need every returned record to pass it
+     * should re-check it on the results. On stores that don't (e.g. ZooKeeper), it falls back to
+     * listing all children under {@code scanPathPrefix}, fetching each record, and returning those
+     * that pass {@code fallbackFilter}. The fallback ignores {@code indexName}, {@code fromKeyInclusive}
+     * and {@code toKeyInclusive}, so {@code fallbackFilter} is its only criterion: it must itself reject
+     * the records whose {@code indexName} key is missing or outside the bounds.
      *
      * <p>Results are streamed to {@code consumer} as they become available — {@link ScanConsumer#onNext}
-     * once per match, then exactly one of {@link ScanConsumer#onCompleted} or
+     * once per match, in no particular order, then exactly one of {@link ScanConsumer#onCompleted} or
      * {@link ScanConsumer#onError}. The returned future completes when the scan terminates and
      * mirrors the terminal callback.
      *
@@ -361,7 +398,8 @@ public interface MetadataStore extends AutoCloseable {
      * @param indexName         the secondary-index name
      * @param fromKeyInclusive  lower bound on the secondary-key value, or {@code null} for unbounded
      * @param toKeyInclusive    upper bound on the secondary-key value, or {@code null} for unbounded
-     * @param fallbackFilter    additional predicate applied during fallback scan; ignored by native implementations
+     * @param fallbackFilter    the only criterion of the fallback scan, so it must match the index key and
+     *                          enforce the bounds itself; not applied by native implementations
      * @param consumer          callback receiving records, completion, or an error
      * @param opts              the set of {@link Option options} for this operation
      * @return a future that completes when the scan terminates

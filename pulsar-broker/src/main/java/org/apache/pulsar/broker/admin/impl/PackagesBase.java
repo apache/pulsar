@@ -46,12 +46,31 @@ public class PackagesBase extends AdminResource {
                                                                String packageName, String version) {
         CompletableFuture<PackageName> future = new CompletableFuture<>();
         try {
-            PackageName name = PackageName.get(type, tenant, namespace, packageName, version);
+            PackageName name = parsePackageName(type, tenant, namespace, packageName, version);
             future.complete(name);
         } catch (IllegalArgumentException illegalArgumentException) {
             future.completeExceptionally(illegalArgumentException);
         }
         return future;
+    }
+
+    /**
+     * Parses the package name. {@link PackageName#get} reports an invalid package name as a runtime exception
+     * wrapping the {@link IllegalArgumentException}, which is unwrapped here so that it is reported to the
+     * client as an invalid request.
+     */
+    private static PackageName parsePackageName(String type, String tenant, String namespace, String packageName,
+                                                 String version) {
+        try {
+            return PackageName.get(type, tenant, namespace, packageName, version);
+        } catch (IllegalArgumentException e) {
+            throw e;
+        } catch (RuntimeException e) {
+            if (e.getCause() instanceof IllegalArgumentException illegalArgumentException) {
+                throw illegalArgumentException;
+            }
+            throw e;
+        }
     }
 
     private Void handleError(Throwable throwable, AsyncResponse asyncResponse) {
@@ -104,7 +123,7 @@ public class PackagesBase extends AdminResource {
             }
         }
         try {
-            PackageName name = PackageName.get(type, tenant, namespace, packageName, version);
+            PackageName name = parsePackageName(type, tenant, namespace, packageName, version);
             return output -> {
                 try {
                     getPackagesManagement().download(name, output).get();

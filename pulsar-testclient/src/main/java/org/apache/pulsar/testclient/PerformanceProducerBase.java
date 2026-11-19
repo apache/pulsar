@@ -18,17 +18,12 @@
  */
 package org.apache.pulsar.testclient;
 
-import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_BATCHING_MAX_MESSAGES;
-import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_MAX_PENDING_MESSAGES;
-import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS;
 import static org.apache.pulsar.testclient.PerfClientUtils.LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Range;
 import com.google.common.util.concurrent.RateLimiter;
 import io.github.merlimat.slog.Logger;
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -45,11 +40,13 @@ import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
@@ -61,32 +58,31 @@ import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.util.FutureUtil;
-import picocli.CommandLine.ITypeConverter;
-import picocli.CommandLine.Option;
-import picocli.CommandLine.TypeConversionException;
+import org.apache.pulsar.testclient.PerformanceProducer.MessageKeyGenerationMode;
 
 /**
  * Client-agnostic implementation of the {@code pulsar-perf} producer benchmark.
  *
- * <p>Everything that does not touch a client API lives here: the CLI options, the latency and
- * throughput accounting, the partitioned-topic pre-creation, the per-thread send loop, and the
- * periodic and aggregated reports. Concrete subclasses bind the three client types and implement
- * the handful of seams below — {@link PerformanceProducer} against the V5 client and
- * {@link PerformanceProducerV4} against the v4 ({@code pulsar-client-original}) client — so both
- * commands share one benchmark and one set of measurements.
+ * <p>Everything that does not touch a client API lives here: the latency and throughput accounting,
+ * the partitioned-topic pre-creation, the per-thread send loop, and the periodic and aggregated
+ * reports. The options come from the {@link PerformanceProducer} command. Concrete subclasses bind
+ * the three client types and implement the handful of seams below — {@link PerformanceProducerV5}
+ * against the V5 client and {@link PerformanceProducerV4} against the v4
+ * ({@code pulsar-client-original}) client — so both clients share one benchmark and one set of
+ * measurements.
  *
  * @param <ClientT> the client type ({@code PulsarClient} of the respective API generation)
  * @param <ProducerT> the producer handle the send loop drives
  * @param <TxnT> the transaction type used when {@code --txn-enable} is set
  */
-public abstract class PerformanceProducerBase<ClientT, ProducerT, TxnT> extends PerformanceTopicListArguments {
+public abstract class PerformanceProducerBase<ClientT, ProducerT, TxnT> {
 
     /**
-     * Logger named after the <em>concrete</em> command class rather than this base, so that the
-     * report lines keep identifying the subcommand that produced them (the integration tests in
-     * {@code PerfToolTest} match on {@code PerformanceProducer - Aggregated ...}).
+     * Logger named after the {@code produce} command rather than the runner, so that the report lines
+     * read the same whichever client runs the benchmark (the integration tests in {@code PerfToolTest}
+     * match on {@code PerformanceProducer - Aggregated ...}).
      */
-    protected final Logger log = Logger.get(getClass());
+    protected final Logger log = Logger.get(PerformanceProducer.class);
 
     private final LongAdder messagesSent = new LongAdder();
     private final LongAdder messagesFailed = new LongAdder();
@@ -118,148 +114,11 @@ public abstract class PerformanceProducerBase<ClientT, ProducerT, TxnT> extends 
      */
     private IMessageFormatter messageFormatter = null;
 
-    @Option(names = { "-threads", "--num-test-threads" }, description = "Number of test threads",
-            converter = PositiveNumberParameterConvert.class
-    )
-    public int numTestThreads = 1;
+    /** The parsed {@code produce} command line. */
+    protected final PerformanceProducer arguments;
 
-    @Option(names = { "-r", "--rate" }, description = "Publish rate msg/s across topics")
-    public int msgRate = 100;
-
-    @Option(names = { "-s", "--size" }, description = "Message size (bytes)")
-    public int msgSize = 1024;
-
-    @Option(names = { "-n", "--num-producers" }, description = "Number of producers (per topic)",
-            converter = PositiveNumberParameterConvert.class
-    )
-    public int numProducers = 1;
-
-    @Option(names = {"--separator"}, description = "Separator between the topic and topic number")
-    public String separator = "-";
-
-    @Option(names = {"--send-timeout"}, description = "Set the sendTimeout value default 0 to keep "
-            + "compatibility with previous version of pulsar-perf")
-    public int sendTimeout = 0;
-
-    @Option(names = { "-pn", "--producer-name" }, description = "Producer Name")
-    public String producerName = null;
-
-    @Option(names = { "-au", "--admin-url" }, description = "Pulsar Admin URL", descriptionKey = "webServiceUrl")
-    public String adminURL;
-
-    @Option(names = { "-ch",
-            "--chunking" }, description = "Should split the message and publish in chunks if message size is "
-            + "larger than allowed max size")
-    protected boolean chunkingAllowed = false;
-
-    @Option(names = { "-o", "--max-outstanding" }, description = "Max number of outstanding messages")
-    public int maxOutstanding = DEFAULT_MAX_PENDING_MESSAGES;
-
-    @Option(names = { "-p", "--max-outstanding-across-partitions" }, description = "Max number of outstanding "
-            + "messages across partitions")
-    public int maxPendingMessagesAcrossPartitions = DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS;
-
-    @Option(names = { "-np", "--partitions" }, description = "Create partitioned topics with the given number "
-            + "of partitions, set 0 to not try to create the topic")
-    public Integer partitions = null;
-
-    @Option(names = { "-m",
-            "--num-messages" }, description = "Number of messages to publish in total. If <= 0, it will keep "
-            + "publishing")
-    public long numMessages = 0;
-
-    @Option(names = { "-f", "--payload-file" }, description = "Use payload from an UTF-8 encoded text file and "
-            + "a payload will be randomly selected when publishing messages")
-    public String payloadFilename = null;
-
-    @Option(names = { "-e", "--payload-delimiter" }, description = "The delimiter used to split lines when "
-            + "using payload from a file")
-    // here escaping \n since default value will be printed with the help text
-    public String payloadDelimiter = "\\n";
-
-    @Option(names = { "-b",
-            "--batch-time-window" }, description = "Batch messages in 'x' ms window (Default: 1ms)")
-    public double batchTimeMillis = 1.0;
-
-    @Option(names = { "-db",
-            "--disable-batching" }, description = "Disable batching if true")
-    public boolean disableBatching;
-
-    @Option(names = {
-            "-bm", "--batch-max-messages"
-    }, description = "Maximum number of messages per batch")
-    public int batchMaxMessages = DEFAULT_BATCHING_MAX_MESSAGES;
-
-    @Option(names = {
-            "-bb", "--batch-max-bytes"
-    }, description = "Maximum number of bytes per batch")
-    public int batchMaxBytes = 4 * 1024 * 1024;
-
-    @Option(names = { "-time",
-            "--test-duration" }, description = "Test duration in secs. If <= 0, it will keep publishing")
-    public long testTime = 0;
-
-    @Option(names = "--warmup-time", description = "Warm-up time in seconds (Default: 1 sec)")
-    public double warmupTimeSeconds = 1.0;
-
-    @Option(names = { "-k", "--encryption-key-name" }, description = "The public key name to encrypt payload")
-    public String encKeyName = null;
-
-    @Option(names = { "-v",
-            "--encryption-key-value-file" },
-            description = "The file which contains the public key to encrypt payload")
-    public String encKeyFile = null;
-
-    @Option(names = { "-d",
-            "--delay" }, description = "Mark messages with a given delay in seconds")
-    public long delay = 0;
-
-    @Option(names = { "-dr", "--delay-range"}, description = "Mark messages with a given delay by a random"
-            + " number of seconds. this value between the specified origin (inclusive) and the specified bound"
-            + " (exclusive). e.g. 1,300", converter = RangeConvert.class)
-    public Range<Long> delayRange = null;
-
-    @Option(names = { "-set",
-            "--set-event-time" }, description = "Set the eventTime on messages")
-    public boolean setEventTime = false;
-
-    @Option(names = { "-ef",
-            "--exit-on-failure" }, description = "Exit from the process on publish failure (default: disable)")
-    public boolean exitOnFailure = false;
-
-    @Option(names = {"-mk", "--message-key-generation-mode"}, description = "The generation mode of message key"
-            + ", valid options are: [autoIncrement, random]", descriptionKey = "messageKeyGenerationMode")
-    public String messageKeyGenerationMode = null;
-
-    @Option(names = { "-fp", "--format-payload" },
-            description = "Format %%i as a message index in the stream from producer and/or %%t as the timestamp"
-                    + " nanoseconds.")
-    public boolean formatPayload = false;
-
-    @Option(names = {"-fc", "--format-class"}, description = "Custom Formatter class name")
-    public String formatterClass = "org.apache.pulsar.testclient.DefaultMessageFormatter";
-
-    @Option(names = {"-tto", "--txn-timeout"}, description = "Set the time value of transaction timeout,"
-            + " and the time unit is second. (After --txn-enable setting to true, --txn-timeout takes effect)")
-    public long transactionTimeout = 10;
-
-    @Option(names = {"-nmt", "--numMessage-perTransaction"},
-            description = "The number of messages sent by a transaction. "
-                    + "(After --txn-enable setting to true, -nmt takes effect)")
-    public int numMessagesPerTransaction = 50;
-
-    @Option(names = {"-txn", "--txn-enable"}, description = "Enable or disable the transaction")
-    public boolean isEnableTransaction = false;
-
-    @Option(names = {"-abort"}, description = "Abort the transaction. (After --txn-enable "
-            + "setting to true, -abort takes effect)")
-    public boolean isAbortTransaction = false;
-
-    @Option(names = { "--histogram-file" }, description = "HdrHistogram output file")
-    public String histogramFile = null;
-
-    protected PerformanceProducerBase(String cmdName) {
-        super(cmdName);
+    protected PerformanceProducerBase(PerformanceProducer arguments) {
+        this.arguments = arguments;
     }
 
     // ------------------------------------------------------------------------------------------
@@ -274,12 +133,12 @@ public abstract class PerformanceProducerBase<ClientT, ProducerT, TxnT> extends 
 
     /** Number of worker clients used by this command. V4 can use one client per producer. */
     protected int workerCount() {
-        return this.numTestThreads;
+        return arguments.numTestThreads;
     }
 
     /** Number of producers created by each worker. */
     protected int producersPerWorker() {
-        return this.numProducers;
+        return arguments.numProducers;
     }
 
     /** Number of producers for a specific worker. */
@@ -348,7 +207,8 @@ public abstract class PerformanceProducerBase<ClientT, ProducerT, TxnT> extends 
      * that the commit can otherwise overtake. The v4 client registers the send with the transaction
      * coordinator as part of {@code sendAsync} itself, and the v4 tool never awaited, so
      * {@link PerformanceProducerV4} turns this off to keep its transaction throughput comparable
-     * with what {@code pulsar-perf produce} reported before the V5 migration.
+     * with what {@code pulsar-perf produce} reported before the V5 migration. The transaction that
+     * holds the run's last message has its sends awaited either way, once per run.
      */
     protected boolean awaitSendsBeforeEndingTransaction() {
         return true;
@@ -356,28 +216,27 @@ public abstract class PerformanceProducerBase<ClientT, ProducerT, TxnT> extends 
 
     // ------------------------------------------------------------------------------------------
 
-    @Override
     public void run() throws Exception {
 
         // Dump config variables
         PerfClientUtils.printJVMInformation(log);
         ObjectMapper m = new ObjectMapper();
         ObjectWriter w = m.writerWithDefaultPrettyPrinter();
-        log.info().attr("config", w.writeValueAsString(this)).log("Starting Pulsar perf producer with config");
+        log.info().attr("config", w.writeValueAsString(arguments)).log("Starting Pulsar perf producer with config");
 
         prepareRun();
 
         // Read payload data from file if needed
-        final byte[] payloadBytes = new byte[msgSize];
+        final byte[] payloadBytes = new byte[arguments.msgSize];
         Random random = new Random(0);
         List<byte[]> payloadByteList = new ArrayList<>();
-        if (this.payloadFilename != null) {
-            Path payloadFilePath = Paths.get(this.payloadFilename);
+        if (arguments.payloadFilename != null) {
+            Path payloadFilePath = Paths.get(arguments.payloadFilename);
             if (Files.notExists(payloadFilePath) || Files.size(payloadFilePath) == 0)  {
                 throw new IllegalArgumentException("Payload file doesn't exist or it is empty.");
             }
             // here escaping the default payload delimiter to correct value
-            String delimiter = this.payloadDelimiter.equals("\\n") ? "\n" : this.payloadDelimiter;
+            String delimiter = arguments.payloadDelimiter.equals("\\n") ? "\n" : arguments.payloadDelimiter;
             String[] payloadList = new String(Files.readAllBytes(payloadFilePath),
                     StandardCharsets.UTF_8).split(delimiter);
             log.info()
@@ -388,8 +247,8 @@ public abstract class PerformanceProducerBase<ClientT, ProducerT, TxnT> extends 
                 payloadByteList.add(payload.getBytes(StandardCharsets.UTF_8));
             }
 
-            if (this.formatPayload) {
-                messageFormatter = getMessageFormatter(this.formatterClass);
+            if (arguments.formatPayload) {
+                messageFormatter = getMessageFormatter(arguments.formatterClass);
             }
         } else {
             for (int i = 0; i < payloadBytes.length; ++i) {
@@ -407,27 +266,27 @@ public abstract class PerformanceProducerBase<ClientT, ProducerT, TxnT> extends 
             printAggregatedStats();
         });
 
-        if (this.partitions  != null) {
+        if (arguments.partitions  != null) {
             final PulsarAdminBuilder adminBuilder = PerfClientUtils
-                    .createAdminBuilderFromArguments(this, this.adminURL);
+                    .createAdminBuilderFromArguments(arguments, arguments.adminURL);
 
             try (PulsarAdmin adminClient = adminBuilder.build()) {
-                for (String topic : this.topics) {
+                for (String topic : arguments.topics) {
                     log.info()
                             .attr("topic", topic)
-                            .attr("partitions", this.partitions)
+                            .attr("partitions", arguments.partitions)
                             .log("Creating partitioned topic with partitions");
                     try {
-                        adminClient.topics().createPartitionedTopic(topic, this.partitions);
+                        adminClient.topics().createPartitionedTopic(topic, arguments.partitions);
                     } catch (PulsarAdminException.ConflictException alreadyExists) {
                         log.debug().attr("topic", topic).attr("exists", alreadyExists).log("Topic already exists");
                         PartitionedTopicMetadata partitionedTopicMetadata = adminClient.topics()
                                 .getPartitionedTopicMetadata(topic);
-                        if (partitionedTopicMetadata.partitions != this.partitions) {
+                        if (partitionedTopicMetadata.partitions != arguments.partitions) {
                             log.error()
                                     .attr("topic", topic)
                                     .attr("partitions", partitionedTopicMetadata.partitions)
-                                    .attr("expecting", this.partitions)
+                                    .attr("expecting", arguments.partitions)
                                     .log("Topic  already exists but it has a wrong number of partitions: , expecting");
                             PerfClientUtils.exit(1);
                         }
@@ -439,8 +298,8 @@ public abstract class PerformanceProducerBase<ClientT, ProducerT, TxnT> extends 
         int workerCount = workerCount();
         CountDownLatch doneLatch = new CountDownLatch(workerCount);
 
-        final long numMessagesPerThread = this.numMessages / workerCount;
-        final int msgRatePerThread = this.msgRate / workerCount;
+        final long numMessagesPerThread = arguments.numMessages / workerCount;
+        final int msgRatePerThread = arguments.msgRate / workerCount;
 
         for (int i = 0; i < workerCount; i++) {
             final int threadIdx = i;
@@ -463,8 +322,8 @@ public abstract class PerformanceProducerBase<ClientT, ProducerT, TxnT> extends 
         Histogram reportHistogram = null;
         HistogramLogWriter histogramLogWriter = null;
 
-        if (this.histogramFile != null) {
-            String statsFileName = this.histogramFile;
+        if (arguments.histogramFile != null) {
+            String statsFileName = arguments.histogramFile;
             log.info().attr("stats", statsFileName).log("Dumping latency stats to");
 
             PrintStream histogramLog = new PrintStream(new FileOutputStream(statsFileName), false);
@@ -477,13 +336,11 @@ public abstract class PerformanceProducerBase<ClientT, ProducerT, TxnT> extends 
 
         while (!Thread.currentThread().isInterrupted()) {
             try {
-                Thread.sleep(10000);
+                if (doneLatch.await(10, TimeUnit.SECONDS)) {
+                    break;
+                }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                break;
-            }
-
-            if (doneLatch.getCount() <= 0) {
                 break;
             }
 
@@ -499,7 +356,7 @@ public abstract class PerformanceProducerBase<ClientT, ProducerT, TxnT> extends 
 
             reportHistogram = recorder.getIntervalHistogram(reportHistogram);
 
-            if (this.isEnableTransaction) {
+            if (arguments.isEnableTransaction) {
                 totalTxnOpSuccess = totalEndTxnOpSuccessNum.sum();
                 totalTxnOpFail = totalEndTxnOpFailNum.sum();
                 rateOpenTxn = numTxnOpSuccess.sumThenReset() / elapsed;
@@ -608,7 +465,7 @@ public abstract class PerformanceProducerBase<ClientT, ProducerT, TxnT> extends 
         }
         log.warn().exception(ex).log("Write message error with exception");
         messagesFailed.increment();
-        if (this.exitOnFailure) {
+        if (arguments.exitOnFailure) {
             PerfClientUtils.exit(1);
         }
     }
@@ -618,28 +475,39 @@ public abstract class PerformanceProducerBase<ClientT, ProducerT, TxnT> extends 
         return messagesFailed.sum();
     }
 
-    private void runProducer(int producerId,
-                             long numMessages,
-                             int msgRate,
-                             List<byte[]> payloadByteList,
-                             byte[] payloadBytes,
-                             CountDownLatch doneLatch) {
+    /** The count the summary reports as "transaction end successfully". */
+    @VisibleForTesting
+    long getTransactionsEndedSuccessfully() {
+        return totalEndTxnOpSuccessNum.sum();
+    }
+
+    @VisibleForTesting
+    void runProducer(int producerId,
+                     long numMessages,
+                     int msgRate,
+                     List<byte[]> payloadByteList,
+                     byte[] payloadBytes,
+                     CountDownLatch doneLatch) {
         ClientT client = null;
         boolean produceEnough = false;
+        // Ends of the transactions this thread has ended, which may still be in flight. They are
+        // awaited before the client is closed, which would cut them off and lose their outcome.
+        final List<CompletableFuture<Void>> pendingTxnEnds = new ArrayList<>();
         try {
             client = createClient();
 
             AtomicReference<TxnT> transactionAtomicReference;
-            if (this.isEnableTransaction) {
+            if (arguments.isEnableTransaction) {
                 transactionAtomicReference = new AtomicReference<>(openFirstTransaction(client));
+                totalNumTxnOpenTxnSuccess.increment();
             } else {
                 transactionAtomicReference = new AtomicReference<>(null);
             }
 
             List<CompletableFuture<ProducerT>> futures = new ArrayList<>();
-            for (int i = 0; i < this.numTopics; i++) {
+            for (int i = 0; i < arguments.numTopics; i++) {
 
-                String topic = this.topics.get(i);
+                String topic = arguments.topics.get(i);
                 int producersForWorker = producersForWorker(producerId);
                 log.info().attr("adding", producersForWorker).attr("topic", topic)
                         .log("Adding publishers on topic");
@@ -660,20 +528,22 @@ public abstract class PerformanceProducerBase<ClientT, ProducerT, TxnT> extends 
             RateLimiter rateLimiter = RateLimiter.create(msgRate);
 
             long startTime = System.nanoTime();
-            long warmupEndTime = startTime + (long) (this.warmupTimeSeconds * 1e9);
-            long testEndTime = startTime + (long) (this.testTime * 1e9);
+            long warmupEndTime = startTime + (long) (arguments.warmupTimeSeconds * 1e9);
+            long testEndTime = startTime + (long) (arguments.testTime * 1e9);
             MessageKeyGenerationMode msgKeyMode = null;
-            if (isNotBlank(this.messageKeyGenerationMode)) {
+            if (isNotBlank(arguments.messageKeyGenerationMode)) {
                 try {
-                    msgKeyMode = MessageKeyGenerationMode.valueOf(this.messageKeyGenerationMode);
+                    msgKeyMode = MessageKeyGenerationMode.valueOf(arguments.messageKeyGenerationMode);
                 } catch (IllegalArgumentException e) {
                     throw new IllegalArgumentException("messageKeyGenerationMode only support [autoIncrement, random]");
                 }
             }
             // Send messages on all topics/producers
             AtomicLong totalSent = new AtomicLong(0);
+            // Messages handed to the client so far; totalSent only counts the acknowledged ones.
+            long totalIssued = 0;
             AtomicLong numMessageSend = new AtomicLong(0);
-            Semaphore numMsgPerTxnLimit = new Semaphore(this.numMessagesPerTransaction);
+            Semaphore numMsgPerTxnLimit = new Semaphore(arguments.numMessagesPerTransaction);
             // Send futures of the in-flight transaction, awaited before the transaction is ended when
             // awaitSendsBeforeEndingTransaction() is on, so the commit never races ahead of the sends
             // (otherwise the broker rejects with InvalidTxnStatusException).
@@ -684,13 +554,12 @@ public abstract class PerformanceProducerBase<ClientT, ProducerT, TxnT> extends 
                 }
                 for (int producerIndex = 0; producerIndex < producers.size(); producerIndex++) {
                     ProducerT producer = producers.get(producerIndex);
-                    if (this.testTime > 0) {
+                    if (arguments.testTime > 0) {
                         if (System.nanoTime() > testEndTime) {
                             log.info()
-                                    .attr("duration", this.testTime)
+                                    .attr("duration", arguments.testTime)
                                     .log("------------- DONE (reached the maximum duration:"
                                             + " [ seconds] of production) --------------");
-                            doneLatch.countDown();
                             produceEnough = true;
                             break;
                         }
@@ -701,7 +570,6 @@ public abstract class PerformanceProducerBase<ClientT, ProducerT, TxnT> extends 
                             log.info()
                                     .attr("number", numMessages)
                                     .log("DONE (reached the maximum number: of production");
-                            doneLatch.countDown();
                             produceEnough = true;
                             break;
                         }
@@ -713,9 +581,9 @@ public abstract class PerformanceProducerBase<ClientT, ProducerT, TxnT> extends 
 
                     byte[] payloadData;
 
-                    if (this.payloadFilename != null) {
+                    if (arguments.payloadFilename != null) {
                         if (messageFormatter != null) {
-                            payloadData = messageFormatter.formatMessage(this.producerName, totalSent.get(),
+                            payloadData = messageFormatter.formatMessage(arguments.producerName, totalSent.get(),
                                     payloadByteList.get(ThreadLocalRandom.current().nextInt(payloadByteList.size())));
                         } else {
                             payloadData = payloadByteList.get(
@@ -724,7 +592,7 @@ public abstract class PerformanceProducerBase<ClientT, ProducerT, TxnT> extends 
                     } else {
                         payloadData = payloadBytes;
                     }
-                    if (this.isEnableTransaction && this.numMessagesPerTransaction > 0) {
+                    if (arguments.isEnableTransaction && arguments.numMessagesPerTransaction > 0) {
                         try {
                             numMsgPerTxnLimit.acquire();
                         } catch (InterruptedException exception){
@@ -743,11 +611,12 @@ public abstract class PerformanceProducerBase<ClientT, ProducerT, TxnT> extends 
                     CompletableFuture<?> sendFuture = trackSendCompletion(
                             sendMessage(producer, payloadData, transaction, messageKey, deliverAfterSeconds),
                             payloadData, totalSent, sendTime, warmupEndTime);
-                    if (this.isEnableTransaction) {
+                    totalIssued++;
+                    if (arguments.isEnableTransaction) {
                         pendingTxnSends.add(sendFuture);
                     }
-                    if (this.isEnableTransaction
-                            && numMessageSend.incrementAndGet() == this.numMessagesPerTransaction) {
+                    if (arguments.isEnableTransaction
+                            && numMessageSend.incrementAndGet() == arguments.numMessagesPerTransaction) {
                         if (awaitSendsBeforeEndingTransaction()) {
                             // Await all sends issued under this transaction before ending it, so the
                             // txn coordinator has registered every send. The chain above already
@@ -759,15 +628,26 @@ public abstract class PerformanceProducerBase<ClientT, ProducerT, TxnT> extends 
                                     Thread.currentThread().interrupt();
                                 }
                             }
+                        } else if (numMessages > 0 && totalIssued >= numMessages) {
+                            // This transaction holds the run's last message. Await its sends, once
+                            // per run, so the check below knows whether they all made it.
+                            awaitTransactionWork(pendingTxnSends, "sends");
                         }
                         pendingTxnSends.clear();
-                        endTransaction(transaction);
+                        pendingTxnEnds.removeIf(CompletableFuture::isDone);
+                        pendingTxnEnds.add(endTransaction(transaction));
+                        if (numMessages > 0 && totalSent.get() >= numMessages) {
+                            // Every message is sent and the next check stops the run, so a new
+                            // transaction would never be used and only time out on the broker.
+                            transactionAtomicReference.set(null);
+                            continue;
+                        }
                         while (!Thread.currentThread().isInterrupted()) {
                             try {
                                 TxnT newTransaction = newTransaction(client);
                                 transactionAtomicReference.compareAndSet(transaction, newTransaction);
                                 numMessageSend.set(0);
-                                numMsgPerTxnLimit.release(this.numMessagesPerTransaction);
+                                numMsgPerTxnLimit.release(arguments.numMessagesPerTransaction);
                                 totalNumTxnOpenTxnSuccess.increment();
                                 break;
                             } catch (Exception e){
@@ -782,6 +662,15 @@ public abstract class PerformanceProducerBase<ClientT, ProducerT, TxnT> extends 
                     }
                 }
             }
+            // The run can also stop inside a transaction: when -m is not a multiple of -nmt, or when
+            // the test duration runs out. End that one too rather than leave it to time out.
+            TxnT openTransaction = transactionAtomicReference.get();
+            if (produceEnough && openTransaction != null) {
+                if (awaitSendsBeforeEndingTransaction()) {
+                    awaitTransactionWork(pendingTxnSends, "sends");
+                }
+                pendingTxnEnds.add(endTransaction(openTransaction));
+            }
         } catch (Throwable t) {
             if (PerfClientUtils.hasInterruptedException(t)) {
                 Thread.currentThread().interrupt();
@@ -789,10 +678,37 @@ public abstract class PerformanceProducerBase<ClientT, ProducerT, TxnT> extends 
                 log.error().exception(t).log("Got error");
             }
         } finally {
-            if (!produceEnough) {
+            awaitTransactionWork(pendingTxnEnds, "transaction ends");
+            try {
+                closeClient(client);
+            } finally {
+                // Only once the client is closed: run() stops the test threads as soon as all of them
+                // have counted down, and that interrupt would cut off a close still in progress.
                 doneLatch.countDown();
             }
-            closeClient(client);
+        }
+    }
+
+    /**
+     * Wait for the sends or ends of transactions at the end of a run. The wait is bounded by
+     * {@code --txn-timeout}, as a broker that stopped answering must not hang the tool (sends have no
+     * timeout by default), and an interrupt ends it, as it must not hold up stopping the tool either.
+     */
+    private void awaitTransactionWork(List<? extends CompletableFuture<?>> work, String description) {
+        try {
+            CompletableFuture.allOf(work.toArray(new CompletableFuture[0]))
+                    .get(arguments.transactionTimeout, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } catch (TimeoutException e) {
+            log.warn()
+                    .attr("work", description)
+                    .attr("timeoutSeconds", arguments.transactionTimeout)
+                    .log("Gave up waiting for transactional work at the end of the run");
+        } catch (ExecutionException e) {
+            // The awaited stages handle send and end failures themselves, so only a failure of
+            // that handling lands here.
+            log.warn().exception(e).attr("work", description).log("Transactional work failed");
         }
     }
 
@@ -806,21 +722,24 @@ public abstract class PerformanceProducerBase<ClientT, ProducerT, TxnT> extends 
      * (VisibleForTesting).
      */
     Long nextDeliverAfterSeconds() {
-        if (this.delay > 0) {
-            return this.delay;
+        if (arguments.delay > 0) {
+            return arguments.delay;
         }
-        if (this.delayRange != null) {
+        if (arguments.delayRange != null) {
             return ThreadLocalRandom.current()
-                    .nextLong(this.delayRange.lowerEndpoint(), this.delayRange.upperEndpoint());
+                    .nextLong(arguments.delayRange.lowerEndpoint(), arguments.delayRange.upperEndpoint());
         }
         return null;
     }
 
-    /** Commit or abort the transaction according to {@code -abort}, counting the outcome. */
-    private void endTransaction(TxnT transaction) {
-        final boolean abort = this.isAbortTransaction;
+    /**
+     * Commit or abort the transaction according to {@code -abort}, counting the outcome. The returned
+     * stage completes, normally, once the outcome is counted.
+     */
+    private CompletableFuture<Void> endTransaction(TxnT transaction) {
+        final boolean abort = arguments.isAbortTransaction;
         CompletableFuture<Void> endFuture = abort ? abortTransaction(transaction) : commitTransaction(transaction);
-        endFuture.thenRun(() -> {
+        return endFuture.thenRun(() -> {
             log.debug().log(abort ? "Abort transaction" : "Committed transaction");
             totalEndTxnOpSuccessNum.increment();
             numTxnOpSuccess.increment();
@@ -848,7 +767,7 @@ public abstract class PerformanceProducerBase<ClientT, ProducerT, TxnT> extends 
         long numTransactionOpenFailed = 0;
         long numTransactionOpenSuccess = 0;
 
-        if (this.isEnableTransaction) {
+        if (arguments.isEnableTransaction) {
             totalTxnSuccess = totalEndTxnOpSuccessNum.sum();
             totalTxnFail = totalEndTxnOpFailNum.sum();
             rateOpenTxn = elapsed / (totalTxnFail + totalTxnSuccess);
@@ -880,27 +799,5 @@ public abstract class PerformanceProducerBase<ClientT, ProducerT, TxnT> extends 
                 reportHistogram.getValueAtPercentile(99.99) / 1000.0,
                 reportHistogram.getValueAtPercentile(99.999) / 1000.0,
                 reportHistogram.getMaxValue() / 1000.0);
-    }
-
-    /** How {@code -mk/--message-key-generation-mode} derives a key for each message. */
-    public enum MessageKeyGenerationMode {
-        autoIncrement, random
-    }
-
-    /** Converts the {@code -dr/--delay-range} {@code "<origin>,<bound>"} argument. */
-    static class RangeConvert implements ITypeConverter<Range<Long>> {
-        @Override
-        public Range<Long> convert(String rangeStr) {
-            try {
-                requireNonNull(rangeStr);
-                final String[] facts = rangeStr.split(",");
-                final long min = Long.parseLong(facts[0].trim());
-                final long max = Long.parseLong(facts[1].trim());
-                return Range.closedOpen(min, max);
-            } catch (Throwable ex) {
-                throw new TypeConversionException("Unknown delay range interval,"
-                        + " the format should be \"<origin>,<bound>\". error message: " + rangeStr);
-            }
-        }
     }
 }

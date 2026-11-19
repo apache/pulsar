@@ -58,6 +58,8 @@ import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.functions.instance.AuthenticationConfig;
+import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
 import org.apache.pulsar.functions.worker.FileServer;
@@ -103,6 +105,23 @@ public abstract class AbstractPulsarE2ETest {
     protected PulsarFunctionTestTemporaryDirectory tempDirectory;
     protected FileServer fileServer;
 
+    /**
+     * Creates a V5 client with the same service URL, authentication and TLS settings as the function worker.
+     */
+    // Mirrors how PulsarService builds the worker client, which still honours the deprecated useTls flag.
+    @SuppressWarnings("deprecation")
+    protected org.apache.pulsar.client.api.v5.PulsarClient newV5Client() throws Exception {
+        AuthenticationConfig authConfig = AuthenticationConfig.builder()
+                .clientAuthenticationPlugin(workerConfig.getBrokerClientAuthenticationPlugin())
+                .clientAuthenticationParameters(workerConfig.getBrokerClientAuthenticationParameters())
+                .useTls(workerConfig.isUseTls())
+                .tlsAllowInsecureConnection(workerConfig.isTlsAllowInsecureConnection())
+                .tlsTrustCertsFilePath(workerConfig.getTlsTrustCertsFilePath())
+                .build();
+        return InstanceUtils.createPulsarClientV5Builder(workerConfig.getPulsarServiceUrl(), authConfig,
+                Optional.empty()).build();
+    }
+
     @DataProvider(name = "validRoleName")
     public Object[][] validRoleName() {
         return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
@@ -131,6 +150,9 @@ public abstract class AbstractPulsarE2ETest {
         config.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
         config.setTlsAllowInsecureConnection(true);
         config.setAdvertisedAddress("localhost");
+        // The function worker elects its leader through a Failover subscription: don't delay the election by the
+        // default 1 s
+        config.setActiveConsumerFailoverDelayTimeMillis(0);
 
         Set<String> providers = new HashSet<>();
         providers.add(AuthenticationProviderTls.class.getName());

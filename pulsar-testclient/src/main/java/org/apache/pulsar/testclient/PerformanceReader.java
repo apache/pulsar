@@ -18,35 +18,74 @@
  */
 package org.apache.pulsar.testclient;
 
-import io.netty.util.concurrent.DefaultThreadFactory;
-import java.time.Duration;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-import org.apache.pulsar.client.api.v5.Checkpoint;
-import org.apache.pulsar.client.api.v5.CheckpointConsumer;
-import org.apache.pulsar.client.api.v5.CheckpointConsumerBuilder;
-import org.apache.pulsar.client.api.v5.Message;
-import org.apache.pulsar.client.api.v5.PulsarClient;
-import org.apache.pulsar.client.api.v5.PulsarClientException;
-import org.apache.pulsar.client.api.v5.schema.Schema;
+import io.github.merlimat.slog.Logger;
+import org.apache.pulsar.cli.ClientApi;
+import org.apache.pulsar.cli.ClientApiOptionGroups;
+import picocli.CommandLine;
+import picocli.CommandLine.ArgGroup;
 import picocli.CommandLine.Command;
+import picocli.CommandLine.Model.CommandSpec;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.Spec;
 
 /**
- * A client program to test pulsar reader performance with the V5 client API.
+ * The {@code pulsar-perf read} command: parses and validates the options, then runs the benchmark
+ * with the client the topics call for.
  *
- * <p>V5 has no {@code Reader}; the closest equivalent is the {@code CheckpointConsumer}, which is
- * what this command measures. Everything that is not V5-specific lives in
- * {@link PerformanceReaderBase}; the v4 {@code Reader} is driven by {@link PerformanceReaderV4}
- * under the {@code read-v4} name.
+ * <p>{@code topic://} (scalable) topics are read with the V5 {@code CheckpointConsumer}
+ * ({@link PerformanceReaderV5}), every other topic with the v4 {@code Reader}
+ * ({@link PerformanceReaderV4}); {@code --client-api} overrides that choice. Options that only one
+ * client supports are in their own {@code @ArgGroup}, which gives them their own {@code --help} section
+ * and makes them a usage error with the other client.
  */
-@Command(name = "read", description = "Test pulsar reader performance.")
-public class PerformanceReader
-        extends PerformanceReaderBase<PulsarClient, CheckpointConsumer<byte[]>, Message<byte[]>> {
+@Command(name = "read", sortOptions = false, optionListHeading = ClientApiOptionGroups.COMMON_HEADING,
+        description = {"Test pulsar reader performance.",
+                "%nTopics with the topic:// (scalable) domain are read with the V5 client's "
+                        + "CheckpointConsumer; persistent://, non-persistent:// and unprefixed topics with "
+                        + "the v4 client's Reader. "
+                        + "Use --client-api to override the client."})
+public class PerformanceReader extends PerformanceTopicListArguments {
 
-    private ExecutorService readerExec;
+    private static final Logger log = Logger.get(PerformanceReader.class);
+
+    @Spec
+    CommandSpec spec;
+
+    @Option(names = ClientApi.OPTION_NAME, description = ClientApi.OPTION_DESCRIPTION)
+    public ClientApi clientApi;
+
+    @Option(names = {"-r", "--rate"}, description = "Simulate a slow message reader (rate in msg/s)")
+    public double rate = 0;
+
+    @Option(names = {"-m",
+            "--start-message-id"}, description = "Start message id. This can be either 'earliest', "
+            + "'latest' or, with the v4 client, a specific message id by using 'lid:eid'")
+    public String startMessageId = "earliest";
+
+    @Option(names = {"-n",
+            "--num-messages"}, description = "Number of messages to consume in total. If <= 0, "
+            + "it will keep consuming")
+    public long numMessages = 0;
+
+    @Option(names = {"-time",
+            "--test-duration"}, description = "Test duration in secs. If <= 0, it will keep consuming")
+    public long testTime = 0;
+
+    @ArgGroup(exclusive = false, validate = false, order = 1, heading = ClientApiOptionGroups.V4_HEADING)
+    public V4Options v4 = new V4Options();
+
+    /** The client picked for this invocation; set by {@link #validate()}. */
+    ClientApi resolvedClientApi;
+
+    /** Options that only the v4 client supports. */
+    public static class V4Options implements ClientApiOptionGroups.V4ClientOptions {
+        @Option(names = {"-q", "--receiver-queue-size"}, description = "Size of the receiver queue")
+        public int receiverQueueSize = 1000;
+
+        @Option(names = {"--use-tls"}, description = "Use TLS encryption on the connection",
+                descriptionKey = "useTls")
+        public boolean useTls;
+    }
 
     public PerformanceReader() {
         super("read");
@@ -55,105 +94,33 @@ public class PerformanceReader
     @Override
     public void validate() throws Exception {
         super.validate();
-        // V5 CheckpointConsumer accepts earliest / latest / a serialized Checkpoint byte array.
-        // It does not expose the v4 "lid:eid" specific MessageId form, so reject it explicitly.
-        if (!"earliest".equals(startMessageId) && !"latest".equals(startMessageId)) {
-            throw new Exception(String.format("invalid start message ID '%s'. V5 CheckpointConsumer "
-                    + "only accepts 'earliest' or 'latest'; the v4 'lid:eid' form is not supported. "
-                    + "Use read-v4 for the v4 reader, which does support it.",
+        resolvedClientApi = ClientApi.resolve(clientApi, topics, spec.commandLine());
+        ClientApiOptionGroups.validate(spec, resolvedClientApi);
+        if ("earliest".equals(startMessageId) || "latest".equals(startMessageId)) {
+            return;
+        }
+        if (resolvedClientApi == ClientApi.V5) {
+            // The V5 CheckpointConsumer accepts earliest / latest / a serialized Checkpoint; it does
+            // not expose the v4 "lid:eid" MessageId form.
+            throw new CommandLine.ParameterException(spec.commandLine(), String.format(
+                    "invalid start message ID '%s'. "
+                    + "The V5 client only accepts 'earliest' or 'latest'; a 'lid:eid' start message id needs "
+                    + "the v4 client (a persistent:// topic, or --client-api V4).", startMessageId));
+        }
+        if (startMessageId.split(":").length != 2) {
+            throw new CommandLine.ParameterException(spec.commandLine(), String.format(
+                    "invalid start message ID '%s', "
+                    + "must be either 'earliest', 'latest' or a specific message id by using 'lid:eid'",
                     startMessageId));
         }
     }
 
     @Override
-    protected void prepareRun() {
-        if (this.useTls) {
-            log.info("--use-tls has no effect on V5 (TLS is enabled automatically when the service URL "
-                    + "uses pulsar+ssl:// — pass that scheme via --service-url instead).");
-        }
-        if (this.receiverQueueSize != 1000) {
-            log.info("--receiver-queue-size has no effect on V5 CheckpointConsumer.");
-        }
-    }
-
-    @Override
-    protected PulsarClient createClient() throws PulsarClientException {
-        return PerfClientUtils.createV5ClientBuilderFromArguments(this).build();
-    }
-
-    @Override
-    protected void closeClient(PulsarClient client) {
-        PerfClientUtils.closeClient(client);
-    }
-
-    @Override
-    protected CompletableFuture<CheckpointConsumer<byte[]>> createReaderAsync(PulsarClient client, String topic) {
-        Checkpoint startPosition = "earliest".equals(this.startMessageId)
-                ? Checkpoint.earliest()
-                : Checkpoint.latest();
-        CheckpointConsumerBuilder<byte[]> b = client.newCheckpointConsumer(Schema.bytes())
-                .topic(topic)
-                .startPosition(startPosition);
-        return b.createAsync();
-    }
-
-    @Override
-    protected int messageSize(Message<byte[]> msg) {
-        return msg.value().length;
-    }
-
-    @Override
-    protected long publishTimeMillis(Message<byte[]> msg) {
-        return msg.publishTime().toEpochMilli();
-    }
-
-    /**
-     * V5 has no ReaderListener — drive each consumer from a dedicated poll thread that calls
-     * receive(timeout) and runs the same per-message handler the v4 listener does.
-     */
-    @Override
-    protected void startReading(List<CheckpointConsumer<byte[]>> readers) {
-        readerExec = Executors.newCachedThreadPool(
-                new DefaultThreadFactory("pulsar-perf-reader-poll"));
-        for (CheckpointConsumer<byte[]> consumer : readers) {
-            readerExec.submit(() -> readLoop(consumer));
-        }
-    }
-
-    @Override
-    protected void stopReading() {
-        if (readerExec == null) {
-            return;
-        }
-        readerExec.shutdownNow();
-        try {
-            if (!readerExec.awaitTermination(10, TimeUnit.SECONDS)) {
-                log.warn("Reader poll executor did not terminate within timeout");
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-    }
-
-    private void readLoop(CheckpointConsumer<byte[]> consumer) {
-        while (!Thread.currentThread().isInterrupted()) {
-            Message<byte[]> msg;
-            try {
-                msg = consumer.receive(Duration.ofSeconds(1));
-            } catch (Exception e) {
-                if (PerfClientUtils.hasInterruptedException(e)) {
-                    Thread.currentThread().interrupt();
-                    return;
-                }
-                log.warn().exception(e).log("receive failed; retrying");
-                continue;
-            }
-            if (msg == null) {
-                continue;
-            }
-            if (handleMessage(msg)) {
-                return;
-            }
-        }
+    public void run() throws Exception {
+        log.info().attr("topics", topics).log(resolvedClientApi == ClientApi.V5
+                ? "Using the V5 client" : "Using the v4 client");
+        PerformanceReaderBase<?, ?, ?> reader = resolvedClientApi == ClientApi.V5
+                ? new PerformanceReaderV5(this) : new PerformanceReaderV4(this);
+        reader.run();
     }
 }

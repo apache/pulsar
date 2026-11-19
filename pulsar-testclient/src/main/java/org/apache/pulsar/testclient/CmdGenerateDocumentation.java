@@ -18,15 +18,18 @@
  */
 package org.apache.pulsar.testclient;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.CustomLog;
+import org.apache.pulsar.cli.ClientApiOptionGroups;
 import org.apache.pulsar.proxy.socket.client.PerformanceClient;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
+import picocli.CommandLine.Model.OptionSpec;
 import picocli.CommandLine.Option;
 
 @CustomLog
@@ -49,10 +52,6 @@ public class CmdGenerateDocumentation extends CmdBase{
         cmdClassMap.put("consume", PerformanceConsumer.class);
         cmdClassMap.put("transaction", PerformanceTransaction.class);
         cmdClassMap.put("read", PerformanceReader.class);
-        cmdClassMap.put("produce-v4", PerformanceProducerV4.class);
-        cmdClassMap.put("consume-v4", PerformanceConsumerV4.class);
-        cmdClassMap.put("transaction-v4", PerformanceTransactionV4.class);
-        cmdClassMap.put("read-v4", PerformanceReaderV4.class);
         cmdClassMap.put("monitor-brokers", BrokerMonitor.class);
         cmdClassMap.put("websocket-producer", PerformanceClient.class);
         cmdClassMap.put("managed-ledger", ManagedLedgerWriter.class);
@@ -76,23 +75,49 @@ public class CmdGenerateDocumentation extends CmdBase{
         }
     }
 
-    private static String generateDocument(String module, CommandLine parentCmd) {
+    @VisibleForTesting
+    static String generateDocument(String module, CommandLine parentCmd) {
         StringBuilder sb = new StringBuilder();
         CommandLine cmd = parentCmd.getSubcommands().get(module);
         sb.append("## ").append(module).append("\n\n");
         sb.append(getCommandDescription(cmd)).append("\n");
+        String[] description = cmd.getCommandSpec().usageMessage().description();
+        for (int i = 1; description != null && i < description.length; i++) {
+            sb.append("\n").append(String.format(description[i]).trim()).append("\n");
+        }
         sb.append("\n\n```shell\n")
                 .append("$ pulsar-perf ").append(module).append(" [options]")
                 .append("\n```");
         sb.append("\n\n");
-        sb.append("|Flag|Description|Default|\n");
-        sb.append("|---|---|---|\n");
-        List<CommandLine.Model.OptionSpec> options = cmd.getCommandSpec().options();
-        options.stream().filter(ele -> !ele.hidden()).forEach((option) ->
-                sb.append("| `").append(String.join(", ", option.names()))
-                        .append("` | ").append(getOptionDescription(option).replace("\n", " "))
-                        .append("|").append(option.defaultValueString()).append("|\n")
-        );
+        // Options in an @ArgGroup with a heading (such as the client-specific options of produce/consume)
+        // get their own table, so the generated docs have the same sections as --help.
+        Map<String, List<OptionSpec>> sections = new LinkedHashMap<>();
+        for (OptionSpec option : cmd.getCommandSpec().options()) {
+            if (!option.hidden()) {
+                sections.computeIfAbsent(ClientApiOptionGroups.sectionHeading(option), k -> new ArrayList<>())
+                        .add(option);
+            }
+        }
+        boolean singleSection = sections.size() == 1 && sections.containsKey(null);
+        for (Map.Entry<String, List<OptionSpec>> section : sections.entrySet()) {
+            if (!singleSection) {
+                String heading = section.getKey() != null ? section.getKey()
+                        : String.format(cmd.getCommandSpec().usageMessage().optionListHeading()).trim();
+                if (heading.isEmpty()) {
+                    heading = "Options";
+                }
+                sb.append("### ").append(heading.endsWith(":") ? heading.substring(0, heading.length() - 1)
+                        : heading).append("\n\n");
+            }
+            sb.append("|Flag|Description|Default|\n");
+            sb.append("|---|---|---|\n");
+            section.getValue().forEach((option) ->
+                    sb.append("| `").append(String.join(", ", option.names()))
+                            .append("` | ").append(getOptionDescription(option).replace("\n", " "))
+                            .append("|").append(option.defaultValueString()).append("|\n")
+            );
+            sb.append("\n");
+        }
         System.out.println(sb.toString());
         return sb.toString();
     }

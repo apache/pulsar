@@ -19,6 +19,8 @@
 package org.apache.pulsar.functions.utils;
 
 import static org.apache.pulsar.common.functions.FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.expectThrows;
@@ -443,5 +445,38 @@ public class SourceConfigUtilsTest {
             throw new RuntimeException("Something wrong with the test", e);
         }
         return sourceConfig;
+    }
+
+    @Test
+    public void testConvertClientApi() {
+        SourceConfig sourceConfig = createSourceConfig();
+        sourceConfig.setTopicName("topic://public/default/out");
+        sourceConfig.setLogTopic(null);
+        FunctionDetails functionDetails = SourceConfigUtils.convert(sourceConfig,
+                new SourceConfigUtils.ExtractedSourceDetails(null, null));
+        assertThat(functionDetails.getClientApi()).isEqualTo(FunctionDetails.ClientApi.AUTO);
+        assertThat(SourceConfigUtils.convertFromDetails(functionDetails).getClientApi()).isNull();
+
+        sourceConfig.setTopicName("persistent://public/default/out");
+        sourceConfig.setClientApi(FunctionConfig.ClientApi.V5);
+        functionDetails = SourceConfigUtils.convert(sourceConfig,
+                new SourceConfigUtils.ExtractedSourceDetails(null, null));
+        assertThat(functionDetails.getClientApi()).isEqualTo(FunctionDetails.ClientApi.V5);
+        assertThat(SourceConfigUtils.convertFromDetails(functionDetails).getClientApi())
+                .isEqualTo(FunctionConfig.ClientApi.V5);
+
+        sourceConfig.setProcessingGuarantees(EFFECTIVELY_ONCE);
+        assertThatThrownBy(() -> SourceConfigUtils.convert(sourceConfig,
+                new SourceConfigUtils.ExtractedSourceDetails(null, null)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("EFFECTIVELY_ONCE");
+    }
+
+    @Test
+    public void testMergeClientApi() {
+        SourceConfig sourceConfig = createSourceConfig();
+        SourceConfig mergedConfig = SourceConfigUtils.validateUpdate(sourceConfig,
+                createUpdatedSourceConfig("clientApi", FunctionConfig.ClientApi.V5));
+        assertThat(mergedConfig.getClientApi()).isEqualTo(FunctionConfig.ClientApi.V5);
     }
 }

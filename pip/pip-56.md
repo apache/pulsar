@@ -2,9 +2,6 @@
 
 * **Status**: Proposal
 * **Author**: Ali Ahmed
-* **Pull Request**:
-* **Mailing List discussion**:
-* **Release**:
 
 
 ## Context

@@ -2,8 +2,6 @@
 
 - Status: Proposal
 - Author: Yong Zhang, Xiaolong Ran
-- Pull Request:
-- Mailing List discussion:
 
 
 ## Motivation
