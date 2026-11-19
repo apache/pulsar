@@ -293,11 +293,6 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
         callback.terminateFailed(new ManagedLedgerException("Terminate is not allowed on shadow topic."), ctx);
     }
 
-    @Override
-    public CompletableFuture<Position> asyncMigrate() {
-        return CompletableFuture.failedFuture(new ManagedLedgerException("Migration is not allowed on shadow topic."));
-    }
-
     /**
      * Handle source ManagedLedgerInfo updates.
      * Update types:

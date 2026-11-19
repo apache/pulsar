@@ -22,6 +22,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.bookkeeper.mledger.impl.OffloadPrefixTest.assertEventuallyTrue;
 import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.defaultConfig;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyMap;
@@ -83,6 +84,8 @@ import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.OffloadedReadPriority;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
@@ -350,6 +353,68 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         reopened.close();
         assertTrue(reopened.ledgerCache.isEmpty());
         assertThat(offloader.openedReadHandles.get()).isZero();
+    }
+
+    @Test(timeOut = 30000)
+    public void testFailedTerminationKeepsFinalLedgerInBookKeeper() throws Exception {
+        MockLedgerOffloader offloader = new MockLedgerOffloader();
+        MockClock clock = new MockClock();
+        offloader.getOffloadPolicies().setManagedLedgerOffloadDeletionLagInMillis(0L);
+        ManagedLedgerConfig config = defaultConfig();
+        config.setMaxEntriesPerLedger(2);
+        config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
+        config.setRetentionTime(10, TimeUnit.MINUTES);
+        config.setRetentionSizeInMB(10);
+        config.setLedgerOffloader(offloader);
+        config.setClock(clock);
+
+        String ledgerName = "failed_termination_offload";
+        long finalLedgerId;
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(ledgerName, config);
+        try {
+            long firstLedgerId = ledger.addEntry("entry-0".getBytes(UTF_8)).getLedgerId();
+            ledger.addEntry("entry-1".getBytes(UTF_8));
+            Position lastPosition = ledger.addEntry("entry-2".getBytes(UTF_8));
+            finalLedgerId = lastPosition.getLedgerId();
+            assertThat(finalLedgerId).isNotEqualTo(firstLedgerId);
+
+            metadataStore.failConditional(new MetadataStoreException("injected termination metadata failure"),
+                    (operation, path) -> operation == FaultInjectionMetadataStore.OperationType.PUT
+                            && path.equals("/managed-ledgers/" + ledgerName));
+            assertThatThrownBy(ledger::terminate).isInstanceOf(ManagedLedgerException.class)
+                    .hasRootCauseMessage("injected termination metadata failure");
+            assertThat(factory.getManagedLedgerInfo(ledgerName).terminatedPosition).isNull();
+            assertThat(ledger.getLastConfirmedEntry()).isEqualTo(lastPosition);
+
+            assertThat(ledger.offloadPrefix(lastPosition)).isEqualTo(PositionFactory.create(finalLedgerId, 0));
+            assertThat(offloader.offloadedLedgers()).containsExactly(firstLedgerId);
+
+            offloader.getOffloadPolicies().setManagedLedgerOffloadThresholdInBytes(0L);
+            CompletableFuture<Position> automaticOffload = new CompletableFuture<>();
+            ledger.maybeOffloadInBackground(automaticOffload);
+            automaticOffload.get(5, TimeUnit.SECONDS);
+            assertThat(offloader.offloadedLedgers()).containsExactly(firstLedgerId);
+
+            clock.advance(1, TimeUnit.MINUTES);
+            CompletableFuture<Void> trimmed = new CompletableFuture<>();
+            ledger.internalTrimConsumedLedgers(trimmed);
+            trimmed.get(5, TimeUnit.SECONDS);
+            Awaitility.await().atMost(5, TimeUnit.SECONDS)
+                    .untilAsserted(() -> assertThat(bkc.getLedgers()).doesNotContain(firstLedgerId));
+            assertThat(bkc.getLedgers()).contains(finalLedgerId);
+            assertThat(factory.getManagedLedgerInfo(ledgerName).terminatedPosition).isNull();
+        } finally {
+            ledger.close();
+        }
+
+        ManagedLedgerImpl reopened = (ManagedLedgerImpl) factory.open(ledgerName, config);
+        try {
+            assertThat(reopened.isTerminated()).isFalse();
+            assertThat(reopened.getLedgersInfo()).containsKey(finalLedgerId);
+            assertReadsAllEntries(reopened, 3);
+        } finally {
+            reopened.close();
+        }
     }
 
     @Test(timeOut = 30000)

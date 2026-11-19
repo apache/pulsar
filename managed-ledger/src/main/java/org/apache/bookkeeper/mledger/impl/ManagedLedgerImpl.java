@@ -1677,27 +1677,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 return CompletableFuture.completedFuture(lastConfirmedEntry);
             }
             result = new CompletableFuture<>();
+            // The termination metadata write publishes the migration marker along with its final position.
             migrationFuture = result;
         }
 
         try {
-            asyncSetProperty(MIGRATION_STATE_PROPERTY, Boolean.TRUE.toString(), new UpdatePropertiesCallback() {
-                @Override
-                public void updatePropertiesComplete(Map<String, String> properties, Object ctx) {
-                    try {
-                        terminateForMigration(result);
-                    } catch (Throwable t) {
-                        clearMigration(result);
-                        result.completeExceptionally(t);
-                    }
-                }
-
-                @Override
-                public void updatePropertiesFailed(ManagedLedgerException exception, Object ctx) {
-                    clearMigration(result);
-                    result.completeExceptionally(exception);
-                }
-            }, null);
+            terminateForMigration(result);
         } catch (Throwable t) {
             clearMigration(result);
             result.completeExceptionally(t);
@@ -1716,10 +1701,28 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
             @Override
             public void terminateComplete(Position lastCommittedPosition, Object ctx) {
-                migrated = true;
-                log.info().attr("position", lastCommittedPosition).log("Topic successfully terminated and migrated");
-                result.complete(lastCommittedPosition);
-                clearMigration(result);
+                if (migrated) {
+                    completeMigration(result, lastCommittedPosition);
+                    return;
+                }
+
+                // The ledger was already terminated or its termination write had already been submitted.
+                asyncSetProperty(MIGRATION_STATE_PROPERTY, Boolean.TRUE.toString(), new UpdatePropertiesCallback() {
+                    @Override
+                    public void updatePropertiesComplete(Map<String, String> properties, Object ctx) {
+                        if (properties.containsKey(MIGRATION_STATE_PROPERTY)) {
+                            completeMigration(result, lastCommittedPosition);
+                        } else {
+                            updatePropertiesFailed(new ManagedLedgerException("Migration marker was not stored"), ctx);
+                        }
+                    }
+
+                    @Override
+                    public void updatePropertiesFailed(ManagedLedgerException exception, Object ctx) {
+                        clearMigration(result);
+                        result.completeExceptionally(exception);
+                    }
+                }, null);
             }
 
             @Override
@@ -1728,6 +1731,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 result.completeExceptionally(exception);
             }
         }, null);
+    }
+
+    private void completeMigration(CompletableFuture<Position> result, Position position) {
+        migrated = true;
+        log.info().attr("position", position).log("Topic successfully terminated and migrated");
+        result.complete(position);
+        clearMigration(result);
     }
 
     @Override
@@ -1982,6 +1992,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         Stat version = null;
         Position position = null;
         ManagedLedgerException failure = null;
+        Map<String, String> propertiesSnapshot = null;
+        boolean finishMigration = false;
         synchronized (this) {
             if (state != State.Terminated) {
                 // Closed or fenced while waiting for the metadata mutex.
@@ -1989,7 +2001,15 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         : new ManagedLedgerAlreadyClosedException("Managed ledger was closed while terminating");
             } else if (metadataMutex.tryLock()) {
                 try {
-                    info = getManagedLedgerInfo();
+                    if (migrationFuture == null) {
+                        info = getManagedLedgerInfo();
+                    } else {
+                        Map<String, String> properties = new HashMap<>(propertiesMap);
+                        properties.put(MIGRATION_STATE_PROPERTY, Boolean.TRUE.toString());
+                        info = buildManagedLedgerInfo(ledgers, properties);
+                        finishMigration = properties.containsKey(MIGRATION_STATE_PROPERTY);
+                        propertiesSnapshot = new ConcurrentHashMap<>(properties);
+                    }
                     position = lastConfirmedEntry;
                     setTerminatedPosition(info, position);
                     version = ledgersStat;
@@ -2015,6 +2035,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
 
         Position terminatedPosition = position;
+        Map<String, String> committedProperties = propertiesSnapshot;
+        boolean migrationCompleted = finishMigration;
         AtomicBoolean completed = new AtomicBoolean();
         MetaStoreCallback<Void> callback = new MetaStoreCallback<Void>() {
             @Override
@@ -2024,16 +2046,25 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 }
                 ledgersStat = stat;
                 persistedTerminationPosition = terminatedPosition;
+                if (committedProperties != null) {
+                    propertiesMap = committedProperties;
+                }
                 metadataMutex.unlock();
                 log.info().attr("lastConfirmedEntry", lastConfirmedEntry).log("Terminated managed ledger");
                 // The final ledger was closed outside a rollover, so offload it from here
                 maybeOffloadInBackground(AUTOMATIC_OFFLOAD_TRIGGER);
                 // Complete on the managed ledger executor, after the adds confirmed before the close, which complete
                 // there too: the caller may disconnect the writers, which must not miss the confirmation of an add
-                try {
-                    executor.execute(() -> terminationResult.complete(terminatedPosition));
-                } catch (RejectedExecutionException e) {
+                Runnable complete = () -> {
+                    if (migrationCompleted) {
+                        migrated = true;
+                    }
                     terminationResult.complete(terminatedPosition);
+                };
+                try {
+                    executor.execute(complete);
+                } catch (RejectedExecutionException e) {
+                    complete.run();
                 }
             }
 
@@ -4045,7 +4076,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             final LedgerInfo info = e.getValue();
             // Skip current active ledger, an active ledger can't be offloaded.
             // Can't `info.getLedgerId() == currentLedger.getId()` here, trigger offloading is before create ledger.
-            if (info.getTimestamp() == 0L) {
+            if (info.getTimestamp() == 0L || isLedgerAwaitingDurableTermination(info.getLedgerId())) {
                 continue;
             }
 
@@ -4082,6 +4113,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     .log("Nothing to offload");
             unlockingPromise.complete(PositionFactory.LATEST);
         }
+    }
+
+    private boolean isLedgerAwaitingDurableTermination(long ledgerId) {
+        LedgerHandle handle = currentLedger;
+        return state == State.Terminated && persistedTerminationPosition == null
+                && handle != null && handle.getId() == ledgerId;
     }
 
     private boolean hasLedgerRetentionExpired(long retentionTimeMs, long ledgerTimestamp) {
@@ -4328,8 +4365,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 Collection<LedgerInfo> remainingLedgers = ledgersToDelete.isEmpty() ? ledgers.values()
                         : ledgers.tailMap(ledgersToDelete.get(ledgersToDelete.size() - 1).getLedgerId(), false)
                                 .values();
+                // Recovery still opens the current ledger in BookKeeper until termination is durable.
+                long protectedLedgerId = persistedTerminationPosition == null ? currentLedgerId : -1;
                 for (LedgerInfo ls : remainingLedgers) {
-                    if (isOffloadedNeedsDelete(ls.getOffloadContext(), optionalOffloadPolicies)) {
+                    if (ls.getLedgerId() != protectedLedgerId
+                            && isOffloadedNeedsDelete(ls.getOffloadContext(), optionalOffloadPolicies)) {
                         log.debug().attr("ledgerId", ls.getLedgerId())
                                 .log("Ledger has been offloaded, bookkeeper ledger needs to be deleted");
                         offloadedLedgersToDelete.add(ls);
@@ -4839,7 +4879,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return;
         }
 
-        Position firstUnoffloaded;
+        Position firstUnoffloaded = null;
+        CompletableFuture<Position> pendingTermination = null;
 
         Queue<LedgerInfo> ledgersToOffload = new ConcurrentLinkedQueue<>();
         synchronized (this) {
@@ -4863,29 +4904,36 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
             long current = ledgers.lastKey();
             LedgerInfo lastLedgerInfo = ledgers.get(current);
-            boolean includeLastLedger = STATE_UPDATER.get(this) == State.Terminated
-                    && requestOffloadTo.compareTo(lastConfirmedEntry) >= 0
-                    && lastLedgerInfo != null
-                    && lastLedgerInfo.getEntries() > 0;
-
-            // the first ledger which will not be offloaded. Defaults to current,
-            // in the case that the whole headmap is offloaded. Otherwise, it will
-            // be set as we iterate through the headmap values
-            Position firstPositionRetained = includeLastLedger ? lastConfirmedEntry.getNext()
-                    : PositionFactory.create(current, 0);
-            for (LedgerInfo ls : ledgers.headMap(current, includeLastLedger).values()) {
-                if (requestOffloadTo.getLedgerId() > ls.getLedgerId()
-                        || (includeLastLedger && requestOffloadTo.getLedgerId() == ls.getLedgerId())) {
-                    // don't offload if ledger has already been offloaded, or is empty
-                    if (!ls.getOffloadContext().isComplete() && ls.getSize() > 0) {
-                        ledgersToOffload.add(ls);
+            Position terminatedPosition = persistedTerminationPosition;
+            boolean canIncludeLastLedger = state == State.Terminated
+                    && lastLedgerInfo != null && lastLedgerInfo.getEntries() > 0;
+            if (canIncludeLastLedger && terminatedPosition == null && terminationPositionReady
+                    && terminationFuture != null && !terminationFuture.isDone()
+                    && requestOffloadTo.compareTo(lastConfirmedEntry) >= 0) {
+                pendingTermination = terminationFuture;
+            } else {
+                boolean includeLastLedger = canIncludeLastLedger && terminatedPosition != null
+                        && requestOffloadTo.compareTo(terminatedPosition) >= 0;
+                firstUnoffloaded = includeLastLedger ? terminatedPosition.getNext() : PositionFactory.create(current, 0);
+                for (LedgerInfo ls : ledgers.headMap(current, includeLastLedger).values()) {
+                    if (requestOffloadTo.getLedgerId() > ls.getLedgerId()
+                            || (includeLastLedger && requestOffloadTo.getLedgerId() == ls.getLedgerId())) {
+                        // Don't offload if the ledger has already been offloaded or is empty.
+                        if (!ls.getOffloadContext().isComplete() && ls.getSize() > 0) {
+                            ledgersToOffload.add(ls);
+                        }
+                    } else {
+                        firstUnoffloaded = PositionFactory.create(ls.getLedgerId(), 0);
+                        break;
                     }
-                } else {
-                    firstPositionRetained = PositionFactory.create(ls.getLedgerId(), 0);
-                    break;
                 }
             }
-            firstUnoffloaded = firstPositionRetained;
+        }
+
+        if (pendingTermination != null) {
+            // On failure, retry the request against the remaining eligible prefix.
+            pendingTermination.whenComplete((position, error) -> asyncOffloadPrefix(requestOffloadTo, callback, ctx));
+            return;
         }
 
         if (ledgersToOffload.isEmpty()) {

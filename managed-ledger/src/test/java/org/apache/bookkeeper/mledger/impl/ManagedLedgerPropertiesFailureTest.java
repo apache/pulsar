@@ -26,6 +26,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.spy;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -95,6 +96,50 @@ public class ManagedLedgerPropertiesFailureTest extends MockedBookKeeperTestCase
             assertThat(ledger.isMigrated()).isFalse();
         } finally {
             rolloverUpdate.completeExceptionally(new MetadataStoreException("test cleanup"));
+            gatedFactory.shutdown();
+        }
+    }
+
+    @Test(timeOut = 20000)
+    @SuppressWarnings("unchecked")
+    public void testQueuedPropertiesUpdateCopiesInputAtSubmission() throws Exception {
+        String ledgerName = "properties-queued-input";
+        String ledgerPath = "/managed-ledgers/" + ledgerName;
+        CompletableFuture<Void> releaseFirstWrite = new CompletableFuture<>();
+        AtomicBoolean pauseNextWrite = new AtomicBoolean();
+        FaultInjectionMetadataStore spyStore = spy(metadataStore);
+        doAnswer(invocation -> {
+            CompletableFuture<Stat> write = (CompletableFuture<Stat>) invocation.callRealMethod();
+            if (pauseNextWrite.compareAndSet(true, false)) {
+                return write.thenCombine(releaseFirstWrite, (stat, ignored) -> stat);
+            }
+            return write;
+        }).when(spyStore).put(eq(ledgerPath), any(byte[].class), any());
+
+        ManagedLedgerFactoryImpl gatedFactory = new ManagedLedgerFactoryImpl(spyStore, bkc);
+        try {
+            ManagedLedgerImpl ledger = (ManagedLedgerImpl) gatedFactory.open(ledgerName);
+            pauseNextWrite.set(true);
+            CompletableFuture<Map<String, String>> firstUpdate = updatePropertiesAsync(
+                    callback -> ledger.asyncSetProperty("first", "value", callback, null));
+            assertThat(pauseNextWrite.get()).isFalse();
+            assertThat(firstUpdate).isNotDone();
+
+            Map<String, String> input = new HashMap<>(Map.of("queued", "original"));
+            CompletableFuture<Map<String, String>> queuedUpdate = updatePropertiesAsync(
+                    callback -> ledger.asyncSetProperties(input, callback, null));
+            assertThat(queuedUpdate).isNotDone();
+            input.put("queued", "changed");
+            input.put("late", "value");
+
+            releaseFirstWrite.complete(null);
+            firstUpdate.get(5, TimeUnit.SECONDS);
+            Map<String, String> expected = Map.of("first", "value", "queued", "original");
+            assertThat(queuedUpdate.get(5, TimeUnit.SECONDS)).containsExactlyInAnyOrderEntriesOf(expected);
+            assertThat(gatedFactory.getMetaStore().getManagedLedgerPropertiesAsync(ledgerName).get(5, TimeUnit.SECONDS))
+                    .containsExactlyInAnyOrderEntriesOf(expected);
+        } finally {
+            releaseFirstWrite.complete(null);
             gatedFactory.shutdown();
         }
     }
