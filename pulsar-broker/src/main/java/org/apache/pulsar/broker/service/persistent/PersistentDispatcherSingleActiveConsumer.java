@@ -24,9 +24,12 @@ import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import com.google.common.annotations.VisibleForTesting;
 import io.github.merlimat.slog.Logger;
 import java.time.Duration;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
@@ -43,6 +46,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsExcep
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.service.AbstractDispatcherSingleActiveConsumer;
+import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.EntryBatchIndexesAcks;
@@ -86,6 +90,8 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
     private ScheduledFuture<?> readOnActiveConsumerTask = null;
 
     private final RedeliveryTracker redeliveryTracker;
+    // Guarded by this. Joining standbys and EOF callbacks can race, but each connected consumer needs one notification.
+    private final Set<Consumer> endOfTopicNotifiedConsumers = Collections.newSetFromMap(new IdentityHashMap<>());
 
     public PersistentDispatcherSingleActiveConsumer(ManagedCursor cursor, SubType subscriptionType, int partitionIndex,
                                                     PersistentTopic topic, Subscription subscription) {
@@ -107,6 +113,41 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
             .build();
         this.redeliveryTracker = RedeliveryTrackerDisabled.REDELIVERY_TRACKER_DISABLED;
         this.initializeDispatchRateLimiterIfNeeded();
+    }
+
+    @Override
+    protected synchronized void onConsumerAddedToStandby(Consumer consumer) {
+        if (topic.getManagedLedger().isTerminated() && !topic.isMigrated() && !cursor.hasBacklog(true)) {
+            notifyEndOfTopicOnce(consumer);
+        }
+    }
+
+    @Override
+    protected synchronized void checkAndApplyReachedEndOfTopicOrTopicMigration(List<Consumer> consumers) {
+        if (topic.isMigrated() || cursor.hasBacklog(true)) {
+            // Preserve migration retries and the existing notification condition when the cheap count is inaccurate.
+            super.checkAndApplyReachedEndOfTopicOrTopicMigration(consumers);
+        } else {
+            consumers.forEach(this::notifyEndOfTopicOnce);
+        }
+    }
+
+    private void notifyEndOfTopicOnce(Consumer consumer) {
+        if (endOfTopicNotifiedConsumers.add(consumer)) {
+            consumer.reachedEndOfTopic();
+        }
+    }
+
+    @Override
+    public synchronized void removeConsumer(Consumer consumer) throws BrokerServiceException {
+        super.removeConsumer(consumer);
+        endOfTopicNotifiedConsumers.remove(consumer);
+    }
+
+    @Override
+    public synchronized void cursorIsReset() {
+        // Failover resets disconnect only the active consumer; connected standbys must be notified again after replay.
+        endOfTopicNotifiedConsumers.clear();
     }
 
     protected synchronized void scheduleReadOnActiveConsumer() {
