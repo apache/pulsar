@@ -438,6 +438,8 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         ManagedCursorInfo copy = new ManagedCursorInfo();
         copy.copyFrom(ManagedCursorImpl.this.managedCursorInfo);
+        // This is a new logical update; MetaStoreImpl assigns its own publication ID.
+        copy.clearPublication();
         copy.clearCursorProperties();
         copy.addAllCursorProperties(buildStringPropertiesMap(newProperties));
         final Stat lastCursorLedgerStat = ManagedCursorImpl.this.cursorLedgerStat;
