@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.transaction.buffer.impl;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -148,15 +149,25 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
     private CompletableFuture<Void> stateTail = CompletableFuture.completedFuture(null);
 
     /**
-     * Tail of the chain that hands the entries of {@link #appendBufferToTxn} to the managed ledger in
-     * publish order: each entry goes once its op record is written and the appends before it handed
-     * theirs over, unless its txn was resolved meanwhile (see {@link #appendToLedgerIfOpen}).
-     * Non-transactional entries published while it's pending join the chain (see
-     * {@link #addEntryInPublishOrder}). Never completes exceptionally, so an append that fails before
-     * the ledger doesn't hold up the ones behind it. Replaced under {@link #lock}; volatile so that a
-     * non-transactional publish sees without the lock whether anything is pending.
+     * Publishes waiting to be handed to the managed ledger, in publish order: the entry of an
+     * {@link #appendBufferToTxn} goes once its op record is written and the publishes before it were
+     * handed over, unless its txn was resolved meanwhile (see {@link #appendToLedgerIfOpen}).
+     * Non-transactional entries published while it's not empty join it (see
+     * {@link #addEntryInPublishOrder}). A publish is queued under {@link #lock} before any metadata
+     * call, which may complete or reenter inline, and handed over outside it by
+     * {@link #handOverPendingPublishes}. Guarded by {@link #lock}.
      */
-    private volatile CompletableFuture<Void> appendTail = CompletableFuture.completedFuture(null);
+    private final ArrayDeque<PendingPublish> pendingPublishes = new ArrayDeque<>();
+
+    /**
+     * Whether a thread is in {@link #handOverPendingPublishes}. The publishes queued or made ready
+     * meanwhile are left to it, so a burst is handed over in a loop rather than with one nested call
+     * per publish. Guarded by {@link #lock}.
+     */
+    private boolean handingOver;
+
+    /** A retryable pre-ledger failure retires this topic generation before a higher sequence can land. */
+    private Throwable publishFailure;
 
     private final LongAdder committedCount = new LongAdder();
     private final LongAdder abortedCount = new LongAdder();
@@ -357,24 +368,181 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
     public CompletableFuture<Position> appendBufferToTxn(TxnID txnId, long sequenceId, ByteBuf buffer) {
         buffer.retain();
         String txnIdKey = TxnIds.toKey(txnId);
-        CompletableFuture<Stat> opWritten = recoveryFuture.thenCompose(__ -> writeOpRecord(txnId, txnIdKey));
-        CompletableFuture<Position> appended = new CompletableFuture<>();
+        TxnAppend append = new TxnAppend(txnId, txnIdKey, buffer);
         synchronized (lock) {
-            // 2. ML append, in publish order (see appendTail). By the invariant above, /txn/op is
-            // durable before any ledger entry exists for this op.
-            appendTail = appendTail.thenCompose(__ -> opWritten).handle((__, opWriteFailure) -> {
-                if (opWriteFailure == null) {
-                    appendToLedgerIfOpen(txnId, txnIdKey, buffer, appended);
-                }
-                return null;
-            });
+            pendingPublishes.add(append);
         }
-        return opWritten.thenCompose(__ -> appended)
-                .thenApply(position -> {
+        // Queue the append before invoking metadata code, which may complete or reenter inline.
+        recoveryFuture.thenCompose(__ -> writeOpRecord(txnId, txnIdKey))
+                .whenComplete((__, opWriteFailure) -> append.opWriteCompleted(opWriteFailure));
+        return append.result.thenApply(position -> {
                     trackPosition(txnIdKey, position);
                     return position;
                 })
                 .whenComplete((p, ex) -> buffer.release());
+    }
+
+    /**
+     * Hand the queued publishes over in publish order, as long as the one at the head is ready or the
+     * publish generation failed. Only one thread does so at a time, in a loop, outside {@link #lock}:
+     * the publishes queued or made ready meanwhile, including by the callbacks it runs, are left to
+     * it, so the stack doesn't grow with the queue.
+     */
+    private void handOverPendingPublishes() {
+        synchronized (lock) {
+            if (handingOver) {
+                return;
+            }
+            handingOver = true;
+        }
+        while (true) {
+            PendingPublish next;
+            Throwable failure;
+            synchronized (lock) {
+                next = pendingPublishes.peek();
+                failure = next == null ? null : currentPublishFailure();
+                if (next == null || (failure == null && !next.isReady())) {
+                    handingOver = false;
+                    return;
+                }
+                pendingPublishes.poll();
+            }
+            try {
+                next.handOver(failure);
+            } catch (Throwable t) {
+                // Only this publish fails: the ones behind it still go to the ledger.
+                log.warn().attr("segment", segmentName).exception(t).log("Failed to hand a publish over");
+            }
+        }
+    }
+
+    /** A publish queued in {@link #pendingPublishes}. */
+    private interface PendingPublish {
+
+        /** Whether it can go once the publishes before it went. Called under {@link #lock}. */
+        boolean isReady();
+
+        /** Hand it to the ledger, or fail it with {@code failure} when set. Called outside {@link #lock}. */
+        void handOver(Throwable failure);
+    }
+
+    /** The entry of an {@link #appendBufferToTxn}: it's ready once its op record write completed. */
+    private final class TxnAppend implements PendingPublish {
+        private final TxnID txnId;
+        private final String txnIdKey;
+        private final ByteBuf buffer;
+        private final CompletableFuture<Position> result = new CompletableFuture<>();
+        /** Set under {@link #lock} before it's ready, and not changed after. */
+        private boolean opWriteDone;
+        private Throwable opWriteFailure;
+
+        TxnAppend(TxnID txnId, String txnIdKey, ByteBuf buffer) {
+            this.txnId = txnId;
+            this.txnIdKey = txnIdKey;
+            this.buffer = buffer;
+        }
+
+        void opWriteCompleted(Throwable failure) {
+            synchronized (lock) {
+                opWriteDone = true;
+                opWriteFailure = failure;
+            }
+            handOverPendingPublishes();
+        }
+
+        @Override
+        public boolean isReady() {
+            return opWriteDone;
+        }
+
+        @Override
+        public void handOver(Throwable failure) {
+            if (failure != null) {
+                result.completeExceptionally(failure);
+            } else if (opWriteFailure != null) {
+                Throwable cause = FutureUtil.unwrapCompletionException(opWriteFailure);
+                try {
+                    if (!(cause instanceof BrokerServiceException.NotAllowedException)) {
+                        retirePublishGeneration(cause);
+                    }
+                } finally {
+                    result.completeExceptionally(cause);
+                }
+            } else {
+                // A failed earlier append must not leave a sequence hole below a later
+                // dedup high watermark, even when this op record was already written.
+                appendToLedgerIfOpen(txnId, txnIdKey, buffer, result);
+            }
+        }
+    }
+
+    /** A non-transactional entry published while {@link #pendingPublishes} wasn't empty. */
+    private static final class PlainPublish implements PendingPublish {
+        private final ManagedLedger ledger;
+        private final ByteBuf headersAndPayload;
+        private final int numberOfMessages;
+        private final AsyncCallbacks.AddEntryCallback callback;
+        private final Object ctx;
+
+        PlainPublish(ManagedLedger ledger, ByteBuf headersAndPayload, int numberOfMessages,
+                     AsyncCallbacks.AddEntryCallback callback, Object ctx) {
+            this.ledger = ledger;
+            this.headersAndPayload = headersAndPayload;
+            this.numberOfMessages = numberOfMessages;
+            this.callback = callback;
+            this.ctx = ctx;
+        }
+
+        @Override
+        public boolean isReady() {
+            return true;
+        }
+
+        @Override
+        public void handOver(Throwable failure) {
+            try {
+                if (failure != null) {
+                    callback.addFailed(ManagedLedgerException.getManagedLedgerException(failure), ctx);
+                    return;
+                }
+                try {
+                    ledger.asyncAddEntry(headersAndPayload, numberOfMessages, callback, ctx);
+                } catch (RuntimeException e) {
+                    // Only this publish fails: the ones behind it still go to the ledger.
+                    callback.addFailed(ManagedLedgerException.getManagedLedgerException(e), ctx);
+                }
+            } finally {
+                headersAndPayload.release();
+            }
+        }
+    }
+
+    private Throwable currentPublishFailure() {
+        synchronized (lock) {
+            if (publishFailure != null) {
+                return publishFailure;
+            }
+            return closed ? new BrokerServiceException.ServiceUnitNotReadyException("Transaction buffer is closed")
+                    : null;
+        }
+    }
+
+    private void retirePublishGeneration(Throwable cause) {
+        synchronized (lock) {
+            if (publishFailure != null) {
+                return;
+            }
+            publishFailure = cause;
+        }
+        // Install this topic's close admission barrier before reporting any failed publish.
+        // close(true) fences synchronously and completes asynchronously. Calling it outside the
+        // buffer lock also permits closeAsync to reenter this buffer without a lock cycle.
+        FutureUtil.supplySafely(() -> topic.close(true)).whenComplete((__, error) -> {
+            if (error != null) {
+                log.debug().attr("segment", segmentName).exception(error)
+                        .log("Failed to close the failed publish generation");
+            }
+        });
     }
 
     private CompletableFuture<Stat> writeOpRecord(TxnID txnId, String txnIdKey) {
@@ -421,10 +589,14 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
      */
     private void appendToLedgerIfOpen(TxnID txnId, String txnIdKey, ByteBuf buffer,
                                       CompletableFuture<Position> result) {
-        Exception failure = null;
+        Throwable failure = null;
         synchronized (lock) {
             TxnEntry entry = txns.get(txnIdKey);
-            if (entry == null || entry.state != TxnState.OPEN) {
+            if (publishFailure != null) {
+                failure = publishFailure;
+            } else if (closed) {
+                failure = new BrokerServiceException.ServiceUnitNotReadyException("Transaction buffer is closed");
+            } else if (entry == null || entry.state != TxnState.OPEN) {
                 failure = new BrokerServiceException.NotAllowedException("Transaction " + txnId + " is already "
                         + (entry == null ? "resolved" : entry.state.toString()) + " — TxnConflict");
             } else {
@@ -459,24 +631,18 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
     @Override
     public void addEntryInPublishOrder(ManagedLedger ledger, ByteBuf headersAndPayload, int numberOfMessages,
                                        AsyncCallbacks.AddEntryCallback callback, Object ctx) {
-        if (appendTail.isDone()) {
-            // The entries published before this one were all handed to the ledger.
-            ledger.asyncAddEntry(headersAndPayload, numberOfMessages, callback, ctx);
-            return;
-        }
-        headersAndPayload.retain();
         synchronized (lock) {
-            appendTail = appendTail.thenRun(() -> {
-                try {
-                    ledger.asyncAddEntry(headersAndPayload, numberOfMessages, callback, ctx);
-                } catch (RuntimeException e) {
-                    // Only this publish fails: the ones behind it still go to the ledger.
-                    callback.addFailed(ManagedLedgerException.getManagedLedgerException(e), ctx);
-                } finally {
-                    headersAndPayload.release();
-                }
-            });
+            // A publish being handed over outside the lock has already left the queue.
+            if (pendingPublishes.isEmpty() && !handingOver && publishFailure == null && !closed) {
+                // Keep the healthy path allocation-free. Hand it over under the same lock the
+                // publishes are queued under, so a newer publish cannot pass it.
+                ledger.asyncAddEntry(headersAndPayload, numberOfMessages, callback, ctx);
+                return;
+            }
+            headersAndPayload.retain();
+            pendingPublishes.add(new PlainPublish(ledger, headersAndPayload, numberOfMessages, callback, ctx));
         }
+        handOverPendingPublishes();
     }
 
     private void trackPosition(String txnIdKey, Position position) {
