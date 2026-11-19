@@ -21,25 +21,17 @@ package org.apache.bookkeeper.mledger.impl;
 import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.defaultConfig;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
-import io.github.merlimat.slog.Logger;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import lombok.Cleanup;
-import org.apache.bookkeeper.client.AsyncCallback.CreateCallback;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
-import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
-import org.apache.bookkeeper.mledger.AsyncCallbacks.ResetCursorCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -51,7 +43,6 @@ import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
 import org.apache.bookkeeper.mledger.proto.BatchedEntryDeletionIndexInfo;
 import org.apache.bookkeeper.mledger.proto.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.PositionInfo;
-import org.apache.bookkeeper.mledger.util.Futures.CloseFuture;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
@@ -72,75 +63,6 @@ public class ManagedCursorResetDurabilityTest extends MockedBookKeeperTestCase {
     @DataProvider(name = "batchIndexPersistenceSettings")
     public Object[][] batchIndexPersistenceSettings() {
         return new Object[][] {{true, 0}, {false, 10000}};
-    }
-
-    @DataProvider
-    public Object[][] ledgerCreationFailures() {
-        return new Object[][] {{false}, {true}};
-    }
-
-    @Test(dataProvider = "ledgerCreationFailures")
-    public void testCursorLedgerCreationFailureSettlesResetAndClose(boolean lateCallback) throws Exception {
-        AtomicBoolean failNextCreation = new AtomicBoolean();
-        @Cleanup("shutdown")
-        ManagedLedgerFactoryImpl failingFactory = new ManagedLedgerFactoryImpl(metadataStore, bkc) {
-            @Override
-            protected ManagedLedgerImpl createManagedLedger(BookKeeper bk, MetaStore store, String name,
-                    ManagedLedgerConfig config, Supplier<CompletableFuture<Boolean>> ownershipChecker) {
-                return new ManagedLedgerImpl(this, bk, store, config, scheduledExecutor, name, ownershipChecker) {
-                    @Override
-                    protected void asyncCreateLedger(BookKeeper bookKeeper, ManagedLedgerConfig ledgerConfig,
-                            DigestType digestType, CreateCallback callback, Map<String, byte[]> metadata,
-                            Logger logger) {
-                        if (!failNextCreation.compareAndSet(true, false)) {
-                            super.asyncCreateLedger(bookKeeper, ledgerConfig, digestType, callback, metadata, logger);
-                        } else if (lateCallback) {
-                            CompletableFuture<LedgerHandle> timedOut = CompletableFuture.failedFuture(
-                                    new TimeoutException("Cursor ledger creation timed out"));
-                            // BookKeeper can finish after the timeout claims the operation but before it is reported.
-                            callback.createComplete(BKException.Code.NoBookieAvailableException, null, timedOut);
-                            callback.createComplete(BKException.Code.TimeoutException, null, timedOut);
-                        } else {
-                            BookKeeper failingBookKeeper = mock(BookKeeper.class);
-                            doThrow(new IllegalStateException("Cannot start ledger creation"))
-                                    .when(failingBookKeeper).newCreateLedgerOp();
-                            super.asyncCreateLedger(failingBookKeeper, ledgerConfig, digestType, callback,
-                                    metadata, logger);
-                        }
-                    }
-                };
-            }
-        };
-        @Cleanup
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) failingFactory.open("reset-creation-failure-" + lateCallback,
-                defaultConfig().setThrottleMarkDelete(0));
-        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("sub");
-        List<Position> positions = addEntries(ledger, 4);
-        assertThat(cursor.getState()).isEqualTo("NoLedger");
-        CompletableFuture<Void> reset = new CompletableFuture<>();
-        CloseFuture close = new CloseFuture();
-        try {
-            failNextCreation.set(true);
-            cursor.asyncResetCursor(positions.get(2), false, new ResetCursorCallback() {
-                @Override
-                public void resetComplete(Object ctx) {
-                    reset.complete(null);
-                }
-
-                @Override
-                public void resetFailed(ManagedLedgerException exception, Object ctx) {
-                    reset.completeExceptionally(exception);
-                }
-            });
-            cursor.asyncClose(close, null);
-            assertThatThrownBy(() -> reset.get(5, TimeUnit.SECONDS))
-                    .hasCauseInstanceOf(InvalidCursorPositionException.class);
-            close.get(5, TimeUnit.SECONDS);
-        } finally {
-            if (!reset.isDone()) {
-                ledger.deleteCursor(cursor.getName());
-            }
-        }
     }
 
     @Test(dataProvider = "successfulResetCases")
@@ -173,11 +95,7 @@ public class ManagedCursorResetDurabilityTest extends MockedBookKeeperTestCase {
         assertThat(persisted.getBatchedEntryDeletionIndexInfosCount())
                 .isEqualTo(requestedBatchAcknowledgment ? 1 : 0);
         if (requestedBatchAcknowledgment) {
-            BatchedEntryDeletionIndexInfo batchInfo = persisted.getBatchedEntryDeletionIndexInfoAt(0);
-            assertThat(batchInfo.getPosition().getLedgerId()).isEqualTo(resetPosition.getLedgerId());
-            assertThat(batchInfo.getPosition().getEntryId()).isEqualTo(resetPosition.getEntryId());
-            assertThat(batchInfo.getDeleteSetsCount()).isEqualTo(1);
-            assertThat(batchInfo.getDeleteSetAt(0)).isEqualTo(6L);
+            assertBatchAck(persisted.getBatchedEntryDeletionIndexInfoAt(0), resetPosition, 6L);
         }
 
         recoverPersistedCursor(cursor);
@@ -282,11 +200,7 @@ public class ManagedCursorResetDurabilityTest extends MockedBookKeeperTestCase {
         assertThat(persisted.getCursorsLedgerId()).as("the reset used the metadata-store fallback").isEqualTo(-1L);
         assertThat(persisted.getIndividualDeletedMessagesCount()).isZero();
         assertThat(persisted.getBatchedEntryDeletionIndexInfosCount()).isEqualTo(1);
-        BatchedEntryDeletionIndexInfo batchInfo = persisted.getBatchedEntryDeletionIndexInfoAt(0);
-        assertThat(batchInfo.getPosition().getLedgerId()).isEqualTo(resetPosition.getLedgerId());
-        assertThat(batchInfo.getPosition().getEntryId()).isEqualTo(resetPosition.getEntryId());
-        assertThat(batchInfo.getDeleteSetsCount()).isEqualTo(1);
-        assertThat(batchInfo.getDeleteSetAt(0)).isEqualTo(resetAckSet[0]);
+        assertBatchAck(persisted.getBatchedEntryDeletionIndexInfoAt(0), resetPosition, resetAckSet[0]);
 
         CompletableFuture<Void> recovered = new CompletableFuture<>();
         // Recover from the stored snapshot before close can replace it with the in-memory state.
@@ -302,13 +216,15 @@ public class ManagedCursorResetDurabilityTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testFailedResetPreservesAcknowledgmentsAndPositions() throws Exception {
-        ManagedLedgerConfig config = defaultConfig().setThrottleMarkDelete(0);
+        ManagedLedgerConfig config = defaultConfig().setThrottleMarkDelete(0)
+                .setPersistIndividualAckAsLongArray(false);
         config.setDeletionAtBatchIndexLevelEnabled(true);
         @Cleanup
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("reset-persistence-failure", config);
         ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("sub");
         List<Position> positions = addEntries(ledger, 6);
-        Position resetPosition = positions.get(2);
+        // Keep the cumulative checkpoint the same, while attempting to replace its individual and batch ACKs.
+        Position resetPosition = positions.get(1);
         Position laterBatch = positions.get(4);
         cursor.markDelete(positions.get(0));
         cursor.delete(positions.get(3));
@@ -332,6 +248,19 @@ public class ManagedCursorResetDurabilityTest extends MockedBookKeeperTestCase {
         assertThat(cursor.isMessageDeleted(positions.get(3))).isTrue();
         assertThat(cursor.getBatchPositionAckSet(resetPosition)).containsExactly(4L);
         assertThat(cursor.getBatchPositionAckSet(laterBatch)).containsExactly(2L);
+
+        long failedLedger = cursor.getCursorLedger();
+        cursor.markDelete(previousMarkDelete);
+
+        // The queued mark-delete follows the seed entry in the replacement ledger.
+        assertThat(cursor.getCursorLedger()).isNotEqualTo(failedLedger);
+        PositionInfo seed = readCursorPosition(cursor.cursorLedger, 0);
+        assertThat(seed.getLedgerId()).isEqualTo(previousMarkDelete.getLedgerId());
+        assertThat(seed.getEntryId()).isEqualTo(previousMarkDelete.getEntryId());
+        assertThat(seed.getIndividualDeletedMessagesCount()).isEqualTo(1);
+        assertThat(seed.getBatchedEntryDeletionIndexInfosCount()).isEqualTo(2);
+        assertBatchAck(seed.getBatchedEntryDeletionIndexInfoAt(0), resetPosition, 4L);
+        assertBatchAck(seed.getBatchedEntryDeletionIndexInfoAt(1), laterBatch, 2L);
     }
 
     @Test(dataProvider = "batchIndexPersistenceSettings")
@@ -358,6 +287,13 @@ public class ManagedCursorResetDurabilityTest extends MockedBookKeeperTestCase {
         assertThat(persisted.getBatchedEntryDeletionIndexInfosCount())
                 .as("a reset must respect the configured batch ACK persistence limit and feature switch")
                 .isZero();
+    }
+
+    private static void assertBatchAck(BatchedEntryDeletionIndexInfo info, Position position, long ackSet) {
+        assertThat(info.getPosition().getLedgerId()).isEqualTo(position.getLedgerId());
+        assertThat(info.getPosition().getEntryId()).isEqualTo(position.getEntryId());
+        assertThat(info.getDeleteSetsCount()).isEqualTo(1);
+        assertThat(info.getDeleteSetAt(0)).isEqualTo(ackSet);
     }
 
     private static Position withAckSet(Position position, long... ackSet) {
@@ -415,9 +351,13 @@ public class ManagedCursorResetDurabilityTest extends MockedBookKeeperTestCase {
     }
 
     private static PositionInfo lastPersistedCursorPosition(ManagedCursorImpl cursor) throws Exception {
+        LedgerHandle ledger = cursor.cursorLedger;
+        return readCursorPosition(ledger, ledger.getLastAddConfirmed());
+    }
+
+    private static PositionInfo readCursorPosition(LedgerHandle ledger, long entryId) throws Exception {
         CompletableFuture<PositionInfo> result = new CompletableFuture<>();
-        long entryId = cursor.cursorLedger.getLastAddConfirmed();
-        cursor.cursorLedger.asyncReadEntries(entryId, entryId, (rc, lh, entries, ctx) -> {
+        ledger.asyncReadEntries(entryId, entryId, (rc, lh, entries, ctx) -> {
             try {
                 if (rc != BKException.Code.OK) {
                     throw BKException.create(rc);

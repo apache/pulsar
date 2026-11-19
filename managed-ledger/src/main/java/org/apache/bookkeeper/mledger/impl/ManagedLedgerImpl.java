@@ -5522,6 +5522,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     });
         } catch (Throwable cause) {
             log.error().exception(cause).log("Encountered unexpected error when creating ledger");
+            ledgerFutureHook.completeExceptionally(cause);
             cb.createComplete(Code.UnexpectedConditionException, null, ledgerFutureHook);
             return;
         }

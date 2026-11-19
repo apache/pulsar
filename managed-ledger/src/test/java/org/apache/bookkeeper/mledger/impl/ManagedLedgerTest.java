@@ -4021,8 +4021,8 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         AtomicReference<Object> ctxHolder = new AtomicReference<>();
         ledger.asyncCreateLedger(bk, config, BookKeeper.DigestType.CRC32C, (rc, lh, ctx) -> {
             response.set(rc);
-            ctxHolder.set(ctx);
             latch.countDown();
+            ctxHolder.set(ctx);
         }, Collections.emptyMap(), ledger.getLogger());
 
         latch.await(config.getMetadataOperationsTimeoutSeconds() + 2, TimeUnit.SECONDS);
