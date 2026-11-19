@@ -40,8 +40,16 @@ class PulsarClientResourcesConfigurer {
     static final String POOL_NAME_EVENT_LOOP_GROUP = "pulsar-client-io";
     static final int LOOKUP_EXECUTOR_NUM_THREADS = 1;
 
-    static HashedWheelTimer createTimer() {
-        return createTimerInternal(NAME_TIMER, 1L, TimeUnit.MILLISECONDS);
+    static ExecutorProvider.ExtendedThreadFactory createTimerThreadFactory() {
+        return new ExecutorProvider.ExtendedThreadFactory(NAME_TIMER, Thread.currentThread().isDaemon());
+    }
+
+    /**
+     * Creates the timer of a client with the factory of {@link #createTimerThreadFactory()}, which the caller keeps
+     * to know the thread of the timer.
+     */
+    static HashedWheelTimer createTimerWithThreadFactory(ExecutorProvider.ExtendedThreadFactory threadFactory) {
+        return new HashedWheelTimer(threadFactory, 1L, TimeUnit.MILLISECONDS);
     }
 
     private static HashedWheelTimer createTimerInternal(String poolName, long tickDuration, TimeUnit timeUnit) {

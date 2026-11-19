@@ -639,6 +639,12 @@ public interface ProducerBuilder<T> extends Cloneable {
      * Because producer connection can be on demand, this can produce extra send latency
      * for the first messages of a given partition.
      *
+     * <p>A send to a partition whose internal producer is still starting waits for it, unless it is made on a
+     * thread of the client itself, for example in the callback of another send. Such a send does not wait: it is
+     * sent once the producer has started, and it has to fit the pending message and memory limits when it is made.
+     * If it does not, it fails with {@link PulsarClientException.ProducerQueueIsFullError} or
+     * {@link PulsarClientException.MemoryBufferIsFullError}, also with {@link #blockIfQueueFull(boolean)}.
+     *
      * @param lazyStartPartitionedProducers
      *            enable or disable starting partition producers lazily
      * @return the producer builder instance

@@ -35,9 +35,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 import lombok.Cleanup;
 import lombok.CustomLog;
@@ -525,7 +528,7 @@ public class PartialPartitionedProducerTest extends SharedPulsarBaseTest {
                 .blockIfQueueFull(true)
                 .create();
         // Consumers and the transaction coordinator client share the internal executor, whose only thread is busy
-        final CountDownLatch release = holdInternalExecutor(client);
+        final CountDownLatch release = hold(client.getInternalExecutorService());
         try {
             final CompletableFuture<MessageId> send = onIoThread(client,
                     () -> producer.newMessage().key("1").value(new byte[1]).sendAsync());
@@ -537,38 +540,146 @@ public class PartialPartitionedProducerTest extends SharedPulsarBaseTest {
     }
 
     @DataProvider
-    public static Object[][] transactional() {
-        return new Object[][] {{false}, {true}};
+    public static Object[][] clientThreads() {
+        final BiConsumer<PulsarClientImpl, Runnable> internalExecutor =
+                (client, task) -> client.getInternalExecutorService().execute(task);
+        final BiConsumer<PulsarClientImpl, Runnable> scheduledExecutor =
+                (client, task) -> client.getScheduledExecutorProvider().getExecutor().execute(task);
+        final BiConsumer<PulsarClientImpl, Runnable> timer =
+                (client, task) -> client.timer().newTimeout(timeout -> task.run(), 0, TimeUnit.MILLISECONDS);
+        return new Object[][] {
+                {"internal executor", internalExecutor}, {"scheduled executor", scheduledExecutor}, {"timer", timer}};
     }
 
-    @Test(timeOut = 60000, dataProvider = "transactional")
-    public void testSendFromTheInternalExecutorWhileSendsAreQueued(boolean transactional) throws Throwable {
+    @Test(timeOut = 60000, dataProvider = "clientThreads")
+    public void testSendOnAThreadOfTheClientDoesNotWaitForItsProducer(
+            String thread, BiConsumer<PulsarClientImpl, Runnable> execute) throws Throwable {
         final String topic = newTopicName();
         admin.topics().createPartitionedTopic(topic, 2);
 
         @Cleanup
-        final PulsarClientImpl client = (PulsarClientImpl) newSingleIoThreadTransactionClient();
+        final PulsarClientImpl client = (PulsarClientImpl) newSingleIoThreadClient();
         final Producer<byte[]> producer = newLazyStartProducer(client, topic)
                 .enableBatching(false)
                 .blockIfQueueFull(true)
-                .sendTimeout(0, TimeUnit.SECONDS)
                 .create();
-        final Transaction txn = transactional ? newTransaction(client) : null;
+        // The producer cannot be created while the only IO thread is busy, so a send that waited for it would not
+        // return. The client needs these threads itself, to reconnect or to look the topic up.
+        final CountDownLatch release = hold(client.eventLoopGroup().next());
+        try {
+            final CompletableFuture<CompletableFuture<MessageId>> returned = new CompletableFuture<>();
+            execute.accept(client, () -> returned.complete(
+                    producer.newMessage().key("1").value("msg".getBytes()).sendAsync()));
+            final CompletableFuture<MessageId> send = returned.get(10, TimeUnit.SECONDS);
+            release.countDown();
 
-        // The producer cannot be created before the IO thread is free, so the first send is still queued when the
-        // internal executor sends. Its only thread also completes the registration of the topic with the
-        // transaction, which the queued send waits for, so it must not wait for the queued send.
-        final CompletableFuture<CompletableFuture<MessageId>> fromInternalExecutor = new CompletableFuture<>();
-        final CompletableFuture<MessageId> queued = onIoThread(client, () -> {
-            final CompletableFuture<MessageId> first = (transactional ? producer.newMessage(txn)
-                    : producer.newMessage()).key("1").value("first".getBytes()).sendAsync();
-            client.getInternalExecutorService().execute(() -> fromInternalExecutor.complete(
-                    producer.newMessage().key("1").value("second".getBytes()).sendAsync()));
-            return first;
-        });
+            assertNotNull(send.get(10, TimeUnit.SECONDS));
+        } finally {
+            release.countDown();
+        }
+    }
 
-        assertNotNull(queued.get(10, TimeUnit.SECONDS));
-        assertNotNull(fromInternalExecutor.get(10, TimeUnit.SECONDS).get(10, TimeUnit.SECONDS));
+    @Test(timeOut = 60000)
+    public void testSyncSendOnAThreadOfTheClientIsFlushed() throws Throwable {
+        final String topic = newTopicName();
+        admin.topics().createPartitionedTopic(topic, 2);
+
+        @Cleanup
+        final PulsarClientImpl client = (PulsarClientImpl) newSingleIoThreadClient();
+        final Producer<byte[]> producer = newLazyStartProducer(client, topic)
+                .batchingMaxPublishDelay(1, TimeUnit.HOURS)
+                .create();
+        final CountDownLatch release = hold(client.eventLoopGroup().next());
+        try {
+            final AtomicReference<Thread> sender = new AtomicReference<>();
+            final Future<MessageId> sent = client.getInternalExecutorService().submit(() -> {
+                sender.set(Thread.currentThread());
+                return producer.newMessage().key("1").value("msg".getBytes()).send();
+            });
+            // send() asked for a flush and waits for its message, which is still queued: its producer cannot be
+            // created while the only IO thread is busy. Only a flush sends the batch before its delay.
+            Awaitility.await().until(
+                    () -> sender.get() != null && sender.get().getState() == Thread.State.WAITING);
+            release.countDown();
+
+            assertNotNull(sent.get(10, TimeUnit.SECONDS));
+        } finally {
+            release.countDown();
+        }
+    }
+
+    @Test(timeOut = 60000)
+    public void testSendFromAnotherThreadDuringTheHandOverKeepsItsOrder() throws Throwable {
+        final String topic = newTopicName();
+        admin.topics().createPartitionedTopic(topic, 2);
+
+        @Cleanup
+        final Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(TopicName.get(topic).getPartition(1).toString())
+                .subscriptionName("sub")
+                .subscribe();
+        @Cleanup
+        final PulsarClientImpl client = (PulsarClientImpl) newSingleIoThreadClient();
+        final AtomicReference<Producer<byte[]>> producer = new AtomicReference<>();
+        final AtomicReference<CompletableFuture<MessageId>> third = new AtomicReference<>();
+        final AtomicBoolean sentOnce = new AtomicBoolean();
+        // While the IO thread hands the first send over, the internal executor makes a third one. The producer is
+        // created by then, and the second send is still queued.
+        final ProducerInterceptor sendFromAnotherThread = new PassThroughInterceptor() {
+            @Override
+            public Message<?> beforeSend(Producer<?> partitionProducer, Message<?> message) {
+                if ("1".equals(message.getKey()) && sentOnce.compareAndSet(false, true)) {
+                    final CompletableFuture<CompletableFuture<MessageId>> returned = new CompletableFuture<>();
+                    client.getInternalExecutorService().execute(() -> returned.complete(
+                            producer.get().newMessage().key("1").value("third".getBytes()).sendAsync()));
+                    third.set(returned.orTimeout(10, TimeUnit.SECONDS).join());
+                }
+                return message;
+            }
+        };
+        producer.set(newLazyStartProducer(client, topic)
+                .enableBatching(false)
+                .intercept(sendFromAnotherThread)
+                .create());
+
+        final List<CompletableFuture<MessageId>> sends = onIoThread(client, () -> List.of(
+                producer.get().newMessage().key("1").value("first".getBytes()).sendAsync(),
+                producer.get().newMessage().key("1").value("second".getBytes()).sendAsync()));
+
+        FutureUtil.waitForAll(sends).get(10, TimeUnit.SECONDS);
+        assertNotNull(third.get().get(10, TimeUnit.SECONDS));
+        for (String value : List.of("first", "second", "third")) {
+            assertEquals(new String(consumer.receive(10, TimeUnit.SECONDS).getValue()), value);
+        }
+    }
+
+    @Test(timeOut = 60000)
+    public void testQueuedSendThatAnInterceptorBreaksGivesItsPermitBack() throws Throwable {
+        final String topic = newTopicName();
+        admin.topics().createPartitionedTopic(topic, 2);
+
+        @Cleanup
+        final PulsarClientImpl client = (PulsarClientImpl) newSingleIoThreadClient();
+        // The producer cannot send what this interceptor gives it for a message of partition 1
+        final ProducerInterceptor givesNoMessage = new PassThroughInterceptor() {
+            @Override
+            public Message<?> beforeSend(Producer<?> partitionProducer, Message<?> message) {
+                return "1".equals(message.getKey()) ? null : message;
+            }
+        };
+        final PartitionedProducerImpl<byte[]> producer = (PartitionedProducerImpl<byte[]>)
+                newLazyStartProducer(client, topic)
+                        .enableBatching(false)
+                        .maxPendingMessages(1)
+                        .intercept(givesNoMessage)
+                        .create();
+
+        final CompletableFuture<MessageId> send = onIoThread(client,
+                () -> producer.newMessage().key("1").value(new byte[1]).sendAsync());
+
+        assertNotNull(send.handle((id, e) -> e).get(10, TimeUnit.SECONDS));
+        assertEquals(producer.getProducers().get(1).getSemaphore().orElseThrow().availablePermits(), 1);
+        assertEquals(client.getMemoryLimitController().currentUsage(), 0);
     }
 
     @Test(timeOut = 60000)
@@ -588,7 +699,7 @@ public class PartialPartitionedProducerTest extends SharedPulsarBaseTest {
         // The only thread of the internal executor sends the request that registers the topic with the transaction
         // and handles the response, which the only IO thread writes and reads. The topic is registered once the
         // producer is created, so a thread that waited for it to hand the queued send over would wait forever.
-        final CountDownLatch release = holdInternalExecutor(client);
+        final CountDownLatch release = hold(client.getInternalExecutorService());
         try {
             final CompletableFuture<MessageId> send = onIoThread(client,
                     () -> producer.newMessage(txn).key("1").value("msg".getBytes()).sendAsync());
@@ -644,7 +755,7 @@ public class PartialPartitionedProducerTest extends SharedPulsarBaseTest {
                         .create();
         final Transaction txn = newTransaction(client);
         // The topic cannot be registered with the transaction while the only thread of the internal executor is busy
-        final CountDownLatch release = holdInternalExecutor(client);
+        final CountDownLatch release = hold(client.getInternalExecutorService());
         try {
             final CompletableFuture<MessageId> send = onIoThread(client,
                     () -> producer.newMessage(txn).key("1").value(new byte[1]).sendAsync());
@@ -673,40 +784,68 @@ public class PartialPartitionedProducerTest extends SharedPulsarBaseTest {
         final PulsarClientImpl client = spy((PulsarClientImpl) realClient);
         // The first producer of partition 1 fails its creation when the test says so, its replacement is a real one
         final CompletableFuture<Producer<byte[]>> failedCreation = new CompletableFuture<>();
-        final ProducerImpl<byte[]> failed = mockProducer(failedCreation);
-        final AtomicBoolean firstProducer = new AtomicBoolean(true);
-        doAnswer(invocation -> firstProducer.compareAndSet(true, false) ? failed : invocation.callRealMethod())
-                .when(client).newProducerImpl(any(), eq(1), any(), any(), any(), any(), any());
-        final Producer<byte[]> producer = newLazyStartProducer(client).topic(topic)
-                .enableBatching(false)
-                .blockIfQueueFull(true)
-                .create();
-        final CountDownLatch release = holdInternalExecutor(client);
-        try {
-            final AtomicReference<Throwable> firstFailure = new AtomicReference<>();
-            final CompletableFuture<MessageId> retried = onIoThread(client,
-                    () -> producer.newMessage().key("1").value("first".getBytes()).sendAsync()
-                            .exceptionallyCompose(failure -> {
-                                firstFailure.set(failure);
-                                return producer.newMessage().key("1").value("retry".getBytes()).sendAsync();
-                            }));
-            failedCreation.completeExceptionally(new PulsarClientException("creation failed"));
-            final CompletableFuture<MessageId> toReplacement = onIoThread(client,
-                    () -> producer.newMessage().key("1").value("second".getBytes()).sendAsync());
-            release.countDown();
+        final Producer<byte[]> producer = newProducerWhoseFirstStartFails(client, topic, failedCreation);
 
-            // The send queued for the failed producer fails, the sends made after that go to the replacement
-            assertNotNull(retried.get(10, TimeUnit.SECONDS));
-            assertTrue(FutureUtil.unwrapCompletionException(firstFailure.get())
-                    instanceof PulsarClientException.NotConnectedException, String.valueOf(firstFailure.get()));
-            assertNotNull(toReplacement.get(10, TimeUnit.SECONDS));
-            // The replacement completed its creation, so a thread that waits for it can send
-            assertNotNull(CompletableFuture.supplyAsync(
-                            () -> producer.newMessage().key("1").value("third".getBytes()).sendAsync().join())
-                    .get(10, TimeUnit.SECONDS));
-        } finally {
-            release.countDown();
-        }
+        final AtomicReference<Throwable> firstFailure = new AtomicReference<>();
+        final CompletableFuture<MessageId> retried = onIoThread(client,
+                () -> producer.newMessage().key("1").value("first".getBytes()).sendAsync()
+                        .exceptionallyCompose(failure -> {
+                            firstFailure.set(failure);
+                            return producer.newMessage().key("1").value("retry".getBytes()).sendAsync();
+                        }));
+        failedCreation.completeExceptionally(new PulsarClientException("creation failed"));
+        final CompletableFuture<MessageId> toReplacement = onIoThread(client,
+                () -> producer.newMessage().key("1").value("second".getBytes()).sendAsync());
+
+        // The send queued for the failed producer fails, the sends made after that go to the replacement
+        assertNotNull(retried.get(10, TimeUnit.SECONDS));
+        assertTrue(FutureUtil.unwrapCompletionException(firstFailure.get())
+                instanceof PulsarClientException.NotConnectedException, String.valueOf(firstFailure.get()));
+        assertNotNull(toReplacement.get(10, TimeUnit.SECONDS));
+        // The replacement completed its creation, so a thread that waits for it can send
+        assertNotNull(CompletableFuture.supplyAsync(
+                        () -> producer.newMessage().key("1").value("third".getBytes()).sendAsync().join())
+                .get(10, TimeUnit.SECONDS));
+    }
+
+    @Test(timeOut = 60000)
+    public void testRetryAfterAFailedCreationReachesTheReplacementProducer() throws Throwable {
+        final String topic = newTopicName();
+        admin.topics().createPartitionedTopic(topic, 2);
+
+        @Cleanup
+        final PulsarClient realClient = newSingleIoThreadClient();
+        final PulsarClientImpl client = spy((PulsarClientImpl) realClient);
+        final CompletableFuture<Producer<byte[]>> failedCreation = new CompletableFuture<>();
+        final Producer<byte[]> producer = newProducerWhoseFirstStartFails(client, topic, failedCreation);
+
+        // An application thread starts the producer of partition 1 and waits for it. Then the IO thread sends to the
+        // producer that is being created, and retries when the send fails.
+        final CompletableFuture<MessageId> fromStarter = new CompletableFuture<>();
+        final Thread starter = new Thread(() -> FutureUtil.completeAfter(fromStarter,
+                producer.newMessage().key("1").value("starter".getBytes()).sendAsync()));
+        starter.start();
+        Awaitility.await().until(() -> starter.getState() == Thread.State.WAITING);
+        final CompletableFuture<MessageId> retried = onIoThread(client, () -> sendWithRetries(producer, 3));
+        failedCreation.completeExceptionally(new PulsarClientException("creation failed"));
+
+        // The failed producer is gone before a send made to it fails, so the first retry starts the replacement
+        assertNotNull(retried.get(10, TimeUnit.SECONDS));
+        final Throwable failure = fromStarter.handle((id, e) -> e).get(10, TimeUnit.SECONDS);
+        assertTrue(FutureUtil.unwrapCompletionException(failure)
+                instanceof PulsarClientException.NotConnectedException, String.valueOf(failure));
+    }
+
+    // A lazy-start producer on a spied client. The first producer that it starts for partition 1 completes its
+    // creation with the given future, the next one is a real producer.
+    private static Producer<byte[]> newProducerWhoseFirstStartFails(
+            PulsarClientImpl client, String topic, CompletableFuture<Producer<byte[]>> firstCreation)
+            throws PulsarClientException {
+        final ProducerImpl<byte[]> first = mockProducer(firstCreation);
+        final AtomicBoolean firstStart = new AtomicBoolean(true);
+        doAnswer(invocation -> firstStart.compareAndSet(true, false) ? first : invocation.callRealMethod())
+                .when(client).newProducerImpl(any(), eq(1), any(), any(), any(), any(), any());
+        return newLazyStartProducer(client).topic(topic).enableBatching(false).blockIfQueueFull(true).create();
     }
 
     @Test(timeOut = 60000)
@@ -830,11 +969,11 @@ public class PartialPartitionedProducerTest extends SharedPulsarBaseTest {
         return false;
     }
 
-    // Keeps a thread of the internal executor busy, its only one for a client with one IO thread, until the
-    // returned latch is released
-    private static CountDownLatch holdInternalExecutor(PulsarClientImpl client) {
+    // Keeps a thread of the executor busy until the returned latch is released. A client with one IO thread has one
+    // IO thread and one thread in its internal executor.
+    private static CountDownLatch hold(Executor executor) {
         final CountDownLatch release = new CountDownLatch(1);
-        client.getInternalExecutorService().execute(() -> {
+        executor.execute(() -> {
             try {
                 release.await();
             } catch (InterruptedException e) {
@@ -842,6 +981,11 @@ public class PartialPartitionedProducerTest extends SharedPulsarBaseTest {
             }
         });
         return release;
+    }
+
+    private static CompletableFuture<MessageId> sendWithRetries(Producer<byte[]> producer, int retries) {
+        final CompletableFuture<MessageId> sent = producer.newMessage().key("1").value("msg".getBytes()).sendAsync();
+        return retries == 0 ? sent : sent.exceptionallyCompose(failure -> sendWithRetries(producer, retries - 1));
     }
 
     private static MessageRouter routeByKey() {

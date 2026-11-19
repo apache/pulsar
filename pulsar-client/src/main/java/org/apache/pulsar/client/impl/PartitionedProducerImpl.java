@@ -66,6 +66,8 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
     private final Logger log;
 
     private final Map<Integer, ProducerImpl<T>> producers = new ConcurrentHashMap<>();
+    // For each producer that a send started, until its creation was handled, see creationHandled()
+    private final Map<ProducerImpl<T>, CompletableFuture<Void>> lazyStarts = new ConcurrentHashMap<>();
     // The queue of each producer that has one. Changed while holding the map's lock
     private final Map<ProducerImpl<T>, LazyStartQueue> lazyStartQueues = new ConcurrentHashMap<>();
     // The threads that are handing queued sends over to a producer
@@ -250,11 +252,14 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
     }
 
     private ProducerImpl<T> createProducer(final int partitionIndex, final Optional<String> overrideProducerName) {
-        return producers.computeIfAbsent(partitionIndex, (idx) -> {
-            String partitionName = TopicName.get(topic).getPartition(idx).toString();
-            return client.newProducerImpl(partitionName, idx,
-                    conf, schema, internalProducerInterceptors, new CompletableFuture<>(), overrideProducerName);
-        });
+        return producers.computeIfAbsent(partitionIndex,
+                (idx) -> newPartitionProducer(idx, overrideProducerName));
+    }
+
+    private ProducerImpl<T> newPartitionProducer(int partitionIndex, Optional<String> overrideProducerName) {
+        String partitionName = TopicName.get(topic).getPartition(partitionIndex).toString();
+        return client.newProducerImpl(partitionName, partitionIndex,
+                conf, schema, internalProducerInterceptors, new CompletableFuture<>(), overrideProducerName);
     }
 
     @Override
@@ -292,9 +297,8 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
                 return FutureUtil.failedFuture(new PulsarClientException.NotConnectedException());
         }
 
-        CompletableFuture<?> started = null;
         if (conf.isLazyStartPartitionedProducers() && !producers.containsKey(partition)) {
-            started = startLazyProducer(partition);
+            startLazyProducer(partition);
         }
 
         final ProducerImpl<T> producer = producers.get(partition);
@@ -302,8 +306,7 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
             return FutureUtil.failedFuture(new PulsarClientException.NotConnectedException());
         }
         if (conf.isLazyStartPartitionedProducers()) {
-            // The send that started the producer also waits until its creation was handled
-            final CompletableFuture<?> created = started != null ? started : producer.producerCreatedFuture();
+            final CompletableFuture<?> created = creationHandled(producer);
             if (!created.isDone() || lazyStartQueues.containsKey(producer)) {
                 if (mustNotWait()) {
                     return sendWhenCreated(producer, created, message, txn);
@@ -317,11 +320,11 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
     }
 
     // A thread that the creation of a producer, or the sends queued for it, may need must not wait for them. An IO
-    // thread may have to read the creation response. The internal executor completes the registration of a topic
-    // with a transaction, which a queued send waits for. A thread that hands queued sends over would wait for itself.
+    // thread may have to read the creation response. The executors and the timer of the client look the topic up,
+    // reconnect, and complete the registration of a topic with a transaction, which a queued send waits for. A
+    // thread that hands queued sends over would wait for itself.
     private boolean mustNotWait() {
-        return handingOverThreads.contains(Thread.currentThread()) || client.isInternalExecutorThread()
-                || isOnIoThread();
+        return handingOverThreads.contains(Thread.currentThread()) || client.isClientThread() || isOnIoThread();
     }
 
     private boolean isOnIoThread() {
@@ -333,26 +336,50 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
         return false;
     }
 
-    private CompletableFuture<?> startLazyProducer(int partition) {
-        final ProducerImpl<T> newProducer = createProducer(partition, Optional.ofNullable(overrideProducerName));
-        return newProducer.producerCreatedFuture().whenComplete((prod, createException) -> {
-            if (createException != null) {
-                log.error()
-                        .attr("partitionIndex", partition)
-                        .exception(createException)
-                        .log("Could not create internal producer");
-                producers.remove(partition, newProducer);
-                closeLazyStartedProducer(partition, newProducer);
-            } else if (getState() == State.Closing || getState() == State.Closed) {
-                // close() may have iterated the producers before this one was added, and would leave it open
-                producers.remove(partition, newProducer);
-                closeLazyStartedProducer(partition, newProducer);
-            } else {
-                log.debug()
-                        .attr("partitionIndex", partition)
-                        .log("Created internal producer");
+    private void startLazyProducer(int partition) {
+        final CompletableFuture<Void> handled = new CompletableFuture<>();
+        final ProducerImpl<T> newProducer = producers.computeIfAbsent(partition, idx -> {
+            final ProducerImpl<T> started = newPartitionProducer(idx, Optional.ofNullable(overrideProducerName));
+            // In the same step, so that no send finds the producer without the stage that it has to wait for
+            lazyStarts.put(started, handled);
+            return started;
+        });
+        if (lazyStarts.get(newProducer) != handled) {
+            // Another send started the producer
+            return;
+        }
+        newProducer.producerCreatedFuture().whenComplete((prod, createException) -> {
+            try {
+                if (createException != null) {
+                    log.error()
+                            .attr("partitionIndex", partition)
+                            .exception(createException)
+                            .log("Could not create internal producer");
+                    producers.remove(partition, newProducer);
+                    closeLazyStartedProducer(partition, newProducer);
+                } else if (getState() == State.Closing || getState() == State.Closed) {
+                    // close() may have iterated the producers before this one was added, and would leave it open
+                    producers.remove(partition, newProducer);
+                    closeLazyStartedProducer(partition, newProducer);
+                } else {
+                    log.debug()
+                            .attr("partitionIndex", partition)
+                            .log("Created internal producer");
+                }
+            } finally {
+                lazyStarts.remove(newProducer);
+                handled.complete(null);
             }
         });
+    }
+
+    // Completes once the creation of the producer was handled. Every send waits for this stage, or is queued until
+    // it completes, and not for the creation itself: a producer whose creation failed is no longer in producers
+    // then, so a send that it failed can be retried at once, from any thread, and reaches another producer.
+    private CompletableFuture<?> creationHandled(ProducerImpl<T> producer) {
+        final CompletableFuture<Void> handled = lazyStarts.get(producer);
+        // Without a stage the creation was handled, or the partitioned producer started this one when it was created
+        return handled != null ? handled : producer.producerCreatedFuture();
     }
 
     private CompletableFuture<?> waitForLazyStart(ProducerImpl<T> producer, CompletableFuture<?> created) {
@@ -526,6 +553,8 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
 
     @Override
     void triggerFlush() {
+        // A queued send is flushed once it reaches its producer
+        lazyStartQueues.values().forEach(queue -> queue.flushRequested = true);
         producers.values().forEach(ProducerImpl::triggerFlush);
     }
 

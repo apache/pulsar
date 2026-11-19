@@ -428,10 +428,20 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     CompletableFuture<MessageId> internalSendAsync(Message<?> message, int admittedBytes) {
         CompletableFuture<MessageId> future = new CompletableFuture<>();
 
-        MessageImpl<?> interceptorMessage = (MessageImpl) beforeSend(message);
-        // Retain the buffer used by interceptors callback to get message. Buffer will release after complete
-        // interceptors.
-        interceptorMessage.getDataBuffer().retain();
+        final MessageImpl<?> interceptorMessage;
+        try {
+            interceptorMessage = (MessageImpl) beforeSend(message);
+            // Retain the buffer used by interceptors callback to get message. Buffer will release after complete
+            // interceptors.
+            interceptorMessage.getDataBuffer().retain();
+        } catch (RuntimeException e) {
+            // An interceptor gave a message that cannot be sent. sendAsync gives back what an admitted message
+            // holds, and this message does not get there.
+            if (admittedBytes != NOT_ADMITTED) {
+                releaseAdmission(admittedBytes);
+            }
+            throw e;
+        }
         if (interceptors != null) {
             interceptorMessage.getProperties();
         }

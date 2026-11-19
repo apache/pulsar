@@ -140,6 +140,9 @@ public class PulsarClientImpl implements PulsarClient {
     @Getter
     private final Timer timer;
     private boolean needStopTimer;
+    // The thread of the timer, if this client created the timer. A timer that was given to the client does not tell
+    // which thread runs its tasks.
+    private volatile Thread timerThread;
     private boolean serviceUrlProviderInitialized;
     private final ExecutorProvider externalExecutorProvider;
     private final ExecutorProvider internalExecutorProvider;
@@ -321,7 +324,11 @@ public class PulsarClientImpl implements PulsarClient {
             this.lookupExecutorProvider = lookupExecutorProvider != null ? lookupExecutorProvider :
                     PulsarClientResourcesConfigurer.createLookupExecutorProvider();
             if (timer == null) {
-                this.timer = PulsarClientResourcesConfigurer.createTimer();
+                // The timer creates its only thread when it is created, with this factory, which remembers it
+                final ExecutorProvider.ExtendedThreadFactory timerThreadFactory =
+                        PulsarClientResourcesConfigurer.createTimerThreadFactory();
+                this.timer = PulsarClientResourcesConfigurer.createTimerWithThreadFactory(timerThreadFactory);
+                this.timerThread = timerThreadFactory.getThread();
                 needStopTimer = true;
             } else {
                 this.timer = timer;
@@ -2115,10 +2122,13 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     /**
-     * Whether the calling thread is one of the threads of {@link #getInternalExecutorService()}.
+     * Whether the calling thread is one that this client runs its own tasks on, other than an IO thread: a thread of
+     * its internal, lookup or scheduled executors, or the thread of its timer. The thread of a timer that was given
+     * to the client is not recognized, because such a timer does not tell which thread runs its tasks.
      */
-    boolean isInternalExecutorThread() {
-        return internalExecutorProvider.isExecutorThread();
+    boolean isClientThread() {
+        return internalExecutorProvider.isExecutorThread() || lookupExecutorProvider.isExecutorThread()
+                || scheduledExecutorProvider.isExecutorThread() || Thread.currentThread() == timerThread;
     }
 
     public ScheduledExecutorProvider getScheduledExecutorProvider() {
