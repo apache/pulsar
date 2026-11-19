@@ -28,9 +28,11 @@ import com.google.common.annotations.VisibleForTesting;
 import io.netty.channel.EventLoopGroup;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -61,6 +63,8 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
     // The callbacks that unregister the metadata store listeners of the BookieRackAffinityMapping instances of the
     // created clients. Guarded by this
     private final List<ClientListenerCleanup> metadataStoreListenerCleanups = new ArrayList<>();
+    // Results that have not been completed or handed to shutdown. Guarded by this.
+    private final Set<CompletableFuture<BookKeeper>> pendingCreations = new HashSet<>();
     // Guarded by this
     private boolean closed;
 
@@ -78,53 +82,76 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
                              EventLoopGroup eventLoopGroup,
                              Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
                              Map<String, Object> properties, StatsLogger statsLogger) {
-        PulsarMetadataClientDriver.init();
-
-        ClientConfiguration bkConf = createBkClientConfiguration(store, conf);
-        if (properties != null) {
-            // The isolation groups of a namespace reach the placement policy through the custom metadata of each
-            // ledger. They must not become the client's default groups: the client is shared and kept after the
-            // namespace bookie affinity group is removed, and new ledgers would still be placed on those groups.
-            properties.forEach((key, value) -> {
-                if (!IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS.equals(key)
-                        && !IsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS.equals(key)) {
-                    bkConf.setProperty(key, value);
-                }
-            });
-        }
-        if (ensemblePlacementPolicyClass.isPresent()) {
-            setEnsemblePlacementPolicy(bkConf, conf, store, ensemblePlacementPolicyClass.get());
-        } else {
-            setDefaultEnsemblePlacementPolicy(bkConf, conf, store);
-        }
-
-        ClientListenerCleanup listenerCleanup = newClientListenerCleanup();
-        bkConf.setProperty(BookieRackAffinityMapping.METADATA_STORE_LISTENER_CLEANUP, listenerCleanup);
-        CompletableFuture<BookKeeper> creation = CompletableFuture.supplyAsync(() -> {
-            try {
-                return getBookKeeperBuilder(conf, eventLoopGroup, statsLogger, bkConf).build();
-            } catch (InterruptedException | BKException | IOException e) {
-                throw new RuntimeException(e);
-            }
-        }).thenCompose(bk -> waitForPlacementPolicyInitialization(bk, bkConf, properties, listenerCleanup));
-        // Keep the initialization chain alive if its caller cancels, so a late client is still closed.
         CompletableFuture<BookKeeper> result = new CompletableFuture<>();
+        ClientListenerCleanup listenerCleanup = new ClientListenerCleanup();
+        synchronized (this) {
+            if (closed) {
+                return CompletableFuture.failedFuture(new IllegalStateException("BookKeeper client factory is closed"));
+            }
+            pendingCreations.add(result);
+            metadataStoreListenerCleanups.add(listenerCleanup);
+        }
+
         result.whenComplete((bk, error) -> {
+            synchronized (this) {
+                pendingCreations.remove(result);
+            }
             if (error != null) {
                 listenerCleanup.run();
             }
         });
+        CompletableFuture<BookKeeper> creation = FutureUtil.supplySafely(() -> {
+            PulsarMetadataClientDriver.init();
+            ClientConfiguration bkConf = createBkClientConfiguration(store, conf);
+            if (properties != null) {
+                // Namespace isolation groups are stored in each ledger's metadata. Keep them out of the client
+                // defaults so shared clients honor the broker defaults again when namespace affinity is removed.
+                properties.forEach((key, value) -> {
+                    if (!IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS.equals(key)
+                            && !IsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS.equals(key)) {
+                        bkConf.setProperty(key, value);
+                    }
+                });
+            }
+            if (ensemblePlacementPolicyClass.isPresent()) {
+                setEnsemblePlacementPolicy(bkConf, conf, store, ensemblePlacementPolicyClass.get());
+            } else {
+                setDefaultEnsemblePlacementPolicy(bkConf, conf, store);
+            }
+
+            bkConf.setProperty(BookieRackAffinityMapping.METADATA_STORE_LISTENER_CLEANUP, listenerCleanup);
+            Map<String, Object> ledgerProperties = ensemblePlacementPolicyClass.isPresent() ? properties : null;
+            return CompletableFuture.supplyAsync(() -> {
+                if (!isPendingCreation(result)) {
+                    throw new CancellationException("BookKeeper client creation was abandoned");
+                }
+                try {
+                    return getBookKeeperBuilder(conf, eventLoopGroup, statsLogger, bkConf).build();
+                } catch (InterruptedException | BKException | IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }).thenCompose(bk -> isPendingCreation(result)
+                    ? waitForPlacementPolicyInitialization(bk, bkConf, ledgerProperties, listenerCleanup)
+                    : CompletableFuture.completedFuture(bk));
+        });
+        // Keep the creation chain alive after cancellation or shutdown so it still owns any late BookKeeper client.
         creation.whenComplete((bk, error) -> {
             if (error != null) {
                 // A builder can register its resolver before failing without returning a BookKeeper instance.
                 listenerCleanup.run();
-                result.completeExceptionally(error);
-            } else if (!result.complete(bk)) {
-                closeBookKeeperAsync(bk, new CancellationException("BookKeeper client creation was cancelled"),
+                if (isPendingCreation(result)) {
+                    result.completeExceptionally(error);
+                }
+            } else if (!isPendingCreation(result) || !result.complete(bk)) {
+                closeBookKeeperAsync(bk, new CancellationException("BookKeeper client creation was abandoned"),
                         listenerCleanup);
             }
         });
         return result;
+    }
+
+    private synchronized boolean isPendingCreation(CompletableFuture<BookKeeper> result) {
+        return !result.isDone() && pendingCreations.contains(result);
     }
 
     // The default client is awaited during broker startup, and lazy namespace clients are awaited before ML opens.
@@ -138,7 +165,8 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
             if (!(policy instanceof IsolatedBookieEnsemblePlacementPolicy isolatedPolicy)) {
                 return CompletableFuture.completedFuture(bk);
             }
-            // Time out only this client's wait, without modifying the policy's metadata-load future.
+            // The timeout starts after construction and bounds only this client's snapshot wait.
+            // Apply it to a copy so it does not modify the policy's metadata-load future.
             initialization = isolatedPolicy.getInitializationFuture(properties).copy()
                     .orTimeout(bkConf.getZkTimeout(), TimeUnit.MILLISECONDS);
         } catch (Exception e) {
@@ -146,6 +174,7 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         }
         return initialization.thenApply(__ -> bk).exceptionallyCompose(error -> {
             Throwable cause = FutureUtil.unwrapCompletionException(error);
+            // Report the initialization failure after cleanup so any close error can be attached to it.
             return closeBookKeeperAsync(bk, cause, listenerCleanup)
                     .thenCompose(__ -> CompletableFuture.failedFuture(cause));
         });
@@ -337,25 +366,19 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
 
     @Override
     public void close() {
+        List<CompletableFuture<BookKeeper>> pending;
         List<ClientListenerCleanup> cleanups;
         synchronized (this) {
             closed = true;
+            pending = new ArrayList<>(pendingCreations);
+            pendingCreations.clear();
             cleanups = new ArrayList<>(metadataStoreListenerCleanups);
             metadataStoreListenerCleanups.clear();
         }
+        // Resolve pending results before releasing their resources. Both can invoke callbacks outside the lock.
+        pending.forEach(result -> result.completeExceptionally(
+                new IllegalStateException("BookKeeper client factory is closed")));
         cleanups.forEach(ClientListenerCleanup::run);
-    }
-
-    private ClientListenerCleanup newClientListenerCleanup() {
-        ClientListenerCleanup cleanup = new ClientListenerCleanup();
-        synchronized (this) {
-            if (!closed) {
-                metadataStoreListenerCleanups.add(cleanup);
-                return cleanup;
-            }
-        }
-        cleanup.run();
-        return cleanup;
     }
 
     // A storage factory can discard a late client even after the provider's own creation future succeeded.

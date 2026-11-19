@@ -173,6 +173,98 @@ public class BookKeeperClientFactoryImplTest {
     }
 
     @Test
+    public void testCreateAfterFactoryCloseDoesNotBuildClient() throws Exception {
+        ClientInitialization initialization = newClientInitialization(mock(BookKeeper.class));
+        initialization.factory().close();
+
+        assertThatThrownBy(() -> createIsolatedClient(initialization, 10_000).get(5, TimeUnit.SECONDS))
+                .cause().isInstanceOf(IllegalStateException.class)
+                .hasMessage("BookKeeper client factory is closed");
+        verify(initialization.factory(), never()).createBkClientConfiguration(any(), any());
+        verify(initialization.factory(), never()).getBookKeeperBuilder(any(), any(), any(), any());
+        verify(initialization.client(), never()).close();
+    }
+
+    @DataProvider
+    public Object[][] pendingCreationPhases() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    @Test(dataProvider = "pendingCreationPhases")
+    public void testFactoryCloseFailsPendingCreationAndClosesLateClient(boolean buildPending) throws Exception {
+        ClientInitialization initialization = newClientInitialization(mock(BookKeeper.class));
+        CompletableFuture<Void> buildStarted = new CompletableFuture<>();
+        CompletableFuture<BookKeeper> buildResult = new CompletableFuture<>();
+        CompletableFuture<Void> clientClosed = new CompletableFuture<>();
+        if (buildPending) {
+            BookKeeper.Builder builder = mock(BookKeeper.Builder.class);
+            when(builder.build()).thenAnswer(invocation -> {
+                buildStarted.complete(null);
+                return buildResult.get(5, TimeUnit.SECONDS);
+            });
+            doReturn(builder).when(initialization.factory()).getBookKeeperBuilder(any(), any(), any(), any());
+        }
+        doAnswer(invocation -> {
+            clientClosed.complete(null);
+            return null;
+        }).when(initialization.client()).close();
+
+        CompletableFuture<BookKeeper> clientFuture = createIsolatedClient(initialization, 30_000);
+        CompletableFuture<Throwable> failure = clientFuture.handle((bk, error) -> {
+            assertThat(Thread.holdsLock(initialization.factory())).isFalse();
+            return error;
+        });
+        try {
+            (buildPending ? buildStarted : initialization.readinessRequested()).get(5, TimeUnit.SECONDS);
+            assertThat(clientFuture).isNotDone();
+
+            initialization.factory().close();
+
+            assertThat(failure.get(5, TimeUnit.SECONDS)).isInstanceOf(IllegalStateException.class)
+                    .hasMessage("BookKeeper client factory is closed");
+            assertThat(initialization.readiness()).isNotDone();
+            if (buildPending) {
+                buildResult.complete(initialization.client());
+            } else {
+                initialization.readiness().complete(null);
+            }
+
+            clientClosed.get(5, TimeUnit.SECONDS);
+            verify(initialization.client()).close();
+            assertThat(initialization.factory().getMetadataStoreListenerCleanupCount()).isZero();
+        } finally {
+            initialization.factory().close();
+            buildResult.complete(initialization.client());
+            initialization.readiness().complete(null);
+        }
+    }
+
+    @Test
+    public void testDefaultClientWaitsForBrokerGroupsWithExplicitEmptyProperties() throws Exception {
+        ClientInitialization initialization = newClientInitialization(mock(BookKeeper.class));
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setMetadataStoreUrl("memory:client-readiness");
+        conf.setBookkeeperClientIsolationGroups("broker-group");
+
+        try {
+            CompletableFuture<BookKeeper> clientFuture = initialization.factory().create(
+                    conf, mock(MetadataStoreExtended.class), mock(EventLoopGroup.class), Optional.empty(), Map.of());
+            initialization.readinessRequested().get(5, TimeUnit.SECONDS);
+            IsolatedBookieEnsemblePlacementPolicy policy = (IsolatedBookieEnsemblePlacementPolicy)
+                    initialization.client().getClientCtx().getPlacementPolicy();
+            verify(policy).getInitializationFuture(isNull());
+            assertThat(clientFuture).isNotDone();
+
+            initialization.readiness().complete(null);
+
+            assertThat(clientFuture.get(5, TimeUnit.SECONDS)).isSameAs(initialization.client());
+        } finally {
+            initialization.factory().close();
+            initialization.readiness().complete(null);
+        }
+    }
+
+    @Test
     public void testOtherPlacementPoliciesDoNotRequireRackInitialization() throws Exception {
         BookKeeper client = mock(BookKeeper.class);
         ClientContext clientContext = mock(ClientContext.class);
@@ -221,6 +313,7 @@ public class BookKeeperClientFactoryImplTest {
             Thread thread = closingThread.get(5, TimeUnit.SECONDS);
             assertThat(thread).isNotSameAs(completionThread);
             assertThat(thread.getName()).isNotEqualTo("CompletableFutureDelayScheduler");
+            assertThat(clientFuture).isNotDone();
         } finally {
             allowClose.countDown();
             metadataExecutor.shutdownNow();
