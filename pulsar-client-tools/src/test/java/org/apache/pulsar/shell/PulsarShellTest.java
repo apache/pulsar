@@ -35,6 +35,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -48,6 +50,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 import lombok.CustomLog;
 import lombok.SneakyThrows;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -398,6 +401,75 @@ public class PulsarShellTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    public void testFullLineCommentInModeIsSkipped() throws Exception {
+        final ByteArrayOutputStream output = new ByteArrayOutputStream();
+        Terminal terminal = newDumbTerminal(output);
+        final MockLineReader linereader = new MockLineReader(terminal);
+        final Properties props = new Properties();
+        props.setProperty("webServiceUrl", "http://localhost:8080");
+        final Path commentTarget = Files.createTempFile("pulsar-shell-comment-target", ".txt");
+        Files.write(commentTarget, "precious".getBytes(StandardCharsets.UTF_8));
+        linereader.addCmd("admin");
+        linereader.addCmd("# save output > " + commentTarget.toAbsolutePath());
+        linereader.addCmd("topics create my-topic --metadata a=b");
+        linereader.addCmd("exitmode");
+        linereader.addCmd("quit");
+        final TestPulsarShell testPulsarShell = new TestPulsarShell(new String[]{}, props, pulsarAdmin);
+        testPulsarShell.run((a) -> linereader, () -> terminal);
+        verify(topics).createNonPartitionedTopic(eq("persistent://public/default/my-topic"), any(Map.class));
+        assertEquals((int) testPulsarShell.exitCode, 0);
+        assertEquals(new String(Files.readAllBytes(commentTarget), StandardCharsets.UTF_8), "precious",
+                "the comment line in a mode must not run and must not overwrite the file");
+        assertFalse(output.toString(StandardCharsets.UTF_8).contains("Unmatched arguments"),
+                "the comment line in a mode must not be dispatched: " + output);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testBatchModeProgressCountsModeTransitions() throws Exception {
+        final ByteArrayOutputStream output = new ByteArrayOutputStream();
+        Terminal terminal = newDumbTerminal(output);
+        final MockLineReader linereader = new MockLineReader(terminal);
+        final Properties props = new Properties();
+        props.setProperty("webServiceUrl", "http://localhost:8080");
+        final TestPulsarShell testPulsarShell = new TestPulsarShell(
+                new String[]{"-e", "admin\ntopics create my-topic --metadata a=b\nexitmode"}, props, pulsarAdmin);
+        testPulsarShell.run((a) -> linereader, () -> terminal);
+        verify(topics).createNonPartitionedTopic(eq("persistent://public/default/my-topic"), any(Map.class));
+        assertEquals((int) testPulsarShell.exitCode, 0);
+        final String out = output.toString(StandardCharsets.UTF_8);
+        assertTrue(out.contains("[3/3]"),
+                "the batch progress should account for all the lines, including the mode transitions: " + out);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testFileModeSkipsIndentedComments() throws Exception {
+        final ByteArrayOutputStream output = new ByteArrayOutputStream();
+        Terminal terminal = newDumbTerminal(output);
+        final MockLineReader linereader = new MockLineReader(terminal);
+        final Properties props = new Properties();
+        props.setProperty("webServiceUrl", "http://localhost:8080");
+        final Path shellFile = Files.createTempFile("pulsar-shell-comments", ".txt");
+        Files.write(shellFile, Arrays.asList(
+                        "admin",
+                        "  # save output > report.txt",
+                        "",
+                        "topics create my-topic --metadata a=b",
+                        "exitmode"),
+                StandardCharsets.UTF_8);
+        final TestPulsarShell testPulsarShell = new TestPulsarShell(
+                new String[]{"-f", shellFile.toAbsolutePath().toString()}, props, pulsarAdmin);
+        testPulsarShell.run((a) -> linereader, () -> terminal);
+        verify(topics).createNonPartitionedTopic(eq("persistent://public/default/my-topic"), any(Map.class));
+        assertEquals((int) testPulsarShell.exitCode, 0);
+        final String out = output.toString(StandardCharsets.UTF_8);
+        assertTrue(out.contains("[3/3]"),
+                "comments and blank lines should not count in the batch progress: " + out);
+    }
+
+    @Test
     public void testCompletionFollowsTheSelectedMode() throws Exception {
         final Terminal terminal = TerminalBuilder.builder().build();
         final MockLineReader linereader = new MockLineReader(terminal);
@@ -419,6 +491,47 @@ public class PulsarShellTest {
         final List<Candidate> controlCandidates = complete(linereader, completer, "exit");
         assertTrue(controlCandidates.stream().anyMatch(c -> "exitmode".equals(c.value())),
                 "the shell control commands should stay available: " + controlCandidates);
+        final List<String> commandPositionValues = candidateValues(complete(linereader, completer, ""));
+        assertTrue(commandPositionValues.containsAll(SHELL_CONTROL_COMMANDS),
+                "the standalone shell commands should be completed in command position: "
+                        + commandPositionValues);
+        final List<String> argumentValues = candidateValues(complete(linereader, completer, "topics create "));
+        for (String controlCommand : SHELL_CONTROL_COMMANDS) {
+            assertFalse(argumentValues.contains(controlCommand),
+                    "the standalone shell command '" + controlCommand + "' must not be completed in "
+                            + "argument position: " + argumentValues);
+        }
+    }
+
+    @Test
+    public void testClientModeCompletionOffersShellControlsOnlyInCommandPosition() throws Exception {
+        final Terminal terminal = TerminalBuilder.builder().build();
+        final MockLineReader linereader = new MockLineReader(terminal);
+        final Properties props = new Properties();
+        props.setProperty("webServiceUrl", "http://localhost:8080");
+        linereader.addCmd("client");
+        linereader.addCmd("quit");
+        final TestPulsarShell testPulsarShell = new TestPulsarShell(new String[]{}, props, pulsarAdmin);
+        try {
+            testPulsarShell.run((a) -> linereader, () -> terminal);
+        } catch (SystemExitCalledException ex) {
+            assertEquals((int) ex.code, 0);
+        }
+
+        final Completer completer = testPulsarShell.createCompleter();
+        final List<String> providerValues = candidateValues(complete(linereader, completer, "pro"));
+        assertTrue(providerValues.contains("produce"),
+                "the commands of the client provider should be completed: " + providerValues);
+        final List<String> commandPositionValues = candidateValues(complete(linereader, completer, ""));
+        assertTrue(commandPositionValues.containsAll(SHELL_CONTROL_COMMANDS),
+                "the standalone shell commands should be completed in command position: "
+                        + commandPositionValues);
+        final List<String> argumentValues = candidateValues(complete(linereader, completer, "produce -m ex"));
+        for (String controlCommand : SHELL_CONTROL_COMMANDS) {
+            assertFalse(argumentValues.contains(controlCommand),
+                    "the standalone shell command '" + controlCommand + "' must not be completed in "
+                            + "argument position: " + argumentValues);
+        }
     }
 
     @Test
@@ -441,6 +554,16 @@ public class PulsarShellTest {
         final List<Candidate> candidates = complete(linereader, completer, "top");
         assertFalse(candidates.stream().anyMatch(c -> "topics".equals(c.value())),
                 "the provider commands should not be completed outside of a mode: " + candidates);
+    }
+
+    /**
+     * The commands the shell handles itself as standalone lines, which stay available in every mode.
+     */
+    private static final List<String> SHELL_CONTROL_COMMANDS =
+            List.of("exit", "quit", "exitmode", "help", "admin", "client");
+
+    private static List<String> candidateValues(List<Candidate> candidates) {
+        return candidates.stream().map(Candidate::value).collect(Collectors.toList());
     }
 
     private static List<Candidate> complete(LineReader reader, Completer completer, String line) {

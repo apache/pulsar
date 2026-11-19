@@ -266,7 +266,7 @@ public class PulsarShell {
             LineReaderBuilder readerBuilder = LineReaderBuilder.builder()
                     .terminal(terminal)
                     .parser(parser)
-                    .completer(this::completeForCurrentMode)
+                    .completer(createCompleter())
                     .variable(LineReader.INDENTATION, 2)
                     .option(LineReader.Option.INSERT_BRACKET, true);
 
@@ -418,7 +418,9 @@ public class PulsarShell {
                 try (Scanner scanner = new Scanner(mainOptions.inlineCommand);) {
                     while (scanner.hasNextLine()) {
                         String line = scanner.nextLine().trim();
-                        lines.add(line);
+                        if (filterLine(line)) {
+                            lines.add(line);
+                        }
                     }
                 }
             }
@@ -475,7 +477,15 @@ public class PulsarShell {
             if (StringUtils.isBlank(line)) {
                 continue;
             }
+            if (isCommentLine(line)) {
+                // A full-line comment is a no-op. Skip it before the mode prefix is added: with the
+                // prefix, jline no longer recognizes the line as a comment, so the line would be
+                // executed and an output redirection inside the comment would overwrite the target
+                // file with the output of the failing command.
+                continue;
+            }
             if (isQuitCommand(line)) {
+                recordCompletedCommand(commandsInfo, line, true);
                 exit(0);
                 return;
             }
@@ -484,17 +494,21 @@ public class PulsarShell {
                         ? shellCommander.getSubcommands().get(currentMode) : null;
                 if (modeCommander != null) {
                     modeCommander.usage(System.out);
+                    outputModeHint();
                 } else {
                     shellCommander.usage(System.out);
                 }
+                recordCompletedCommand(commandsInfo, line, true);
                 continue;
             }
             if (isModeSwitch(words)) {
                 enterMode(words.get(0));
+                recordCompletedCommand(commandsInfo, line, true);
                 continue;
             }
             if ("exitmode".equalsIgnoreCase(line)) {
                 exitMode();
+                recordCompletedCommand(commandsInfo, line, true);
                 continue;
             }
             List<String> dispatchWords = words;
@@ -531,9 +545,7 @@ public class PulsarShell {
                 }
                 final boolean willExitWithError = mainOptions.failOnError && !commandOk;
                 if (commandsInfo != null && !willExitWithError) {
-                    commandsInfo.executingCommand = null;
-                    commandsInfo.executedCommands.add(new CommandsInfo.ExecutedCommandInfo(dispatchLine, commandOk));
-                    printExecutingCommands(terminal, commandsInfo, true);
+                    recordCompletedCommand(commandsInfo, dispatchLine, commandOk);
                 }
             }
             if (mainOptions.failOnError && !commandOk) {
@@ -594,6 +606,24 @@ public class PulsarShell {
         }
     }
 
+    /**
+     * Marks a handled line as a completed step of a batch, so the progress display accounts for every
+     * line of the input, including the lines the shell handles itself instead of dispatching to a
+     * provider.
+     *
+     * @param commandsInfo the progress of the batch, null in the interactive mode
+     * @param line the handled line
+     * @param ok whether the line was handled successfully
+     */
+    private void recordCompletedCommand(CommandsInfo commandsInfo, String line, boolean ok) {
+        if (commandsInfo == null) {
+            return;
+        }
+        commandsInfo.executingCommand = null;
+        commandsInfo.executedCommands.add(new CommandsInfo.ExecutedCommandInfo(line, ok));
+        printExecutingCommands(terminal, commandsInfo, true);
+    }
+
     private static ShellCommandsProvider getProviderFromArgs(CommandLine mainCommander, List<String> words) {
         final String providerCmd = words.get(0);
         final CommandLine commander = mainCommander.getSubcommands().get(providerCmd);
@@ -644,9 +674,20 @@ public class PulsarShell {
     }
 
     /**
-     * The commands the shell handles itself, which stay available in every mode.
+     * Tells the user a mode is active and how to leave it, since the usage of a mode doesn't mention
+     * the commands the shell handles itself.
      */
-    private static final List<String> SHELL_CONTROL_COMMANDS = List.of("exit", "quit", "exitmode");
+    private void outputModeHint() {
+        System.out.println();
+        System.out.println("You are in the " + currentMode
+                + " mode. Type 'exitmode' to leave the mode and get back to all the commands.");
+    }
+
+    /**
+     * The commands the shell handles itself as standalone lines, which stay available in every mode.
+     */
+    private static final List<String> SHELL_CONTROL_COMMANDS =
+            List.of("exit", "quit", "exitmode", "help", "admin", "client");
 
     /**
      * Creates the completer of the shell.
@@ -664,7 +705,8 @@ public class PulsarShell {
      * <p>A mode prefixes every dispatched command with the name of the selected provider, so the
      * completion has to resolve the line against that prefixed command tree to reach the commands
      * of the provider. The candidates are the names the provider knows, without the prefix, so they
-     * can be typed as they are.
+     * can be typed as they are. The standalone commands the shell handles itself are offered in
+     * command position, so they can be used without leaving the mode.
      *
      * @param reader the reader that asks for the completion
      * @param commandLine the line that is being typed
@@ -683,12 +725,18 @@ public class PulsarShell {
     }
 
     /**
-     * Adds the commands the shell handles itself to the candidates of a mode.
+     * Adds the standalone commands the shell handles itself to the candidates of a mode.
+     *
+     * <p>They are only valid as the first word of the line, so they are offered in command position
+     * only and never as an argument or an option value of a command.
      *
      * @param commandLine the line that is being typed
      * @param candidates the candidates collected so far
      */
     private static void addShellControlCandidates(ParsedLine commandLine, List<Candidate> candidates) {
+        if (commandLine.wordIndex() != 0) {
+            return;
+        }
         final String word = commandLine.word();
         for (String controlCommand : SHELL_CONTROL_COMMANDS) {
             if (controlCommand.startsWith(word)) {
@@ -769,6 +817,13 @@ public class PulsarShell {
         return line.equalsIgnoreCase("quit") || line.equalsIgnoreCase("exit");
     }
 
+    /**
+     * Whether the line is a full-line comment, which the shell skips like jline does.
+     */
+    private static boolean isCommentLine(String line) {
+        return line.startsWith("#");
+    }
+
     private static boolean isHelp(String line) {
         return line.equalsIgnoreCase("help");
     }
@@ -813,7 +868,7 @@ public class PulsarShell {
     }
 
     private static boolean filterLine(String line) {
-        return !StringUtils.isBlank(line) && !line.startsWith("#");
+        return !StringUtils.isBlank(line) && !line.trim().startsWith("#");
     }
 
     private static String getHostFromUrl(String url) {
