@@ -286,8 +286,13 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             }
             // Process the message, add to the queue and trigger listener or async callback
             messages.forEach(msg -> {
-                final boolean skipDueToSeek = seekingConsumers.contains(consumer);
                 MessageImpl<T> msgImpl = (MessageImpl<T>) msg;
+                // Drop a message from before a seek of its consumer. It can reach here after the seek completed: it
+                // may still be on its way through the consumer then, in a task of its executor or in the receive that
+                // hands it over. The consumer counts the seek before the seek completes, so checking for a seek in
+                // progress first leaves no gap between the two checks.
+                final boolean skipDueToSeek = seekingConsumers.contains(consumer)
+                        || msgImpl.getConsumerSeekCount() != consumer.getSeekCount();
                 ClientCnx cnx = msgImpl.getCnx();
                 boolean isValidEpoch = isValidConsumerEpoch(msgImpl);
                 if (isValidEpoch && !skipDueToSeek) {
@@ -380,7 +385,15 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     private void resumeReceivingFromPausedConsumersIfNeeded() {
-        if (incomingMessages.size() <= getCurrentReceiverQueueSize() / 2 && !pausedConsumers.isEmpty()) {
+        if (pausedConsumers.isEmpty()) {
+            return;
+        }
+        int size = incomingMessages.size();
+        int maxReceiverQueueSize = getCurrentReceiverQueueSize();
+        // A batch receive waits for more messages than the queue holds, and nothing takes from the queue until it
+        // completes: without a resume below the full queue, a batch larger than half of the queue would wait for
+        // its timeout, or forever without one.
+        if (size <= maxReceiverQueueSize / 2 || (size < maxReceiverQueueSize && hasPendingBatchReceive())) {
             while (true) {
                 ConsumerImpl<T> consumer = pausedConsumers.poll();
                 if (consumer == null) {
@@ -1165,6 +1178,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         .attr("numPartitions", numPartitions)
                         .exceptionMessage(e)
                         .log("Failed subscription for createPartitionedConsumer");
+                // Failed before it leaves the client, so that the client doesn't keep it if it registers it later
+                consumer.setState(State.Failed);
                 consumer.cleanupMultiConsumer();
                 subscribeFuture.completeExceptionally(
                     PulsarClientException.wrap(((Throwable) e).getCause(),
@@ -1252,7 +1267,15 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             } else {
                 partitionsFuture = getExistsPartitions(topicName.toString());
             }
-            subscribeAllPartitionsFuture = partitionsFuture.thenCompose(partitions -> {
+            subscribeAllPartitionsFuture = partitionsFuture.whenComplete((partitions, error) -> {
+                if (error != null) {
+                    // No children were created, so child cleanup cannot release this reservation.
+                    allTopicPartitionsNumber.addAndGet(-numPartitions);
+                }
+            }).thenCompose(partitions -> {
+                // Metadata can include partitions that have not been created yet. Only actual
+                // children can release their reservations during failed-subscription cleanup.
+                allTopicPartitionsNumber.addAndGet(partitions.size() - numPartitions);
                 if (partitions.isEmpty()) {
                     partitionedTopics.remove(topicName, numPartitions);
                     return CompletableFuture.completedFuture(null);

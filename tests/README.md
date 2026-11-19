@@ -121,6 +121,7 @@ getting started.
   configuration of a host for consistent results and the guidance for repeatable profiling runs.
 - [`compose`](compose/README.md): Docker Compose files that start a Pulsar cluster.
 - Tests of the packaged clients: [`pulsar-client-shade-test`](pulsar-client-shade-test),
+  [`pulsar-client-only-shade-test`](pulsar-client-only-shade-test) (only the shaded client's published dependencies),
   [`pulsar-client-admin-shade-test`](pulsar-client-admin-shade-test),
   [`pulsar-client-all-shade-test`](pulsar-client-all-shade-test),
   [`pulsar-client-v5-shade-test`](pulsar-client-v5-shade-test),

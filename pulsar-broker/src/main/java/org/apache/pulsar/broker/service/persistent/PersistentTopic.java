@@ -44,6 +44,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -161,6 +162,7 @@ import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
+import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -816,12 +818,19 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
     }
 
+    private void observeReplicationBacklog(Position position) {
+        if (!replicators.isEmpty()) {
+            replicators.forEach((cluster, replicator) -> ((PersistentReplicator) replicator).entryPersisted(position));
+        }
+    }
+
     @Override
     public void addComplete(Position pos, ByteBuf entryData, Object ctx) {
         PublishContext publishContext = (PublishContext) ctx;
         Position position = pos;
 
         // Message has been successfully persisted
+        observeReplicationBacklog(position);
         messageDeduplication.recordMessagePersisted(publishContext, position);
 
         // in order to sync the max position when cursor read entries
@@ -2197,6 +2206,17 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return closeFuture;
     }
 
+    /**
+     * Returns a future that completes, successfully or not, once the close or deletion in progress, or else the last
+     * one, has finished. A close that does not hand the topic over to another broker completes it after removing the
+     * topic from the broker's cache.
+     */
+    public CompletableFuture<Void> getCloseFuture() {
+        CloseFutures futures = closeFutures;
+        // Every close and deletion sets the transferring future.
+        return futures == null ? CompletableFuture.completedFuture(null) : futures.transferring;
+    }
+
     @VisibleForTesting
     boolean isClosed() {
         if (closeFutures == null) {
@@ -2333,10 +2353,18 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return internalCheckReplication();
     }
 
+    protected boolean supportsGeoReplication() {
+        return !NamespaceService.isHeartbeatNamespace(TopicName.get(topic))
+                && !ExtensibleLoadManagerImpl.isInternalTopic(topic);
+    }
+
+    private boolean hasReplicationTargets(List<String> clusters) {
+        return !clusters.isEmpty() && (clusters.size() > 1 || !replicators.isEmpty());
+    }
+
     private CompletableFuture<Void> internalCheckReplication() {
         TopicName name = TopicName.get(topic);
-        if (NamespaceService.isHeartbeatNamespace(name)
-                || ExtensibleLoadManagerImpl.isInternalTopic(topic)) {
+        if (!supportsGeoReplication()) {
             return CompletableFuture.completedFuture(null);
         }
 
@@ -2366,7 +2394,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             //
             // When a topic under the namespace is load in the cluster2, the `cluster1` may be identified as
             // remote cluster and start geo-replication. This check is to avoid the above case.
-            if (!(configuredClusters.size() == 1 && replicators.isEmpty())) {
+            if (hasReplicationTargets(configuredClusters)) {
                 // Check for missing replicators
                 for (String cluster : configuredClusters) {
                     if (cluster.equals(localCluster)) {
@@ -3379,6 +3407,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         replicators.forEach((cluster, replicator) -> {
             ReplicatorStatsImpl replicatorStats = replicator.computeStats();
+            ((PersistentReplicator) replicator).updateReplicationDiagnostics(replicatorStats);
 
             // Add incoming msg rates
             PublisherStatsImpl pubStats = remotePublishersStats.remove(replicator.getRemoteCluster());
@@ -3395,6 +3424,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             replicationInboundSetter.accept(replicatorStats, pubStats);
             stats.replication.put(inboundReplication.key, replicatorStats);
         }
+
+        forEachConfiguredReplicationTarget(cluster -> stats.replication.computeIfAbsent(cluster,
+                ignored -> new ReplicatorStatsImpl()));
 
         stats.storageSize = ledger.getTotalSize();
         stats.backlogSize = ledger.getEstimatedBacklogSize();
@@ -3551,6 +3583,18 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return brokerService.deleteSchema(TopicName.get(getName()));
     }
 
+    private void forEachConfiguredReplicationTarget(java.util.function.Consumer<String> consumer) {
+        List<String> clusters = topicPolicies.getReplicationClusters().get();
+        if (hasReplicationTargets(clusters) && supportsGeoReplication()) {
+            String local = brokerService.pulsar().getConfiguration().getClusterName();
+            for (String cluster : clusters) {
+                if (!cluster.equals(local)) {
+                    consumer.accept(cluster);
+                }
+            }
+        }
+    }
+
     @Override
     public CompletableFuture<PersistentTopicInternalStats> getInternalStats(boolean includeLedgerMetadata) {
 
@@ -3559,6 +3603,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         ledger.getManagedLedgerInternalStats(includeLedgerMetadata)
             .thenCombine(getCompactedTopicContextAsync(), (ledgerInternalStats, compactedTopicContext) -> {
                 PersistentTopicInternalStats stats = new PersistentTopicInternalStats();
+                stats.replicators = new TreeMap<>();
+                forEachConfiguredReplicationTarget(cluster -> stats.replicators.put(cluster, null));
+                replicators.forEach((cluster, replicator) -> {
+                    PersistentReplicator persistent = (PersistentReplicator) replicator;
+                    if (persistent.getState() != AbstractReplicator.State.Terminated) {
+                        stats.replicators.put(cluster, persistent.internalStats());
+                    }
+                });
                 stats.entriesAddedCounter = ledgerInternalStats.getEntriesAddedCounter();
                 stats.numberOfEntries = ledgerInternalStats.getNumberOfEntries();
                 stats.totalSize = ledgerInternalStats.getTotalSize();
@@ -3782,7 +3834,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 if (isReplicationBacklogExist()) {
                     if (!ledger.isMigrated()) {
                         log.info("applying migration with replication backlog");
-                        ledger.asyncMigrate();
+                        return ledger.asyncMigrate().thenApply(position -> null);
                     }
                     log.debug("has replication backlog and applied migration");
                     return CompletableFuture.<Void>completedFuture(null);
@@ -3833,78 +3885,69 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             // namespace creation
             final String tenant = TopicName.get(topic).getTenant();
             final NamespaceName ns = TopicName.get(topic).getNamespaceObject();
-            List<CompletableFuture<Void>> subResults = new ArrayList<>();
 
             return brokerService.getPulsar().getPulsarResources().getTenantResources().getTenantAsync(tenant)
                     .thenCompose(tenantInfo -> {
                         if (!tenantInfo.isPresent()) {
                             return CompletableFuture.completedFuture(null);
                         }
-                        CompletableFuture<Void> ts = new CompletableFuture<>();
-                        admin.tenants().createTenantAsync(tenant, tenantInfo.get()).handle((__, ex) -> {
-                            if (ex == null || ex instanceof ConflictException) {
+                        return admin.tenants().createTenantAsync(tenant, tenantInfo.get()).handle((__, ex) -> {
+                            Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                            if (ex == null || cause instanceof ConflictException) {
                                 log.info()
                                         .attr("tenant", tenant)
                                         .log("successfully created tenant for migration");
-                                ts.complete(null);
                                 return null;
                             }
                             log.warn()
                                     .attr("tenant", tenant)
-                                    .exceptionMessage(ex.getCause())
+                                    .exceptionMessage(cause)
                                     .log("Failed to create tenant on migration cluster");
-                            ts.completeExceptionally(ex.getCause());
-                            return null;
+                            throw FutureUtil.wrapToCompletionException(ex);
                         });
-                        return ts;
-                    }).thenCompose(t -> {
-                        return brokerService.getPulsar().getPulsarResources().getNamespaceResources()
-                                .getPoliciesAsync(ns).thenCompose(policies -> {
-                                    if (!policies.isPresent()) {
-                                        return CompletableFuture.completedFuture(null);
-                                    }
-                                    CompletableFuture<Void> nsFuture = new CompletableFuture<>();
-                                    admin.namespaces().createNamespaceAsync(ns.toString(), policies.get())
+                    }).thenCompose(t -> brokerService.getPulsar().getPulsarResources().getNamespaceResources()
+                            .getPoliciesAsync(ns).thenCompose(policies -> {
+                                if (!policies.isPresent()) {
+                                    return CompletableFuture.completedFuture(null);
+                                }
+                                return admin.namespaces().createNamespaceAsync(ns.toString(), policies.get())
+                                        .handle((__, ex) -> {
+                                            Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                                            if (ex == null || cause instanceof ConflictException) {
+                                                log.info()
+                                                        .attr("namespace", ns)
+                                                        .log("successfully created namespace for migration");
+                                                return null;
+                                            }
+                                            log.warn()
+                                                    .attr("ns", ns)
+                                                    .exceptionMessage(cause)
+                                                    .log("Failed to create namespace on migration cluster");
+                                            throw FutureUtil.wrapToCompletionException(ex);
+                                        });
+                            }).thenCompose(p -> {
+                                List<CompletableFuture<Void>> subResults = new ArrayList<>();
+                                subscriptions.forEach((subName, sub) -> {
+                                    CompletableFuture<Void> subResult = admin.topics()
+                                            .createSubscriptionAsync(topic, subName, MessageId.earliest)
                                             .handle((__, ex) -> {
-                                                if (ex == null || ex instanceof ConflictException) {
+                                                Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                                                if (ex == null || cause instanceof ConflictException) {
                                                     log.info()
-                                                            .attr("namespace", ns)
-                                                            .log("successfully created namespace for migration");
-                                                    nsFuture.complete(null);
+                                                            .attr("subscription", subName)
+                                                            .log("successfully created sub for migration");
                                                     return null;
                                                 }
                                                 log.warn()
-                                                        .attr("ns", ns)
-                                                        .exceptionMessage(ex.getCause())
-                                                        .log("Failed to create namespace on migration cluster");
-                                                nsFuture.completeExceptionally(ex.getCause());
-                                                return null;
+                                                        .attr("subscription", subName)
+                                                        .exceptionMessage(cause)
+                                                        .log("Failed to create sub on migration cluster");
+                                                throw FutureUtil.wrapToCompletionException(ex);
                                             });
-                                    return nsFuture;
-                                }).thenCompose(p -> {
-                                    subscriptions.forEach((subName, sub) -> {
-                                        CompletableFuture<Void> subResult = new CompletableFuture<>();
-                                        subResults.add(subResult);
-                                        admin.topics().createSubscriptionAsync(topic, subName, MessageId.earliest)
-                                                .handle((__, ex) -> {
-                                                    if (ex == null || ex instanceof ConflictException) {
-                                                        log.info()
-                                                                .attr("subscription", subName)
-                                                                .log("successfully created sub for migration");
-                                                        subResult.complete(null);
-                                                        return null;
-                                                    }
-                                                    log.warn()
-                                                            .attr("subscription", subName)
-                                                            .exceptionMessage(ex.getCause())
-                                                            .log("Failed to create sub on migration cluster");
-                                                    subResult.completeExceptionally(ex.getCause());
-                                                    return null;
-                                                });
-                                    });
-                                    return Futures.waitForAll(subResults);
+                                    subResults.add(subResult);
                                 });
-                    });
+                                return Futures.waitForAll(subResults);
+                            }));
         });
     }
 
@@ -4114,7 +4157,17 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                                 }
                                             });
                                 }))
-                            );
+                            ).exceptionallyCompose(ex -> {
+                                if (FutureUtil.unwrapCompletionException(ex) instanceof NotFoundException) {
+                                    // Another broker deleted the partitioned topic metadata first, e.g. the GC of
+                                    // this partition on another cluster sharing the configuration store. That only
+                                    // deleted the schema and policies of its own cluster, so delete this cluster's.
+                                    log.debug("Partitioned topic metadata was deleted concurrently, deleting the"
+                                            + " schema and topic policies of this cluster");
+                                    return deleteSchemaAndPoliciesIfAllPartitionsDeleted();
+                                }
+                                return CompletableFuture.failedFuture(ex);
+                            });
                     }
                 });
     }
@@ -5484,6 +5537,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                 return null;
                             }
                             // Message has been successfully persisted
+                            observeReplicationBacklog(position);
                             try {
                                 messageDeduplication.recordMessagePersisted(publishContext,
                                         position);

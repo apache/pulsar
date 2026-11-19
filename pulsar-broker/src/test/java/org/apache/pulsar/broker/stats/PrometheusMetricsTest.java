@@ -21,7 +21,7 @@ package org.apache.pulsar.broker.stats;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.Metric;
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.parseMetrics;
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
@@ -35,9 +35,11 @@ import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.prometheus.client.Collector;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
@@ -83,13 +85,16 @@ import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData;
 import org.apache.pulsar.broker.loadbalance.extensions.manager.UnloadManager;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
+import org.apache.pulsar.broker.service.AbstractBaseDispatcher;
 import org.apache.pulsar.broker.service.AbstractTopic;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
+import org.apache.pulsar.broker.service.DispatcherPendingBytesTestUtil;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentMessageExpiryMonitor;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.service.scalable.ScalableTopicMetrics;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.client.api.Consumer;
@@ -98,9 +103,11 @@ import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.policies.data.PublishRate;
+import org.apache.pulsar.common.policies.data.ResourceGroup;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.compaction.Compactor;
@@ -116,9 +123,22 @@ import org.testng.annotations.Test;
 @CustomLog
 @Test(groups = "broker")
 public class PrometheusMetricsTest extends BrokerTestBase {
-    @SuppressWarnings("deprecation")
+    // These methods start the broker themselves, with a configuration of their own.
+    private static final Set<String> METHODS_STARTING_OWN_BROKER = Set.of(
+            "testPublishRateLimitedTimes",
+            "testBrokerMetrics",
+            "testStorageReadCacheMissesRate",
+            "testBundlesMetricsWithExtensibleLoadManager",
+            "testDuplicateMetricTypeDefinitions");
 
     @BeforeMethod(alwaysRun = true)
+    public void startBroker(Method method) throws Exception {
+        if (!METHODS_STARTING_OWN_BROKER.contains(method.getName())) {
+            setup();
+        }
+    }
+
+    @SuppressWarnings("deprecation")
     @Override
     protected void setup() throws Exception {
         super.baseSetup();
@@ -175,7 +195,6 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
     @Test
     public void testPublishRateLimitedTimes() throws Exception {
-        cleanup();
         conf.setMaxPublishRatePerTopicInMessages(1);
         conf.setMaxPublishRatePerTopicInBytes(1);
         conf.setBrokerPublisherThrottlingMaxMessageRate(100000);
@@ -260,7 +279,6 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
     @Test
     public void testBrokerMetrics() throws Exception {
-        cleanup();
         conf.setAdditionalSystemCursorNames(Set.of("test-cursor"));
         conf.setTopicLevelPoliciesEnabled(true);
         conf.setSystemTopicEnabled(true);
@@ -719,7 +737,6 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
     @Test(dataProvider = "cacheEnable")
     public void testStorageReadCacheMissesRate(boolean cacheEnable) throws Exception {
-        cleanup();
         conf.setManagedLedgerStatsPeriodSeconds(Integer.MAX_VALUE);
         conf.setManagedLedgerCacheEvictionTimeThresholdMillis(Long.MAX_VALUE);
         conf.setCacheEvictionByMarkDeletedPosition(true);
@@ -1011,7 +1028,6 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
     @Test
     public void testBundlesMetricsWithExtensibleLoadManager() throws Exception {
-        cleanup();
         conf.setLoadManagerClassName(ExtensibleLoadManagerImpl.class.getName());
         conf.setExposeBundlesMetricsInPrometheus(true);
         setup();
@@ -1340,6 +1356,99 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         c2.close();
     }
 
+    @Test
+    public void testManagedLedgerMetricsAreScraped() throws Exception {
+        // The offloader stats and the managed ledger read limiter live in the Prometheus Java client 1.x
+        // registry; the broker scrape must still expose them under the legacy names with the cluster label. The
+        // offloader families only exist once a topic has recorded something, the limiter gauges are static.
+        String topic = "persistent://my-property/my-ns/offloaded";
+        pulsar.getOffloaderStats().recordOffloadError(topic);
+        pulsar.getOffloaderStats().recordReadLedgerLatency(topic, 5, TimeUnit.MILLISECONDS);
+
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsTestUtil.generate(pulsar, false, false, false, statsOut);
+        String metricsStr = statsOut.toString();
+        assertThat(metricsStr).contains("# TYPE brk_ledgeroffloader_offload_error_total counter\n")
+                .contains("# TYPE brk_ledgeroffloader_read_ledger_latency summary\n")
+                .contains("# TYPE pulsar_ml_reads_inflight_bytes gauge\n");
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+        Metric offloadError = metrics.get("brk_ledgeroffloader_offload_error_total").iterator().next();
+        assertEquals(offloadError.tags.get("cluster"), "test");
+        assertEquals(offloadError.tags.get("namespace"), "my-property/my-ns");
+        assertEquals(offloadError.value, 1.0);
+        Metric latencyCount = metrics.get("brk_ledgeroffloader_read_ledger_latency_count").iterator().next();
+        assertEquals(latencyCount.tags.get("namespace"), "my-property/my-ns");
+        assertEquals(latencyCount.value, 1.0);
+        for (String family : List.of("pulsar_ml_reads_inflight_bytes", "pulsar_ml_reads_available_inflight_bytes")) {
+            Collection<Metric> samples = metrics.get(family);
+            assertEquals(samples.size(), 1, family);
+            assertEquals(samples.iterator().next().tags.get("cluster"), "test", family);
+        }
+        // One observation: every configured quantile is exposed and reads as that observation, which is the sum.
+        double latencySum = metrics.get("brk_ledgeroffloader_read_ledger_latency_sum").iterator().next().value;
+        Map<String, Double> quantiles = metrics.get("brk_ledgeroffloader_read_ledger_latency").stream()
+                .collect(Collectors.toMap(m -> m.tags.get("quantile"), m -> m.value));
+        assertEquals(quantiles, Map.of("0.5", latencySum, "0.95", latencySum, "0.99", latencySum,
+                "1.0", latencySum));
+
+        // close() takes every offloader family off the registry again.
+        pulsar.getOffloaderStats().close();
+        assertEquals(PrometheusRegistry.defaultRegistry
+                .scrape(name -> name.startsWith("brk_ledgeroffloader_")).size(), 0);
+    }
+
+    @Test
+    public void testWebExecutorAndResourceGroupMetricsAreScraped() throws Exception {
+        // The web executor gauges and the resource group counters live in the Prometheus Java client 1.x registry;
+        // the broker scrape must still expose them under the legacy names with the cluster label.
+        // WebExecutorStats is a JVM-wide singleton whose gauges are unregistered by the first WebService close in
+        // this JVM and never re-registered, so this broker owns them only if no broker was closed before it. The
+        // 1.x registry tells which case applies: when it holds a family the scrape must carry exactly one series
+        // with the cluster label, otherwise none. WebExecutorStatsTest covers the gauge values and close().
+        String rgName = "metrics-rg-" + UUID.randomUUID();
+        ResourceGroup rgConfig = new ResourceGroup();
+        rgConfig.setPublishRateInMsgs(1000);
+        admin.resourcegroups().createResourceGroup(rgName, rgConfig);
+        Awaitility.await().untilAsserted(() ->
+                assertThat(pulsar.getResourceGroupServiceManager().resourceGroupGet(rgName)).isNotNull());
+        try {
+            rgConfig.setPublishRateInMsgs(2000);
+            admin.resourcegroups().updateResourceGroup(rgName, rgConfig);
+            // The update is applied by the metadata listener asynchronously.
+            Awaitility.await().untilAsserted(() -> {
+                ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+                PrometheusMetricsTestUtil.generate(pulsar, false, false, false, statsOut);
+                String metricsStr = statsOut.toString();
+                assertThat(metricsStr).contains("# TYPE pulsar_resource_group_updates_total counter\n");
+                Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+                // The counters are static, so groups touched by earlier tests in this JVM keep their series.
+                List<Metric> updates = metrics.get("pulsar_resource_group_updates_total").stream()
+                        .filter(m -> rgName.equals(m.tags.get("ResourceGroup")))
+                        .collect(Collectors.toList());
+                assertEquals(updates.size(), 1);
+                assertEquals(updates.get(0).tags.get("cluster"), "test");
+                assertEquals(updates.get(0).value, 1.0);
+                for (String family : List.of("pulsar_web_executor_max_threads",
+                        "pulsar_web_executor_min_threads",
+                        "pulsar_web_executor_idle_threads",
+                        "pulsar_web_executor_active_threads",
+                        "pulsar_web_executor_current_threads")) {
+                    boolean registered = PrometheusRegistry.defaultRegistry.scrape(family::equals).size() > 0;
+                    List<Metric> samples = new ArrayList<>(metrics.get(family));
+                    assertEquals(samples.size(), registered ? 1 : 0, family);
+                    if (registered) {
+                        assertEquals(samples.get(0).tags.get("cluster"), "test", family);
+                        assertTrue(samples.get(0).value >= 0, family);
+                    }
+                }
+            });
+        } finally {
+            admin.resourcegroups().deleteResourceGroup(rgName);
+            Awaitility.await().untilAsserted(() ->
+                    assertThat(pulsar.getResourceGroupServiceManager().resourceGroupGet(rgName)).isNull());
+        }
+    }
+
     /** Checks for duplicate type definitions for a metric in the Prometheus metrics output. If the Prometheus parser
      finds a TYPE definition for the same metric more than once, it errors out:
      https://github.com/prometheus/prometheus/blob/f04b1b5559a80a4fd1745cf891ce392a056460c9/vendor/github.com/
@@ -1360,7 +1469,6 @@ public class PrometheusMetricsTest extends BrokerTestBase {
     // Running the test twice to make sure types are present when generated multiple times
     @Test(invocationCount = 2)
     public void testDuplicateMetricTypeDefinitions() throws Exception {
-        cleanup();
         conf.setTransactionCoordinatorEnabled(true);
         conf.setTransactionLogBatchedWriteEnabled(true);
         conf.setTransactionPendingAckBatchedWriteEnabled(true);
@@ -1452,6 +1560,113 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         conf.setTransactionCoordinatorEnabled(false);
         conf.setTransactionLogBatchedWriteEnabled(false);
         conf.setTransactionPendingAckBatchedWriteEnabled(false);
+    }
+
+    @Test
+    public void testScalableTopicMetricsAreScraped() throws Exception {
+        // The scalable topic metrics (watch sessions and requests, controllers, consumers, segment owners) live in
+        // the Prometheus Java client 1.x registry; the broker scrape must still expose them under the legacy names
+        // with the cluster label. A broker starts all four collectors; the request histogram only gets a series
+        // once a scalable-topic request completes, so one is recorded directly. The collectors are shared per
+        // registry and aggregate per cluster, and other test classes in this JVM may leave brokers of other
+        // clusters registered on the default registry, so only this broker's cluster is asserted.
+        double lookupsBefore = lookupSuccessCount(parseMetrics(scrapeScalableMetrics()));
+        pulsar.getBrokerService().getScalableTopicMetrics()
+                .startRequest(ScalableTopicMetrics.RequestType.LOOKUP).success();
+
+        String metricsStr = scrapeScalableMetrics();
+        assertThat(metricsStr).contains("# TYPE pulsar_scalable_topic_request_duration_seconds histogram\n");
+        assertThat(metricsStr).contains("# TYPE pulsar_scalable_topic_watch_session_count gauge\n");
+        assertThat(metricsStr).contains("# TYPE pulsar_scalable_topic_watch_update_total counter\n");
+        assertThat(metricsStr).contains("# TYPE pulsar_scalable_topic_controller_count gauge\n");
+        assertThat(metricsStr).contains("# TYPE pulsar_scalable_topic_segment_count gauge\n");
+        assertThat(metricsStr).contains("# TYPE pulsar_scalable_topic_consumer_count gauge\n");
+        assertThat(metricsStr).contains("# TYPE pulsar_scalable_topic_segment_blocked_count gauge\n");
+        assertThat(metricsStr).contains("# TYPE pulsar_scalable_topic_rebalance_total counter\n");
+        assertThat(metricsStr).contains("# TYPE pulsar_scalable_topic_leaderless_count gauge\n");
+        assertThat(metricsStr).contains("# TYPE pulsar_scalable_topic_segment_unwritable_count gauge\n");
+        assertThat(metricsStr).contains("# TYPE pulsar_scalable_topic_entry_bucket_draining_count gauge\n");
+        assertThat(metricsStr).contains("# TYPE pulsar_scalable_topic_entry_bucket_violation_total counter\n");
+        assertThat(metricsStr).contains("# TYPE pulsar_scalable_topic_segment_load_report_total counter\n");
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+
+        double lookups = lookupSuccessCount(metrics);
+        assertEquals(lookups, lookupsBefore + 1.0);
+        List<Metric> requestBuckets = testCluster(metrics, "pulsar_scalable_topic_request_duration_seconds_bucket")
+                .stream()
+                .filter(m -> "lookup".equals(m.tags.get("request_type"))
+                        && "success".equals(m.tags.get("operation_status")))
+                .collect(Collectors.toList());
+        assertEquals(requestBuckets.size(), 12);
+        assertTrue(requestBuckets.stream().anyMatch(m -> "+Inf".equals(m.tags.get("le")) && m.value == lookups));
+
+        List<Metric> sessions = testCluster(metrics, "pulsar_scalable_topic_watch_session_count");
+        assertEquals(sessions.size(), 2);
+        for (Metric session : sessions) {
+            assertTrue(Set.of("topic", "namespace").contains(session.tags.get("watch_type")));
+            assertEquals(session.value, 0.0);
+        }
+        List<Metric> updates = testCluster(metrics, "pulsar_scalable_topic_watch_update_total");
+        assertEquals(updates.size(), 2);
+        assertTrue(updates.stream().allMatch(m -> Set.of("success", "failure").contains(
+                m.tags.get("operation_status"))));
+
+        List<Metric> controllers = testCluster(metrics, "pulsar_scalable_topic_controller_count");
+        assertEquals(controllers.size(), 1);
+        assertEquals(controllers.get(0).value, 0.0);
+        List<Metric> segments = testCluster(metrics, "pulsar_scalable_topic_segment_count");
+        assertEquals(segments.size(), 2);
+        assertTrue(segments.stream().allMatch(m -> Set.of("active", "sealed").contains(
+                m.tags.get("segment_state"))));
+
+        List<Metric> consumers = testCluster(metrics, "pulsar_scalable_topic_consumer_count");
+        assertEquals(consumers.size(), 3);
+        assertTrue(consumers.stream().allMatch(m -> Set.of("active", "idle", "disconnected").contains(
+                m.tags.get("consumer_state"))));
+        List<Metric> blocked = testCluster(metrics, "pulsar_scalable_topic_segment_blocked_count");
+        assertEquals(blocked.size(), 1);
+        List<Metric> rebalances = testCluster(metrics, "pulsar_scalable_topic_rebalance_total");
+        assertEquals(rebalances.size(), 5);
+        assertTrue(rebalances.stream().allMatch(m -> m.tags.containsKey("rebalance_reason")));
+
+        for (String family : List.of("pulsar_scalable_topic_leaderless_count",
+                "pulsar_scalable_topic_segment_unwritable_count",
+                "pulsar_scalable_topic_entry_bucket_draining_count")) {
+            List<Metric> samples = testCluster(metrics, family);
+            assertEquals(samples.size(), 1, family);
+            assertEquals(samples.get(0).value, 0.0, family);
+        }
+        List<Metric> violations = testCluster(metrics, "pulsar_scalable_topic_entry_bucket_violation_total");
+        assertEquals(violations.size(), 2);
+        assertTrue(violations.stream().allMatch(m -> Set.of("straddling", "unstamped_batch").contains(
+                m.tags.get("entry_bucket_violation"))));
+        List<Metric> loadReports = testCluster(metrics, "pulsar_scalable_topic_segment_load_report_total");
+        assertEquals(loadReports.size(), 3);
+        assertTrue(loadReports.stream().allMatch(m -> Set.of("written", "unchanged", "failed").contains(
+                m.tags.get("load_report_result"))));
+    }
+
+    private String scrapeScalableMetrics() throws IOException {
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsTestUtil.generate(pulsar, true, false, false, statsOut);
+        return statsOut.toString();
+    }
+
+    /** The samples of one family that belong to this broker's cluster. */
+    private static List<Metric> testCluster(Multimap<String, Metric> metrics, String family) {
+        return metrics.get(family).stream()
+                .filter(m -> "test".equals(m.tags.get("cluster")))
+                .collect(Collectors.toList());
+    }
+
+    /** The lookup/success request count of this broker's cluster, zero while the series does not exist yet. */
+    private static double lookupSuccessCount(Multimap<String, Metric> metrics) {
+        List<Metric> counts = testCluster(metrics, "pulsar_scalable_topic_request_duration_seconds_count").stream()
+                .filter(m -> "lookup".equals(m.tags.get("request_type"))
+                        && "success".equals(m.tags.get("operation_status")))
+                .collect(Collectors.toList());
+        assertTrue(counts.size() <= 1, "one lookup/success series per cluster");
+        return counts.isEmpty() ? 0.0 : counts.get(0).value;
     }
 
     /***
@@ -1977,6 +2192,45 @@ public class PrometheusMetricsTest extends BrokerTestBase {
     }
 
     @Test
+    public void testCaffeineCacheMetricsAreScraped() throws Exception {
+        // The cache collector lives in the Prometheus Java client 1.x registry; the broker scrape must still
+        // expose it under the legacy names, with the cluster label, for every cache the broker registers.
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsTestUtil.generate(pulsar, false, false, false, statsOut);
+        String metricsStr = statsOut.toString();
+        // The 1.x writer names counters with _total; the simpleclient writer emitted "caffeine_cache_hit counter".
+        assertThat(metricsStr).contains("# TYPE caffeine_cache_hit_total counter\n")
+                .doesNotContain("# TYPE caffeine_cache_hit counter\n")
+                .contains("# TYPE caffeine_cache_eviction_weight gauge\n")
+                .doesNotContain("caffeine_cache_eviction_weight_total")
+                .doesNotContain("caffeine_cache_weighted_size")
+                .contains("# TYPE caffeine_cache_load_duration_seconds summary\n");
+        for (String type : List.of("caffeine_cache_hit_total counter", "caffeine_cache_miss_total counter",
+                "caffeine_cache_requests_total counter", "caffeine_cache_eviction_total counter",
+                "caffeine_cache_eviction_weight gauge", "caffeine_cache_estimated_size gauge",
+                "caffeine_cache_loads_total counter", "caffeine_cache_load_failure_total counter",
+                "caffeine_cache_load_duration_seconds summary")) {
+            assertEquals(StringUtils.countMatches(metricsStr, "# TYPE " + type + "\n"), 1, type);
+        }
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+        for (String family : List.of("caffeine_cache_hit_total", "caffeine_cache_miss_total",
+                "caffeine_cache_requests_total", "caffeine_cache_eviction_total",
+                "caffeine_cache_eviction_weight", "caffeine_cache_estimated_size",
+                "caffeine_cache_loads_total", "caffeine_cache_load_failure_total",
+                "caffeine_cache_load_duration_seconds_count")) {
+            Collection<Metric> samples = metrics.get(family);
+            assertThat(samples).as(family).extracting(m -> m.tags.get("cache")).contains("bundles", "owned-bundles");
+            assertThat(samples).as(family).allSatisfy(m -> assertEquals(m.tags.get("cluster"), "test"));
+        }
+        // The loading caches have been exercised by broker start-up, so their load statistics are non-zero.
+        for (String family : List.of("caffeine_cache_requests_total", "caffeine_cache_loads_total",
+                "caffeine_cache_load_duration_seconds_count")) {
+            assertThat(metrics.get(family)).as(family).filteredOn(m -> "bundles".equals(m.tags.get("cache")))
+                    .isNotEmpty().allSatisfy(m -> assertThat(m.value).as(family).isGreaterThan(0));
+        }
+    }
+
+    @Test
     void testParseMetrics() throws IOException {
         String sampleMetrics = IOUtils.toString(getClass().getClassLoader()
                 .getResourceAsStream("prometheus_metrics_sample.txt"), StandardCharsets.UTF_8);
@@ -2219,6 +2473,111 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertEquals(subCountLines.get(0),
                 "pulsar_subscriptions_count{cluster=\"test\",namespace=\"prop/ns-abc1\","
                         + "topic=\"persistent://prop/ns-abc1/\\\"mytopic\"} 1");
+    }
+
+    @Test
+    public void testLookupAndSchemaMetricsAreScraped() throws Exception {
+        // The lookup counters, the schema registry counters and summaries, the unload latency histograms and the
+        // pending dispatch bytes gauge live in the Prometheus Java client 1.x registry; the broker scrape must
+        // still expose them under the legacy names with the cluster label.
+        String namespace = "my-property/my-ns";
+        String topic = "persistent://" + namespace + "/lookup-schema-metrics-" + UUID.randomUUID();
+        Multimap<String, Metric> before = parseMetrics(scrape());
+        double answersBefore = singleValue(before, "pulsar_broker_lookup_answers_total", null);
+        double putsBefore = singleValue(before, "pulsar_schema_put_ops_latency_count", namespace);
+        double compatibleBefore = singleValue(before, "pulsar_schema_compatible_total", namespace);
+
+        // The producer looks the topic up and registers its schema; the consumer looks it up again and has its
+        // schema checked against the stored one, which lists the stored schemas and records the result.
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topic)
+                .subscriptionName("sub").subscribe();
+        producer.send("schema-metrics");
+        assertEquals(consumer.receive(10, TimeUnit.SECONDS).getValue(), "schema-metrics");
+        // The latency histograms are static, so other tests in the same JVM leave their broker's samples behind;
+        // a broker label unique to this test keeps the assertions on the samples recorded here.
+        String broker = "lookup-schema-metrics-" + UUID.randomUUID();
+        for (var latencyMetric : UnloadManager.LatencyMetric.values()) {
+            var serviceUnitStateData = mock(ServiceUnitStateData.class);
+            when(serviceUnitStateData.sourceBroker()).thenReturn(broker);
+            when(serviceUnitStateData.dstBroker()).thenReturn(broker);
+            latencyMetric.beginMeasurement("serviceUnit", broker, serviceUnitStateData);
+            latencyMetric.endMeasurement("serviceUnit");
+        }
+
+        String metricsStr = scrape();
+        for (String family : List.of("pulsar_broker_lookup_redirects_total counter",
+                "pulsar_broker_lookup_failures_total counter",
+                "pulsar_broker_lookup_answers_total counter",
+                "pulsar_schema_put_ops_latency summary",
+                "pulsar_schema_get_ops_latency summary",
+                "pulsar_schema_compatible_total counter",
+                "brk_lb_unload_latency_ms histogram",
+                "brk_lb_assign_latency_ms histogram",
+                "brk_lb_release_latency_ms histogram",
+                "brk_lb_disconnect_latency_ms histogram",
+                "pulsar_broker_pending_bytes_to_dispatch gauge")) {
+            assertTrue(metricsStr.contains("# TYPE " + family + "\n"), family);
+        }
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+        assertTrue(singleValue(metrics, "pulsar_broker_lookup_answers_total", null) > answersBefore);
+        assertEquals(singleValue(metrics, "pulsar_schema_put_ops_latency_count", namespace), putsBefore + 1);
+        assertEquals(singleValue(metrics, "pulsar_schema_compatible_total", namespace), compatibleBefore + 1);
+        List<Metric> quantiles = metrics.get("pulsar_schema_put_ops_latency").stream()
+                .filter(m -> namespace.equals(m.tags.get("namespace")))
+                .collect(Collectors.toList());
+        assertEquals(quantiles.stream().map(m -> m.tags.get("quantile")).collect(Collectors.toList()),
+                List.of("0.5", "0.75", "0.95", "0.99", "0.999", "0.9999", "1.0"));
+        List<Metric> buckets = metrics.get("brk_lb_unload_latency_ms_bucket").stream()
+                .filter(m -> broker.equals(m.tags.get("broker")) && "bundleUnloading".equals(m.tags.get("metric")))
+                .collect(Collectors.toList());
+        assertEquals(buckets.stream().map(m -> m.tags.get("le")).collect(Collectors.toList()),
+                List.of("1.0", "10.0", "100.0", "200.0", "1000.0", "+Inf"));
+        assertEquals(buckets.get(0).tags.get("cluster"), "test");
+        // The gauge reads a static adder every dispatcher updates around a read batch. The subscription's
+        // dispatcher moves it by a known amount here, so a sample that is missing or stuck at a constant fails.
+        double pendingBefore = requiredSingleValue(metrics, "pulsar_broker_pending_bytes_to_dispatch");
+        AbstractBaseDispatcher dispatcher = (AbstractBaseDispatcher) ((PersistentTopic) pulsar.getBrokerService()
+                .getTopicReference(topic).get()).getSubscription("sub").getDispatcher();
+        long pendingDelta = 123_456L;
+        DispatcherPendingBytesTestUtil.add(dispatcher, pendingDelta);
+        try {
+            assertEquals(requiredSingleValue(parseMetrics(scrape()), "pulsar_broker_pending_bytes_to_dispatch"),
+                    pendingBefore + pendingDelta);
+        } finally {
+            DispatcherPendingBytesTestUtil.add(dispatcher, -pendingDelta);
+        }
+        assertEquals(requiredSingleValue(parseMetrics(scrape()), "pulsar_broker_pending_bytes_to_dispatch"),
+                pendingBefore);
+    }
+
+    /** The value of the only sample of the unlabeled {@code name}, which must be present with the cluster label. */
+    private static double requiredSingleValue(Multimap<String, Metric> metrics, String name) {
+        List<Metric> samples = new ArrayList<>(metrics.get(name));
+        assertEquals(samples.size(), 1, name);
+        assertEquals(samples.get(0).tags.get("cluster"), "test", name);
+        return samples.get(0).value;
+    }
+
+    private String scrape() throws IOException {
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsTestUtil.generate(pulsar, false, false, false, statsOut);
+        return statsOut.toString();
+    }
+
+    /** The value of the only sample of {@code name} with the cluster label and, when given, the namespace. */
+    private static double singleValue(Multimap<String, Metric> metrics, String name, String namespace) {
+        List<Metric> samples = metrics.get(name).stream()
+                .filter(m -> namespace == null || namespace.equals(m.tags.get("namespace")))
+                .collect(Collectors.toList());
+        if (samples.isEmpty()) {
+            return 0;
+        }
+        assertEquals(samples.size(), 1, name);
+        assertEquals(samples.get(0).tags.get("cluster"), "test", name);
+        return samples.get(0).value;
     }
 
 }

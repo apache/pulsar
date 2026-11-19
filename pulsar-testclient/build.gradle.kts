@@ -60,5 +60,5 @@ dependencies {
     testCompileOnly(libs.swagger.annotations)
 
     testImplementation(project(":pulsar-broker"))
-    testImplementation(project(path = ":pulsar-broker", configuration = "testJar"))
+    testImplementation(testJar(":pulsar-broker"))
 }

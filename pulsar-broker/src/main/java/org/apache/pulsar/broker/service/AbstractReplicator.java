@@ -189,6 +189,10 @@ public abstract class AbstractReplicator implements Replicator {
         return CompletableFuture.completedFuture(null);
     }
 
+    protected void producerStartFailed(Throwable error, boolean preparingTopic) {
+        // Subclasses may retain startup diagnostics across attempts.
+    }
+
     protected void startProducer() {
         // Guarantee only one task call "producerBuilder.createAsync()".
         Pair<Boolean, State> setStartingRes = compareSetAndGetState(State.Disconnected, State.Starting);
@@ -212,7 +216,9 @@ public abstract class AbstractReplicator implements Replicator {
 
         // Force only replicate messages to a non-partitioned topic, to avoid auto-create a partitioned topic on
         // the remote cluster.
-        prepareCreateProducer().thenCompose(ignore -> {
+        // Capture synchronous preparation errors in the same retry path as asynchronous failures.
+        var preparation = FutureUtil.supplySafely(this::prepareCreateProducer);
+        preparation.thenCompose(ignore -> {
             ProducerBuilderImpl builderImpl = (ProducerBuilderImpl) producerBuilder;
             builderImpl.getConf().setNonPartitionedTopicExpected(true);
             builderImpl.getConf().setReplProducer(true);
@@ -221,6 +227,7 @@ public abstract class AbstractReplicator implements Replicator {
                 setProducerAndTriggerReadEntries(producer);
             });
         }).exceptionally(ex -> {
+            producerStartFailed(ex, preparation.isCompletedExceptionally());
             Pair<Boolean, State> setDisconnectedRes = compareSetAndGetState(State.Starting, State.Disconnected);
             if (setDisconnectedRes.getLeft()) {
                 long waitTimeMs = backOff.next().toMillis();

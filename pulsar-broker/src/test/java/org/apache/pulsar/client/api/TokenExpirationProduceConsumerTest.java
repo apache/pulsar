@@ -166,7 +166,7 @@ public class TokenExpirationProduceConsumerTest extends TlsProducerConsumerBase 
     @Test
     public void testTokenExpirationProduceConsumer() throws Exception {
         Calendar calendar = Calendar.getInstance();
-        calendar.add(Calendar.SECOND, 20);
+        calendar.add(Calendar.SECOND, 5);
         String role = "test";
         String token = getExpireToken(role, calendar.getTime());
         Date expiredTime = calendar.getTime();
@@ -184,11 +184,13 @@ public class TokenExpirationProduceConsumerTest extends TlsProducerConsumerBase 
                 .topic(topic)
                 .subscriptionName("test-token")
                 .subscribe();
+        // Once the token has expired, the send fails when its timeout runs out
         @Cleanup final Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(topic)
+                .sendTimeout(2, TimeUnit.SECONDS)
                 .create();
 
-        Awaitility.await().timeout(Duration.ofSeconds(60)).pollInterval(3, TimeUnit.SECONDS).untilAsserted(() -> {
+        Awaitility.await().timeout(Duration.ofSeconds(60)).pollInterval(Duration.ofMillis(200)).untilAsserted(() -> {
             assertThrows(PulsarClientException.TimeoutException.class, () -> {
                 producer.send("heart beat".getBytes());
                 Message<byte[]> message = consumer.receive();

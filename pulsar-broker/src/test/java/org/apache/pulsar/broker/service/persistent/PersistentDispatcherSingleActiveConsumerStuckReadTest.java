@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
@@ -61,6 +62,7 @@ import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
 import org.awaitility.Awaitility;
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.DataProvider;
@@ -187,6 +189,9 @@ public class PersistentDispatcherSingleActiveConsumerStuckReadTest extends Mocke
     private final List<Delivery> deliveries = Collections.synchronizedList(new ArrayList<>());
 
     private final AtomicLong msgCounter = new AtomicLong();
+    // Mocks and spies that reference this method's broker, which Mockito's inline mock maker would keep, with the
+    // broker, until the JVM exits: released once the broker is closed.
+    private final List<Object> ownedMocks = new CopyOnWriteArrayList<>();
 
     @Override
     protected ManagedLedgerConfig initManagedLedgerConfig(ManagedLedgerConfig config) {
@@ -235,7 +240,7 @@ public class PersistentDispatcherSingleActiveConsumerStuckReadTest extends Mocke
         failoverHandoffTasks.clear();
         if (failoverDelayMillis > 0) {
             EventLoopGroup realBrokerExecutor = brokerService.executor();
-            EventLoopGroup brokerExecutor = spy(realBrokerExecutor);
+            EventLoopGroup brokerExecutor = ownMock(spy(realBrokerExecutor));
             doAnswer(invocation -> {
                 long delay = invocation.getArgument(1);
                 if (captureFailoverHandoffTasks && delay == failoverDelayMillis) {
@@ -251,7 +256,7 @@ public class PersistentDispatcherSingleActiveConsumerStuckReadTest extends Mocke
         topic = new PersistentTopic(TOPIC, ledger, brokerService);
         // Open the cursor AFTER topic construction so the topic does not auto-create a second
         // subscription sharing this cursor.
-        cursor = spy((ManagedCursorImpl) ledger.openCursor("sub"));
+        cursor = ownMock(spy((ManagedCursorImpl) ledger.openCursor("sub")));
         // A real subscription that adopts the spied dispatcher through the production test seam, so
         // addConsumer/removeConsumer drive the real consumer lifecycle. The returned reference must be
         // qualified: the inherited PersistentSubscription.dispatcher field would otherwise shadow ours.
@@ -266,12 +271,12 @@ public class PersistentDispatcherSingleActiveConsumerStuckReadTest extends Mocke
         // just the dispatcher construction so unrelated broker work keeps using the real executor.
         OrderedExecutor realTopicOrdered = brokerService.getTopicOrderedExecutor();
         dispatcherExecutor = new ManualExecutor();
-        OrderedExecutor topicOrdered = mock(OrderedExecutor.class);
+        OrderedExecutor topicOrdered = ownMock(mock(OrderedExecutor.class));
         doReturn(dispatcherExecutor).when(topicOrdered).chooseThread();
         doReturn(dispatcherExecutor).when(topicOrdered).chooseThread(any());
         doReturn(topicOrdered).when(brokerService).getTopicOrderedExecutor();
-        dispatcher = spy(new PersistentDispatcherSingleActiveConsumer(cursor, SubType.Failover, -1, topic,
-                subscription));
+        dispatcher = ownMock(spy(new PersistentDispatcherSingleActiveConsumer(cursor, SubType.Failover, -1, topic,
+                subscription)));
         doReturn(realTopicOrdered).when(brokerService).getTopicOrderedExecutor();
 
         // The published payloads are raw bytes, not serialized Pulsar messages, so the metadata-parsing
@@ -298,7 +303,7 @@ public class PersistentDispatcherSingleActiveConsumerStuckReadTest extends Mocke
      * production.
      */
     private Consumer newMockConsumer(String consumerName) {
-        Consumer mockConsumer = mock(Consumer.class);
+        Consumer mockConsumer = ownMock(mock(Consumer.class));
         doReturn(1000).when(mockConsumer).getAvailablePermits();
         doReturn(1).when(mockConsumer).getAvgMessagesPerEntry();
         doReturn(true).when(mockConsumer).isWritable();
@@ -352,10 +357,22 @@ public class PersistentDispatcherSingleActiveConsumerStuckReadTest extends Mocke
         } catch (Exception ignore) {
             // best-effort cleanup
         }
+        ownedMocks.forEach(mock -> Mockito.framework().clearInlineMock(mock));
+        ownedMocks.clear();
         cursor = null;
         ledger = null;
         brokerService = null;
         pulsarTestContext = null;
+        // TestNG keeps this test instance until the run ends
+        topic = null;
+        subscription = null;
+        dispatcher = null;
+        consumer = null;
+    }
+
+    private <T> T ownMock(T mock) {
+        ownedMocks.add(mock);
+        return mock;
     }
 
     @AfterMethod(alwaysRun = true)

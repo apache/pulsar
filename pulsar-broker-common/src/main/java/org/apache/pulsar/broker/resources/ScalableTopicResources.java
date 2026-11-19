@@ -22,6 +22,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -33,13 +34,16 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import lombok.CustomLog;
+import org.apache.pulsar.broker.resources.ScalableTopicMetadata.PendingLayoutTransition;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.scalable.SegmentInfo;
 import org.apache.pulsar.common.scalable.SegmentLoadStats;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -297,8 +301,17 @@ public class ScalableTopicResources extends BaseResources<ScalableTopicMetadata>
         }
     }
 
+    /**
+     * Create the record of a scalable topic, failing with {@link MetadataStoreException.AlreadyExistsException} if
+     * the topic exists. A node at its path that holds no record (see {@link #listScalableTopicsWithRecordAsync}) is
+     * what a deleted topic of the same name left: it is deleted first, with everything under it. Run it under the
+     * creation lock of the topic (see {@link #runWithCreationLock}), so that no other creation of the topic writes
+     * its record in between.
+     */
     public CompletableFuture<Void> createScalableTopicAsync(TopicName tn, ScalableTopicMetadata metadata) {
-        return getCache().create(topicPath(tn), metadata, PROPERTY_INDEX_EXTRACTOR);
+        String path = topicPath(tn);
+        return deleteNodeWithoutRecordAsync(path)
+                .thenCompose(__ -> getCache().create(path, metadata, PROPERTY_INDEX_EXTRACTOR));
     }
 
     /** The creation lock of a scalable topic, while {@link #runWithCreationLock} holds it. */
@@ -398,25 +411,189 @@ public class ScalableTopicResources extends BaseResources<ScalableTopicMetadata>
                 });
     }
 
+    /**
+     * Read the record of a scalable topic. A node that holds no record (see {@link #listScalableTopicsWithRecordAsync})
+     * is no topic, so it reads as absent.
+     */
     public CompletableFuture<Optional<ScalableTopicMetadata>> getScalableTopicMetadataAsync(TopicName tn) {
-        return getAsync(topicPath(tn));
+        String path = topicPath(tn);
+        return absentIfNoRecord(path, getAsync(path));
     }
 
+    /** As {@link #getScalableTopicMetadataAsync(TopicName)}, reading the store rather than the cache if refresh. */
     public CompletableFuture<Optional<ScalableTopicMetadata>> getScalableTopicMetadataAsync(TopicName tn,
                                                                                              boolean refresh) {
-        if (refresh) {
-            return refreshAndGetAsync(topicPath(tn));
-        }
-        return getAsync(topicPath(tn));
+        String path = topicPath(tn);
+        return absentIfNoRecord(path, refresh ? refreshAndGetAsync(path) : getAsync(path));
     }
 
+    private CompletableFuture<Optional<ScalableTopicMetadata>> absentIfNoRecord(
+            String topicPath, CompletableFuture<Optional<ScalableTopicMetadata>> read) {
+        return read.exceptionallyCompose(ex -> failUnlessNoRecordAsync(topicPath, ex)
+                .thenApply(__ -> Optional.empty()));
+    }
+
+    /**
+     * Update the record of a scalable topic, failing with {@link MetadataStoreException.NotFoundException} if the
+     * topic doesn't exist, as when its node holds no record (see {@link #listScalableTopicsWithRecordAsync}).
+     */
     public CompletableFuture<Void> updateScalableTopicAsync(TopicName tn,
                                                              Function<ScalableTopicMetadata,
                                                                      ScalableTopicMetadata> updateFunction) {
+        String path = topicPath(tn);
         // Refresh property indexes on every update — the modify function may add or remove
         // properties and the underlying store needs to see the post-modification view.
+        return updateTopicRecordAsync(tn, md -> {
+            PendingLayoutTransition pending = md.getPendingLayoutTransition();
+            String incarnationId = md.getIncarnationId();
+            long originalEpoch = md.getEpoch();
+            long originalNextSegmentId = md.getNextSegmentId();
+            Map<Long, SegmentInfo> originalSegments = new LinkedHashMap<>(md.getSegments());
+            ScalableTopicMetadata updated = updateFunction.apply(md);
+            if (incarnationId != null) {
+                // Layout projections made by generic writers must not erase the record's lifetime identity.
+                updated = updated.toBuilder().incarnationId(incarnationId).build();
+            }
+            if (pending != null) {
+                // Policy/property/deletion updates may proceed, but must preserve the recovery plan.
+                // Every layout writer, including GC, must wait until the reserved plan is committed.
+                if (updated.getEpoch() != originalEpoch
+                        || updated.getNextSegmentId() != originalNextSegmentId
+                        || !updated.getSegments().equals(originalSegments)) {
+                    throw new IllegalStateException("A scalable topic layout transition is pending: " + tn);
+                }
+                updated = updated.toBuilder().pendingLayoutTransition(pending).build();
+            }
+            return updated;
+        }).exceptionallyCompose(ex -> failUnlessNoRecordAsync(path, ex)
+                .thenCompose(__ -> CompletableFuture.failedFuture(
+                        new MetadataStoreException.NotFoundException(path))));
+    }
+
+    /** Upgrade an old record once, before a controller serves or plans physical layout changes. */
+    public CompletableFuture<String> ensureScalableTopicIncarnationAsync(TopicName tn, BooleanSupplier currentTerm) {
+        String incarnationId = UUID.randomUUID().toString();
+        return getScalableTopicMetadataAsync(tn, true).thenCompose(optMd -> {
+            ScalableTopicMetadata existing = optMd.orElseThrow();
+            if (!currentTerm.getAsBoolean() || existing.isDeleted()) {
+                throw new IllegalStateException("Lost scalable topic leadership: " + tn);
+            }
+            if (existing.getIncarnationId() != null) {
+                return CompletableFuture.completedFuture(existing.getIncarnationId());
+            }
+            return getCache().readModifyUpdate(topicPath(tn), md -> {
+                if (!currentTerm.getAsBoolean() || md.isDeleted()) {
+                    throw new IllegalStateException("Lost scalable topic leadership: " + tn);
+                }
+                return md.getIncarnationId() == null ? md.toBuilder().incarnationId(incarnationId).build() : md;
+            }, PROPERTY_INDEX_EXTRACTOR).thenApply(ScalableTopicMetadata::getIncarnationId);
+        });
+    }
+
+    /** Reserve a fixed plan without publishing its successor IDs or advancing the DAG epoch. */
+    public CompletableFuture<Void> reserveLayoutTransitionAsync(TopicName tn, PendingLayoutTransition pending,
+                                                                BooleanSupplier currentTerm) {
+        return updateTopicRecordAsync(tn, md -> {
+            validateTransitionBase(tn, md, pending, currentTerm);
+            PendingLayoutTransition existing = md.getPendingLayoutTransition();
+            if (existing != null && !existing.equals(pending)) {
+                throw new IllegalStateException("Another scalable topic layout transition is pending: " + tn);
+            }
+            return md.toBuilder().pendingLayoutTransition(pending).build();
+        });
+    }
+
+    /**
+     * Mark the reserved plan as sealing before its first source is terminated, and return the marked
+     * plan. Idempotent. Fails if the plan was cancelled or replaced: its sources must then not be sealed.
+     */
+    public CompletableFuture<PendingLayoutTransition> markLayoutTransitionSealingAsync(TopicName tn,
+            PendingLayoutTransition pending, BooleanSupplier currentTerm) {
+        PendingLayoutTransition sealing = pending.withSealing();
+        return updateTopicRecordAsync(tn, md -> {
+            validateTransitionBase(tn, md, pending, currentTerm);
+            PendingLayoutTransition stored = md.getPendingLayoutTransition();
+            if (!pending.equals(stored) && !sealing.equals(stored)) {
+                throw new IllegalStateException("Scalable topic layout transition was replaced: " + tn);
+            }
+            return md.toBuilder().pendingLayoutTransition(sealing).build();
+        }).thenApply(__ -> sealing);
+    }
+
+    /**
+     * Cancel a reserved plan that has not started sealing: the published layout stays as it is. The
+     * successor IDs of the plan are not reused, since its successor topics may already exist.
+     */
+    public CompletableFuture<Void> cancelLayoutTransitionAsync(TopicName tn, PendingLayoutTransition pending,
+                                                               BooleanSupplier currentTerm) {
+        return updateTopicRecordAsync(tn, md -> {
+            validateTransitionBase(tn, md, pending, currentTerm);
+            if (pending.sealing() || !pending.equals(md.getPendingLayoutTransition())) {
+                throw new IllegalStateException(
+                        "Scalable topic layout transition was replaced or started sealing: " + tn);
+            }
+            return md.toBuilder().nextSegmentId(pending.nextSegmentId()).pendingLayoutTransition(null).build();
+        });
+    }
+
+    /**
+     * Publish exactly the reserved plan and remove its intent atomically in the topic record. Its sources are
+     * recorded as sealed at {@code sealedAtMs}, when their termination was confirmed, if that is later than the
+     * time of the plan: a source accepts messages until it is terminated, and a seek to a timestamp skips a
+     * segment sealed before it.
+     */
+    public CompletableFuture<Void> commitLayoutTransitionAsync(TopicName tn, PendingLayoutTransition pending,
+                                                               long sealedAtMs, BooleanSupplier currentTerm) {
+        return updateTopicRecordAsync(tn, md -> {
+            validateTransitionBase(tn, md, pending, currentTerm);
+            if (!pending.equals(md.getPendingLayoutTransition())) {
+                throw new IllegalStateException("Scalable topic layout transition was replaced: " + tn);
+            }
+            Map<Long, SegmentInfo> segments = new LinkedHashMap<>(md.getSegments());
+            pending.replacements().forEach((id, segment) -> segments.put(id,
+                    pending.sources().containsKey(id) && segment.isSealed() && segment.sealedAtMs() < sealedAtMs
+                            ? segment.sealed(segment.sealedAtEpoch(), sealedAtMs, segment.childIds())
+                            : segment));
+            return md.toBuilder().epoch(pending.baseEpoch() + 1).nextSegmentId(pending.nextSegmentId())
+                    .segments(segments).pendingLayoutTransition(null).build();
+        });
+    }
+
+    /**
+     * Fence callbacks against the stored record lifetime and the current election term. The store's
+     * versioned CAS still provides the write boundary: these checks cannot cancel an already-issued
+     * store write or physical segment request across a concurrent topic delete and recreation.
+     */
+    private static void validateTransitionBase(TopicName tn, ScalableTopicMetadata md,
+                                               PendingLayoutTransition pending, BooleanSupplier currentTerm) {
+        if (!currentTerm.getAsBoolean() || md.isDeleted()
+                || pending.incarnationId() == null || !pending.incarnationId().equals(md.getIncarnationId())
+                || md.getEpoch() != pending.baseEpoch()
+                || md.getNextSegmentId() != pending.baseNextSegmentId()
+                || !pending.sources().entrySet().stream()
+                        .allMatch(entry -> entry.getValue().equals(md.getSegments().get(entry.getKey())))) {
+            throw new IllegalStateException("Scalable topic layout transition lost its source generation: " + tn);
+        }
+    }
+
+    private CompletableFuture<Void> updateTopicRecordAsync(TopicName tn,
+                                      Function<ScalableTopicMetadata, ScalableTopicMetadata> updateFunction) {
         return getCache().readModifyUpdate(topicPath(tn), updateFunction, PROPERTY_INDEX_EXTRACTOR)
                 .thenApply(__ -> null);
+    }
+
+    /**
+     * Complete normally if reading the record of a scalable topic failed with {@code ex} because its node holds no
+     * record, as the empty value fails to deserialize. Fail with {@code ex} otherwise.
+     */
+    private CompletableFuture<Void> failUnlessNoRecordAsync(String topicPath, Throwable ex) {
+        if (!(FutureUtil.unwrapCompletionException(ex)
+                instanceof MetadataStoreException.ContentDeserializationException)) {
+            return CompletableFuture.failedFuture(ex);
+        }
+        return hasRecordAsync(topicPath).thenCompose(hasRecord -> hasRecord
+                ? CompletableFuture.failedFuture(ex)
+                : CompletableFuture.completedFuture(null));
     }
 
     public CompletableFuture<Void> deleteScalableTopicAsync(TopicName tn) {
@@ -424,6 +601,31 @@ public class ScalableTopicResources extends BaseResources<ScalableTopicMetadata>
         // subscriptions (and their consumer registrations), and the per-segment load
         // records — all of which must go with the topic.
         return getStore().deleteRecursive(topicPath(tn));
+    }
+
+    /**
+     * Delete the node of the scalable topic {@code tn} if it holds no record (see
+     * {@link #listScalableTopicsWithRecordAsync}), with everything under it. Under the creation lock of the topic, so
+     * that no creation of the topic writes its record in between. Completes with whether there was such a node.
+     */
+    public CompletableFuture<Boolean> deleteScalableTopicWithoutRecordAsync(TopicName tn) {
+        return runWithCreationLock(tn, __ -> deleteNodeWithoutRecordAsync(topicPath(tn)));
+    }
+
+    /**
+     * Delete the node at {@code topicPath} if it holds no topic record, with everything under it, and complete with
+     * whether there was such a node: an empty record (Oxia, ZooKeeper), or no record with nodes under it (the stores
+     * that don't create the parents of the node they write).
+     */
+    private CompletableFuture<Boolean> deleteNodeWithoutRecordAsync(String topicPath) {
+        // From the store, not the cache, which may miss a node that a write on another broker created
+        return getStore().get(topicPath)
+                .thenCompose(result -> result.isPresent()
+                        ? CompletableFuture.completedFuture(result.get().getValue().length == 0)
+                        : getStore().getChildrenFromStore(topicPath).thenApply(children -> !children.isEmpty()))
+                .thenCompose(withoutRecord -> withoutRecord
+                        ? getStore().deleteRecursive(topicPath).thenApply(__ -> true)
+                        : CompletableFuture.completedFuture(false));
     }
 
     /**
@@ -449,11 +651,52 @@ public class ScalableTopicResources extends BaseResources<ScalableTopicMetadata>
     }
 
     /**
-     * Delete the node of a namespace whose scalable topics are deleted. Not recursive, so a scalable topic still
-     * in the namespace fails it.
+     * Like {@link #listScalableTopicsAsync}, leaving out the nodes that hold no topic record. Such a node is what a
+     * write under a deleted scalable topic leaves: the store creates the missing parents of the node it writes, so a
+     * write there, like the load that the owner of one of the topic's segments reports until the segment topic is
+     * deleted, creates the node of the topic again, with no record. It is not a topic, and
+     * {@link #clearNamespaceAsync} deletes it.
+     */
+    public CompletableFuture<List<String>> listScalableTopicsWithRecordAsync(NamespaceName ns) {
+        String nsPath = namespacePath(ns);
+        return getChildrenAsync(nsPath)
+                .thenCompose(children -> {
+                    List<CompletableFuture<Boolean>> hasRecord = children.stream()
+                            .map(child -> hasRecordAsync(joinPath(nsPath, child)))
+                            .toList();
+                    return FutureUtil.waitForAll(hasRecord).thenApply(__ -> {
+                        List<String> topics = new ArrayList<>();
+                        for (int i = 0; i < children.size(); i++) {
+                            if (hasRecord.get(i).join()) {
+                                topics.add(TopicName.get("topic", ns, Codec.decode(children.get(i))).toString());
+                            }
+                        }
+                        return topics;
+                    });
+                });
+    }
+
+    /**
+     * Delete the node of a namespace whose scalable topics are deleted, with the nodes under it that hold no topic
+     * record (see {@link #listScalableTopicsWithRecordAsync}). Not recursive otherwise, so a scalable topic still in
+     * the namespace fails it.
      */
     public CompletableFuture<Void> clearNamespaceAsync(NamespaceName ns) {
-        return getStore().deleteIfExists(namespacePath(ns), Optional.empty());
+        String nsPath = namespacePath(ns);
+        // From the store, not the cache: a node with no record that a stale list misses fails the namespace node delete
+        return getStore().getChildrenFromStore(nsPath)
+                .thenCompose(children -> FutureUtil.waitForAll(children.stream()
+                        .map(child -> joinPath(nsPath, child))
+                        .map(path -> hasRecordAsync(path).thenCompose(hasRecord -> hasRecord
+                                ? CompletableFuture.<Void>completedFuture(null)
+                                : getStore().deleteRecursive(path)))
+                        .toList()))
+                .thenCompose(__ -> getStore().deleteIfExists(nsPath, Optional.empty()));
+    }
+
+    private CompletableFuture<Boolean> hasRecordAsync(String topicPath) {
+        return getStore().get(topicPath)
+                .thenApply(result -> result.map(GetResult::getValue).filter(value -> value.length > 0).isPresent());
     }
 
     /** Delete the scalable topic records of a tenant whose namespaces are deleted. */

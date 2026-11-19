@@ -130,6 +130,7 @@ jdk.xml.dom" && \
     /usr/lib/jvm/default-jvm/bin/jlink --module-path /usr/lib/jvm/default-jvm/jmods --add-modules "$JDK_MODULES" --compress=zip-9 --no-man-pages --no-header-files --strip-debug --output /opt/jvm
 # Corretto bundles async-profiler as a native lib (not a JDK module), so jlink does not copy it; restore it
 RUN if [ -f /usr/lib/jvm/default-jvm/lib/libasyncProfiler.so ]; then cp /usr/lib/jvm/default-jvm/lib/libasyncProfiler.so /opt/jvm/lib/; fi
+RUN echo networkaddress.cache.ttl=1 >> /opt/jvm/conf/security/java.security
 RUN echo networkaddress.cache.negative.ttl=1 >> /opt/jvm/conf/security/java.security
 
 ## Create one stage to include snappy-java native lib

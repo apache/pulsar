@@ -86,6 +86,14 @@ public interface ProducerBuilder<T> {
      * this duration, the send future completes exceptionally. A value of {@link Duration#ZERO}
      * disables the timeout.
      *
+     * <p>The timeout starts once the message has been admitted against the client memory limit:
+     * the time a send spends blocked on that limit (see {@link #blockIfQueueFull(boolean)}) does
+     * not count against it.
+     *
+     * <p>The timeout does not guarantee that retries continue for the entire duration. On a
+     * scalable topic, exhausting the bounded segment-gone retry budget can fail a send earlier.
+     * Disabling the timeout does not disable that retry budget.
+     *
      * @param timeout the send timeout duration
      * @return this builder instance for chaining
      */
