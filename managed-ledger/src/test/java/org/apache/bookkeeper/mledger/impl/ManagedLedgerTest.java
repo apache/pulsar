@@ -2220,6 +2220,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         CompletableFuture<Integer> closeResult = new CompletableFuture<>();
         try {
             ManagedLedgerImpl ledger = (ManagedLedgerImpl) gatedFactory.open(ledgerName);
+            ledger.setProperty("existing", "value");
             Position expectedPosition = ledger.addEntry("entry".getBytes(UTF_8));
             CompletableFuture<Position> terminationResult = asyncTerminateWithBlockedLedgerClose(ledger, closeResult);
             interceptTerminationPut.set(true);
@@ -2227,7 +2228,8 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             Stat terminationStat = terminationMetadataStored.get(5, TimeUnit.SECONDS);
 
             // Termination has already built and stored its metadata, but has not observed the PUT result.
-            assertThat(gatedFactory.getManagedLedgerInfo(ledgerName).properties).doesNotContainKey("migrated");
+            assertThat(gatedFactory.getManagedLedgerInfo(ledgerName).properties)
+                    .containsEntry("existing", "value").doesNotContainKey("migrated");
             CompletableFuture<Position> migrationResult = ledger.asyncMigrate();
             assertThat(terminationResult).isNotDone();
             assertThat(migrationResult).isNotDone();
