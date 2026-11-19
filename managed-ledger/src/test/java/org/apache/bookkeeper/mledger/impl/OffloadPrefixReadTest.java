@@ -56,6 +56,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.Cleanup;
 import lombok.SneakyThrows;
@@ -81,6 +82,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.OffloadedLedgerHandle;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.bookkeeper.mledger.ReadOnlyCursor;
 import org.apache.bookkeeper.mledger.ReadOnlyManagedLedger;
 import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.mledger.util.MockClock;
@@ -105,7 +107,7 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
     }
 
     @Test
-    public void testAsyncReadEntryRetriesOffloadAfterSharedCacheOwnerCloses() throws Exception {
+    public void testAsyncReadEntryRetriesOffloadWithPrivateReadOnlyCache() throws Exception {
         LedgerOffloader offloader = mock(LedgerOffloader.class);
         OffloadPoliciesImpl policies = new OffloadPoliciesImpl();
         policies.setManagedLedgerOffloadedReadPriority(OffloadedReadPriority.TIERED_STORAGE_FIRST);
@@ -131,7 +133,25 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
             seed.close();
         }
 
-        // The seed factory has caching disabled. The read-only view registers the cache on this factory first.
+        long ledgerId = position.getLedgerId();
+        long entryId = position.getEntryId();
+        Supplier<CompletableFuture<LedgerEntries>> expiredRead =
+                () -> CompletableFuture.failedFuture(new OffloadReadHandleClosedException());
+        Supplier<CompletableFuture<LedgerEntries>> successfulRead = () -> {
+            LedgerEntry entry = LedgerEntryImpl.create(ledgerId, entryId, data.length, Unpooled.wrappedBuffer(data));
+            return CompletableFuture.completedFuture(LedgerEntriesImpl.create(new ArrayList<>(List.of(entry))));
+        };
+        ReadHandle expiredReader = offloadReadHandle(position, expiredRead);
+        ReadHandle reopenedReader = offloadReadHandle(position, successfulRead);
+        ReadHandle expiredWriter = offloadReadHandle(position, expiredRead);
+        ReadHandle reopenedWriter = offloadReadHandle(position, successfulRead);
+        when(offloader.readOffloaded(eq(ledgerId), any(UUID.class), anyMap()))
+                .thenReturn(CompletableFuture.completedFuture(expiredReader))
+                .thenReturn(CompletableFuture.completedFuture(reopenedReader))
+                .thenReturn(CompletableFuture.completedFuture(expiredWriter))
+                .thenReturn(CompletableFuture.completedFuture(reopenedWriter));
+
+        // Open the read-only ledger first on a factory with caching enabled.
         ManagedLedgerFactoryConfig cacheConfig = new ManagedLedgerFactoryConfig();
         cacheConfig.setMaxCacheSize(1024 * 1024);
         @Cleanup("shutdown")
@@ -155,35 +175,48 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
             opened.thenAccept(ReadOnlyManagedLedger::asyncClose);
             throw exception;
         }
+        ManagedLedgerImpl readOnlyView;
         ManagedLedger writer;
+        boolean retainedEntry;
         try {
+            @Cleanup
+            ReadOnlyCursor cursor = readOnly.createReadOnlyCursor(PositionFactory.EARLIEST);
+            readOnlyView = (ManagedLedgerImpl) ((ManagedCursor) cursor).getManagedLedger();
+            CompletableFuture<byte[]> read = new CompletableFuture<>();
+            readOnlyView.asyncReadEntry(position, 1, completeEntryRead(read), null);
+            assertThat(read.get(10, TimeUnit.SECONDS)).containsExactly(data);
+            retainedEntry = readOnlyView.entryCache.hasEntry(position);
+            verify(offloader, times(2)).readOffloaded(eq(ledgerId), any(UUID.class), anyMap());
+            verify(expiredReader).closeAsync();
+            verify(reopenedReader).readAsync(entryId, entryId);
             writer = cachedFactory.open(name, config);
         } finally {
             readOnly.asyncClose().get(10, TimeUnit.SECONDS);
         }
-
-        long ledgerId = position.getLedgerId();
-        long entryId = position.getEntryId();
-        ReadHandle expired = mock(ReadHandle.class);
-        when(expired.getId()).thenReturn(ledgerId);
-        when(expired.closeAsync()).thenReturn(CompletableFuture.completedFuture(null));
-        CompletableFuture<LedgerEntries> expiredRead =
-                CompletableFuture.failedFuture(new OffloadReadHandleClosedException());
-        when(expired.readAsync(entryId, entryId)).thenReturn(expiredRead);
-        when(expired.readUnconfirmedAsync(entryId, entryId)).thenReturn(expiredRead);
-        ReadHandle reopened = mock(ReadHandle.class);
-        when(reopened.getId()).thenReturn(ledgerId);
-        when(reopened.closeAsync()).thenReturn(CompletableFuture.completedFuture(null));
-        when(reopened.readUnconfirmedAsync(entryId, entryId)).thenAnswer(invocation -> {
-            LedgerEntry entry = LedgerEntryImpl.create(ledgerId, entryId, data.length, Unpooled.wrappedBuffer(data));
-            return CompletableFuture.completedFuture(LedgerEntriesImpl.create(new ArrayList<>(List.of(entry))));
-        });
-        when(offloader.readOffloaded(eq(ledgerId), any(UUID.class), anyMap()))
-                .thenReturn(CompletableFuture.completedFuture(expired))
-                .thenReturn(CompletableFuture.completedFuture(reopened));
-
+        verify(reopenedReader).closeAsync();
         CompletableFuture<byte[]> read = new CompletableFuture<>();
-        writer.asyncReadEntry(position, new ReadEntryCallback() {
+        writer.asyncReadEntry(position, completeEntryRead(read), null);
+        assertThat(read.get(10, TimeUnit.SECONDS)).containsExactly(data);
+        verify(offloader, times(4)).readOffloaded(eq(ledgerId), any(UUID.class), anyMap());
+        verify(expiredWriter).closeAsync();
+        verify(reopenedWriter).readUnconfirmedAsync(entryId, entryId);
+        assertThat(retainedEntry).isFalse();
+        assertThat(((ManagedLedgerImpl) writer).entryCache).isNotSameAs(readOnlyView.entryCache);
+    }
+
+    private static ReadHandle offloadReadHandle(Position position, Supplier<CompletableFuture<LedgerEntries>> read) {
+        ReadHandle handle = mock(ReadHandle.class);
+        long entryId = position.getEntryId();
+        when(handle.getId()).thenReturn(position.getLedgerId());
+        when(handle.isClosed()).thenReturn(true);
+        when(handle.closeAsync()).thenReturn(CompletableFuture.completedFuture(null));
+        when(handle.readAsync(entryId, entryId)).thenAnswer(invocation -> read.get());
+        when(handle.readUnconfirmedAsync(entryId, entryId)).thenAnswer(invocation -> read.get());
+        return handle;
+    }
+
+    private static ReadEntryCallback completeEntryRead(CompletableFuture<byte[]> read) {
+        return new ReadEntryCallback() {
             @Override
             public void readEntryComplete(Entry entry, Object ctx) {
                 read.complete(entry.getDataAndRelease());
@@ -193,12 +226,7 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
             public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
                 read.completeExceptionally(exception);
             }
-        }, null);
-
-        assertThat(read.get(10, TimeUnit.SECONDS)).containsExactly(data);
-        verify(offloader, times(2)).readOffloaded(eq(ledgerId), any(UUID.class), anyMap());
-        verify(expired).closeAsync();
-        verify(reopened).readUnconfirmedAsync(entryId, entryId);
+        };
     }
 
     @DataProvider(name = "offloadAndDeleteTypes")

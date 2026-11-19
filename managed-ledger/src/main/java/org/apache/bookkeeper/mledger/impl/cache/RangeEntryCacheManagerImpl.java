@@ -36,6 +36,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryMBeanImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.impl.ReadOnlyManagedLedgerImpl;
 import org.apache.commons.lang3.tuple.Pair;
 
 @CustomLog
@@ -87,6 +88,13 @@ public class RangeEntryCacheManagerImpl implements EntryCacheManager {
         if (maxSize == 0) {
             // Cache is disabled
             return new EntryCacheDisabled((ManagedLedgerImpl) ml, inflightReadsLimiter);
+        }
+
+        if (ml instanceof ReadOnlyManagedLedgerImpl readOnlyLedger) {
+            // The factory tracks the lifetime of writable ledgers by name. Independent readers can close
+            // while another ledger with the same name is still open, so they keep their own read state.
+            return RangeEntryCacheImpl.forReadOnlyLedger(this, readOnlyLedger, rangeCacheRemovalQueue,
+                    entryLengthFunction);
         }
 
         RangeEntryCacheImpl newEntryCache =

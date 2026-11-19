@@ -34,7 +34,6 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 
 /**
@@ -121,33 +120,18 @@ public class PendingReadsManager {
         this.rangeEntryCache = rangeEntryCache;
     }
 
-    // The cache payloads can be shared, but pending reads and their retries belong to the ledger that started them.
-    // The reader is held in the key removed on completion, not in the outer map keyed by BookKeeper ledger ID.
-    private record PendingReadKey(ManagedLedgerImpl reader, long startEntry, long endEntry) {
-        @Override
-        public boolean equals(Object obj) {
-            return obj instanceof PendingReadKey other && reader == other.reader
-                    && startEntry == other.startEntry && endEntry == other.endEntry;
-        }
-
-        @Override
-        public int hashCode() {
-            int hash = System.identityHashCode(reader);
-            hash = 31 * hash + Long.hashCode(startEntry);
-            return 31 * hash + Long.hashCode(endEntry);
-        }
-
+    private record PendingReadKey(long startEntry, long endEntry) {
         long size() {
             return endEntry - startEntry + 1;
         }
 
         boolean includes(PendingReadKey other) {
-            return reader == other.reader && startEntry <= other.startEntry && other.endEntry <= endEntry;
+            return startEntry <= other.startEntry && other.endEntry <= endEntry;
         }
 
         boolean overlaps(PendingReadKey other) {
-            return reader == other.reader && ((other.startEntry <= startEntry && startEntry <= other.endEntry)
-                    || (other.startEntry <= endEntry && endEntry <= other.endEntry));
+            return (other.startEntry <= startEntry && startEntry <= other.endEntry)
+                    || (other.startEntry <= endEntry && endEntry <= other.endEntry);
         }
 
         PendingReadKey reminderOnLeft(PendingReadKey other) {
@@ -155,7 +139,7 @@ public class PendingReadsManager {
             //          S----------E
             if (other.startEntry <= endEntry
                     && other.startEntry > startEntry) {
-                return new PendingReadKey(reader, startEntry, other.startEntry - 1);
+                return new PendingReadKey(startEntry, other.startEntry - 1);
             }
             return null;
         }
@@ -165,7 +149,7 @@ public class PendingReadsManager {
             //   S-----------E
             if (startEntry <= other.endEntry
                     && other.endEntry < endEntry) {
-                return new PendingReadKey(reader, other.endEntry + 1, endEntry);
+                return new PendingReadKey(other.endEntry + 1, endEntry);
             }
             return null;
         }
@@ -295,7 +279,7 @@ public class PendingReadsManager {
                 // execute in the completing thread and return a copy of the listeners
                 List<ReadEntriesCallbackWithContext> callbacks = completeAndRemoveFromCache();
                 // execute the callbacks in the managed ledger executor, inline when the read completed on its thread
-                key.reader().getExecutor().executeOrRun(() -> {
+                rangeEntryCache.getManagedLedger().getExecutor().executeOrRun(() -> {
                     if (error != null) {
                         readEntriesFailed(callbacks, error);
                     } else {
@@ -399,10 +383,10 @@ public class PendingReadsManager {
      * Returns whether a read of a range that overlaps the given one is pending, without the lock of the ledger's
      * pending reads: a cheap check before {@link #readEntriesIfNotPending}, which checks it again atomically.
      */
-    boolean isOverlappingReadPending(ManagedLedgerImpl reader, long ledgerId, long firstEntry, long lastEntry) {
+    boolean isOverlappingReadPending(long ledgerId, long firstEntry, long lastEntry) {
         LedgerPendingReads ledgerCache = cachedPendingReads.get(ledgerId);
         return ledgerCache != null
-                && isOverlappingReadPending(ledgerCache, new PendingReadKey(reader, firstEntry, lastEntry));
+                && isOverlappingReadPending(ledgerCache, new PendingReadKey(firstEntry, lastEntry));
     }
 
     /**
@@ -410,11 +394,10 @@ public class PendingReadsManager {
      * of an overlapping range is pending: the callback then gets the storage read's own entries. Returns whether the
      * read was started.
      */
-    boolean readEntriesIfNotPending(ManagedLedgerImpl reader, ReadHandle lh, long firstEntry, long lastEntry,
-                                    long maxSizeBytes,
+    boolean readEntriesIfNotPending(ReadHandle lh, long firstEntry, long lastEntry, long maxSizeBytes,
                                     IntSupplier expectedReadCount,
                                     final AsyncCallbacks.ReadEntriesCallback callback, Object ctx) {
-        final PendingReadKey key = new PendingReadKey(reader, firstEntry, lastEntry);
+        final PendingReadKey key = new PendingReadKey(firstEntry, lastEntry);
         LedgerPendingReads pendingReadsForLedger =
                 cachedPendingReads.computeIfAbsent(lh.getId(), (l) -> new LedgerPendingReads());
         AtomicBoolean createdByThisThread = new AtomicBoolean();
@@ -426,14 +409,14 @@ public class PendingReadsManager {
         // A new pending read accepts listeners until its result is attached
         boolean listenerAdded = pendingRead.addListener(callback, ctx, firstEntry, lastEntry);
         // A storage read that fails to start fails the pending read, which removes it and completes its listeners
-        pendingRead.attach(FutureUtil.supplySafely(() -> rangeEntryCache.readFromStorage(reader, lh, firstEntry,
-                lastEntry, maxSizeBytes, expectedReadCount)));
+        pendingRead.attach(FutureUtil.supplySafely(() -> rangeEntryCache.readFromStorage(lh, firstEntry, lastEntry,
+                maxSizeBytes, expectedReadCount)));
         return listenerAdded;
     }
 
-    void readEntries(ManagedLedgerImpl reader, ReadHandle lh, long firstEntry, long lastEntry, long maxSizeBytes,
+    void readEntries(ReadHandle lh, long firstEntry, long lastEntry, long maxSizeBytes,
                      IntSupplier expectedReadCount, final AsyncCallbacks.ReadEntriesCallback callback, Object ctx) {
-        final PendingReadKey key = new PendingReadKey(reader, firstEntry, lastEntry);
+        final PendingReadKey key = new PendingReadKey(firstEntry, lastEntry);
 
         LedgerPendingReads pendingReadsForLedger =
                 cachedPendingReads.computeIfAbsent(lh.getId(), (l) -> new LedgerPendingReads());
@@ -483,8 +466,9 @@ public class PendingReadsManager {
             }
 
             if (createdByThisThread.get()) {
-                pendingRead.attach(FutureUtil.supplySafely(() -> rangeEntryCache.readFromStorage(reader, lh,
-                        firstEntry, lastEntry, maxSizeBytes, expectedReadCount)));
+                CompletableFuture<List<Entry>> readResult = rangeEntryCache.readFromStorage(lh, firstEntry,
+                        lastEntry, maxSizeBytes, expectedReadCount);
+                pendingRead.attach(readResult);
             }
         }
     }
@@ -497,8 +481,7 @@ public class PendingReadsManager {
         if (missingKey != null) {
             future = new CompletableFuture<>();
             ReadEntriesCallback callback = new ReadEntriesCallback(future);
-            rangeEntryCache.asyncReadEntry0(missingKey.reader(), lh, missingKey.startEntry, missingKey.endEntry,
-                    maxSizeBytes,
+            rangeEntryCache.asyncReadEntry0(lh, missingKey.startEntry, missingKey.endEntry, maxSizeBytes,
                     expectedReadCount, callback, null, false);
         } else {
             future = CompletableFuture.completedFuture(Collections.emptyList());
@@ -519,16 +502,6 @@ public class PendingReadsManager {
 
     void invalidateLedger(long id) {
         cachedPendingReads.remove(id);
-    }
-
-    void invalidateLedger(ManagedLedgerImpl reader, long id) {
-        LedgerPendingReads ledgerReads = cachedPendingReads.get(id);
-        if (ledgerReads != null) {
-            synchronized (ledgerReads) {
-                ledgerReads.all.keySet().removeIf(key -> key.reader() == reader);
-                ledgerReads.multiEntry.keySet().removeIf(key -> key.reader() == reader);
-            }
-        }
     }
 
     static class ReadEntriesCallback implements AsyncCallbacks.ReadEntriesCallback {

@@ -86,6 +86,21 @@ public class ReadOnlyManagedLedgerHandleCloseTest extends MockedBookKeeperTestCa
         return trackedBuilder;
     }
 
+    private static AsyncCallbacks.ReadEntryCallback releaseEntryOnCompletion(CompletableFuture<Void> result) {
+        return new AsyncCallbacks.ReadEntryCallback() {
+            @Override
+            public void readEntryComplete(Entry entry, Object ctx) {
+                entry.release();
+                result.complete(null);
+            }
+
+            @Override
+            public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                result.completeExceptionally(exception);
+            }
+        };
+    }
+
     @DataProvider(name = "closeStates")
     public Object[][] closeStates() {
         return new Object[][] {{false}, {true}};
@@ -128,24 +143,57 @@ public class ReadOnlyManagedLedgerHandleCloseTest extends MockedBookKeeperTestCa
         }
         clearInvocations(bkc);
         CompletableFuture<Void> reading = new CompletableFuture<>();
-        readOnly.asyncReadEntry(position, new AsyncCallbacks.ReadEntryCallback() {
-            @Override
-            public void readEntryComplete(Entry entry, Object ctx) {
-                entry.release();
-                reading.complete(null);
-            }
-
-            @Override
-            public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
-                reading.completeExceptionally(exception);
-            }
-        }, null);
+        readOnly.asyncReadEntry(position, releaseEntryOnCompletion(reading), null);
         assertThatThrownBy(() -> reading.get(5, TimeUnit.SECONDS))
                 .hasCauseInstanceOf(ManagedLedgerAlreadyClosedException.class);
         assertThatThrownBy(() -> readOnly.reopenReadHandle(position.getLedgerId()).get(5, TimeUnit.SECONDS))
                 .hasCauseInstanceOf(ManagedLedgerAlreadyClosedException.class);
         verify(bkc, never()).newOpenLedgerOp();
         assertThat(readOnly.ledgerCache.size()).isZero();
+    }
+
+    @Test
+    public void testCloseClearsPendingReadsFromPrivateCache() throws Exception {
+        ManagedLedgerConfig config = defaultConfig().setRetentionTime(1, TimeUnit.DAYS);
+        ManagedLedger writer = factory.open("readonly-pending-read", config);
+        Position position = writer.addEntry(new byte[] {1});
+        ReadOnlyManagedLedgerImpl readOnly = new ReadOnlyManagedLedgerImpl(factory, bkc, factory.getMetaStore(),
+                config, executor, writer.getName());
+        readOnly.initialize().get(5, TimeUnit.SECONDS);
+        ReadHandle handle = readOnly.getLedgerHandle(position.getLedgerId()).get(5, TimeUnit.SECONDS);
+
+        // Keep the storage handle open until fixture cleanup so the direct cache probe can reuse it.
+        doReturn(CompletableFuture.completedFuture(null)).when(handle).closeAsync();
+        clearInvocations(bkc);
+        CompletableFuture<Void> storageReadStarted = new CompletableFuture<>();
+        CompletableFuture<Void> finishStorageRead = new CompletableFuture<>();
+        bkc.setReadHandleInterceptor((ledgerId, firstEntry, lastEntry, entries) -> storageReadStarted.complete(null)
+                ? finishStorageRead.thenApply(ignored -> entries) : CompletableFuture.completedFuture(entries));
+        CompletableFuture<Void> original = new CompletableFuture<>();
+        try {
+            readOnly.asyncReadEntry(position, releaseEntryOnCompletion(original), null);
+            storageReadStarted.get(5, TimeUnit.SECONDS);
+            readOnly.close();
+            verify(handle).closeAsync();
+            assertThat(readOnly.ledgerCache.size()).isZero();
+
+            // With the pending reads cleared, the probe need not wait for the older read's completion.
+            CompletableFuture<Void> probe = new CompletableFuture<>();
+            readOnly.entryCache.asyncReadEntry(handle, position, releaseEntryOnCompletion(probe), null);
+            probe.get(5, TimeUnit.SECONDS);
+            assertThat(original).isNotDone();
+            verify(bkc, never()).newOpenLedgerOp();
+        } finally {
+            finishStorageRead.complete(null);
+            bkc.setReadHandleInterceptor(null);
+            try {
+                if (storageReadStarted.isDone()) {
+                    original.handle((ignored, error) -> null).get(5, TimeUnit.SECONDS);
+                }
+            } finally {
+                readOnly.close();
+            }
+        }
     }
 
     @Test
@@ -240,8 +288,6 @@ public class ReadOnlyManagedLedgerHandleCloseTest extends MockedBookKeeperTestCa
                 config, executor, ledger.getName());
         readOnly.initialize().get(5, TimeUnit.SECONDS);
         try {
-            // The writer and reader share this cache. Force a storage read so the supplied count is used.
-            readOnly.entryCache.clear();
             CompletableFuture<Entry> reading = new CompletableFuture<>();
             readOnly.asyncReadEntry(position, 3, new AsyncCallbacks.ReadEntryCallback() {
                 @Override
@@ -258,6 +304,7 @@ public class ReadOnlyManagedLedgerHandleCloseTest extends MockedBookKeeperTestCa
             try {
                 assertThat(entry.getReadCountHandler()).isNotNull();
                 assertThat(entry.getReadCountHandler().getExpectedReadCount()).isEqualTo(3);
+                assertThat(readOnly.entryCache.hasEntry(position)).isFalse();
             } finally {
                 entry.release();
             }
@@ -289,18 +336,7 @@ public class ReadOnlyManagedLedgerHandleCloseTest extends MockedBookKeeperTestCa
         CompletableFuture<Void> reading = new CompletableFuture<>();
         LedgerHandle handle;
         try {
-            readOnly.asyncReadEntry(position, new AsyncCallbacks.ReadEntryCallback() {
-                @Override
-                public void readEntryComplete(Entry entry, Object ctx) {
-                    entry.release();
-                    reading.complete(null);
-                }
-
-                @Override
-                public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
-                    reading.completeExceptionally(exception);
-                }
-            }, null);
+            readOnly.asyncReadEntry(position, releaseEntryOnCompletion(reading), null);
             reading.get(5, TimeUnit.SECONDS);
             Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> openedHandles.size() > openedHandleCount);
             handle = openedHandles.get(openedHandleCount);

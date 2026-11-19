@@ -32,11 +32,9 @@ class ReadEntryUtils {
 
     static CompletableFuture<LedgerEntries> readAsync(ManagedLedger ml, ReadHandle handle, long firstEntry,
                                                       long lastEntry, boolean batchReadEnabled, long maxSizeBytes) {
-        // The caller supplies the managed ledger whose confirmed read boundary applies, which may be a
-        // writer for a read-only view borrowing that writer's cache.
+        // Independent read-only ledgers have their own entry cache. Shadow ledgers still use their confirmed bound.
         if (ml instanceof ReadOnlyManagedLedgerImpl && firstEntry == lastEntry) {
-            // Published point positions must not depend on the reader's ledger inventory or an open handle's
-            // piggyback LAC.
+            // Published point positions must not depend on an open handle's piggyback LAC.
             // Closed handles still enforce their final LAC; cursor/count frontiers are not advanced here.
             return handle.isClosed() ? handle.readAsync(firstEntry, lastEntry)
                     : handle.readUnconfirmedAsync(firstEntry, lastEntry);

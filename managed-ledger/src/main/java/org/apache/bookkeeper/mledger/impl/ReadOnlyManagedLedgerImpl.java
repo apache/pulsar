@@ -166,6 +166,7 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
     @Override
     public void asyncClose(AsyncCallbacks.CloseCallback callback, Object ctx) {
         closingOrClosed = true;
+        entryCache.clear();
         super.asyncClose(callback, ctx);
     }
 
