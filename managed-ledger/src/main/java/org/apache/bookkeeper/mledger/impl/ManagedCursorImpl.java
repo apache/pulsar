@@ -484,6 +484,8 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         ManagedCursorInfo copy = new ManagedCursorInfo();
         copy.copyFrom(ManagedCursorImpl.this.managedCursorInfo);
+        // A property update starts a new write from the last persisted cursor state.
+        copy.clearPublication();
         copy.clearCursorProperties();
         copy.addAllCursorProperties(buildStringPropertiesMap(newProperties));
 
