@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -30,7 +31,7 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo.LedgerInfo;
 
-/** Estimates subscription backlog sizes together using one copy of their ledger metadata prefix. */
+/** Estimates subscription backlog sizes together using one scan of their ledger metadata prefix. */
 @InterfaceAudience.Private
 public final class ManagedLedgerBacklogSizeEstimator {
     private ManagedLedgerBacklogSizeEstimator() {
@@ -59,20 +60,48 @@ public final class ManagedLedgerBacklogSizeEstimator {
         }
 
         sortedPositions.sort(Comparator.comparingLong(Position::getLedgerId));
-        long lastLedgerId = sortedPositions.get(sortedPositions.size() - 1).getLedgerId();
+        int positionCount = sortedPositions.size();
+        long[] ledgerIds = new long[positionCount];
+        int[] positionLedgerIndexes = new int[positionCount];
+        int queriedLedgerCount = 0;
+        for (int i = 0; i < positionCount; i++) {
+            long ledgerId = sortedPositions.get(i).getLedgerId();
+            if (queriedLedgerCount == 0 || ledgerIds[queriedLedgerCount - 1] != ledgerId) {
+                ledgerIds[queriedLedgerCount++] = ledgerId;
+            }
+            positionLedgerIndexes[i] = queriedLedgerCount - 1;
+        }
+        // Allocate by query count before acquiring the writer monitor. Only the strict prefix sum
+        // and the queried ledger's counters are needed, not a copy of every ledger in that prefix.
+        long[] prefixSizes = new long[queriedLedgerCount];
+        long[] ledgerSizes = new long[queriedLedgerCount];
+        long[] ledgerEntries = new long[queriedLedgerCount];
+        boolean[] ledgerPresent = new boolean[queriedLedgerCount];
 
         ManagedLedgerImpl impl = (ManagedLedgerImpl) ledger;
-        List<LedgerInfo> metadata = new ArrayList<>();
         final long totalSize;
         final long currentLedgerId;
         final boolean hasCurrentLedger;
         final long currentSize;
         final long currentEntries;
         synchronized (impl) {
-            for (Map.Entry<Long, LedgerInfo> entry : impl.ledgers.headMap(lastLedgerId, true).entrySet()) {
-                LedgerInfo info = entry.getValue();
-                metadata.add(new LedgerInfo().setLedgerId(entry.getKey())
-                        .setSize(info.getSize()).setEntries(info.getEntries()));
+            // LedgerInfo IDs match the map keys. Iterating values avoids allocating an entry wrapper
+            // per ledger in ConcurrentSkipListMap's submap iterator.
+            Iterator<LedgerInfo> metadata = impl.ledgers
+                    .headMap(ledgerIds[queriedLedgerCount - 1], true).values().iterator();
+            LedgerInfo info = metadata.hasNext() ? metadata.next() : null;
+            long prefixSize = 0;
+            for (int i = 0; i < queriedLedgerCount; i++) {
+                while (info != null && info.getLedgerId() < ledgerIds[i]) {
+                    prefixSize += info.getSize();
+                    info = metadata.hasNext() ? metadata.next() : null;
+                }
+                prefixSizes[i] = prefixSize;
+                if (info != null && info.getLedgerId() == ledgerIds[i]) {
+                    ledgerPresent[i] = true;
+                    ledgerSizes[i] = info.getSize();
+                    ledgerEntries[i] = info.getEntries();
+                }
             }
             totalSize = impl.getTotalSize();
             hasCurrentLedger = impl.currentLedger != null;
@@ -81,23 +110,16 @@ public final class ManagedLedgerBacklogSizeEstimator {
             currentEntries = impl.currentLedgerEntries;
         }
 
-        int metadataIndex = 0;
-        long sizeBeforeLedger = 0;
-        for (Position position : sortedPositions) {
-            while (metadataIndex < metadata.size()
-                    && metadata.get(metadataIndex).getLedgerId() < position.getLedgerId()) {
-                sizeBeforeLedger += metadata.get(metadataIndex).getSize();
-                metadataIndex++;
-            }
-            long size = totalSize - sizeBeforeLedger;
-            if (metadataIndex < metadata.size()
-                    && metadata.get(metadataIndex).getLedgerId() == position.getLedgerId()) {
-                LedgerInfo info = metadata.get(metadataIndex);
-                if (hasCurrentLedger && position.getLedgerId() == currentLedgerId) {
+        for (int i = 0; i < positionCount; i++) {
+            Position position = sortedPositions.get(i);
+            int ledgerIndex = positionLedgerIndexes[i];
+            long size = totalSize - prefixSizes[ledgerIndex];
+            if (ledgerPresent[ledgerIndex]) {
+                if (hasCurrentLedger && ledgerIds[ledgerIndex] == currentLedgerId) {
                     size -= ManagedLedgerImpl.consumedLedgerSize(currentSize, currentEntries, position.getEntryId());
                 } else {
                     size -= ManagedLedgerImpl.consumedLedgerSize(
-                            info.getSize(), info.getEntries(), position.getEntryId());
+                            ledgerSizes[ledgerIndex], ledgerEntries[ledgerIndex], position.getEntryId());
                 }
             }
             estimates.put(position, size);

@@ -89,6 +89,66 @@ Checking what benchmarks match the pattern:
 java -jar microbench/build/libs/microbench-*-benchmarks.jar ".*BenchmarkName.*" -lp
 ```
 
+### Subscription backlog estimation
+
+`ManagedLedgerBacklogSizeBenchmark` compares the production batch estimator with repeated calls to the production
+per-position estimator. Each invocation estimates `subscriptionCount` subscriptions over `ledgerCount` closed-ledger
+metadata records. `CLUSTERED_TAIL` places positions in the last four ledgers, with overlapping backlog suffixes;
+`OPPOSITE_ENDS` alternates between the first and last ledger, including the two-subscription case. Setup checks that
+the two estimators return identical results before measurement. Constructor collaborators are mocked; timed estimator
+calls use a real `ManagedLedgerImpl` and do not invoke mocks or perform storage I/O.
+Both paths consume every subscription's result. The per-position path consumes each estimate directly; the batch
+path includes building the result map and looking up its estimates, as the stats caller does.
+
+Measure latency and bytes allocated per complete batch of subscription estimates:
+
+```shell
+java -jar microbench/build/libs/microbench-*-benchmarks.jar \
+  '.*ManagedLedgerBacklogSizeBenchmark.estimate' \
+  -p ledgerCount=10000 -p subscriptionCount=2,100 \
+  -p placement=CLUSTERED_TAIL,OPPOSITE_ENDS -p estimator=PER_POSITION,BATCH \
+  -prof gc -rf json -rff backlog-estimate.json
+```
+
+Probe monitor contention with one continuously polling stats thread and one thread acquiring the same ledger monitor:
+
+```shell
+java -jar microbench/build/libs/microbench-*-benchmarks.jar \
+  '.*ManagedLedgerBacklogSizeBenchmark.contended' \
+  -p ledgerCount=10000 -p subscriptionCount=2,100 \
+  -p placement=CLUSTERED_TAIL,OPPOSITE_ENDS -p estimator=PER_POSITION,BATCH \
+  -rf json -rff backlog-contention.json
+```
+
+Inspect the `monitorProbe` sample-time percentiles separately from the `stats` scores. The probe's time includes
+monitor acquisition and a counter increment; it measures a synthetic lock competitor, not `addEntry` latency or
+throughput. The stats thread polls continuously, so faster estimators also issue more stats requests; these results
+describe saturation rather than a fixed stats polling interval. Use lock profiling to examine blocked stacks and
+cluster performance tests to assess effects on publishing. To compare revisions of the batch implementation, run
+the same benchmark and parameters against each revision, preserving the JDK, JVM flags and host configuration.
+
+Use the separate `periodic` group to compare monitor contention at the same requested stats polling rate:
+
+```shell
+java -jar microbench/build/libs/microbench-*-benchmarks.jar \
+  '.*ManagedLedgerBacklogSizeBenchmark.periodic' \
+  -p ledgerCount=10000 -p subscriptionCount=2,100 \
+  -p placement=CLUSTERED_TAIL,OPPOSITE_ENDS -p estimator=PER_POSITION,BATCH \
+  -p pollPeriodMicros=20000 -bm avgt -rf json -rff backlog-periodic.json
+```
+
+The default period requests 50 stats polls per second. Pacing uses a per-thread clock and parks outside the ledger
+monitor. `periodicStats` measures the complete polling cycle, including its pacing delay; use the standalone
+`estimate` benchmark for estimator latency. Average-time mode includes every monitor acquisition in the
+`periodicMonitorProbe` mean; compare that mean at the same achieved poll rate. Sample-time mode can miss rare
+delayed acquisitions at this polling rate, so its optional percentiles serve only as diagnostics.
+The `polls` and `skippedPolls` auxiliary results count actual requests and dropped schedule slots, respectively.
+Their JSON `rawData` contains per-iteration counts; a one-second measurement iteration should contain approximately
+50 polls for every estimator. The final counts sum over measurement iterations and forks. If an estimate overruns
+the next scheduled poll, that slot is skipped instead of issuing catch-up requests. Nonzero skipped counts or
+different achieved poll rates mean the estimators were not exposed to the same request rate; increase the period
+before drawing a contention comparison. As with the saturation group, the monitor probe is a synthetic competitor.
+
 Profiling benchmarks with [async-profiler](https://github.com/async-profiler/async-profiler):
 
 Set `LIBASYNCPROFILER_PATH` to the path of the async-profiler library.

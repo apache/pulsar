@@ -39,7 +39,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -3500,6 +3499,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }));
     }
 
+    private record SubscriptionBacklogPosition(String name, PersistentSubscription subscription, Position position) {
+    }
+
     private Map<String, CompletableFuture<SubscriptionStatsImpl>> getSubscriptionStats(
             GetStatsOptions getStatsOptions) {
         Map<String, CompletableFuture<SubscriptionStatsImpl>> subscriptionFutures = new HashMap<>();
@@ -3510,7 +3512,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             return subscriptionFutures;
         }
         // Keep using the captured subscription instances if a name is removed or replaced during sampling.
-        Map<PersistentSubscription, Position> positions = new LinkedHashMap<>(subscriptions.size());
+        List<SubscriptionBacklogPosition> capturedSubscriptions = new ArrayList<>(subscriptions.size());
+        List<Position> positions = new ArrayList<>(subscriptions.size());
         for (Map.Entry<String, PersistentSubscription> entry : subscriptions.entrySet()) {
             PersistentSubscription subscription = entry.getValue();
             // Preserve public overrides before capturing cursor positions for the batch.
@@ -3523,13 +3526,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 subscriptionFutures.put(entry.getKey(), subscription.getStatsAsync(getStatsOptions));
                 continue;
             }
-            positions.put(subscription, position);
+            capturedSubscriptions.add(new SubscriptionBacklogPosition(entry.getKey(), subscription, position));
+            positions.add(position);
         }
-        Map<Position, Long> backlogSizes = ManagedLedgerBacklogSizeEstimator.estimate(ledger, positions.values());
-        for (Map.Entry<PersistentSubscription, Position> entry : positions.entrySet()) {
-            PersistentSubscription subscription = entry.getKey();
-            subscriptionFutures.put(subscription.getName(),
-                    subscription.getStatsAsync(getStatsOptions, backlogSizes.get(entry.getValue())));
+        Map<Position, Long> backlogSizes = ManagedLedgerBacklogSizeEstimator.estimate(getManagedLedger(), positions);
+        for (SubscriptionBacklogPosition captured : capturedSubscriptions) {
+            subscriptionFutures.put(captured.name(), captured.subscription()
+                    .getStatsAsync(getStatsOptions, backlogSizes.get(captured.position())));
         }
         return subscriptionFutures;
     }

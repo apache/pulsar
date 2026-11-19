@@ -5936,15 +5936,19 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
                 initManagedLedgerConfig(defaultConfig()));
         Position first = ledger.addEntry(new byte[10]);
         ledger.addEntry(new byte[20]);
+        long capturedEstimate = ledger.getEstimatedBacklogSize(first);
         Position query = mock(Position.class);
         when(query.getLedgerId()).thenReturn(first.getLedgerId());
         doAnswer(invocation -> {
             assertFalse(Thread.holdsLock(ledger));
+            // A write after capture must not change the counters used to calculate this batch.
+            ledger.addEntry(new byte[30]);
             return first.getEntryId();
         }).when(query).getEntryId();
         Map<Position, Long> estimates = ManagedLedgerBacklogSizeEstimator.estimate(ledger,
                 List.of(query, PositionFactory.create(first.getLedgerId(), -1)));
-        assertEquals(estimates.get(query).longValue(), ledger.getEstimatedBacklogSize(first));
+        assertEquals(estimates.get(query).longValue(), capturedEstimate);
+        assertTrue(ledger.getEstimatedBacklogSize(first) > capturedEstimate);
         verify(query).getEntryId();
         ledger.close();
     }

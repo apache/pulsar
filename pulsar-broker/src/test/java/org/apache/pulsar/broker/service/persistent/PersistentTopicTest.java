@@ -71,6 +71,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.PrometheusMetricsTestUtil;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerTestBase;
+import org.apache.pulsar.broker.service.GetStatsOptions;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.Metric;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -687,6 +688,61 @@ public class PersistentTopicTest extends BrokerTestBase {
         } catch (PulsarClientException.NotFoundException ex) {
         }
         Assert.assertEquals(admin.topics().getPartitionedTopicMetadata(topicName).partitions, 4);
+    }
+
+    @Test
+    public void testSubscriptionBacklogStatsUseOverriddenManagedLedger() throws Exception {
+        ManagedLedger ledger = mock(ManagedLedger.class);
+        doReturn(new ManagedLedgerConfig()).when(ledger).getConfig();
+        doReturn(Collections.emptyMap()).when(ledger).getProperties();
+        ManagedLedger overriddenLedger = mock(ManagedLedger.class);
+        PersistentTopic topic = new PersistentTopic(
+                "persistent://prop/ns-abc/testBacklogStatsLedgerOverride-" + UUID.randomUUID(), ledger,
+                pulsar.getBrokerService()) {
+            @Override
+            public ManagedLedger getManagedLedger() {
+                return overriddenLedger;
+            }
+        };
+        Position firstPosition = PositionFactory.create(1, 2);
+        Position secondPosition = PositionFactory.create(1, 4);
+        doReturn(123L).when(overriddenLedger).getEstimatedBacklogSize(firstPosition);
+        doReturn(456L).when(overriddenLedger).getEstimatedBacklogSize(secondPosition);
+        topic.getSubscriptions().put("first", newStatsSubscription(topic, "first", firstPosition));
+        topic.getSubscriptions().put("second", newStatsSubscription(topic, "second", secondPosition));
+
+        TopicStats stats = topic.asyncGetStats(GetStatsOptions.builder()
+                .subscriptionBacklogSize(true).excludeLastPublishTime(true).build()).get(3, TimeUnit.SECONDS);
+
+        assertThat(stats.getSubscriptions().get("first").getBacklogSize())
+                .as("batch estimates use the topic's public managed-ledger accessor").isEqualTo(123L);
+        assertThat(stats.getSubscriptions().get("second").getBacklogSize()).isEqualTo(456L);
+    }
+
+    @Test
+    public void testSubscriptionBacklogStatsKeepSubscriptionMapKeys() throws Exception {
+        ManagedLedger ledger = mock(ManagedLedger.class);
+        doReturn(new ManagedLedgerConfig()).when(ledger).getConfig();
+        doReturn(Collections.emptyMap()).when(ledger).getProperties();
+        PersistentTopic topic = new PersistentTopic(
+                "persistent://prop/ns-abc/testBacklogStatsMapKeys-" + UUID.randomUUID(), ledger,
+                pulsar.getBrokerService());
+        Position position = PositionFactory.create(1, 2);
+        topic.getSubscriptions().put("first-map-key", newStatsSubscription(topic, "first-name", position));
+        topic.getSubscriptions().put("second-map-key", newStatsSubscription(topic, "second-name", position));
+
+        TopicStats stats = topic.asyncGetStats(GetStatsOptions.builder()
+                .subscriptionBacklogSize(true).excludeLastPublishTime(true).build()).get(3, TimeUnit.SECONDS);
+
+        assertThat(stats.getSubscriptions()).as("batch stats retain the original subscription map keys")
+                .containsOnlyKeys("first-map-key", "second-map-key");
+    }
+
+    private PersistentSubscription newStatsSubscription(PersistentTopic topic, String name, Position position) {
+        ManagedCursor cursor = mock(ManagedCursor.class);
+        doReturn(Codec.encode(name)).when(cursor).getName();
+        doReturn(position).when(cursor).getMarkDeletedPosition();
+        return new PersistentSubscription(topic, name, cursor, false);
     }
 
     @Test
