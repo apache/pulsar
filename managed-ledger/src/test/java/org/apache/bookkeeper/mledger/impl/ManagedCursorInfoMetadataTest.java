@@ -87,6 +87,7 @@ public class ManagedCursorInfoMetadataTest {
             metaStore = new MetaStoreImpl(null, null, null, new MetadataCompressionConfig(compressionType));
         }
 
+        builder.setPublication("66cf3ff5-9329-49e3-a920-ed935feb44e0");
         MLDataFormats.ManagedCursorInfo managedCursorInfo = builder.build();
         byte[] compressionBytes = metaStore.compressCursorInfo(managedCursorInfo);
         log.info("[{}] Uncompressed data size: {}, compressed data size: {}",
@@ -99,6 +100,7 @@ public class ManagedCursorInfoMetadataTest {
         MLDataFormats.ManagedCursorInfo info1 = metaStore.parseManagedCursorInfo(compressionBytes);
         MLDataFormats.ManagedCursorInfo info2 = metaStore.parseManagedCursorInfo(managedCursorInfo.toByteArray());
         assertEquals(info1, info2);
+        assertEquals(info1.getPublication(), managedCursorInfo.getPublication());
     }
 
     @Test(dataProvider = "compressionTypeProvider")

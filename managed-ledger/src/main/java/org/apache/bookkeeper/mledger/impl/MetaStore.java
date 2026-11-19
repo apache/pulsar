@@ -124,6 +124,12 @@ public interface MetaStore {
     /**
      * Update the persisted position of a cursor.
      *
+     * <p>Each logical write needs a new publication ID in {@code info}. Caller-initiated retries must reuse
+     * that ID, payload and expected version. This branch uses immutable protobuf records, so callers that
+     * need to retry must set the ID before building the record; an ID generated internally cannot be returned
+     * through the original object. Chain dependent operations from the callback: verification can delay it
+     * even after the write has committed.
+     *
      * @param ledgerName
      *            the name of the ManagedLedger
      * @param cursorName
@@ -184,4 +190,8 @@ public interface MetaStore {
      * @return a future represents the result of the operation.
      */
     CompletableFuture<Map<String, String>> getManagedLedgerPropertiesAsync(String name);
+
+    /** Stop pending metadata verification without closing the shared metadata store. */
+    default void close() {
+    }
 }

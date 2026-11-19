@@ -145,6 +145,9 @@ message ManagedCursorInfo {
 
     // If the cursor was idle (e.g. its subscription had no consumers), the time since then (Unix time, milliseconds)
     optional int64 idleSince = 9;
+
+    // Unique ID for a logical cursor metadata write, preserved across retries.
+    optional string publication = 10;
 }
 
 enum CompressionType {
