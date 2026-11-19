@@ -4914,7 +4914,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             } else {
                 boolean includeLastLedger = canIncludeLastLedger && terminatedPosition != null
                         && requestOffloadTo.compareTo(terminatedPosition) >= 0;
-                firstUnoffloaded = includeLastLedger ? terminatedPosition.getNext() : PositionFactory.create(current, 0);
+                firstUnoffloaded = includeLastLedger ? terminatedPosition.getNext()
+                        : PositionFactory.create(current, 0);
                 for (LedgerInfo ls : ledgers.headMap(current, includeLastLedger).values()) {
                     if (requestOffloadTo.getLedgerId() > ls.getLedgerId()
                             || (includeLastLedger && requestOffloadTo.getLedgerId() == ls.getLedgerId())) {
