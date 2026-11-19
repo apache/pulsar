@@ -357,11 +357,26 @@ public class PartialPartitionedProducerTest extends SharedPulsarBaseTest {
         final PulsarClient client = newSingleIoThreadClient();
         final AtomicReference<Producer<byte[]>> producer = new AtomicReference<>();
         final AtomicReference<CompletableFuture<MessageId>> sentDuringDrain = new AtomicReference<>();
+        final AtomicBoolean rejectedAtOnce = new AtomicBoolean();
+        // While the first send is handed over, it is with the producer and the second is still queued: both hold
+        // their permit, so there is none for a third
+        final ProducerInterceptor sendThird = new PassThroughInterceptor() {
+            @Override
+            public Message<?> beforeSend(Producer<?> partitionProducer, Message<?> message) {
+                if ("1".equals(message.getKey()) && sentDuringDrain.get() == null) {
+                    final CompletableFuture<MessageId> third =
+                            producer.get().newMessage().key("1").value("third".getBytes()).sendAsync();
+                    rejectedAtOnce.set(third.isCompletedExceptionally());
+                    sentDuringDrain.set(third);
+                }
+                return message;
+            }
+        };
         producer.set(newLazyStartProducer(client, topic)
                 .enableBatching(false)
                 .maxPendingMessages(2)
                 .blockIfQueueFull(blockIfQueueFull)
-                .intercept(sendWhileHandedOver(producer, sentDuringDrain))
+                .intercept(sendThird)
                 .create());
 
         final List<CompletableFuture<MessageId>> sends = onIoThread(client, () -> List.of(
@@ -369,7 +384,7 @@ public class PartialPartitionedProducerTest extends SharedPulsarBaseTest {
                 producer.get().newMessage().key("1").value("second".getBytes()).sendAsync()));
 
         FutureUtil.waitForAll(sends).get(10, TimeUnit.SECONDS);
-        // The first send is with the producer and the second is still queued: both hold their permit
+        assertTrue(rejectedAtOnce.get());
         final Throwable failure = sentDuringDrain.get().handle((id, e) -> e).get(10, TimeUnit.SECONDS);
         assertTrue(FutureUtil.unwrapCompletionException(failure)
                 instanceof PulsarClientException.ProducerQueueIsFullError, String.valueOf(failure));
