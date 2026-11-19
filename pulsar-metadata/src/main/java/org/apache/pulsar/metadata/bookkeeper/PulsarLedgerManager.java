@@ -423,9 +423,9 @@ public class PulsarLedgerManager implements LedgerManager {
 
     @Override
     public void close() throws IOException {
-        cancelListener.run();
-        scheduler.shutdownNow();
-        try {
+        try (cache) {
+            cancelListener.run();
+            scheduler.shutdownNow();
             scheduler.awaitTermination(10, TimeUnit.SECONDS);
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();

@@ -113,9 +113,11 @@ public class PulsarRegistrationClient implements RegistrationClient {
 
     @Override
     public void close() {
-        cancelListener.run();
-        cancelSessionListener.run();
-        executor.shutdownNow();
+        try (bookieServiceInfoMetadataCache) {
+            cancelListener.run();
+            cancelSessionListener.run();
+            executor.shutdownNow();
+        }
     }
 
     private void refreshBookies(SessionEvent sessionEvent) {
