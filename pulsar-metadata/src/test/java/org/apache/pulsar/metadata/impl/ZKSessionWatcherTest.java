@@ -730,12 +730,17 @@ public class ZKSessionWatcherTest {
             throws Exception {
         List<SessionEvent> events = new CopyOnWriteArrayList<>();
         ZooKeeper zk = newSessionZooKeeper();
+        AtomicLong nanoTime = new AtomicLong(TimeUnit.SECONDS.toNanos(1));
         when(zk.getSessionTimeout()).thenReturn(1_500);
         when(zk.getState()).thenReturn(clientState);
 
-        try (ZKSessionWatcher watcher = newSessionWatcher(zk, events)) {
+        try (ZKSessionWatcher watcher = new ZKSessionWatcher(zk, events::add, false, nanoTime::get)) {
             watcher.checkConnectionStatus();
+            assertThat(events).containsExactlyElementsOf(expectedEvents);
 
+            // Keep the callback unanswered beyond the 1250 ms loss deadline, including for read-only clients.
+            nanoTime.addAndGet(TimeUnit.MILLISECONDS.toNanos(1_251));
+            watcher.checkConnectionStatus();
             assertThat(events).containsExactlyElementsOf(expectedEvents);
         }
     }
