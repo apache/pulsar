@@ -855,6 +855,42 @@ public class PersistentDispatcherMultipleConsumersTest extends SharedPulsarBaseT
     }
 
     @Test
+    public void testBacklogClearReinstallsPendingPositionsAfterCreationSuccess() throws Exception {
+        // If the pending tracker creation succeeds during the backlog clear, the tracker is
+        // installed first and then cleared. Positions published after the clear capture must be
+        // reinstalled on the cleared tracker instead of being lost.
+        DelayedDeliveryTrackerFactory factory = Mockito.mock(DelayedDeliveryTrackerFactory.class);
+        CompletableFuture<DelayedDeliveryTracker> gatedCreation = new CompletableFuture<>();
+        Mockito.doReturn(gatedCreation).when(factory).newTrackerAsync(Mockito.any());
+
+        DelayedDeliveryTracker tracker = Mockito.mock(DelayedDeliveryTracker.class);
+        Mockito.doNothing().when(tracker).resetTickTime(Mockito.anyLong());
+        Mockito.doReturn(true).when(tracker).addMessage(Mockito.anyLong(), Mockito.anyLong(), Mockito.anyLong());
+        Mockito.doReturn(CompletableFuture.completedFuture(null)).when(tracker).clear();
+
+        PersistentDispatcherMultipleConsumers dispatcher = newDispatcherWithDelayedTrackerFactory(factory);
+        ManagedCursor dispatcherCursor = dispatcher.getCursor();
+        Mockito.doReturn(PositionFactory.create(1L, 0L)).when(dispatcherCursor).getMarkDeletedPosition();
+        long deliverAtTime = System.currentTimeMillis() + 5_000;
+        try {
+            Assert.assertTrue(dispatcher.trackDelayedDelivery(1, 0, newDelayedMessageMetadata(deliverAtTime)));
+            Assert.assertTrue(dispatcher.trackDelayedDelivery(2, 1, newDelayedMessageMetadata(deliverAtTime)));
+            Assert.assertTrue(dispatcher.isDelayedDeliveryTrackerCreatePending());
+
+            CompletableFuture<Void> backlogClear = dispatcher.clearDelayedMessagesAfterBacklogClear();
+            gatedCreation.complete(tracker);
+
+            backlogClear.get(5, TimeUnit.SECONDS);
+            Mockito.verify(tracker, Mockito.never()).addMessage(1L, 0L, deliverAtTime);
+            Mockito.verify(tracker, Mockito.atLeastOnce()).addMessage(2L, 1L, deliverAtTime);
+            Assert.assertEquals(dispatcher.getDelayedDeliveryTrackerCreatePendingMessages(), 0);
+        } finally {
+            // Stop any further retry
+            dispatcher.close(false, Optional.empty()).get(1, TimeUnit.MINUTES);
+        }
+    }
+
+    @Test
     public void testTrackerInstallDropsPendingPositionsAtOrBelowMarkDeletePosition() throws Exception {
         // Even if a stale pending position arrives after the backlog clear, installing the tracker
         // must drop it using the current mark-delete position instead of delivering skipped entries.
