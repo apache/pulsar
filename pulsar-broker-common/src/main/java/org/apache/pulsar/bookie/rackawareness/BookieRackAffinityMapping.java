@@ -64,10 +64,9 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
     public static final String BOOKIE_INFO_ROOT_PATH = "/bookies";
     public static final String METADATA_STORE_INSTANCE = "METADATA_STORE_INSTANCE";
     /**
-     * The configuration property of a {@code Consumer<Runnable>} that receives the callback that unregisters the
-     * listener of the metadata store passed with {@link #METADATA_STORE_INSTANCE}. The factory that created the
-     * BookKeeper client runs it when the factory is closed, since the BookKeeper client doesn't close its DNS
-     * resolver.
+     * The configuration property of a {@code Consumer<Runnable>} that receives cleanup callbacks for metadata
+     * resources allocated by the rack resolver and isolation policy. The BookKeeper client factory runs these
+     * callbacks when it discards the client or closes.
      */
     public static final String METADATA_STORE_LISTENER_CLEANUP = "METADATA_STORE_LISTENER_CLEANUP";
 
@@ -77,7 +76,7 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
 
     private BookiesRackConfiguration racksWithHost = new BookiesRackConfiguration();
     private Map<String, BookieInfo> bookieInfoMap = new HashMap<>();
-    private Runnable cancelListener;
+    private Runnable closeMetadataResources;
 
     static MetadataStore getMetadataStore(Configuration conf) throws MetadataException {
         MetadataStore store;
@@ -120,8 +119,14 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
         return store;
     }
 
-    @Override
     @SuppressWarnings("unchecked")
+    static void registerMetadataStoreCleanup(Configuration conf, Runnable cleanup) {
+        if (conf.getProperty(METADATA_STORE_LISTENER_CLEANUP) instanceof Consumer<?> listenerCleanup) {
+            ((Consumer<Runnable>) listenerCleanup).accept(cleanup);
+        }
+    }
+
+    @Override
     public synchronized void setConf(Configuration conf) {
         super.setConf(conf);
         MetadataStore store;
@@ -131,14 +136,32 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
             throw new RuntimeException(METADATA_STORE_INSTANCE + " failed to init BookieId list");
         }
 
-        bookieMappingCache = store.getMetadataCache(BookiesRackConfiguration.class);
-        if (cancelListener != null) {
-            cancelListener.run();
+        if (closeMetadataResources != null) {
+            closeMetadataResources.run();
         }
-        cancelListener = store.registerCancellableListener(this::handleUpdates);
-        if (conf.getProperty(METADATA_STORE_LISTENER_CLEANUP) instanceof Consumer<?> listenerCleanup) {
-            ((Consumer<Runnable>) listenerCleanup).accept(cancelListener);
+        MetadataCache<BookiesRackConfiguration> cache = store.getMetadataCache(BookiesRackConfiguration.class);
+        bookieMappingCache = cache;
+        Runnable unregister;
+        try {
+            unregister = store.registerCancellableListener(this::handleUpdates);
+        } catch (RuntimeException e) {
+            try {
+                cache.close();
+            } catch (RuntimeException closeError) {
+                if (closeError != e) {
+                    e.addSuppressed(closeError);
+                }
+            }
+            throw e;
         }
+        closeMetadataResources = () -> {
+            try {
+                unregister.run();
+            } finally {
+                cache.close();
+            }
+        };
+        registerMetadataStoreCleanup(conf, closeMetadataResources);
 
         try {
             var racksWithHost = bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH)

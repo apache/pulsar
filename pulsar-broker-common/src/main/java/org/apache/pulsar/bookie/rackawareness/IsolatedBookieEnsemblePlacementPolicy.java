@@ -109,6 +109,7 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
         }
         // A ledger can carry isolation groups even when this client has no default groups.
         bookieMappingCache = store.getMetadataCache(BookiesRackConfiguration.class);
+        BookieRackAffinityMapping.registerMetadataStoreCleanup(conf, bookieMappingCache::close);
         initialRackConfigurationLoadFuture = loadRackConfiguration();
         initialRackConfigurationLoadFuture.exceptionally(e -> {
             log.warn().exception(e)

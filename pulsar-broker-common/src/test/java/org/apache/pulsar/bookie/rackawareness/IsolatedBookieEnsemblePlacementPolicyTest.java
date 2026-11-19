@@ -22,6 +22,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -53,6 +55,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import org.apache.bookkeeper.client.BKException.BKNotEnoughBookiesException;
 import org.apache.bookkeeper.client.RackawareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.conf.ClientConfiguration;
@@ -1315,24 +1318,38 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
     }
 
     @Test(dataProvider = "placementOperations")
-    public void testPendingRackConfigurationRejectsBookieJoiningBeforeParentPlacement(boolean replaceBookie)
-            throws Exception {
+    public void testPendingRackConfigurationRejectsBeforeParentPlacement(boolean replaceBookie) throws Exception {
         mockRackConfigurationLoad(new CompletableFuture<>());
         IsolatedBookieEnsemblePlacementPolicy isolationPolicy = new IsolatedBookieEnsemblePlacementPolicy() {
             @Override
             Set<BookieId> getExcludedBookiesWithIsolationGroups(int ensembleSize,
                     Pair<Set<String>, Set<String>> groups) throws BKNotEnoughBookiesException {
-                Set<BookieId> excluded = super.getExcludedBookiesWithIsolationGroups(ensembleSize, groups);
-                // Deterministically schedule a topology update between the exclusion snapshot and parent selection.
-                onClusterChanged(Set.of(BookieId.parse(BOOKIE1), BookieId.parse(BOOKIE2)),
-                        Collections.emptySet());
-                return excluded;
+                super.getExcludedBookiesWithIsolationGroups(ensembleSize, groups);
+                throw new AssertionError("Placement must stop before calling the parent policy");
             }
         };
         initializeIsolationPolicy(isolationPolicy, isolationClientConfiguration("*"));
         isolationPolicy.onClusterChanged(Set.of(BookieId.parse(BOOKIE1)), Collections.emptySet());
 
         assertPlacementUnavailable(isolationPolicy, isolationMetadata("group1"), replaceBookie);
+    }
+
+    @Test
+    public void testRackConfigurationCacheIsReleasedByClientCleanup() throws Exception {
+        MetadataCacheImpl<BookiesRackConfiguration> cache = mockRackConfigurationLoad(CompletableFuture.failedFuture(
+                new MetadataStoreException("simulated rack configuration load failure")));
+        ClientConfiguration conf = isolationClientConfiguration("group1");
+        AtomicReference<Runnable> cleanup = new AtomicReference<>();
+        conf.setProperty(BookieRackAffinityMapping.METADATA_STORE_LISTENER_CLEANUP, (Consumer<Runnable>) cleanup::set);
+
+        IsolatedBookieEnsemblePlacementPolicy isolationPolicy = new IsolatedBookieEnsemblePlacementPolicy();
+        initializeIsolationPolicy(isolationPolicy, conf);
+
+        assertThat(isolationPolicy.getInitializationFuture()).isCompletedExceptionally();
+        assertThat(cleanup.get()).isNotNull();
+        verify(cache, never()).close();
+        cleanup.get().run();
+        verify(cache).close();
     }
 
     @SuppressWarnings("unchecked")

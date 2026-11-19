@@ -80,7 +80,7 @@ public class ManagedLedgerFactoryClientFailureTest {
                         @Override
                         public void openLedgerFailed(ManagedLedgerException exception, Object ctx) {
                             firstFailure.complete(exception);
-                            // Retrying from the callback requires eviction before reporting the original failure.
+                            // Re-enter the factory while the original failure is being reported.
                             factory.asyncOpen(ledgerName, new ManagedLedgerConfig(), openCallback(retry), null, null);
                         }
                     }, null, null);

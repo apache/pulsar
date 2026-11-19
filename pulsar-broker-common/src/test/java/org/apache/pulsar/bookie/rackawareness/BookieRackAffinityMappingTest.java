@@ -20,7 +20,10 @@ package org.apache.pulsar.bookie.rackawareness;
 
 import static org.apache.bookkeeper.feature.SettableFeatureProvider.DISABLE_ALL;
 import static org.apache.pulsar.bookie.rackawareness.BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
@@ -32,6 +35,7 @@ import io.netty.util.HashedWheelTimer;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -45,6 +49,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import lombok.Cleanup;
 import org.apache.bookkeeper.client.DefaultBookieAddressResolver;
 import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
@@ -124,6 +129,41 @@ public class BookieRackAffinityMappingTest {
         assertEquals(racks.get(0), "/rack0");
         assertEquals(racks.get(1), "/rack1");
         assertNull(racks.get(2));
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    public void testClientCleanupReleasesResolverCacheAndListener() {
+        MetadataStore metadataStore = mock(MetadataStore.class);
+        MetadataCache<BookiesRackConfiguration> firstCache = mock(MetadataCache.class);
+        MetadataCache<BookiesRackConfiguration> secondCache = mock(MetadataCache.class);
+        when(metadataStore.getMetadataCache(BookiesRackConfiguration.class)).thenReturn(firstCache, secondCache);
+        when(firstCache.get(BOOKIE_INFO_ROOT_PATH)).thenReturn(CompletableFuture.completedFuture(Optional.empty()));
+        when(secondCache.get(BOOKIE_INFO_ROOT_PATH)).thenReturn(CompletableFuture.completedFuture(Optional.empty()));
+        Runnable firstUnregister = mock(Runnable.class);
+        Runnable secondUnregister = mock(Runnable.class);
+        when(metadataStore.registerCancellableListener(any())).thenReturn(firstUnregister, secondUnregister);
+
+        List<Runnable> cleanups = new ArrayList<>();
+        ClientConfiguration conf = new ClientConfiguration();
+        conf.setProperty(BookieRackAffinityMapping.METADATA_STORE_INSTANCE, metadataStore);
+        conf.setProperty(BookieRackAffinityMapping.METADATA_STORE_LISTENER_CLEANUP, (Consumer<Runnable>) cleanups::add);
+        BookieRackAffinityMapping mapping = new BookieRackAffinityMapping();
+        mapping.setBookieAddressResolver(BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER);
+
+        mapping.setConf(conf);
+        verify(firstCache, never()).close();
+        mapping.setConf(conf);
+        verify(firstUnregister).run();
+        verify(firstCache).close();
+
+        assertEquals(cleanups.size(), 2);
+        cleanups.get(0).run();
+        verify(secondUnregister, never()).run();
+        verify(secondCache, never()).close();
+        cleanups.get(1).run();
+        verify(secondUnregister).run();
+        verify(secondCache).close();
     }
 
     @Test
