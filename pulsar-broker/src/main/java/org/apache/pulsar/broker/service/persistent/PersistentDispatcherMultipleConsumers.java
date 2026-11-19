@@ -1641,17 +1641,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
 
     private void addPendingMessagesToTracker(DelayedDeliveryTracker tracker) {
         tracker.resetTickTime(topic.getDelayedDeliveryTickTimeMillis());
-        Position markDeletedPosition = cursor.getMarkDeletedPosition();
         try {
             var iterator = messagesPendingDelayedDeliveryTracker.entrySet().iterator();
             while (iterator.hasNext()) {
                 Map.Entry<Position, Long> entry = iterator.next();
                 Position position = entry.getKey();
-                if (markDeletedPosition != null && position.compareTo(markDeletedPosition) <= 0) {
-                    // The cursor moved past this position while the tracker was being created.
-                    iterator.remove();
-                    continue;
-                }
                 if (delayedDeliveryTrackerClearPending) {
                     // The backlog clear reinstalls these positions after clearing the tracker, so
                     // do not install or redeliver them here.
