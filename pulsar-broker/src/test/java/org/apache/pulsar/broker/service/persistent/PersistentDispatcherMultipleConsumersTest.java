@@ -40,6 +40,7 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
+import org.apache.pulsar.broker.delayed.BucketDelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTracker;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.service.BrokerService;
@@ -741,16 +742,16 @@ public class PersistentDispatcherMultipleConsumersTest extends SharedPulsarBaseT
     @Test
     public void testBacklogClearPreservesPendingPositionsAboveMarkDelete() throws Exception {
         // An ordinary backlog clear only drops positions at or below the mark-delete position.
-        // Positions published after the clear was captured are not part of the cleared backlog and
-        // must remain pending for the tracker-creation retry to install.
+        // Positions published after the clear capture remain pending and are installed by the fresh
+        // tracker creation that starts after the clear settles.
         DelayedDeliveryTrackerFactory factory = Mockito.mock(DelayedDeliveryTrackerFactory.class);
-        CompletableFuture<DelayedDeliveryTracker> gatedRetry = new CompletableFuture<>();
+        CompletableFuture<DelayedDeliveryTracker> gatedNewCreation = new CompletableFuture<>();
         AtomicInteger attempts = new AtomicInteger();
         Mockito.doAnswer(invocation -> {
             if (attempts.getAndIncrement() == 0) {
                 return FutureUtil.failedFuture(new RuntimeException("failed to create tracker"));
             }
-            return gatedRetry;
+            return gatedNewCreation;
         }).when(factory).newTrackerAsync(Mockito.any());
 
         DelayedDeliveryTracker tracker = Mockito.mock(DelayedDeliveryTracker.class);
@@ -770,7 +771,9 @@ public class PersistentDispatcherMultipleConsumersTest extends SharedPulsarBaseT
             Assert.assertEquals(dispatcher.getDelayedDeliveryTrackerCreatePendingMessages(), 1,
                     "Only the position above mark-delete should remain pending");
 
-            gatedRetry.complete(tracker);
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+                    assertThat(dispatcher.isDelayedDeliveryTrackerCreatePending()).isTrue());
+            gatedNewCreation.complete(tracker);
             Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
                     assertThat(dispatcher.isDelayedDeliveryTrackerCreatePending()).isFalse());
 
@@ -784,18 +787,25 @@ public class PersistentDispatcherMultipleConsumersTest extends SharedPulsarBaseT
     }
 
     @Test
-    public void testBacklogClearReinstallsPendingPositionsAfterCreationSuccess() throws Exception {
-        // If the pending tracker creation succeeds during the backlog clear, the tracker is
-        // installed first and then cleared. Positions published after the clear capture must be
-        // reinstalled on the cleared tracker exactly once instead of being lost.
+    public void testBacklogClearInvalidatesOldCreationAndStartsFreshTracker() throws Exception {
+        // The in-flight creation is invalidated so its late tracker is closed; after the clear a
+        // fresh creation installs the preserved positions exactly once.
         DelayedDeliveryTrackerFactory factory = Mockito.mock(DelayedDeliveryTrackerFactory.class);
-        CompletableFuture<DelayedDeliveryTracker> gatedCreation = new CompletableFuture<>();
-        Mockito.doReturn(gatedCreation).when(factory).newTrackerAsync(Mockito.any());
+        CompletableFuture<DelayedDeliveryTracker> gatedOldCreation = new CompletableFuture<>();
+        CompletableFuture<DelayedDeliveryTracker> gatedNewCreation = new CompletableFuture<>();
+        AtomicInteger attempts = new AtomicInteger();
+        Mockito.doAnswer(invocation -> {
+            if (attempts.getAndIncrement() == 0) {
+                return gatedOldCreation;
+            }
+            return gatedNewCreation;
+        }).when(factory).newTrackerAsync(Mockito.any());
 
-        DelayedDeliveryTracker tracker = Mockito.mock(DelayedDeliveryTracker.class);
-        Mockito.doNothing().when(tracker).resetTickTime(Mockito.anyLong());
-        Mockito.doReturn(true).when(tracker).addMessage(Mockito.anyLong(), Mockito.anyLong(), Mockito.anyLong());
-        Mockito.doReturn(CompletableFuture.completedFuture(null)).when(tracker).clear();
+        DelayedDeliveryTracker oldTracker = Mockito.mock(DelayedDeliveryTracker.class);
+        Mockito.doReturn(CompletableFuture.completedFuture(null)).when(oldTracker).closeAsync();
+        DelayedDeliveryTracker newTracker = Mockito.mock(DelayedDeliveryTracker.class);
+        Mockito.doNothing().when(newTracker).resetTickTime(Mockito.anyLong());
+        Mockito.doReturn(true).when(newTracker).addMessage(Mockito.anyLong(), Mockito.anyLong(), Mockito.anyLong());
 
         PersistentDispatcherMultipleConsumers dispatcher = newDispatcherWithDelayedTrackerFactory(factory);
         ManagedCursor dispatcherCursor = dispatcher.getCursor();
@@ -806,13 +816,20 @@ public class PersistentDispatcherMultipleConsumersTest extends SharedPulsarBaseT
             Assert.assertTrue(dispatcher.trackDelayedDelivery(2, 1, newDelayedMessageMetadata(deliverAtTime)));
             Assert.assertTrue(dispatcher.isDelayedDeliveryTrackerCreatePending());
 
-            CompletableFuture<Void> backlogClear = dispatcher.clearDelayedMessagesAfterBacklogClear();
-            gatedCreation.complete(tracker);
+            dispatcher.clearDelayedMessagesAfterBacklogClear();
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+                    assertThat(dispatcher.isDelayedDeliveryTrackerCreatePending()).isTrue());
 
-            backlogClear.get(5, TimeUnit.SECONDS);
-            Mockito.verify(tracker).clear();
-            Mockito.verify(tracker, Mockito.never()).addMessage(1L, 0L, deliverAtTime);
-            Mockito.verify(tracker, Mockito.times(1)).addMessage(2L, 1L, deliverAtTime);
+            gatedOldCreation.complete(oldTracker);
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+                    Mockito.verify(oldTracker).closeAsync());
+            Mockito.verify(oldTracker, Mockito.never()).addMessage(
+                    Mockito.anyLong(), Mockito.anyLong(), Mockito.anyLong());
+
+            gatedNewCreation.complete(newTracker);
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+                    assertThat(dispatcher.isDelayedDeliveryTrackerCreatePending()).isFalse());
+            Mockito.verify(newTracker).addMessage(2L, 1L, deliverAtTime);
             Assert.assertEquals(dispatcher.getDelayedDeliveryTrackerCreatePendingMessages(), 0);
         } finally {
             // Stop any further retry
@@ -822,16 +839,21 @@ public class PersistentDispatcherMultipleConsumersTest extends SharedPulsarBaseT
 
     @Test
     public void testBacklogClearAlreadyDuePreservedPositionInstalledOnce() throws Exception {
-        // A preserved position whose delivery time has already passed must be handed to the tracker
-        // only once, after the old tracker state is cleared, so the dispatcher does not send it twice.
+        // A preserved position whose delivery time has already passed is handed to the fresh
+        // tracker only once, so the dispatcher does not send it twice.
         DelayedDeliveryTrackerFactory factory = Mockito.mock(DelayedDeliveryTrackerFactory.class);
-        CompletableFuture<DelayedDeliveryTracker> gatedCreation = new CompletableFuture<>();
-        Mockito.doReturn(gatedCreation).when(factory).newTrackerAsync(Mockito.any());
+        CompletableFuture<DelayedDeliveryTracker> gatedNewCreation = new CompletableFuture<>();
+        AtomicInteger attempts = new AtomicInteger();
+        Mockito.doAnswer(invocation -> {
+            if (attempts.getAndIncrement() == 0) {
+                return FutureUtil.failedFuture(new RuntimeException("failed to create tracker"));
+            }
+            return gatedNewCreation;
+        }).when(factory).newTrackerAsync(Mockito.any());
 
         DelayedDeliveryTracker tracker = Mockito.mock(DelayedDeliveryTracker.class);
         Mockito.doNothing().when(tracker).resetTickTime(Mockito.anyLong());
         Mockito.doReturn(false).when(tracker).addMessage(Mockito.anyLong(), Mockito.anyLong(), Mockito.anyLong());
-        Mockito.doReturn(CompletableFuture.completedFuture(null)).when(tracker).clear();
 
         PersistentDispatcherMultipleConsumers dispatcher = newDispatcherWithDelayedTrackerFactory(factory);
         ManagedCursor dispatcherCursor = dispatcher.getCursor();
@@ -841,10 +863,12 @@ public class PersistentDispatcherMultipleConsumersTest extends SharedPulsarBaseT
             Assert.assertTrue(dispatcher.trackDelayedDelivery(1, 1, newDelayedMessageMetadata(deliverAtTime)));
             Assert.assertTrue(dispatcher.isDelayedDeliveryTrackerCreatePending());
 
-            CompletableFuture<Void> backlogClear = dispatcher.clearDelayedMessagesAfterBacklogClear();
-            gatedCreation.complete(tracker);
-
-            backlogClear.get(5, TimeUnit.SECONDS);
+            dispatcher.clearDelayedMessagesAfterBacklogClear();
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+                    assertThat(dispatcher.isDelayedDeliveryTrackerCreatePending()).isTrue());
+            gatedNewCreation.complete(tracker);
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+                    assertThat(dispatcher.isDelayedDeliveryTrackerCreatePending()).isFalse());
             Mockito.verify(tracker, Mockito.times(1)).addMessage(1L, 1L, deliverAtTime);
             Assert.assertEquals(dispatcher.getDelayedDeliveryTrackerCreatePendingMessages(), 0);
         } finally {
@@ -854,18 +878,24 @@ public class PersistentDispatcherMultipleConsumersTest extends SharedPulsarBaseT
     }
 
     @Test
-    public void testBacklogClearReinstallPreservedPositionsWhenClearFails() throws Exception {
-        // Even if the tracker clear fails, the preserved positions must be reinstalled so they are
-        // not stranded in the pending map; the clear future still reports the failure.
-        DelayedDeliveryTrackerFactory factory = Mockito.mock(DelayedDeliveryTrackerFactory.class);
-        CompletableFuture<DelayedDeliveryTracker> gatedCreation = new CompletableFuture<>();
-        Mockito.doReturn(gatedCreation).when(factory).newTrackerAsync(Mockito.any());
+    public void testBacklogClearStartsFreshTrackerWhenCleanupFails() throws Exception {
+        // Even when the clear itself fails, the preserved positions must not be stranded: a fresh
+        // creation starts and installs them; the clear future still reports the failure.
+        BucketDelayedDeliveryTrackerFactory factory = Mockito.mock(BucketDelayedDeliveryTrackerFactory.class);
+        CompletableFuture<DelayedDeliveryTracker> gatedNewCreation = new CompletableFuture<>();
+        AtomicInteger attempts = new AtomicInteger();
+        Mockito.doAnswer(invocation -> {
+            if (attempts.getAndIncrement() == 0) {
+                return FutureUtil.failedFuture(new RuntimeException("failed to create tracker"));
+            }
+            return gatedNewCreation;
+        }).when(factory).newTrackerAsync(Mockito.any(), Mockito.any());
+        Mockito.doReturn(FutureUtil.failedFuture(new RuntimeException("cleanup failed")))
+                .when(factory).cleanResidualSnapshots(Mockito.any());
 
         DelayedDeliveryTracker tracker = Mockito.mock(DelayedDeliveryTracker.class);
         Mockito.doNothing().when(tracker).resetTickTime(Mockito.anyLong());
         Mockito.doReturn(true).when(tracker).addMessage(Mockito.anyLong(), Mockito.anyLong(), Mockito.anyLong());
-        Mockito.doReturn(FutureUtil.failedFuture(new RuntimeException("clear failed")))
-                .when(tracker).clear();
 
         PersistentDispatcherMultipleConsumers dispatcher = newDispatcherWithDelayedTrackerFactory(factory);
         ManagedCursor dispatcherCursor = dispatcher.getCursor();
@@ -877,9 +907,12 @@ public class PersistentDispatcherMultipleConsumersTest extends SharedPulsarBaseT
             Assert.assertTrue(dispatcher.isDelayedDeliveryTrackerCreatePending());
 
             CompletableFuture<Void> backlogClear = dispatcher.clearDelayedMessagesAfterBacklogClear();
-            gatedCreation.complete(tracker);
-
             assertThat(backlogClear).failsWithin(5, TimeUnit.SECONDS);
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+                    assertThat(dispatcher.isDelayedDeliveryTrackerCreatePending()).isTrue());
+            gatedNewCreation.complete(tracker);
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+                    assertThat(dispatcher.isDelayedDeliveryTrackerCreatePending()).isFalse());
             Mockito.verify(tracker, Mockito.never()).addMessage(1L, 0L, deliverAtTime);
             Mockito.verify(tracker).addMessage(2L, 1L, deliverAtTime);
             Assert.assertEquals(dispatcher.getDelayedDeliveryTrackerCreatePendingMessages(), 0);
@@ -891,16 +924,16 @@ public class PersistentDispatcherMultipleConsumersTest extends SharedPulsarBaseT
 
     @Test
     public void testTrackerInstallDropsPendingPositionsAtOrBelowMarkDeletePosition() throws Exception {
-        // Even if a stale pending position arrives after the backlog clear, installing the tracker
-        // must drop it using the current mark-delete position instead of delivering skipped entries.
+        // Even if a stale pending position arrives after the backlog clear, installing the fresh
+        // tracker must drop it using the current mark-delete position.
         DelayedDeliveryTrackerFactory factory = Mockito.mock(DelayedDeliveryTrackerFactory.class);
-        CompletableFuture<DelayedDeliveryTracker> gatedRetry = new CompletableFuture<>();
+        CompletableFuture<DelayedDeliveryTracker> gatedNewCreation = new CompletableFuture<>();
         AtomicInteger attempts = new AtomicInteger();
         Mockito.doAnswer(invocation -> {
             if (attempts.getAndIncrement() == 0) {
                 return FutureUtil.failedFuture(new RuntimeException("failed to create tracker"));
             }
-            return gatedRetry;
+            return gatedNewCreation;
         }).when(factory).newTrackerAsync(Mockito.any());
 
         DelayedDeliveryTracker tracker = Mockito.mock(DelayedDeliveryTracker.class);
@@ -918,14 +951,15 @@ public class PersistentDispatcherMultipleConsumersTest extends SharedPulsarBaseT
             dispatcher.clearDelayedMessagesAfterBacklogClear();
             Assert.assertEquals(dispatcher.getDelayedDeliveryTrackerCreatePendingMessages(), 1);
 
-            // The cursor has moved while the creation retry is still pending. The stale position
-            // at/below the new mark-delete position must be dropped at install time; the live
-            // position after it must still be installed.
+            // The cursor has moved while the new creation is pending. The stale position at/below
+            // the new mark-delete position must be dropped at install time.
             Mockito.doReturn(PositionFactory.create(1L, 1L)).when(dispatcherCursor).getMarkDeletedPosition();
             Assert.assertTrue(dispatcher.trackDelayedDelivery(1L, 1L, newDelayedMessageMetadata(deliverAtTime)));
             Assert.assertTrue(dispatcher.trackDelayedDelivery(2L, 1L, newDelayedMessageMetadata(deliverAtTime)));
 
-            gatedRetry.complete(tracker);
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+                    assertThat(dispatcher.isDelayedDeliveryTrackerCreatePending()).isTrue());
+            gatedNewCreation.complete(tracker);
             Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
                     assertThat(dispatcher.isDelayedDeliveryTrackerCreatePending()).isFalse());
 
