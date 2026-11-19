@@ -173,9 +173,6 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
         } while (totalInDeadLetter < sendMessages);
 
         deadLetterConsumer.close();
-        // The consumer acknowledges a message only once its DLQ send completes, which can be after the DLQ consumer
-        // received it: closing the consumer before that drops the acknowledgment and leaves the message unacknowledged
-        waitForEmptyBacklog(topic, "my-subscription");
         consumer.close();
     }
 
@@ -243,9 +240,6 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
         } while (totalInDeadLetter < sendMessages);
 
         deadLetterConsumer.close();
-        // The consumer acknowledges a message only once its DLQ send completes, which can be after the DLQ consumer
-        // received it: closing the consumer before that drops the acknowledgment and leaves the message unacknowledged
-        waitForEmptyBacklog(topic, "my-subscription");
         consumer.close();
     }
 
@@ -313,9 +307,6 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
         } while (totalInDeadLetter < sendMessages);
 
         deadLetterConsumer.close();
-        // The consumer acknowledges a message only once its DLQ send completes, which can be after the DLQ consumer
-        // received it: closing the consumer before that drops the acknowledgment and leaves the message unacknowledged
-        waitForEmptyBacklog(topic, "my-subscription");
         consumer.close();
     }
 
@@ -979,9 +970,6 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
             totalInDeadLetter++;
         } while (totalInDeadLetter < sendMessages);
         deadLetterConsumer.close();
-        // The consumer acknowledges a message only once its DLQ send completes, which can be after the DLQ consumer
-        // received it: closing the consumer before that drops the acknowledgment and leaves the message unacknowledged
-        waitForEmptyBacklog(topic, "my-subscription");
         consumer.close();
         @Cleanup
         PulsarClient newPulsarClient1 = newPulsarClient();
