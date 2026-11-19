@@ -117,11 +117,21 @@ public interface PendingAckHandle {
     boolean checkIsCanDeleteConsumerPendingAck(Position position);
 
     /**
-     * Records that the consumer delivery for a position is being replaced by redelivery.
+     * Records a consumer delivery for a position.
      *
-     * @param position the position whose consumer delivery is being replaced
+     * @param position the delivered position
      */
-    void onConsumerRedelivery(Position position);
+    void onConsumerDelivery(Position position);
+
+    /**
+     * Associates a transactional acknowledgment with the consumer delivery that charged it.
+     *
+     * @param txnID transaction ID
+     * @param position acknowledged position
+     * @param consumer consumer that owns the delivery
+     * @param delivery delivery identity, or {@code null} when no delivery is currently charged
+     */
+    void recordConsumerAck(TxnID txnID, Position position, Consumer consumer, Object delivery);
 
     /**
      * When the position is actually deleted, we can use this method to clear the cache for individual ack messages.

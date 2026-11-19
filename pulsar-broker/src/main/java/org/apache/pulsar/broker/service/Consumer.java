@@ -37,6 +37,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
@@ -140,6 +141,7 @@ public class Consumer {
     private volatile int permitsReceivedWhileConsumerBlocked = 0;
 
     private final PendingAcksMap pendingAcks;
+    private final ConcurrentHashMap<Position, Object> pendingAckDeliveries = new ConcurrentHashMap<>();
 
     private final ConsumerStatsImpl stats;
 
@@ -424,6 +426,12 @@ public class Consumer {
                                 .attr("batchSize", batchSize)
                                 .log("Skipping sending of entry since adding to pending acks failed");
                     } else {
+                        Position position = PositionFactory.create(entry.getLedgerId(), entry.getEntryId());
+                        pendingAckDeliveries.put(position, new Object());
+                        if (subscription instanceof PersistentSubscription persistentSubscription
+                                && persistentSubscription.getPendingAckHandle() != null) {
+                            persistentSubscription.getPendingAckHandle().onConsumerDelivery(position);
+                        }
                         log.debug()
                                 .attr("ledgerId", entry.getLedgerId())
                                 .attr("entryId", entry.getEntryId())
@@ -513,6 +521,7 @@ public class Consumer {
     }
 
     public void close(boolean isResetCursor) throws BrokerServiceException {
+        pendingAckDeliveries.clear();
         subscription.removeConsumer(this, isResetCursor);
         cnx.removedConsumer(this);
     }
@@ -618,6 +627,8 @@ public class Consumer {
     private CompletableFuture<Long> individualAck(CommandAck ack, Map<String, Long> properties,
                                                   boolean requirePersistedAck) {
         boolean hasTxn = ack.hasTxnidLeastBits() && ack.hasTxnidMostBits();
+        TxnID transactionId = hasTxn
+                ? new TxnID(ack.getTxnidMostBits(), ack.getTxnidLeastBits()) : null;
 
         if (hasTxn && !isTransactionEnabled()) {
             return FutureUtil.failedFuture(
@@ -663,6 +674,12 @@ public class Consumer {
                     ackedCount = getAckedCountForTransactionAck(batchSize, ackSets);
                 } else {
                     ackedCount = 1;
+                }
+                if (subscription instanceof PersistentSubscription persistentSubscription
+                        && persistentSubscription.getPendingAckHandle() != null) {
+                    persistentSubscription.getPendingAckHandle().recordConsumerAck(
+                            transactionId, position, ackOwnerConsumer,
+                            ackOwnerConsumer.getPendingAckDelivery(position.getLedgerId(), position.getEntryId()));
                 }
                 txnPositions.add(MutablePair.of(position, batchSize));
 
@@ -777,6 +794,11 @@ public class Consumer {
     }
 
     private void applyPendingAckCompletions(PendingAckCompletions pendingAckCompletions) {
+        applyPendingAckCompletions(pendingAckCompletions, false);
+    }
+
+    private void applyPendingAckCompletions(PendingAckCompletions pendingAckCompletions,
+                                             boolean removePendingAckWithCount) {
         for (int i = 0; i < pendingAckCompletions.size(); i++) {
             Consumer ackOwnerConsumer = pendingAckCompletions.consumerAt(i);
             Position position = pendingAckCompletions.positionAt(i);
@@ -810,7 +832,18 @@ public class Consumer {
                 if (AckSetStateUtil.hasAckSet(position)) {
                     if (((PersistentSubscription) subscription)
                             .checkIsCanDeleteConsumerPendingAck(position)) {
-                        removePendingAcks(ackOwnerConsumer, position);
+                        if (removePendingAckWithCount) {
+                            int removed = ackOwnerConsumer.removePendingAckAndGetRemainingUnacked(
+                                    position.getLedgerId(), position.getEntryId());
+                            if (removed != PENDING_ACK_NOT_FOUND) {
+                                if (removed > 0) {
+                                    ackOwnerConsumer.decrementUnackedMessagesAndReconcileBlockedState(removed);
+                                }
+                                blockedStateReconciled = true;
+                            }
+                        } else {
+                            removePendingAcks(ackOwnerConsumer, position);
+                        }
                     }
                 }
             }
@@ -829,7 +862,7 @@ public class Consumer {
         boolean hasAckSet = AckSetStateUtil.hasAckSet(position);
         PendingAckCompletions completions = new PendingAckCompletions(1);
         completions.add(this, position, hasAckSet, ackedCount);
-        applyPendingAckCompletions(completions);
+        applyPendingAckCompletions(completions, true);
     }
 
     /**
@@ -839,13 +872,6 @@ public class Consumer {
         int removed = removePendingAckAndGetRemainingUnacked(position.getLedgerId(), position.getEntryId());
         if (removed != PENDING_ACK_NOT_FOUND) {
             decrementUnackedMessagesAndReconcileBlockedState(removed);
-        }
-    }
-
-    private void recordTransactionAckForRedelivery(Position position) {
-        if (subscription instanceof PersistentSubscription persistentSubscription
-                && persistentSubscription.getPendingAckHandle() != null) {
-            persistentSubscription.getPendingAckHandle().onConsumerRedelivery(position);
         }
     }
 
@@ -1327,6 +1353,7 @@ public class Consumer {
             // Message was already removed by the other consumer
             return false;
         }
+        ackOwnedConsumer.pendingAckDeliveries.remove(position);
         log.debug()
                 .attr("position", position)
                 .log("Consumer received ack");
@@ -1446,9 +1473,17 @@ public class Consumer {
      */
     public int removePendingAckAndGetRemainingUnacked(long ledgerId, long entryId) {
         if (pendingAcks != null) {
-            return pendingAcks.removeAndGetRemainingUnacked(ledgerId, entryId);
+            int removed = pendingAcks.removeAndGetRemainingUnacked(ledgerId, entryId);
+            if (removed != PENDING_ACK_NOT_FOUND) {
+                pendingAckDeliveries.remove(PositionFactory.create(ledgerId, entryId));
+            }
+            return removed;
         }
         return PENDING_ACK_NOT_FOUND;
+    }
+
+    public Object getPendingAckDelivery(long ledgerId, long entryId) {
+        return pendingAckDeliveries.get(PositionFactory.create(ledgerId, entryId));
     }
 
     /**
@@ -1470,6 +1505,7 @@ public class Consumer {
         MutableInt mutableTotalUnacked = new MutableInt(0);
         pendingAcks.removeAllUpTo(markDeleteLedgerId, markDeleteEntryId,
                 (ledgerId, entryId, remainingUnacked, stickyKeyHash) -> {
+                    pendingAckDeliveries.remove(PositionFactory.create(ledgerId, entryId));
                     mutableTotalUnacked.add(remainingUnacked);
                 });
         int totalUnacked = mutableTotalUnacked.intValue();
@@ -1494,7 +1530,7 @@ public class Consumer {
                 totalRedeliveryMessages.add(remainingUnacked);
                 pendingPositions.add(position);
             });
-            pendingPositions.forEach(this::recordTransactionAckForRedelivery);
+            pendingPositions.forEach(pendingAckDeliveries::remove);
 
             if (totalRedeliveryMessages.intValue() > 0) {
                 addAndGetUnackedMessages(-totalRedeliveryMessages.intValue());
@@ -1522,7 +1558,7 @@ public class Consumer {
             int remainingUnacked = pendingAcks.removeAndGetRemainingUnacked(
                     position.getLedgerId(), position.getEntryId());
             if (remainingUnacked != PENDING_ACK_NOT_FOUND) {
-                recordTransactionAckForRedelivery(position);
+                pendingAckDeliveries.remove(position);
                 totalRedeliveryMessages += remainingUnacked;
                 pendingPositions.add(position);
             }

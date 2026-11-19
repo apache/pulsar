@@ -496,9 +496,51 @@ public class PendingAckPersistentTest extends TransactionTestBase {
                 .withTransactionTimeout(30, TimeUnit.SECONDS).build().get();
         consumer.acknowledgeAsync(fullyTransactionalBatch.get(0).getMessageId(), firstCommitTxn).get();
         consumer.acknowledgeAsync(fullyTransactionalBatch.get(1).getMessageId(), secondCommitTxn).get();
-        firstCommitTxn.commit().get();
-        awaitBrokerUnackedMessages(PENDING_ACK_REPLAY_TOPIC, subName, 1);
-        secondCommitTxn.commit().get();
+        CompletableFuture<Void> firstCommitFuture = firstCommitTxn.commit();
+        CompletableFuture<Void> secondCommitFuture = secondCommitTxn.commit();
+        FutureUtil.waitForAll(List.of(firstCommitFuture, secondCommitFuture)).get();
+        awaitBrokerUnackedMessages(PENDING_ACK_REPLAY_TOPIC, subName, 0);
+
+        sendBatch(producer, 4);
+        List<Message<byte[]>> reloadBatch = receiveBatch(consumer, 4);
+        awaitBrokerUnackedMessages(PENDING_ACK_REPLAY_TOPIC, subName, 4);
+        Transaction reloadTxn = pulsarClient.newTransaction()
+                .withTransactionTimeout(30, TimeUnit.SECONDS).build().get();
+        consumer.acknowledgeAsync(reloadBatch.get(0).getMessageId(), reloadTxn).get();
+        admin.topics().unload(PENDING_ACK_REPLAY_TOPIC);
+        Awaitility.await().until(consumer::isConnected);
+        List<Message<byte[]>> reloadRedeliveredBatch = receiveBatch(consumer, 3);
+        awaitBrokerUnackedMessages(PENDING_ACK_REPLAY_TOPIC, subName, 3);
+        reloadTxn.commit().get();
+        awaitBrokerUnackedMessages(PENDING_ACK_REPLAY_TOPIC, subName, 3);
+        for (Message<byte[]> message : reloadRedeliveredBatch) {
+            consumer.acknowledgeAsync(message).get();
+        }
+        awaitBrokerUnackedMessages(PENDING_ACK_REPLAY_TOPIC, subName, 0);
+
+        sendBatch(producer, 4);
+        List<Message<byte[]>> reconnectBatch = receiveBatch(consumer, 4);
+        awaitBrokerUnackedMessages(PENDING_ACK_REPLAY_TOPIC, subName, 4);
+        Transaction reconnectTxn = pulsarClient.newTransaction()
+                .withTransactionTimeout(30, TimeUnit.SECONDS).build().get();
+        consumer.acknowledgeAsync(reconnectBatch.get(0).getMessageId(), reconnectTxn).get();
+        consumer.close();
+        @Cleanup
+        Consumer<byte[]> reconnectedConsumer = pulsarClient.newConsumer()
+                .topic(PENDING_ACK_REPLAY_TOPIC)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Shared)
+                .receiverQueueSize(10)
+                .enableBatchIndexAcknowledgment(true)
+                .negativeAckRedeliveryDelay(0, TimeUnit.SECONDS)
+                .subscribe();
+        List<Message<byte[]>> reconnectRedeliveredBatch = receiveBatch(reconnectedConsumer, 3);
+        awaitBrokerUnackedMessages(PENDING_ACK_REPLAY_TOPIC, subName, 3);
+        reconnectTxn.commit().get();
+        awaitBrokerUnackedMessages(PENDING_ACK_REPLAY_TOPIC, subName, 3);
+        for (Message<byte[]> message : reconnectRedeliveredBatch) {
+            reconnectedConsumer.acknowledgeAsync(message).get();
+        }
         awaitBrokerUnackedMessages(PENDING_ACK_REPLAY_TOPIC, subName, 0);
     }
 

@@ -73,7 +73,12 @@ public class PendingAckHandleDisabled implements PendingAckHandle {
     }
 
     @Override
-    public void onConsumerRedelivery(Position position) {
+    public void onConsumerDelivery(Position position) {
+        // no-op
+    }
+
+    @Override
+    public void recordConsumerAck(TxnID txnID, Position position, Consumer consumer, Object delivery) {
         // no-op
     }
 
