@@ -28,6 +28,7 @@ import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
 import org.gradle.process.ExecOperations
+import org.gradle.work.DisableCachingByDefault
 import java.io.ByteArrayOutputStream
 import java.io.File
 import javax.inject.Inject
@@ -45,6 +46,7 @@ import javax.inject.Inject
  * an `alloc` view. Such a view is skipped with a message rather than failing the task, so that one
  * absent event does not cost the views that could be produced.
  */
+@DisableCachingByDefault(because = "Writes flame graphs next to the input recordings")
 abstract class JfrFlamegraphsTask : DefaultTask() {
 
     /** The recordings to convert. */

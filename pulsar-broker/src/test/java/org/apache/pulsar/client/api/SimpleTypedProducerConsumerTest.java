@@ -74,6 +74,7 @@ public class SimpleTypedProducerConsumerTest extends SharedPulsarBaseTest {
             .subscriptionName("my-subscriber-name")
             .subscribe();
 
+        @Cleanup
         Producer<JsonEncodedPojo> producer = pulsarClient
             .newProducer(jsonSchema)
             .topic(topic)
@@ -200,6 +201,7 @@ public class SimpleTypedProducerConsumerTest extends SharedPulsarBaseTest {
                 .subscriptionName("my-subscriber-name")
                 .subscribe();
 
+        @Cleanup
         Producer<org.apache.pulsar.client.api.schema.proto.Test.TestMessage> producer = pulsarClient
                 .newProducer(protobufSchema)
                 .topic(topic)
@@ -288,6 +290,7 @@ public class SimpleTypedProducerConsumerTest extends SharedPulsarBaseTest {
            .subscriptionName("my-subscriber-name")
            .subscribe();
 
+       @Cleanup
        Producer<AvroEncodedPojo> producer = pulsarClient
            .newProducer(avroSchema)
            .topic(topic)
@@ -458,6 +461,7 @@ public class SimpleTypedProducerConsumerTest extends SharedPulsarBaseTest {
            AvroSchema.of(SchemaDefinition.<AvroEncodedPojo>builder().
                    withPojo(AvroEncodedPojo.class).build());
 
+       @Cleanup
        Producer<AvroEncodedPojo> producer = pulsarClient
            .newProducer(avroSchema)
            .topic(topic)
@@ -511,6 +515,7 @@ public class SimpleTypedProducerConsumerTest extends SharedPulsarBaseTest {
            AvroSchema.of(SchemaDefinition.<AvroEncodedPojo>builder().
                    withPojo(AvroEncodedPojo.class).build());
 
+       @Cleanup
        Producer<AvroEncodedPojo> producer = pulsarClient
            .newProducer(avroSchema)
            .topic(topic)

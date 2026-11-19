@@ -31,12 +31,14 @@
             <class name="org.apache.pulsar.tests.integration.cli.PerfToolTest"/>
             <class name="org.apache.pulsar.tests.integration.cli.topicpolicies.SchemaCompatibilityStrategyTest"/>
 
-            <class name="org.apache.pulsar.tests.integration.cli.ClusterMetadataTearDownTest"/>
+            <!-- These classes share another cluster (CombinedSettingsTestSuite), HealthCheckTest last -->
+            <class name="org.apache.pulsar.tests.integration.cli.topic.AnalyzeBacklogTest"/>
+            <class name="org.apache.pulsar.tests.integration.cli.PackagesCliTest"/>
             <class name="org.apache.pulsar.tests.integration.cli.HealthCheckTest" />
+
+            <class name="org.apache.pulsar.tests.integration.cli.ClusterMetadataTearDownTest"/>
             <class name="org.apache.pulsar.tests.integration.cli.AdminMultiHostTest"/>
             <class name="org.apache.pulsar.tests.integration.cli.FunctionsCLITest"/>
-            <class name="org.apache.pulsar.tests.integration.cli.PackagesCliTest"/>
-            <class name="org.apache.pulsar.tests.integration.cli.topic.AnalyzeBacklogTest"/>
         </classes>
     </test>
 </suite>

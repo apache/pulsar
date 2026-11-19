@@ -31,8 +31,11 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.client.api.ProducerBuilder;
@@ -115,6 +118,7 @@ public class ExclusiveProducerTest extends SharedPulsarBaseTest {
         p1.close();
 
         // Now producer should be allowed to get in
+        @Cleanup
         Producer<String> p2 = pulsarClient.newProducer(Schema.STRING)
                 .topic(topic)
                 .producerName("p2")
@@ -299,6 +303,7 @@ public class ExclusiveProducerTest extends SharedPulsarBaseTest {
     public void producerReconnection(ProducerAccessMode accessMode, boolean partitioned) throws Exception {
         String topic = newTopic("persistent", partitioned);
 
+        @Cleanup
         Producer<String> p1 = pulsarClient.newProducer(Schema.STRING)
                 .topic(topic)
                 .accessMode(accessMode)
@@ -315,6 +320,7 @@ public class ExclusiveProducerTest extends SharedPulsarBaseTest {
     public void producerFenced(ProducerAccessMode accessMode, boolean partitioned) throws Exception {
         String topic = newTopic("persistent", partitioned);
 
+        @Cleanup
         Producer<String> p1 = pulsarClient.newProducer(Schema.STRING)
                 .topic(topic)
                 .accessMode(accessMode)
@@ -471,7 +477,8 @@ public class ExclusiveProducerTest extends SharedPulsarBaseTest {
     public void exclusiveWithConsumers(String type, boolean partitioned) throws Exception {
         String topic = newTopic(type, partitioned);
 
-        pulsarClient.newConsumer(Schema.STRING)
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topic)
                 .subscriptionName("test")
                 .subscribe();
@@ -490,6 +497,37 @@ public class ExclusiveProducerTest extends SharedPulsarBaseTest {
                 .untilAsserted(() -> assertEquals(
                         ((AbstractTopic) getTopicReference(queueTopic).orElseThrow()).getWaitingProducersCount(),
                         count));
+    }
+
+    @Test
+    public void testFencingDoesNotDeadlockWithConcurrentProducerClose() throws Exception {
+        String topic = newTopic("persistent", false);
+        @Cleanup
+        Producer<String> p1 = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .accessMode(ProducerAccessMode.ExclusiveWithFencing)
+                .create();
+        AbstractTopic brokerTopic = (AbstractTopic) getTopicReference(topic).orElseThrow();
+        var brokerP1 = brokerTopic.getProducers().get(p1.getProducerName());
+
+        @Cleanup("shutdownNow")
+        ExecutorService fencingThread = Executors.newSingleThreadExecutor();
+        CompletableFuture<CompletableFuture<Void>> closing = new CompletableFuture<>();
+        Thread closingThread = new Thread(() -> closing.complete(brokerP1.close(true)), "test-closing-producer");
+        closingThread.setDaemon(true);
+
+        // The test thread holds the topic lock, so that a regression fails the timed get instead of leaving a real
+        // deadlock behind, which would block the broker shared with the other tests.
+        brokerTopic.lock.writeLock().lock();
+        try {
+            closingThread.start();
+            Awaitility.await().until(() -> brokerTopic.lock.hasQueuedThread(closingThread));
+            // What AbstractTopic#incrementTopicEpochIfNeeded does when fencing out p1 with the topic lock held
+            fencingThread.submit(() -> brokerP1.close(true)).get(5, TimeUnit.SECONDS);
+        } finally {
+            brokerTopic.lock.writeLock().unlock();
+        }
+        closing.get(10, TimeUnit.SECONDS).get(10, TimeUnit.SECONDS);
     }
 
     private String newTopic(String type, boolean isPartitioned) throws Exception {

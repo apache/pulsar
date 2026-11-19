@@ -46,6 +46,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
@@ -880,6 +881,71 @@ public class MessageDuplicationTest extends BrokerTestBase {
         } finally {
             conf.setBrokerDeduplicationEntriesInterval(snapshotInterval);
         }
+    }
+
+    // The REST produce API publishes without a producer. The topic doesn't deduplicate such a publish, since it tracks
+    // the sequence IDs per producer, but counts its entry toward the snapshot interval
+    @Test(timeOut = 60000)
+    public void testPublishWithoutProducer() throws Exception {
+        String topicName = "persistent://prop/ns-abc/" + UUID.randomUUID();
+        int snapshotInterval = conf.getBrokerDeduplicationEntriesInterval();
+        conf.setBrokerDeduplicationEntriesInterval(2);
+        try {
+            admin.topics().createNonPartitionedTopic(topicName);
+            PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topicName)
+                    .get().orElseThrow();
+            MessageDeduplication deduplication = topic.getMessageDeduplication();
+            Awaitility.await().until(deduplication::isEnabled);
+
+            // Both publishes are persisted, though with the same sequence ID, and the second one reaches the
+            // snapshot interval
+            publish(topic, null, 1).get(10, TimeUnit.SECONDS);
+            Position position = publish(topic, null, 1).get(10, TimeUnit.SECONDS);
+            assertEquals(topic.getNumberOfEntries(), 2);
+            assertTrue(deduplication.highestSequencedPushed.isEmpty());
+            assertTrue(deduplication.highestSequencedPersisted.isEmpty());
+            ManagedCursor cursor = deduplication.getManagedCursor();
+            Awaitility.await().untilAsserted(() -> assertEquals(cursor.getMarkDeletedPosition(), position));
+
+            // A producer's duplicate is still dropped: acknowledged with the position -1:-1, without being persisted
+            publish(topic, "producer", 1).get(10, TimeUnit.SECONDS);
+            assertEquals(publish(topic, "producer", 1).get(10, TimeUnit.SECONDS), PositionFactory.create(-1, -1));
+            assertEquals(topic.getNumberOfEntries(), 3);
+        } finally {
+            conf.setBrokerDeduplicationEntriesInterval(snapshotInterval);
+        }
+    }
+
+    // Publishes a message from the producer, or without a producer when the name is null, and returns the position
+    // the topic acknowledges it with
+    private CompletableFuture<Position> publish(PersistentTopic topic, String producerName, long sequenceId) {
+        CompletableFuture<Position> position = new CompletableFuture<>();
+        ByteBuf message = getMessage(producerName != null ? producerName : "RestProducer", sequenceId);
+        try {
+            topic.publishMessage(message, new Topic.PublishContext() {
+                @Override
+                public String getProducerName() {
+                    return producerName;
+                }
+
+                @Override
+                public long getSequenceId() {
+                    return sequenceId;
+                }
+
+                @Override
+                public void completed(Exception e, long ledgerId, long entryId) {
+                    if (e != null) {
+                        position.completeExceptionally(e);
+                    } else {
+                        position.complete(PositionFactory.create(ledgerId, entryId));
+                    }
+                }
+            });
+        } finally {
+            message.release();
+        }
+        return position;
     }
 
     @Test
