@@ -24,11 +24,16 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
+import io.netty.buffer.ByteBuf;
+import io.netty.util.HashedWheelTimer;
+import io.netty.util.Timer;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.util.concurrent.EventExecutor;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -61,6 +66,7 @@ import org.apache.pulsar.client.api.TopicMetadata;
 import org.apache.pulsar.client.api.interceptor.ProducerInterceptor;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.impl.customroute.PartialRoundRobinMessageRouterImpl;
+import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
@@ -540,17 +546,8 @@ public class PartialPartitionedProducerTest extends SharedPulsarBaseTest {
 
     @DataProvider
     public static Object[][] clientThreads() {
-        return new Object[][] {{"internal executor"}, {"scheduled executor"}, {"timer"}};
-    }
-
-    // Runs the task on a thread that the client runs its own tasks on
-    private static void runOnClientThread(PulsarClientImpl client, String thread, Runnable task) {
-        switch (thread) {
-            case "internal executor" -> client.getInternalExecutorService().execute(task);
-            case "scheduled executor" -> client.getScheduledExecutorProvider().getExecutor().execute(task);
-            case "timer" -> client.timer().newTimeout(timeout -> task.run(), 0, TimeUnit.MILLISECONDS);
-            default -> throw new IllegalArgumentException(thread);
-        }
+        return new Object[][] {
+                {"internal executor"}, {"scheduled executor"}, {"lookup executor"}, {"timer"}, {"supplied timer"}};
     }
 
     @Test(timeOut = 60000, dataProvider = "clientThreads")
@@ -558,25 +555,46 @@ public class PartialPartitionedProducerTest extends SharedPulsarBaseTest {
         final String topic = newTopicName();
         admin.topics().createPartitionedTopic(topic, 2);
 
-        @Cleanup
-        final PulsarClientImpl client = (PulsarClientImpl) newSingleIoThreadClient();
-        final Producer<byte[]> producer = newLazyStartProducer(client, topic)
-                .enableBatching(false)
-                .blockIfQueueFull(true)
-                .create();
-        // The producer cannot be created while the only IO thread is busy, so a send that waited for it would not
-        // return. The client needs these threads itself, to reconnect or to look the topic up.
-        final CountDownLatch release = hold(client.eventLoopGroup().next());
+        // The test gives the client its lookup executor, to run a task on it, and in one row its timer
+        final ExecutorProvider lookupExecutor = new ExecutorProvider(1, "test-lookup");
+        final Timer suppliedTimer = thread.equals("supplied timer")
+                ? new HashedWheelTimer(new DefaultThreadFactory("test-timer"), 1, TimeUnit.MILLISECONDS) : null;
         try {
-            final CompletableFuture<CompletableFuture<MessageId>> returned = new CompletableFuture<>();
-            runOnClientThread(client, thread, () -> returned.complete(
-                    producer.newMessage().key("1").value("msg".getBytes()).sendAsync()));
-            final CompletableFuture<MessageId> send = returned.get(10, TimeUnit.SECONDS);
-            release.countDown();
+            @Cleanup
+            final PulsarClientImpl client = PulsarClientImpl.builder()
+                    .conf(((ClientBuilderImpl) singleIoThreadClientBuilder()).getClientConfigurationData().clone())
+                    .lookupExecutorProvider(lookupExecutor)
+                    .timer(suppliedTimer)
+                    .build();
+            final Producer<byte[]> producer = newLazyStartProducer(client, topic)
+                    .enableBatching(false)
+                    .blockIfQueueFull(true)
+                    .create();
+            // The producer cannot be created while the only IO thread is busy, so a send that waited for it would
+            // not return. The client needs these threads itself, to reconnect or to look the topic up.
+            final CountDownLatch release = hold(client.eventLoopGroup().next());
+            try {
+                final CompletableFuture<CompletableFuture<MessageId>> returned = new CompletableFuture<>();
+                final Runnable send = () -> returned.complete(
+                        producer.newMessage().key("1").value("msg".getBytes()).sendAsync());
+                switch (thread) {
+                    case "internal executor" -> client.getInternalExecutorService().execute(send);
+                    case "scheduled executor" -> client.getScheduledExecutorProvider().getExecutor().execute(send);
+                    case "lookup executor" -> lookupExecutor.getExecutor().execute(send);
+                    default -> client.timer().newTimeout(timeout -> send.run(), 0, TimeUnit.MILLISECONDS);
+                }
+                final CompletableFuture<MessageId> sent = returned.get(10, TimeUnit.SECONDS);
+                release.countDown();
 
-            assertNotNull(send.get(10, TimeUnit.SECONDS));
+                assertNotNull(sent.get(10, TimeUnit.SECONDS));
+            } finally {
+                release.countDown();
+            }
         } finally {
-            release.countDown();
+            lookupExecutor.shutdownNow();
+            if (suppliedTimer != null) {
+                suppliedTimer.stop();
+            }
         }
     }
 
@@ -587,9 +605,10 @@ public class PartialPartitionedProducerTest extends SharedPulsarBaseTest {
 
         @Cleanup
         final PulsarClientImpl client = (PulsarClientImpl) newSingleIoThreadClient();
-        final Producer<byte[]> producer = newLazyStartProducer(client, topic)
-                .batchingMaxPublishDelay(1, TimeUnit.HOURS)
-                .create();
+        final PartitionedProducerImpl<byte[]> producer = (PartitionedProducerImpl<byte[]>)
+                newLazyStartProducer(client, topic)
+                        .batchingMaxPublishDelay(1, TimeUnit.HOURS)
+                        .create();
         final CountDownLatch release = hold(client.eventLoopGroup().next());
         try {
             final AtomicReference<Thread> sender = new AtomicReference<>();
@@ -597,10 +616,11 @@ public class PartialPartitionedProducerTest extends SharedPulsarBaseTest {
                 sender.set(Thread.currentThread());
                 return producer.newMessage().key("1").value("msg".getBytes()).send();
             });
-            // send() asked for a flush and waits for its message, which is still queued: its producer cannot be
-            // created while the only IO thread is busy. Only a flush sends the batch before its delay.
-            Awaitility.await().until(
-                    () -> sender.get() != null && sender.get().getState() == Thread.State.WAITING);
+            // send() started the producer of partition 1, asked for a flush, and waits for its message, which is
+            // still queued: the producer cannot be created while the only IO thread is busy. Only a flush sends the
+            // batch before its delay.
+            Awaitility.await().until(() -> producer.getProducers().size() == 2
+                    && sender.get() != null && sender.get().getState() == Thread.State.WAITING);
             release.countDown();
 
             assertNotNull(sent.get(10, TimeUnit.SECONDS));
@@ -662,10 +682,15 @@ public class PartialPartitionedProducerTest extends SharedPulsarBaseTest {
         @Cleanup
         final PulsarClientImpl client = (PulsarClientImpl) newSingleIoThreadClient();
         // The producer cannot send what this interceptor gives it for a message of partition 1
+        final AtomicReference<ByteBuf> payload = new AtomicReference<>();
         final ProducerInterceptor givesNoMessage = new PassThroughInterceptor() {
             @Override
             public Message<?> beforeSend(Producer<?> partitionProducer, Message<?> message) {
-                return "1".equals(message.getKey()) ? null : message;
+                if (!"1".equals(message.getKey())) {
+                    return message;
+                }
+                payload.set(((MessageImpl<?>) message).getDataBuffer());
+                return null;
             }
         };
         final PartitionedProducerImpl<byte[]> producer = (PartitionedProducerImpl<byte[]>)
@@ -681,6 +706,7 @@ public class PartialPartitionedProducerTest extends SharedPulsarBaseTest {
         assertNotNull(send.handle((id, e) -> e).get(10, TimeUnit.SECONDS));
         assertEquals(producer.getProducers().get(1).getSemaphore().orElseThrow().availablePermits(), 1);
         assertEquals(client.getMemoryLimitController().currentUsage(), 0);
+        assertEquals(payload.get().refCnt(), 0);
     }
 
     @Test(timeOut = 60000)
@@ -826,6 +852,10 @@ public class PartialPartitionedProducerTest extends SharedPulsarBaseTest {
         final Thread starter = new Thread(() -> FutureUtil.completeAfter(fromStarter,
                 producer.newMessage().key("1").value("starter".getBytes()).sendAsync()));
         starter.start();
+        // The partition stays locked from this call until the producer is registered, so the IO thread cannot start
+        // the producer itself
+        Awaitility.await().untilAsserted(
+                () -> verify(client).newProducerImpl(any(), eq(1), any(), any(), any(), any(), any()));
         Awaitility.await().until(() -> starter.getState() == Thread.State.WAITING);
         final CompletableFuture<MessageId> retried = onIoThread(client, () -> sendWithRetries(producer, 3));
         failedCreation.completeExceptionally(new PulsarClientException("creation failed"));

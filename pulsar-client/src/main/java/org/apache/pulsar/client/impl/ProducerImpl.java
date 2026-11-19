@@ -436,9 +436,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             interceptorMessage.getDataBuffer().retain();
         } catch (RuntimeException e) {
             // An interceptor gave a message that cannot be sent. sendAsync gives back what an admitted message
-            // holds, and this message does not get there.
+            // holds and releases its payload, and this message does not get there.
             if (admittedBytes != NOT_ADMITTED) {
                 releaseAdmission(admittedBytes);
+                ReferenceCountUtil.safeRelease(((MessageImpl<?>) message).getDataBuffer());
             }
             throw e;
         }
