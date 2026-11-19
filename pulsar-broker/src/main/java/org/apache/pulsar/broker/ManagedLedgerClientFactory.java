@@ -178,12 +178,13 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
             @SuppressWarnings("unchecked")
             Optional<Class<? extends EnsemblePlacementPolicy>> policyClass =
                     (Optional) Optional.ofNullable(ensemblePlacementPolicyConfig.getPolicyClass());
-            CompletableFuture<BookKeeper> existing = bkEnsemblePolicyToBkClientMap
-                    .getIfPresent(ensemblePlacementPolicyConfig);
+            var policyClients = bkEnsemblePolicyToBkClientMap.asMap();
+            // Inspect the cached future without recording a second cache lookup in the metrics.
+            CompletableFuture<BookKeeper> existing = policyClients.get(ensemblePlacementPolicyConfig);
             if (existing != null && existing.isCompletedExceptionally()) {
                 // Failure eviction can trail a caller observing completion. Do not return that failed client again
                 // or remove a newer creation installed concurrently by another request.
-                bkEnsemblePolicyToBkClientMap.asMap().remove(ensemblePlacementPolicyConfig, existing);
+                policyClients.remove(ensemblePlacementPolicyConfig, existing);
             }
             return bkEnsemblePolicyToBkClientMap.get(ensemblePlacementPolicyConfig,
                     (config, executor) -> createPolicyClient(config, () -> bookkeeperProvider.create(
