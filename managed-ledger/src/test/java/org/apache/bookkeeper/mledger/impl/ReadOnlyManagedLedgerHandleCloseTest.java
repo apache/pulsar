@@ -198,63 +198,37 @@ public class ReadOnlyManagedLedgerHandleCloseTest extends MockedBookKeeperTestCa
     }
 
     @Test
-    public void testCloseRejectsHandleInsertedAfterCloseStarts() throws Exception {
+    public void testCloseReleasesHandleInsertedAfterCacheDrain() throws Exception {
         ManagedLedgerConfig config = defaultConfig().setRetentionTime(1, TimeUnit.DAYS);
         ManagedLedger ledger = factory.open("readonly-close-during-open", config);
         Position position = ledger.addEntry(new byte[] {1});
-        ReadOnlyManagedLedgerImpl readOnly = new ReadOnlyManagedLedgerImpl(factory, bkc, factory.getMetaStore(),
-                config, executor, ledger.getName());
+        ReadOnlyManagedLedgerImpl readOnly = spy(new ReadOnlyManagedLedgerImpl(factory, bkc, factory.getMetaStore(),
+                config, executor, ledger.getName()));
         readOnly.initialize().get(5, TimeUnit.SECONDS);
         int openedHandleCount = openedHandles.size();
-        CompletableFuture<Void> openAttemptStarted = new CompletableFuture<>();
-        CompletableFuture<Void> allowOpenToProceed = new CompletableFuture<>();
+        openCompletion = new CompletableFuture<>();
         doAnswer(invocation -> {
-            openAttemptStarted.complete(null);
-            allowOpenToProceed.get(5, TimeUnit.SECONDS);
-            return trackOpens((OpenBuilder) invocation.callRealMethod());
-        }).when(bkc).newOpenLedgerOp();
-        CompletableFuture<CompletableFuture<ReadHandle>> openingAttempt = new CompletableFuture<>();
-        Thread openingThread = new Thread(() -> {
-            try {
-                openingAttempt.complete(readOnly.getLedgerHandle(position.getLedgerId()));
-            } catch (Throwable error) {
-                openingAttempt.completeExceptionally(error);
-            }
-        }, "read-only-ledger-opening");
-        openingThread.start();
-        openAttemptStarted.get(5, TimeUnit.SECONDS);
-        CompletableFuture<Void> closing = new CompletableFuture<>();
-        Thread closingThread = new Thread(() -> {
-            try {
-                readOnly.close();
-                closing.complete(null);
-            } catch (Throwable error) {
-                closing.completeExceptionally(error);
-            }
-        }, "read-only-ledger-closing");
-        closingThread.start();
+            // Both close checks passed. Drain the cache before the pending open is inserted.
+            readOnly.close();
+            return invocation.callRealMethod();
+        }).when(readOnly).openLedgerHandleOnCacheMiss(position.getLedgerId());
 
         try {
-            // Let close mark the ledger before computeIfAbsent can insert the future. The cache's write lock keeps
-            // the close-side scan from finishing until the open is allowed to proceed.
-            Awaitility.await().atMost(5, TimeUnit.SECONDS).until(readOnly::isClosingOrClosed);
-            allowOpenToProceed.complete(null);
-
-            CompletableFuture<ReadHandle> opening = openingAttempt.get(5, TimeUnit.SECONDS);
-
-            assertThatThrownBy(() -> opening.get(5, TimeUnit.SECONDS))
+            CompletableFuture<ReadHandle> opening = readOnly.getLedgerHandle(position.getLedgerId());
+            assertThat(opening).isCompletedExceptionally();
+            assertThatThrownBy(opening::join)
                     .hasCauseInstanceOf(ManagedLedgerAlreadyClosedException.class);
-            closing.get(5, TimeUnit.SECONDS);
             Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> openedHandles.size() > openedHandleCount);
             LedgerHandle handle = openedHandles.get(openedHandleCount);
-            Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> verify(handle).closeAsync());
-            assertThat(readOnly.ledgerCache.size()).isZero();
+            verify(handle, never()).closeAsync();
+
+            openCompletion.complete(null);
+            Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
+                verify(handle).closeAsync();
+                assertThat(readOnly.ledgerCache.size()).isZero();
+            });
         } finally {
-            allowOpenToProceed.complete(null);
-            openingThread.join(TimeUnit.SECONDS.toMillis(5));
-            closingThread.join(TimeUnit.SECONDS.toMillis(5));
-            assertThat(openingThread.isAlive()).isFalse();
-            assertThat(closingThread.isAlive()).isFalse();
+            openCompletion.complete(null);
         }
     }
 

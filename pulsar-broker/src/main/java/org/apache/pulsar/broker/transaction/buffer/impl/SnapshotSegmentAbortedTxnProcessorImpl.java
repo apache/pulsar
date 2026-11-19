@@ -309,12 +309,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl extends AbstractSnapshotAbor
                                 () -> persistentWorker.updateSnapshotIndex(indexes.getSnapshot())));
             }
         } finally {
-            FutureUtil.supplySafely(managedLedger::asyncClose).exceptionally(error -> {
-                log.warn().attr("snapshotSegmentTopic", topicName)
-                        .exception(FutureUtil.unwrapCompletionException(error))
-                        .log("Failed to close read-only managed ledger");
-                return null;
-            });
+            closeReadOnlyManagedLedger(topicName, managedLedger);
         }
     }
 
@@ -344,7 +339,17 @@ public class SnapshotSegmentAbortedTxnProcessorImpl extends AbstractSnapshotAbor
                     future.completeExceptionally(e);
                     return null;
                 });
-        return wait(future, "open read only ml for " + topicName);
+        return waitForResource(future, "open read only ml for " + topicName,
+                managedLedger -> closeReadOnlyManagedLedger(topicName, managedLedger));
+    }
+
+    private void closeReadOnlyManagedLedger(TopicName topicName, ReadOnlyManagedLedger managedLedger) {
+        FutureUtil.supplySafely(managedLedger::asyncClose).exceptionally(error -> {
+            log.warn().attr("snapshotSegmentTopic", topicName)
+                    .exception(FutureUtil.unwrapCompletionException(error))
+                    .log("Failed to close read-only managed ledger");
+            return null;
+        });
     }
 
     private Entry readEntry(ReadOnlyManagedLedger managedLedger, Position position) throws Exception {

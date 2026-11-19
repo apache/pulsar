@@ -2915,6 +2915,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return ledgerHandle;
         }
 
+        return openLedgerHandleOnCacheMiss(ledgerId);
+    }
+
+    @VisibleForTesting
+    CompletableFuture<ReadHandle> openLedgerHandleOnCacheMiss(long ledgerId) {
         // If not present try again and create if necessary
         return ledgerCache.computeIfAbsent(ledgerId, lid -> {
             // Open the ledger for reading if it was not already opened
@@ -3166,11 +3171,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         if (config.getReadEntryTimeoutSeconds() > 0) {
             ReadEntryCallbackWrapper readCallback = ReadEntryCallbackWrapper.create(this, ledger.getId(), firstEntry,
                     callback, ctx, timeoutAtNanos(config.getReadEntryTimeoutSeconds()));
-            entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, ManagedLedgerUtils.NO_MAX_SIZE_LIMIT,
+            entryCache.asyncReadEntry(this, ledger, firstEntry, lastEntry, ManagedLedgerUtils.NO_MAX_SIZE_LIMIT,
                     () -> expectedReadCount, readCallback, ctx);
             registerTimeout(readCallback);
         } else {
-            entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, ManagedLedgerUtils.NO_MAX_SIZE_LIMIT,
+            entryCache.asyncReadEntry(this, ledger, firstEntry, lastEntry, ManagedLedgerUtils.NO_MAX_SIZE_LIMIT,
                     () -> expectedReadCount, callback, ctx);
         }
     }
@@ -3344,7 +3349,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 // Checked after the cheaper conditions, since it takes the active cursors' lock: the cache wouldn't
                 // keep the entries that the cursor reads
                 BooleanSupplier cacheKeepsEntries = () -> cursor.getNumberOfCursorsAtSamePositionOrBefore() > 0;
-                started = entryCache.readAhead(ledger, nextEntry, nextLastEntry, maxSizeBytes, cacheKeepsEntries,
+                started = entryCache.readAhead(this, ledger, nextEntry, nextLastEntry, maxSizeBytes, cacheKeepsEntries,
                         expectedReadCount, () -> cursor.readAheadCompleted(readAhead));
             } catch (Throwable t) {
                 // A read ahead is best effort
@@ -3367,10 +3372,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         if (config.getReadEntryTimeoutSeconds() > 0) {
             ReadEntryCallbackWrapper readCallback = ReadEntryCallbackWrapper.create(this, position.getLedgerId(),
                     position.getEntryId(), callback, ctx, timeoutAtNanos(config.getReadEntryTimeoutSeconds()));
-            entryCache.asyncReadEntry(ledger, position, expectedReadCount, readCallback, ctx);
+            entryCache.asyncReadEntry(this, ledger, position, expectedReadCount, readCallback, ctx);
             registerTimeout(readCallback);
         } else {
-            entryCache.asyncReadEntry(ledger, position, expectedReadCount, callback, ctx);
+            entryCache.asyncReadEntry(this, ledger, position, expectedReadCount, callback, ctx);
         }
     }
 
@@ -3383,11 +3388,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         if (config.getReadEntryTimeoutSeconds() > 0) {
             ReadEntryCallbackWrapper readCallback = ReadEntryCallbackWrapper.create(this, ledger.getId(), firstEntry,
                     opReadEntry, ctx, timeoutAtNanos(config.getReadEntryTimeoutSeconds()));
-            entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, opReadEntry.maxSizeBytes, expectedReadCount,
+            entryCache.asyncReadEntry(this, ledger, firstEntry, lastEntry, opReadEntry.maxSizeBytes, expectedReadCount,
                     readCallback, ctx);
             registerTimeout(readCallback);
         } else {
-            entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, opReadEntry.maxSizeBytes, expectedReadCount,
+            entryCache.asyncReadEntry(this, ledger, firstEntry, lastEntry, opReadEntry.maxSizeBytes, expectedReadCount,
                     opReadEntry, ctx);
         }
         if (readAhead != null) {

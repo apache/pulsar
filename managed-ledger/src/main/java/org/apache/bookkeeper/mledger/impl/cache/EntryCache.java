@@ -25,6 +25,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 
 /**
  * Cache of entries used by a single ManagedLedger. An EntryCache is compared to other EntryCache instances using their
@@ -94,6 +95,16 @@ public interface EntryCache {
             IntSupplier expectedReadCount, ReadEntriesCallback callback, Object ctx);
 
     /**
+     * Read entries on behalf of the managed ledger that owns the read handle.
+     * The managed ledger may use a cache shared with other instances of the same name.
+     */
+    default void asyncReadEntry(ManagedLedgerImpl reader, ReadHandle lh, long firstEntry, long lastEntry,
+                                long maxSizeBytes, IntSupplier expectedReadCount, ReadEntriesCallback callback,
+                                Object ctx) {
+        asyncReadEntry(lh, firstEntry, lastEntry, maxSizeBytes, expectedReadCount, callback, ctx);
+    }
+
+    /**
      * Read entry at given position from the cache or from bookkeeper.
      *
      * <p/>Get the entry data either from cache or bookkeeper and mixes up the results in a single list.
@@ -120,6 +131,12 @@ public interface EntryCache {
     default void asyncReadEntry(ReadHandle lh, Position position, int expectedReadCount, ReadEntryCallback callback,
                                 Object ctx) {
         asyncReadEntry(lh, position, callback, ctx);
+    }
+
+    /** Read an entry on behalf of the managed ledger that owns the read handle. */
+    default void asyncReadEntry(ManagedLedgerImpl reader, ReadHandle lh, Position position, int expectedReadCount,
+                                ReadEntryCallback callback, Object ctx) {
+        asyncReadEntry(lh, position, expectedReadCount, callback, ctx);
     }
 
     /**
@@ -151,6 +168,13 @@ public interface EntryCache {
     default boolean readAhead(ReadHandle lh, long firstEntry, long lastEntry, long maxSizeBytes,
                               BooleanSupplier cacheKeepsEntries, IntSupplier expectedReadCount, Runnable onComplete) {
         return false;
+    }
+
+    /** Start a read ahead on behalf of the managed ledger that owns the read handle. */
+    default boolean readAhead(ManagedLedgerImpl reader, ReadHandle lh, long firstEntry, long lastEntry,
+                              long maxSizeBytes, BooleanSupplier cacheKeepsEntries,
+                              IntSupplier expectedReadCount, Runnable onComplete) {
+        return readAhead(lh, firstEntry, lastEntry, maxSizeBytes, cacheKeepsEntries, expectedReadCount, onComplete);
     }
 
     /**
