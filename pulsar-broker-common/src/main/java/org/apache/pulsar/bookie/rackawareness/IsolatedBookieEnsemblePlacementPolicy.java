@@ -88,7 +88,7 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
         } catch (MetadataException e) {
             throw new RuntimeException(METADATA_STORE_INSTANCE + " failed initialized");
         }
-        // Without default isolation groups, ledgers that carry no isolation groups in their metadata are not isolated
+        // Without default isolation groups, ledgers without a placement policy use unrestricted placement.
         defaultIsolationGroups = null;
         if (conf.getProperty(ISOLATION_BOOKIE_GROUPS) != null) {
             Set<String> primaryIsolationGroups = new HashSet<>();
@@ -137,14 +137,10 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
     /**
      * Returns readiness for a client's first ledger without making its isolation groups the shared client defaults.
      * Namespace groups are kept in ledger metadata so that removing an affinity group restores the broker defaults.
+     * An explicit empty map still requires a rack configuration to identify ungrouped bookies.
      */
     public CompletableFuture<Void> getInitializationFuture(Map<String, Object> ledgerProperties) {
-        if (ledgerProperties == null || (!ledgerProperties.containsKey(ISOLATION_BOOKIE_GROUPS)
-                && !ledgerProperties.containsKey(SECONDARY_ISOLATION_BOOKIE_GROUPS))) {
-            return getInitializationFuture();
-        }
-        return getInitializationFutureForGroups(getIsolationGroup(
-                new EnsemblePlacementPolicyConfig(getClass(), ledgerProperties)));
+        return getInitializationFutureForGroups(getLedgerIsolationGroups(ledgerProperties));
     }
 
     private CompletableFuture<Void> getInitializationFutureForGroups(Pair<Set<String>, Set<String>> groups) {
@@ -238,27 +234,7 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
         // Retain compatibility with ZkIsolatedBookieEnsemblePlacementPolicy
         Class<?> policyClass = ensemblePlacementPolicyConfig.getPolicyClass();
         if (IsolatedBookieEnsemblePlacementPolicy.class.isAssignableFrom(policyClass)) {
-            MutablePair<Set<String>, Set<String>> pair = new MutablePair<>(emptySet(), emptySet());
-            Map<String, Object> properties = ensemblePlacementPolicyConfig.getProperties();
-            if (properties == null) {
-                properties = Collections.emptyMap();
-            }
-            if (defaultIsolationGroups == null
-                    && !properties.containsKey(ISOLATION_BOOKIE_GROUPS)
-                    && !properties.containsKey(SECONDARY_ISOLATION_BOOKIE_GROUPS)) {
-                return defaultIsolationGroups;
-            }
-            String primaryIsolationGroupString = ConfigurationStringUtil
-                    .castToString(properties.getOrDefault(ISOLATION_BOOKIE_GROUPS, ""));
-            String secondaryIsolationGroupString = ConfigurationStringUtil
-                    .castToString(properties.getOrDefault(SECONDARY_ISOLATION_BOOKIE_GROUPS, ""));
-            if (!primaryIsolationGroupString.isEmpty()) {
-                pair.setLeft(Sets.newHashSet(primaryIsolationGroupString.split(",")));
-            }
-            if (!secondaryIsolationGroupString.isEmpty()) {
-                pair.setRight(Sets.newHashSet(secondaryIsolationGroupString.split(",")));
-            }
-            return pair;
+            return getLedgerIsolationGroups(ensemblePlacementPolicyConfig.getProperties());
         } else {
             log.info()
                     .attr("policyClass", ensemblePlacementPolicyConfig.getPolicyClass().getName())
@@ -266,6 +242,26 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
                             + "IsolatedBookieEnsemblePlacementPolicy, fallback to use defaultIsolationGroups");
             return defaultIsolationGroups;
         }
+    }
+
+    private Pair<Set<String>, Set<String>> getLedgerIsolationGroups(Map<String, Object> properties) {
+        if (properties == null) {
+            return defaultIsolationGroups;
+        }
+
+        // An explicit map without group names leaves only ungrouped bookies as a fallback.
+        MutablePair<Set<String>, Set<String>> groups = new MutablePair<>(emptySet(), emptySet());
+        String primaryIsolationGroupString = ConfigurationStringUtil
+                .castToString(properties.getOrDefault(ISOLATION_BOOKIE_GROUPS, ""));
+        String secondaryIsolationGroupString = ConfigurationStringUtil
+                .castToString(properties.getOrDefault(SECONDARY_ISOLATION_BOOKIE_GROUPS, ""));
+        if (!primaryIsolationGroupString.isEmpty()) {
+            groups.setLeft(Sets.newHashSet(primaryIsolationGroupString.split(",")));
+        }
+        if (!secondaryIsolationGroupString.isEmpty()) {
+            groups.setRight(Sets.newHashSet(secondaryIsolationGroupString.split(",")));
+        }
+        return groups;
     }
 
     @VisibleForTesting

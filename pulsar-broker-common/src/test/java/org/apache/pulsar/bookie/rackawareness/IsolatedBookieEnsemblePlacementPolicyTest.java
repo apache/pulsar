@@ -1496,8 +1496,10 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
                 IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, "group1"))).isNotDone();
         assertThat(isolationPolicy.getInitializationFuture(Map.of(
                 IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, "*"))).isCompleted();
-        assertThat(isolationPolicy.getInitializationFuture(Map.of("unrelatedProperty", "value")).isDone())
+        assertThat(isolationPolicy.getInitializationFuture(null).isDone())
                 .isEqualTo(defaultGroups == null || "*".equals(defaultGroups));
+        assertThat(isolationPolicy.getInitializationFuture(Map.of())).isNotDone();
+        assertThat(isolationPolicy.getInitializationFuture(Map.of("unrelatedProperty", "value"))).isNotDone();
 
         loadFuture.complete(Optional.of(isolatedRackConfiguration()));
 
@@ -1556,23 +1558,48 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
         assertThat(isolationPolicy.getInitialRackConfigurationLoadFuture()).isCompleted();
     }
 
-    @DataProvider
-    public Object[][] metadataWithoutIsolationGroups() {
-        return new Object[][] {{null}, {Collections.emptyMap()}};
+    @Test
+    public void testExplicitEmptyLedgerPropertiesAllowOnlyUngroupedBookies() throws Exception {
+        CompletableFuture<Optional<BookiesRackConfiguration>> loadFuture = new CompletableFuture<>();
+        mockRackConfigurationLoad(loadFuture);
+        IsolatedBookieEnsemblePlacementPolicy isolationPolicy = new IsolatedBookieEnsemblePlacementPolicy();
+        initializeIsolationPolicy(isolationPolicy, isolationClientConfiguration(null));
+        isolationPolicy.onClusterChanged(writableBookies, readOnlyBookies);
+        EnsemblePlacementPolicyConfig policyConfig = new EnsemblePlacementPolicyConfig(
+                IsolatedBookieEnsemblePlacementPolicy.class, Map.of());
+        Map<String, byte[]> metadata = Map.of(
+                EnsemblePlacementPolicyConfig.ENSEMBLE_PLACEMENT_POLICY_CONFIG, policyConfig.encode());
+
+        CompletableFuture<Void> readiness = isolationPolicy.getInitializationFuture(policyConfig.getProperties());
+        assertThat(readiness).isNotDone();
+        assertUnrestrictedPlacement(isolationPolicy, Collections.emptyMap());
+        assertPlacementUnavailable(isolationPolicy, metadata);
+
+        loadFuture.complete(Optional.of(isolatedRackConfiguration()));
+
+        assertThat(readiness).isCompleted();
+        // All currently writable bookies belong to named groups.
+        assertPlacementUnavailable(isolationPolicy, metadata);
+
+        BookieId ungroupedBookie = BookieId.parse(BOOKIE5);
+        Set<BookieId> withUngroupedBookie = new HashSet<>(writableBookies);
+        withUngroupedBookie.add(ungroupedBookie);
+        isolationPolicy.onClusterChanged(withUngroupedBookie, readOnlyBookies);
+        assertThat(isolationPolicy.newEnsemble(1, 1, 1, metadata, new HashSet<>()).getResult())
+                .containsExactly(ungroupedBookie);
+        assertThat(isolationPolicy.replaceBookie(1, 1, 1, metadata,
+                List.of(BookieId.parse(BOOKIE1)), BookieId.parse(BOOKIE1), new HashSet<>()).getResult())
+                .isEqualTo(ungroupedBookie);
     }
 
-    @Test(dataProvider = "metadataWithoutIsolationGroups")
-    public void testMissingDefaultRemainsUnrestrictedForMetadataWithoutGroups(Map<String, Object> properties)
-            throws Exception {
+    @Test
+    public void testMissingDefaultRemainsUnrestrictedWithoutLedgerPolicy() throws Exception {
         CompletableFuture<Optional<BookiesRackConfiguration>> loadFuture = new CompletableFuture<>();
         MetadataCacheImpl<BookiesRackConfiguration> cache = mockRackConfigurationLoad(loadFuture);
         IsolatedBookieEnsemblePlacementPolicy isolationPolicy = new IsolatedBookieEnsemblePlacementPolicy();
         initializeIsolationPolicy(isolationPolicy, isolationClientConfiguration(null));
         isolationPolicy.onClusterChanged(writableBookies, readOnlyBookies);
-        EnsemblePlacementPolicyConfig policyConfig = new EnsemblePlacementPolicyConfig(
-                IsolatedBookieEnsemblePlacementPolicy.class, properties);
-        Map<String, byte[]> metadata = Map.of(
-                EnsemblePlacementPolicyConfig.ENSEMBLE_PLACEMENT_POLICY_CONFIG, policyConfig.encode());
+        Map<String, byte[]> metadata = Collections.emptyMap();
 
         assertUnrestrictedPlacement(isolationPolicy, metadata);
         loadFuture.completeExceptionally(new MetadataStoreException("simulated rack configuration load failure"));
