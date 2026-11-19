@@ -19,6 +19,7 @@
 package org.apache.bookkeeper.mledger.impl.cache;
 
 import static org.apache.bookkeeper.mledger.util.ManagedLedgerUtils.NO_MAX_SIZE_LIMIT;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -31,7 +32,6 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
-import io.opentelemetry.api.OpenTelemetry;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -39,7 +39,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
@@ -54,7 +53,6 @@ import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.common.util.ThreadBoundExecutor;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
-import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
@@ -98,20 +96,12 @@ public class PendingReadsManagerTest  {
 
     RangeEntryCacheImpl rangeEntryCache;
     PendingReadsManager pendingReadsManager;
-    InflightReadsLimiter inflighReadsLimiter;
     ReadHandle lh;
     ManagedLedgerImpl ml;
 
     @BeforeMethod(alwaysRun = true)
     void setupMocks() {
         rangeEntryCache = mock(RangeEntryCacheImpl.class);
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
-        config.setReadEntryTimeoutSeconds(10000);
-        when(rangeEntryCache.getName()).thenReturn("my-topic");
-        when(rangeEntryCache.getManagedLedgerConfig()).thenReturn(config);
-        inflighReadsLimiter = new InflightReadsLimiter(0, 0, 0,
-                mock(ScheduledExecutorService.class), OpenTelemetry.noop());
-        when(rangeEntryCache.getPendingReadsLimiter()).thenReturn(inflighReadsLimiter);
         pendingReadsManager = new PendingReadsManager(rangeEntryCache);
         doAnswer(new Answer() {
             @Override
@@ -149,7 +139,11 @@ public class PendingReadsManagerTest  {
 
         @Override
         public synchronized void readEntriesComplete(List<Entry> entries, Object ctx) {
-            this.entries = entries.stream().map(Entry::getPosition).collect(Collectors.toList());
+            try {
+                this.entries = entries.stream().map(Entry::getPosition).collect(Collectors.toList());
+            } finally {
+                entries.forEach(Entry::release);
+            }
             this.ctx = ctx;
             this.error = null;
             this.complete(null);
@@ -179,6 +173,7 @@ public class PendingReadsManagerTest  {
     private void verifyRange(List<Position> entries, long firstEntry, long endEntry) {
         int pos = 0;
         log.info().attr("numEntries", entries.size()).log("verifyRange");
+        assertThat(entries).hasSize(Math.toIntExact(endEntry - firstEntry + 1));
         for (long entry = firstEntry; entry <= endEntry; entry++) {
             assertEquals(entries.get(pos++).getEntryId(), entry);
         }
@@ -208,10 +203,16 @@ public class PendingReadsManagerTest  {
     private PreparedReadFromStorage prepareReadFromStorage(ReadHandle lh, RangeEntryCacheImpl rangeEntryCache,
                                                            long firstEntry, long endEntry,
                                                            IntSupplier expectedReadCount) {
+        return prepareReadFromStorage(ml, lh, rangeEntryCache, firstEntry, endEntry, expectedReadCount);
+    }
+
+    private PreparedReadFromStorage prepareReadFromStorage(ManagedLedgerImpl reader, ReadHandle lh,
+                                                           RangeEntryCacheImpl rangeEntryCache, long firstEntry,
+                                                           long endEntry, IntSupplier expectedReadCount) {
         PreparedReadFromStorage read = new PreparedReadFromStorage(firstEntry, endEntry, expectedReadCount);
         log.info().attr("firstEntry", firstEntry).attr("endEntry", endEntry)
                 .attr("expectedReadCount", expectedReadCount).log("prepareReadFromStorage");
-        when(rangeEntryCache.readFromStorage(eq(ml), eq(lh), eq(firstEntry), eq(endEntry), anyLong(),
+        when(rangeEntryCache.readFromStorage(eq(reader), eq(lh), eq(firstEntry), eq(endEntry), anyLong(),
                 argThat(expectedReadCountArg -> expectedReadCountArg.getAsInt()
                         == expectedReadCount.getAsInt()))).thenAnswer(
                 (invocationOnMock -> {
@@ -580,5 +581,58 @@ public class PendingReadsManagerTest  {
         for (final var key : keys) {
             assertEquals(entryRangeReadCount.get(key).get(), 1);
         }
+    }
+
+    @Test
+    public void invalidateOneReaderKeepsTheOtherReadersPendingRead() throws Exception {
+        when(lh.getId()).thenReturn(LEDGER_ID);
+        ReadHandle reopenedHandle = mock(ReadHandle.class);
+        when(reopenedHandle.getId()).thenReturn(LEDGER_ID);
+        ManagedLedgerImpl otherReader = mock(ManagedLedgerImpl.class);
+        when(otherReader.getExecutor()).thenReturn(orderedExecutor);
+
+        IntSupplier expectedReadCount = () -> 0;
+        long firstEntry = 10;
+        long lastEntry = 12;
+        var range = Pair.of(firstEntry, lastEntry);
+        var initialRead = prepareReadFromStorage(lh, rangeEntryCache, firstEntry, lastEntry, expectedReadCount);
+        var otherRead = prepareReadFromStorage(otherReader, lh, rangeEntryCache, firstEntry, lastEntry,
+                expectedReadCount);
+        var restartedRead = prepareReadFromStorage(reopenedHandle, rangeEntryCache, firstEntry, lastEntry,
+                expectedReadCount);
+
+        var initialCallback = new CapturingReadEntriesCallback();
+        var otherCallback = new CapturingReadEntriesCallback();
+        pendingReadsManager.readEntries(ml, lh, firstEntry, lastEntry, NO_MAX_SIZE_LIMIT,
+                expectedReadCount, initialCallback, CTX);
+        pendingReadsManager.readEntries(otherReader, lh, firstEntry, lastEntry, NO_MAX_SIZE_LIMIT,
+                expectedReadCount, otherCallback, CTX);
+        assertThat(entryRangeReadCount.get(range)).hasValue(2);
+
+        pendingReadsManager.invalidateLedger(ml, LEDGER_ID);
+
+        var restartedCallback = new CapturingReadEntriesCallback();
+        var coalescedCallback = new CapturingReadEntriesCallback();
+        pendingReadsManager.readEntries(ml, reopenedHandle, firstEntry, lastEntry, NO_MAX_SIZE_LIMIT,
+                expectedReadCount, restartedCallback, CTX);
+        pendingReadsManager.readEntries(otherReader, lh, lastEntry, lastEntry, NO_MAX_SIZE_LIMIT,
+                expectedReadCount, coalescedCallback, CTX2);
+        assertThat(entryRangeReadCount).containsOnlyKeys(range);
+        assertThat(entryRangeReadCount.get(range)).hasValue(3);
+
+        otherRead.storageReadCompleted();
+        otherCallback.get(5, TimeUnit.SECONDS);
+        coalescedCallback.get(5, TimeUnit.SECONDS);
+        verifyRange(otherCallback.entries, firstEntry, lastEntry);
+        verifyRange(coalescedCallback.entries, lastEntry, lastEntry);
+        assertThat(initialCallback).isNotDone();
+        assertThat(restartedCallback).isNotDone();
+
+        initialRead.storageReadCompleted();
+        initialCallback.get(5, TimeUnit.SECONDS);
+        assertThat(restartedCallback).isNotDone();
+        restartedRead.storageReadCompleted();
+        restartedCallback.get(5, TimeUnit.SECONDS);
+        verifyRange(restartedCallback.entries, firstEntry, lastEntry);
     }
 }

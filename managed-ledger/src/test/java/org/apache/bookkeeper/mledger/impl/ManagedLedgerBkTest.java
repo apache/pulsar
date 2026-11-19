@@ -921,6 +921,8 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         }, config, null);
         ReadOnlyManagedLedger reader = opened.get(10, TimeUnit.SECONDS);
         @Cleanup
+        AutoCloseable closeReader = () -> reader.asyncClose().get(10, TimeUnit.SECONDS);
+        @Cleanup
         ReadOnlyCursor cursor = reader.createReadOnlyCursor(PositionFactory.EARLIEST);
         long confirmedEntries = reader.getNumberOfEntries();
         assertThat(confirmedEntries).isEqualTo(2);
@@ -982,6 +984,8 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
 
         ReadOnlyManagedLedger firstReader = openReadOnlyForSharedCacheTest(readerFactory, name, config);
         @Cleanup
+        AutoCloseable closeFirstReader = () -> firstReader.asyncClose().get(10, TimeUnit.SECONDS);
+        @Cleanup
         ReadOnlyCursor firstCursor = firstReader.createReadOnlyCursor(PositionFactory.EARLIEST);
         // Public cursor/ledger hooks inspect metadata without reflecting into the wrapper or reading any entry.
         ManagedLedger firstView = ((ManagedCursor) firstCursor).getManagedLedger();
@@ -1007,6 +1011,8 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         }
 
         ReadOnlyManagedLedger secondReader = openReadOnlyForSharedCacheTest(readerFactory, name, config);
+        @Cleanup
+        AutoCloseable closeSecondReader = () -> secondReader.asyncClose().get(10, TimeUnit.SECONDS);
         @Cleanup
         ReadOnlyCursor secondCursor = secondReader.createReadOnlyCursor(PositionFactory.EARLIEST);
         ManagedLedger secondView = ((ManagedCursor) secondCursor).getManagedLedger();

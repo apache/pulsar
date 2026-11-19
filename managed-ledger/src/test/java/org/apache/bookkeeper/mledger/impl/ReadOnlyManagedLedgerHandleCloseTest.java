@@ -193,7 +193,6 @@ public class ReadOnlyManagedLedgerHandleCloseTest extends MockedBookKeeperTestCa
         assertThat(readOnly.ledgerCache.size()).isZero();
         verify(handle, never()).closeAsync();
         openCompletion.complete(null);
-        opening.get(5, TimeUnit.SECONDS);
         Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> verify(handle).closeAsync());
     }
 
@@ -288,25 +287,27 @@ public class ReadOnlyManagedLedgerHandleCloseTest extends MockedBookKeeperTestCa
         ReadOnlyManagedLedger readOnly = opening.get(5, TimeUnit.SECONDS);
         int openedHandleCount = openedHandles.size();
         CompletableFuture<Void> reading = new CompletableFuture<>();
+        LedgerHandle handle;
+        try {
+            readOnly.asyncReadEntry(position, new AsyncCallbacks.ReadEntryCallback() {
+                @Override
+                public void readEntryComplete(Entry entry, Object ctx) {
+                    entry.release();
+                    reading.complete(null);
+                }
 
-        readOnly.asyncReadEntry(position, new AsyncCallbacks.ReadEntryCallback() {
-            @Override
-            public void readEntryComplete(Entry entry, Object ctx) {
-                entry.release();
-                reading.complete(null);
-            }
-
-            @Override
-            public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
-                reading.completeExceptionally(exception);
-            }
-        }, null);
-        reading.get(5, TimeUnit.SECONDS);
-        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> openedHandles.size() > openedHandleCount);
-        LedgerHandle handle = openedHandles.get(openedHandleCount);
-        verify(handle, never()).closeAsync();
-
-        readOnly.asyncClose().get(5, TimeUnit.SECONDS);
+                @Override
+                public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                    reading.completeExceptionally(exception);
+                }
+            }, null);
+            reading.get(5, TimeUnit.SECONDS);
+            Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> openedHandles.size() > openedHandleCount);
+            handle = openedHandles.get(openedHandleCount);
+            verify(handle, never()).closeAsync();
+        } finally {
+            readOnly.asyncClose().get(5, TimeUnit.SECONDS);
+        }
 
         Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> verify(handle).closeAsync());
     }
