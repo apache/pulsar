@@ -47,6 +47,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
@@ -436,6 +437,8 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         ManagedCursorInfo copy = ManagedCursorInfo
                 .newBuilder(ManagedCursorImpl.this.managedCursorInfo)
+                // A property update is a new logical write, even when its other fields are unchanged.
+                .setPublication(UUID.randomUUID().toString())
                 .clearCursorProperties()
                 .addAllCursorProperties(buildStringPropertiesMap(newProperties))
                 .build();
@@ -3054,6 +3057,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         // When closing we store the last mark-delete position in the z-node itself, so we won't need the cursor ledger,
         // hence we write it as -1. The cursor ledger is deleted once the z-node write is confirmed.
         ManagedCursorInfo.Builder info = ManagedCursorInfo.newBuilder() //
+                .setPublication(UUID.randomUUID().toString()) //
                 .setCursorsLedgerId(cursorsLedgerId) //
                 .setMarkDeleteLedgerId(position.getLedgerId()) //
                 .setMarkDeleteEntryId(position.getEntryId()) //
