@@ -124,6 +124,14 @@ public interface MetaStore {
     /**
      * Update the persisted position of a cursor.
      *
+     * <p>Each logical write needs a new publication ID in {@code info}; an absent ID is generated before
+     * encoding. Caller-initiated retries must reuse that ID, payload and expected version so an already
+     * committed write can be recognized. Clear the ID when copying a record for a new logical write.
+     *
+     * <p><strong>Ordering:</strong> verification can delay the callback even after the write has committed.
+     * For example, in Get A, Update B, Get C, the response for C can arrive before B's callback if B needs
+     * verification. Chain dependent operations from this callback instead of relying on submission order.
+     *
      * @param ledgerName
      *            the name of the ManagedLedger
      * @param cursorName
@@ -184,4 +192,8 @@ public interface MetaStore {
      * @return a future represents the result of the operation.
      */
     CompletableFuture<Map<String, String>> getManagedLedgerPropertiesAsync(String name);
+
+    /** Stop pending metadata verification without closing the shared metadata store. */
+    default void close() {
+    }
 }

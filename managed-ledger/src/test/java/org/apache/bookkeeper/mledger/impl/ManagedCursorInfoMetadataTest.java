@@ -69,6 +69,8 @@ public class ManagedCursorInfoMetadataTest {
     public void testEncodeAndDecode(String compressionType) throws Exception {
         long ledgerId = 10000;
         ManagedCursorInfo managedCursorInfo = generateManagedCursorInfo(ledgerId, 1000);
+        managedCursorInfo.setPublication("8ec90b90-34ba-4db2-b976-71c244ee57ca");
+        managedCursorInfo.addCursorProperty().setName("key").setValue("value");
         MetaStoreImpl metaStore;
         if (INVALID_TYPE.equals(compressionType)) {
             IllegalArgumentException compressionTypeEx = expectThrows(IllegalArgumentException.class, () -> {
@@ -92,6 +94,10 @@ public class ManagedCursorInfoMetadataTest {
         // parse compression data and unCompression data, check their results.
         ManagedCursorInfo info1 = metaStore.parseManagedCursorInfo(compressionBytes);
         ManagedCursorInfo info2 = metaStore.parseManagedCursorInfo(managedCursorInfo.toByteArray());
+        // Access lazy string fields after parseManagedCursorInfo has released the decompression buffer.
+        assertEquals(info1.getPublication(), managedCursorInfo.getPublication());
+        assertEquals(info1.getCursorPropertyAt(0).getName(), "key");
+        assertEquals(info1.getCursorPropertyAt(0).getValue(), "value");
         assertEquals(info1.toByteArray(), info2.toByteArray());
     }
 
