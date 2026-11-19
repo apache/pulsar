@@ -24,6 +24,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -504,6 +505,7 @@ public class ReadCompletionAffinityTest extends MockedBookKeeperTestCase {
             assertThat(cursor.getReadPosition()).isEqualTo(second);
             verify(rejectingExecutor, times(1)).execute(any(Runnable.class));
         } finally {
+            doCallRealMethod().when(ledger).getExecutor();
             ledger.close();
         }
     }
@@ -573,6 +575,7 @@ public class ReadCompletionAffinityTest extends MockedBookKeeperTestCase {
             assertThat(cursor.getReadPosition()).isEqualTo(rejectedPosition.getNext());
             verify(rejectingExecutor, times(1)).execute(any(Runnable.class));
         } finally {
+            doCallRealMethod().when(ledger).getExecutor();
             ledger.close();
         }
     }

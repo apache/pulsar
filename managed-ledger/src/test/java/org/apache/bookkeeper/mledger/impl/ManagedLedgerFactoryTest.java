@@ -40,9 +40,12 @@ import java.util.function.Supplier;
 import org.apache.bookkeeper.client.AsyncCallback.DeleteCallback;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.ResetCursorCallback;
+import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -52,7 +55,10 @@ import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo.CursorInfo;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo.MessageRangeInfo;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.ManagedLedgerInitializeLedgerCallback;
+import org.apache.bookkeeper.mledger.util.Futures.CloseFuture;
+import org.apache.bookkeeper.mledger.util.ManagedLedgerUtils;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
@@ -240,6 +246,84 @@ public class ManagedLedgerFactoryTest extends MockedBookKeeperTestCase {
         closeGate.complete(null);
         shutdown.get(5, TimeUnit.SECONDS);
         assertEquals(ledger.getState(), ManagedLedgerImpl.State.Closed);
+    }
+
+    @DataProvider
+    public Object[][] terminalClosePaths() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    @Test(timeOut = 30000, dataProvider = "terminalClosePaths")
+    public void testTerminalCloseCancelsResetQueuedBehindReadWithoutTimeout(boolean factoryShutdown)
+            throws Exception {
+        ManagedLedgerConfig config = defaultConfig().setThrottleMarkDelete(0).setReadEntryTimeoutSeconds(0);
+        factory.setShutdownLedgerCloseTimeoutMillis(TimeUnit.SECONDS.toMillis(2));
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("reset-during-terminal-close", config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("cursor");
+        cursor.setInactive();
+        Position acknowledged = ledger.addEntry(new byte[] {0});
+        ledger.addEntry(new byte[] {1});
+        Position resetTarget = ledger.addEntry(new byte[] {2});
+        cursor.markDelete(acknowledged);
+
+        CompletableFuture<Void> readEntered = new CompletableFuture<>();
+        CompletableFuture<LedgerEntries> storageRead = new CompletableFuture<>();
+        bkc.setReadHandleInterceptor((ledgerId, first, last, entries) -> {
+            if (ledgerId == acknowledged.getLedgerId()) {
+                entries.close();
+                readEntered.complete(null);
+                return storageRead;
+            }
+            return CompletableFuture.completedFuture(entries);
+        });
+        try {
+            CompletableFuture<Void> read = ManagedLedgerUtils.readEntries(cursor, 1, PositionFactory.LATEST)
+                    .thenAccept(entries -> entries.forEach(Entry::release));
+            readEntered.get(5, TimeUnit.SECONDS);
+            CompletableFuture<Position> reset = new CompletableFuture<>();
+            cursor.asyncResetCursor(resetTarget, false, new ResetCursorCallback() {
+                @Override
+                public void resetComplete(Object ctx) {
+                    reset.complete((Position) ctx);
+                }
+
+                @Override
+                public void resetFailed(ManagedLedgerException exception, Object ctx) {
+                    reset.completeExceptionally(exception);
+                }
+            });
+            CompletableFuture<Void> resetQueued = new CompletableFuture<>();
+            ledger.getExecutor().execute(() -> resetQueued.complete(null));
+            resetQueued.get(5, TimeUnit.SECONDS);
+            assertThat(read).isNotDone();
+            assertThat(reset).isNotDone();
+
+            if (factoryShutdown) {
+                factory.shutdownAsync().get(5, TimeUnit.SECONDS);
+            } else {
+                CloseFuture ledgerClose = new CloseFuture();
+                ledger.asyncClose(ledgerClose, null);
+                ledgerClose.get(5, TimeUnit.SECONDS);
+            }
+
+            assertThat(storageRead).isNotDone();
+            assertThat(reset).isCompletedExceptionally();
+            assertThatThrownBy(reset::join).hasCauseInstanceOf(ManagedLedgerException.class);
+            assertThat(cursor.getState()).isEqualTo(ManagedCursorImpl.State.Closed.name());
+            assertThat(cursor.getMarkDeletedPosition()).isEqualTo(acknowledged);
+
+            String cursorPath = "/managed-ledgers/" + ledger.getName() + "/" + cursor.getName();
+            var checkpoint = metadataStore.get(cursorPath).get(5, TimeUnit.SECONDS).orElseThrow();
+            storageRead.completeExceptionally(BKException.create(BKException.Code.ReadException));
+            read.handle((ignored, error) -> null).get(5, TimeUnit.SECONDS);
+            var afterRead = metadataStore.get(cursorPath).get(5, TimeUnit.SECONDS).orElseThrow();
+            assertThat(afterRead.getStat().getVersion()).isEqualTo(checkpoint.getStat().getVersion());
+            assertThat(afterRead.getValue()).containsExactly(checkpoint.getValue());
+            assertThat(cursor.getMarkDeletedPosition()).isEqualTo(acknowledged);
+        } finally {
+            bkc.setReadHandleInterceptor(null);
+            storageRead.completeExceptionally(BKException.create(BKException.Code.ReadException));
+        }
     }
 
     @Test(timeOut = 30000)

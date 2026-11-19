@@ -21,14 +21,25 @@ package org.apache.bookkeeper.mledger.impl;
 import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.defaultConfig;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import io.github.merlimat.slog.Logger;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
 import lombok.Cleanup;
+import org.apache.bookkeeper.client.AsyncCallback.CreateCallback;
 import org.apache.bookkeeper.client.BKException;
+import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.bookkeeper.client.BookKeeper.DigestType;
+import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.ResetCursorCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -40,6 +51,7 @@ import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
 import org.apache.bookkeeper.mledger.proto.BatchedEntryDeletionIndexInfo;
 import org.apache.bookkeeper.mledger.proto.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.PositionInfo;
+import org.apache.bookkeeper.mledger.util.Futures.CloseFuture;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
@@ -60,6 +72,75 @@ public class ManagedCursorResetDurabilityTest extends MockedBookKeeperTestCase {
     @DataProvider(name = "batchIndexPersistenceSettings")
     public Object[][] batchIndexPersistenceSettings() {
         return new Object[][] {{true, 0}, {false, 10000}};
+    }
+
+    @DataProvider
+    public Object[][] ledgerCreationFailures() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    @Test(dataProvider = "ledgerCreationFailures")
+    public void testCursorLedgerCreationFailureSettlesResetAndClose(boolean lateCallback) throws Exception {
+        AtomicBoolean failNextCreation = new AtomicBoolean();
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl failingFactory = new ManagedLedgerFactoryImpl(metadataStore, bkc) {
+            @Override
+            protected ManagedLedgerImpl createManagedLedger(BookKeeper bk, MetaStore store, String name,
+                    ManagedLedgerConfig config, Supplier<CompletableFuture<Boolean>> ownershipChecker) {
+                return new ManagedLedgerImpl(this, bk, store, config, scheduledExecutor, name, ownershipChecker) {
+                    @Override
+                    protected void asyncCreateLedger(BookKeeper bookKeeper, ManagedLedgerConfig ledgerConfig,
+                            DigestType digestType, CreateCallback callback, Map<String, byte[]> metadata,
+                            Logger logger) {
+                        if (!failNextCreation.compareAndSet(true, false)) {
+                            super.asyncCreateLedger(bookKeeper, ledgerConfig, digestType, callback, metadata, logger);
+                        } else if (lateCallback) {
+                            CompletableFuture<LedgerHandle> timedOut = CompletableFuture.failedFuture(
+                                    new TimeoutException("Cursor ledger creation timed out"));
+                            // BookKeeper can finish after the timeout claims the operation but before it is reported.
+                            callback.createComplete(BKException.Code.NoBookieAvailableException, null, timedOut);
+                            callback.createComplete(BKException.Code.TimeoutException, null, timedOut);
+                        } else {
+                            BookKeeper failingBookKeeper = mock(BookKeeper.class);
+                            doThrow(new IllegalStateException("Cannot start ledger creation"))
+                                    .when(failingBookKeeper).newCreateLedgerOp();
+                            super.asyncCreateLedger(failingBookKeeper, ledgerConfig, digestType, callback,
+                                    metadata, logger);
+                        }
+                    }
+                };
+            }
+        };
+        @Cleanup
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) failingFactory.open("reset-creation-failure-" + lateCallback,
+                defaultConfig().setThrottleMarkDelete(0));
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("sub");
+        List<Position> positions = addEntries(ledger, 4);
+        assertThat(cursor.getState()).isEqualTo("NoLedger");
+        CompletableFuture<Void> reset = new CompletableFuture<>();
+        CloseFuture close = new CloseFuture();
+        try {
+            failNextCreation.set(true);
+            cursor.asyncResetCursor(positions.get(2), false, new ResetCursorCallback() {
+                @Override
+                public void resetComplete(Object ctx) {
+                    reset.complete(null);
+                }
+
+                @Override
+                public void resetFailed(ManagedLedgerException exception, Object ctx) {
+                    reset.completeExceptionally(exception);
+                }
+            });
+            cursor.asyncClose(close, null);
+            assertThatThrownBy(() -> reset.get(5, TimeUnit.SECONDS))
+                    .hasCauseInstanceOf(InvalidCursorPositionException.class);
+            close.get(5, TimeUnit.SECONDS);
+        } finally {
+            if (!reset.isDone()) {
+                ledger.deleteCursor(cursor.getName());
+            }
+        }
     }
 
     @Test(dataProvider = "successfulResetCases")
@@ -134,6 +215,48 @@ public class ManagedCursorResetDurabilityTest extends MockedBookKeeperTestCase {
         Position expectedMarkDelete = positions.get(1);
         assertThat(cursor.getMarkDeletedPosition()).isEqualTo(expectedMarkDelete);
         assertThat(cursor.lastMarkDeleteEntry.newPosition).isEqualTo(expectedMarkDelete);
+    }
+
+    @Test
+    public void testResetPersistsAcknowledgmentsWhenOverrideWrapsAlignment() throws Exception {
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl wrappingFactory = new ManagedLedgerFactoryImpl(metadataStore, bkc) {
+            @Override
+            protected ManagedLedgerImpl createManagedLedger(BookKeeper bk, MetaStore store, String name,
+                    ManagedLedgerConfig config, Supplier<CompletableFuture<Boolean>> ownershipChecker) {
+                return new ManagedLedgerImpl(this, bk, store, config, scheduledExecutor, name, ownershipChecker) {
+                    @Override
+                    protected ManagedCursorImpl createCursor(BookKeeper bookKeeper, String cursorName) {
+                        return new ManagedCursorImpl(bookKeeper, this, cursorName) {
+                            @Override
+                            protected void internalAsyncMarkDelete(Position position, Map<String, Long> properties,
+                                    MarkDeleteCallback callback, Object ctx, Runnable alignment) {
+                                Runnable wrapped = alignment == null ? null : alignment::run;
+                                super.internalAsyncMarkDelete(position, properties, callback, ctx, wrapped);
+                            }
+                        };
+                    }
+                };
+            }
+        };
+        ManagedLedgerConfig config = defaultConfig().setThrottleMarkDelete(0);
+        config.setDeletionAtBatchIndexLevelEnabled(true);
+        @Cleanup
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) wrappingFactory.open("reset-wrapped-alignment", config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("sub");
+        List<Position> positions = addEntries(ledger, 5);
+        Position resetPosition = positions.get(2);
+        cursor.markDelete(positions.get(0));
+        cursor.delete(positions.get(4));
+        cursor.delete(withAckSet(resetPosition, 4L));
+
+        cursor.resetCursor(withAckSet(resetPosition, 6L));
+
+        PositionInfo persisted = lastPersistedCursorPosition(cursor);
+        assertThat(persisted.getIndividualDeletedMessagesCount()).isZero();
+        assertThat(persisted.getIndividualDeletedMessageRangesCount()).isZero();
+        assertThat(persisted.getBatchedEntryDeletionIndexInfosCount()).isEqualTo(1);
+        assertThat(persisted.getBatchedEntryDeletionIndexInfoAt(0).getDeleteSetAt(0)).isEqualTo(6L);
     }
 
     @Test
