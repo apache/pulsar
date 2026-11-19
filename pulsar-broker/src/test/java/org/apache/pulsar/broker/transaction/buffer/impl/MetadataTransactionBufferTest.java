@@ -44,6 +44,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -63,6 +64,7 @@ import org.apache.pulsar.broker.transaction.metadata.TxnOp;
 import org.apache.pulsar.broker.transaction.metadata.TxnOpKind;
 import org.apache.pulsar.broker.transaction.metadata.TxnPaths;
 import org.apache.pulsar.broker.transaction.metadata.TxnState;
+import org.apache.pulsar.broker.transaction.metadata.Versioned;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStore;
@@ -74,6 +76,7 @@ import org.apache.pulsar.metadata.api.Stat;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
@@ -481,6 +484,66 @@ public class MetadataTransactionBufferTest {
         assertThat(tb.getOngoingTxnCount()).isOne();
         // An OPEN recovery-discovered txn is not in the aborted set.
         assertThat(tb.isTxnAborted(openTxn, PositionFactory.create(5, 0))).isFalse();
+    }
+
+    @DataProvider
+    public Object[][] recoveryWatermarks() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    @Test(dataProvider = "recoveryWatermarks")
+    public void recoveryBlocksDispatchUntilAllVisibilityStateIsLoaded(boolean hasWatermark) throws Exception {
+        if (hasWatermark) {
+            txnStore.casSegmentWatermark(SEGMENT, new SegmentWatermark(5, 0), Optional.of(-1L)).get();
+        }
+        TxnID abortedTxn = new TxnID(1, 1);
+        txnStore.putAbortedTxn(SEGMENT, TxnIds.toKey(abortedTxn), 5, 0).get();
+        Optional<Versioned<SegmentWatermark>> persistedWatermark = txnStore.getSegmentWatermark(SEGMENT).get();
+        TxnMetadataStore delayedStore = spy(txnStore);
+        CompletableFuture<Optional<Versioned<SegmentWatermark>>> watermarkRead = new CompletableFuture<>();
+        CompletableFuture<Void> abortedScanReleased = new CompletableFuture<>();
+        CompletableFuture<Void> writeScanReleased = new CompletableFuture<>();
+        doReturn(watermarkRead).when(delayedStore).getSegmentWatermark(SEGMENT);
+        doAnswer(inv -> abortedScanReleased.thenCompose(__ -> txnStore.scanAbortedTxns(
+                inv.getArgument(0), inv.getArgument(1), inv.getArgument(2), inv.getArgument(3))))
+                .when(delayedStore).scanAbortedTxns(eq(SEGMENT), any(), any(), any());
+        doAnswer(inv -> writeScanReleased.thenCompose(__ ->
+                txnStore.listWritesBySegment(SEGMENT, inv.getArgument(1))))
+                .when(delayedStore).listWritesBySegment(eq(SEGMENT), any());
+        TopicTransactionBuffer.MaxReadPositionCallBack callback =
+                mock(TopicTransactionBuffer.MaxReadPositionCallBack.class);
+        when(topic.getMaxReadPositionCallBack()).thenReturn(callback);
+        MetadataTransactionBuffer tb = new MetadataTransactionBuffer(topic, delayedStore);
+        try {
+            assertThat(tb.checkIfTBRecoverCompletely()).isNotDone();
+            assertThat(tb.getMaxReadPosition()).as("before the watermark read").isEqualTo(PositionFactory.EARLIEST);
+            tb.syncMaxReadPositionForNormalPublish(ledger.getLastConfirmedEntry(), false);
+            assertThat(tb.getMaxReadPosition()).as("normal publish during recovery")
+                    .isEqualTo(PositionFactory.EARLIEST);
+
+            watermarkRead.complete(persistedWatermark);
+            verify(delayedStore, timeout(10_000)).scanAbortedTxns(eq(SEGMENT), any(), any(), any());
+            assertThat(tb.getMaxReadPosition()).as("before aborted records are loaded")
+                    .isEqualTo(PositionFactory.EARLIEST);
+            abortedScanReleased.complete(null);
+            verify(delayedStore, timeout(10_000)).listWritesBySegment(eq(SEGMENT), any());
+            assertThat(tb.isTxnAborted(abortedTxn, PositionFactory.create(5, 0))).isTrue();
+            assertThat(tb.getMaxReadPosition()).as("before unresolved writes are loaded")
+                    .isEqualTo(PositionFactory.EARLIEST);
+            tb.syncMaxReadPositionForNormalPublish(ledger.getLastConfirmedEntry(), false);
+            assertThat(tb.getMaxReadPosition()).isEqualTo(PositionFactory.EARLIEST);
+            verify(delayedStore, never()).casSegmentWatermark(any(), any(), any());
+
+            writeScanReleased.complete(null);
+            tb.checkIfTBRecoverCompletely().get(10, TimeUnit.SECONDS);
+            assertThat(tb.getMaxReadPosition()).isEqualTo(ledger.getLastConfirmedEntry());
+            verify(callback).maxReadPositionMovedForward(PositionFactory.EARLIEST, ledger.getLastConfirmedEntry());
+        } finally {
+            watermarkRead.complete(persistedWatermark);
+            abortedScanReleased.complete(null);
+            writeScanReleased.complete(null);
+            tb.closeAsync().get(10, TimeUnit.SECONDS);
+        }
     }
 
     @Test

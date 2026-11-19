@@ -32,6 +32,7 @@ import org.apache.pulsar.broker.transaction.metadata.TxnEvent;
 import org.apache.pulsar.broker.transaction.metadata.TxnHeader;
 import org.apache.pulsar.broker.transaction.metadata.TxnIds;
 import org.apache.pulsar.broker.transaction.metadata.TxnMetadataStore;
+import org.apache.pulsar.broker.transaction.metadata.TxnMetadataStore.OpImage;
 import org.apache.pulsar.broker.transaction.metadata.TxnOp;
 import org.apache.pulsar.broker.transaction.metadata.TxnOpKind;
 import org.apache.pulsar.broker.transaction.metadata.TxnPaths;
@@ -339,6 +340,28 @@ public class TransactionCoordinatorV5Test {
             // Repair re-published the event.
             Awaitility.await().untilAsserted(() -> assertThat(received).hasSize(2));
         }
+    }
+
+    @Test
+    public void sweepGc_retainsHeaderWhileAnAckRecordIsMarkedForACursorReset() throws Exception {
+        // While a subscription cursor reset is in progress, the pending-ACK store marks the retained ACK records of a
+        // committed txn resetPending in place rather than deleting them. A reset that fails clears the mark, and the
+        // ACK must then still be recoverable, so GC must keep the header of a txn whose records are only marked.
+        TxnID txnId = tc.newTransaction(TC_ID, 60_000L, "owner").get();
+        String txnIdKey = TxnIds.toKey(txnId);
+        String segment = "segment://public/default/topic/0000-ffff-0";
+        String subscription = "sub";
+        txnStore.appendOp(txnIdKey, new TxnOp(TxnOpKind.ACK, segment, subscription, 5L, 2L, null)).get();
+        tc.endTransaction(txnId, TxnAction.COMMIT_VALUE).get();
+        OpImage image = txnStore.collectAckOpImagesForSegmentSubscription(segment, subscription).get().get(0);
+        TxnOp marked = image.op();
+        marked.setResetPending(true);
+        txnStore.replaceOps(List.of(new OpImage(image.record(), marked)), true, replaced -> { }).get();
+
+        tc.sweepGc().get();
+
+        TxnHeader header = txnStore.getHeader(txnIdKey).get().orElseThrow().value();
+        assertThat(header.getState()).isEqualTo(TxnState.COMMITTED);
     }
 
     @Test
