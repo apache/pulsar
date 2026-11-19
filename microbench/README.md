@@ -153,15 +153,16 @@ java -jar microbench/build/libs/microbench-*-benchmarks.jar \
 
 The default period requests 50 stats polls per second. Pacing uses a per-thread clock and parks outside the ledger
 monitor. `periodicStats` measures the complete polling cycle, including its pacing delay; use the standalone
-`estimate` benchmark for estimator latency. Average-time mode includes every monitor acquisition in the
-`periodicMonitorProbe` mean; compare that mean at the same achieved poll rate. Sample-time mode can miss rare
-delayed acquisitions at this polling rate, so its optional percentiles serve only as diagnostics.
-The `polls` and `skippedPolls` auxiliary results count actual requests and dropped schedule slots, respectively.
-Their JSON `rawData` contains per-iteration counts; a one-second measurement iteration should contain approximately
-50 polls for every estimator. The final counts sum over measurement iterations and forks. If an estimate overruns
-the next scheduled poll, that slot is skipped instead of issuing catch-up requests. Nonzero skipped counts or
-different achieved poll rates mean the estimators were not exposed to the same request rate; increase the period
-before drawing a contention comparison. As with the saturation group, the monitor probe is a synthetic competitor.
+`estimate` benchmark for estimator latency. Average-time mode includes every measured monitor acquisition
+in the `periodicMonitorProbe` mean. Sample-time mode can miss rare delayed acquisitions at this polling rate,
+so its optional percentiles serve only as diagnostics.
+
+The `polls` and `skippedPolls` auxiliary results count requests and dropped schedule slots, respectively.
+Their JSON `rawData` contains per-iteration counts, which can include calls while JMH synchronizes workers
+at the start and end of measurement. Use these counts as an approximate cadence check and compare monitor-probe
+means when both estimators sustain similar polling rates with few missed slots. Use longer measurement iterations
+to reduce the effect of calls at the boundaries. If estimates repeatedly overrun scheduled polls, increase the
+poll period. As with the saturation group, the monitor probe is a synthetic competitor.
 
 ### Redelivery tracker
 

@@ -37,6 +37,7 @@ import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopicMetrics;
 import org.apache.pulsar.broker.service.persistent.PersistentTopicMetrics.BacklogQuotaMetrics;
+import org.apache.pulsar.broker.service.persistent.SystemTopic;
 import org.apache.pulsar.broker.stats.prometheus.metrics.PrometheusLabels;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
@@ -204,6 +205,9 @@ public class NamespaceStatsAggregator {
                                       boolean subscriptionBacklogSize, Optional<CompactorMXBean> compactorMXBean) {
         stats.reset();
 
+        // Custom topic types can override the ledger accessor or the backlog returned by topic stats.
+        Class<?> topicClass = topic.getClass();
+        boolean reuseTopicBacklogSize = topicClass == PersistentTopic.class || topicClass == SystemTopic.class;
         if (topic instanceof PersistentTopic persistentTopic) {
             // Managed Ledger stats
             ManagedLedger ml = persistentTopic.getManagedLedger();
@@ -211,6 +215,9 @@ public class NamespaceStatsAggregator {
 
             stats.managedLedgerStats.storageSize = mlStats.getStoredMessagesSize();
             stats.managedLedgerStats.storageLogicalSize = mlStats.getStoredMessagesLogicalSize();
+            if (!reuseTopicBacklogSize) {
+                stats.managedLedgerStats.backlogSize = ml.getEstimatedBacklogSize();
+            }
             stats.managedLedgerStats.offloadedStorageUsed = ml.getOffloadedSize();
             stats.backlogQuotaLimit = topic
                     .getBacklogQuota(BacklogQuotaType.destination_storage).getLimitSize();
@@ -247,7 +254,7 @@ public class NamespaceStatsAggregator {
                 .subscriptionBacklogSize(subscriptionBacklogSize)
                 .excludeLastPublishTime(true)
                 .build());
-        if (topic instanceof PersistentTopic) {
+        if (reuseTopicBacklogSize) {
             stats.managedLedgerStats.backlogSize = tStatus.backlogSize;
         }
         stats.msgInCounter = tStatus.msgInCounter;

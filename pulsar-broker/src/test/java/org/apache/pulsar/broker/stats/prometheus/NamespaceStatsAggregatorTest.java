@@ -36,6 +36,7 @@ import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopicMetrics;
+import org.apache.pulsar.broker.service.persistent.SystemTopic;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
@@ -43,6 +44,7 @@ import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.mockito.Mockito;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
@@ -63,10 +65,22 @@ public class NamespaceStatsAggregatorTest {
         doReturn(broker).when(pulsar).getBrokerService();
     }
 
-    @Test
-    public void testGenerateSubscriptionsStats() {
+    @DataProvider
+    public Object[][] persistentTopicTypes() {
+        return new Object[][] {
+                {PersistentTopic.class, true},
+                {SystemTopic.class, true},
+                {CustomPersistentTopic.class, false}
+        };
+    }
+
+    @Test(dataProvider = "persistentTopicTypes")
+    public void testGenerateSubscriptionsStats(Class<? extends PersistentTopic> topicClass,
+                                               boolean reuseTopicBacklogSize) {
         // given
         final String namespace = "tenant/cluster/ns";
+        final long ledgerBacklogSize = 321L;
+        final long topicBacklogSize = 987L;
 
         // prepare multi-layer topic map
         final var bundlesMap = new ConcurrentHashMap<String, Map<String, Topic>>();
@@ -84,9 +98,10 @@ public class NamespaceStatsAggregatorTest {
         when(mlBeanStats.getInternalEntrySizeBuckets()).thenReturn(
                 new StatsBuckets(ManagedLedgerMBeanImpl.ENTRY_SIZE_BUCKETS_BYTES));
         when(ml.getStats()).thenReturn(mlBeanStats);
+        when(ml.getEstimatedBacklogSize()).thenReturn(ledgerBacklogSize);
 
         // Prepare topic and subscription
-        PersistentTopic topic = Mockito.mock(PersistentTopic.class);
+        PersistentTopic topic = Mockito.mock(topicClass);
         PersistentSubscription subscription = Mockito.mock(PersistentSubscription.class);
         Consumer consumer = Mockito.mock(Consumer.class);
         ConsumerStatsImpl consumerStats = new ConsumerStatsImpl();
@@ -95,6 +110,7 @@ public class NamespaceStatsAggregatorTest {
         subscriptionsMaps.put("my-subscription", subscription);
         SubscriptionStatsImpl subStats = new SubscriptionStatsImpl();
         TopicStatsImpl topicStats = new TopicStatsImpl();
+        topicStats.backlogSize = topicBacklogSize;
         topicStats.subscriptions.put("my-subscription", subStats);
         GetStatsOptions statsOptions = GetStatsOptions.builder().excludeLastPublishTime(true).build();
         when(topic.getStats(statsOptions)).thenReturn(topicStats);
@@ -125,6 +141,11 @@ public class NamespaceStatsAggregatorTest {
 
         // then
         Mockito.verify(topic).getStats(statsOptions);
+        long expectedBacklogSize = reuseTopicBacklogSize ? topicBacklogSize : ledgerBacklogSize;
+        Mockito.verify(metricStreams).writeSample("pulsar_storage_backlog_size", expectedBacklogSize,
+                "cluster", null, "namespace", namespace, "topic", "my-topic", "partition", "-1");
+        Mockito.verify(ml, Mockito.times(reuseTopicBacklogSize ? 0 : 1)).getEstimatedBacklogSize();
+
         verifySubscriptionMetric(metricStreams, "pulsar_subscription_blocked_on_unacked_messages", 1);
         verifyConsumerMetric(metricStreams, "pulsar_consumer_blocked_on_unacked_messages", 0);
 
@@ -165,5 +186,11 @@ public class NamespaceStatsAggregatorTest {
                 null,
                 "consumer_id",
                 "0");
+    }
+
+    private static final class CustomPersistentTopic extends PersistentTopic {
+        private CustomPersistentTopic(String topic, ManagedLedger ledger, BrokerService brokerService) {
+            super(topic, ledger, brokerService);
+        }
     }
 }

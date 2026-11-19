@@ -22,6 +22,7 @@ import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
@@ -715,9 +716,9 @@ public class PersistentTopicTest extends BrokerTestBase {
             }
         };
         Position firstPosition = PositionFactory.create(1, 2);
-        Position secondPosition = PositionFactory.create(1, 4);
-        doReturn(123L).when(overriddenLedger).getEstimatedBacklogSize(firstPosition);
-        doReturn(456L).when(overriddenLedger).getEstimatedBacklogSize(secondPosition);
+        Position secondPosition = PositionFactory.create(1, 2);
+        doReturn(123L).when(overriddenLedger).getEstimatedBacklogSize(same(firstPosition));
+        doReturn(456L).when(overriddenLedger).getEstimatedBacklogSize(same(secondPosition));
         topic.getSubscriptions().put("first", newStatsSubscription(topic, "first", firstPosition));
         topic.getSubscriptions().put("second", newStatsSubscription(topic, "second", secondPosition));
 
@@ -725,27 +726,42 @@ public class PersistentTopicTest extends BrokerTestBase {
                 .subscriptionBacklogSize(true).excludeLastPublishTime(true).build()).get(3, TimeUnit.SECONDS);
 
         assertThat(stats.getSubscriptions().get("first").getBacklogSize())
-                .as("batch estimates use the topic's public managed-ledger accessor").isEqualTo(123L);
+                .as("equal positions keep the custom ledger estimate for each subscription").isEqualTo(123L);
         assertThat(stats.getSubscriptions().get("second").getBacklogSize()).isEqualTo(456L);
     }
 
     @Test
     public void testSubscriptionBacklogStatsKeepSubscriptionMapKeys() throws Exception {
-        ManagedLedger ledger = mock(ManagedLedger.class);
-        doReturn(new ManagedLedgerConfig()).when(ledger).getConfig();
-        doReturn(Collections.emptyMap()).when(ledger).getProperties();
-        PersistentTopic topic = new PersistentTopic(
-                "persistent://prop/ns-abc/testBacklogStatsMapKeys-" + UUID.randomUUID(), ledger,
-                pulsar.getBrokerService());
-        Position position = PositionFactory.create(1, 2);
+        String topicName = "persistent://prop/ns-abc/testBacklogStatsMapKeys-" + UUID.randomUUID();
+        @Cleanup
+        ManagedLedger ledger = pulsar.getDefaultManagedLedgerFactory()
+                .open(TopicName.get(topicName).getPersistenceNamingEncoding(), new ManagedLedgerConfig());
+        assertThat(ledger).isExactlyInstanceOf(ManagedLedgerImpl.class);
+        PersistentTopic topic = new PersistentTopic(topicName, ledger, pulsar.getBrokerService());
+        Position position = ledger.getLastConfirmedEntry();
         topic.getSubscriptions().put("first-map-key", newStatsSubscription(topic, "first-name", position));
         topic.getSubscriptions().put("second-map-key", newStatsSubscription(topic, "second-name", position));
+        topic.getSubscriptions().put("missing-map-key", newStatsSubscription(topic, "missing-name", null));
+        ManagedCursor customCursor = mock(ManagedCursor.class);
+        doReturn("custom-name").when(customCursor).getName();
+        doThrow(new AssertionError("Custom stats owns its position")).when(customCursor).getMarkDeletedPosition();
+        topic.getSubscriptions().put("custom-map-key", new PersistentSubscription(
+                topic, "custom-name", customCursor, false) {
+            @Override
+            public CompletableFuture<SubscriptionStatsImpl> getStatsAsync(GetStatsOptions options) {
+                SubscriptionStatsImpl stats = new SubscriptionStatsImpl();
+                stats.backlogSize = 123L;
+                return CompletableFuture.completedFuture(stats);
+            }
+        });
 
         TopicStats stats = topic.asyncGetStats(GetStatsOptions.builder()
                 .subscriptionBacklogSize(true).excludeLastPublishTime(true).build()).get(3, TimeUnit.SECONDS);
 
         assertThat(stats.getSubscriptions()).as("batch stats retain the original subscription map keys")
-                .containsOnlyKeys("first-map-key", "second-map-key");
+                .containsOnlyKeys("first-map-key", "second-map-key", "missing-map-key", "custom-map-key");
+        assertThat(stats.getSubscriptions().get("missing-map-key").getBacklogSize()).isZero();
+        assertThat(stats.getSubscriptions().get("custom-map-key").getBacklogSize()).isEqualTo(123L);
     }
 
     private PersistentSubscription newStatsSubscription(PersistentTopic topic, String name, Position position) {

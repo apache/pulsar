@@ -3537,10 +3537,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private Map<String, CompletableFuture<SubscriptionStatsImpl>> getSubscriptionStats(
             GetStatsOptions getStatsOptions) {
         Map<String, CompletableFuture<SubscriptionStatsImpl>> subscriptionFutures = new HashMap<>();
-        if (!getStatsOptions.isSubscriptionBacklogSize() || subscriptions.size() <= 1) {
-            for (Map.Entry<String, PersistentSubscription> entry : subscriptions.entrySet()) {
-                subscriptionFutures.put(entry.getKey(), entry.getValue().getStatsAsync(getStatsOptions));
-            }
+        ManagedLedger backlogLedger = getStatsOptions.isSubscriptionBacklogSize() && subscriptions.size() > 1
+                ? getManagedLedger() : null;
+        if (backlogLedger == null || backlogLedger.getClass() != ManagedLedgerImpl.class) {
+            // Custom ledgers may return different estimates for equal positions.
+            subscriptions.forEach((name, subscription) ->
+                    subscriptionFutures.put(name, subscription.getStatsAsync(getStatsOptions)));
             return subscriptionFutures;
         }
         // Keep using the captured subscription instances if a name is removed or replaced during sampling.
@@ -3561,7 +3563,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             capturedSubscriptions.add(new SubscriptionBacklogPosition(entry.getKey(), subscription, position));
             positions.add(position);
         }
-        Map<Position, Long> backlogSizes = ManagedLedgerBacklogSizeEstimator.estimate(getManagedLedger(), positions);
+        Map<Position, Long> backlogSizes = ManagedLedgerBacklogSizeEstimator.estimate(backlogLedger, positions);
         for (SubscriptionBacklogPosition captured : capturedSubscriptions) {
             subscriptionFutures.put(captured.name(), captured.subscription()
                     .getStatsAsync(getStatsOptions, backlogSizes.get(captured.position())));
