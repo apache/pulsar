@@ -1153,7 +1153,7 @@ public class PersistentSubscription extends AbstractSubscription {
      */
     private CompletableFuture<Void> clearDelayedStateForReset() {
         CompletableFuture<Void> clearFuture = dispatcher != null
-                ? dispatcher.clearDelayedMessagesAfterBacklogClear()
+                ? dispatcher.clearDelayedMessagesAfterCursorReset()
                 : CompletableFuture.completedFuture(null);
         return clearFuture
                 .handle((ignore, throwable) -> {
