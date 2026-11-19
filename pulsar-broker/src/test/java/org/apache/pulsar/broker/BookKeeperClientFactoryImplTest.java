@@ -51,12 +51,14 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.ClientContext;
@@ -80,9 +82,13 @@ import org.apache.pulsar.bookie.rackawareness.BookieRackAffinityMapping;
 import org.apache.pulsar.bookie.rackawareness.IsolatedBookieEnsemblePlacementPolicy;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.Option;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.impl.LocalMemoryMetadataStore;
 import org.apache.pulsar.zookeeper.ZkIsolatedBookieEnsemblePlacementPolicy;
 import org.awaitility.Awaitility;
 import org.mockito.ArgumentCaptor;
@@ -673,6 +679,61 @@ public class BookKeeperClientFactoryImplTest {
             }
         } finally {
             executor.shutdownNow();
+        }
+    }
+
+    @Test
+    public void testRealClientCanRetryAfterInitialRackReadFails() throws Exception {
+        MetadataStoreException rackReadFailure = new MetadataStoreException("injected rack metadata read failure");
+        AtomicBoolean failRackRead = new AtomicBoolean(true);
+        String rackPath = BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH;
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setMetadataStoreUrl("memory:local");
+        // Keep the DNS resolver from reading the rack configuration during BookKeeper construction.
+        conf.setBookkeeperClientRackawarePolicyEnabled(false);
+        conf.setBookkeeperClientSeparatedIoThreadsEnabled(true);
+        conf.setBookkeeperClientNumWorkerThreads(1);
+        conf.setBookkeeperClientNumIoThreads(1);
+        Optional<Class<? extends EnsemblePlacementPolicy>> policy =
+                Optional.of(IsolatedBookieEnsemblePlacementPolicy.class);
+        Map<String, Object> properties =
+                Map.of(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, "group1");
+
+        try (var store = new LocalMemoryMetadataStore("memory:local", MetadataStoreConfig.builder().build()) {
+            @Override
+            public CompletableFuture<Optional<GetResult>> storeGet(String path, Set<Option> options) {
+                if (rackPath.equals(path) && failRackRead.get()) {
+                    return CompletableFuture.failedFuture(rackReadFailure);
+                }
+                return super.storeGet(path, options);
+            }
+        }) {
+            BookKeeperClientFactoryImpl factory = new BookKeeperClientFactoryImpl();
+            try {
+                store.put(rackPath, "{}".getBytes(StandardCharsets.UTF_8), Optional.empty()).get(10, TimeUnit.SECONDS);
+                int listeners = store.getListenerCount();
+                int sessionListeners = store.getSessionListenerCount();
+
+                assertThatThrownBy(() -> {
+                    try (BookKeeper ignored = factory.create(conf, store, null, policy, properties)
+                            .get(10, TimeUnit.SECONDS)) {
+                        fail("Expected client creation to fail while rack metadata is unavailable");
+                    }
+                }).hasRootCause(rackReadFailure);
+                assertThat(factory.getMetadataStoreListenerCleanupCount()).isZero();
+                assertThat(store.getListenerCount()).isEqualTo(listeners);
+                assertThat(store.getSessionListenerCount()).isEqualTo(sessionListeners);
+
+                failRackRead.set(false);
+                try (BookKeeper recovered = factory.create(conf, store, null, policy, properties)
+                        .get(10, TimeUnit.SECONDS)) {
+                    assertThat(recovered.getClientCtx().getPlacementPolicy())
+                            .isInstanceOfSatisfying(IsolatedBookieEnsemblePlacementPolicy.class,
+                                    p -> assertThat(p.getInitializationFuture(properties)).isCompleted());
+                }
+            } finally {
+                factory.close();
+            }
         }
     }
 
