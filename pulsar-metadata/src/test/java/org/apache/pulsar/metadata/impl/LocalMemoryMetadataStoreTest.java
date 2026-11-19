@@ -110,7 +110,7 @@ public class LocalMemoryMetadataStoreTest {
             conf.setProperty(AbstractMetadataDriver.METADATA_STORE_INSTANCE, store);
 
             for (int i = 0; i < 3; i++) {
-                try (BookKeeper client = BookKeeper.newBuilder(conf).build()) {
+                try (BookKeeper client = BookKeeper.forConfig(conf).build()) {
                     assertThat(client.getMetadataClientDriver()).isInstanceOf(PulsarMetadataClientDriver.class);
                     assertThat(store.getMetadataCacheCount()).isGreaterThan(baseline);
                 }
