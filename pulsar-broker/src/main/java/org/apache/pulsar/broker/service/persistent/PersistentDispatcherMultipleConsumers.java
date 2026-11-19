@@ -1750,7 +1750,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     public CompletableFuture<Void> clearDelayedMessagesAfterBacklogClear() {
         CompletableFuture<Void> clearFuture;
         CompletableFuture<Void> skipRecovery;
-        List<Map.Entry<Position, Long>> preservedPending = new ArrayList<>();
         synchronized (this) {
             if (!topic.isDelayedDeliveryEnabled()) {
                 return CompletableFuture.completedFuture(null);
@@ -1758,58 +1757,21 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             // Register the clear before releasing recovery, so the ready tracker is cleared before reads resume.
             // A creation failure keeps clears failed until a tracker is installed. Dispatcher retries do not
             // restart a failed clear: the caller must retry it to delete snapshots retained by skipped recovery.
+            clearFuture = delayedDeliveryTrackerCreateFuture == null ? clearDelayedMessages()
+                    : delayedDeliveryTrackerCreateFuture
+                            .applyToEither(delayedDeliveryTrackerCreateFailureFuture, result -> result)
+                            .thenCompose(__ -> clearDelayedMessages());
             skipRecovery = delayedDeliveryTrackerRecoverySkipFuture;
             if (skipRecovery != null) {
-                // An ordinary backlog clear only discards the entries up to the mark-delete
-                // position captured when the clear started. Positions published after that capture
-                // are still in the backlog and must remain pending for the retry to install.
                 Position markDeletedPosition = cursor.getMarkDeletedPosition();
                 messagesPendingDelayedDeliveryTracker.keySet().removeIf(position ->
                         position.compareTo(markDeletedPosition) <= 0);
-                preservedPending.addAll(messagesPendingDelayedDeliveryTracker.entrySet());
-            }
-            if (delayedDeliveryTrackerCreateFuture == null) {
-                clearFuture = clearDelayedMessages();
-            } else {
-                clearFuture = delayedDeliveryTrackerCreateFuture
-                        .applyToEither(delayedDeliveryTrackerCreateFailureFuture, result -> result)
-                        .thenCompose(__ -> clearAndReinstallPreservedPending(preservedPending));
             }
         }
         if (skipRecovery != null) {
             skipRecovery.complete(null);
         }
         return clearFuture;
-    }
-
-    private CompletableFuture<Void> clearAndReinstallPreservedPending(
-            List<Map.Entry<Position, Long>> preservedPending) {
-        synchronized (this) {
-            // The creation just installed the pending positions. Restore them so the tracker clear
-            // does not lose positions published after the backlog-clear capture, then install them
-            // again on the cleared tracker.
-            for (Map.Entry<Position, Long> entry : preservedPending) {
-                messagesPendingDelayedDeliveryTracker.put(entry.getKey(), entry.getValue());
-            }
-        }
-        return clearDelayedMessages().thenCompose(__ -> {
-            synchronized (this) {
-                if (delayedDeliveryTracker.isPresent()) {
-                    DelayedDeliveryTracker tracker = delayedDeliveryTracker.get();
-                    for (Map.Entry<Position, Long> entry : preservedPending) {
-                        Position position = entry.getKey();
-                        messagesPendingDelayedDeliveryTracker.remove(position, entry.getValue());
-                        if (!tracker.addMessage(position.getLedgerId(), position.getEntryId(), entry.getValue())) {
-                            redeliveryMessages.add(position.getLedgerId(), position.getEntryId());
-                        }
-                    }
-                } else {
-                    preservedPending.forEach(entry ->
-                            messagesPendingDelayedDeliveryTracker.put(entry.getKey(), entry.getValue()));
-                }
-            }
-            return CompletableFuture.completedFuture(null);
-        });
     }
 
     @Override
