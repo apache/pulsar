@@ -40,7 +40,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 import lombok.Cleanup;
 import lombok.CustomLog;
@@ -541,19 +540,21 @@ public class PartialPartitionedProducerTest extends SharedPulsarBaseTest {
 
     @DataProvider
     public static Object[][] clientThreads() {
-        final BiConsumer<PulsarClientImpl, Runnable> internalExecutor =
-                (client, task) -> client.getInternalExecutorService().execute(task);
-        final BiConsumer<PulsarClientImpl, Runnable> scheduledExecutor =
-                (client, task) -> client.getScheduledExecutorProvider().getExecutor().execute(task);
-        final BiConsumer<PulsarClientImpl, Runnable> timer =
-                (client, task) -> client.timer().newTimeout(timeout -> task.run(), 0, TimeUnit.MILLISECONDS);
-        return new Object[][] {
-                {"internal executor", internalExecutor}, {"scheduled executor", scheduledExecutor}, {"timer", timer}};
+        return new Object[][] {{"internal executor"}, {"scheduled executor"}, {"timer"}};
+    }
+
+    // Runs the task on a thread that the client runs its own tasks on
+    private static void runOnClientThread(PulsarClientImpl client, String thread, Runnable task) {
+        switch (thread) {
+            case "internal executor" -> client.getInternalExecutorService().execute(task);
+            case "scheduled executor" -> client.getScheduledExecutorProvider().getExecutor().execute(task);
+            case "timer" -> client.timer().newTimeout(timeout -> task.run(), 0, TimeUnit.MILLISECONDS);
+            default -> throw new IllegalArgumentException(thread);
+        }
     }
 
     @Test(timeOut = 60000, dataProvider = "clientThreads")
-    public void testSendOnAThreadOfTheClientDoesNotWaitForItsProducer(
-            String thread, BiConsumer<PulsarClientImpl, Runnable> execute) throws Throwable {
+    public void testSendOnAThreadOfTheClientDoesNotWaitForItsProducer(String thread) throws Throwable {
         final String topic = newTopicName();
         admin.topics().createPartitionedTopic(topic, 2);
 
@@ -568,7 +569,7 @@ public class PartialPartitionedProducerTest extends SharedPulsarBaseTest {
         final CountDownLatch release = hold(client.eventLoopGroup().next());
         try {
             final CompletableFuture<CompletableFuture<MessageId>> returned = new CompletableFuture<>();
-            execute.accept(client, () -> returned.complete(
+            runOnClientThread(client, thread, () -> returned.complete(
                     producer.newMessage().key("1").value("msg".getBytes()).sendAsync()));
             final CompletableFuture<MessageId> send = returned.get(10, TimeUnit.SECONDS);
             release.countDown();
