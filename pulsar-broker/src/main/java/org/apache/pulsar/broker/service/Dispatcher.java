@@ -147,6 +147,16 @@ public interface Dispatcher {
         return clearDelayedMessages();
     }
 
+    /**
+     * Clear delayed state before the cursor is reset to a different position. Unlike
+     * {@link #clearDelayedMessagesAfterBacklogClear()}, a pending tracker creation must be
+     * invalidated: the reset is fenced and may delete snapshots that a late creation retry
+     * recovered, so the retry must close instead of installing pre-reset state.
+     */
+    default CompletableFuture<Void> clearDelayedMessagesAfterCursorReset() {
+        return clearDelayedMessages();
+    }
+
     default void cursorIsReset() {
         //No-op
     }

@@ -1581,7 +1581,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             synchronized (this) {
                 pendingDelayedMessages = messagesPendingDelayedDeliveryTracker.size();
                 if (delayedDeliveryTrackerCreateFuture != createFuture) {
-                    // The dispatcher was closed while the tracker was being created
+                    // The dispatcher was closed or a cursor reset invalidated this creation
                     stale = true;
                 } else if (ex != null) {
                     // Keep the messages pending and dispatch paused: delivering them now would ignore their delay
@@ -1794,18 +1794,14 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     @Override
     public CompletableFuture<Void> clearDelayedMessagesAfterBacklogClear() {
         synchronized (this) {
-            if (delayedDeliveryTrackerRecoverySkipFuture != null) {
-                // The cursor is moving past the state these positions were read from. Drop every
-                // pre-clear pending position: a late tracker-creation retry must not install them
-                // after a forward reset, and the replay re-derives the positions that remain valid
-                // from the new cursor position.
-                messagesPendingDelayedDeliveryTracker.clear();
-            } else {
-                Position markDeletedPosition = cursor.getMarkDeletedPosition();
-                if (markDeletedPosition != null) {
-                    messagesPendingDelayedDeliveryTracker.keySet().removeIf(position ->
-                            position.compareTo(markDeletedPosition) <= 0);
-                }
+            // An ordinary backlog clear only discards the entries up to the mark-delete position
+            // captured when the clear started. Positions published after that capture are still
+            // in the backlog and must remain pending for the retry to install. A cursor reset
+            // clears the whole buffer in clearDelayedMessagesAfterCursorReset() instead.
+            Position markDeletedPosition = cursor.getMarkDeletedPosition();
+            if (markDeletedPosition != null) {
+                messagesPendingDelayedDeliveryTracker.keySet().removeIf(position ->
+                        position.compareTo(markDeletedPosition) <= 0);
             }
             // Keep positions arriving during the clear pending until the old tracker state is
             // cleared, then install them once. The release below runs regardless of the current
@@ -1880,6 +1876,35 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             delayedDeliveryTrackerCreateFailureFuture = new CompletableFuture<>();
         }
         createDelayedDeliveryTracker(createFuture, skipRecovery, false);
+    }
+
+    @Override
+    public CompletableFuture<Void> clearDelayedMessagesAfterCursorReset() {
+        CompletableFuture<Void> createFuture;
+        CompletableFuture<Void> skipRecovery;
+        synchronized (this) {
+            if (!topic.isDelayedDeliveryEnabled()) {
+                return CompletableFuture.completedFuture(null);
+            }
+            // Invalidate any in-flight tracker creation. The reset is fenced and may delete the
+            // snapshots that a late creation retry recovered, so the retry must close instead of
+            // installing pre-reset state. Post-reset replay starts a fresh creation.
+            createFuture = delayedDeliveryTrackerCreateFuture;
+            delayedDeliveryTrackerCreateFuture = null;
+            skipRecovery = delayedDeliveryTrackerRecoverySkipFuture;
+            delayedDeliveryTrackerRecoverySkipFuture = null;
+            delayedDeliveryTrackerCreateFailureFuture = null;
+            // Drop every pre-reset pending position: a forward reset skips them, and a backward
+            // reset re-derives them from the replay at the new cursor position.
+            messagesPendingDelayedDeliveryTracker.clear();
+        }
+        if (createFuture != null) {
+            createFuture.complete(null);
+        }
+        if (skipRecovery != null) {
+            skipRecovery.complete(null);
+        }
+        return clearDelayedMessages();
     }
 
     @Override

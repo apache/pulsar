@@ -52,6 +52,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -759,6 +760,28 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         public CompletableFuture<Void> deleteBucketSnapshot(long bucketId) {
             deleteCalls.incrementAndGet();
             return super.deleteBucketSnapshot(bucketId);
+        }
+    }
+
+    private static class FailingDeleteForBucketIdStorage extends MockBucketSnapshotStorage {
+        final Set<Long> failDeleteBucketIds = ConcurrentHashMap.newKeySet();
+        final AtomicLong createCalls = new AtomicLong();
+
+        @Override
+        public CompletableFuture<Void> deleteBucketSnapshot(long bucketId) {
+            if (failDeleteBucketIds.contains(bucketId)) {
+                return FutureUtil.failedFuture(new BucketSnapshotPersistenceException("delete failed"));
+            }
+            return super.deleteBucketSnapshot(bucketId);
+        }
+
+        @Override
+        public CompletableFuture<Long> createBucketSnapshot(SnapshotMetadata snapshotMetadata,
+                                                            List<SnapshotSegment> bucketSnapshotSegments,
+                                                            String bucketKey, String topicName, String cursorName) {
+            createCalls.incrementAndGet();
+            return super.createBucketSnapshot(snapshotMetadata, bucketSnapshotSegments, bucketKey, topicName,
+                    cursorName);
         }
     }
 
@@ -1769,6 +1792,54 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         assertEquals(ts.tracker.getSharedBucketPriorityQueue().size(), 0);
 
         ts.close();
+    }
+
+    @Test
+    public void testSaveDoesNotAllocateReplacementWhenSupersededDeleteFails() throws Exception {
+        FailingDeleteForBucketIdStorage storage = new FailingDeleteForBucketIdStorage();
+        TrackerWithStorage ts = createTrackerWithMockLedger(31L, 5, storage);
+        try {
+            ImmutableBucket bucket = createMergeableBucket(ts, 31L, 35L, List.of(1L));
+            String bucketKey = bucket.bucketKey();
+            long supersededId = 10L;
+            ts.tracker.getCtx().cursor().putCursorProperty(bucketKey, String.valueOf(supersededId)).get();
+            storage.failDeleteBucketIds.add(supersededId);
+
+            try {
+                bucket.asyncSaveBucketSnapshot(new SnapshotMetadata(), List.of()).get();
+                Assert.fail("The superseded snapshot delete should fail");
+            } catch (ExecutionException e) {
+                assertTrue(FutureUtil.unwrapCompletionException(e) instanceof BucketSnapshotPersistenceException);
+            }
+
+            assertEquals(storage.createCalls.get(), 0,
+                    "No replacement should be allocated when the superseded delete fails");
+            assertEquals(ts.tracker.getCtx().cursor().getCursorProperties().get(bucketKey),
+                    String.valueOf(supersededId));
+        } finally {
+            ts.close();
+        }
+    }
+
+    @Test
+    public void testDeleteDoesNotRemoveReplacementCursorProperty() throws Exception {
+        TrackerWithStorage ts = createTrackerWithMockLedger(31L, 5);
+        try {
+            ImmutableBucket bucket = createMergeableBucket(ts, 31L, 35L, List.of(1L));
+            long deletedId = 10L;
+            long replacementId = 11L;
+            bucket.setBucketId(deletedId);
+            String bucketKey = bucket.bucketKey();
+            ts.tracker.getCtx().cursor().putCursorProperty(bucketKey, String.valueOf(replacementId)).get();
+
+            bucket.asyncDeleteBucketSnapshot(new BucketDelayedMessageIndexStats()).get();
+
+            assertEquals(ts.tracker.getCtx().cursor().getCursorProperties().get(bucketKey),
+                    String.valueOf(replacementId),
+                    "A stale cleanup must not remove the replacement's cursor property");
+        } finally {
+            ts.close();
+        }
     }
 
     @Test
