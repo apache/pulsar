@@ -158,8 +158,8 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
         try {
             statsProvider.start(configuration);
             statsLogger = statsProvider.getStatsLogger("pulsar_managedLedger_client");
-            this.defaultBkClient = awaitDefaultBookKeeperClient(
-                    bookkeeperProvider.create(conf, metadataStore, eventLoopGroup, Optional.empty(), null, statsLogger));
+            this.defaultBkClient = awaitDefaultBookKeeperClient(bookkeeperProvider.create(
+                    conf, metadataStore, eventLoopGroup, Optional.empty(), null, statsLogger));
         } catch (Exception e) {
             stopStatsAfterInitializationFailure(e);
             throw e;
