@@ -229,6 +229,7 @@ public class ScalableCheckpointConsumerReconcileTest {
                 new Class<?>[]{Reader.class}, (proxy, method, args) -> switch (method.getName()) {
                     case "readNextAsync" -> new CompletableFuture<>();
                     case "hasMessageAvailableAsync" -> CompletableFuture.completedFuture(true);
+                    case "hasReachedEndOfTopic" -> false;
                     case "closeAsync" -> {
                         onClose.run();
                         yield CompletableFuture.completedFuture(null);

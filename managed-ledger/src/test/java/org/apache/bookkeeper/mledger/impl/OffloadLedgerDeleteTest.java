@@ -20,6 +20,8 @@ package org.apache.bookkeeper.mledger.impl;
 
 import static org.apache.bookkeeper.mledger.impl.OffloadPrefixTest.assertEventuallyTrue;
 import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.defaultConfig;
+import static org.assertj.core.api.Assertions.assertThat;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -49,6 +51,7 @@ import org.apache.pulsar.common.policies.data.OffloadedReadPriority;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.testng.Assert;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @CustomLog
@@ -148,6 +151,190 @@ public class OffloadLedgerDeleteTest extends MockedBookKeeperTestCase {
 
         @Override
         public void close() {
+        }
+    }
+
+    @DataProvider(name = "trimModes")
+    public Object[][] trimModes() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    @Test(dataProvider = "trimModes", timeOut = 30000)
+    public void testTrimOffloadedLedgersPreservesDeletionModes(boolean truncate) throws Exception {
+        OffloadPrefixTest.MockLedgerOffloader offloader = new OffloadPrefixTest.MockLedgerOffloader();
+        MockClock clock = new MockClock();
+        ManagedLedgerConfig config = defaultConfig()
+                .setMaxEntriesPerLedger(2)
+                .setRetentionTime(10, TimeUnit.MINUTES)
+                .setRetentionSizeInMB(10)
+                .setLedgerOffloader(offloader)
+                .setClock(clock);
+        config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
+        offloader.getOffloadPolicies().setManagedLedgerOffloadDeletionLagInMillis(60000L);
+
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("trimOffloadedDeletionModes", config);
+        try {
+            for (int i = 0; i < 3; i++) {
+                ledger.addEntry(new byte[] {1});
+            }
+            clock.advance(6, TimeUnit.MINUTES);
+            for (int i = 0; i < 4; i++) {
+                ledger.addEntry(new byte[] {1});
+            }
+            ledger.offloadPrefix(ledger.getLastConfirmedEntry());
+
+            List<LedgerInfo> metadataBeforeTrim = ledger.getLedgersInfoAsList();
+            assertThat(metadataBeforeTrim).hasSize(4);
+            long firstLedgerId = metadataBeforeTrim.get(0).getLedgerId();
+            long secondLedgerId = metadataBeforeTrim.get(1).getLedgerId();
+            long thirdLedgerId = metadataBeforeTrim.get(2).getLedgerId();
+            long currentLedgerId = metadataBeforeTrim.get(3).getLedgerId();
+            assertThat(offloader.offloadedLedgers())
+                    .containsExactlyInAnyOrder(firstLedgerId, secondLedgerId, thirdLedgerId);
+
+            // Only the first ledger expires retention; every offloaded ledger exceeds the deletion lag.
+            clock.advance(5, TimeUnit.MINUTES);
+            CompletableFuture<Void> trim = new CompletableFuture<>();
+            ledger.internalTrimLedgers(truncate, trim);
+            trim.get(10, TimeUnit.SECONDS);
+
+            if (truncate) {
+                assertThat(ledger.getLedgersInfoAsList()).extracting(LedgerInfo::getLedgerId)
+                        .containsExactly(currentLedgerId);
+                Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+                    assertThat(offloader.deletedOffloads())
+                            .containsExactlyInAnyOrder(firstLedgerId, secondLedgerId, thirdLedgerId);
+                    assertThat(offloader.offloadedLedgers()).isEmpty();
+                });
+            } else {
+                assertThat(ledger.getLedgersInfoAsList()).extracting(LedgerInfo::getLedgerId)
+                        .containsExactly(secondLedgerId, thirdLedgerId, currentLedgerId);
+                for (int i = 1; i <= 2; i++) {
+                    LedgerInfo expected = new LedgerInfo().copyFrom(metadataBeforeTrim.get(i));
+                    expected.setOffloadContext().setBookkeeperDeleted(true);
+                    assertThat(ledger.getOptionalLedgerInfo(expected.getLedgerId()).orElseThrow().toByteArray())
+                            .as("retained offload metadata changes only the BookKeeper deletion flag")
+                            .containsExactly(expected.toByteArray());
+                }
+                Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+                    assertThat(offloader.deletedOffloads()).containsExactly(firstLedgerId);
+                    assertThat(offloader.offloadedLedgers())
+                            .containsExactlyInAnyOrder(secondLedgerId, thirdLedgerId);
+                });
+            }
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+                    assertThat(bkc.getLedgers()).doesNotContain(firstLedgerId, secondLedgerId, thirdLedgerId));
+            assertThat(bkc.getLedgers()).contains(currentLedgerId);
+        } finally {
+            ledger.close();
+        }
+    }
+
+    @Test(timeOut = 30000)
+    public void testZeroOffloadDeletionLagRequiresElapsedTime() throws Exception {
+        OffloadPrefixTest.MockLedgerOffloader offloader = new OffloadPrefixTest.MockLedgerOffloader();
+        MockClock clock = new MockClock();
+        ManagedLedgerConfig config = defaultConfig()
+                .setMaxEntriesPerLedger(2)
+                .setRetentionTime(10, TimeUnit.MINUTES)
+                .setRetentionSizeInMB(10)
+                .setLedgerOffloader(offloader)
+                .setClock(clock);
+        config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
+        offloader.getOffloadPolicies().setManagedLedgerOffloadDeletionLagInMillis(0L);
+
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("zeroOffloadDeletionLag", config);
+        try {
+            for (int i = 0; i < 3; i++) {
+                ledger.addEntry(new byte[] {1});
+            }
+            ledger.offloadPrefix(ledger.getLastConfirmedEntry());
+            LedgerInfo offloadedLedgerInfo = new LedgerInfo().copyFrom(ledger.getLedgersInfoAsList().get(0));
+            long offloadedLedgerId = offloadedLedgerInfo.getLedgerId();
+
+            CompletableFuture<Void> trimAtOffloadTime = new CompletableFuture<>();
+            ledger.internalTrimConsumedLedgers(trimAtOffloadTime);
+            trimAtOffloadTime.get(10, TimeUnit.SECONDS);
+            assertThat(bkc.getLedgers()).contains(offloadedLedgerId);
+            assertThat(ledger.getOptionalLedgerInfo(offloadedLedgerId).orElseThrow().toByteArray())
+                    .containsExactly(offloadedLedgerInfo.toByteArray());
+
+            clock.advance(1, TimeUnit.MILLISECONDS);
+            CompletableFuture<Void> trimAfterOffload = new CompletableFuture<>();
+            ledger.internalTrimConsumedLedgers(trimAfterOffload);
+            trimAfterOffload.get(10, TimeUnit.SECONDS);
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+                    assertThat(bkc.getLedgers()).doesNotContain(offloadedLedgerId));
+            offloadedLedgerInfo.setOffloadContext().setBookkeeperDeleted(true);
+            assertThat(ledger.getOptionalLedgerInfo(offloadedLedgerId).orElseThrow().toByteArray())
+                    .containsExactly(offloadedLedgerInfo.toByteArray());
+            assertThat(offloader.offloadedLedgers()).containsExactly(offloadedLedgerId);
+            assertThat(offloader.deletedOffloads()).isEmpty();
+        } finally {
+            ledger.close();
+        }
+    }
+
+    @DataProvider(name = "disabledOffloadDeletionPolicies")
+    public Object[][] disabledOffloadDeletionPolicies() {
+        return new Object[][] {
+                {"missingOffloader", 0L},
+                {"nonAppendableOffloader", 0L},
+                {"missingPolicies", 0L},
+                {"missingDeletionLag", null},
+                {"negativeDeletionLag", -1L}
+        };
+    }
+
+    @Test(dataProvider = "disabledOffloadDeletionPolicies", timeOut = 30000)
+    public void testDisabledOffloadDeletionRetainsBookKeeperCopy(String disabledPolicy, Long deletionLag)
+            throws Exception {
+        OffloadPrefixTest.MockLedgerOffloader offloader = Mockito.spy(new OffloadPrefixTest.MockLedgerOffloader());
+        MockClock clock = new MockClock();
+        ManagedLedgerConfig config = defaultConfig()
+                .setMaxEntriesPerLedger(2)
+                .setRetentionTime(10, TimeUnit.MINUTES)
+                .setRetentionSizeInMB(10)
+                .setLedgerOffloader(offloader)
+                .setClock(clock);
+        config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
+        offloader.getOffloadPolicies().setManagedLedgerOffloadDeletionLagInMillis(0L);
+
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("disabledOffloadDeletion", config);
+        try {
+            for (int i = 0; i < 3; i++) {
+                ledger.addEntry(new byte[] {1});
+            }
+            ledger.offloadPrefix(ledger.getLastConfirmedEntry());
+            List<LedgerInfo> metadataBeforeTrim = ledger.getLedgersInfoAsList();
+            assertThat(metadataBeforeTrim).hasSize(2);
+            long offloadedLedgerId = metadataBeforeTrim.get(0).getLedgerId();
+            assertThat(offloader.offloadedLedgers()).containsExactly(offloadedLedgerId);
+
+            offloader.getOffloadPolicies().setManagedLedgerOffloadDeletionLagInMillis(deletionLag);
+            if (disabledPolicy.equals("missingOffloader")) {
+                config.setLedgerOffloader(null);
+            } else if (disabledPolicy.equals("nonAppendableOffloader")) {
+                Mockito.doReturn(false).when(offloader).isAppendable();
+            } else if (disabledPolicy.equals("missingPolicies")) {
+                Mockito.doReturn(null).when(offloader).getOffloadPolicies();
+            }
+            clock.advance(1, TimeUnit.MINUTES);
+            CompletableFuture<Void> trim = new CompletableFuture<>();
+            ledger.internalTrimConsumedLedgers(trim);
+            trim.get(10, TimeUnit.SECONDS);
+
+            assertThat(ledger.getLedgersInfoAsList()).as(disabledPolicy).hasSize(metadataBeforeTrim.size());
+            for (LedgerInfo expected : metadataBeforeTrim) {
+                assertThat(ledger.getOptionalLedgerInfo(expected.getLedgerId()).orElseThrow().toByteArray())
+                        .as(disabledPolicy).containsExactly(expected.toByteArray());
+                assertThat(bkc.getLedgers()).as(disabledPolicy).contains(expected.getLedgerId());
+            }
+            assertThat(offloader.offloadedLedgers()).containsExactly(offloadedLedgerId);
+            assertThat(offloader.deletedOffloads()).isEmpty();
+        } finally {
+            config.setLedgerOffloader(offloader);
+            ledger.close();
         }
     }
 

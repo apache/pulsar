@@ -40,6 +40,7 @@ import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.intercept.InterceptException;
+import org.apache.pulsar.common.protocol.Commands;
 
 /**
  * A collection of broker interceptor.
@@ -245,6 +246,11 @@ public class BrokerInterceptors implements BrokerInterceptor {
 
     @Override
     public void onPulsarCommand(BaseCommand command, ServerCnx cnx) throws InterceptException {
+        if (interceptors.length > 1 && Commands.isThreadLocalCommand(command)) {
+            // A callback can build another command on this thread and overwrite the original command.
+            // Detach it once so subsequent interceptors still observe the original fields.
+            command = new BaseCommand().copyFrom(command);
+        }
         for (BrokerInterceptorWithClassLoader value : interceptors) {
             value.onPulsarCommand(command, cnx);
         }

@@ -17,7 +17,7 @@
  * under the License.
  */
 
-/**
+/*
  * This file is derived from BookKeeperClusterTestCase from Apache BookKeeper
  * http://bookkeeper.apache.org
  */
@@ -307,7 +307,7 @@ public abstract class BookKeeperClusterTestCase {
         }
 
         for (ServerTester t : servers) {
-            t.shutdown();
+            shutdownServer(t);
         }
         servers.clear();
         bookiePorts.removeIf(PortManager::releaseLockedPort);
@@ -345,7 +345,7 @@ public abstract class BookKeeperClusterTestCase {
 
     protected void stopAllBookies(boolean shutdownClient) throws Exception {
         for (ServerTester t : servers) {
-            t.shutdown();
+            shutdownServer(t);
         }
         servers.clear();
         if (shutdownClient && bkc != null) {
@@ -461,7 +461,7 @@ public abstract class BookKeeperClusterTestCase {
                 log.warn().attr("bookie", addr).log("Killing bookie who is the current Auditor");
             }
             servers.remove(tester.get());
-            tester.get().shutdown();
+            shutdownServer(tester.get());
             return tester.get().getConfiguration();
         }
         return null;
@@ -493,7 +493,7 @@ public abstract class BookKeeperClusterTestCase {
      */
     public ServerConfiguration killBookie(int index) throws Exception {
         ServerTester tester = servers.remove(index);
-        tester.shutdown();
+        shutdownServer(tester);
         return tester.getConfiguration();
     }
 
@@ -636,7 +636,7 @@ public abstract class BookKeeperClusterTestCase {
         // shut down bookie server
         List<ServerConfiguration> confs = new ArrayList<>();
         for (ServerTester server : servers) {
-            server.shutdown();
+            shutdownServer(server);
             confs.add(server.getConfiguration());
         }
         servers.clear();
@@ -810,8 +810,36 @@ public abstract class BookKeeperClusterTestCase {
      */
     public void stopReplicationService() throws Exception{
         for (ServerTester t : servers) {
-            t.stopAutoRecovery();
+            stopAutoRecovery(t);
         }
+    }
+
+    /**
+     * Shuts down a bookie, stopping its auto recovery first, as the components of a bookie server are closed in
+     * the reverse order of their start.
+     */
+    private static void shutdownServer(ServerTester tester) throws Exception {
+        stopAutoRecovery(tester);
+        tester.shutdown();
+    }
+
+    private static void stopAutoRecovery(ServerTester tester) throws InterruptedException {
+        if (tester.autoRecovery != null) {
+            shutdownAuditorElector(tester.autoRecovery.auditorElector);
+            tester.stopAutoRecovery();
+        }
+    }
+
+    /**
+     * Shuts down an auditor elector without waiting out the election of a follower.
+     *
+     * <p>{@link AuditorElector#shutdown()} closes the auditor manager on the elector thread, where a follower
+     * waits in the election until it becomes the auditor, and only runs the close itself after waiting 10 seconds
+     * for that thread. Closing the manager first ends the wait of the PulsarLedgerAuditorManager election.
+     */
+    static void shutdownAuditorElector(AuditorElector elector) throws InterruptedException {
+        elector.shutdownTask.run();
+        elector.shutdown();
     }
 
     public Auditor getAuditor(int timeout, TimeUnit unit) throws Exception {
@@ -821,17 +849,11 @@ public abstract class BookKeeperClusterTestCase {
                 Auditor a = t.getAuditor();
                 ReplicationWorker replicationWorker = t.getReplicationWorker();
 
-                // found a candidate Auditor + ReplicationWorker
+                // The AutoRecoveryDeathWatcher shuts the AutoRecovery daemon down once its elector or its
+                // ReplicationWorker stops running, so a daemon that passes the same checks is not about to stop.
                 if (a != null && a.isRunning()
-                        && replicationWorker != null && replicationWorker.isRunning()) {
-                    int deathWatchInterval = t.getConfiguration().getDeathWatchInterval();
-                    Thread.sleep(deathWatchInterval + 1000);
-                }
-
-                // double check, because in the meantime AutoRecoveryDeathWatcher may have killed the
-                // AutoRecovery daemon
-                if (a != null && a.isRunning()
-                        && replicationWorker != null && replicationWorker.isRunning()) {
+                        && replicationWorker != null && replicationWorker.isRunning()
+                        && t.autoRecovery.isAutoRecoveryRunning() && t.autoRecovery.auditorElector.isRunning()) {
                     log.info().attr("bookie", t.getServer().getBookieId()).log("Found Auditor Bookie");
                     return a;
                 }

@@ -26,4 +26,8 @@ public class PulsarFunctionsGoProcessTest extends PulsarFunctionsGoTest {
         super(FunctionRuntimeType.PROCESS);
     }
 
+    @Override
+    protected boolean isClusterShared() {
+        return true;
+    }
 }

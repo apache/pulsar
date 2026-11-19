@@ -71,6 +71,20 @@ public class ShadowManagedLedgerImplTest extends MockedBookKeeperTestCase {
     }
 
     @Test
+    public void testMigrationDoesNotUpdateShadowLedgerProperties() throws Exception {
+        factory.open("source_migration");
+        String shadowName = "shadow_migration";
+        ShadowManagedLedgerImpl shadowLedger = openShadowManagedLedger(shadowName, "source_migration");
+        var originalInfo = factory.getManagedLedgerInfo(shadowName);
+
+        assertTrue(shadowLedger.asyncMigrate().handle((ignored, error) -> error).get(5, TimeUnit.SECONDS)
+                instanceof ManagedLedgerException);
+        assertFalse(shadowLedger.isMigrated());
+        assertEquals(shadowLedger.getProperties(), originalInfo.properties);
+        assertEquals(factory.getManagedLedgerInfo(shadowName).version, originalInfo.version);
+    }
+
+    @Test
     public void testShadowWrites() throws Exception {
         ManagedLedgerImpl sourceML = (ManagedLedgerImpl) factory.open("source_ML", defaultConfig()
                 .setMaxEntriesPerLedger(2)

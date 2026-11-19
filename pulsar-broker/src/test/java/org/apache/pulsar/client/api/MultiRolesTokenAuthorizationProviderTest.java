@@ -62,14 +62,14 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class MultiRolesTokenAuthorizationProviderTest extends MockedPulsarServiceBaseTest {
-    @SuppressWarnings("deprecation")
 
     private static final String PROXY_ROLE = "multi-roles-proxy";
 
+    // AuthTokenUtils.createSecretKey only takes jjwt's deprecated SignatureAlgorithm.
+    @SuppressWarnings("deprecation")
     private final SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
     private final String superUserToken;
     private final String normalUserToken;
-    @SuppressWarnings("deprecation")
 
     public MultiRolesTokenAuthorizationProviderTest() {
         Map<String, Object> claims = new HashMap<>();
@@ -78,7 +78,7 @@ public class MultiRolesTokenAuthorizationProviderTest extends MockedPulsarServic
         roles.add("superUser");
         claims.put("roles", roles);
         superUserToken = Jwts.builder()
-                .setClaims(claims)
+                .claims(claims)
                 .signWith(secretKey)
                 .compact();
 
@@ -88,7 +88,7 @@ public class MultiRolesTokenAuthorizationProviderTest extends MockedPulsarServic
         roles.add("user5");
         claims.put("roles", roles);
         normalUserToken = Jwts.builder()
-                .setClaims(claims)
+                .claims(claims)
                 .signWith(secretKey)
                 .compact();
     }
@@ -239,11 +239,11 @@ public class MultiRolesTokenAuthorizationProviderTest extends MockedPulsarServic
         Map<String, Object> claims = new HashMap<>();
         // The authenticated principal is the first role, while the second role grants tenant admin access.
         claims.put("roles", List.of(primaryRole, tenantAdminRole));
-        final String tenantAdminToken = Jwts.builder().setClaims(claims).signWith(secretKey).compact();
+        final String tenantAdminToken = Jwts.builder().claims(claims).signWith(secretKey).compact();
         claims.put("roles", List.of(primaryRole));
-        final String userToken = Jwts.builder().setClaims(claims).signWith(secretKey).compact();
+        final String userToken = Jwts.builder().claims(claims).signWith(secretKey).compact();
         claims.put("roles", List.of(primaryRole, otherTenantAdminRole));
-        final String otherTenantAdminToken = Jwts.builder().setClaims(claims).signWith(secretKey).compact();
+        final String otherTenantAdminToken = Jwts.builder().claims(claims).signWith(secretKey).compact();
 
         try (PulsarAdmin superUserAdmin = newPulsarAdmin(superUserToken);
              PulsarAdmin tenantAdmin = newPulsarAdmin(tenantAdminToken);
@@ -355,9 +355,9 @@ public class MultiRolesTokenAuthorizationProviderTest extends MockedPulsarServic
         Map<String, Object> claims = new HashMap<>();
         // the first role is the primary role of the token, the second one is a tenant admin role
         claims.put("roles", List.of("clear-backlog-consumer", "clear-backlog-tenant-admin"));
-        final String tenantAdminToken = Jwts.builder().setClaims(claims).signWith(secretKey).compact();
+        final String tenantAdminToken = Jwts.builder().claims(claims).signWith(secretKey).compact();
         claims.put("roles", List.of("clear-backlog-consumer"));
-        final String consumerToken = Jwts.builder().setClaims(claims).signWith(secretKey).compact();
+        final String consumerToken = Jwts.builder().claims(claims).signWith(secretKey).compact();
 
         @Cleanup
         PulsarAdmin superUserAdmin = newPulsarAdmin(superUserToken);
@@ -416,7 +416,7 @@ public class MultiRolesTokenAuthorizationProviderTest extends MockedPulsarServic
         Map<String, Object> claims = new HashMap<>();
         // the first role is the primary role of the token, the second one gives the proxy tenant admin access
         claims.put("roles", List.of(PROXY_ROLE, tenantAdminRole));
-        final String proxyToken = Jwts.builder().setClaims(claims).signWith(secretKey).compact();
+        final String proxyToken = Jwts.builder().claims(claims).signWith(secretKey).compact();
 
         @Cleanup
         PulsarAdmin superUserAdmin = newPulsarAdmin(superUserToken);
@@ -484,7 +484,7 @@ public class MultiRolesTokenAuthorizationProviderTest extends MockedPulsarServic
         Map<String, Object> claims = new HashMap<>();
         // the first role is the primary role of the token, the second one gives the proxy tenant admin access
         claims.put("roles", List.of(PROXY_ROLE, tenantAdminRole));
-        final String proxyToken = Jwts.builder().setClaims(claims).signWith(secretKey).compact();
+        final String proxyToken = Jwts.builder().claims(claims).signWith(secretKey).compact();
 
         @Cleanup
         PulsarAdmin superUserAdmin = newPulsarAdmin(superUserToken);
@@ -575,9 +575,9 @@ public class MultiRolesTokenAuthorizationProviderTest extends MockedPulsarServic
         Map<String, Object> claims = new HashMap<>();
         // the first role is the primary role of the token, the second one is an extra role of the proxy
         claims.put("roles", List.of(PROXY_ROLE, "superUser"));
-        final String superUserProxyToken = Jwts.builder().setClaims(claims).signWith(secretKey).compact();
+        final String superUserProxyToken = Jwts.builder().claims(claims).signWith(secretKey).compact();
         claims.put("roles", List.of(PROXY_ROLE, tenantAdminRole));
-        final String tenantAdminProxyToken = Jwts.builder().setClaims(claims).signWith(secretKey).compact();
+        final String tenantAdminProxyToken = Jwts.builder().claims(claims).signWith(secretKey).compact();
 
         @Cleanup
         PulsarAdmin superUserAdmin = newPulsarAdmin(superUserToken);

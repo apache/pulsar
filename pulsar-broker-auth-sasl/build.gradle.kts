@@ -24,7 +24,7 @@ plugins {
 
 // Each test class gets its own JVM fork because AuthenticationSasl has static JAAS state
 // (jaasCredentialsContainer, initializedJAAS) that leaks between test classes sharing a fork.
-tasks.withType<Test> {
+tasks.withType<Test>().configureEach {
     forkEvery = 1
 }
 
@@ -38,12 +38,12 @@ dependencies {
     implementation(libs.commons.lang3)
     implementation(libs.commons.codec)
     api(libs.jakarta.servlet.api)
-    implementation(libs.simpleclient.caffeine)
+    implementation(libs.prometheus.metrics.instrumentation.caffeine)
 
     testImplementation(libs.commons.io)
     testImplementation(libs.kerby.simplekdc)
     testImplementation(project(":pulsar-client-original"))
     testImplementation(project(":pulsar-proxy"))
     testImplementation(project(":pulsar-client-auth-sasl"))
-    testImplementation(project(path = ":pulsar-broker", configuration = "testJar"))
+    testImplementation(testJar(":pulsar-broker"))
 }

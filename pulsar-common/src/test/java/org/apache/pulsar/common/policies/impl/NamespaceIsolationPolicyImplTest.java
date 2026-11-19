@@ -24,6 +24,7 @@ import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -164,23 +165,24 @@ public class NamespaceIsolationPolicyImplTest {
     @Test
     public void testFindBrokersWithPort() throws Exception {
         NamespaceName ns = NamespaceName.get("pulsar/testns-1");
-        List<URL> brokers = List.of(new URL("http://broker1:8080"), new URL("http://broker1:8081"),
-                new URL("http://broker2:8080"));
+        List<URL> brokers = List.of(URI.create("http://broker1:8080").toURL(),
+                URI.create("http://broker1:8081").toURL(), URI.create("http://broker2:8080").toURL());
         NamespaceIsolationPolicyImpl portPolicy = policy(List.of("broker1:8080"), List.of("broker[2-3]:8080"));
-        assertEquals(portPolicy.findPrimaryBrokers(brokers, ns), List.of(new URL("http://broker1:8080")));
-        assertEquals(portPolicy.findSecondaryBrokers(brokers, ns), List.of(new URL("http://broker2:8080")));
+        assertEquals(portPolicy.findPrimaryBrokers(brokers, ns), List.of(URI.create("http://broker1:8080").toURL()));
+        assertEquals(portPolicy.findSecondaryBrokers(brokers, ns), List.of(URI.create("http://broker2:8080").toURL()));
 
-        List<URL> ipv6Brokers = List.of(new URL("http://[2001:db8::1]:8080"), new URL("http://[2001:db8::1]:8081"),
-                new URL("http://[2001:db8::2]:8080"));
+        List<URL> ipv6Brokers = List.of(URI.create("http://[2001:db8::1]:8080").toURL(),
+                URI.create("http://[2001:db8::1]:8081").toURL(), URI.create("http://[2001:db8::2]:8080").toURL());
         // host-only IPv6 entry
         assertEquals(policy(List.of("2001:db8::1"), List.of()).findPrimaryBrokers(ipv6Brokers, ns),
-                List.of(new URL("http://[2001:db8::1]:8080"), new URL("http://[2001:db8::1]:8081")));
+                List.of(URI.create("http://[2001:db8::1]:8080").toURL(),
+                        URI.create("http://[2001:db8::1]:8081").toURL()));
         // IPv6 entry with a port
         assertEquals(policy(List.of("\\[2001:db8::1\\]:8080"), List.of()).findPrimaryBrokers(ipv6Brokers, ns),
-                List.of(new URL("http://[2001:db8::1]:8080")));
+                List.of(URI.create("http://[2001:db8::1]:8080").toURL()));
         // the bracketed host is still matched as before
         assertEquals(policy(List.of("\\[2001:db8::2\\]"), List.of()).findPrimaryBrokers(ipv6Brokers, ns),
-                List.of(new URL("http://[2001:db8::2]:8080")));
+                List.of(URI.create("http://[2001:db8::2]:8080").toURL()));
     }
 
     @Test
@@ -189,12 +191,12 @@ public class NamespaceIsolationPolicyImplTest {
         List<URL> brokers = new ArrayList<URL>();
         for (int i = 0; i < 10; i++) {
             String broker = String.format("prod1-broker%d.messaging.use.example.com", i);
-            brokers.add(new URL(String.format("http://%s:8080", broker)));
+            brokers.add(URI.create(String.format("http://%s:8080", broker)).toURL());
         }
         List<URL> otherBrokers = new ArrayList<URL>();
         for (int i = 0; i < 10; i++) {
             String broker = String.format("prod1-broker%d.messaging.usw.example.com", i);
-            brokers.add(new URL(String.format("http://%s:8080", broker)));
+            brokers.add(URI.create(String.format("http://%s:8080", broker)).toURL());
         }
         List<URL> primaryBrokers = defaultPolicy.findPrimaryBrokers(brokers, NamespaceName.get("pulsar/testns-1"));
         assertEquals(primaryBrokers.size(), 3);

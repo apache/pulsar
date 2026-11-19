@@ -18,13 +18,13 @@
  */
 package org.apache.pulsar.functions.instance.stats;
 
-import io.prometheus.client.Collector;
-import io.prometheus.client.CollectorRegistry;
+import io.prometheus.metrics.model.registry.Collector;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
 
 /**
  * Internal representation of Prometheus Collector Registry.
  */
-public abstract class FunctionCollectorRegistry extends CollectorRegistry {
+public abstract class FunctionCollectorRegistry extends PrometheusRegistry {
     public static FunctionCollectorRegistry getDefaultImplementation() {
         return new FunctionCollectorRegistryImpl();
     }

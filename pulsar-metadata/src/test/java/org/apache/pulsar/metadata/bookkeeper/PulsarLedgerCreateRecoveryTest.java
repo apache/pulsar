@@ -58,6 +58,7 @@ import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.cache.impl.MetadataCacheImpl;
+import org.mockito.ArgumentMatchers;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -318,7 +319,7 @@ public class PulsarLedgerCreateRecoveryTest {
                 return new MetadataCacheImpl<>("create-recovery-" + UUID.randomUUID(), store, serde,
                         MetadataCacheConfig.<LedgerMetadata>builder().refreshAfterWriteMillis(0)
                                 .expireAfterWriteMillis(0).build(), executor, scheduler);
-            }).when(store).getMetadataCache(any(MetadataSerde.class));
+            }).when(store).getMetadataCache(ArgumentMatchers.<MetadataSerde<LedgerMetadata>>any());
             // The manager cancels its store listener on close.
             doReturn((Runnable) () -> { }).when(store).registerCancellableListener(any());
             manager = new PulsarLedgerManager(store, "/ledgers");
