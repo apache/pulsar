@@ -987,7 +987,12 @@ public interface ManagedCursor {
 
     /**
      * Snapshot the cursor, optionally omitting the individually deleted range string.
-     * Implementations that support omission must skip constructing the string.
+     * Storage plugins that support omission must implement this overload and skip constructing the range
+     * string. A complete snapshot remains available through {@link #getCursorStats()}.
+     *
+     * @param includeIndividualDeletedMessages whether to include the complete individually deleted range string
+     * @return the requested cursor snapshot
+     * @throws UnsupportedOperationException if omission is requested but the cursor does not support it
      */
     default ManagedLedgerInternalStats.CursorStats getCursorStats(boolean includeIndividualDeletedMessages) {
         if (includeIndividualDeletedMessages) {

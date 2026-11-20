@@ -28,6 +28,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import com.fasterxml.jackson.core.JsonParseException;
 import io.netty.channel.ConnectTimeoutException;
+import io.netty.handler.ssl.SslHandshakeTimeoutException;
 import java.net.ConnectException;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -41,6 +42,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.internal.http.AsyncHttpConnector.MaxRedirectException;
@@ -78,12 +80,13 @@ public class PartitionedSubscriptionCursorStatsTest {
                     return false;
                 }
             };
-            var response = PartitionedSubscriptionCursorStats.collect(TOPIC, new PartitionedTopicMetadata(32), name -> {
-                var request = requests.size() == 1 ? uncancellable : new CompletableFuture<CursorStats>();
-                partitions.add(name);
-                requests.add(request);
-                return request;
-            }, executor, TIMEOUT);
+            var response = PartitionedSubscriptionCursorStats.collect(TOPIC, new PartitionedTopicMetadata(32),
+                    () -> CompletableFuture.completedFuture(name -> {
+                        var request = requests.size() == 1 ? uncancellable : new CompletableFuture<CursorStats>();
+                        partitions.add(name);
+                        requests.add(request);
+                        return request;
+                    }), executor, TIMEOUT);
 
             await().untilAsserted(() -> assertThat(requests).hasSize(16));
             worker.submit(() -> { }).get(10, TimeUnit.SECONDS);
@@ -112,6 +115,19 @@ public class PartitionedSubscriptionCursorStatsTest {
     }
 
     @Test
+    public void testDeadlineIncludesWaitingForInternalAdminClient() {
+        var initialization = new CompletableFuture<Function<String, CompletableFuture<CursorStats>>>();
+        try (var executor = Executors.newSingleThreadScheduledExecutor()) {
+            var response = PartitionedSubscriptionCursorStats.collect(TOPIC, new PartitionedTopicMetadata(2),
+                    () -> initialization, executor, Duration.ofMillis(100));
+            assertThatThrownBy(() -> response.get(10, TimeUnit.SECONDS))
+                    .cause().isInstanceOfSatisfying(RestException.class,
+                            error -> assertThat(error.getResponse().getStatus()).isEqualTo(503));
+            assertThat(initialization).isCancelled();
+        }
+    }
+
+    @Test
     public void testPartialResponseClassifiesAndSanitizesFailures() throws Exception {
         Map<Integer, String> statuses = Map.ofEntries(
                 Map.entry(401, "AUTHORIZATION_FAILED"), Map.entry(403, "AUTHORIZATION_FAILED"),
@@ -123,17 +139,19 @@ public class PartitionedSubscriptionCursorStatsTest {
                 new PulsarAdminException(new TimeoutException("private upstream timeout")),
                 new PulsarAdminException(new RetryException("private retry",
                         new ConnectTimeoutException("private connection timeout"))),
+                new PulsarAdminException(new RetryException("private retry",
+                        new SslHandshakeTimeoutException("private TLS handshake timeout"))),
                 new PulsarAdminException(new ConnectException("private internal address")),
                 new PulsarAdminException(new MaxRedirectException("private internal URL")),
                 new PulsarAdminException(new JsonParseException(null, "private response data")),
                 new IllegalStateException("private coordinator details"));
         List<String> localCodes = List.of(
-                "TIMEOUT", "TIMEOUT", "UNAVAILABLE", "UNAVAILABLE", "INTERNAL_ERROR", "INTERNAL_ERROR");
+                "TIMEOUT", "TIMEOUT", "TIMEOUT", "UNAVAILABLE", "UNAVAILABLE", "INTERNAL_ERROR", "INTERNAL_ERROR");
         int localOffset = remoteStatuses.size() + 1;
         int count = localOffset + localErrors.size();
         try (var executor = Executors.newScheduledThreadPool(2)) {
             var response = PartitionedSubscriptionCursorStats.collect(TOPIC, new PartitionedTopicMetadata(count),
-                    name -> {
+                    () -> CompletableFuture.completedFuture(name -> {
                         int partition = TopicName.getPartitionIndex(name);
                         if (partition == 0) {
                             return CompletableFuture.completedFuture(new CursorStats());
@@ -143,7 +161,7 @@ public class PartitionedSubscriptionCursorStatsTest {
                                     null, "private upstream response", remoteStatuses.get(partition - 1)));
                         }
                         return CompletableFuture.failedFuture(localErrors.get(partition - localOffset));
-                    }, executor, TIMEOUT).get(10, TimeUnit.SECONDS);
+                    }), executor, TIMEOUT).get(10, TimeUnit.SECONDS);
             assertThat(response.complete).isFalse();
             assertThat(response.partitions).containsOnlyKeys(TOPIC.getPartition(0).toString());
             assertThat(response.errors).hasSize(count - 1);
@@ -164,14 +182,16 @@ public class PartitionedSubscriptionCursorStatsTest {
             var notFound = new PulsarAdminException(null, "private upstream response", 404);
             var metadata = new PartitionedTopicMetadata(2);
             var allMissing = PartitionedSubscriptionCursorStats.collect(TOPIC, metadata,
-                    name -> CompletableFuture.failedFuture(notFound), executor, TIMEOUT);
+                    () -> CompletableFuture.completedFuture(name -> CompletableFuture.failedFuture(notFound)),
+                    executor, TIMEOUT);
             assertThatThrownBy(allMissing::join).hasCauseInstanceOf(RestException.class)
                     .cause().isInstanceOfSatisfying(RestException.class,
                             error -> assertThat(error.getResponse().getStatus()).isEqualTo(404));
 
             var mixed = PartitionedSubscriptionCursorStats.collect(TOPIC, metadata,
-                    name -> CompletableFuture.failedFuture(TopicName.getPartitionIndex(name) == 0
-                            ? notFound : new TimeoutException()), executor, TIMEOUT);
+                    () -> CompletableFuture.completedFuture(name -> CompletableFuture.failedFuture(
+                            TopicName.getPartitionIndex(name) == 0 ? notFound : new TimeoutException())),
+                    executor, TIMEOUT);
             assertThatThrownBy(mixed::join).hasCauseInstanceOf(RestException.class)
                     .cause().isInstanceOfSatisfying(RestException.class,
                             error -> assertThat(error.getResponse().getStatus()).isEqualTo(503));

@@ -4749,11 +4749,15 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public ManagedLedgerInternalStats.CursorStats getCursorStats() {
-        return getCursorStats(true);
+        return buildCursorStats(true);
     }
 
     @Override
     public ManagedLedgerInternalStats.CursorStats getCursorStats(boolean includeIndividualDeletedMessages) {
+        return includeIndividualDeletedMessages ? getCursorStats() : buildCursorStats(false);
+    }
+
+    private ManagedLedgerInternalStats.CursorStats buildCursorStats(boolean includeIndividualDeletedMessages) {
         ManagedLedgerInternalStats.CursorStats cs = new ManagedLedgerInternalStats.CursorStats();
         cs.markDeletePosition = getMarkDeletedPosition().toString();
         cs.readPosition = getReadPosition().toString();

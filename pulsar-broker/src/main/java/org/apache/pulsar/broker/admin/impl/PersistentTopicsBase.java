@@ -1640,7 +1640,7 @@ public class PersistentTopicsBase extends AdminResource {
                     return readCursorStatsDependency(
                             pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName));
                 })
-                .thenComposeAsync(metadata -> {
+                .thenCompose(metadata -> {
                     if (metadata.partitions == 0) {
                         return readCursorStatsDependency(
                                 pulsar().getNamespaceService().checkNonPartitionedTopicExists(topicName))
@@ -1658,20 +1658,17 @@ public class PersistentTopicsBase extends AdminResource {
                     }
                     var snapshot = new PartitionedTopicMetadata(metadata.partitions,
                             metadata.properties == null ? null : new HashMap<>(metadata.properties));
-                    TopicsImpl topics;
-                    try {
-                        topics = (TopicsImpl) pulsar().getAdminClient().topics();
-                    } catch (PulsarServerException e) {
-                        return CompletableFuture.failedFuture(
-                                new RestException(Status.SERVICE_UNAVAILABLE, "Broker admin client unavailable"));
-                    }
                     Duration timeout = Duration.ofSeconds(
                             Math.max(1, config().getMetadataStoreOperationTimeoutSeconds()));
                     return PartitionedSubscriptionCursorStats.collect(topicName, snapshot,
-                            partition -> topics.getLocalSubscriptionCursorInternalStatsAsync(
-                                    partition, subName, includeIndividualDeletedMessages),
-                            pulsar().getExecutor(), timeout);
-                }, pulsar().getExecutor());
+                            () -> pulsar().getAdminClientAsync().exceptionally(error -> {
+                                throw new RestException(Status.SERVICE_UNAVAILABLE, "Broker admin client unavailable");
+                            }).thenApply(admin -> {
+                                TopicsImpl topics = (TopicsImpl) admin.topics();
+                                return partition -> topics.getLocalSubscriptionCursorInternalStatsAsync(
+                                        partition, subName, includeIndividualDeletedMessages);
+                            }), pulsar().getExecutor(), timeout);
+                });
     }
 
     private CompletableFuture<Void> validateSubscriptionCursorStatsRequest(String subName, boolean localOnly) {

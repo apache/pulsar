@@ -166,8 +166,8 @@ public final class HttpAuthenticationDriver {
         ctx.setServerChallengeHeaders(serverChallenge);
         long remainingNanos = deadlineNanos - System.nanoTime();
         if (remainingNanos <= 0) {
-            return CompletableFuture.failedFuture(new PulsarClientException.AuthenticationException(
-                    "SASL over HTTP exchange exceeded its timeout budget before round " + round));
+            String message = "SASL over HTTP exchange exceeded its timeout budget before round " + round;
+            return CompletableFuture.failedFuture(authenticationTimeout(message, new TimeoutException(message)));
         }
         Duration remaining = Duration.ofNanos(remainingNanos);
         // Bound the WHOLE round — the plugin's challenge evaluation (respondToHttpChallengeAsync, which for
@@ -225,13 +225,20 @@ public final class HttpAuthenticationDriver {
                 .orTimeout(remaining.toNanos(), TimeUnit.NANOSECONDS)
                 .exceptionallyCompose(t -> {
                     Throwable cause = t instanceof CompletionException ? t.getCause() : t;
-                    if (cause instanceof TimeoutException) {
-                        return CompletableFuture.failedFuture(new PulsarClientException.AuthenticationException(
+                    if (cause instanceof TimeoutException timeout) {
+                        return CompletableFuture.failedFuture(authenticationTimeout(
                                 "SASL over HTTP round " + round + " timed out after " + remaining.toMillis()
-                                        + " ms"));
+                                        + " ms", timeout));
                     }
                     return CompletableFuture.failedFuture(cause);
                 });
+    }
+
+    private static PulsarClientException.AuthenticationException authenticationTimeout(String message,
+                                                                                       TimeoutException cause) {
+        var failure = new PulsarClientException.AuthenticationException(message);
+        failure.initCause(cause);
+        return failure;
     }
 
     /**

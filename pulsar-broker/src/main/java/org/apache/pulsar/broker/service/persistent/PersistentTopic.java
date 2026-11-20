@@ -3606,8 +3606,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 stats.cursors = new HashMap<>();
                 ledger.getCursors().forEach(cursor -> {
                     CursorStats cursorStats = cursor.getCursorStats();
-                    PersistentSubscription sub = getSubscription(Codec.decode(cursor.getName()));
-                    stats.cursors.put(cursor.getName(), buildSubscriptionAwareCursorStats(cursorStats, sub));
+                    PersistentSubscription sub = subscriptions.get(Codec.decode(cursor.getName()));
+                    stats.cursors.put(cursor.getName(), buildSubscriptionAwareCursorStats(cursorStats, sub, true));
                 });
 
                 //Schema store ledgers
@@ -3705,26 +3705,35 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
      */
     public CursorStats getSubscriptionCursorInternalStats(String subName, boolean includeIndividualDeletedMessages) {
         PersistentSubscription sub = getSubscription(subName);
-        return sub == null ? null : buildSubscriptionAwareCursorStats(
-                sub.getCursor().getCursorStats(includeIndividualDeletedMessages), sub);
+        if (sub == null) {
+            return null;
+        }
+        ManagedCursor cursor = sub.getCursor();
+        // Complete snapshots honor the same storage plugin overrides as topic-level internal stats.
+        CursorStats cursorStats = includeIndividualDeletedMessages
+                ? cursor.getCursorStats() : cursor.getCursorStats(false);
+        return buildSubscriptionAwareCursorStats(cursorStats, sub, includeIndividualDeletedMessages);
     }
 
-    private static CursorStats buildSubscriptionAwareCursorStats(CursorStats cursor, PersistentSubscription sub) {
+    private static CursorStats buildSubscriptionAwareCursorStats(CursorStats cursor, PersistentSubscription sub,
+                                                                  boolean includeIndividualDeletedMessages) {
         CursorStats stats = new CursorStats();
-        stats.markDeletePosition = cursor.markDeletePosition;
-        stats.readPosition = cursor.readPosition;
-        stats.waitingReadOp = cursor.waitingReadOp;
-        stats.pendingReadOps = cursor.pendingReadOps;
-        stats.messagesConsumedCounter = cursor.messagesConsumedCounter;
-        stats.cursorLedger = cursor.cursorLedger;
-        stats.cursorLedgerLastEntry = cursor.cursorLedgerLastEntry;
-        stats.individuallyDeletedMessages = cursor.individuallyDeletedMessages;
-        stats.lastLedgerSwitchTimestamp = cursor.lastLedgerSwitchTimestamp;
-        stats.state = cursor.state;
-        stats.active = cursor.active;
-        stats.numberOfEntriesSinceFirstNotAckedMessage = cursor.numberOfEntriesSinceFirstNotAckedMessage;
-        stats.totalNonContiguousDeletedMessagesRange = cursor.totalNonContiguousDeletedMessagesRange;
-        stats.properties = cursor.properties;
+        stats.markDeletePosition = cursor.getMarkDeletePosition();
+        stats.readPosition = cursor.getReadPosition();
+        stats.waitingReadOp = cursor.isWaitingReadOp();
+        stats.pendingReadOps = cursor.getPendingReadOps();
+        stats.messagesConsumedCounter = cursor.getMessagesConsumedCounter();
+        stats.cursorLedger = cursor.getCursorLedger();
+        stats.cursorLedgerLastEntry = cursor.getCursorLedgerLastEntry();
+        if (includeIndividualDeletedMessages) {
+            stats.individuallyDeletedMessages = cursor.getIndividuallyDeletedMessages();
+        }
+        stats.lastLedgerSwitchTimestamp = cursor.getLastLedgerSwitchTimestamp();
+        stats.state = cursor.getState();
+        stats.active = cursor.isActive();
+        stats.numberOfEntriesSinceFirstNotAckedMessage = cursor.getNumberOfEntriesSinceFirstNotAckedMessage();
+        stats.totalNonContiguousDeletedMessagesRange = cursor.getTotalNonContiguousDeletedMessagesRange();
+        stats.properties = cursor.getProperties();
 
         Dispatcher dispatcher = sub == null ? null : sub.getDispatcher();
         if (dispatcher instanceof AbstractPersistentDispatcherMultipleConsumers multipleConsumers) {

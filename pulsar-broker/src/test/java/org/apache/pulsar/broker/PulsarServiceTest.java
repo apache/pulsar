@@ -562,6 +562,38 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testAsyncInternalAdminClientInitializationIsSharedAndDoesNotBlock() throws Exception {
+        setup();
+        PulsarAdmin adminClient = mock(PulsarAdmin.class);
+        PulsarAdminBuilder adminClientBuilder = mock(PulsarAdminBuilder.class);
+        var initializing = new CountDownLatch(1);
+        var release = new CountDownLatch(1);
+        doAnswer(invocation -> {
+            initializing.countDown();
+            assertThat(release.await(10, TimeUnit.SECONDS)).isTrue();
+            return adminClient;
+        }).when(adminClientBuilder).build();
+        brokerAdminClientBuilder = adminClientBuilder;
+
+        try {
+            var first = CompletableFuture.supplyAsync(pulsar::getAdminClientAsync, pulsar.getExecutor())
+                    .get(5, TimeUnit.SECONDS);
+            assertThat(initializing.await(5, TimeUnit.SECONDS)).isTrue();
+            var second = CompletableFuture.supplyAsync(pulsar::getAdminClientAsync, pulsar.getExecutor())
+                    .get(5, TimeUnit.SECONDS);
+            assertThat(first.cancel(false)).isTrue();
+            assertThat(second).isNotDone();
+
+            release.countDown();
+            assertThat(second.get(5, TimeUnit.SECONDS)).isSameAs(adminClient);
+            assertThat(pulsar.getAdminClientAsync().get(5, TimeUnit.SECONDS)).isSameAs(adminClient);
+            verify(adminClientBuilder).build();
+        } finally {
+            release.countDown();
+        }
+    }
+
+    @Test
     public void testCloseClosesInternalAdminClientBeingCreated() throws Exception {
         setup();
         PulsarAdmin adminClient = mock(PulsarAdmin.class);

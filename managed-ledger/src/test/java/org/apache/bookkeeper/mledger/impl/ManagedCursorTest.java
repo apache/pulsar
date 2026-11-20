@@ -30,6 +30,7 @@ import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doCallRealMethod;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -476,6 +477,10 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertThat(detailed.individuallyDeletedMessages).contains(finalPosition2.toString());
         assertThat(summary).usingRecursiveComparison().ignoringFields("individuallyDeletedMessages")
                 .isEqualTo(detailed);
+
+        var customSnapshot = new ManagedLedgerInternalStats.CursorStats();
+        doReturn(customSnapshot).when(observedCursor).getCursorStats();
+        assertThat(observedCursor.getCursorStats(true)).isSameAs(customSnapshot);
 
         // cleanup.
         ml.delete();

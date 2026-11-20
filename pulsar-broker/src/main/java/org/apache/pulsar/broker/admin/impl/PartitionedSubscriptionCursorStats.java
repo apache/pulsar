@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.admin.impl;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.netty.channel.ConnectTimeoutException;
+import io.netty.handler.ssl.SslHandshakeTimeoutException;
 import jakarta.ws.rs.core.Response.Status;
 import java.io.IOException;
 import java.net.SocketTimeoutException;
@@ -34,6 +35,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.internal.http.AsyncHttpConnector.MaxRedirectException;
@@ -50,7 +52,6 @@ final class PartitionedSubscriptionCursorStats {
 
     private final TopicName topic;
     private final PartitionedTopicMetadata metadata;
-    private final Function<String, CompletableFuture<CursorStats>> request;
     private final ScheduledExecutorService executor;
     private final long deadlineNanos;
     private final CompletableFuture<Void> completion;
@@ -62,11 +63,9 @@ final class PartitionedSubscriptionCursorStats {
     }
 
     private PartitionedSubscriptionCursorStats(TopicName topic, PartitionedTopicMetadata metadata,
-                                               Function<String, CompletableFuture<CursorStats>> request,
                                                ScheduledExecutorService executor, Duration timeout) {
         this.topic = topic;
         this.metadata = metadata;
-        this.request = request;
         this.executor = executor;
         this.results = new PartitionResult[metadata.partitions];
         this.deadlineNanos = System.nanoTime() + timeout.toNanos();
@@ -75,27 +74,27 @@ final class PartitionedSubscriptionCursorStats {
 
     static CompletableFuture<PartitionedSubscriptionCursorInternalStats> collect(
             TopicName topic, PartitionedTopicMetadata metadata,
-            Function<String, CompletableFuture<CursorStats>> request,
+            Supplier<CompletableFuture<Function<String, CompletableFuture<CursorStats>>>> prepareRequest,
             ScheduledExecutorService executor, Duration timeout) {
         return FutureUtil.supplySafely(() -> {
-            var collection = new PartitionedSubscriptionCursorStats(topic, metadata, request, executor, timeout);
-            return collection.collect();
+            var collection = new PartitionedSubscriptionCursorStats(topic, metadata, executor, timeout);
+            return collection.collect(prepareRequest);
         });
     }
 
-    private CompletableFuture<PartitionedSubscriptionCursorInternalStats> collect() {
-        var workers = new CompletableFuture<?>[Math.min(MAX_CONCURRENT_REQUESTS, metadata.partitions)];
-        for (int worker = 0; worker < workers.length; worker++) {
-            workers[worker] = requestNextAsync();
-        }
-        CompletableFuture.allOf(workers).whenComplete((unused, error) -> {
+    private CompletableFuture<PartitionedSubscriptionCursorInternalStats> collect(
+            Supplier<CompletableFuture<Function<String, CompletableFuture<CursorStats>>>> prepareRequest) {
+        // The same deadline covers getting the internal client and collecting the partition responses.
+        var request = FutureUtil.supplySafely(prepareRequest);
+        request.thenCompose(this::requestPartitions).whenComplete((unused, error) -> {
             if (error == null) {
                 completion.complete(null);
             } else {
-                completion.completeExceptionally(error);
+                completion.completeExceptionally(FutureUtil.unwrapCompletionException(error));
             }
         });
         return completion.handle((unused, error) -> {
+            request.cancel(false);
             PartitionResult[] snapshot;
             List<CompletableFuture<CursorStats>> outstanding;
             synchronized (this) {
@@ -106,6 +105,9 @@ final class PartitionedSubscriptionCursorStats {
             }
             // Pending auth and HTTP callbacks need not retain already collected cursor data.
             outstanding.forEach(future -> future.cancel(false));
+            if (error instanceof RestException restException) {
+                throw restException;
+            }
             if (error != null && !(error instanceof TimeoutException)) {
                 throw new RestException(Status.INTERNAL_SERVER_ERROR, "Failed to collect partition cursor stats");
             }
@@ -113,11 +115,22 @@ final class PartitionedSubscriptionCursorStats {
         });
     }
 
+    private CompletableFuture<Void> requestPartitions(Function<String, CompletableFuture<CursorStats>> request) {
+        if (isFinished()) {
+            return CompletableFuture.completedFuture(null);
+        }
+        var workers = new CompletableFuture<?>[Math.min(MAX_CONCURRENT_REQUESTS, metadata.partitions)];
+        for (int worker = 0; worker < workers.length; worker++) {
+            workers[worker] = requestNextAsync(request);
+        }
+        return CompletableFuture.allOf(workers);
+    }
+
     private boolean isFinished() {
         return completion.isDone() || System.nanoTime() - deadlineNanos >= 0;
     }
 
-    private CompletableFuture<Void> requestNextAsync() {
+    private CompletableFuture<Void> requestNextAsync(Function<String, CompletableFuture<CursorStats>> request) {
         return CompletableFuture.completedFuture(null).thenComposeAsync(unused -> {
             int index = nextPartition.getAndIncrement();
             if (index >= metadata.partitions || isFinished()) {
@@ -134,7 +147,8 @@ final class PartitionedSubscriptionCursorStats {
                     recordResult(index, partitionResult(stats, error));
                 }
                 return null;
-            }).thenCompose(ignored -> isFinished() ? CompletableFuture.completedFuture(null) : requestNextAsync());
+            }).thenCompose(ignored -> isFinished() ? CompletableFuture.completedFuture(null)
+                    : requestNextAsync(request));
         }, executor);
     }
 
@@ -198,7 +212,8 @@ final class PartitionedSubscriptionCursorStats {
                 return errorForStatus(500);
             }
             if (current instanceof PulsarAdminException.TimeoutException || current instanceof TimeoutException
-                    || current instanceof SocketTimeoutException || current instanceof ConnectTimeoutException) {
+                    || current instanceof SocketTimeoutException || current instanceof ConnectTimeoutException
+                    || current instanceof SslHandshakeTimeoutException) {
                 return new PartitionError(503, "TIMEOUT", "Partition request timed out");
             }
             transportFailure |= current instanceof PulsarAdminException.ConnectException
