@@ -110,9 +110,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     // Guarded by this. True while a backlog clear is running, so positions arriving during the clear
     // stay pending until the old tracker state has been cleared.
     private boolean delayedDeliveryTrackerClearPending = false;
-    // Guarded by this. Reuses the same cleanup while a backlog clear is still in flight, so a
-    // repeated clearBacklog cannot clear the tracker after the first one reinstalls the positions.
-    private CompletableFuture<Void> delayedDeliveryTrackerBacklogClearFuture = null;
     // Whether the last read pass was skipped because the tracker paused all deliveries, i.e. it detected fixed delays
     // and the entries not read yet are delayed too. Volatile so that stats can read it without the dispatcher lock.
     private volatile boolean readPausedByDelayTracker = false;
@@ -1768,7 +1765,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     }
 
     @Override
-    public void beginDelayedMessagesBufferingForBacklogClear() {
+    public void startBufferingDelayedMessagesForBacklogClear() {
         synchronized (this) {
             if (!topic.isDelayedDeliveryEnabled()) {
                 return;
@@ -1778,10 +1775,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     }
 
     @Override
-    public void endDelayedMessagesBufferingForBacklogClear() {
-        synchronized (this) {
-            delayedDeliveryTrackerClearPending = false;
-        }
+    public void releaseBufferedDelayedMessagesAfterBacklogClear() {
         installPendingAfterBacklogClear();
     }
 
@@ -1790,9 +1784,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
         synchronized (this) {
             if (!topic.isDelayedDeliveryEnabled()) {
                 return CompletableFuture.completedFuture(null);
-            }
-            if (delayedDeliveryTrackerBacklogClearFuture != null) {
-                return delayedDeliveryTrackerBacklogClearFuture;
             }
             Position markDeletedPosition = cursor.getMarkDeletedPosition();
             messagesPendingDelayedDeliveryTracker.keySet().removeIf(position ->
@@ -1810,13 +1801,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             }
             CompletableFuture<Void> skipRecovery = delayedDeliveryTrackerRecoverySkipFuture;
             CompletableFuture<Void> tracked =
-                    clearFuture.whenComplete((__, clearEx) -> installPendingAfterBacklogClear());
-            delayedDeliveryTrackerBacklogClearFuture = tracked;
-            tracked.whenComplete((__, clearEx) -> {
-                synchronized (this) {
-                    delayedDeliveryTrackerBacklogClearFuture = null;
-                }
-            });
+                    clearFuture.whenComplete((__, clearEx) -> releaseBufferedDelayedMessagesAfterBacklogClear());
             if (skipRecovery != null) {
                 skipRecovery.complete(null);
             }

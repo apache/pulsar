@@ -136,6 +136,7 @@ public class PersistentSubscription extends AbstractSubscription {
     private final PendingAckHandle pendingAckHandle;
     private volatile CompletableFuture<Void> fenceFuture;
     private volatile CompletableFuture<Void> inProgressResetCursorFuture;
+    private volatile CompletableFuture<Void> inProgressBacklogClearFuture;
     // Keep the last admitted reset identity after completion, including failed resets. A local seek
     // supersedes a previously received remote target even when the mark-delete position is unchanged.
     private volatile CompletableFuture<Void> lastCursorResetFuture;
@@ -869,13 +870,19 @@ public class PersistentSubscription extends AbstractSubscription {
     @Override
     public CompletableFuture<Void> clearBacklog() {
         CompletableFuture<Void> future = new CompletableFuture<>();
+        synchronized (this) {
+            if (inProgressBacklogClearFuture != null) {
+                return FutureUtil.failedFuture(new SubscriptionBusyException("Failed to fence subscription"));
+            }
+            inProgressBacklogClearFuture = future;
+        }
 
         log.debug()
                 .attr("entriesInBacklog", cursor.getNumberOfEntriesInBacklog(false))
                 .log("Backlog size before clearing");
 
         if (dispatcher != null) {
-            dispatcher.beginDelayedMessagesBufferingForBacklogClear();
+            dispatcher.startBufferingDelayedMessagesForBacklogClear();
         }
         cursor.asyncClearBacklog(new ClearBacklogCallback() {
             @Override
@@ -885,6 +892,10 @@ public class PersistentSubscription extends AbstractSubscription {
                         .log("Backlog size after clearing");
                 if (dispatcher != null) {
                     dispatcher.clearDelayedMessagesAfterBacklogClear().whenComplete((__, ex) -> {
+                        dispatcher.releaseBufferedDelayedMessagesAfterBacklogClear();
+                        synchronized (PersistentSubscription.this) {
+                            inProgressBacklogClearFuture = null;
+                        }
                         if (ex != null) {
                             future.completeExceptionally(ex);
                         } else {
@@ -894,6 +905,9 @@ public class PersistentSubscription extends AbstractSubscription {
                     dispatcher.markDeletePositionMoveForward();
                     dispatcher.afterAckMessages(null, ctx);
                 } else {
+                    synchronized (PersistentSubscription.this) {
+                        inProgressBacklogClearFuture = null;
+                    }
                     future.complete(null);
                 }
             }
@@ -903,11 +917,14 @@ public class PersistentSubscription extends AbstractSubscription {
                 log.error()
                         .exception(exception)
                         .log("Failed to clear backlog");
-                future.completeExceptionally(exception);
                 if (dispatcher != null) {
-                    dispatcher.endDelayedMessagesBufferingForBacklogClear();
+                    dispatcher.releaseBufferedDelayedMessagesAfterBacklogClear();
                     dispatcher.afterAckMessages(exception, ctx);
                 }
+                synchronized (PersistentSubscription.this) {
+                    inProgressBacklogClearFuture = null;
+                }
+                future.completeExceptionally(exception);
             }
         }, null);
 

@@ -55,6 +55,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.resources.NamespaceResources;
+import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionFencedException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
@@ -136,6 +137,33 @@ public class PersistentSubscriptionTest {
             pulsarTestContext.close();
             pulsarTestContext = null;
         }
+    }
+
+    @Test
+    public void testRepeatedClearBacklogFailsBusyWhileInProgressThenSucceeds() throws Exception {
+        List<AsyncCallbacks.ClearBacklogCallback> callbacks = new ArrayList<>();
+        doAnswer(invocation -> {
+            callbacks.add(invocation.getArgument(0));
+            return null;
+        }).when(cursorMock).asyncClearBacklog(any(AsyncCallbacks.ClearBacklogCallback.class), any());
+
+        CompletableFuture<Void> firstClear = persistentSubscription.clearBacklog();
+        Awaitility.await().untilAsserted(() -> assertThat(callbacks).hasSize(1));
+
+        // While the first clear is in progress, a repeated clear must fail busy instead of racing it.
+        CompletableFuture<Void> repeatedClear = persistentSubscription.clearBacklog();
+        assertThat(repeatedClear).failsWithin(5, TimeUnit.SECONDS)
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(BrokerServiceException.SubscriptionBusyException.class);
+
+        callbacks.get(0).clearBacklogComplete(null);
+        firstClear.get(5, TimeUnit.SECONDS);
+
+        // After the first clear completes, a later clear can proceed.
+        CompletableFuture<Void> retryClear = persistentSubscription.clearBacklog();
+        Awaitility.await().untilAsserted(() -> assertThat(callbacks).hasSize(2));
+        callbacks.get(1).clearBacklogComplete(null);
+        retryClear.get(5, TimeUnit.SECONDS);
     }
 
     @Test
