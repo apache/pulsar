@@ -347,8 +347,9 @@ class ImmutableBucket {
                             stats.recordSuccessEvent(BucketDelayedMessageIndexStats.Type.delete,
                                     System.currentTimeMillis() - deleteStartTime);
                         }
-                    });
-        }).thenCompose(__ -> removeBucketCursorProperty(bucketKey));
+                    })
+                    .thenCompose(__ -> removeBucketCursorProperty(bucketKey));
+        });
     }
 
     private CompletableFuture<Optional<Long>> resolveBucketIdForDelete() {
