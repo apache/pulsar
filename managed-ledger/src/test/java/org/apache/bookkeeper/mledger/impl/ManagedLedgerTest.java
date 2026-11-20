@@ -3172,8 +3172,9 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         @Cleanup("shutdown")
         ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
 
-        // Simulating time consuming cursor recovery.
-        CompletableFuture<Void> future = bkc.promiseAfter(2);
+        // Simulating time consuming cursor recovery. The mock BookKeeper operations before it are opening the last
+        // ledger, closing that temporary handle and creating the new ledger.
+        CompletableFuture<Void> future = bkc.promiseAfter(3);
         @Cleanup("shutdownNow")
         ScheduledExecutorService scheduledExecutorService =
                 Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("lazyCursorRecovery"));
@@ -3329,6 +3330,55 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         reopened.trimConsumedLedgersInBackground(trimmedAfterAck);
         trimmedAfterAck.get(5, TimeUnit.SECONDS);
         assertTrue(reopened.getLedgersInfo().size() < ledgerIds.size());
+    }
+
+    @Test(timeOut = 20000)
+    public void testConcurrentOpenCursorSharesFailedLazyRecoveryRetry() throws Exception {
+        ManagedLedgerConfig config = initManagedLedgerConfig(new ManagedLedgerConfig());
+        ManagedLedger ledger = factory.open("concurrent-failed-lazy-recovery-retry", config);
+        ManagedCursor cursor = ledger.openCursor("cursor");
+        Position markDeletePosition = cursor.getMarkDeletedPosition();
+        ledger.addEntry(new byte[] {1});
+        ledger.close();
+
+        Map<String, CompletableFuture<Void>> recoveryGates = spy(new ConcurrentHashMap<>());
+        recoveryGates.put("cursor", CompletableFuture.failedFuture(new Exception("initial recovery failed")));
+        CompletableFuture<Void> retryGate = new CompletableFuture<>();
+        ManagedLedgerFactoryImpl factory2 = createFactoryWithGatedCursorRecovery(recoveryGates);
+        try {
+            ManagedLedger reopened = factory2.open(ledger.getName(),
+                    initManagedLedgerConfig(new ManagedLedgerConfig()).setLazyCursorRecovery(true));
+            verify(recoveryGates).get("cursor");
+            recoveryGates.put("cursor", retryGate);
+            List<CompletableFuture<ManagedCursor>> openings = List.of(
+                    new CompletableFuture<>(), new CompletableFuture<>());
+            for (CompletableFuture<ManagedCursor> opening : openings) {
+                reopened.asyncOpenCursor("cursor", new OpenCursorCallback() {
+                    @Override
+                    public void openCursorComplete(ManagedCursor recovered, Object ctx) {
+                        opening.complete(recovered);
+                    }
+
+                    @Override
+                    public void openCursorFailed(ManagedLedgerException exception, Object ctx) {
+                        opening.completeExceptionally(exception);
+                    }
+                }, null);
+                assertThat(opening).as("the retry must remain gated until both opens have joined").isNotDone();
+                // The gate lookup records one initial failure and one shared retry.
+                verify(recoveryGates, times(2)).get("cursor");
+            }
+
+            retryGate.complete(null);
+            ManagedCursor recovered = openings.get(0).get(5, TimeUnit.SECONDS);
+            assertThat(openings.get(1).get(5, TimeUnit.SECONDS)).isSameAs(recovered);
+            assertThat(recovered.getMarkDeletedPosition()).isEqualTo(markDeletePosition);
+            assertThat(recovered.getNumberOfEntriesInBacklog(false)).isEqualTo(1);
+            verify(recoveryGates, times(2)).get("cursor");
+        } finally {
+            retryGate.complete(null);
+            factory2.shutdownAsync().get(5, TimeUnit.SECONDS);
+        }
     }
 
     @Test
