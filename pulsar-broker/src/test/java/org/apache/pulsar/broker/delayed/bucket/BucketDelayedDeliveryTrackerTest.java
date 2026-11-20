@@ -1840,6 +1840,46 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
     }
 
     @Test
+    public void testFailedCreateClearDoesNotRemoveCursorProperty() throws Exception {
+        AtomicLong propertyRemoveCalls = new AtomicLong();
+        ManagedCursor cursor = new MockManagedCursor("test_failed_create_cursor") {
+            @Override
+            public CompletableFuture<Void> removeCursorProperty(String key) {
+                propertyRemoveCalls.incrementAndGet();
+                return super.removeCursorProperty(key);
+            }
+        };
+        AbstractPersistentDispatcherMultipleConsumers testDispatcher =
+                mock(AbstractPersistentDispatcherMultipleConsumers.class);
+        Clock testClock = mock(Clock.class);
+        AtomicLong testClockTime = new AtomicLong();
+        when(testClock.millis()).then(x -> testClockTime.get());
+        doReturn(cursor).when(testDispatcher).getCursor();
+        doReturn("persistent://public/default/testFailedCreate / " + cursor.getName())
+                .when(testDispatcher).getName();
+        MockBucketSnapshotStorage storage = new MockBucketSnapshotStorage();
+        storage.start();
+        try {
+            BucketDelayedDeliveryTracker tracker = new BucketDelayedDeliveryTracker(
+                    testDispatcher, timer, 100000, testClock, true, storage,
+                    5, TimeUnit.MILLISECONDS.toMillis(10), -1, 50);
+            try {
+                TrackerWithStorage ts = new TrackerWithStorage(tracker, storage, testClockTime);
+                ImmutableBucket bucket = createMergeableBucket(ts, 31L, 35L, List.of(1L));
+                bucket.setSnapshotCreateFuture(
+                        FutureUtil.failedFuture(new BucketSnapshotPersistenceException("create failed")));
+                bucket.clear(new BucketDelayedMessageIndexStats()).get(5, TimeUnit.SECONDS);
+                assertEquals(propertyRemoveCalls.get(), 0,
+                        "A failed creation with no snapshot ID must not remove the cursor property");
+            } finally {
+                tracker.close();
+            }
+        } finally {
+            storage.close();
+        }
+    }
+
+    @Test
     public void testTrimWithNoOrphanedBuckets() throws Exception {
         TrackerWithStorage ts = createTrackerWithMockLedger(0L, 5);
 
