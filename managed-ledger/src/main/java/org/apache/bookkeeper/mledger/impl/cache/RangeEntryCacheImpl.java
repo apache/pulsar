@@ -513,11 +513,7 @@ public class RangeEntryCacheImpl implements EntryCache {
                         for (CompletableFuture<List<Entry>> future : futures) {
                             if (!future.isCompletedExceptionally()) {
                                 List<Entry> readEntries = future.getNow(null);
-                                if (readEntries != null && !readEntries.isEmpty()) {
-                                    for (Entry entry : readEntries) {
-                                        entry.release();
-                                    }
-                                }
+                                Entry.releaseEntries(readEntries);
                             }
                         }
                         log.warn().exception(t)
@@ -532,6 +528,13 @@ public class RangeEntryCacheImpl implements EntryCache {
                         List<Entry> readEntries = future.getNow(null);
                         if (readEntries != null && !readEntries.isEmpty()) {
                             for (Entry entry : readEntries) {
+                                if (entry == null) {
+                                    // defense in depth: the completeness check in
+                                    // readMissingEntriesAsync keeps incomplete answers,
+                                    // including the null slots of a nested mixed read,
+                                    // from reaching this merge
+                                    continue;
+                                }
                                 int index = (int) (entry.getPosition().getEntryId() - firstPosition.getEntryId());
                                 if (index >= 0 && index < entriesToReturn.size()) {
                                     entriesToReturn.set(index, entry);
@@ -660,8 +663,34 @@ public class RangeEntryCacheImpl implements EntryCache {
                                                                    long maxSizeBytes, IntSupplier expectedReadCount,
                                                                    Object ctx) {
         CompletableFuture<List<Entry>> future = new CompletableFuture<>();
-        PendingReadsManager.ReadEntriesCallback callback = new PendingReadsManager.ReadEntriesCallback(future);
-        pendingReadsManager.readEntries(lh, firstEntry, lastEntry, maxSizeBytes, expectedReadCount, callback, ctx);
+        pendingReadsManager.readEntries(lh, firstEntry, lastEntry, maxSizeBytes, expectedReadCount,
+                new ReadEntriesCallback() {
+                    @Override
+                    public void readEntriesComplete(List<Entry> readEntries, Object readCtx) {
+                        // Every read path returns each entry of the range it was asked for or fails;
+                        // only a pluggable ReadHandle implementation answering short can break it
+                        // (#26709, "Where a null slot comes from"). Treat an answer that is missing
+                        // entries — fewer than the range holds, or a list still carrying the null
+                        // slots of a nested mixed read — as the read failure it should have been,
+                        // after releasing the entries it did return: the mixed read's failed-read
+                        // fallback then discards what it collected and re-reads the whole range.
+                        // Entries beyond the requested count are not an incomplete answer; the
+                        // merge drops them as out of range.
+                        if (readEntries.size() < lastEntry - firstEntry + 1 || readEntries.contains(null)) {
+                            Entry.releaseEntries(readEntries);
+                            future.completeExceptionally(new ManagedLedgerException(
+                                    "The read of entries " + firstEntry + " to " + lastEntry + " of ledger "
+                                            + lh.getId() + " returned an incomplete result"));
+                        } else {
+                            future.complete(readEntries);
+                        }
+                    }
+
+                    @Override
+                    public void readEntriesFailed(ManagedLedgerException exception, Object readCtx) {
+                        future.completeExceptionally(exception);
+                    }
+                }, ctx);
         return future;
     }
 

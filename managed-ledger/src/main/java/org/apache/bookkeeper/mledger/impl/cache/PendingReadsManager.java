@@ -491,7 +491,9 @@ public class PendingReadsManager {
 
     private void releaseEntriesSafely(CompletableFuture<List<Entry>> future) {
         if (!future.isCompletedExceptionally()) {
-            future.thenAccept(entries -> entries.forEach(Entry::release));
+            // a leg read through the cache may deliver a sparse list whose null slots have
+            // nothing to release; a plain forEach would stop at one and leak the entries after it
+            future.thenAccept(Entry::releaseEntries);
         }
     }
 

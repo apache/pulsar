@@ -833,6 +833,113 @@ public class RangeEntryCacheImplTest {
         verify(pendingReadsManager, times(1)).readEntries(any(), eq(0L), eq(99L), anyLong(), any(), any(), any());
     }
 
+    @Test(timeOut = 30_000)
+    public void testSparseLegWithNullSlotRetriesWholeRangeRead() {
+        // A leg answering with a list that still carries the null slots of a nested sparse
+        // delivery is an incomplete answer: the read must discard what it collected — both
+        // legs' entries, null slots included — and deliver the whole-range re-read's result.
+        rangeEntryCache.insert(EntryImpl.create(1, 50, Unpooled.EMPTY_BUFFER));
+        List<EntryImpl> leftLegEntries = new ArrayList<>();
+        stubLegAnswer(0, 49, entriesForRange(0, 49, leftLegEntries));
+        List<EntryImpl> rightLegEntries = new ArrayList<>();
+        stubLegAnswer(51, 99, sparseEntriesForRange(51, 99, 70, rightLegEntries));
+
+        CompletableFuture<List<Entry>> future = readEntriesAsync();
+        assertThat(future).isCompleted();
+        List<Entry> delivered = future.getNow(null);
+
+        assertThat(delivered).hasSize(100);
+        assertThat(delivered).doesNotContainNull();
+        assertThat(delivered.get(0).getEntryId()).isZero();
+        assertThat(delivered.get(99).getEntryId()).isEqualTo(99L);
+        verify(pendingReadsManager, times(1)).readEntries(any(), eq(0L), eq(49L), anyLong(), any(), any(), any());
+        verify(pendingReadsManager, times(1)).readEntries(any(), eq(51L), eq(99L), anyLong(), any(), any(), any());
+        verify(pendingReadsManager, times(1)).readEntries(any(), eq(0L), eq(99L), anyLong(), any(), any(), any());
+        for (EntryImpl entry : leftLegEntries) {
+            assertThat(entry.refCnt()).isZero();
+        }
+        for (EntryImpl entry : rightLegEntries) {
+            assertThat(entry.refCnt()).isZero();
+        }
+    }
+
+    @Test(timeOut = 30_000)
+    public void testShortLegRetriesWholeRangeRead() {
+        // A leg answering with fewer entries than the range it was asked for is an incomplete
+        // answer even when the list carries no null slot: the unfilled slots would otherwise be
+        // delivered as nulls.
+        rangeEntryCache.insert(EntryImpl.create(1, 50, Unpooled.EMPTY_BUFFER));
+        List<EntryImpl> shortLegEntries = new ArrayList<>();
+        stubLegAnswer(51, 99, entriesForRange(51, 90, shortLegEntries));
+
+        CompletableFuture<List<Entry>> future = readEntriesAsync();
+        assertThat(future).isCompleted();
+        List<Entry> delivered = future.getNow(null);
+
+        assertThat(delivered).hasSize(100);
+        assertThat(delivered).doesNotContainNull();
+        verify(pendingReadsManager, times(1)).readEntries(any(), eq(0L), eq(49L), anyLong(), any(), any(), any());
+        verify(pendingReadsManager, times(1)).readEntries(any(), eq(51L), eq(99L), anyLong(), any(), any(), any());
+        verify(pendingReadsManager, times(1)).readEntries(any(), eq(0L), eq(99L), anyLong(), any(), any(), any());
+        for (EntryImpl entry : shortLegEntries) {
+            assertThat(entry.refCnt()).isZero();
+        }
+    }
+
+    @Test(timeOut = 30_000)
+    public void testFailedLegWithSparseSiblingStillRetriesWholeRangeRead() {
+        // A sparse answer is itself a failed read: next to a genuinely failed leg, the
+        // rejection releases the sparse answer's entries, the failure cleanup the cached
+        // ones, and the whole-range re-read still follows.
+        rangeEntryCache.insert(EntryImpl.create(1, 50, Unpooled.EMPTY_BUFFER));
+        stubLegFailure(0, 49);
+        List<EntryImpl> rightLegEntries = new ArrayList<>();
+        stubLegAnswer(51, 99, sparseEntriesForRange(51, 99, 70, rightLegEntries));
+
+        CompletableFuture<List<Entry>> future = readEntriesAsync();
+        assertThat(future).isCompleted();
+        List<Entry> delivered = future.getNow(null);
+
+        assertThat(delivered).hasSize(100);
+        assertThat(delivered).doesNotContainNull();
+        verify(pendingReadsManager, times(1)).readEntries(any(), eq(0L), eq(49L), anyLong(), any(), any(), any());
+        verify(pendingReadsManager, times(1)).readEntries(any(), eq(51L), eq(99L), anyLong(), any(), any(), any());
+        verify(pendingReadsManager, times(1)).readEntries(any(), eq(0L), eq(99L), anyLong(), any(), any(), any());
+        for (EntryImpl entry : rightLegEntries) {
+            assertThat(entry.refCnt()).isZero();
+        }
+    }
+
+    @Test(timeOut = 30_000)
+    public void testWholeRangeRetryThatStillAnswersShortDeliversTheShortResult() {
+        // A storage that persistently answers short makes the re-read deliver its short result
+        // as-is — a regular short batch, with no null slots and no further retries.
+        rangeEntryCache.insert(EntryImpl.create(1, 50, Unpooled.EMPTY_BUFFER));
+        List<EntryImpl> shortLegEntries = new ArrayList<>();
+        stubLegAnswer(51, 99, entriesForRange(51, 90, shortLegEntries));
+        List<EntryImpl> shortRetryEntries = new ArrayList<>();
+        stubLegAnswer(0, 99, entriesForRange(0, 80, shortRetryEntries));
+
+        CompletableFuture<List<Entry>> future = readEntriesAsync();
+        assertThat(future).isCompleted();
+        List<Entry> delivered = future.getNow(null);
+
+        assertThat(delivered).hasSize(81);
+        assertThat(delivered).doesNotContainNull();
+        assertThat(delivered.get(80).getEntryId()).isEqualTo(80L);
+        // the read retried the whole range exactly once
+        verify(pendingReadsManager, times(1)).readEntries(any(), eq(0L), eq(49L), anyLong(), any(), any(), any());
+        verify(pendingReadsManager, times(1)).readEntries(any(), eq(51L), eq(99L), anyLong(), any(), any(), any());
+        verify(pendingReadsManager, times(1)).readEntries(any(), eq(0L), eq(99L), anyLong(), any(), any(), any());
+        for (EntryImpl entry : shortLegEntries) {
+            assertThat(entry.refCnt()).isZero();
+        }
+        // the short retry's entries are the delivered batch, still owned by the reader
+        for (EntryImpl entry : shortRetryEntries) {
+            assertThat(entry.refCnt()).isOne();
+        }
+    }
+
     @Test
     public void testReadFromStorageRetriesWhenHandleClosed() {
         RangeEntryCacheManagerImpl mockEntryCacheManager = mock(RangeEntryCacheManagerImpl.class);
@@ -986,6 +1093,71 @@ public class RangeEntryCacheImplTest {
         } finally {
             cache.clear();
         }
+    }
+
+    private CompletableFuture<List<Entry>> readEntriesAsync() {
+        CompletableFuture<List<Entry>> future = new CompletableFuture<>();
+        rangeEntryCache.asyncReadEntry(lh, 0, 99, NO_MAX_SIZE_LIMIT, expectedReadCount,
+                new AsyncCallbacks.ReadEntriesCallback() {
+                    @Override
+                    public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                        future.complete(entries);
+                    }
+
+                    @Override
+                    public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                        future.completeExceptionally(exception);
+                    }
+                }, null);
+        return future;
+    }
+
+    private void stubLegAnswer(long firstEntry, long lastEntry, List<Entry> answer) {
+        doAnswer(invocation -> {
+            AsyncCallbacks.ReadEntriesCallback callback = invocation.getArgument(5);
+            Object ctx = invocation.getArgument(6);
+            callback.readEntriesComplete(answer, ctx);
+            return null;
+        }).when(pendingReadsManager).readEntries(any(), eq(firstEntry), eq(lastEntry), anyLong(), any(), any(), any());
+    }
+
+    private void stubLegFailure(long firstEntry, long lastEntry) {
+        doAnswer(invocation -> {
+            AsyncCallbacks.ReadEntriesCallback callback = invocation.getArgument(5);
+            Object ctx = invocation.getArgument(6);
+            callback.readEntriesFailed(new ManagedLedgerException("Injected test failure"), ctx);
+            return null;
+        }).when(pendingReadsManager).readEntries(any(), eq(firstEntry), eq(lastEntry), anyLong(), any(), any(), any());
+    }
+
+    private static List<Entry> entriesForRange(long firstEntry, long lastEntry, List<EntryImpl> collector) {
+        List<Entry> entries = new ArrayList<>((int) (lastEntry - firstEntry + 1));
+        for (long entryId = firstEntry; entryId <= lastEntry; entryId++) {
+            EntryImpl entry = EntryImpl.create(1, entryId, Unpooled.EMPTY_BUFFER);
+            collector.add(entry);
+            entries.add(entry);
+        }
+        return entries;
+    }
+
+    /**
+     * Builds the answer of a leg that mirrors a nested sparse delivery: the entry of
+     * {@code nullEntryId} was never read, so its slot carries no entry at all — the collector
+     * only ever sees the entries the answer delivers.
+     */
+    private static List<Entry> sparseEntriesForRange(long firstEntry, long lastEntry, long nullEntryId,
+                                                     List<EntryImpl> collector) {
+        List<Entry> entries = new ArrayList<>((int) (lastEntry - firstEntry + 1));
+        for (long entryId = firstEntry; entryId <= lastEntry; entryId++) {
+            if (entryId == nullEntryId) {
+                entries.add(null);
+            } else {
+                EntryImpl entry = EntryImpl.create(1, entryId, Unpooled.EMPTY_BUFFER);
+                collector.add(entry);
+                entries.add(entry);
+            }
+        }
+        return entries;
     }
 
     private void performReadAndValidateResult() {
