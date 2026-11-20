@@ -94,6 +94,14 @@ class ImmutableBucket {
     @Setter
     private volatile CompletableFuture<Long> snapshotCreateFuture;
 
+    // Set when a delete has claimed this bucket, so a late create-failure callback does not
+    // requeue indexes the delete is about to remove. Guarded by the tracker monitor.
+    private volatile boolean deleteStarted;
+
+    boolean isDeleteStarted() {
+        return deleteStarted;
+    }
+
     ImmutableBucket(BucketContext ctx, long startLedgerId, long endLedgerId) {
         this.ctx = ctx;
         this.startLedgerId = startLedgerId;
@@ -354,6 +362,7 @@ class ImmutableBucket {
 
     CompletableFuture<Void> asyncDeleteBucketSnapshot(BucketDelayedMessageIndexStats stats) {
         String bucketKey = bucketKey();
+        deleteStarted = true;
         CompletableFuture<Optional<Long>> bucketIdFuture = resolveBucketIdForDelete();
 
         return bucketIdFuture.thenCompose(optionalBucketId -> {
