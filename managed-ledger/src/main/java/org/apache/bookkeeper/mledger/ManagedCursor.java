@@ -985,6 +985,17 @@ public interface ManagedCursor {
 
     ManagedLedgerInternalStats.CursorStats getCursorStats();
 
+    /**
+     * Snapshot the cursor, optionally omitting the individually deleted range string.
+     * Implementations that support omission must skip constructing the string.
+     */
+    default ManagedLedgerInternalStats.CursorStats getCursorStats(boolean includeIndividualDeletedMessages) {
+        if (includeIndividualDeletedMessages) {
+            return getCursorStats();
+        }
+        throw new UnsupportedOperationException("This cursor cannot omit individually deleted messages from stats");
+    }
+
     boolean isMessageDeleted(Position position);
 
     ManagedCursor duplicateNonDurableCursor(String nonDurableCursorName) throws ManagedLedgerException;

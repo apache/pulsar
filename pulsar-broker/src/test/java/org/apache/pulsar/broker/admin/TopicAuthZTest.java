@@ -20,12 +20,22 @@
 package org.apache.pulsar.broker.admin;
 
 import static org.apache.bookkeeper.mledger.ManagedLedgerConfig.PROPERTY_SOURCE_TOPIC_KEY;
+import static org.apache.pulsar.broker.web.AuthenticationFilter.PULSAR_AUTH_METHOD_NAME;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import io.jsonwebtoken.Jwts;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -34,12 +44,16 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
 import lombok.SneakyThrows;
 import org.apache.commons.lang3.reflect.FieldUtils;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.plugin.EntryFilterDefinition;
@@ -72,6 +86,7 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TopicOperation;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.testng.Assert;
@@ -712,6 +727,107 @@ public class TopicAuthZTest extends AuthZTest {
             superUserAdmin.topics().revokePermissions(topic, subject);
         }
         deleteTopic(topic, partitioned);
+    }
+
+    @Test
+    public void testSubscriptionCursorInternalStatsAuthorization() throws Exception {
+        TopicName topic = TopicName.get("persistent://public/default/" + UUID.randomUUID());
+        TopicName firstPartition = topic.getPartition(0);
+        TopicName secondPartition = topic.getPartition(1);
+        String subscription = "cursor-stats-subscription";
+        String subject = UUID.randomUUID().toString();
+        String token = Jwts.builder().claim("sub", subject).signWith(SECRET_KEY).compact();
+        superUserAdmin.topics().createPartitionedTopic(topic.toString(), 2);
+
+        try (PulsarAdmin requester = PulsarAdmin.builder().serviceHttpUrl(getPulsarService().getWebServiceAddress())
+                .authentication(new AuthenticationToken(token)).build()) {
+            superUserAdmin.topics().createSubscription(topic.toString(), subscription, MessageId.earliest);
+
+            record AuthorizationCheck(TopicName topic, String role, String subscription) { }
+            var checks = new ConcurrentLinkedQueue<AuthorizationCheck>();
+            var deniedPartitions = new AtomicReference<Set<TopicName>>(Set.of());
+            doAnswer(invocation -> {
+                TopicName requestedTopic = invocation.getArgument(0);
+                String role = invocation.getArgument(2);
+                AuthenticationDataSource authData = invocation.getArgument(3);
+                checks.add(new AuthorizationCheck(requestedTopic, role,
+                        authData == null ? null : authData.getSubscription()));
+                if (BROKER_INTERNAL_CLIENT_SUBJECT.equals(role) && deniedPartitions.get().contains(requestedTopic)) {
+                    return CompletableFuture.completedFuture(false);
+                }
+                return invocation.callRealMethod();
+            }).when(authorizationService).allowTopicOperationAsync(
+                    argThat(name -> name != null && name.getPartitionedTopicName().equals(topic.toString())),
+                    eq(TopicOperation.GET_STATS), anyString(), nullable(AuthenticationDataSource.class));
+
+            assertThatThrownBy(() -> requester.topics().getSubscriptionCursorInternalStats(
+                    firstPartition.toString(), subscription))
+                    .isInstanceOfSatisfying(PulsarAdminException.NotAuthorizedException.class,
+                            error -> assertThat(error.getStatusCode()).isEqualTo(401));
+            assertThatThrownBy(() -> requester.topics().getPartitionedSubscriptionCursorInternalStats(
+                    topic.toString(), subscription))
+                    .isInstanceOfSatisfying(PulsarAdminException.NotAuthorizedException.class,
+                            error -> assertThat(error.getStatusCode()).isEqualTo(401));
+            assertThat(checks).containsExactly(
+                    new AuthorizationCheck(firstPartition, subject, subscription),
+                    new AuthorizationCheck(topic, subject, subscription));
+
+            checks.clear();
+            superUserAdmin.topics().grantPermission(topic.toString(), subject, Set.of(AuthAction.produce));
+            assertThat(requester.topics().getSubscriptionCursorInternalStats(firstPartition.toString(), subscription))
+                    .isNotNull();
+            assertThat(checks).containsExactly(new AuthorizationCheck(firstPartition, subject, subscription));
+
+            checks.clear();
+            var stats = requester.topics().getPartitionedSubscriptionCursorInternalStats(
+                    topic.toString(), subscription);
+            assertThat(stats.complete).isTrue();
+            assertThat(checks).containsExactlyInAnyOrder(
+                    new AuthorizationCheck(topic, subject, subscription),
+                    new AuthorizationCheck(firstPartition, BROKER_INTERNAL_CLIENT_SUBJECT, subscription),
+                    new AuthorizationCheck(secondPartition, BROKER_INTERNAL_CLIENT_SUBJECT, subscription));
+
+            deniedPartitions.set(Set.of(secondPartition));
+            var partial = requester.topics().getPartitionedSubscriptionCursorInternalStats(
+                    topic.toString(), subscription);
+            assertThat(partial.complete).isFalse();
+            assertThat(partial.partitions).containsOnlyKeys(firstPartition.toString());
+            assertThat(partial.errors).containsOnlyKeys(secondPartition.toString());
+            var error = partial.errors.get(secondPartition.toString());
+            assertThat(error.statusCode).isEqualTo(401);
+            assertThat(error.errorCode).isEqualTo("AUTHORIZATION_FAILED");
+
+            deniedPartitions.set(Set.of(firstPartition, secondPartition));
+            assertThatThrownBy(() -> requester.topics().getPartitionedSubscriptionCursorInternalStats(
+                    topic.toString(), subscription))
+                    .isInstanceOfSatisfying(PulsarAdminException.class,
+                            failure -> assertThat(failure.getStatusCode()).isEqualTo(503));
+        } finally {
+            superUserAdmin.topics().deletePartitionedTopic(topic.toString(), true);
+        }
+    }
+
+    @Test
+    public void testSubscriptionCursorInternalStatsAuthenticationErrorBody() throws Exception {
+        String subscriptionPath = getPulsarService().getWebServiceAddress()
+                + "/admin/v2/persistent/public/default/topic/subscription/encoded%2Fsubscription/";
+        HttpRequest missingCredentials = HttpRequest.newBuilder(
+                URI.create(subscriptionPath + "internalStats?includeIndividualDeletedMessages=true")).GET().build();
+        HttpRequest invalidCredentials = HttpRequest.newBuilder(
+                URI.create(subscriptionPath + "partitioned-internalStats"))
+                .header(PULSAR_AUTH_METHOD_NAME, "token")
+                .header("Authorization", "Bearer invalid-token")
+                .GET().build();
+        try (HttpClient client = HttpClient.newHttpClient()) {
+            for (HttpRequest request : List.of(missingCredentials, invalidCredentials)) {
+                HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+                assertThat(response.statusCode()).isEqualTo(401);
+                assertThat(response.headers().firstValue("Content-Type")).hasValueSatisfying(
+                        value -> assertThat(value).startsWith("application/json"));
+                var body = ObjectMapperFactory.getMapper().reader().readTree(response.body());
+                assertThat(body.path("reason").asText()).isEqualTo("Authentication required");
+            }
+        }
     }
 
     @Test(dataProvider = "partitioned")

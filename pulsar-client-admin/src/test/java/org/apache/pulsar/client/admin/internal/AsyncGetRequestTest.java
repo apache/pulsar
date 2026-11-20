@@ -19,19 +19,26 @@
 package org.apache.pulsar.client.admin.internal;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.absent;
+import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
+import static org.apache.pulsar.client.admin.internal.TopicsImpl.CURSOR_STATS_LOCAL_ONLY_HEADER;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.ResponseDefinitionBuilder;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import jakarta.ws.rs.client.WebTarget;
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.admin.Topics;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
@@ -206,6 +213,115 @@ public class AsyncGetRequestTest {
         PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(adminUrl).build();
 
         assertThat(admin.brokers().getVersion()).isEmpty();
+    }
+
+    @Test
+    public void testSubscriptionCursorInternalStatsRequestAndResponse() throws Exception {
+        String path = "/admin/v2/persistent/t/ns/stats-topic/subscription/sub%20%2B%2F%252F/internalStats";
+        server.stubFor(get(urlEqualTo(path + "?includeIndividualDeletedMessages=false"))
+                .withHeader(CURSOR_STATS_LOCAL_ONLY_HEADER, absent())
+                .willReturn(stringBody("""
+                        {"markDeletePosition":"1:2","totalNonContiguousDeletedMessagesRange":1}
+                        """)));
+        server.stubFor(get(urlEqualTo(path + "?includeIndividualDeletedMessages=true"))
+                .withHeader(CURSOR_STATS_LOCAL_ONLY_HEADER, absent())
+                .willReturn(stringBody("{\"individuallyDeletedMessages\":\"[(1:3..1:4]]\"}")));
+
+        try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(adminUrl).build()) {
+            Topics topics = admin.topics();
+            var summary = topics.getSubscriptionCursorInternalStats("persistent://t/ns/stats-topic", "sub +/%2F");
+            assertThat(summary.markDeletePosition).isEqualTo("1:2");
+            assertThat(summary.individuallyDeletedMessages).isNull();
+            assertThat(summary.totalNonContiguousDeletedMessagesRange).isEqualTo(1);
+
+            var detailed = topics.getSubscriptionCursorInternalStatsAsync(
+                    "persistent://t/ns/stats-topic", "sub +/%2F", true).get(3, TimeUnit.SECONDS);
+            assertThat(detailed.individuallyDeletedMessages).isEqualTo("[(1:3..1:4]]");
+        }
+    }
+
+    @Test
+    public void testLocalSubscriptionCursorStatsHeaderSurvivesOwnershipRedirect() throws Exception {
+        String path = "/admin/v2/persistent/t/ns/stats-topic-partition-0/subscription/sub/internalStats"
+                + "?includeIndividualDeletedMessages=true";
+        String redirect = path + "&authoritative=true";
+        server.stubFor(get(urlEqualTo(path))
+                .withHeader(CURSOR_STATS_LOCAL_ONLY_HEADER, equalTo("true"))
+                .willReturn(aResponse().withStatus(307).withHeader("Location", adminUrl + redirect)));
+        server.stubFor(get(urlEqualTo(redirect))
+                .withHeader(CURSOR_STATS_LOCAL_ONLY_HEADER, equalTo("true"))
+                .willReturn(stringBody("{\"individuallyDeletedMessages\":\"[(1:3..1:4]]\"}")));
+
+        try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(adminUrl).build()) {
+            TopicsImpl topics = (TopicsImpl) admin.topics();
+            var stats = topics.getLocalSubscriptionCursorInternalStatsAsync(
+                    "persistent://t/ns/stats-topic-partition-0", "sub", true).get(3, TimeUnit.SECONDS);
+            assertThat(stats.individuallyDeletedMessages).isEqualTo("[(1:3..1:4]]");
+        }
+    }
+
+    @Test
+    public void testLocalSubscriptionCursorStatsPreservesOldOwnerNotFound() throws Exception {
+        String topic = "persistent://t/ns/old-owner-topic-partition-0";
+        String path = "/admin/v2/persistent/t/ns/old-owner-topic-partition-0/subscription/sub/internalStats"
+                + "?includeIndividualDeletedMessages=false";
+        String redirect = path + "&authoritative=true";
+        server.stubFor(get(urlEqualTo(path))
+                .withHeader(CURSOR_STATS_LOCAL_ONLY_HEADER, equalTo("true"))
+                .willReturn(aResponse().withStatus(307).withHeader("Location", adminUrl + redirect)));
+        server.stubFor(get(urlEqualTo(redirect))
+                .willReturn(aResponse().withStatus(404).withHeader("Content-Type", "text/html")
+                        .withBody("<html><body>Not Found</body></html>")));
+
+        try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(adminUrl).build()) {
+            TopicsImpl topics = (TopicsImpl) admin.topics();
+            var request = topics.getLocalSubscriptionCursorInternalStatsAsync(topic, "sub", false);
+            assertThatThrownBy(() -> request.get(3, TimeUnit.SECONDS))
+                    .cause().isInstanceOfSatisfying(PulsarAdminException.NotFoundException.class,
+                            error -> assertThat(error.getStatusCode()).isEqualTo(404));
+        }
+    }
+
+    @Test
+    public void testPartitionedSubscriptionCursorStatsParsesPartialResultAndPreservesRestFailure() throws Exception {
+        String topic = "persistent://t/ns/partitioned-stats-topic";
+        String path = "/admin/v2/persistent/t/ns/partitioned-stats-topic/subscription/sub/partitioned-internalStats";
+        server.stubFor(get(urlEqualTo(path + "?includeIndividualDeletedMessages=false"))
+                .withHeader(CURSOR_STATS_LOCAL_ONLY_HEADER, absent())
+                .willReturn(stringBody("""
+                        {
+                          "metadata": {"partitions": 2},
+                          "complete": false,
+                          "partitions": {"persistent://t/ns/partitioned-stats-topic-partition-0": {"state":"Open"}},
+                          "errors": {"persistent://t/ns/partitioned-stats-topic-partition-1":
+                              {"statusCode":404,"errorCode":"NOT_FOUND","reason":"Subscription not found"}}
+                        }
+                        """)));
+        server.stubFor(get(urlEqualTo(path.replace("/sub/", "/missing/") + "?includeIndividualDeletedMessages=true"))
+                .willReturn(stringBody("{\"reason\":\"No subscription cursor stats found\"}").withStatus(404)));
+
+        try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(adminUrl).build()) {
+            var result = admin.topics().getPartitionedSubscriptionCursorInternalStatsAsync(topic, "sub")
+                    .get(3, TimeUnit.SECONDS);
+            assertThat(result.metadata.partitions).isEqualTo(2);
+            assertThat(result.complete).isFalse();
+            assertThat(result.partitions.get(topic + "-partition-0").state).isEqualTo("Open");
+            assertThat(result.errors.get(topic + "-partition-1").errorCode).isEqualTo("NOT_FOUND");
+            assertThatThrownBy(() ->
+                    admin.topics().getPartitionedSubscriptionCursorInternalStats(topic, "missing", true))
+                    .isInstanceOf(PulsarAdminException.NotFoundException.class);
+        }
+    }
+
+    @Test
+    public void testSubscriptionCursorStatsValidationFailsThroughFuture() {
+        Topics topics = new TopicsImpl(mock(WebTarget.class), null, 0);
+        assertThatThrownBy(() -> topics.getSubscriptionCursorInternalStatsAsync("persistent://t/ns", "sub").join())
+                .hasCauseInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> topics.getPartitionedSubscriptionCursorInternalStatsAsync(
+                "persistent://t/ns/stats-topic", "").join()).hasCauseInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> topics.getSubscriptionCursorInternalStatsAsync(
+                "non-persistent://t/ns/stats-topic", "sub").join()).hasCauseInstanceOf(IllegalArgumentException.class);
     }
 
     private static ResponseDefinitionBuilder stringBody(String value) {

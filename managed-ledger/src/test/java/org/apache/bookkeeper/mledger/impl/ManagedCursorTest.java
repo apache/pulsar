@@ -466,6 +466,17 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             assertTrue(stats.individuallyDeletedMessages.contains(finalPosition2.toString()));
         });
 
+        ManagedCursorImpl observedCursor = spy(cursor);
+        ManagedLedgerInternalStats.CursorStats summary = observedCursor.getCursorStats(false);
+        verify(observedCursor, never()).getIndividuallyDeletedMessages();
+        assertThat(summary.individuallyDeletedMessages).isNull();
+
+        ManagedLedgerInternalStats.CursorStats detailed = observedCursor.getCursorStats(true);
+        verify(observedCursor).getIndividuallyDeletedMessages();
+        assertThat(detailed.individuallyDeletedMessages).contains(finalPosition2.toString());
+        assertThat(summary).usingRecursiveComparison().ignoringFields("individuallyDeletedMessages")
+                .isEqualTo(detailed);
+
         // cleanup.
         ml.delete();
     }

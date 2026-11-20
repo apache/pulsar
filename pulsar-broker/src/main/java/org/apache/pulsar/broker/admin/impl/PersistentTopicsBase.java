@@ -40,6 +40,7 @@ import jakarta.ws.rs.core.Response.Status;
 import jakarta.ws.rs.core.StreamingOutput;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
@@ -104,6 +105,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
+import org.apache.pulsar.client.admin.internal.TopicsImpl;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -136,6 +138,7 @@ import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
+import org.apache.pulsar.common.policies.data.PartitionedSubscriptionCursorInternalStats;
 import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
@@ -1578,27 +1581,131 @@ public class PersistentTopicsBase extends AdminResource {
         .thenCompose(topic -> topic.getInternalStats(metadata));
     }
 
-    protected CompletableFuture<ManagedLedgerInternalStats.CursorStats> internalGetCursorInternalStatsAsync(
-            boolean authoritative, String subName) {
-        return validateTopicOperationAsync(topicName, TopicOperation.GET_STATS)
-        .thenCompose(__ -> validateGlobalNamespaceOwnershipAsync(namespaceName))
-        .thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative))
-        .thenCompose(__ -> getTopicReferenceAsync(topicName))
-        .thenApply(topic -> {
-            if (topic == null) {
-                throw new RestException(Status.NOT_FOUND, getTopicNotFoundErrorMessage(topicName.toString()));
+    protected CompletableFuture<ManagedLedgerInternalStats.CursorStats> internalGetSubscriptionCursorInternalStats(
+            boolean authoritative, String subName, boolean includeIndividualDeletedMessages, boolean localOnly) {
+        return validateSubscriptionCursorStatsRequest(subName, localOnly)
+                .thenCompose(__ -> {
+                    if (topicName.isPartitioned()) {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                    return readCursorStatsDependency(
+                            pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName))
+                            .thenAccept(metadata -> {
+                                if (metadata.partitions > 0) {
+                                    throw new RestException(Status.PRECONDITION_FAILED,
+                                            "Specify a physical partition or use partitioned-internalStats");
+                                }
+                            });
+                })
+                .thenCompose(__ -> validateSubscriptionCursorTopicExists())
+                .thenCompose(__ -> readCursorStatsDependency(validateTopicOwnershipAsync(topicName, authoritative)))
+                .thenCompose(__ -> readCursorStatsDependency(
+                        pulsar().getBrokerService().getTopicIfExists(topicName.toString())))
+                .thenApply(topic -> {
+                    if (topic.isEmpty()) {
+                        throw new RestException(Status.NOT_FOUND, getTopicNotFoundErrorMessage(topicName.toString()));
+                    }
+                    var stats = ((PersistentTopic) topic.get())
+                            .getSubscriptionCursorInternalStats(subName, includeIndividualDeletedMessages);
+                    if (stats == null) {
+                        throw new RestException(Status.NOT_FOUND, "Subscription not found");
+                    }
+                    return stats;
+                });
+    }
+
+    private CompletableFuture<Void> validateSubscriptionCursorTopicExists() {
+        if (pulsar().getBrokerService().getTopicReference(topicName.toString()).isPresent()) {
+            return CompletableFuture.completedFuture(null);
+        }
+        // A normal ownership lookup may acquire an unowned bundle. Do not do that for a missing topic.
+        return readCursorStatsDependency(pulsar().getNamespaceService().checkNonPartitionedTopicExists(topicName))
+                .thenAccept(exists -> {
+                    if (!exists) {
+                        throw new RestException(Status.NOT_FOUND, getTopicNotFoundErrorMessage(topicName.toString()));
+                    }
+                });
+    }
+
+    protected CompletableFuture<PartitionedSubscriptionCursorInternalStats>
+            internalGetPartitionedSubscriptionCursorInternalStats(String subName,
+                                                                  boolean includeIndividualDeletedMessages) {
+        return validateSubscriptionCursorStatsRequest(subName, false)
+                .thenCompose(__ -> {
+                    if (topicName.isPartitioned()) {
+                        return CompletableFuture.failedFuture(new RestException(Status.PRECONDITION_FAILED,
+                                "Specify a partitioned base topic"));
+                    }
+                    // The caller was already authorized for GET_STATS. Only read the partition metadata here.
+                    return readCursorStatsDependency(
+                            pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName));
+                })
+                .thenComposeAsync(metadata -> {
+                    if (metadata.partitions == 0) {
+                        return readCursorStatsDependency(
+                                pulsar().getNamespaceService().checkNonPartitionedTopicExists(topicName))
+                                .thenApply(exists -> {
+                                    if (exists) {
+                                        throw new RestException(Status.PRECONDITION_FAILED,
+                                                "Specify a partitioned base topic");
+                                    }
+                                    throw new RestException(Status.NOT_FOUND, "Partitioned topic metadata not found");
+                                });
+                    }
+                    if (metadata.deleted) {
+                        return CompletableFuture.failedFuture(
+                                new RestException(Status.NOT_FOUND, "Partitioned topic metadata not found"));
+                    }
+                    var snapshot = new PartitionedTopicMetadata(metadata.partitions,
+                            metadata.properties == null ? null : new HashMap<>(metadata.properties));
+                    TopicsImpl topics;
+                    try {
+                        topics = (TopicsImpl) pulsar().getAdminClient().topics();
+                    } catch (PulsarServerException e) {
+                        return CompletableFuture.failedFuture(
+                                new RestException(Status.SERVICE_UNAVAILABLE, "Broker admin client unavailable"));
+                    }
+                    Duration timeout = Duration.ofSeconds(
+                            Math.max(1, config().getMetadataStoreOperationTimeoutSeconds()));
+                    return PartitionedSubscriptionCursorStats.collect(topicName, snapshot,
+                            partition -> topics.getLocalSubscriptionCursorInternalStatsAsync(
+                                    partition, subName, includeIndividualDeletedMessages),
+                            pulsar().getExecutor(), timeout);
+                }, pulsar().getExecutor());
+    }
+
+    private CompletableFuture<Void> validateSubscriptionCursorStatsRequest(String subName, boolean localOnly) {
+        if (!topicName.isPersistent() || StringUtils.isEmpty(subName)) {
+            return CompletableFuture.failedFuture(new RestException(Status.PRECONDITION_FAILED,
+                    "A persistent topic and a subscription name are required"));
+        }
+        return readCursorStatsDependency(validateTopicOperationAsync(topicName, TopicOperation.GET_STATS, subName))
+                .thenCompose(__ -> readCursorStatsDependency(validateSubscriptionCursorStatsRouting(localOnly)));
+    }
+
+    private CompletableFuture<Void> validateSubscriptionCursorStatsRouting(boolean localOnly) {
+        if (!localOnly) {
+            return validateGlobalNamespaceOwnershipAsync(namespaceName);
+        }
+
+        // The partitioned coordinator already routed the base request. A physical partition request may follow
+        // local ownership redirects, but must not send the broker's credentials to a peer cluster.
+        return checkLocalOrGetPeerReplicationCluster(pulsar(), namespaceName).thenAccept(peerCluster -> {
+            if (peerCluster != null) {
+                throw new RestException(Status.SERVICE_UNAVAILABLE, "Partition is no longer served by this cluster");
             }
-            if (!(topic instanceof PersistentTopic persistentTopic)) {
-                throw new RestException(Status.METHOD_NOT_ALLOWED,
-                        "Cannot get cursor internal stats on non-persistent topics");
+        });
+    }
+
+    private static <T> CompletableFuture<T> readCursorStatsDependency(CompletableFuture<T> dependency) {
+        return dependency.exceptionally(error -> {
+            Throwable cause = FutureUtil.unwrapCompletionException(error);
+            if (cause instanceof WebApplicationException webException
+                    && webException.getResponse().getStatus() < 500) {
+                throw webException;
             }
-            ManagedLedgerInternalStats.CursorStats cursorInternalStats =
-                    persistentTopic.getCursorInternalStats(subName);
-            if (cursorInternalStats == null) {
-                throw new RestException(Status.NOT_FOUND,
-                        getSubNotFoundErrorMessage(topicName.toString(), subName));
-            }
-            return cursorInternalStats;
+            throw new RestException(Status.SERVICE_UNAVAILABLE,
+                    "Topic authorization, metadata or ownership is unavailable");
         });
     }
 

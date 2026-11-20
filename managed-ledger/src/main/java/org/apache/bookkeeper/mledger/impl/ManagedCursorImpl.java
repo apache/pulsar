@@ -4749,6 +4749,11 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public ManagedLedgerInternalStats.CursorStats getCursorStats() {
+        return getCursorStats(true);
+    }
+
+    @Override
+    public ManagedLedgerInternalStats.CursorStats getCursorStats(boolean includeIndividualDeletedMessages) {
         ManagedLedgerInternalStats.CursorStats cs = new ManagedLedgerInternalStats.CursorStats();
         cs.markDeletePosition = getMarkDeletedPosition().toString();
         cs.readPosition = getReadPosition().toString();
@@ -4757,7 +4762,9 @@ public class ManagedCursorImpl implements ManagedCursor {
         cs.messagesConsumedCounter = getMessagesConsumedCounter();
         cs.cursorLedger = getCursorLedger();
         cs.cursorLedgerLastEntry = getCursorLedgerLastEntry();
-        cs.individuallyDeletedMessages = getIndividuallyDeletedMessages();
+        if (includeIndividualDeletedMessages) {
+            cs.individuallyDeletedMessages = getIndividuallyDeletedMessages();
+        }
         cs.lastLedgerSwitchTimestamp = DateFormatter.format(getLastLedgerSwitchTimestamp());
         cs.state = getState();
         cs.active = isActive();

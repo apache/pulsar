@@ -27,9 +27,12 @@ import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.function.Predicate;
 import javax.naming.AuthenticationException;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
+import org.apache.pulsar.common.policies.data.ErrorData;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 /**
  * Servlet filter that hooks up with AuthenticationService to reject unauthenticated HTTP requests.
@@ -37,7 +40,9 @@ import org.apache.pulsar.broker.authentication.AuthenticationService;
 @CustomLog
 public class AuthenticationFilter implements Filter {
 
+    private static final String AUTHENTICATION_REQUIRED = "Authentication required";
     private final AuthenticationService authenticationService;
+    private final Predicate<HttpServletRequest> useJsonErrors;
 
     public static final String AuthenticatedRoleAttributeName = AuthenticationFilter.class.getName() + "-role";
     public static final String AuthenticatedDataAttributeName = AuthenticationFilter.class.getName() + "-data";
@@ -45,7 +50,13 @@ public class AuthenticationFilter implements Filter {
 
 
     public AuthenticationFilter(AuthenticationService authenticationService) {
+        this(authenticationService, request -> false);
+    }
+
+    public AuthenticationFilter(AuthenticationService authenticationService,
+                                Predicate<HttpServletRequest> useJsonErrors) {
         this.authenticationService = authenticationService;
+        this.useJsonErrors = useJsonErrors;
     }
 
     @Override
@@ -62,15 +73,15 @@ public class AuthenticationFilter implements Filter {
             if (e instanceof AuthenticationException) {
                 String msg = e.getMessage();
                 if (msg == null) {
-                    msg = "Authentication required";
+                    msg = AUTHENTICATION_REQUIRED;
                 }
-                httpResponse.sendError(HttpServletResponse.SC_UNAUTHORIZED, msg);
+                sendUnauthorized(httpRequest, httpResponse, msg);
                 log.warn()
                         .attr("remoteAddr", request.getRemoteAddr())
                         .attr("request", msg)
                         .log("Failed to authenticate HTTP request");
             } else {
-                httpResponse.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Authentication required");
+                sendUnauthorized(httpRequest, httpResponse, AUTHENTICATION_REQUIRED);
                 log.error()
                         .attr("remoteAddr", request.getRemoteAddr())
                         .exception(e)
@@ -82,6 +93,22 @@ public class AuthenticationFilter implements Filter {
         if (doFilter) {
             chain.doFilter(request, response);
         }
+    }
+
+    private void sendUnauthorized(HttpServletRequest request, HttpServletResponse response, String message)
+            throws IOException {
+        if (!useJsonErrors.test(request)) {
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, message);
+            return;
+        }
+
+        byte[] body = ObjectMapperFactory.getMapper().writer()
+                .writeValueAsBytes(new ErrorData(AUTHENTICATION_REQUIRED));
+        response.resetBuffer();
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        response.setContentType("application/json;charset=utf-8");
+        response.setContentLength(body.length);
+        response.getOutputStream().write(body);
     }
 
     @Override

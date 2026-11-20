@@ -3604,8 +3604,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 stats.compactedLedger = info;
 
                 stats.cursors = new HashMap<>();
-                ledger.getCursors().forEach(
-                        c -> stats.cursors.put(c.getName(), buildSubscriptionAwareCursorStats(c)));
+                ledger.getCursors().forEach(cursor -> {
+                    CursorStats cursorStats = cursor.getCursorStats();
+                    PersistentSubscription sub = getSubscription(Codec.decode(cursor.getName()));
+                    stats.cursors.put(cursor.getName(), buildSubscriptionAwareCursorStats(cursorStats, sub));
+                });
 
                 //Schema store ledgers
                 String schemaId;
@@ -3700,24 +3703,37 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
      * Get the internal stats of the cursor backing the given subscription, enriched with the state of
      * the subscription dispatcher. Returns null if the subscription does not exist.
      */
-    public CursorStats getCursorInternalStats(String subName) {
+    public CursorStats getSubscriptionCursorInternalStats(String subName, boolean includeIndividualDeletedMessages) {
         PersistentSubscription sub = getSubscription(subName);
-        return sub != null ? buildSubscriptionAwareCursorStats(sub.getCursor()) : null;
+        return sub == null ? null : buildSubscriptionAwareCursorStats(
+                sub.getCursor().getCursorStats(includeIndividualDeletedMessages), sub);
     }
 
-    private CursorStats buildSubscriptionAwareCursorStats(ManagedCursor cursor) {
-        CursorStats cs = cursor.getCursorStats();
-        // subscription metrics
-        PersistentSubscription sub = subscriptions.get(Codec.decode(cursor.getName()));
-        if (sub != null) {
-            if (sub.getDispatcher() instanceof AbstractPersistentDispatcherMultipleConsumers dispatcher) {
-                cs.subscriptionHavePendingRead = dispatcher.isHavePendingRead();
-                cs.subscriptionHavePendingReplayRead = dispatcher.isHavePendingReplayRead();
-            } else if (sub.getDispatcher() instanceof PersistentDispatcherSingleActiveConsumer dispatcher) {
-                cs.subscriptionHavePendingRead = dispatcher.havePendingRead;
-            }
+    private static CursorStats buildSubscriptionAwareCursorStats(CursorStats cursor, PersistentSubscription sub) {
+        CursorStats stats = new CursorStats();
+        stats.markDeletePosition = cursor.markDeletePosition;
+        stats.readPosition = cursor.readPosition;
+        stats.waitingReadOp = cursor.waitingReadOp;
+        stats.pendingReadOps = cursor.pendingReadOps;
+        stats.messagesConsumedCounter = cursor.messagesConsumedCounter;
+        stats.cursorLedger = cursor.cursorLedger;
+        stats.cursorLedgerLastEntry = cursor.cursorLedgerLastEntry;
+        stats.individuallyDeletedMessages = cursor.individuallyDeletedMessages;
+        stats.lastLedgerSwitchTimestamp = cursor.lastLedgerSwitchTimestamp;
+        stats.state = cursor.state;
+        stats.active = cursor.active;
+        stats.numberOfEntriesSinceFirstNotAckedMessage = cursor.numberOfEntriesSinceFirstNotAckedMessage;
+        stats.totalNonContiguousDeletedMessagesRange = cursor.totalNonContiguousDeletedMessagesRange;
+        stats.properties = cursor.properties;
+
+        Dispatcher dispatcher = sub == null ? null : sub.getDispatcher();
+        if (dispatcher instanceof AbstractPersistentDispatcherMultipleConsumers multipleConsumers) {
+            stats.subscriptionHavePendingRead = multipleConsumers.isHavePendingRead();
+            stats.subscriptionHavePendingReplayRead = multipleConsumers.isHavePendingReplayRead();
+        } else if (dispatcher instanceof PersistentDispatcherSingleActiveConsumer singleActiveConsumer) {
+            stats.subscriptionHavePendingRead = singleActiveConsumer.havePendingRead;
         }
-        return cs;
+        return stats;
     }
 
     public Optional<CompactedTopicContext> getCompactedTopicContext() {

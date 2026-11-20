@@ -40,8 +40,9 @@ import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
-import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
+import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.CursorStats;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.PartitionedSubscriptionCursorInternalStats;
 import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
@@ -1247,38 +1248,106 @@ public interface Topics {
     CompletableFuture<PersistentTopicInternalStats> getInternalStatsAsync(String topic);
 
     /**
-     * Get the internal stats for the cursor of a subscription.
-     * <p/>
-     * Access the internal state of the cursor, such as the mark-delete positions, the individually
-     * deleted messages and the state of the in-flight persistence.
+     * Get the cursor statistics for an existing subscription on a persistent non-partitioned topic
+     * or a physical partition, excluding the individually deleted message ranges.
      *
-     * @param topic
-     *            topic name
-     * @param subName
-     *            subscription name
-     * @return the cursor statistics
-     *
-     * @throws NotAuthorizedException
-     *             Don't have admin permission
-     * @throws NotFoundException
-     *             Topic or subscription does not exist
-     * @throws PulsarAdminException
-     *             Unexpected error
+     * @param topic the persistent topic or physical partition name
+     * @param subName the subscription name
+     * @return a diagnostic snapshot of the subscription's cursor
+     * @throws PulsarAdminException if the statistics cannot be retrieved
      */
-    ManagedLedgerInternalStats.CursorStats getCursorInternalStats(String topic, String subName)
-            throws PulsarAdminException;
+    default CursorStats getSubscriptionCursorInternalStats(String topic, String subName)
+            throws PulsarAdminException {
+        return getSubscriptionCursorInternalStats(topic, subName, false);
+    }
 
     /**
-     * Get the internal stats for the cursor of a subscription asynchronously.
+     * Get the cursor statistics for an existing subscription on a persistent non-partitioned topic
+     * or a physical partition.
      *
-     * @param topic
-     *            topic name
-     * @param subName
-     *            subscription name
-     * @return a future that can be used to track when the cursor statistics are returned
+     * @param topic the persistent topic or physical partition name
+     * @param subName the subscription name
+     * @param includeIndividualDeletedMessages whether to include the complete individually deleted message ranges
+     * @return a diagnostic snapshot of the subscription's cursor
+     * @throws PulsarAdminException if the statistics cannot be retrieved
      */
-    CompletableFuture<ManagedLedgerInternalStats.CursorStats> getCursorInternalStatsAsync(
-            String topic, String subName);
+    default CursorStats getSubscriptionCursorInternalStats(
+            String topic, String subName, boolean includeIndividualDeletedMessages) throws PulsarAdminException {
+        throw new PulsarAdminException("Subscription cursor internal stats are unsupported");
+    }
+
+    /**
+     * Asynchronously get the cursor statistics for an existing subscription, excluding the individually
+     * deleted message ranges.
+     *
+     * @see #getSubscriptionCursorInternalStats(String, String)
+     */
+    default CompletableFuture<CursorStats> getSubscriptionCursorInternalStatsAsync(
+            String topic, String subName) {
+        return getSubscriptionCursorInternalStatsAsync(topic, subName, false);
+    }
+
+    /**
+     * Asynchronously get the cursor statistics for an existing subscription.
+     *
+     * @see #getSubscriptionCursorInternalStats(String, String, boolean)
+     */
+    default CompletableFuture<CursorStats> getSubscriptionCursorInternalStatsAsync(
+            String topic, String subName, boolean includeIndividualDeletedMessages) {
+        return CompletableFuture.failedFuture(
+                new PulsarAdminException("Subscription cursor internal stats are unsupported"));
+    }
+
+    /**
+     * Get per-partition cursor statistics for a subscription on a persistent partitioned topic,
+     * excluding the individually deleted message ranges.
+     *
+     * @param topic the persistent partitioned base topic name
+     * @param subName the subscription name
+     * @return per-partition results, including errors for any failed partitions
+     * @throws PulsarAdminException if no partition succeeds or the request cannot be completed
+     */
+    default PartitionedSubscriptionCursorInternalStats getPartitionedSubscriptionCursorInternalStats(
+            String topic, String subName) throws PulsarAdminException {
+        return getPartitionedSubscriptionCursorInternalStats(topic, subName, false);
+    }
+
+    /**
+     * Get per-partition cursor statistics for a subscription on a persistent partitioned topic.
+     *
+     * @param topic the persistent partitioned base topic name
+     * @param subName the subscription name
+     * @param includeIndividualDeletedMessages whether to include the complete individually deleted message ranges
+     * @return per-partition results, including errors for any failed partitions
+     * @throws PulsarAdminException if no partition succeeds or the request cannot be completed
+     */
+    default PartitionedSubscriptionCursorInternalStats getPartitionedSubscriptionCursorInternalStats(
+            String topic, String subName, boolean includeIndividualDeletedMessages) throws PulsarAdminException {
+        throw new PulsarAdminException("Partitioned subscription cursor internal stats are unsupported");
+    }
+
+    /**
+     * Asynchronously get per-partition cursor statistics for a subscription, excluding the individually
+     * deleted message ranges.
+     *
+     * @see #getPartitionedSubscriptionCursorInternalStats(String, String)
+     */
+    default CompletableFuture<PartitionedSubscriptionCursorInternalStats>
+            getPartitionedSubscriptionCursorInternalStatsAsync(String topic, String subName) {
+        return getPartitionedSubscriptionCursorInternalStatsAsync(topic, subName, false);
+    }
+
+    /**
+     * Asynchronously get per-partition cursor statistics for a subscription.
+     *
+     * @see #getPartitionedSubscriptionCursorInternalStats(String, String, boolean)
+     */
+    default CompletableFuture<PartitionedSubscriptionCursorInternalStats>
+            getPartitionedSubscriptionCursorInternalStatsAsync(
+                    String topic, String subName, boolean includeIndividualDeletedMessages) {
+        return CompletableFuture.failedFuture(
+                new PulsarAdminException("Partitioned subscription cursor internal stats are unsupported"));
+    }
 
     /**
      * Get a JSON representation of the topic metadata stored in ZooKeeper.

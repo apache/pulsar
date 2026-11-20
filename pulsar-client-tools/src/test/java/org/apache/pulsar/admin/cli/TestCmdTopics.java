@@ -20,6 +20,7 @@ package org.apache.pulsar.admin.cli;
 
 import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
 import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.any;
@@ -30,6 +31,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import com.google.common.collect.Lists;
@@ -40,6 +42,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import lombok.Cleanup;
 import org.apache.pulsar.client.admin.ListTopicsOptions;
 import org.apache.pulsar.client.admin.Lookup;
@@ -49,13 +52,19 @@ import org.apache.pulsar.client.admin.Schemas;
 import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.TopicDomain;
+import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.CursorStats;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.LedgerInfo;
+import org.apache.pulsar.common.policies.data.PartitionedSubscriptionCursorInternalStats;
+import org.apache.pulsar.common.policies.data.PartitionedSubscriptionCursorInternalStats.PartitionError;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
+import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class TestCmdTopics {
@@ -142,6 +151,95 @@ public class TestCmdTopics {
 
         cmd.run("list public/default".split("\\s+"));
         Assert.assertEquals(stringWriter.toString(), String.join("\n", topicList) + "\n");
+    }
+
+    @Test
+    public void testSubscriptionCursorStatsOutput() throws Exception {
+        String topic = "persistent://public/default/my-topic";
+        CursorStats stats = new CursorStats();
+        stats.markDeletePosition = "1:2";
+        when(mockTopics.getSubscriptionCursorInternalStats(topic, "sub", false)).thenReturn(stats);
+        StringWriter output = new StringWriter();
+        cmdTopics.getCommander().setOut(new PrintWriter(output));
+
+        assertThat(cmdTopics.run(new String[] {"stats-internal", "-s", "sub", topic})).isTrue();
+        assertThat(output.toString()).contains("markDeletePosition", "1:2")
+                .doesNotContain("individuallyDeletedMessages");
+
+        CursorStats completeStats = new CursorStats();
+        completeStats.individuallyDeletedMessages = "[(1:3..1:4]]";
+        when(mockTopics.getSubscriptionCursorInternalStats(topic, "sub", true)).thenReturn(completeStats);
+        CmdTopics detailed = new CmdTopics(() -> pulsarAdmin);
+        output.getBuffer().setLength(0);
+        detailed.getCommander().setOut(new PrintWriter(output));
+
+        assertThat(detailed.run(new String[] {
+                "stats-internal", "--subscription", "sub", "--include-individual-deleted-messages", topic})).isTrue();
+        assertThat(output.toString()).contains("individuallyDeletedMessages",
+                completeStats.individuallyDeletedMessages);
+    }
+
+    @Test
+    public void testPartitionedSubscriptionCursorStatsPrintsPartialResult() throws Exception {
+        String topic = "persistent://public/default/my-topic";
+        var partial = new PartitionedSubscriptionCursorInternalStats(new PartitionedTopicMetadata(2),
+                Map.of(topic + "-partition-0", new CursorStats()),
+                Map.of(topic + "-partition-1", new PartitionError(404, "NOT_FOUND", "Subscription not found")));
+        when(mockTopics.getPartitionedSubscriptionCursorInternalStats(topic, "sub", true)).thenReturn(partial);
+        StringWriter output = new StringWriter();
+        cmdTopics.getCommander().setOut(new PrintWriter(output));
+
+        assertThat(cmdTopics.run(new String[] {
+                "partitioned-stats-internal", "-s", "sub", "--include-individual-deleted-messages", topic})).isTrue();
+        assertThat(output.toString()).contains(
+                "\"complete\" : false", topic + "-partition-0", topic + "-partition-1", "NOT_FOUND");
+    }
+
+    @DataProvider
+    public Object[][] invalidSubscriptionCursorStatsOptions() {
+        String topic = "persistent://public/default/my-topic";
+        String nonPersistentTopic = "non-persistent://public/default/my-topic";
+        return new Object[][] {
+                {new String[] {"stats-internal", "-s", "sub", "--metadata", topic}},
+                {new String[] {"stats-internal", "-s", "sub", "--metadata=false", topic}},
+                {new String[] {"stats-internal", "--include-individual-deleted-messages", topic}},
+                {new String[] {"partitioned-stats-internal", "--include-individual-deleted-messages=false", topic}},
+                {new String[] {"stats-internal", "-s", "sub", nonPersistentTopic}},
+                {new String[] {"partitioned-stats-internal", "-s", "sub", nonPersistentTopic}},
+        };
+    }
+
+    @Test(dataProvider = "invalidSubscriptionCursorStatsOptions")
+    public void testRejectsInvalidSubscriptionCursorStatsOptions(String[] args) {
+        cmdTopics.getCommander().setErr(new PrintWriter(new StringWriter()));
+        assertThat(cmdTopics.run(args)).isFalse();
+        verifyNoInteractions(mockTopics);
+    }
+
+    @Test
+    public void testSubscriptionCursorStatsPropagatesAdminFailure() throws Exception {
+        String topic = "persistent://public/default/my-topic";
+        when(mockTopics.getPartitionedSubscriptionCursorInternalStats(topic, "sub", false))
+                .thenThrow(new PulsarAdminException.NotFoundException(null, "No partition result", 404));
+        cmdTopics.getCommander().setErr(new PrintWriter(new StringWriter()));
+
+        assertThat(cmdTopics.run(new String[] {"partitioned-stats-internal", "-s", "sub", topic})).isFalse();
+    }
+
+    @Test
+    public void testTopicInternalStatsStillIncludesCursorRanges() throws Exception {
+        String topic = "persistent://public/default/my-topic";
+        PersistentTopicInternalStats stats = new PersistentTopicInternalStats();
+        CursorStats cursor = new CursorStats();
+        cursor.individuallyDeletedMessages = "[(1:3..1:4]]";
+        stats.cursors = Map.of("sub", cursor);
+        when(mockTopics.getInternalStats(topic, true)).thenReturn(stats);
+        StringWriter output = new StringWriter();
+        cmdTopics.getCommander().setOut(new PrintWriter(output));
+
+        assertThat(cmdTopics.run(new String[] {"stats-internal", "--metadata", topic})).isTrue();
+        assertThat(output.toString()).contains("cursors", "individuallyDeletedMessages",
+                cursor.individuallyDeletedMessages);
     }
 
     @Test
