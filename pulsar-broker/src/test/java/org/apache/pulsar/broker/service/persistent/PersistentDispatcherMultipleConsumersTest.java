@@ -891,6 +891,74 @@ public class PersistentDispatcherMultipleConsumersTest extends SharedPulsarBaseT
     }
 
     @Test
+    public void testBacklogClearBuffersBeforeCursorCallback() throws Exception {
+        // The cursor samples the backlog tail before the callback starts the delayed-state cleanup.
+        // A position published in that window must be buffered instead of added to the live tracker,
+        // then installed after the cleanup settles.
+        DelayedDeliveryTrackerFactory factory = Mockito.mock(DelayedDeliveryTrackerFactory.class);
+        DelayedDeliveryTracker tracker = Mockito.mock(DelayedDeliveryTracker.class);
+        Mockito.doNothing().when(tracker).resetTickTime(Mockito.anyLong());
+        Mockito.doReturn(true).when(tracker).addMessage(Mockito.anyLong(), Mockito.anyLong(), Mockito.anyLong());
+        Mockito.doReturn(CompletableFuture.completedFuture(null)).when(tracker).clear();
+        Mockito.doReturn(CompletableFuture.completedFuture(tracker)).when(factory).newTrackerAsync(Mockito.any());
+
+        PersistentDispatcherMultipleConsumers dispatcher = newDispatcherWithDelayedTrackerFactory(factory);
+        ManagedCursor dispatcherCursor = dispatcher.getCursor();
+        Mockito.doReturn(PositionFactory.create(0L, -1L)).when(dispatcherCursor).getMarkDeletedPosition();
+        long deliverAtTime = System.currentTimeMillis() + 5_000;
+        try {
+            Assert.assertTrue(dispatcher.trackDelayedDelivery(1, 1, newDelayedMessageMetadata(deliverAtTime)));
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+                    assertThat(dispatcher.getDelayedDeliveryTrackerCreatePendingMessages()).isZero());
+
+            dispatcher.beginDelayedMessagesBufferingForBacklogClear();
+            Assert.assertTrue(dispatcher.trackDelayedDelivery(2, 1, newDelayedMessageMetadata(deliverAtTime)));
+            Assert.assertEquals(dispatcher.getDelayedDeliveryTrackerCreatePendingMessages(), 1,
+                    "A post-tail entry must be buffered before the cursor callback starts cleanup");
+
+            dispatcher.clearDelayedMessagesAfterBacklogClear().get(5, TimeUnit.SECONDS);
+            Mockito.verify(tracker, Mockito.times(1)).clear();
+            Mockito.verify(tracker, Mockito.times(1)).addMessage(2L, 1L, deliverAtTime);
+            Assert.assertEquals(dispatcher.getDelayedDeliveryTrackerCreatePendingMessages(), 0);
+        } finally {
+            // Stop any further retry
+            dispatcher.close(false, Optional.empty()).get(1, TimeUnit.MINUTES);
+        }
+    }
+
+    @Test
+    public void testBacklogClearFailureReleasesBufferedPositions() throws Exception {
+        // If the cursor clear fails, buffered positions must still be installed instead of staying
+        // stranded in the pending map.
+        DelayedDeliveryTrackerFactory factory = Mockito.mock(DelayedDeliveryTrackerFactory.class);
+        DelayedDeliveryTracker tracker = Mockito.mock(DelayedDeliveryTracker.class);
+        Mockito.doNothing().when(tracker).resetTickTime(Mockito.anyLong());
+        Mockito.doReturn(true).when(tracker).addMessage(Mockito.anyLong(), Mockito.anyLong(), Mockito.anyLong());
+        Mockito.doReturn(CompletableFuture.completedFuture(tracker)).when(factory).newTrackerAsync(Mockito.any());
+
+        PersistentDispatcherMultipleConsumers dispatcher = newDispatcherWithDelayedTrackerFactory(factory);
+        ManagedCursor dispatcherCursor = dispatcher.getCursor();
+        Mockito.doReturn(PositionFactory.create(0L, -1L)).when(dispatcherCursor).getMarkDeletedPosition();
+        long deliverAtTime = System.currentTimeMillis() + 5_000;
+        try {
+            Assert.assertTrue(dispatcher.trackDelayedDelivery(1, 1, newDelayedMessageMetadata(deliverAtTime)));
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+                    assertThat(dispatcher.getDelayedDeliveryTrackerCreatePendingMessages()).isZero());
+
+            dispatcher.beginDelayedMessagesBufferingForBacklogClear();
+            Assert.assertTrue(dispatcher.trackDelayedDelivery(2, 1, newDelayedMessageMetadata(deliverAtTime)));
+            Assert.assertEquals(dispatcher.getDelayedDeliveryTrackerCreatePendingMessages(), 1);
+
+            dispatcher.endDelayedMessagesBufferingForBacklogClear();
+            Mockito.verify(tracker, Mockito.times(1)).addMessage(2L, 1L, deliverAtTime);
+            Assert.assertEquals(dispatcher.getDelayedDeliveryTrackerCreatePendingMessages(), 0);
+        } finally {
+            // Stop any further retry
+            dispatcher.close(false, Optional.empty()).get(1, TimeUnit.MINUTES);
+        }
+    }
+
+    @Test
     public void testBacklogClearAlreadyDuePreservedPositionInstalledOnce() throws Exception {
         // A preserved position whose delivery time has already passed is handed to the tracker
         // only once, so the dispatcher does not send it twice.

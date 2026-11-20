@@ -874,6 +874,9 @@ public class PersistentSubscription extends AbstractSubscription {
                 .attr("entriesInBacklog", cursor.getNumberOfEntriesInBacklog(false))
                 .log("Backlog size before clearing");
 
+        if (dispatcher != null) {
+            dispatcher.beginDelayedMessagesBufferingForBacklogClear();
+        }
         cursor.asyncClearBacklog(new ClearBacklogCallback() {
             @Override
             public void clearBacklogComplete(Object ctx) {
@@ -902,6 +905,7 @@ public class PersistentSubscription extends AbstractSubscription {
                         .log("Failed to clear backlog");
                 future.completeExceptionally(exception);
                 if (dispatcher != null) {
+                    dispatcher.endDelayedMessagesBufferingForBacklogClear();
                     dispatcher.afterAckMessages(exception, ctx);
                 }
             }

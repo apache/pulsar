@@ -1768,6 +1768,24 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     }
 
     @Override
+    public void beginDelayedMessagesBufferingForBacklogClear() {
+        synchronized (this) {
+            if (!topic.isDelayedDeliveryEnabled()) {
+                return;
+            }
+            delayedDeliveryTrackerClearPending = true;
+        }
+    }
+
+    @Override
+    public void endDelayedMessagesBufferingForBacklogClear() {
+        synchronized (this) {
+            delayedDeliveryTrackerClearPending = false;
+        }
+        installPendingAfterBacklogClear();
+    }
+
+    @Override
     public CompletableFuture<Void> clearDelayedMessagesAfterBacklogClear() {
         synchronized (this) {
             if (!topic.isDelayedDeliveryEnabled()) {
