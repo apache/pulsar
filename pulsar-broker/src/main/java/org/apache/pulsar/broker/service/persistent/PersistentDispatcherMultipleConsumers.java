@@ -1746,7 +1746,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             return true;
         }
         if (delayedDeliveryRewindPosition != null) {
-            if (cursor.getReadPosition().compareTo(delayedDeliveryRewindPosition) < 0) {
+            // Replay can advance the shared cursor while a normal read still holds an earlier continuation.
+            // Keep its skip markers until that read completes, even if the shared position has caught up.
+            if (havePendingRead || cursor.getReadPosition().compareTo(delayedDeliveryRewindPosition) < 0) {
                 return false;
             }
             delayedDeliveryRewindPosition = null;

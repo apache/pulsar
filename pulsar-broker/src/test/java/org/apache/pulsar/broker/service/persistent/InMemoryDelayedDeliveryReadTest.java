@@ -30,8 +30,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
@@ -108,6 +111,62 @@ public class InMemoryDelayedDeliveryReadTest extends SharedPulsarBaseTest {
         }
     }
 
+    @Test(dataProvider = "subscriptionTypes", timeOut = 60000)
+    public void testDueDuringRewoundNormalReadIsDeliveredOnce(SubscriptionType subscriptionType) throws Exception {
+        AtomicLong now = new AtomicLong(100_000);
+        String topic = newTopicName();
+        ReadContinuationGate gate = new ReadContinuationGate();
+        try (PulsarTestContext context = newControlledContext(now, gate); gate) {
+            PulsarService broker = context.getPulsarService();
+            PulsarClient client = broker.getClient();
+            try (Producer<String> producer = client.newProducer(Schema.STRING)
+                    .topic(topic).enableBatching(false).create()) {
+                PersistentDispatcherMultipleConsumers dispatcher;
+                Position delayed;
+                try (Consumer<String> consumer = subscribe(client, topic, subscriptionType)) {
+                    producer.send("unacked");
+                    assertThat(receive(consumer).getValue()).isEqualTo("unacked");
+                    producer.newMessage().value("delayed").deliverAt(200_000).send();
+                    dispatcher = dispatcher(broker, topic);
+                    ManagedLedgerImpl ledger = (ManagedLedgerImpl) dispatcher.getTopic().getManagedLedger();
+                    ledger.getConfig().setReadAheadEnabled(false);
+                    delayed = ledger.getLastConfirmedEntry();
+                    await().untilAsserted(() -> {
+                        assertThat(dispatcher.getNumberOfDelayedMessages()).isEqualTo(1);
+                        assertThat(dispatcher.getCursor().getReadPosition()).isEqualTo(delayed.getNext());
+                    });
+                }
+                await().untilAsserted(() -> assertThat(dispatcher.getConsumers()).isEmpty());
+                gate.pauseAt = delayed;
+                try (Consumer<String> consumer = subscribe(client, topic, subscriptionType)) {
+                    // The normal read has fetched A, saved X as its continuation, and has not checked X again.
+                    assertThat(gate.paused.await(10, TimeUnit.SECONDS)).isTrue();
+                    assertThat(dispatcher.havePendingRead).isTrue();
+                    assertThat(dispatcher.getCursor().getReadPosition()).isEqualTo(delayed);
+                    now.set(300_000);
+                    dispatcher.readMoreEntries();
+                    await().untilAsserted(() -> {
+                        assertThat(dispatcher.getNumberOfDelayedMessages()).isZero();
+                        assertThat(dispatcher.getCursor().getReadPosition()).isEqualTo(delayed.getNext());
+                        assertThat(dispatcher.isSendInProgress()).isFalse();
+                    });
+                    // Replay advanced the shared cursor. A flow-triggered pass must keep the marker for the
+                    // normal read, whose saved continuation still points to X.
+                    assertThat(dispatcher.havePendingRead).isTrue();
+                    dispatcher.readMoreEntries();
+                    gate.close();
+                    producer.send("marker");
+                    assertThat(receiveThroughMarker(consumer, "marker"))
+                            .containsExactlyInAnyOrder("unacked", "delayed", "marker");
+                    assertThat(consumer.receive(100, TimeUnit.MILLISECONDS)).isNull();
+                    assertThat(dispatcher.getConsumers().get(0).getUnackedMessages()).isEqualTo(3);
+                    await().untilAsserted(() -> assertThat(dispatcher.getDelayedTrackerMemoryUsage()).isZero());
+                    broker.getAdminClient().topics().skipAllMessages(topic, "sub");
+                }
+            }
+        }
+    }
+
     @DataProvider
     public Object[][] disableAfterReconnectVariants() {
         return new Object[][]{{SubscriptionType.Shared, false}, {SubscriptionType.Shared, true},
@@ -164,13 +223,28 @@ public class InMemoryDelayedDeliveryReadTest extends SharedPulsarBaseTest {
     }
 
     private PulsarTestContext newControlledContext(AtomicLong now) throws Exception {
+        return newControlledContext(now, null);
+    }
+
+    private PulsarTestContext newControlledContext(AtomicLong now, ReadContinuationGate gate) throws Exception {
         Clock clock = mock(Clock.class);
         when(clock.millis()).thenAnswer(invocation -> now.get());
         Timer timer = mock(Timer.class);
         DelayedDeliveryTrackerFactory factory = mock(DelayedDeliveryTrackerFactory.class);
-        when(factory.newTrackerAsync(any())).thenAnswer(invocation -> CompletableFuture.completedFuture(
-                new InMemoryDelayedDeliveryTracker(
-                        invocation.getArgument(0), timer, 1, clock, true, 0)));
+        when(factory.newTrackerAsync(any())).thenAnswer(invocation -> {
+            AbstractPersistentDispatcherMultipleConsumers dispatcher = invocation.getArgument(0);
+            return CompletableFuture.completedFuture(new InMemoryDelayedDeliveryTracker(
+                    dispatcher, timer, 1, clock, true, 0) {
+                @Override
+                public boolean containsMessage(long ledgerId, long entryId) {
+                    // Pause outside the tracker monitor so replay can drain the delayed entry concurrently.
+                    if (gate != null) {
+                        gate.beforeSkipCheck(dispatcher.getCursor(), ledgerId, entryId);
+                    }
+                    return super.containsMessage(ledgerId, entryId);
+                }
+            });
+        });
         PulsarTestContext context = PulsarTestContext.builder().configCustomizer(config -> {
             config.setDispatcherDispatchMessagesInSubscriptionThread(true);
             config.setDelayedDeliveryTickTimeMillis(1);
@@ -190,6 +264,32 @@ public class InMemoryDelayedDeliveryReadTest extends SharedPulsarBaseTest {
         } catch (Exception e) {
             context.close();
             throw e;
+        }
+    }
+
+    private static final class ReadContinuationGate implements AutoCloseable {
+        private volatile Position pauseAt;
+        private final AtomicBoolean intercepted = new AtomicBoolean();
+        private final CountDownLatch paused = new CountDownLatch(1);
+        private final CountDownLatch resume = new CountDownLatch(1);
+
+        void beforeSkipCheck(ManagedCursor cursor, long ledgerId, long entryId) {
+            Position target = pauseAt;
+            if (target != null && target.getLedgerId() == ledgerId && target.getEntryId() == entryId
+                    && cursor.getReadPosition().equals(target) && intercepted.compareAndSet(false, true)) {
+                paused.countDown();
+                try {
+                    assertThat(resume.await(45, TimeUnit.SECONDS)).as("release normal-read continuation").isTrue();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new AssertionError(e);
+                }
+            }
+        }
+
+        @Override
+        public void close() {
+            resume.countDown();
         }
     }
 
