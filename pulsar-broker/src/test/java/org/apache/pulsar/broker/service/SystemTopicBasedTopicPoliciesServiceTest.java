@@ -400,10 +400,18 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         });
 
         Thread thread2 = new Thread(() -> {
+            final NamespaceName namespace = TopicName.get(topic).getNamespaceObject();
             for (int i = 0; i < 10; i++) {
                 CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerCompletableFuture =
-                        readers.get(TopicName.get(topic).getNamespaceObject());
-                if (readerCompletableFuture != null) {
+                        readers.get(namespace);
+                // Only the reader of an initialization that has finished is closed. Closing a reader during its
+                // first pass over the topic fails that initialization, and the read that waits for it, with
+                // AlreadyClosedException. The reader is taken before the initialization is checked: the two are
+                // installed in one step, so a finished initialization seen afterwards is this reader's, or the
+                // reader is one that the service has closed already.
+                CompletableFuture<Void> initFuture = topicPoliciesService.getPoliciesCacheInit(namespace);
+                if (readerCompletableFuture != null && initFuture != null && initFuture.isDone()
+                        && !initFuture.isCompletedExceptionally()) {
                     readerCompletableFuture.join().closeAsync().join();
                 }
             }
@@ -822,16 +830,21 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         Mockito.doReturn(CompletableFuture.completedFuture(null)).when(newerReader).closeAsync();
         service.policyCacheInitMap.put(namespace, newerInitFuture);
         service.getReaderCaches().put(namespace, CompletableFuture.completedFuture(newerReader));
+        final TopicName cachedTopic = TopicName.get("persistent", namespace, "identity-guarded-cleanup");
+        service.policiesCache.put(cachedTopic, new TopicPolicies());
 
         // A stale init attempt (A) whose reader was already torn down (e.g. by the timeout cleanup) fires its failure
-        // callback late. Cleaning it up by identity must be a no-op: it must not clobber B's future or close B's reader
-        // (issue #25294 follow-up).
+        // callback late. Cleaning it up by identity must be a no-op: it must not clobber B's future, close B's reader
+        // or drop the policies B's reader has cached (issue #25294 follow-up).
         CompletableFuture<Void> staleInitFuture = new CompletableFuture<>();
         service.cleanupFailedPolicyCacheInit(namespace, staleInitFuture, true);
         assertSame(newerInitFuture, service.getPoliciesCacheInit(namespace));
         assertFalse(newerInitFuture.isDone());
         assertNotNull(service.getReaderCaches().get(namespace));
         Mockito.verify(newerReader, Mockito.never()).closeAsync();
+        Assertions.assertThat(service.policiesCache)
+                .describedAs("a stale cleanup must not drop the policies the newer attempt's reader has cached")
+                .containsKey(cachedTopic);
 
         // Cleaning up the owning attempt does drop its future and close its reader.
         service.cleanupFailedPolicyCacheInit(namespace, newerInitFuture, true);
@@ -839,6 +852,9 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         assertTrue(newerInitFuture.isCompletedExceptionally());
         assertNull(service.getReaderCaches().get(namespace));
         Mockito.verify(newerReader, Mockito.times(1)).closeAsync();
+        Assertions.assertThat(service.policiesCache)
+                .describedAs("the cleanup of the owning attempt must drop the policies its reader has cached")
+                .doesNotContainKey(cachedTopic);
     }
 
     @Test

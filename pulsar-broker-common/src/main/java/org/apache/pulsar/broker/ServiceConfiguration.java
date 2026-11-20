@@ -2088,9 +2088,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + " and apply their own policies when they are loaded, so this broadcast is normally redundant; it"
                     + " is only needed for custom plugins that register TopicPolicyListeners and depend on it for"
                     + " backwards compatibility. Disabled by default. Whatever this setting says, the listeners of a"
-                    + " namespace are re-notified once when the broker replaces a __change_events reader that stopped"
-                    + " delivering (see topicPoliciesCacheInitTimeoutSeconds), because the topics that are already"
-                    + " loaded missed the events that reader withheld.")
+                    + " namespace are re-notified once when the broker, while it serves the namespace, has closed the"
+                    + " namespace's __change_events reader and reads the topic again with a new one, for example"
+                    + " after the reader stopped delivering (see topicPoliciesCacheInitTimeoutSeconds), because the"
+                    + " topics that are already loaded missed the events that no reader delivered.")
     private boolean topicPolicyListenerReplayEnabled = false;
 
     @FieldContext(
