@@ -458,6 +458,67 @@ public class PersistentSubscriptionTest {
     }
 
     @Test
+    public void testRepeatedResetFailsBusyWhileInProgressThenSucceeds() throws Exception {
+        Dispatcher testDispatcher = mock(Dispatcher.class);
+        List<Consumer> consumers = new ArrayList<>();
+        doReturn(consumers).when(testDispatcher).getConsumers();
+        doAnswer(invocation -> !consumers.isEmpty()).when(testDispatcher).isConsumerConnected();
+        doReturn(CompletableFuture.completedFuture(null)).when(testDispatcher).close();
+        doAnswer(invocation -> {
+            consumers.add(invocation.getArgument(0));
+            return CompletableFuture.completedFuture(null);
+        }).when(testDispatcher).addConsumer(any());
+        doAnswer(invocation -> {
+            consumers.remove(invocation.getArgument(0));
+            return null;
+        }).when(testDispatcher).removeConsumer(any());
+        doReturn(CompletableFuture.completedFuture(null))
+                .when(testDispatcher).disconnectActiveConsumers(true);
+
+        boolean transactionCoordinatorEnabled = pulsarTestContext.getConfig().isTransactionCoordinatorEnabled();
+        try {
+            pulsarTestContext.getConfig().setTransactionCoordinatorEnabled(false);
+            persistentSubscription = new PersistentSubscription(topic, subName, cursorMock, false) {
+                @Override
+                protected Dispatcher reuseOrCreateDispatcher(Dispatcher currentDispatcher, Consumer consumer) {
+                    return testDispatcher;
+                }
+            };
+        } finally {
+            pulsarTestContext.getConfig().setTransactionCoordinatorEnabled(transactionCoordinatorEnabled);
+        }
+
+        Consumer firstConsumer = mock(Consumer.class);
+        doReturn(CommandSubscribe.SubType.Exclusive).when(firstConsumer).subType();
+        doReturn(new ConsumerStatsImpl()).when(firstConsumer).getStats();
+        persistentSubscription.addConsumer(firstConsumer).get(5, TimeUnit.SECONDS);
+
+        List<AsyncCallbacks.ResetCursorCallback> resetCallbacks = new ArrayList<>();
+        doAnswer(invocation -> {
+            resetCallbacks.add(invocation.getArgument(2));
+            return null;
+        }).when(cursorMock).asyncResetCursor(any(), anyBoolean(), any());
+
+        CompletableFuture<Void> firstReset = persistentSubscription.resetCursor(PositionFactory.create(1, 20));
+        Awaitility.await().untilAsserted(() -> assertThat(resetCallbacks).hasSize(1));
+
+        // While the first reset is fenced, a repeated reset must fail busy instead of racing it.
+        CompletableFuture<Void> repeatedReset = persistentSubscription.resetCursor(PositionFactory.create(2, 20));
+        assertThat(repeatedReset).failsWithin(5, TimeUnit.SECONDS)
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(BrokerServiceException.SubscriptionBusyException.class);
+
+        resetCallbacks.get(0).resetComplete(null);
+        firstReset.get(5, TimeUnit.SECONDS);
+
+        // After the first reset completes, a later reset can proceed.
+        CompletableFuture<Void> retryReset = persistentSubscription.resetCursor(PositionFactory.create(3, 20));
+        Awaitility.await().untilAsserted(() -> assertThat(resetCallbacks).hasSize(2));
+        resetCallbacks.get(1).resetComplete(null);
+        retryReset.get(5, TimeUnit.SECONDS);
+    }
+
+    @Test
     public void testNonDurableSubscriptionResetFencesQueuedAndNewConsumers() throws Exception {
         Dispatcher testDispatcher = mock(Dispatcher.class);
         List<Consumer> consumers = new ArrayList<>();
