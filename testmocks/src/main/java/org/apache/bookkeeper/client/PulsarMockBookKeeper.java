@@ -21,6 +21,7 @@ package org.apache.bookkeeper.client;
 import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.collect.Lists;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -186,7 +187,12 @@ public class PulsarMockBookKeeper extends BookKeeper {
                 } else if (!Arrays.equals(lh.passwd, passwd)) {
                     return FutureUtils.exception(new BKException.BKUnauthorizedAccessException());
                 } else {
-                    return FutureUtils.value(lh);
+                    // Like the real client, return a read-only view whose close does not close the ledger
+                    try {
+                        return FutureUtils.value(new PulsarMockReadOnlyLedgerHandle(lh));
+                    } catch (GeneralSecurityException e) {
+                        return FutureUtils.exception(e);
+                    }
                 }
             }, executor).whenCompleteAsync((ledger, exception) -> {
                     if (exception != null) {
