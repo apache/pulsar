@@ -1641,11 +1641,17 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
 
     private void addPendingMessagesToTracker(DelayedDeliveryTracker tracker) {
         tracker.resetTickTime(topic.getDelayedDeliveryTickTimeMillis());
+        Position markDeletedPosition = cursor.getMarkDeletedPosition();
         try {
             var iterator = messagesPendingDelayedDeliveryTracker.entrySet().iterator();
             while (iterator.hasNext()) {
                 Map.Entry<Position, Long> entry = iterator.next();
                 Position position = entry.getKey();
+                if (markDeletedPosition != null && position.compareTo(markDeletedPosition) <= 0) {
+                    // The cursor moved past this position while the tracker was being created.
+                    iterator.remove();
+                    continue;
+                }
                 if (delayedDeliveryTrackerClearPending) {
                     // The backlog clear reinstalls these positions after clearing the tracker, so
                     // do not install or redeliver them here.
@@ -1893,7 +1899,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             messagesPendingDelayedDeliveryTracker.clear();
         }
         if (createFuture != null) {
-            createFuture.complete(null);
+            // Fail the old creation so any clear waiting on it does not run a second residual
+            // cleanup while the reset is deleting and republishing the same bucket keys.
+            createFuture.completeExceptionally(
+                    new IllegalStateException("Tracker creation invalidated by cursor reset"));
         }
         if (skipRecovery != null) {
             skipRecovery.complete(null);
