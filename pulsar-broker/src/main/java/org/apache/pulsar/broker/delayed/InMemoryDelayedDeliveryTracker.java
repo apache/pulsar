@@ -243,6 +243,10 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
     /**
      * Release indexed messages immediately when delayed delivery is disabled, using the same replay handoff
      * as due messages so normal reads cannot dispatch a second copy.
+     *
+     * <p>The {@code maxMessages} limit is applied in delivery-time bucket order before sorting the returned positions.
+     * A later-published message with an earlier delivery time can therefore be returned in an earlier batch.
+     * Disabling delayed delivery does not restore publish order across batches.
      */
     public synchronized NavigableSet<Position> drainAllMessages(int maxMessages) {
         return getMessages(maxMessages, Long.MAX_VALUE);
