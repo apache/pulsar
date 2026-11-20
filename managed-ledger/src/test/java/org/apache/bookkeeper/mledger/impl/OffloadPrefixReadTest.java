@@ -30,6 +30,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.timeout;
@@ -78,6 +79,8 @@ import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.OffloadedLedgerHandle;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
+import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor.LastEntryHandle;
 import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.mledger.util.MockClock;
 import org.apache.bookkeeper.net.BookieId;
@@ -415,6 +418,85 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         } finally {
             reopened.close();
         }
+    }
+
+    @DataProvider(name = "recoveryInterceptor")
+    public Object[][] recoveryInterceptor() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    @Test(timeOut = 30000, dataProvider = "recoveryInterceptor")
+    public void testRecoverOffloadedTailAfterEmptyLedgerRolloverAndFailedTermination(boolean withInterceptor)
+            throws Exception {
+        MockClock clock = new MockClock();
+        MockLedgerOffloader offloader = new MockLedgerOffloader();
+        offloader.getOffloadPolicies().setManagedLedgerOffloadDeletionLagInMillis(0L);
+        ManagedLedgerConfig config = defaultConfig();
+        config.setMaxEntriesPerLedger(1);
+        config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
+        config.setRetentionTime(-1, TimeUnit.HOURS);
+        config.setRetentionSizeInMB(-1);
+        config.setLedgerOffloader(offloader);
+        config.setClock(clock);
+
+        String ledgerName = "offloaded_tail_after_empty_rollover_" + withInterceptor;
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(ledgerName, config);
+        try {
+            long retainedLedgerId = ledger.addEntry("entry-0".getBytes(UTF_8)).getLedgerId();
+            Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() ->
+                    ledger.getCurrentLedger().getId() != retainedLedgerId
+                            && ledger.getState() == ManagedLedgerImpl.State.LedgerOpened);
+            ledger.offloadPrefix(PositionFactory.create(ledger.getCurrentLedger().getId(), 0));
+            clock.advance(1, TimeUnit.SECONDS);
+            CompletableFuture<Void> trimmed = new CompletableFuture<>();
+            ledger.trimConsumedLedgersInBackground(false, trimmed);
+            trimmed.get(5, TimeUnit.SECONDS);
+            Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> !bkc.getLedgers().contains(retainedLedgerId));
+
+            // Let the failed first append close the empty ledger, then hold the replacement ledger creation.
+            bkc.addEntryFailAfter(0, BKException.Code.WriteException);
+            CompletableFuture<Void> createLedger = bkc.promiseAfter(1);
+            try {
+                ledger.asyncAddEntry("unwritten".getBytes(UTF_8), mock(AsyncCallbacks.AddEntryCallback.class), null);
+                Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> createLedger.getNumberOfDependents() > 0);
+
+                metadataStore.failConditional(new MetadataStoreException("injected termination failure"),
+                        (operation, path) -> operation == FaultInjectionMetadataStore.OperationType.PUT
+                                && path.equals("/managed-ledgers/" + ledgerName));
+                assertThatThrownBy(ledger::terminate).isInstanceOf(ManagedLedgerException.class)
+                        .hasRootCauseMessage("injected termination failure");
+                ledger.setProperty("key", "value");
+            } finally {
+                createLedger.completeExceptionally(new BKException.BKNotEnoughBookiesException());
+            }
+        } finally {
+            ledger.close();
+        }
+
+        ManagedLedgerInterceptor interceptor = mock(ManagedLedgerInterceptor.class);
+        if (withInterceptor) {
+            doAnswer(invocation -> {
+                LastEntryHandle handle = invocation.getArgument(1);
+                return handle.readLastEntryAsync().thenAccept(lastEntry ->
+                        assertThat(lastEntry.orElseThrow().getDataAndRelease()).isEqualTo("entry-0".getBytes(UTF_8)));
+            }).when(interceptor).onManagedLedgerLastLedgerInitialize(eq(ledgerName), any());
+            config.setManagedLedgerInterceptor(interceptor);
+        }
+        ManagedLedgerImpl reopened = (ManagedLedgerImpl) factory.open(ledgerName, config);
+        try {
+            if (withInterceptor) {
+                verify(interceptor).onManagedLedgerLastLedgerInitialize(eq(ledgerName), any());
+            } else {
+                assertThat(offloader.openedReadHandles.get()).isZero();
+            }
+            assertThat(reopened.getProperties()).containsEntry("key", "value");
+            assertThat(reopened.isTerminated()).isFalse();
+            reopened.addEntry("entry-1".getBytes(UTF_8));
+            assertReadsAllEntries(reopened, 2);
+        } finally {
+            reopened.close();
+        }
+        assertThat(offloader.openedReadHandles.get()).isZero();
     }
 
     @Test(timeOut = 30000)

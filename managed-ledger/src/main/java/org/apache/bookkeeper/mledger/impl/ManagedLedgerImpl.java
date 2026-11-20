@@ -135,6 +135,7 @@ import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
 import org.apache.bookkeeper.mledger.impl.cache.EntryCache;
 import org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheImpl;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
+import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor.LastEntryHandle;
 import org.apache.bookkeeper.mledger.offload.OffloadUtils;
 import org.apache.bookkeeper.mledger.proto.KeyValue;
 import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
@@ -565,9 +566,15 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
                 // Last ledger stat may be zeroed, we must update it
                 if (!ledgers.isEmpty() && isLastLedgerDeletedFromBookKeeper()) {
-                    // The final ledger of a terminated managed ledger was offloaded and deleted from BookKeeper: its
-                    // stats were stored when it got closed, and it is read from tiered storage
-                    initializeBookKeeper(callback);
+                    // An empty successor may have been dropped during rollover, leaving a closed, offloaded
+                    // ledger last even on a writable managed ledger. Its stored entry count and size are final.
+                    if (state == State.Terminated || managedLedgerInterceptor == null) {
+                        initializeBookKeeper(callback);
+                    } else {
+                        long id = ledgers.lastKey();
+                        initializeFromLastEntry(callback,
+                                () -> getLedgerHandle(id).thenCompose(ManagedLedgerImpl::readLastEntry));
+                    }
                 } else if (!ledgers.isEmpty()) {
                     final long id = ledgers.lastKey();
                     OpenCallback opencb = (rc, lh, ctx1) -> {
@@ -591,14 +598,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                             .setSize(lh.getLength()).setTimestamp(clock.millis());
                                 });
                                 if (managedLedgerInterceptor != null) {
-                                    managedLedgerInterceptor
-                                            .onManagedLedgerLastLedgerInitialize(name, createLastEntryHandle(lh))
-                                            .thenRun(() -> initializeBookKeeper(callback))
-                                            .exceptionally(ex -> {
-                                                callback.initializeFailed(
-                                                        new ManagedLedgerInterceptException(ex.getCause()));
-                                                return null;
-                                            });
+                                    initializeFromLastEntry(callback, createLastEntryHandle(lh));
                                 } else {
                                     initializeBookKeeper(callback);
                                 }
@@ -647,46 +647,36 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         scheduleAddEntryTimeoutTask();
     }
 
-    protected ManagedLedgerInterceptor.LastEntryHandle createLastEntryHandle(LedgerHandle lh) {
-        return () -> {
-            CompletableFuture<Optional<Entry>> promise = new CompletableFuture<>();
-            if (lh.getLastAddConfirmed() >= 0) {
-                lh.readAsync(lh.getLastAddConfirmed(), lh.getLastAddConfirmed())
-                        .whenComplete((entries, ex) -> {
-                            if (ex != null) {
-                                promise.completeExceptionally(ex);
-                            } else {
-                                if (entries != null) {
-                                    try {
-                                        LedgerEntry ledgerEntry =
-                                                entries.getEntry(lh.getLastAddConfirmed());
-                                        if (ledgerEntry != null) {
-                                            promise.complete(
-                                                    Optional.of(EntryImpl.create(ledgerEntry,
-                                                            EntryImpl.NO_EXPECTED_READ_COUNT)));
-                                        } else {
-                                            promise.complete(Optional.empty());
-                                        }
-                                        entries.close();
-                                    } catch (Exception e) {
-                                        entries.close();
-                                        promise.completeExceptionally(e);
-                                    }
-                                } else {
-                                    promise.complete(Optional.empty());
-                                }
-                            }
-                        });
-            } else {
-                promise.complete(Optional.empty());
+    private void initializeFromLastEntry(ManagedLedgerInitializeLedgerCallback callback, LastEntryHandle lastEntry) {
+        FutureUtil.supplySafely(() -> managedLedgerInterceptor.onManagedLedgerLastLedgerInitialize(name, lastEntry))
+                .thenRun(() -> initializeBookKeeper(callback))
+                .exceptionally(ex -> {
+                    callback.initializeFailed(
+                            new ManagedLedgerInterceptException(FutureUtil.unwrapCompletionException(ex)));
+                    return null;
+                });
+    }
+
+    protected LastEntryHandle createLastEntryHandle(LedgerHandle lh) {
+        return () -> readLastEntry(lh);
+    }
+
+    private static CompletableFuture<Optional<Entry>> readLastEntry(ReadHandle handle) {
+        long entryId = handle.getLastAddConfirmed();
+        if (entryId < 0) {
+            return CompletableFuture.completedFuture(Optional.empty());
+        }
+        return handle.readAsync(entryId, entryId).thenApply(entries -> {
+            try (entries) {
+                LedgerEntry entry = entries != null ? entries.getEntry(entryId) : null;
+                return Optional.ofNullable(entry).map(e -> EntryImpl.create(e, EntryImpl.NO_EXPECTED_READ_COUNT));
             }
-            return promise;
-        };
+        });
     }
 
     private boolean isLastLedgerDeletedFromBookKeeper() {
         LedgerInfo lastLedger = ledgers.lastEntry().getValue();
-        return state == State.Terminated && lastLedger.hasOffloadContext()
+        return lastLedger.hasOffloadContext()
                 && lastLedger.getOffloadContext().isComplete()
                 && lastLedger.getOffloadContext().isBookkeeperDeleted();
     }
@@ -4379,7 +4369,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 Collection<LedgerInfo> remainingLedgers = ledgersToDelete.isEmpty() ? ledgers.values()
                         : ledgers.tailMap(ledgersToDelete.get(ledgersToDelete.size() - 1).getLedgerId(), false)
                                 .values();
-                // Recovery still opens the current ledger in BookKeeper until termination is durable.
+                // Keep the current write ledger available for BookKeeper recovery until termination is durable.
                 long protectedLedgerId = persistedTerminationPosition == null ? currentLedgerId : -1;
                 for (LedgerInfo ls : remainingLedgers) {
                     if (ls.getLedgerId() != protectedLedgerId
