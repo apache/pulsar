@@ -316,6 +316,21 @@ public class ConsumerBlockedPermitAccountingTest {
         }
     }
 
+    @Test
+    public void testNormalBatchAckRemovesResidualUnackedCountWhenEntryCanBeDeleted() {
+        enableBatchIndexAcknowledgment();
+        Consumer consumer = newConsumer(Shared, 1);
+        when(subscription.getConsumers()).thenReturn(List.of(consumer));
+        when(((PersistentSubscription) subscription).checkIsCanDeleteConsumerPendingAck(any())).thenReturn(true);
+        assertThat(consumer.getPendingAcks().addPendingAckIfAllowed(LEDGER_ID, ENTRY_ID, 4, 0)).isTrue();
+        consumer.incrementUnackedMessagesForTesting(4);
+
+        assertThat(consumer.messageAcked(partialAck(consumer, 4, 0b11L), true)).isCompletedWithValue(null);
+
+        assertThat(consumer.getUnackedMessages()).isZero();
+        assertThat(consumer.getPendingAcks().size()).isZero();
+    }
+
     @DataProvider(name = "partialAckFailureVariants")
     public Object[][] partialAckFailureVariants() {
         return new Object[][] {{Shared, true}, {Shared, false}, {Key_Shared, true}, {Key_Shared, false}};

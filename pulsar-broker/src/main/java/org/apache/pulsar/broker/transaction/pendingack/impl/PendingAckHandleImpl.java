@@ -41,7 +41,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingDeque;
-import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import lombok.Getter;
@@ -765,32 +764,6 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                 .addLast(new ConsumerDelivery(consumer, delivery));
     }
 
-    @Override
-    public void onConsumerDelivery(Position position) {
-        try {
-            internalPinnedExecutor.execute(() -> recordConsumerDelivery(position));
-        } catch (RejectedExecutionException e) {
-            log.debug("Skipping consumer delivery accounting because the executor is closed");
-        }
-    }
-
-    private synchronized void recordConsumerDelivery(Position position) {
-        if (individualAckOfTransaction == null || individualAckPositions == null
-                || !individualAckPositions.containsKey(position)) {
-            return;
-        }
-        for (Map.Entry<TxnID, HashMap<Position, Position>> entry : individualAckOfTransaction.entrySet()) {
-            Position transactionPosition = entry.getValue().get(position);
-            if (transactionPosition == null || hasDeliveryAssignment(entry.getKey(), position)) {
-                continue;
-            }
-            int batchSize = individualAckPositions == null || !individualAckPositions.containsKey(position)
-                    ? 0 : individualAckPositions.get(position).getRight();
-            recordDeliveryAssignment(entry.getKey(), position, new ConsumerDelivery(null, null),
-                    transactionPosition, batchSize);
-        }
-    }
-
     private synchronized List<ConsumerDelivery> takeConsumerAckDeliveries(
             TxnID txnID, List<MutablePair<Position, Integer>> positions) {
         List<ConsumerDelivery> result = new ArrayList<>(positions.size());
@@ -799,7 +772,8 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         for (MutablePair<Position, Integer> position : positions) {
             Deque<ConsumerDelivery> deliveries = deliveriesForTxn == null
                     ? null : deliveriesForTxn.get(position.getLeft());
-            result.add(deliveries == null || deliveries.isEmpty() ? null : deliveries.removeFirst());
+            result.add(deliveries == null || deliveries.isEmpty()
+                    ? new ConsumerDelivery(null, null) : deliveries.removeFirst());
             if (deliveries != null && deliveries.isEmpty()) {
                 deliveriesForTxn.remove(position.getLeft());
             }
@@ -808,12 +782,6 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
             pendingConsumerAckDeliveries.remove(txnID);
         }
         return result;
-    }
-
-    private synchronized boolean hasDeliveryAssignment(TxnID txnID, Position position) {
-        return individualAckDeliveryAssignments != null
-                && individualAckDeliveryAssignments.containsKey(txnID)
-                && individualAckDeliveryAssignments.get(txnID).containsKey(position);
     }
 
     private synchronized void recordDeliveryAssignment(TxnID txnID, Position position,
@@ -1003,27 +971,36 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         for (MutablePair<Position, Integer> positionPair : transactionPositions) {
             Position position = positionPair.getLeft();
             List<DeliveryAck> deliveryAcks = assignments == null ? null : assignments.get(position);
-            Consumer consumer = null;
-            long ackedCount = 0;
+            List<ConsumerDelivery> deliveries = new ArrayList<>();
+            List<Long> ackedCounts = new ArrayList<>();
             if (deliveryAcks != null) {
                 for (DeliveryAck deliveryAck : deliveryAcks) {
-                    if (deliveryAck.delivery.consumer == null || deliveryAck.delivery.delivery == null
-                            || deliveryAck.delivery.consumer.getPendingAckDelivery(
-                            position.getLedgerId(), position.getEntryId()) != deliveryAck.delivery.delivery) {
+                    if (deliveryAck.delivery.consumer == null || deliveryAck.delivery.delivery == null) {
                         continue;
                     }
-                    if (consumer == null) {
-                        consumer = deliveryAck.delivery.consumer;
+                    long ackedCount = AckSetStateUtil.hasAckSet(deliveryAck.position)
+                            ? getAckedCountForTransactionAck(deliveryAck.batchSize,
+                            AckSetStateUtil.getAckSetState(deliveryAck.position).getAckSet()) : 0;
+                    int deliveryIndex = -1;
+                    for (int i = 0; i < deliveries.size(); i++) {
+                        ConsumerDelivery delivery = deliveries.get(i);
+                        if (delivery.consumer == deliveryAck.delivery.consumer
+                                && delivery.delivery == deliveryAck.delivery.delivery) {
+                            deliveryIndex = i;
+                            break;
+                        }
                     }
-                    if (consumer == deliveryAck.delivery.consumer
-                            && AckSetStateUtil.hasAckSet(deliveryAck.position)) {
-                        ackedCount += getAckedCountForTransactionAck(deliveryAck.batchSize,
-                                AckSetStateUtil.getAckSetState(deliveryAck.position).getAckSet());
+                    if (deliveryIndex == -1) {
+                        deliveries.add(deliveryAck.delivery);
+                        ackedCounts.add(ackedCount);
+                    } else {
+                        ackedCounts.set(deliveryIndex, ackedCounts.get(deliveryIndex) + ackedCount);
                     }
                 }
             }
-            if (consumer != null) {
-                consumer.applyTransactionIndividualAck(position, ackedCount);
+            for (int i = 0; i < deliveries.size(); i++) {
+                ConsumerDelivery delivery = deliveries.get(i);
+                delivery.consumer.applyTransactionIndividualAck(position, ackedCounts.get(i), delivery.delivery);
             }
         }
     }

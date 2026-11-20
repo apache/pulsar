@@ -117,13 +117,6 @@ public interface PendingAckHandle {
     boolean checkIsCanDeleteConsumerPendingAck(Position position);
 
     /**
-     * Records a consumer delivery for a position.
-     *
-     * @param position the delivered position
-     */
-    void onConsumerDelivery(Position position);
-
-    /**
      * Associates a transactional acknowledgment with the consumer delivery that charged it.
      *
      * @param txnID transaction ID
