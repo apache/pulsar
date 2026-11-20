@@ -302,6 +302,15 @@ func resolveSubscriptionType(configured pb.SubscriptionType, retainOrdering,
 	return subscriptionType
 }
 
+// resolveSubscriptionPosition maps the function's subscription position to the initial position
+// of a new subscription. The client default is Latest, so Earliest was ignored before.
+func resolveSubscriptionPosition(position pb.SubscriptionPosition) pulsar.SubscriptionInitialPosition {
+	if position == pb.SubscriptionPosition_EARLIEST {
+		return pulsar.SubscriptionPositionEarliest
+	}
+	return pulsar.SubscriptionPositionLatest
+}
+
 // resolveNackRedeliveryDelay returns the negative-ack redelivery delay to apply, or zero to leave
 // the client default in place.
 //
@@ -329,6 +338,8 @@ func (gi *goInstance) setupConsumer() (chan pulsar.ConsumerMessage, error) {
 		subscriptionName = funcDetails.Source.SubscriptionName
 	}
 
+	subscriptionPosition := resolveSubscriptionPosition(funcDetails.Source.SubscriptionPosition)
+
 	properties := getProperties(getDefaultSubscriptionName(
 		funcDetails.Tenant,
 		funcDetails.Namespace,
@@ -354,43 +365,47 @@ func (gi *goInstance) setupConsumer() (chan pulsar.ConsumerMessage, error) {
 		if consumerConf.ReceiverQueueSize != nil {
 			if consumerConf.IsRegexPattern {
 				consumer, err = gi.client.Subscribe(pulsar.ConsumerOptions{
-					TopicsPattern:       topicName.Name,
-					ReceiverQueueSize:   int(consumerConf.ReceiverQueueSize.Value),
-					SubscriptionName:    subscriptionName,
-					Properties:          properties,
-					Type:                subscriptionType,
-					MessageChannel:      channel,
-					NackRedeliveryDelay: nackRedeliveryDelay,
+					TopicsPattern:               topicName.Name,
+					ReceiverQueueSize:           int(consumerConf.ReceiverQueueSize.Value),
+					SubscriptionName:            subscriptionName,
+					Properties:                  properties,
+					Type:                        subscriptionType,
+					MessageChannel:              channel,
+					SubscriptionInitialPosition: subscriptionPosition,
+					NackRedeliveryDelay:         nackRedeliveryDelay,
 				})
 			} else {
 				consumer, err = gi.client.Subscribe(pulsar.ConsumerOptions{
-					Topic:               topicName.Name,
-					SubscriptionName:    subscriptionName,
-					Properties:          properties,
-					Type:                subscriptionType,
-					ReceiverQueueSize:   int(consumerConf.ReceiverQueueSize.Value),
-					MessageChannel:      channel,
-					NackRedeliveryDelay: nackRedeliveryDelay,
+					Topic:                       topicName.Name,
+					SubscriptionName:            subscriptionName,
+					Properties:                  properties,
+					Type:                        subscriptionType,
+					ReceiverQueueSize:           int(consumerConf.ReceiverQueueSize.Value),
+					MessageChannel:              channel,
+					SubscriptionInitialPosition: subscriptionPosition,
+					NackRedeliveryDelay:         nackRedeliveryDelay,
 				})
 			}
 		} else {
 			if consumerConf.IsRegexPattern {
 				consumer, err = gi.client.Subscribe(pulsar.ConsumerOptions{
-					TopicsPattern:       topicName.Name,
-					SubscriptionName:    subscriptionName,
-					Properties:          properties,
-					Type:                subscriptionType,
-					MessageChannel:      channel,
-					NackRedeliveryDelay: nackRedeliveryDelay,
+					TopicsPattern:               topicName.Name,
+					SubscriptionName:            subscriptionName,
+					Properties:                  properties,
+					Type:                        subscriptionType,
+					MessageChannel:              channel,
+					SubscriptionInitialPosition: subscriptionPosition,
+					NackRedeliveryDelay:         nackRedeliveryDelay,
 				})
 			} else {
 				consumer, err = gi.client.Subscribe(pulsar.ConsumerOptions{
-					Topic:               topicName.Name,
-					SubscriptionName:    subscriptionName,
-					Properties:          properties,
-					Type:                subscriptionType,
-					MessageChannel:      channel,
-					NackRedeliveryDelay: nackRedeliveryDelay,
+					Topic:                       topicName.Name,
+					SubscriptionName:            subscriptionName,
+					Properties:                  properties,
+					Type:                        subscriptionType,
+					MessageChannel:              channel,
+					SubscriptionInitialPosition: subscriptionPosition,
+					NackRedeliveryDelay:         nackRedeliveryDelay,
 				})
 
 			}
