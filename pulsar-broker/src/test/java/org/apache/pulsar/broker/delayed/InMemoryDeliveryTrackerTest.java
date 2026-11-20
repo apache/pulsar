@@ -54,6 +54,62 @@ import org.testng.annotations.Test;
 public class InMemoryDeliveryTrackerTest extends AbstractDeliveryTrackerTest {
 
     @Test(dataProvider = "delayedTracker")
+    public void testReplayedPositionsStayHiddenUntilRewindCompletes(InMemoryDelayedDeliveryTracker tracker) {
+        try (tracker) {
+            tracker.addMessage(1, 0, 10);
+            tracker.addMessage(1, 1, 20);
+            tracker.startRewind();
+            clockTime.set(10);
+            assertThat(tracker.getScheduledMessages(1)).containsExactly(PositionFactory.create(1, 0));
+            assertThat(tracker.containsMessage(1, 0)).isTrue();
+            assertThat(tracker.containsMessage(1, 1)).isTrue();
+            assertThat(tracker.getNumberOfDelayedMessages()).isEqualTo(1);
+            // A replay read must deliver the due message, not put it back in the delay queue.
+            assertThat(tracker.addMessage(1, 0, 10)).isFalse();
+
+            tracker.startRewind();
+            assertThat(tracker.containsMessage(1, 0)).isFalse();
+            assertThat(tracker.containsMessage(1, 1)).isTrue();
+            clockTime.set(20);
+            assertThat(tracker.getScheduledMessages(1)).containsExactly(PositionFactory.create(1, 1));
+            assertThat(tracker.getNumberOfDelayedMessages()).isZero();
+            assertThat(tracker.getBufferMemoryUsage()).isPositive();
+            tracker.endRewind();
+            assertThat(tracker.containsMessage(1, 1)).isFalse();
+            assertThat(tracker.getBufferMemoryUsage()).isZero();
+        }
+    }
+
+    @Test(dataProvider = "delayedTracker")
+    public void testDrainedReplayPositionsArePrunedAndCleared(InMemoryDelayedDeliveryTracker tracker) throws Exception {
+        try (tracker) {
+            tracker.addMessage(1, 0, 10);
+            tracker.addMessage(2, 0, 20);
+            tracker.startRewind();
+            // Disabling delayed delivery drains even future positions, respecting the replay batch limit.
+            assertThat(tracker.drainAllMessages(1)).containsExactly(PositionFactory.create(1, 0));
+            assertThat(tracker.getNumberOfDelayedMessages()).isEqualTo(1);
+            assertThat(tracker.containsMessage(1, 0)).isTrue();
+            assertThat(tracker.containsMessage(2, 0)).isTrue();
+            tracker.removeMessagesUpTo(PositionFactory.create(1, -1));
+            assertThat(tracker.containsMessage(1, 0)).isTrue();
+            tracker.removeMessagesUpTo(PositionFactory.create(1, Long.MAX_VALUE));
+            assertThat(tracker.containsMessage(1, 0)).isFalse();
+            assertThat(tracker.drainAllMessages(1)).containsExactly(PositionFactory.create(2, 0));
+            tracker.clear().get(5, TimeUnit.SECONDS);
+            assertThat(tracker.containsMessage(2, 0)).isFalse();
+            assertThat(tracker.getNumberOfDelayedMessages()).isZero();
+            assertThat(tracker.getBufferMemoryUsage()).isZero();
+
+            tracker.startRewind();
+            tracker.addMessage(3, 0, 30);
+            tracker.drainAllMessages(1);
+        }
+        assertThat(tracker.containsMessage(3, 0)).isFalse();
+        assertThat(tracker.getBufferMemoryUsage()).isZero();
+    }
+
+    @Test(dataProvider = "delayedTracker")
     public void testMembershipAcrossDeliveryAndCleanup(InMemoryDelayedDeliveryTracker tracker) throws Exception {
         try (tracker) {
             assertTrue(tracker.addMessage(1, 0, 10));

@@ -47,6 +47,7 @@ import com.google.common.collect.Range;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.EventLoopGroup;
+import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.util.concurrent.EventExecutor;
 import io.netty.util.concurrent.Future;
@@ -56,6 +57,9 @@ import io.netty.util.concurrent.SucceededFuture;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadInfo;
 import java.lang.reflect.Field;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -88,6 +92,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTracker;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerFactory;
+import org.apache.pulsar.broker.delayed.InMemoryDelayedDeliveryTracker;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.ConsistentHashingStickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.Consumer;
@@ -802,6 +807,53 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         } finally {
             entry.release();
         }
+    }
+
+    @Test(timeOut = 10000)
+    public void testLateReadWithoutConsumersPreservesDelayedLookaheadRewind() throws Exception {
+        // Control dispatch scheduling so the read completes after removal and before the replacement registers.
+        ArrayDeque<Runnable> tasks = new ArrayDeque<>();
+        EventLoopGroup brokerExecutor = brokerMock.executor();
+        doAnswer(invocation -> {
+            tasks.add(invocation.getArgument(0));
+            return null;
+        }).when(brokerExecutor).execute(any(Runnable.class));
+        Position firstUnread = PositionFactory.create(1, 0);
+        Position afterRead = PositionFactory.create(1, 6);
+        AtomicReference<Position> readPosition = new AtomicReference<>(firstUnread);
+        doAnswer(invocation -> readPosition.get()).when(cursorMock).getReadPosition();
+        doReturn(PositionFactory.create(1, -1)).when(cursorMock).getMarkDeletedPosition();
+        doAnswer(invocation -> {
+            readPosition.set(firstUnread);
+            return null;
+        }).when(cursorMock).rewind();
+        doReturn(true).when(topicMock).isDelayedDeliveryEnabled();
+        doReturn(1L).when(topicMock).getDelayedDeliveryTickTimeMillis();
+        InMemoryDelayedDeliveryTracker tracker = new InMemoryDelayedDeliveryTracker(persistentDispatcher,
+                mock(Timer.class), 1, Clock.fixed(Instant.EPOCH, ZoneOffset.UTC), true, 4);
+        DelayedDeliveryTrackerFactory factory = mock(DelayedDeliveryTrackerFactory.class);
+        doReturn(CompletableFuture.completedFuture(tracker)).when(factory).newTrackerAsync(any());
+        doReturn(factory).when(brokerMock).getDelayedDeliveryTrackerFactory();
+
+        persistentDispatcher.addConsumer(consumerMock).join();
+        for (int i = 1; i <= 4; i++) {
+            assertThat(persistentDispatcher.trackDelayedDelivery(1, i,
+                    new MessageMetadata().setDeliverAtTime(100_000))).isTrue();
+        }
+        assertThat(tracker.shouldPauseAllDeliveries()).isTrue();
+        persistentDispatcher.removeConsumer(consumerMock);
+        // The late read advanced the cursor, but its result must be discarded with no consumer to receive it.
+        readPosition.set(afterRead);
+        persistentDispatcher.readEntriesComplete(new ArrayList<>(List.of(createEntry(1, 5, "late-read", 1))),
+                PersistentDispatcherMultipleConsumers.ReadType.Normal);
+        assertThat(readPosition.get()).isEqualTo(firstUnread);
+
+        persistentDispatcher.addConsumer(consumerMock).join();
+        assertThat(persistentDispatcher.shouldPauseDeliveryForDelayTracker())
+                .as("the already-rewound cursor must catch up before fixed-delay lookahead can pause it")
+                .isFalse();
+        readPosition.set(afterRead);
+        assertThat(persistentDispatcher.shouldPauseDeliveryForDelayTracker()).isTrue();
     }
 
     @Test(timeOut = 10000)

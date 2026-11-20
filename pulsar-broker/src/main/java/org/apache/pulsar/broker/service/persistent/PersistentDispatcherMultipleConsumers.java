@@ -120,7 +120,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     protected volatile Position minReplayedPosition = null;
     protected boolean shouldRewindBeforeReadingOrReplaying = false;
 
-    // Fixed-delay lookahead must not pause a rewound cursor before it has revisited unacked messages.
+    // Until the cursor catches up, bypass fixed-delay lookahead and retain replayed positions in the skip index.
     private Position delayedDeliveryRewindPosition;
     protected final String name;
     private boolean sendInProgress = false;
@@ -224,14 +224,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                 shouldRewindBeforeReadingOrReplaying = false;
             }
             redeliveryMessages.clear();
-            delayedDeliveryTracker.ifPresent(tracker -> {
-                // Keep indexed positions across reconnects. A disabled policy must let the rewound read
-                // deliver them immediately instead of waiting for their previously indexed delivery times.
-                if (tracker instanceof InMemoryDelayedDeliveryTracker && !topic.isDelayedDeliveryEnabled()) {
-                    tracker.clear();
-                    delayedDeliveryRewindPosition = null;
-                }
-            });
         }
 
         if (isConsumersExceededOnSubscription()) {
@@ -552,7 +544,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                 skipCondition = position -> bucketTracker
                         .containsMessage(position.getLedgerId(), position.getEntryId());
             } else if (deliveryTracker instanceof InMemoryDelayedDeliveryTracker inMemoryTracker
-                    && topic.isDelayedDeliveryEnabled() && inMemoryTracker.getNumberOfDelayedMessages() > 0) {
+                    && (inMemoryTracker.getNumberOfDelayedMessages() > 0 || delayedDeliveryRewindPosition != null)) {
                 skipCondition = position -> inMemoryTracker
                         .containsMessage(position.getLedgerId(), position.getEntryId());
             }
@@ -1680,8 +1672,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     }
 
     protected synchronized NavigableSet<Position> getMessagesToReplayNow(int maxMessagesToRead, long bytesToRead) {
-        boolean delayedMessagesAvailable =
-                delayedDeliveryTracker.isPresent() && delayedDeliveryTracker.get().hasMessageAvailable();
+        DelayedDeliveryTracker tracker = delayedDeliveryTracker.orElse(null);
+        boolean drainAll = tracker instanceof InMemoryDelayedDeliveryTracker && !topic.isDelayedDeliveryEnabled();
+        boolean delayedMessagesAvailable = tracker != null
+                && (drainAll ? tracker.getNumberOfDelayedMessages() > 0 : tracker.hasMessageAvailable());
         if (!delayedMessagesAvailable && redeliveryMessages.isEmpty()) {
             // nothing to replay, the common case: skip the size cap's estimate, which the normal read computes again
             return Collections.emptyNavigableSet();
@@ -1694,9 +1688,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                     .log("Capped max messages to read from redelivery list");
         }
         if (delayedMessagesAvailable) {
-            delayedDeliveryTracker.get().resetTickTime(topic.getDelayedDeliveryTickTimeMillis());
-            NavigableSet<Position> messagesAvailableNow =
-                    delayedDeliveryTracker.get().getScheduledMessages(cappedMaxMessagesToRead);
+            tracker.resetTickTime(topic.getDelayedDeliveryTickTimeMillis());
+            NavigableSet<Position> messagesAvailableNow = drainAll
+                    ? ((InMemoryDelayedDeliveryTracker) tracker).drainAllMessages(cappedMaxMessagesToRead)
+                    : tracker.getScheduledMessages(cappedMaxMessagesToRead);
             messagesAvailableNow.forEach(p -> redeliveryMessages.add(p.getLedgerId(), p.getEntryId()));
         }
         if (!redeliveryMessages.isEmpty()) {
@@ -1733,13 +1728,14 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     }
 
 
-    private void rewindCursor() {
+    protected void rewindCursor() {
         if (delayedDeliveryTracker.orElse(null) instanceof InMemoryDelayedDeliveryTracker tracker) {
             Position readPosition = cursor.getReadPosition();
             if (delayedDeliveryRewindPosition == null
                     || readPosition.compareTo(delayedDeliveryRewindPosition) > 0) {
                 delayedDeliveryRewindPosition = readPosition;
             }
+            tracker.startRewind();
             tracker.removeMessagesUpTo(cursor.getMarkDeletedPosition());
         }
         cursor.rewind();
@@ -1754,6 +1750,13 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                 return false;
             }
             delayedDeliveryRewindPosition = null;
+            if (delayedDeliveryTracker.orElse(null) instanceof InMemoryDelayedDeliveryTracker tracker) {
+                tracker.endRewind();
+            }
+        }
+        if (delayedDeliveryTracker.orElse(null) instanceof InMemoryDelayedDeliveryTracker
+                && !topic.isDelayedDeliveryEnabled()) {
+            return false;
         }
         return delayedDeliveryTracker.map(DelayedDeliveryTracker::shouldPauseAllDeliveries).orElse(false);
     }

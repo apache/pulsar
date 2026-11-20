@@ -41,7 +41,7 @@ import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Warmup;
 
 /**
- * Measures membership checks during a cursor rewind and the cost of maintaining both delayed-message indexes.
+ * Measures membership checks during a cursor rewind and the cost of maintaining delayed-message and replay indexes.
  * Entries span multiple ledgers and delivery-time buckets. This excludes storage reads and broker dispatch.
  */
 @State(Scope.Thread)
@@ -57,6 +57,9 @@ public class InMemoryDelayedDeliveryTrackerBenchmark {
     @Param({"1000", "100000"})
     public int messages;
 
+    @Param({"false", "true"})
+    public boolean replayDuringRewind;
+
     private Timer timer;
     private MutableClock clock;
     private InMemoryDelayedDeliveryTracker tracker;
@@ -69,6 +72,11 @@ public class InMemoryDelayedDeliveryTrackerBenchmark {
         tracker = new InMemoryDelayedDeliveryTracker(mock(AbstractPersistentDispatcherMultipleConsumers.class),
                 timer, 1000, clock, true, 0);
         addMessages();
+        if (replayDuringRewind) {
+            tracker.startRewind();
+            clock.now = DELIVERY_TIME + 100_000;
+            tracker.getScheduledMessages(messages);
+        }
     }
 
     private void addMessages() {
@@ -93,6 +101,9 @@ public class InMemoryDelayedDeliveryTrackerBenchmark {
         tracker.clear();
         clock.now = 0;
         addMessages();
+        if (replayDuringRewind) {
+            tracker.startRewind();
+        }
         clock.now = DELIVERY_TIME + 100_000;
         int drained = tracker.getScheduledMessages(messages).size();
         if (drained != messages) {

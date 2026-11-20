@@ -20,10 +20,24 @@ package org.apache.pulsar.broker.service.persistent;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import io.netty.util.Timer;
+import java.time.Clock;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerFactory;
+import org.apache.pulsar.broker.delayed.InMemoryDelayedDeliveryTracker;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.api.Consumer;
@@ -51,6 +65,145 @@ public class InMemoryDelayedDeliveryReadTest extends SharedPulsarBaseTest {
     @DataProvider
     public Object[][] subscriptionTypes() {
         return new Object[][]{{SubscriptionType.Shared}, {SubscriptionType.Key_Shared}};
+    }
+
+    @Test(dataProvider = "subscriptionTypes", timeOut = 60000)
+    public void testDueWhileDisconnectedIsDeliveredOnce(SubscriptionType subscriptionType) throws Exception {
+        AtomicLong now = new AtomicLong(100_000);
+        String topic = newTopicName();
+        try (PulsarTestContext context = newControlledContext(now)) {
+            PulsarService broker = context.getPulsarService();
+            PulsarClient client = broker.getClient();
+            try (Producer<String> producer = client.newProducer(Schema.STRING)
+                    .topic(topic).enableBatching(false).create()) {
+                PersistentDispatcherMultipleConsumers dispatcher;
+                try (Consumer<String> consumer = subscribe(client, topic, subscriptionType)) {
+                    producer.send("unacked");
+                    assertThat(receive(consumer).getValue()).isEqualTo("unacked");
+                    producer.newMessage().value("delayed").deliverAt(200_000).send();
+                    producer.send("initial-marker");
+                    consumer.acknowledge(receive(consumer));
+                    dispatcher = dispatcher(broker, topic);
+                    await().untilAsserted(() -> assertThat(dispatcher.getNumberOfDelayedMessages()).isEqualTo(1));
+                }
+                await().untilAsserted(() -> assertThat(dispatcher.getConsumers()).isEmpty());
+                now.set(300_000);
+                try (Consumer<String> consumer = subscribe(client, topic, subscriptionType)) {
+                    producer.send("reconnect-marker");
+                    assertThat(receiveThroughMarker(consumer, "reconnect-marker"))
+                            .containsExactlyInAnyOrder("unacked", "delayed", "reconnect-marker");
+                    assertThat(consumer.receive(100, TimeUnit.MILLISECONDS)).isNull();
+                    assertThat(dispatcher.getConsumers().get(0).getUnackedMessages()).isEqualTo(3);
+                    // Leave both messages unacknowledged: the next rewind must allow their redelivery.
+                    await().untilAsserted(() -> assertThat(dispatcher.getDelayedTrackerMemoryUsage()).isZero());
+                }
+                try (Consumer<String> consumer = subscribe(client, topic, subscriptionType)) {
+                    producer.send("second-marker");
+                    assertThat(receiveThroughMarker(consumer, "second-marker"))
+                            .containsExactlyInAnyOrder("unacked", "delayed", "reconnect-marker", "second-marker");
+                    assertThat(consumer.receive(100, TimeUnit.MILLISECONDS)).isNull();
+                    broker.getAdminClient().topics().skipAllMessages(topic, "sub");
+                }
+            }
+        }
+    }
+
+    @DataProvider
+    public Object[][] disableAfterReconnectVariants() {
+        return new Object[][]{{SubscriptionType.Shared, false}, {SubscriptionType.Shared, true},
+                {SubscriptionType.Key_Shared, false}, {SubscriptionType.Key_Shared, true}};
+    }
+
+    @Test(dataProvider = "disableAfterReconnectVariants", timeOut = 60000)
+    public void testDisableDelayedDeliveryAfterReconnect(SubscriptionType subscriptionType, boolean cursorCaughtUp)
+            throws Exception {
+        AtomicLong now = new AtomicLong(100_000);
+        String topic = newTopicName();
+        try (PulsarTestContext context = newControlledContext(now)) {
+            PulsarService broker = context.getPulsarService();
+            PulsarClient client = broker.getClient();
+            try (Producer<String> producer = client.newProducer(Schema.STRING)
+                    .topic(topic).enableBatching(false).create()) {
+                PersistentDispatcherMultipleConsumers dispatcher;
+                Position beforeRewind;
+                try (Consumer<String> consumer = subscribe(client, topic, subscriptionType)) {
+                    producer.newMessage().value("delayed").deliverAt(200_000).send();
+                    producer.send("initial-marker");
+                    consumer.acknowledge(receive(consumer));
+                    dispatcher = dispatcher(broker, topic);
+                    await().untilAsserted(() -> assertThat(dispatcher.getNumberOfDelayedMessages()).isEqualTo(1));
+                    beforeRewind = dispatcher.getCursor().getReadPosition();
+                }
+                // A zero-sized receiver queue registers the replacement but grants no permits until receive().
+                try (Consumer<String> consumer = client.newConsumer(Schema.STRING).topic(topic)
+                        .subscriptionName("sub").subscriptionType(subscriptionType)
+                        .receiverQueueSize(cursorCaughtUp ? 1000 : 0)
+                        .subscribe()) {
+                    assertThat(dispatcher.getConsumers()).hasSize(1);
+                    if (cursorCaughtUp) {
+                        await().untilAsserted(() -> assertThat(dispatcher.getCursor().getReadPosition())
+                                .isGreaterThanOrEqualTo(beforeRewind));
+                    } else {
+                        assertThat(dispatcher.getCursor().getReadPosition()).isLessThan(beforeRewind);
+                    }
+                    broker.getAdminClient().namespaces().setDelayedDeliveryMessages(getNamespace(),
+                            DelayedDeliveryPolicies.builder().active(false).tickTime(1).build());
+                    await().untilAsserted(() -> assertThat(dispatcher.getTopic().isDelayedDeliveryEnabled()).isFalse());
+                    dispatcher.readMoreEntriesAsync();
+                    assertThat(receive(consumer).getValue()).isEqualTo("delayed");
+                    // Keep the message unacknowledged while its former deadline passes.
+                    now.set(300_000);
+                    producer.send("after-deadline");
+                    assertThat(receive(consumer).getValue()).isEqualTo("after-deadline");
+                    await().untilAsserted(() -> assertThat(dispatcher.getNumberOfDelayedMessages()).isZero());
+                    await().untilAsserted(() -> assertThat(dispatcher.getDelayedTrackerMemoryUsage()).isZero());
+                    broker.getAdminClient().topics().skipAllMessages(topic, "sub");
+                }
+            }
+        }
+    }
+
+    private PulsarTestContext newControlledContext(AtomicLong now) throws Exception {
+        Clock clock = mock(Clock.class);
+        when(clock.millis()).thenAnswer(invocation -> now.get());
+        Timer timer = mock(Timer.class);
+        DelayedDeliveryTrackerFactory factory = mock(DelayedDeliveryTrackerFactory.class);
+        when(factory.newTrackerAsync(any())).thenAnswer(invocation -> CompletableFuture.completedFuture(
+                new InMemoryDelayedDeliveryTracker(
+                        invocation.getArgument(0), timer, 1, clock, true, 0)));
+        PulsarTestContext context = PulsarTestContext.builder().configCustomizer(config -> {
+            config.setDispatcherDispatchMessagesInSubscriptionThread(true);
+            config.setDelayedDeliveryTickTimeMillis(1);
+        }).brokerServiceCustomizer(service -> {
+            var spy = BrokerTestUtil.spyWithoutRecordingInvocations(service);
+            doReturn(factory).when(spy).getDelayedDeliveryTrackerFactory();
+            return spy;
+        }).build();
+        try {
+            PulsarService broker = context.getPulsarService();
+            String cluster = broker.getConfiguration().getClusterName();
+            broker.getAdminClient().clusters().createCluster(cluster, ClusterData.builder().build());
+            broker.getAdminClient().tenants().createTenant(NamespaceName.get(getNamespace()).getTenant(),
+                    new TenantInfoImpl(Set.of(), Set.of(cluster)));
+            broker.getAdminClient().namespaces().createNamespace(getNamespace(), 1);
+            return context;
+        } catch (Exception e) {
+            context.close();
+            throw e;
+        }
+    }
+
+    private static PersistentDispatcherMultipleConsumers dispatcher(PulsarService broker, String topic) {
+        return (PersistentDispatcherMultipleConsumers) broker.getBrokerService().getTopicReference(topic)
+                .orElseThrow().getSubscription("sub").getDispatcher();
+    }
+
+    private static List<String> receiveThroughMarker(Consumer<String> consumer, String marker) throws Exception {
+        List<String> received = new ArrayList<>();
+        do {
+            received.add(receive(consumer).getValue());
+        } while (!received.getLast().equals(marker));
+        return received;
     }
 
     @Test(dataProvider = "subscriptionTypes")
@@ -250,7 +403,7 @@ public class InMemoryDelayedDeliveryReadTest extends SharedPulsarBaseTest {
     }
 
     private static Message<String> receive(Consumer<String> consumer) throws Exception {
-        Message<String> message = consumer.receive(10, TimeUnit.SECONDS);
+        Message<String> message = consumer.receiveAsync().get(10, TimeUnit.SECONDS);
         assertThat(message).as("a non-delayed message should be dispatched").isNotNull();
         return message;
     }

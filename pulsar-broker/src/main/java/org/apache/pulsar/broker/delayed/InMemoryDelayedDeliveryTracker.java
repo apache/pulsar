@@ -51,8 +51,13 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
             delayedMessageMap = new Long2ObjectAVLTreeMap<>();
 
     // The same pending positions, indexed by ledger for the managed-ledger read-skip predicate. Membership reads
-    // run on ledger threads, so access to both indexes is serialized on this tracker, not on the dispatcher.
+    // run on ledger threads, so access to all indexes is serialized on this tracker, not on the dispatcher.
     private final Long2ObjectMap<LongBitmap> delayedMessageIndex = new Long2ObjectOpenHashMap<>();
+
+    // Positions handed to replay while a rewound normal read can still encounter them. They are no longer
+    // delayed, but must remain hidden from normal reads until the cursor catches up (or rewinds again).
+    private final Long2ObjectMap<LongBitmap> replayedMessageIndex = new Long2ObjectOpenHashMap<>();
+    private boolean retainReplayedMessages;
 
     // If we detect that all messages have fixed delay time, such that the delivery is
     // always going to be in FIFO order, then we can avoid pulling all the messages in
@@ -138,7 +143,7 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
 
     @Override
     public synchronized boolean addMessage(long ledgerId, long entryId, long deliverAt) {
-        if (containsMessage(ledgerId, entryId)) {
+        if (containsMessage(delayedMessageIndex, ledgerId, entryId)) {
             return true;
         }
         if (deliverAt < 0 || deliverAt <= getCutoffTime()) {
@@ -232,9 +237,20 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
      */
     @Override
     public synchronized NavigableSet<Position> getScheduledMessages(int maxMessages) {
+        return getMessages(maxMessages, getBucketCutoffTime());
+    }
+
+    /**
+     * Release indexed messages immediately when delayed delivery is disabled, using the same replay handoff
+     * as due messages so normal reads cannot dispatch a second copy.
+     */
+    public synchronized NavigableSet<Position> drainAllMessages(int maxMessages) {
+        return getMessages(maxMessages, Long.MAX_VALUE);
+    }
+
+    private NavigableSet<Position> getMessages(int maxMessages, long cutoffTime) {
         int n = maxMessages;
         NavigableSet<Position> positions = new TreeSet<>();
-        long cutoffTime = getBucketCutoffTime();
 
         while (n > 0 && !delayedMessageMap.isEmpty()) {
             long timestamp = delayedMessageMap.firstLongKey();
@@ -254,6 +270,12 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
                 long drained = entryIds.drainTo(n, entryId -> {
                     positions.add(PositionFactory.create(ledgerId, entryId));
                     index.remove(entryId);
+                    if (retainReplayedMessages) {
+                        LongBitmap replayed = replayedMessageIndex.computeIfAbsent(ledgerId, k -> LongBitmaps.create());
+                        long oldReplayedSize = replayed.serializedSize();
+                        replayed.add(entryId);
+                        memoryUsage.addAndGet(replayed.serializedSize() - oldReplayedSize);
+                    }
                 });
                 long newSize = entryIds.serializedSize();
                 memoryUsage.addAndGet(newSize - oldSize + index.serializedSize() - oldIndexSize);
@@ -297,6 +319,8 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
     public synchronized CompletableFuture<Void> clear() {
         this.delayedMessageMap.clear();
         this.delayedMessageIndex.clear();
+        this.replayedMessageIndex.clear();
+        this.retainReplayedMessages = false;
         this.delayedMessagesCount.set(0);
         this.memoryUsage.set(0);
         resetFixedDelayDetection();
@@ -305,12 +329,38 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
     }
 
     /**
-     * Whether this position is still waiting in the delivery-time index. Due positions remain indexed until
-     * {@link #getScheduledMessages(int)} hands them to the replay read, which does not use this predicate.
+     * Whether a normal read must skip this position: it is either delayed or has been handed to replay while
+     * the normal cursor is still catching up after a rewind. Replay reads do not use this predicate.
      */
     public synchronized boolean containsMessage(long ledgerId, long entryId) {
-        LongBitmap index = delayedMessageIndex.get(ledgerId);
+        return containsMessage(delayedMessageIndex, ledgerId, entryId)
+                || containsMessage(replayedMessageIndex, ledgerId, entryId);
+    }
+
+    private static boolean containsMessage(Long2ObjectMap<LongBitmap> messages, long ledgerId, long entryId) {
+        LongBitmap index = messages.get(ledgerId);
         return index != null && index.contains(entryId);
+    }
+
+    /**
+     * A new rewind must allow previously replayed, unacknowledged messages to be read again.
+     */
+    public synchronized void startRewind() {
+        endRewind();
+        retainReplayedMessages = true;
+    }
+
+    /**
+     * Once normal reads have caught up, their replay suppression markers are no longer needed.
+     */
+    public synchronized void endRewind() {
+        replayedMessageIndex.values().forEach(bitmap -> {
+            long oldSize = bitmap.serializedSize();
+            bitmap.clear();
+            memoryUsage.addAndGet(bitmap.serializedSize() - oldSize);
+        });
+        replayedMessageIndex.clear();
+        retainReplayedMessages = false;
     }
 
     /**
@@ -326,6 +376,7 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
             }
         }
         removeMessagesUpTo(delayedMessageIndex, position);
+        removeMessagesUpTo(replayedMessageIndex, position);
         if (delayedMessageMap.isEmpty()) {
             resetFixedDelayDetection();
         }

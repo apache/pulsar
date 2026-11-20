@@ -90,7 +90,9 @@ java -jar microbench/build/libs/microbench-*-benchmarks.jar ManagedLedgerTrimSca
 
 `InMemoryDelayedDeliveryTrackerBenchmark` measures position lookups (half hits, half misses) across
 1,000 or 100,000 delayed messages, plus adding and draining the same workload across multiple ledgers
-and delivery-time buckets. These are index costs, excluding storage reads and broker dispatch.
+and delivery-time buckets. The `replayDuringRewind` parameter also covers positions already handed
+to replay but still hidden from a rewound normal read. These are index costs, excluding storage reads
+and broker dispatch.
 For a focused run with allocation measurements:
 
 ```shell
