@@ -2386,6 +2386,12 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         }).when(spyLedgerHandle).asyncClose(any(AsyncCallback.CloseCallback.class), any());
         ledger.currentLedger = spyLedgerHandle;
 
+        CompletableFuture<Position> result = asyncTerminate(ledger);
+        assertThat(closeIntercepted.await(5, TimeUnit.SECONDS)).as("Termination must reach the ledger close").isTrue();
+        return result;
+    }
+
+    private static CompletableFuture<Position> asyncTerminate(ManagedLedger ledger) {
         CompletableFuture<Position> result = new CompletableFuture<>();
         ledger.asyncTerminate(new AsyncCallbacks.TerminateCallback() {
             @Override
@@ -2398,8 +2404,47 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
                 result.completeExceptionally(exception);
             }
         }, null);
-        assertThat(closeIntercepted.await(5, TimeUnit.SECONDS)).as("Termination must reach the ledger close").isTrue();
         return result;
+    }
+
+    @Test
+    public void testOrdinaryTerminationRetryDoesNotCommitFailedMigration() throws Exception {
+        String ledgerName = "ordinary-termination-retry-during-migration-failure";
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(ledgerName);
+        Position lastPosition = ledger.addEntry("entry".getBytes(UTF_8));
+        CompletableFuture<Integer> closeResult = new CompletableFuture<>();
+        try {
+            CompletableFuture<Position> firstTermination = asyncTerminateWithBlockedLedgerClose(ledger, closeResult);
+            CompletableFuture<Position> migration = ledger.asyncMigrate();
+            // Register the retry last. It can start as soon as termination fails, while migration is still completing.
+            CompletableFuture<Position> retry = asyncTerminate(ledger)
+                    .exceptionallyCompose(error -> asyncTerminate(ledger));
+
+            MetadataStoreException failure = new MetadataStoreException("injected termination metadata failure");
+            metadataStore.failConditional(failure,
+                    (operation, path) -> operation == FaultInjectionMetadataStore.OperationType.PUT
+                            && path.equals("/managed-ledgers/" + ledgerName));
+            closeResult.complete(BKException.Code.OK);
+
+            assertThatThrownBy(() -> firstTermination.get(5, TimeUnit.SECONDS))
+                    .isInstanceOf(ExecutionException.class).hasRootCause(failure);
+            assertThatThrownBy(() -> migration.get(5, TimeUnit.SECONDS))
+                    .isInstanceOf(ExecutionException.class).hasRootCause(failure);
+            assertThat(retry.get(5, TimeUnit.SECONDS)).isEqualTo(lastPosition);
+        } finally {
+            closeResult.complete(BKException.Code.OK);
+            ledger.close();
+        }
+
+        ManagedLedger reopened = factory.open(ledgerName);
+        try {
+            assertThat(reopened.isTerminated()).isTrue();
+            assertThat(reopened.getLastConfirmedEntry()).isEqualTo(lastPosition);
+            assertThat(reopened.getProperties()).doesNotContainKey("migrated");
+            assertThat(reopened.isMigrated()).isFalse();
+        } finally {
+            reopened.close();
+        }
     }
 
     @Test

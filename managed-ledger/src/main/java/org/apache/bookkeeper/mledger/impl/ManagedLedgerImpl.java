@@ -291,7 +291,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     // Ordinary metadata writes carry the position only after the dedicated termination write succeeds.
     private volatile Position persistedTerminationPosition;
     // Guarded by this.
-    private CompletableFuture<Position> migrationFuture;
+    private Migration migration;
 
     private long lastOffloadLedgerId = 0;
     private volatile long lastOffloadSuccessTimestamp = 0;
@@ -1668,76 +1668,86 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     public CompletableFuture<Position> asyncMigrate() {
-        final CompletableFuture<Position> result;
+        final Migration attempt;
         synchronized (this) {
-            if (migrationFuture != null) {
-                return migrationFuture.copy();
+            if (state.isFenced()) {
+                return CompletableFuture.failedFuture(new ManagedLedgerFencedException());
             }
-            if (migrated) {
+            if (state == State.Closed) {
+                return CompletableFuture.failedFuture(
+                        new ManagedLedgerAlreadyClosedException("Managed ledger is already closed"));
+            }
+            if (migration != null) {
+                return migration.result.copy();
+            }
+            if (isMigrated()) {
                 return CompletableFuture.completedFuture(lastConfirmedEntry);
             }
-            result = new CompletableFuture<>();
-            // The termination metadata write publishes the migration marker along with its final position.
-            migrationFuture = result;
+            attempt = migration = new Migration();
         }
 
         try {
-            terminateForMigration(result);
+            asyncTerminate(attempt, null);
         } catch (Throwable t) {
-            clearMigration(result);
-            result.completeExceptionally(t);
+            attempt.fail(t);
         }
-        return result.copy();
+        return attempt.result.copy();
     }
 
-    private synchronized void clearMigration(CompletableFuture<Position> result) {
-        if (migrationFuture == result) {
-            migrationFuture = null;
-        }
-    }
+    private final class Migration implements TerminateCallback {
+        private final CompletableFuture<Position> result = new CompletableFuture<>();
+        // Guarded by the managed ledger monitor. Only this termination attempt may store our marker.
+        private CompletableFuture<Position> termination;
 
-    private void terminateForMigration(CompletableFuture<Position> result) {
-        asyncTerminate(new TerminateCallback() {
+        @Override
+        public void terminateComplete(Position position, Object ctx) {
+            if (isMigrated()) {
+                complete(position);
+                return;
+            }
 
-            @Override
-            public void terminateComplete(Position lastCommittedPosition, Object ctx) {
-                if (migrated) {
-                    completeMigration(result, lastCommittedPosition);
-                    return;
+            // The ledger was already terminated or its termination write had already been submitted.
+            asyncSetProperty(MIGRATION_STATE_PROPERTY, Boolean.TRUE.toString(), new UpdatePropertiesCallback() {
+                @Override
+                public void updatePropertiesComplete(Map<String, String> properties, Object ctx) {
+                    if (properties.containsKey(MIGRATION_STATE_PROPERTY)) {
+                        complete(position);
+                    } else {
+                        fail(new ManagedLedgerException("Migration marker was not stored"));
+                    }
                 }
 
-                // The ledger was already terminated or its termination write had already been submitted.
-                asyncSetProperty(MIGRATION_STATE_PROPERTY, Boolean.TRUE.toString(), new UpdatePropertiesCallback() {
-                    @Override
-                    public void updatePropertiesComplete(Map<String, String> properties, Object ctx) {
-                        if (properties.containsKey(MIGRATION_STATE_PROPERTY)) {
-                            completeMigration(result, lastCommittedPosition);
-                        } else {
-                            updatePropertiesFailed(new ManagedLedgerException("Migration marker was not stored"), ctx);
-                        }
-                    }
+                @Override
+                public void updatePropertiesFailed(ManagedLedgerException exception, Object ctx) {
+                    fail(exception);
+                }
+            }, null);
+        }
 
-                    @Override
-                    public void updatePropertiesFailed(ManagedLedgerException exception, Object ctx) {
-                        clearMigration(result);
-                        result.completeExceptionally(exception);
-                    }
-                }, null);
+        @Override
+        public void terminateFailed(ManagedLedgerException exception, Object ctx) {
+            fail(exception);
+        }
+
+        private void clear() {
+            synchronized (ManagedLedgerImpl.this) {
+                if (migration == this) {
+                    migration = null;
+                }
             }
+        }
 
-            @Override
-            public void terminateFailed(ManagedLedgerException exception, Object ctx) {
-                clearMigration(result);
-                result.completeExceptionally(exception);
-            }
-        }, null);
-    }
+        private void fail(Throwable error) {
+            clear();
+            result.completeExceptionally(error);
+        }
 
-    private void completeMigration(CompletableFuture<Position> result, Position position) {
-        migrated = true;
-        log.info().attr("position", position).log("Topic successfully terminated and migrated");
-        result.complete(position);
-        clearMigration(result);
+        private void complete(Position position) {
+            migrated = true;
+            clear();
+            log.info().attr("position", position).log("Topic successfully terminated and migrated");
+            result.complete(position);
+        }
     }
 
     @Override
@@ -1867,6 +1877,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     ledgerToClose = currentLedger;
                     recoverLedger = terminationLedgerCloseFailed;
                 }
+            }
+            if (migration != null && callback == migration) {
+                migration.termination = result;
             }
         }
         result.whenComplete((position, error) -> {
@@ -2001,7 +2014,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         : new ManagedLedgerAlreadyClosedException("Managed ledger was closed while terminating");
             } else if (metadataMutex.tryLock()) {
                 try {
-                    if (migrationFuture == null) {
+                    if (migration == null || migration.termination != terminationResult) {
                         info = getManagedLedgerInfo();
                     } else {
                         Map<String, String> properties = new HashMap<>(propertiesMap);
@@ -2051,8 +2064,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 }
                 metadataMutex.unlock();
                 log.info().attr("lastConfirmedEntry", lastConfirmedEntry).log("Terminated managed ledger");
-                // The final ledger was closed outside a rollover, so offload it from here
-                maybeOffloadInBackground(AUTOMATIC_OFFLOAD_TRIGGER);
                 // Complete on the managed ledger executor, after the adds confirmed before the close, which complete
                 // there too: the caller may disconnect the writers, which must not miss the confirmation of an add
                 Runnable complete = () -> {
@@ -2066,6 +2077,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 } catch (RejectedExecutionException e) {
                     complete.run();
                 }
+                // Queue automatic offload after completion so manual offloads waiting for termination run first.
+                maybeOffloadInBackground(AUTOMATIC_OFFLOAD_TRIGGER);
             }
 
             @Override
@@ -2132,7 +2145,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     @Override
     public boolean isMigrated() {
-        return migrated;
+        // The property API can remove the marker after migration completes.
+        return migrated && propertiesMap.containsKey(MIGRATION_STATE_PROPERTY);
     }
 
     @Override

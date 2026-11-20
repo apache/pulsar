@@ -167,6 +167,44 @@ public class ManagedLedgerPropertiesFailureTest extends MockedBookKeeperTestCase
         assertThat(reopenedLedger.isMigrated()).isFalse();
     }
 
+    @Test(timeOut = 20000)
+    public void testAlreadyMigratedLedgerRejectsMigrationAfterFencing() throws Exception {
+        String name = "migrated-ledger-fenced";
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(name);
+        Position lastPosition = ledger.addEntry("entry".getBytes(UTF_8));
+        assertThat(ledger.asyncMigrate().get(5, TimeUnit.SECONDS)).isEqualTo(lastPosition);
+
+        metadataStore.failConditional(new MetadataStoreException.BadVersionException("ownership changed"),
+                (operation, path) -> operation == FaultInjectionMetadataStore.OperationType.PUT
+                        && path.equals("/managed-ledgers/" + name));
+        assertThatThrownBy(() -> ledger.setProperty("key", "value"))
+                .isInstanceOf(ManagedLedgerException.BadVersionException.class);
+        assertFailedWith(ledger.asyncMigrate(), ManagedLedgerFencedException.class);
+    }
+
+    @Test(timeOut = 20000)
+    public void testRepeatedMigrationRestoresDeletedMarker() throws Exception {
+        String name = "migrated-ledger-marker-deleted";
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(name);
+        Position lastPosition = ledger.addEntry("entry".getBytes(UTF_8));
+        assertThat(ledger.asyncMigrate().get(5, TimeUnit.SECONDS)).isEqualTo(lastPosition);
+        ledger.deleteProperty("migrated");
+        assertThat(ledger.isMigrated()).isFalse();
+
+        assertThat(ledger.asyncMigrate().get(5, TimeUnit.SECONDS)).isEqualTo(lastPosition);
+        assertThat(ledger.isMigrated()).isTrue();
+        ledger.close();
+        assertFailedWith(ledger.asyncMigrate(), ManagedLedgerAlreadyClosedException.class);
+
+        ManagedLedgerImpl reopened = (ManagedLedgerImpl) factory.open(name);
+        try {
+            assertThat(reopened.isMigrated()).isTrue();
+            assertThat(reopened.getProperties()).containsEntry("migrated", "true");
+        } finally {
+            reopened.close();
+        }
+    }
+
     @DataProvider(name = "migrationOrPropertyUpdate")
     public Object[][] migrationOrPropertyUpdate() {
         return new Object[][] {{true}, {false}};
