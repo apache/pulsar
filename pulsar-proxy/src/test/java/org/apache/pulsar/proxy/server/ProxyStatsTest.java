@@ -237,6 +237,22 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testStatsUpdateContinuesAfterFailure() {
+        String topicName = "periodic-stats-update-failure";
+        TopicStats stats = Mockito.spy(new TopicStats());
+        // the first run throws, later runs must still happen
+        Mockito.doThrow(new RuntimeException("injected stats failure"))
+                .doCallRealMethod()
+                .when(stats).calculate();
+        proxyService.getTopicStats().put(topicName, stats);
+        try {
+            Mockito.verify(stats, Mockito.timeout(5000).atLeast(3)).calculate();
+        } finally {
+            proxyService.getTopicStats().remove(topicName);
+        }
+    }
+
+    @Test
     public void testMemoryLeakFixed() throws Exception {
         proxyService.setProxyLogLevel(2);
         final String topicName = "persistent://public/default/topic-stats";

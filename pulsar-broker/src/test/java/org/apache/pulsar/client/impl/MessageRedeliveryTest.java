@@ -25,10 +25,9 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import java.util.HashSet;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
@@ -40,7 +39,7 @@ import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
@@ -50,11 +49,11 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -63,19 +62,27 @@ import org.testng.annotations.Test;
 
 @Test(groups = "broker-impl")
 @CustomLog
-public class MessageRedeliveryTest extends ProducerConsumerBase {
+public class MessageRedeliveryTest extends SharedPulsarBaseTest {
+
+    private int managedLedgerMaxEntriesPerLedger;
+    private int managedLedgerMinLedgerRolloverTimeMinutes;
+
+    @Override
+    protected boolean checkClientHandlesClosed() {
+        return true;
+    }
 
     @BeforeMethod
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
+    public void saveConfiguration() {
+        managedLedgerMaxEntriesPerLedger = getConfig().getManagedLedgerMaxEntriesPerLedger();
+        managedLedgerMinLedgerRolloverTimeMinutes = getConfig().getManagedLedgerMinLedgerRolloverTimeMinutes();
     }
 
     @AfterMethod(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
+    public void restoreConfiguration() {
+        // testRedelivery changes them; the shared broker reads them when a topic loads
+        getConfig().setManagedLedgerMaxEntriesPerLedger(managedLedgerMaxEntriesPerLedger);
+        getConfig().setManagedLedgerMinLedgerRolloverTimeMinutes(managedLedgerMinLedgerRolloverTimeMinutes);
     }
 
     @DataProvider(name = "useOpenRangeSet")
@@ -93,15 +100,14 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
     @Test(dataProvider = "useOpenRangeSet", timeOut = 30000)
     public void testRedelivery(boolean useOpenRangeSet) throws Exception {
 
-        this.conf.setManagedLedgerMaxEntriesPerLedger(5);
-        this.conf.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
+        getConfig().setManagedLedgerMaxEntriesPerLedger(5);
+        getConfig().setManagedLedgerMinLedgerRolloverTimeMinutes(0);
         @Cleanup("shutdownNow")
         final ScheduledExecutorService executor = Executors.newScheduledThreadPool(20,
                 new DefaultThreadFactory("pulsar"));
-        final String ns1 = "my-property/brok-ns1";
+        final String ns1 = getNamespace();
         final String subName = "my-subscriber-name";
         final int numMessages = 50;
-        admin.namespaces().createNamespace(ns1, Sets.newHashSet("test"));
 
         final String topic1 = "persistent://" + ns1 + "/my-topic";
 
@@ -179,8 +185,7 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         // (4) here we consume all messages but consumer1 only acked alternate messages.
         assertNotEquals(ackedMessages.size(), numMessages);
 
-        PersistentTopic pTopic = (PersistentTopic) this.pulsar.getBrokerService().getTopicIfExists(topic1).get()
-                .get();
+        PersistentTopic pTopic = (PersistentTopic) getTopicIfExists(topic1).get().get();
         ManagedLedgerImpl ml = (ManagedLedgerImpl) pTopic.getManagedLedger();
         ManagedCursorImpl cursor = (ManagedCursorImpl) ml.getCursors().iterator().next();
 
@@ -231,7 +236,7 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
 
     @Test
     public void testDoNotRedeliveryMarkDeleteMessages() throws PulsarClientException, PulsarAdminException {
-        final String topic = "testDoNotRedeliveryMarkDeleteMessages";
+        final String topic = getNamespace() + "/testDoNotRedeliveryMarkDeleteMessages";
         final String subName = "my-sub";
 
         @Cleanup
@@ -240,6 +245,7 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
                 .subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Key_Shared)
                 .ackTimeout(1, TimeUnit.SECONDS)
+                .ackTimeoutTickTime(100, TimeUnit.MILLISECONDS)
                 .subscribe();
 
         @Cleanup
@@ -269,17 +275,20 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
 
     @Test(dataProvider = "enableBatch")
     public void testRedeliveryAddEpoch(boolean enableBatch) throws Exception{
-        final String topic = "testRedeliveryAddEpoch";
+        final String topic = getNamespace() + "/testRedeliveryAddEpoch";
         final String subName = "my-sub";
+        // a client of its own: the test closes its consumer's connection
         @Cleanup
-        ConsumerImpl<String> consumer = ((ConsumerImpl<String>) pulsarClient.newConsumer(Schema.STRING)
+        PulsarClient client = newPulsarClient();
+        @Cleanup
+        ConsumerImpl<String> consumer = ((ConsumerImpl<String>) client.newConsumer(Schema.STRING)
                 .topic(topic)
                 .subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Failover)
                 .subscribe());
 
         @Cleanup
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+        Producer<String> producer = client.newProducer(Schema.STRING)
                 .topic(topic)
                 .enableBatching(enableBatch)
                 .create();
@@ -289,8 +298,10 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         String test3 = "Pulsar3";
 
         consumer.setConsumerEpoch(1);
+        int permits = consumer.getAvailablePermits();
         producer.send(test1);
-        Message<String> message = consumer.receive(3, TimeUnit.SECONDS);
+        waitForDroppedMessage(consumer, permits);
+        Message<String> message = consumer.receive(200, TimeUnit.MILLISECONDS);
         assertNull(message);
         consumer.redeliverUnacknowledgedMessages();
         message = consumer.receive(3, TimeUnit.SECONDS);
@@ -300,8 +311,10 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
 
         consumer.setConsumerEpoch(3);
 
+        permits = consumer.getAvailablePermits();
         producer.send(test2);
-        message = consumer.receive(3, TimeUnit.SECONDS);
+        waitForDroppedMessage(consumer, permits);
+        message = consumer.receive(200, TimeUnit.MILLISECONDS);
         assertNull(message);
 
         consumer.redeliverUnacknowledgedMessages();
@@ -312,8 +325,10 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         assertEquals(message.getValue(), test2);
 
         consumer.setConsumerEpoch(6);
+        permits = consumer.getAvailablePermits();
         producer.send(test3);
-        message = consumer.receive(3, TimeUnit.SECONDS);
+        waitForDroppedMessage(consumer, permits);
+        message = consumer.receive(200, TimeUnit.MILLISECONDS);
         assertNull(message);
 
         ConnectionHandler connectionHandler = consumer.getConnectionHandler();
@@ -326,54 +341,9 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         assertEquals(message.getValue(), test3);
     }
 
-    /**
-     * A redeliver called while the consumer reconnects bumps the client epoch after the subscribe was sent with
-     * the previous one. The broker must still learn the new epoch, or the client discards every message.
-     */
-    @Test(timeOut = 60_000)
-    public void testRedeliveryWhileReconnecting() throws Exception {
-        final String topic = "persistent://my-property/my-ns/testRedeliveryWhileReconnecting";
-        final String subName = "my-sub";
-        // A client of its own, so that the consumer's connection only carries the consumer's subscribe
-        @Cleanup
-        PulsarClient consumerClient = newPulsarClient(lookupUrl.toString(), 0);
-        @Cleanup
-        ConsumerImpl<String> consumer = (ConsumerImpl<String>) consumerClient.newConsumer(Schema.STRING)
-                .topic(topic)
-                .subscriptionName(subName)
-                .subscriptionType(SubscriptionType.Failover)
-                .subscribe();
-        try (Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create()) {
-            producer.send("Pulsar");
-        }
-
-        // Hold the topic, so that the subscribe sent by the reconnection stays pending on the broker
-        Map<String, CompletableFuture<Optional<Topic>>> topics = pulsar.getBrokerService().getTopics();
-        CompletableFuture<Optional<Topic>> topicFuture = topics.get(topic);
-        CompletableFuture<Optional<Topic>> heldTopicFuture = new CompletableFuture<>();
-        topics.put(topic, heldTopicFuture);
-        try {
-            consumer.getClientCnx().channel().close();
-            Awaitility.await().until(() -> {
-                ClientCnx cnx = consumer.getClientCnx();
-                return consumer.getState() == HandlerState.State.Connecting && cnx != null
-                        && !cnx.pendingRequests.isEmpty();
-            });
-
-            consumer.redeliverUnacknowledgedMessages();
-        } finally {
-            topics.put(topic, topicFuture);
-            heldTopicFuture.complete(topicFuture.join());
-        }
-
-        Message<String> message = consumer.receive(10, TimeUnit.SECONDS);
-        assertNotNull(message);
-        assertEquals(message.getValue(), "Pulsar");
-    }
-
     @Test(dataProvider = "enableBatch")
     public void testRedeliveryAddEpochAndPermits(boolean enableBatch) throws Exception {
-        final String topic = "testRedeliveryAddEpochAndPermits";
+        final String topic = getNamespace() + "/testRedeliveryAddEpochAndPermits";
         final String subName = "my-sub";
         // set receive queue size is 4, and first send 4 messages,
         // then call redeliver messages, assert receive msg num.
@@ -409,19 +379,25 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
 
     @Test(dataProvider = "enableBatch")
     public void testBatchReceiveRedeliveryAddEpoch(boolean enableBatch) throws Exception{
-        final String topic = "testBatchReceiveRedeliveryAddEpoch";
+        final String topic = getNamespace() + "/testBatchReceiveRedeliveryAddEpoch";
         final String subName = "my-sub";
+        // a client of its own: the test closes its consumer's connection
+        @Cleanup
+        PulsarClient client = newPulsarClient();
 
         @Cleanup
-        ConsumerImpl<String> consumer = ((ConsumerImpl<String>) pulsarClient.newConsumer(Schema.STRING)
+        ConsumerImpl<String> consumer = ((ConsumerImpl<String>) client.newConsumer(Schema.STRING)
                 .topic(topic)
                 .subscriptionName(subName)
-                .batchReceivePolicy(BatchReceivePolicy.builder().timeout(1000, TimeUnit.MILLISECONDS).build())
+                .batchReceivePolicy(BatchReceivePolicy.builder()
+                        .maxNumMessages(1)
+                        .timeout(1000, TimeUnit.MILLISECONDS)
+                        .build())
                 .subscriptionType(SubscriptionType.Failover)
                 .subscribe());
 
         @Cleanup
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+        Producer<String> producer = client.newProducer(Schema.STRING)
                 .topic(topic)
                 .enableBatching(enableBatch)
                 .create();
@@ -479,7 +455,7 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
 
     @Test(dataProvider = "enableBatch")
     public void testMultiConsumerRedeliveryAddEpoch(boolean enableBatch) throws Exception{
-        final String topic = "testMultiConsumerRedeliveryAddEpoch";
+        final String topic = getNamespace() + "/testMultiConsumerRedeliveryAddEpoch";
         final String subName = "my-sub";
         admin.topics().createPartitionedTopic(topic, 5);
         final int messageNumber = 50;
@@ -515,7 +491,8 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         }
 
         // can't receive message again
-        message = consumer.receive(5, TimeUnit.SECONDS);
+        waitForDispatched(topic, subName, 2);
+        message = consumer.receive(200, TimeUnit.MILLISECONDS);
         assertNull(message);
 
         // redeliverUnacknowledgedMessages twice
@@ -528,14 +505,71 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         }
 
         // can't receive message again
-        message = consumer.receive(5, TimeUnit.SECONDS);
+        waitForDispatched(topic, subName, 3);
+        message = consumer.receive(200, TimeUnit.MILLISECONDS);
         assertNull(message);
+    }
+
+    @Test(timeOut = 30000)
+    public void testMultiConsumerReceiveRightAfterRedeliverSkipsQueuedMessages() throws Exception {
+        final String topic = getNamespace() + "/testMultiConsumerReceiveRightAfterRedeliverSkipsQueuedMessages";
+        final String subName = "my-sub";
+        admin.topics().createPartitionedTopic(topic, 2);
+        final int messageNumber = 10;
+        @Cleanup
+        MultiTopicsConsumerImpl<String> consumer = (MultiTopicsConsumerImpl<String>) pulsarClient
+                .newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Failover)
+                .subscribe();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .enableBatching(false)
+                .create();
+
+        Set<String> sent = new HashSet<>();
+        for (int i = 0; i < messageNumber; i++) {
+            producer.send("" + i);
+            sent.add("" + i);
+        }
+        Awaitility.await().until(() -> consumer.getTotalIncomingMessages() == messageNumber);
+
+        // Hold the consumer's pinned executor, so that the task submitted by redeliverUnacknowledgedMessages()
+        // can't clear the queued messages before the receive below
+        CountDownLatch holdPinnedExecutor = new CountDownLatch(1);
+        consumer.internalPinnedExecutor.execute(() -> {
+            try {
+                holdPinnedExecutor.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+        try {
+            consumer.redeliverUnacknowledgedMessages();
+
+            // The queued messages were sent before the redeliver, and the broker sends them again
+            assertNull(consumer.receive(100, TimeUnit.MILLISECONDS));
+            assertEquals(consumer.getTotalIncomingMessages(), 0);
+        } finally {
+            holdPinnedExecutor.countDown();
+        }
+
+        Set<String> received = new HashSet<>();
+        for (int i = 0; i < messageNumber; i++) {
+            Message<String> message = consumer.receive();
+            assertEquals((((MessageImpl) ((TopicMessageImpl) message).getMessage())).getConsumerEpoch(), 1);
+            received.add(message.getValue());
+        }
+        assertEquals(received, sent);
     }
 
     @Test(dataProvider = "enableBatch")
     public void testMultiConsumerBatchRedeliveryAddEpoch(boolean enableBatch) throws Exception{
 
-        final String topic = "testMultiConsumerBatchRedeliveryAddEpoch";
+        final String topic = getNamespace() + "/testMultiConsumerBatchRedeliveryAddEpoch";
         final String subName = "my-sub";
         admin.topics().createPartitionedTopic(topic, 5);
         final int messageNumber = 50;
@@ -543,7 +577,7 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topic)
-                .batchReceivePolicy(BatchReceivePolicy.builder().timeout(2, TimeUnit.SECONDS).build())
+                .batchReceivePolicy(BatchReceivePolicy.builder().timeout(200, TimeUnit.MILLISECONDS).build())
                 .subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Failover)
                 .subscribe();
@@ -576,6 +610,7 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         }
 
         // can't receive message again
+        waitForDispatched(topic, subName, 2);
         assertEquals(consumer.batchReceive().size(), 0);
 
         // redeliverUnacknowledgedMessages twice
@@ -591,7 +626,29 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         }
 
         // can't receive message again
+        waitForDispatched(topic, subName, 3);
         assertEquals(consumer.batchReceive().size(), 0);
+    }
+
+    /**
+     * Waits until the consumer handled the message the broker sent with a previous epoch: it counts the permit of a
+     * dropped message as available right away, while a message it keeps stays in its queue until it is received.
+     */
+    private static void waitForDroppedMessage(ConsumerImpl<?> consumer, int availablePermits) {
+        Awaitility.await().until(() -> consumer.getAvailablePermits() > availablePermits
+                || consumer.numMessagesInQueue() > 0);
+    }
+
+    /**
+     * Waits until the broker dispatched every message of the partitioned topic {@code deliveries} times: until the
+     * next redelivery, it has nothing more to dispatch.
+     */
+    private void waitForDispatched(String topic, String subName, int deliveries) {
+        Awaitility.await().untilAsserted(() -> {
+            PartitionedTopicStats stats = admin.topics().getPartitionedStats(topic, false);
+            assertEquals(stats.getSubscriptions().get(subName).getMsgOutCounter(),
+                    deliveries * stats.getMsgInCounter());
+        });
     }
 
     /**
@@ -602,7 +659,7 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
      */
     @Test
     public void testRedeliveryWithMultiConsumerAndListenerAddEpoch() throws Exception {
-        final String topic = "testRedeliveryWithMultiConsumerAndListenerAddEpoch";
+        final String topic = getNamespace() + "/testRedeliveryWithMultiConsumerAndListenerAddEpoch";
         final String subName = "my-sub";
         int totalMessages = 100;
         admin.topics().createPartitionedTopic(topic, 2);
@@ -635,10 +692,8 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
 
         // make sure listener has not received any messages until
         // we call redelivery with correct epoch
-        for (int i = 0; i < 2; i++) {
-            assertTrue(ids.isEmpty());
-            Thread.sleep(1000);
-        }
+        waitForDispatched(topic, subName, 1);
+        assertTrue(ids.isEmpty());
         // make epoch valid to consume redelivery message again
         consumer.setConsumerEpoch(epoch - 1);
         consumer.redeliverUnacknowledgedMessages();

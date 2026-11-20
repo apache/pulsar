@@ -72,10 +72,12 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
 
     public void reset() {
         beforeSendCount.set(0);
+        beforeSendCountAtConsumerLevel.set(0);
         count.set(0);
         connectionCreationCount.set(0);
         producerCount.set(0);
         consumerCount.set(0);
+        messagePublishCount.set(0);
         messageCount.set(0);
         messageDispatchCount.set(0);
         messageAckCount.set(0);

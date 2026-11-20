@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.shell;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
@@ -142,7 +143,17 @@ public class PulsarShell {
     private Function<Map<String, ShellCommandsProvider>, InteractiveLineReader> readerBuilder;
     private InteractiveLineReader reader;
     private final ConfigShell configShell;
-    private ExecState execState = ExecState.IDLE;
+    private volatile ExecState execState = ExecState.IDLE;
+    /**
+     * Serializes interrupt delivery from the signal handler with the start and end of a command, so an interrupt
+     * meant for one command can never land on the next one. Never held while a command runs.
+     */
+    @VisibleForTesting
+    final Object interruptLock = new Object();
+    // Guarded by interruptLock: the thread running the current command, or null between commands
+    private Thread interruptTarget;
+    // Guarded by interruptLock: whether a signal interrupted the current command
+    private boolean interruptRequested;
 
     public PulsarShell(String args[]) throws IOException {
         this(args, new Properties());
@@ -229,15 +240,7 @@ public class PulsarShell {
     public void run() throws Exception {
         final Terminal terminal = TerminalBuilder.builder()
                 .nativeSignals(true)
-                .signalHandler(signal -> {
-                    if (signal == Terminal.Signal.INT || signal == Terminal.Signal.QUIT) {
-                        if (execState == ExecState.RUNNING) {
-                            throw new InterruptShellException();
-                        } else {
-                            exit(0);
-                        }
-                    }
-                })
+                .signalHandler(this::handleSignal)
                 .build();
         run((providersMap) -> {
             String serviceUrl = "";
@@ -295,6 +298,50 @@ public class PulsarShell {
                 }
             };
         }, () -> terminal);
+    }
+
+    /**
+     * Handles a terminal signal. It is invoked on jline's signal handler thread, so it must not throw: a running
+     * command is interrupted instead, and the shell exits when no command is running.
+     */
+    void handleSignal(Terminal.Signal signal) {
+        if (signal != Terminal.Signal.INT && signal != Terminal.Signal.QUIT) {
+            return;
+        }
+        if (execState == ExecState.RUNNING) {
+            synchronized (interruptLock) {
+                if (interruptTarget != null) {
+                    interruptRequested = true;
+                    interruptTarget.interrupt();
+                }
+            }
+        } else {
+            exit(0);
+        }
+    }
+
+    private boolean isInterruptRequested() {
+        synchronized (interruptLock) {
+            return interruptRequested;
+        }
+    }
+
+    /**
+     * Stops the current command from being a target for interrupts. A signal delivered before this point is
+     * consumed here, together with the interrupt status it set, so it cannot reach the next command.
+     *
+     * @return whether a signal interrupted the command
+     */
+    private boolean retireInterruptTarget() {
+        synchronized (interruptLock) {
+            interruptTarget = null;
+            final boolean requested = interruptRequested;
+            interruptRequested = false;
+            if (requested) {
+                Thread.interrupted();
+            }
+            return requested;
+        }
     }
 
     private void configureHistory(Properties properties, LineReaderBuilder readerBuilder) {
@@ -437,12 +484,20 @@ public class PulsarShell {
             boolean commandOk = false;
             try {
                 printExecutingCommands(terminal, commandsInfo, false);
+                synchronized (interruptLock) {
+                    interruptTarget = Thread.currentThread();
+                }
                 systemRegistry.execute(line);
             } catch (InterruptShellException t) {
                 // no-op
             } catch (Throwable t) {
-                t.printStackTrace(terminal.writer());
+                if (!isInterruptRequested()) {
+                    t.printStackTrace(terminal.writer());
+                }
             } finally {
+                if (retireInterruptTarget()) {
+                    output("Interrupted", terminal);
+                }
                 final boolean willExitWithError = mainOptions.failOnError && !commandOk;
                 if (commandsInfo != null && !willExitWithError) {
                     commandsInfo.executingCommand = null;

@@ -87,13 +87,15 @@ public class ProxyPublishConsumeClientSideEncryptionTest extends ProducerConsume
 
     @AfterClass(alwaysRun = true)
     protected void cleanup() throws Exception {
-        super.internalCleanup();
+        // Stop the proxy before the broker: the broker would wait for the proxy's connections to close when it stops
+        // its web service
         if (service != null) {
             service.close();
         }
         if (proxyServer != null) {
             proxyServer.stop();
         }
+        super.internalCleanup();
         executor.shutdownNow();
         log.info("Finished Cleaning Up Test setup");
     }

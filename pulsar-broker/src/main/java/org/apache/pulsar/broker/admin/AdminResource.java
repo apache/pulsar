@@ -66,9 +66,7 @@ import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
-import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.EntryFilters;
-import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
@@ -315,31 +313,7 @@ public abstract class AdminResource extends PulsarWebResource {
      */
     @Deprecated
     protected Policies getNamespacePolicies(NamespaceName namespaceName) {
-        try {
-            Policies policies = namespaceResources().getPolicies(namespaceName)
-                    .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Namespace does not exist"));
-            // fetch bundles from LocalZK-policies
-            BundlesData bundleData = pulsar().getNamespaceService().getNamespaceBundleFactory()
-                    .getBundles(namespaceName).getBundlesData();
-            Optional<LocalPolicies> localPolicies = getLocalPolicies().getLocalPolicies(namespaceName);
-            policies.bundles = bundleData != null ? bundleData : policies.bundles;
-            policies.migrated = localPolicies.isPresent() ? localPolicies.get().migrated : false;
-            if (policies.is_allow_auto_update_schema == null) {
-                // the type changed from boolean to Boolean. return broker value here for keeping compatibility.
-                policies.is_allow_auto_update_schema = pulsar().getConfig().isAllowAutoUpdateSchemaEnabled();
-            }
-
-            return policies;
-        } catch (RestException re) {
-            throw re;
-        } catch (Exception e) {
-            log.error()
-                    .attr("namespace", namespaceName)
-                    .exception(e)
-                    .log("Failed to get namespace policies");
-            throw new RestException(e);
-        }
-
+        return sync(() -> getNamespacePoliciesAsync(namespaceName));
     }
 
     protected CompletableFuture<Policies> getNamespacePoliciesAsync(NamespaceName namespaceName) {
@@ -767,7 +741,7 @@ public abstract class AdminResource extends PulsarWebResource {
                 TopicsImpl topics = (TopicsImpl) remotePulsarAdmin.topics();
                 topics.createPartitionedTopicAsync(shortTopicName, numPartitions, true, null)
                         .whenComplete((ignore, ex2) -> {
-                    Throwable unwrapEx2 = ex2 == null ? null : FutureUtil.unwrapCompletionException(ex2);
+                    Throwable unwrapEx2 = FutureUtil.unwrapCompletionException(ex2);
                     // Check the partitions count is expected, also after a successful creation: the remote cluster
                     // accepts a local-only creation of an existing partitioned topic with fewer partitions.
                     if (unwrapEx2 == null || unwrapEx2 instanceof PulsarAdminException.ConflictException) {
@@ -876,43 +850,38 @@ public abstract class AdminResource extends PulsarWebResource {
     private CompletableFuture<Void> provisionPartitionedTopicPath(int numPartitions,
                                                                   boolean createLocalTopicOnly,
                                                                   Map<String, String> properties) {
-        CompletableFuture<Void> future = new CompletableFuture<>();
-        namespaceResources()
-                .getPartitionedTopicResources()
+        return namespaceResources().getPartitionedTopicResources()
                 .createPartitionedTopicAsync(topicName, new PartitionedTopicMetadata(numPartitions, properties))
-                .whenComplete((ignored, ex) -> {
-                    if (ex != null) {
-                        if (ex instanceof AlreadyExistsException) {
-                            if (createLocalTopicOnly) {
-                                future.complete(null);
-                                return;
-                            }
-                            log.warn()
-                                    .attr("topic", topicName)
-                                    .log("Failed to create already existing partitioned topic");
-                            future.completeExceptionally(
-                                    new RestException(Status.CONFLICT, "Partitioned topic already exists"));
-                        } else if (ex instanceof BadVersionException) {
-                            log.warn()
-                                    .attr("topic", topicName)
-                                    .log("Failed to create partitioned topic : concurrent modification");
-                            future.completeExceptionally(
-                                    new RestException(Status.CONFLICT, "Concurrent modification"));
-                        } else {
-                            log.error()
-                                    .attr("topic", topicName)
-                                    .exception(ex)
-                                    .log("Failed to create partitioned topic");
-                            future.completeExceptionally(new RestException(ex.getCause()));
-                        }
-                        return;
+                .handle((ignored, ex) -> {
+                    if (ex == null) {
+                        log.info()
+                                .attr("topic", topicName)
+                                .log("Successfully created partitioned topic");
+                        return null;
                     }
-                    log.info()
+
+                    Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                    if (cause instanceof AlreadyExistsException) {
+                        if (createLocalTopicOnly) {
+                            return null;
+                        }
+                        log.warn()
+                                .attr("topic", topicName)
+                                .log("Failed to create already existing partitioned topic");
+                        throw new RestException(Status.CONFLICT, "Partitioned topic already exists");
+                    }
+                    if (cause instanceof BadVersionException) {
+                        log.warn()
+                                .attr("topic", topicName)
+                                .log("Failed to create partitioned topic : concurrent modification");
+                        throw new RestException(Status.CONFLICT, "Concurrent modification");
+                    }
+                    log.error()
                             .attr("topic", topicName)
-                            .log("Successfully created partitioned topic");
-                    future.complete(null);
+                            .exception(ex)
+                            .log("Failed to create partitioned topic");
+                    throw new RestException(cause != null ? cause : ex);
                 });
-        return future;
     }
 
     protected CompletableFuture<SchemaCompatibilityStrategy> getSchemaCompatibilityStrategyAsync() {

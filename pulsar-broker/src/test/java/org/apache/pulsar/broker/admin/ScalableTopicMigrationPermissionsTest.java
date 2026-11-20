@@ -22,7 +22,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.doCallRealMethod;
 import io.jsonwebtoken.Jwts;
 import java.time.Duration;
 import java.util.HashSet;
@@ -30,6 +29,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import lombok.Cleanup;
 import lombok.SneakyThrows;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -65,12 +65,20 @@ public class ScalableTopicMigrationPermissionsTest extends AuthZTest {
     private static final String NAMESPACE_ROLE = "migrated-namespace-client";
     private static final int NUM_MESSAGES = 20;
 
+    private volatile Function<InvocationOnMock, CompletableFuture<Void>> copyPermissionsHandler;
+
     @SneakyThrows
     @BeforeClass(alwaysRun = true)
     public void setup() {
         configureTokenAuthentication();
         configureDefaultAuthorization();
         start();
+        // Stubbed once here, not in a test: Mockito doesn't stub a mock per thread, so a broker thread calling the
+        // spy while a test stubs it would take the stubbing
+        doAnswer(invocation -> {
+            Function<InvocationOnMock, CompletableFuture<Void>> handler = copyPermissionsHandler;
+            return handler != null ? handler.apply(invocation) : callRealMethod(invocation);
+        }).when(authorizationService).copyPermissionsAsync(any(), any());
         this.superUserAdmin = PulsarAdmin.builder()
                 .serviceHttpUrl(getPulsarService().getWebServiceAddress())
                 .authentication(new AuthenticationToken(SUPER_USER_TOKEN))
@@ -207,10 +215,10 @@ public class ScalableTopicMigrationPermissionsTest extends AuthZTest {
 
         CompletableFuture<Void> copyStarted = new CompletableFuture<>();
         CompletableFuture<Void> resumeCopy = new CompletableFuture<>();
-        doAnswer(invocation -> {
+        copyPermissionsHandler = invocation -> {
             copyStarted.complete(null);
             return resumeCopy.thenCompose(__ -> callRealMethod(invocation));
-        }).when(authorizationService).copyPermissionsAsync(any(), any());
+        };
         try {
             CompletableFuture<Void> migration = superUserAdmin.scalableTopics().migrateToScalableAsync(name, false);
             copyStarted.get(30, TimeUnit.SECONDS);
@@ -222,7 +230,7 @@ public class ScalableTopicMigrationPermissionsTest extends AuthZTest {
             migration.get(30, TimeUnit.SECONDS);
         } finally {
             resumeCopy.complete(null);
-            doCallRealMethod().when(authorizationService).copyPermissionsAsync(any(), any());
+            copyPermissionsHandler = null;
         }
 
         // The scalable topic is the migrated one, with the permissions of the regular topic.
