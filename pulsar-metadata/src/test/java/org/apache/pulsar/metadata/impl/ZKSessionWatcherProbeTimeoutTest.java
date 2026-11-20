@@ -171,6 +171,8 @@ public class ZKSessionWatcherProbeTimeoutTest {
             context.watcher.checkConnectionStatus();
 
             assertThat(context.events).containsExactly(SessionEvent.ConnectionLost);
+            context.watcher.process(sessionEvent(KeeperState.SyncConnected));
+            assertThat(context.events).containsExactly(SessionEvent.ConnectionLost);
         }
     }
 
