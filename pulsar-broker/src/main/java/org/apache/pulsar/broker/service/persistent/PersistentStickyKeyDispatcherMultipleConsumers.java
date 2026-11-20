@@ -415,7 +415,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
 
         if (consumerSet.isEmpty()) {
             entries.forEach(Entry::release);
-            cursor.rewind();
+            rewindCursor();
             return false;
         }
 
