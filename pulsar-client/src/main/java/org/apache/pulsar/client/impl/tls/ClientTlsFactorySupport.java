@@ -69,8 +69,11 @@ import org.apache.pulsar.tls.TlsPurpose;
  *
  * <p><b>Fail-fast probing.</b> Eager probing of the statically-needed client purpose
  * ({@link TlsPurpose#CLIENT_DEFAULT}) is a <em>v5-builder-path</em> behaviour only: it runs when the v5
- * builder configured TLS, so a bad path fails the client build with an actionable error. A plain v4 client's
- * config stays lazily loaded, so unmodified v4 tests that lazily tolerated a bad TLS field are not broken.
+ * builder configured a policy map or an adopted factory and transport TLS is enabled. A bad transport TLS
+ * path then fails the client build with an actionable error. Plaintext clients still initialize the factory
+ * without probing {@code CLIENT_DEFAULT}, allowing a factory that serves only {@code CLIENT_OAUTH2}.
+ * A plain v4 client's config stays lazily loaded, so unmodified v4 tests that lazily tolerated a bad TLS
+ * field are not broken.
  */
 public final class ClientTlsFactorySupport {
 

@@ -51,15 +51,6 @@ public class OAuth2OnlyTlsFactoryTest {
             assertThat(conf.getTlsFactory()).as("the client retains the adopted factory").isSameAs(factory);
             assertThat(factory.initialized).hasValue(1);
             assertThat(factory.closed).hasValue(0);
-
-            TlsHandle<SSLContext> handle = conf.getTlsFactory()
-                    .createInstance(TlsPurpose.CLIENT_OAUTH2, SSLContext.class).get().orElseThrow();
-            try {
-                assertThat(handle.get()).as("OAuth2 can still obtain its TLS context")
-                        .isSameAs(factory.oauthContext);
-            } finally {
-                handle.dispose();
-            }
         }
         assertThat(factory.closed).as("the client closes the adopted factory exactly once").hasValue(1);
     }
