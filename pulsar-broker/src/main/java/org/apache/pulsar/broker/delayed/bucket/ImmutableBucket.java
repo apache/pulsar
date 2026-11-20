@@ -131,18 +131,20 @@ class ImmutableBucket {
         final String cursorName = Codec.decode(ctx.cursor().getName());
         final String dispatcher = ctx.dispatcherName();
         final String topicName = dispatcher.substring(0, dispatcher.lastIndexOf(" / " + cursorName));
-        return executeWithRetry(
-                () -> ctx.bucketSnapshotStorage().createBucketSnapshot(snapshotMetadata, bucketSnapshotSegments,
-                                bucketKey, topicName, cursorName)
-                        .whenComplete((__, ex) -> {
-                            if (ex != null) {
-                                log.warn()
-                                        .attr("dispatcher", dispatcher)
-                                        .attr("bucketKey", bucketKey)
-                                        .exception(ex)
-                                        .log("Failed to create bucket snapshot");
-                            }
-                        }), BucketSnapshotPersistenceException.class, MaxRetryTimes).thenCompose(newBucketId -> {
+        return deleteSupersededSnapshotLedger(bucketKey)
+                .thenCompose(ignored -> executeWithRetry(
+                        () -> ctx.bucketSnapshotStorage().createBucketSnapshot(snapshotMetadata,
+                                        bucketSnapshotSegments, bucketKey, topicName, cursorName)
+                                .whenComplete((__, ex) -> {
+                                    if (ex != null) {
+                                        log.warn()
+                                                .attr("dispatcher", dispatcher)
+                                                .attr("bucketKey", bucketKey)
+                                                .exception(ex)
+                                                .log("Failed to create bucket snapshot");
+                                    }
+                                }), BucketSnapshotPersistenceException.class, MaxRetryTimes))
+                .thenCompose(newBucketId -> {
                     setBucketId(newBucketId);
 
                     return putBucketKeyId(bucketKey, newBucketId).exceptionally(ex -> {
@@ -153,8 +155,29 @@ class ImmutableBucket {
                                 .exception(ex)
                                 .log("Failed to record bucketId to cursor property");
                         return null;
-                    }).thenApply(__ -> newBucketId);
+                    }).thenApply(ignored -> newBucketId);
                 });
+    }
+
+    /**
+     * The property is the only durable reference to the superseded ledger: delete it before the
+     * replacement is allocated, or fail the save so the reference survives for a retry.
+     */
+    private CompletableFuture<Void> deleteSupersededSnapshotLedger(String bucketKey) {
+        String supersededBucketIdStr = ctx.cursor().getCursorProperties().get(bucketKey);
+        if (supersededBucketIdStr == null) {
+            return CompletableFuture.completedFuture(null);
+        }
+        try {
+            long supersededBucketId = Long.parseLong(supersededBucketIdStr);
+            return ctx.bucketSnapshotStorage().deleteBucketSnapshot(supersededBucketId);
+        } catch (NumberFormatException e) {
+            log.warn()
+                    .attr("bucketKey", bucketKey)
+                    .attr("bucketId", supersededBucketIdStr)
+                    .log("Skipping the superseded snapshot ledger delete, the bucket id is malformed");
+            return CompletableFuture.completedFuture(null);
+        }
     }
 
     private CompletableFuture<Void> putBucketKeyId(String bucketKey, Long bucketId) {
@@ -170,6 +193,22 @@ class ImmutableBucket {
         return ctx.sequencer().sequential(() ->
                 executeWithRetry(() -> ctx.cursor().removeCursorProperty(bucketKey),
                         ManagedLedgerException.BadVersionException.class, MaxRetryTimes));
+    }
+
+    /**
+     * Removes the property only while it still references the deleted ledger, so a delete racing a
+     * later save does not drop the replacement's only durable reference.
+     */
+    private CompletableFuture<Void> removeBucketCursorPropertyIfStillReferences(String bucketKey,
+                                                                                long bucketId) {
+        return ctx.sequencer().sequential(() -> executeWithRetry(() -> {
+            String currentBucketId = ctx.cursor().getCursorProperties().get(bucketKey);
+            if (currentBucketId == null || !currentBucketId.equals(String.valueOf(bucketId))) {
+                // The property has been replaced by a later snapshot; do not remove it.
+                return CompletableFuture.completedFuture(null);
+            }
+            return ctx.cursor().removeCursorProperty(bucketKey);
+        }, ManagedLedgerException.BadVersionException.class, MaxRetryTimes));
     }
 
     public Optional<List<SnapshotSegment>> getSnapshotSegments() {
@@ -348,7 +387,7 @@ class ImmutableBucket {
                                     System.currentTimeMillis() - deleteStartTime);
                         }
                     })
-                    .thenCompose(__ -> removeBucketCursorProperty(bucketKey));
+                    .thenCompose(__ -> removeBucketCursorPropertyIfStillReferences(bucketKey, bucketId));
         });
     }
 
