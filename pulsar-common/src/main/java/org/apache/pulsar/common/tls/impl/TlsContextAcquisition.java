@@ -411,7 +411,9 @@ public final class TlsContextAcquisition {
             synchronized (this) {
                 // Wait for an in-flight publish before marking the subscription disposed, so no consumer
                 // callback can run after dispose returns.
-                disposed.set(true);
+                if (disposed.getAndSet(true)) {
+                    return;
+                }
                 jdkHandle = underlying;
             }
             // The factory may use the same lock for delivery and disposal. Release our monitor before

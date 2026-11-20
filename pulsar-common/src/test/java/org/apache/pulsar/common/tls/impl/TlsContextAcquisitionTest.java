@@ -19,6 +19,7 @@
 package org.apache.pulsar.common.tls.impl;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import io.netty.handler.ssl.SslContext;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.Optional;
@@ -39,6 +40,58 @@ import org.apache.pulsar.tls.TlsPurpose;
 import org.testng.annotations.Test;
 
 public class TlsContextAcquisitionTest {
+    @Test
+    public void repeatedDisposeReleasesUnderlyingHandleOnce() throws Exception {
+        LockingFactory factory = new LockingFactory();
+        TlsHandle<SslContext> handle = TlsContextAcquisition.acquireNettyContext(factory,
+                TlsPurpose.CLIENT_DEFAULT, TlsSynthesisSpec.client(true), ignored -> { })
+                .get(5, TimeUnit.SECONDS).orElseThrow();
+        try {
+            handle.dispose();
+            handle.dispose();
+            assertThat(factory.disposeCalls).as("repeated disposal must release the underlying handle once")
+                    .hasValue(1);
+        } finally {
+            handle.dispose();
+            factory.close();
+        }
+    }
+
+    @Test
+    public void concurrentDisposeReleasesUnderlyingHandleOnce() throws Exception {
+        LockingFactory factory = new LockingFactory();
+        TlsHandle<SslContext> handle = TlsContextAcquisition.acquireNettyContext(factory,
+                TlsPurpose.CLIENT_DEFAULT, TlsSynthesisSpec.client(true), ignored -> { })
+                .get(5, TimeUnit.SECONDS).orElseThrow();
+        ExecutorService pool = Executors.newFixedThreadPool(2,
+                new DefaultThreadFactory("tls-concurrent-dispose-test"));
+        try {
+            Future<?> first;
+            // Keep the first caller inside the underlying handle's dispose() while the second caller runs.
+            factory.lock.lock();
+            try {
+                first = pool.submit(handle::dispose);
+                assertThat(factory.disposeEntered.await(5, TimeUnit.SECONDS)).isTrue();
+                Future<?> second = pool.submit(handle::dispose);
+                await().atMost(5, TimeUnit.SECONDS)
+                        .until(() -> second.isDone() || factory.disposeCalls.get() > 1);
+                assertThat(factory.disposeCalls).as("concurrent disposal must release the underlying handle once")
+                        .hasValue(1);
+                second.get(5, TimeUnit.SECONDS);
+            } finally {
+                factory.lock.unlock();
+            }
+            first.get(5, TimeUnit.SECONDS);
+            handle.dispose();
+            assertThat(factory.disposeCalls).hasValue(1);
+        } finally {
+            pool.shutdownNow();
+            assertThat(pool.awaitTermination(5, TimeUnit.SECONDS)).as("test threads must exit").isTrue();
+            handle.dispose();
+            factory.close();
+        }
+    }
+
     @Test
     public void disposeDoesNotDeadlockWithReload() throws Exception {
         LockingFactory factory = new LockingFactory();
@@ -91,6 +144,7 @@ public class TlsContextAcquisitionTest {
         private final CountDownLatch rotationLocked = new CountDownLatch(1);
         private final CountDownLatch disposeEntered = new CountDownLatch(1);
         private final CountDownLatch deliver = new CountDownLatch(1);
+        private final AtomicInteger disposeCalls = new AtomicInteger();
         private Consumer<SSLContext> callback;
 
         private LockingFactory() throws Exception {
@@ -137,6 +191,7 @@ public class TlsContextAcquisitionTest {
 
                     @Override
                     public void dispose() {
+                        disposeCalls.incrementAndGet();
                         disposeEntered.countDown();
                         try {
                             lock.lockInterruptibly();
