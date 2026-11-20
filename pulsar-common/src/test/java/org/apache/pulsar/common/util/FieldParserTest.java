@@ -153,12 +153,11 @@ public class FieldParserTest {
     @Test
     public void testEmptyStringValueConversion() throws Exception {
         class EmptyConfig {
-            public Long longValue;
-            public Float floatValue;
-            public String name;
+            public Long longValue = 5L;
+            public Float floatValue = 1.5f;
+            public String name = "old-value";
         }
         EmptyConfig config = new EmptyConfig();
-        config.name = "old-value";
 
         Map<String, String> properties = new HashMap<>();
         properties.put("longValue", "");
@@ -169,8 +168,9 @@ public class FieldParserTest {
         // Empty values mirror the Integer/Double converters and clear numeric fields.
         assertNull(config.longValue);
         assertNull(config.floatValue);
-        // The String field must be cleared as well rather than keeping the stale value.
-        assertNull(config.name);
+        // A blank String keeps the field's default: the shipped conf files rely on that,
+        // and broker startup NPEs if a blank String entry clears it (EntryFilterProvider).
+        assertEquals(config.name, "old-value");
 
         // The direct converters treat empty input like stringToInteger/stringToDouble do.
         Field longField = EmptyConfig.class.getDeclaredField("longValue");
