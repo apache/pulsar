@@ -143,21 +143,6 @@ public interface Dispatcher {
         return clearDelayedMessages();
     }
 
-    /**
-     * Start buffering delayed entries before an ordinary backlog clear invokes the cursor clear.
-     * Entries published after the clear tail is sampled must not be installed before the cursor and
-     * tracker work settles.
-     */
-    default void startBufferingDelayedMessagesForBacklogClear() {
-    }
-
-    /**
-     * Stop buffering delayed entries and install the buffered positions. Used when the cursor clear
-     * fails or after the delayed-state cleanup settles. Idempotent.
-     */
-    default void releaseBufferedDelayedMessagesAfterBacklogClear() {
-    }
-
     default void cursorIsReset() {
         //No-op
     }

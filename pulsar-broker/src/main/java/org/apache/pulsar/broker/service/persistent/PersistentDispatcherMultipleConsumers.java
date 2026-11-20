@@ -1764,7 +1764,12 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                 + messagesPendingDelayedDeliveryTracker.size();
     }
 
-    @Override
+    /**
+     * Start buffering delayed entries before an ordinary backlog clear invokes the cursor clear.
+     * Entries published after the clear tail is sampled must not be installed before the cursor and
+     * tracker work settles. Only this dispatcher family tracks delayed messages, so the buffering
+     * gate lives here instead of the {@code Dispatcher} interface.
+     */
     public void startBufferingDelayedMessagesForBacklogClear() {
         synchronized (this) {
             if (!topic.isDelayedDeliveryEnabled()) {
@@ -1774,7 +1779,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
         }
     }
 
-    @Override
+    /**
+     * Stop buffering delayed entries and install the buffered positions. Used when the cursor clear
+     * fails or after the delayed-state cleanup settles. Idempotent.
+     */
     public void releaseBufferedDelayedMessagesAfterBacklogClear() {
         installPendingAfterBacklogClear();
     }

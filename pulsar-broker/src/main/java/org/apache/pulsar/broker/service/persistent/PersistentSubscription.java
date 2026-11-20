@@ -881,8 +881,8 @@ public class PersistentSubscription extends AbstractSubscription {
                 .attr("entriesInBacklog", cursor.getNumberOfEntriesInBacklog(false))
                 .log("Backlog size before clearing");
 
-        if (dispatcher != null) {
-            dispatcher.startBufferingDelayedMessagesForBacklogClear();
+        if (dispatcher instanceof PersistentDispatcherMultipleConsumers persistentDispatcher) {
+            persistentDispatcher.startBufferingDelayedMessagesForBacklogClear();
         }
         cursor.asyncClearBacklog(new ClearBacklogCallback() {
             @Override
@@ -891,8 +891,9 @@ public class PersistentSubscription extends AbstractSubscription {
                         .attr("entriesInBacklog", cursor.getNumberOfEntriesInBacklog(false))
                         .log("Backlog size after clearing");
                 if (dispatcher != null) {
+                    // clearDelayedMessagesAfterBacklogClear() releases the buffered entries when
+                    // the delayed-state cleanup settles, including on cleanup failure.
                     dispatcher.clearDelayedMessagesAfterBacklogClear().whenComplete((__, ex) -> {
-                        dispatcher.releaseBufferedDelayedMessagesAfterBacklogClear();
                         synchronized (PersistentSubscription.this) {
                             inProgressBacklogClearFuture = null;
                         }
@@ -918,7 +919,9 @@ public class PersistentSubscription extends AbstractSubscription {
                         .exception(exception)
                         .log("Failed to clear backlog");
                 if (dispatcher != null) {
-                    dispatcher.releaseBufferedDelayedMessagesAfterBacklogClear();
+                    if (dispatcher instanceof PersistentDispatcherMultipleConsumers d) {
+                        d.releaseBufferedDelayedMessagesAfterBacklogClear();
+                    }
                     dispatcher.afterAckMessages(exception, ctx);
                 }
                 synchronized (PersistentSubscription.this) {
