@@ -1789,7 +1789,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             messagesPendingDelayedDeliveryTracker.clear();
         }
         if (createFuture != null) {
-            createFuture.complete(null);
+            // Fail the old creation so any clear waiting on it does not run a second residual
+            // cleanup while the reset is deleting and republishing the same bucket keys.
+            createFuture.completeExceptionally(
+                    new IllegalStateException("Tracker creation invalidated by cursor reset"));
         }
         if (skipRecovery != null) {
             skipRecovery.complete(null);

@@ -148,14 +148,25 @@ public class BucketDelayedDeliveryTrackerFactory implements DelayedDeliveryTrack
         FutureUtil.Sequencer<Void> sequencer = FutureUtil.Sequencer.create();
         cursorProperties.forEach((k, v) -> {
             if (k != null && v != null && k.startsWith(BucketDelayedDeliveryTracker.DELAYED_BUCKET_KEY_PREFIX)) {
+                long bucketId = Long.parseLong(v);
                 CompletableFuture<Void> future = sequencer.sequential(() ->
-                        bucketSnapshotStorage.deleteBucketSnapshot(Long.parseLong(v))
-                                .thenCompose(__ -> cursor.removeCursorProperty(k)));
+                        bucketSnapshotStorage.deleteBucketSnapshot(bucketId)
+                                .thenCompose(__ -> removeCursorPropertyIfStillReferences(cursor, k, bucketId)));
                 futures.add(future);
             }
         });
 
         return FutureUtil.waitForAll(futures);
+    }
+
+    private CompletableFuture<Void> removeCursorPropertyIfStillReferences(ManagedCursor cursor, String key,
+                                                                          long bucketId) {
+        String currentBucketId = cursor.getCursorProperties().get(key);
+        if (currentBucketId == null || !currentBucketId.equals(String.valueOf(bucketId))) {
+            // The property has been replaced by a later snapshot; do not remove it.
+            return CompletableFuture.completedFuture(null);
+        }
+        return cursor.removeCursorProperty(key);
     }
 
     @Override

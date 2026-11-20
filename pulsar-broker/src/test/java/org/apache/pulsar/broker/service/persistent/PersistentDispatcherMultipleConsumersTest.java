@@ -809,6 +809,34 @@ public class PersistentDispatcherMultipleConsumersTest extends SharedPulsarBaseT
         }
     }
 
+    @Test
+    public void testCursorResetInvalidationFailsWaitingBacklogClear() throws Exception {
+        // A reset invalidates the creation a backlog clear is waiting on. The waiting clear must
+        // fail instead of running a second residual cleanup that could race the reset.
+        DelayedDeliveryTrackerFactory factory = Mockito.mock(DelayedDeliveryTrackerFactory.class);
+        CompletableFuture<DelayedDeliveryTracker> gatedCreation = new CompletableFuture<>();
+        Mockito.doReturn(gatedCreation).when(factory).newTrackerAsync(Mockito.any());
+
+        PersistentDispatcherMultipleConsumers dispatcher = newDispatcherWithDelayedTrackerFactory(factory);
+        ManagedCursor dispatcherCursor = dispatcher.getCursor();
+        Mockito.doReturn(PositionFactory.create(0L, -1L)).when(dispatcherCursor).getMarkDeletedPosition();
+        long deliverAtTime = System.currentTimeMillis() + 5_000;
+        try {
+            Assert.assertTrue(dispatcher.trackDelayedDelivery(1, 1, newDelayedMessageMetadata(deliverAtTime)));
+            Assert.assertTrue(dispatcher.isDelayedDeliveryTrackerCreatePending());
+
+            CompletableFuture<Void> backlogClear = dispatcher.clearDelayedMessagesAfterBacklogClear();
+            dispatcher.clearDelayedMessagesAfterCursorReset().get(3, TimeUnit.SECONDS);
+
+            assertThat(backlogClear).failsWithin(5, TimeUnit.SECONDS);
+            Assert.assertEquals(dispatcher.getDelayedDeliveryTrackerCreatePendingMessages(), 0);
+            assertThat(dispatcher.isDelayedDeliveryTrackerCreatePending()).isFalse();
+        } finally {
+            // Stop any further retry
+            dispatcher.close(false, Optional.empty()).get(1, TimeUnit.MINUTES);
+        }
+    }
+
     private PersistentDispatcherMultipleConsumers newDispatcherWithDelayedTrackerFactory(
             DelayedDeliveryTrackerFactory factory) {
         BrokerService brokerService = Mockito.spy(getPulsar().getBrokerService());
