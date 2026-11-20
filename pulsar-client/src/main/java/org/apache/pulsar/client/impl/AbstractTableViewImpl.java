@@ -280,11 +280,19 @@ abstract class AbstractTableViewImpl<T, V> implements TableView<V> {
 
     private void handleMessage(Message<T> msg) {
         try {
-            if (msg.hasKey()) {
-                handleKeyedMessage(msg);
-            } else {
-                // Keyless messages also advance the refresh position.
+            try {
+                if (msg.hasKey()) {
+                    handleKeyedMessage(msg);
+                } else {
+                    // Keyless messages also advance the refresh position.
+                    lastReadPositions.put(msg.getTopicName(), msg.getMessageId());
+                }
+            } catch (Throwable t) {
+                // The message is skipped, so it is processed as far as a refresh is concerned: one waiting for it
+                // completes now instead of waiting for the next message, which may never come on a quiet topic.
                 lastReadPositions.put(msg.getTopicName(), msg.getMessageId());
+                checkAllFreshTask(msg);
+                throw t;
             }
             checkAllFreshTask(msg);
         } finally {

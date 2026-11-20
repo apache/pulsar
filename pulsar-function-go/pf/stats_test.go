@@ -218,6 +218,92 @@ func TestInstanceControlMetrics(t *testing.T) {
 	}
 }
 
+func TestGetMetricsRegistry_CustomCollector(t *testing.T) {
+	gi := newGoInstance()
+	t.Cleanup(gi.close)
+	metricsServicer := NewMetricsServicer(gi)
+	metricsServicer.serve()
+	t.Cleanup(metricsServicer.close)
+
+	// A Counter is something the user_metric Summary cannot express.
+	customCounter := prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "go_test_custom_counter_total",
+		Help: "A user-registered counter exposed via FunctionContext.GetMetricsRegistry.",
+	})
+	err := gi.context.GetMetricsRegistry().Register(customCounter)
+	assert.NoError(t, err)
+	t.Cleanup(func() { gi.context.GetMetricsRegistry().Unregister(customCounter) })
+	customCounter.Add(42)
+
+	time.Sleep(time.Second * 1)
+	resp, err := http.Get(fmt.Sprintf("http://localhost:%d/metrics", gi.context.GetMetricsPort()))
+	assert.Equal(t, nil, err)
+	assert.NotEqual(t, nil, resp)
+	assert.Equal(t, 200, resp.StatusCode)
+	body, err := io.ReadAll(resp.Body)
+	assert.Equal(t, nil, err)
+	resp.Body.Close()
+	// The custom counter carries the same instance labels as the SDK metrics.
+	labels := `cluster="pulsar-function-go",fqfn="//go-function",instance_id="pulsar-function",` +
+		`name="go-function",namespace="/",tenant=""`
+	assert.Containsf(t, string(body), "\ngo_test_custom_counter_total{"+labels+"} 42\n",
+		"custom collector should be exposed on /metrics with the instance labels")
+}
+
+// failingCollector is an unchecked collector whose metric always fails to gather.
+type failingCollector struct{}
+
+func (failingCollector) Describe(chan<- *prometheus.Desc) {}
+
+func (failingCollector) Collect(ch chan<- prometheus.Metric) {
+	desc := prometheus.NewDesc("go_test_failing_metric", "A metric that always fails to gather.", nil, nil)
+	ch <- prometheus.NewInvalidMetric(desc, errors.New("collect failed"))
+}
+
+func TestGetMetricsRegistry_FailingCollectorKeepsSdkMetrics(t *testing.T) {
+	gi := newGoInstance()
+	t.Cleanup(gi.close)
+	metricsServicer := NewMetricsServicer(gi)
+	metricsServicer.serve()
+	t.Cleanup(metricsServicer.close)
+
+	collector := failingCollector{}
+	err := gi.context.GetMetricsRegistry().Register(collector)
+	assert.NoError(t, err)
+	t.Cleanup(func() { gi.context.GetMetricsRegistry().Unregister(collector) })
+
+	time.Sleep(time.Second * 1)
+	resp, err := http.Get(fmt.Sprintf("http://localhost:%d/metrics", gi.context.GetMetricsPort()))
+	assert.Equal(t, nil, err)
+	assert.NotEqual(t, nil, resp)
+	assert.Equal(t, 200, resp.StatusCode)
+	body, err := io.ReadAll(resp.Body)
+	assert.Equal(t, nil, err)
+	resp.Body.Close()
+	assert.Containsf(t, string(body), PulsarFunctionMetricsPrefix+TotalReceived,
+		"SDK metrics should still be served when a user collector fails")
+}
+
+func TestGetMetricsRegistry_NameCollision(t *testing.T) {
+	gi := newGoInstance()
+	t.Cleanup(gi.close)
+
+	// Collides with the built-in received_total gauge registered on reg in init().
+	colliding := prometheus.NewCounter(prometheus.CounterOpts{
+		Name: PulsarFunctionMetricsPrefix + TotalReceived,
+		Help: "collector whose name collides with a built-in SDK metric",
+	})
+
+	// Register is the documented safe path: it returns an error, it does not panic.
+	err := gi.context.GetMetricsRegistry().Register(colliding)
+	assert.Error(t, err)
+
+	// MustRegister panics on the same collision.
+	assert.Panics(t, func() {
+		gi.context.GetMetricsRegistry().MustRegister(colliding)
+	})
+}
+
 func TestStatsTimestampsAreMillis(t *testing.T) {
 	gi := newGoInstance()
 	t.Cleanup(gi.close)

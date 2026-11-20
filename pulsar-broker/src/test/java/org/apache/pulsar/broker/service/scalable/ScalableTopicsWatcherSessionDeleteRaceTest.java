@@ -96,7 +96,7 @@ public class ScalableTopicsWatcherSessionDeleteRaceTest {
         // Registered after the resources' own listener, and notifications reach the listeners
         // one at a time in registration order: once this one sees a notification, the session
         // has handled it.
-        store.registerListener(handledNotifications::add);
+        store.registerCancellableListener(handledNotifications::add);
 
         cnx = mock(ServerCnx.class);
         ctx = mock(ChannelHandlerContext.class);

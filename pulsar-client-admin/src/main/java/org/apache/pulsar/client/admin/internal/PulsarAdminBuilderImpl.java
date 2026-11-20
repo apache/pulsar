@@ -185,6 +185,7 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
         PulsarAdminBuilderImpl pulsarAdminBuilder = new PulsarAdminBuilderImpl(conf.clone(), adoptedTlsFactories);
         pulsarAdminBuilder.clientBuilderClassLoader = clientBuilderClassLoader;
         pulsarAdminBuilder.acceptGzipCompression = acceptGzipCompression;
+        pulsarAdminBuilder.sharedResources = sharedResources;
         return pulsarAdminBuilder;
     }
 
@@ -192,8 +193,12 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
     public PulsarAdminBuilder loadConf(Map<String, Object> config) {
         // PIP-478: reject a stale, removed PIP-337 sslFactoryPlugin key with an actionable message.
         ConfigurationDataUtils.rejectRemovedPip337TlsFactoryKeys(config);
-        conf = ConfigurationDataUtils.loadData(config, conf, ClientConfigurationData.class);
-        setAuthenticationFromPropsIfAvailable(conf);
+        conf = ConfigurationDataUtils.updateData(config, conf.clone());
+        // The authentication set on the builder is kept, unless the map changes the properties it is created from
+        if (ConfigurationDataUtils.containsAuthenticationKeys(config)) {
+            conf.setAuthentication(null);
+            setAuthenticationFromPropsIfAvailable(conf);
+        }
         if (config.containsKey("acceptGzipCompression")) {
             Object acceptGzipCompressionObj = config.get("acceptGzipCompression");
             if (acceptGzipCompressionObj instanceof Boolean) {

@@ -134,7 +134,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends AbstractMessageDi
     }
 
     /**
-     * verify rate-limiting should throttle message-dispatching based on message-rate
+     * verify rate-limiting should throttle message-dispatching based on message-rate.
      *
      * <pre>
      *  1. dispatch-msg-rate = 10 msg/sec
@@ -308,7 +308,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends AbstractMessageDi
     }
 
     /**
-     * verify rate-limiting should throttle message-dispatching based on byte-rate
+     * verify rate-limiting should throttle message-dispatching based on byte-rate.
      *
      * <pre>
      *  1. dispatch-byte-rate = 1000 bytes/sec
@@ -523,7 +523,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends AbstractMessageDi
     }
 
     /**
-     * Verify whether the broker level rate-limiting is throttle message-dispatching based on byte-rate or not
+     * Verify whether the broker level rate-limiting is throttle message-dispatching based on byte-rate or not.
      *
      * <pre>
      *  1. Broker level dispatch-byte-rate is equal to 1000 bytes per second.

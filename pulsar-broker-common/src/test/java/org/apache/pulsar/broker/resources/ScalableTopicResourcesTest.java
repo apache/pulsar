@@ -158,7 +158,7 @@ public class ScalableTopicResourcesTest {
     @Test(dataProvider = "metadataStoreTypes")
     public void testMetadataObserversReuseConstructorStoreListener(boolean extended) {
         Fixture fixture = fixture(extended);
-        verify(fixture.store()).registerListener(any());
+        verify(fixture.store()).registerCancellableListener(any());
         Consumer<Notification> first = notification -> { };
         Consumer<Notification> second = notification -> { };
         fixture.resources().registerMetadataListener(first);
@@ -167,16 +167,17 @@ public class ScalableTopicResourcesTest {
         fixture.resources().deregisterMetadataListener(first);
         fixture.resources().deregisterMetadataListener(second);
 
-        verify(fixture.store(), times(1)).registerListener(any());
+        verify(fixture.store(), times(1)).registerCancellableListener(any());
     }
 
     private static Fixture fixture(boolean extended) {
         MetadataStore store = extended ? mock(MetadataStoreExtended.class) : mock(MetadataStore.class);
         AtomicReference<Consumer<Notification>> storeListener = new AtomicReference<>();
+        Runnable cancelStoreListener = mock(Runnable.class);
         doAnswer(invocation -> {
             storeListener.set(invocation.getArgument(0));
-            return null;
-        }).when(store).registerListener(any());
+            return cancelStoreListener;
+        }).when(store).registerCancellableListener(any());
         ScalableTopicResources resources = new ScalableTopicResources(store, 30);
         assertThat(storeListener.get()).as("the constructor installs the shared notification dispatcher").isNotNull();
         return new Fixture(store, resources, storeListener.get());

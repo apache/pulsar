@@ -32,7 +32,7 @@ import org.apache.pulsar.client.api.v5.schema.Schema;
 import org.testng.annotations.Test;
 
 /**
- * Producer {@link ProducerAccessMode} coverage:
+ * Producer {@link ProducerAccessMode} coverage.
  * <ul>
  *   <li>SHARED is the default — multiple producers can coexist.</li>
  *   <li>EXCLUSIVE — first producer succeeds, a second EXCLUSIVE attempt fails fast

@@ -123,6 +123,7 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
     private final String replicasCheckCtimePath;
 
     private final MetadataStoreExtended store;
+    private final Runnable cancelListener;
 
     private final List<BookkeeperInternalCallbacks.GenericCallback<Void>> replicationEnabledCallbacks =
             new ArrayList<>();
@@ -166,7 +167,7 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
         replicasCheckCtimePath = basePath + '/' + BookKeeperConstants.REPLICAS_CHECK_CTIME;
 
         this.store = store;
-        store.registerListener(this::handleNotification);
+        cancelListener = store.registerCancellableListener(this::handleNotification);
 
         checkLayout();
     }
@@ -681,11 +682,17 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
 
     @Override
     public void releaseUnderreplicatedLedger(long ledgerId) throws ReplicationException.UnavailableException {
+        releaseUnderreplicatedLedger(ledgerId, BLOCKING_CALL_TIMEOUT, MILLISECONDS);
+    }
+
+    @VisibleForTesting
+    void releaseUnderreplicatedLedger(long ledgerId, long timeout, TimeUnit timeoutUnit)
+            throws ReplicationException.UnavailableException {
         log.debug().attr("ledgerId", ledgerId).log("releaseLedger");
         Lock l = heldLocks.get(ledgerId);
         try {
             if (l != null) {
-                releaseLock(ledgerId, l).get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
+                releaseLock(ledgerId, l).get(timeout, timeoutUnit);
             }
         } catch (ExecutionException ee) {
             if (ee.getCause() instanceof MetadataStoreException.NotFoundException) {
@@ -747,7 +754,7 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
                     return store.delete(lock.getLockPath(), Optional.of(version));
                 })
                 .whenComplete((ignored, error) -> {
-                    Throwable cause = error == null ? null : FutureUtil.unwrapCompletionException(error);
+                    Throwable cause = FutureUtil.unwrapCompletionException(error);
                     if (cause == null || cause instanceof MetadataStoreException.NotFoundException) {
                         heldLocks.remove(ledgerId, lock);
                         result.complete(null);
@@ -780,6 +787,7 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
     @VisibleForTesting
     void close(long timeout, TimeUnit timeoutUnit) throws ReplicationException.UnavailableException {
         log.debug("close()");
+        cancelListener.run();
         notificationCallbackExecutor.shutdownNow();
 
         Map<Long, Lock> locks = Map.copyOf(heldLocks);
@@ -788,7 +796,7 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
             // releaseLock() verifies ownership before deleting and drops the held lock once it is gone.
             deleteResults.add(FutureUtil.supplySafely(() -> releaseLock(entry.getKey(), entry.getValue()))
                     .handle((__, error) -> {
-                        Throwable cause = error == null ? null : FutureUtil.unwrapCompletionException(error);
+                        Throwable cause = FutureUtil.unwrapCompletionException(error);
                         if (cause == null || cause instanceof MetadataStoreException.NotFoundException) {
                             return null;
                         }

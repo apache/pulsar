@@ -207,6 +207,8 @@ public class V5ScalableTopicsWatcherTest extends V5ClientBaseTest {
      * initial snapshot is delivered via the future + {@code onSnapshot} on the
      * listener for uniform handling — see the watcher's javadoc.
      */
+    // The watcher is driven reflectively, so its listener arguments and start() future are untyped.
+    @SuppressWarnings("unchecked")
     private WatcherHandle openWatcher(NamespaceName ns, Map<String, String> filters)
             throws Exception {
         // Pull the underlying v4 client out of v5Client so we can construct the

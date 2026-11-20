@@ -25,6 +25,7 @@ import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import java.util.Queue;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandAck;
+import org.apache.pulsar.common.api.proto.CommandAckResponse;
 import org.apache.pulsar.common.api.proto.CommandAddPartitionToTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandAddSubscriptionToTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandAuthChallenge;
@@ -128,6 +129,11 @@ public class ClientChannelHelper {
         @Override
         protected void handleAck(CommandAck ack) {
             queue.offer(new CommandAck().copyFrom(ack));
+        }
+
+        @Override
+        protected void handleAckResponse(CommandAckResponse ackResponse) {
+            queue.offer(new CommandAckResponse().copyFrom(ackResponse));
         }
 
         @Override

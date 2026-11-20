@@ -164,6 +164,49 @@ public class CompactedTopicUtilsTest {
         Assert.assertEquals(reported.get(), lastCompactedPosition.getNext());
     }
 
+    @Test
+    public void testIndividuallyAcknowledgedEntriesAreSkipped() throws Exception {
+        // The cursor acknowledged 1:90 individually, and its mark-delete position is before the compacted entries.
+        TopicCompactionService service = mockService(PositionFactory.create(1, 100));
+        ManagedCursorImpl cursor = mockCursor(PositionFactory.create(1, 80), PositionFactory.create(1, -1));
+        Mockito.doReturn(PositionFactory.create(1, 79)).when(cursor).getMarkDeletedPosition();
+        Position acknowledgedPosition = PositionFactory.create(1, 90);
+        Mockito.doReturn(true).when(cursor).isMessageDeleted(acknowledgedPosition);
+        Entry unacknowledged = mockEntry(PositionFactory.create(1, 85));
+        Entry acknowledged = mockEntry(acknowledgedPosition);
+        Mockito.doReturn(CompletableFuture.completedFuture(new ArrayList<>(List.of(unacknowledged, acknowledged))))
+                .when(service).readCompactedEntries(Mockito.any(), Mockito.anyInt());
+
+        List<Entry> entries = CompactedTopicUtils.asyncReadCompactedEntries(service, cursor, 10, 1000,
+                PositionFactory.LATEST, false, false).get();
+
+        Assert.assertEquals(entries, List.of(unacknowledged));
+        Mockito.verify(acknowledged).release();
+        Mockito.verify(unacknowledged, Mockito.never()).release();
+        // The next read starts after the skipped entry.
+        Mockito.verify(cursor).seek(PositionFactory.create(1, 91), true);
+    }
+
+    @Test
+    public void testEntriesUpToMarkDeletePositionAreKept() throws Exception {
+        // A read from the earliest position, such as the compactor's, returns the entries up to the mark-delete
+        // position, although the cursor reports them as deleted.
+        TopicCompactionService service = mockService(PositionFactory.create(1, 100));
+        ManagedCursorImpl cursor = mockCursor(PositionFactory.create(1, 96), PositionFactory.create(1, -1));
+        Mockito.doReturn(PositionFactory.create(1, 95)).when(cursor).getMarkDeletedPosition();
+        Mockito.doReturn(true).when(cursor).isMessageDeleted(Mockito.any(Position.class));
+        Entry first = mockEntry(PositionFactory.create(1, 85));
+        Entry last = mockEntry(PositionFactory.create(1, 95));
+        Mockito.doReturn(CompletableFuture.completedFuture(new ArrayList<>(List.of(first, last))))
+                .when(service).readCompactedEntries(Mockito.any(), Mockito.anyInt());
+
+        List<Entry> entries = CompactedTopicUtils.asyncReadCompactedEntries(service, cursor, 10, 1000,
+                PositionFactory.LATEST, true, false).get();
+
+        Assert.assertEquals(entries, List.of(first, last));
+        Mockito.verify(service).readCompactedEntries(Mockito.eq(PositionFactory.EARLIEST), Mockito.anyInt());
+    }
+
     private static TopicCompactionService mockService(Position lastCompactedPosition) {
         TopicCompactionService service = Mockito.mock(TopicCompactionService.class);
         Mockito.doReturn(CompletableFuture.completedFuture(lastCompactedPosition)).when(service)

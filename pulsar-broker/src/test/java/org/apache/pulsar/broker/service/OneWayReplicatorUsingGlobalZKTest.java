@@ -144,7 +144,11 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
         });
 
         admin1.topicPolicies(true).setReplicationClusters(topic, Arrays.asList(cluster1, cluster2));
+        // The replicator recreates the topic on cluster2 asynchronously, and until then cluster2 answers the
+        // permissions request with a 404, which Awaitility does not retry.
+        waitReplicatorStarted(topic);
         Awaitility.await().untilAsserted(() -> {
+            assertTrue(admin2.topics().getList(replicatedNamespace).contains(topic));
             assertThat(admin1.topics().getPermissions(topic)).containsEntry(role, permissions);
             assertThat(admin2.topics().getPermissions(topic)).containsEntry(role, permissions);
         });
@@ -405,6 +409,11 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
     @Test(enabled = false)
     public void testPartitionedTopicLevelReplicationRemoteConflictTopicExist() throws Exception {
         super.testPartitionedTopicLevelReplicationRemoteConflictTopicExist();
+    }
+
+    @Test(enabled = false)
+    public void testNamespaceLevelReplicationRemoteConflictTopicExist() throws Exception {
+        super.testNamespaceLevelReplicationRemoteConflictTopicExist();
     }
 
     @Test(enabled = false)

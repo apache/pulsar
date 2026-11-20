@@ -65,7 +65,7 @@ public interface PulsarClientSharedResourcesBuilder {
     /**
      * @param sharedResource one or more resource types to include
      * @return this builder
-     * @see {@link #resourceTypes(SharedResource...)}
+     * @see #resourceTypes(SharedResource...)
      */
     PulsarClientSharedResourcesBuilder resourceTypes(Collection<SharedResource> sharedResource);
 

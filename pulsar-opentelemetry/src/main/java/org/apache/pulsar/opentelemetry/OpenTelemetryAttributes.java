@@ -103,6 +103,11 @@ public interface OpenTelemetryAttributes {
     AttributeKey<String> PULSAR_PRODUCER_ACCESS_MODE = AttributeKey.stringKey("pulsar.producer.access_mode");
 
     /**
+     * The protocol error returned for a failed producer creation request.
+     */
+    AttributeKey<String> PULSAR_PRODUCER_CREATE_ERROR = AttributeKey.stringKey("pulsar.producer.create.error");
+
+    /**
      * The address of the Pulsar client.
      */
     AttributeKey<String> PULSAR_CLIENT_ADDRESS = AttributeKey.stringKey("pulsar.client.address");

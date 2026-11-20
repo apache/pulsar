@@ -18,15 +18,12 @@
  */
 package org.apache.pulsar.broker.admin;
 
-import java.util.Set;
 import java.util.UUID;
 import lombok.CustomLog;
-import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
 import org.eclipse.jetty.http.HttpStatus;
 import org.testng.Assert;
@@ -36,36 +33,33 @@ import org.testng.annotations.Test;
 
 @CustomLog
 @Test(groups = "broker-admin")
-public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
+public class TopicMessageTTLTest extends SharedPulsarBaseTest {
 
-    private final String testTenant = "my-tenant";
-    private final String testCluster = "test";
-    private final String testNamespace = "my-namespace";
-    private final String myNamespace = testTenant + "/" + testNamespace;
-    private final String testTopic = "persistent://" + myNamespace + "/test-topic-message-ttl";
+    private String myNamespace;
+    private String testTopic;
+    private int brokerTtlDurationDefaultInSeconds;
+
+    @Override
+    protected boolean checkClientHandlesClosed() {
+        return true;
+    }
 
     @BeforeMethod
-    @Override
-    protected void setup() throws Exception {
-        this.conf.setTtlDurationDefaultInSeconds(3600);
-        super.internalSetup();
+    public void setupTestTopic() throws Exception {
+        // the broker-level TTL: the shared broker reads it when a topic loads and for the applied TTL
+        brokerTtlDurationDefaultInSeconds = getConfig().getTtlDurationDefaultInSeconds();
+        getConfig().setTtlDurationDefaultInSeconds(3600);
 
-        admin.clusters().createCluster(testCluster, ClusterData.builder()
-                .serviceUrl(pulsar.getWebServiceAddress()).build());
-        TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of(testCluster));
-        admin.tenants().createTenant(this.testTenant, tenantInfo);
-        admin.namespaces().createNamespace(testTenant + "/" + testNamespace, Set.of(testCluster));
+        myNamespace = getNamespace();
+        testTopic = "persistent://" + myNamespace + "/test-topic-message-ttl";
         admin.topics().createPartitionedTopic(testTopic, 2);
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(testTenant + "/" + testNamespace + "/"
-                + "dummy-topic").create();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(myNamespace + "/" + "dummy-topic").create();
         producer.close();
-        waitForZooKeeperWatchers();
     }
 
     @AfterMethod(alwaysRun = true)
-    @Override
-    public void cleanup() throws Exception {
-        super.internalCleanup();
+    public void restoreTtlDurationDefault() {
+        getConfig().setTtlDurationDefaultInSeconds(brokerTtlDurationDefaultInSeconds);
     }
 
     @SuppressWarnings("deprecation")
@@ -74,18 +68,17 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
         admin.topics().setMessageTTL(testTopic, 100);
         log.info().attr("topic", testTopic).log("Message TTL set success on topic");
 
-        waitForZooKeeperWatchers();
+        Awaitility.await().untilAsserted(() ->
+                Assert.assertEquals(admin.topics().getMessageTTL(testTopic), Integer.valueOf(100)));
         Integer messageTTL = admin.topics().getMessageTTL(testTopic);
         log.info().attr("topic", testTopic).attr("messageTTL", messageTTL)
                 .log("Message TTL get on topic");
-        Assert.assertEquals(messageTTL.intValue(), 100);
 
-        waitForZooKeeperWatchers();
         admin.topics().removeMessageTTL(testTopic);
+        Awaitility.await().untilAsserted(() -> Assert.assertNull(admin.topics().getMessageTTL(testTopic)));
         messageTTL = admin.topics().getMessageTTL(testTopic);
         log.info().attr("topic", testTopic).attr("messageTTL", messageTTL)
                 .log("Message TTL get on topic");
-        Assert.assertNull(messageTTL);
     }
 
     @SuppressWarnings("deprecation")
@@ -118,32 +111,35 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
         admin.topics().setMessageTTL(testTopic, 200);
         log.info().attr("topic", testTopic).log("Message TTL set success on topic");
 
-        waitForZooKeeperWatchers();
+        Awaitility.await().untilAsserted(() ->
+                Assert.assertEquals(admin.topics().getMessageTTL(testTopic), Integer.valueOf(200)));
         messageTTL = admin.topics().getMessageTTL(testTopic);
         log.info().attr("topic", testTopic).attr("messageTTL", messageTTL)
                 .log("Message TTL get on topic");
-        Assert.assertEquals(messageTTL.intValue(), 200);
     }
     @SuppressWarnings("deprecation")
 
     @Test
     public void testTopicPolicyDisabled() throws Exception {
-        cleanup();
-        this.conf.setTopicLevelPoliciesEnabled(false);
-        setup();
-
+        // the shared broker reads it (after its start) only when it serves a topic policy request
+        boolean topicLevelPoliciesEnabled = getConfig().isTopicLevelPoliciesEnabled();
+        getConfig().setTopicLevelPoliciesEnabled(false);
         try {
-            admin.topics().getMessageTTL(testTopic);
-            Assert.fail();
-        } catch (PulsarAdminException e) {
-            Assert.assertEquals(e.getStatusCode(), HttpStatus.METHOD_NOT_ALLOWED_405);
-        }
+            try {
+                admin.topics().getMessageTTL(testTopic);
+                Assert.fail();
+            } catch (PulsarAdminException e) {
+                Assert.assertEquals(e.getStatusCode(), HttpStatus.METHOD_NOT_ALLOWED_405);
+            }
 
-        try {
-            admin.topics().setMessageTTL(testTopic, 200);
-            Assert.fail();
-        } catch (PulsarAdminException e) {
-            Assert.assertEquals(e.getStatusCode(), HttpStatus.METHOD_NOT_ALLOWED_405);
+            try {
+                admin.topics().setMessageTTL(testTopic, 200);
+                Assert.fail();
+            } catch (PulsarAdminException e) {
+                Assert.assertEquals(e.getStatusCode(), HttpStatus.METHOD_NOT_ALLOWED_405);
+            }
+        } finally {
+            getConfig().setTopicLevelPoliciesEnabled(topicLevelPoliciesEnabled);
         }
     }
 
@@ -151,8 +147,7 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
     public void testDifferentLevelPolicyPriority() throws Exception {
         final String topicName = testTopic + UUID.randomUUID();
         admin.topics().createNonPartitionedTopic(topicName);
-        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
-                .getTopicIfExists(topicName).get().get();
+        PersistentTopic persistentTopic = (PersistentTopic) getTopicIfExists(topicName).get().get();
 
         Integer namespaceMessageTTL = admin.namespaces().getNamespaceMessageTTL(myNamespace);
         Assert.assertNull(namespaceMessageTTL);
@@ -180,8 +175,7 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testNamespaceTTL() throws Exception {
-        String myNamespace = testTenant + "/" + "n1";
-        admin.namespaces().createNamespace(myNamespace, Set.of(testCluster));
+        String myNamespace = createNewNamespace();
 
         admin.namespaces().setNamespaceMessageTTL(myNamespace, 10);
         Awaitility.await().untilAsserted(()
@@ -198,7 +192,7 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
         final String topicName = testTopic + UUID.randomUUID();
         admin.topics().createNonPartitionedTopic(topicName);
         PersistentTopic persistentTopic =
-                (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topicName).get().get();
+                (PersistentTopic) getTopicIfExists(topicName).get().get();
         //namespace-level default value is null
         Integer namespaceMessageTTL = admin.namespaces().getNamespaceMessageTTL(myNamespace);
         Assert.assertNull(namespaceMessageTTL);

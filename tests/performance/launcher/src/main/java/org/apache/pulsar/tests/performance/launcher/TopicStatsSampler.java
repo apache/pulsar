@@ -140,15 +140,14 @@ final class TopicStatsSampler implements AutoCloseable {
      * @param brokerHttpUrls each broker's HTTP service on the host, by the broker's name in the cluster's network, the
      *                       first broker first
      */
-    static TopicStatsSampler start(Map<String, String> brokerHttpUrls, List<String> topics, Path runDirectory,
-                                   boolean replicated, String fileName) throws IOException {
+    static TopicStatsSampler start(Map<String, String> brokerHttpUrls, String adminToken, List<String> topics,
+                                   Path runDirectory, boolean replicated, String fileName) throws IOException {
         Map<String, PulsarAdmin> brokerAdmins = new LinkedHashMap<>();
         BufferedWriter writer = null;
         BufferedWriter replicationWriter = null;
         try {
             for (Map.Entry<String, String> broker : brokerHttpUrls.entrySet()) {
-                brokerAdmins.put(broker.getKey(), PulsarAdmin.builder()
-                        .serviceHttpUrl(broker.getValue())
+                brokerAdmins.put(broker.getKey(), JwtSettings.adminBuilder(broker.getValue(), adminToken)
                         .connectionTimeout(5, TimeUnit.SECONDS)
                         .readTimeout(5, TimeUnit.SECONDS)
                         .build());

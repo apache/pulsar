@@ -19,7 +19,7 @@
 package org.apache.bookkeeper.mledger.impl.cache;
 
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.createManagedLedgerException;
-import io.prometheus.client.Counter;
+import io.prometheus.metrics.core.metrics.Counter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -34,6 +34,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
+import org.apache.pulsar.common.util.FutureUtil;
 
 /**
  * PendingReadsManager tries to prevent sending duplicate reads to BK.
@@ -42,47 +43,47 @@ import org.apache.bookkeeper.mledger.impl.EntryImpl;
 public class PendingReadsManager {
 
     private static final Counter COUNT_ENTRIES_READ_FROM_BK = Counter
-            .build()
+            .builder()
             .name("pulsar_ml_cache_pendingreads_entries_read")
             .help("Total number of entries read from BK")
             .register();
 
     private static final Counter COUNT_ENTRIES_NOTREAD_FROM_BK = Counter
-            .build()
+            .builder()
             .name("pulsar_ml_cache_pendingreads_entries_notread")
             .help("Total number of entries not read from BK")
             .register();
 
     private static final Counter COUNT_PENDING_READS_MATCHED = Counter
-            .build()
+            .builder()
             .name("pulsar_ml_cache_pendingreads_matched")
             .help("Pending reads reused with perfect range match")
             .register();
     private static final Counter COUNT_PENDING_READS_MATCHED_INCLUDED = Counter
-            .build()
+            .builder()
             .name("pulsar_ml_cache_pendingreads_matched_included")
             .help("Pending reads reused by attaching to a read with a larger range")
             .register();
     private static final Counter COUNT_PENDING_READS_MISSED = Counter
-            .build()
+            .builder()
             .name("pulsar_ml_cache_pendingreads_missed")
             .help("Pending reads that didn't find a match")
             .register();
 
     private static final Counter COUNT_PENDING_READS_MATCHED_OVERLAPPING_MISS_LEFT = Counter
-            .build()
+            .builder()
             .name("pulsar_ml_cache_pendingreads_matched_overlapping_miss_left")
             .help("Pending reads that didn't find a match but they partially overlap with another read")
             .register();
 
     private static final Counter COUNT_PENDING_READS_MATCHED_BUT_OVERLAPPING_MISS_RIGHT = Counter
-            .build()
+            .builder()
             .name("pulsar_ml_cache_pendingreads_matched_overlapping_miss_right")
             .help("Pending reads that didn't find a match but they partially overlap with another read")
             .register();
 
     private static final Counter COUNT_PENDING_READS_MATCHED_BUT_OVERLAPPING_MISS_BOTH = Counter
-            .build()
+            .builder()
             .name("pulsar_ml_cache_pendingreads_matched_overlapping_miss_both")
             .help("Pending reads that didn't find a match but they partially overlap with another read")
             .register();
@@ -168,7 +169,19 @@ public class PendingReadsManager {
 
     private FindPendingReadOutcome findPendingRead(PendingReadKey key, LedgerPendingReads ledgerCache,
                                                    AtomicBoolean created) {
+        return findPendingRead(key, ledgerCache, created, false);
+    }
+
+    /**
+     * @param createOnly create the pending read only if no pending read includes or overlaps the key; returns null
+     *                   without counting a match otherwise
+     */
+    private FindPendingReadOutcome findPendingRead(PendingReadKey key, LedgerPendingReads ledgerCache,
+                                                   AtomicBoolean created, boolean createOnly) {
         synchronized (ledgerCache) {
+            if (createOnly && isOverlappingReadPending(ledgerCache, key)) {
+                return null;
+            }
             PendingRead existing = ledgerCache.all.get(key);
             if (existing != null) {
                 COUNT_PENDING_READS_MATCHED.inc(key.size());
@@ -356,6 +369,50 @@ public class PendingReadsManager {
         }
     }
 
+
+    private static boolean isOverlappingReadPending(LedgerPendingReads ledgerCache, PendingReadKey key) {
+        for (PendingReadKey entryKey : ledgerCache.all.keySet()) {
+            if (entryKey.equals(key) || entryKey.includes(key) || entryKey.overlaps(key)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Returns whether a read of a range that overlaps the given one is pending, without the lock of the ledger's
+     * pending reads: a cheap check before {@link #readEntriesIfNotPending}, which checks it again atomically.
+     */
+    boolean isOverlappingReadPending(long ledgerId, long firstEntry, long lastEntry) {
+        LedgerPendingReads ledgerCache = cachedPendingReads.get(ledgerId);
+        return ledgerCache != null
+                && isOverlappingReadPending(ledgerCache, new PendingReadKey(firstEntry, lastEntry));
+    }
+
+    /**
+     * Reads the entries from storage, as a pending read that later reads of overlapping ranges join, only if no read
+     * of an overlapping range is pending: the callback then gets the storage read's own entries. Returns whether the
+     * read was started.
+     */
+    boolean readEntriesIfNotPending(ReadHandle lh, long firstEntry, long lastEntry, long maxSizeBytes,
+                                    IntSupplier expectedReadCount,
+                                    final AsyncCallbacks.ReadEntriesCallback callback, Object ctx) {
+        final PendingReadKey key = new PendingReadKey(firstEntry, lastEntry);
+        LedgerPendingReads pendingReadsForLedger =
+                cachedPendingReads.computeIfAbsent(lh.getId(), (l) -> new LedgerPendingReads());
+        AtomicBoolean createdByThisThread = new AtomicBoolean();
+        FindPendingReadOutcome outcome = findPendingRead(key, pendingReadsForLedger, createdByThisThread, true);
+        if (outcome == null || !createdByThisThread.get()) {
+            return false;
+        }
+        PendingRead pendingRead = outcome.pendingRead;
+        // A new pending read accepts listeners until its result is attached
+        boolean listenerAdded = pendingRead.addListener(callback, ctx, firstEntry, lastEntry);
+        // A storage read that fails to start fails the pending read, which removes it and completes its listeners
+        pendingRead.attach(FutureUtil.supplySafely(() -> rangeEntryCache.readFromStorage(lh, firstEntry, lastEntry,
+                maxSizeBytes, expectedReadCount)));
+        return listenerAdded;
+    }
 
     void readEntries(ReadHandle lh, long firstEntry, long lastEntry, long maxSizeBytes,
                      IntSupplier expectedReadCount, final AsyncCallbacks.ReadEntriesCallback callback, Object ctx) {

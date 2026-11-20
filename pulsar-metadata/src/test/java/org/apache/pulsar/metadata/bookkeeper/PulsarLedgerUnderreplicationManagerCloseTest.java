@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -139,25 +140,31 @@ public class PulsarLedgerUnderreplicationManagerCloseTest extends BaseMetadataSt
             try (var owner = newManager(observed, root);
                  var other = newManager(store, root)) {
                 acquireLedgers(owner);
+                // Deletes are issued from the store's callback threads in the order the ownership reads complete.
                 List<String> attemptedPaths = new ArrayList<>();
                 List<MetadataStoreException> failures = List.of(new MetadataStoreException("first failure"),
                         new MetadataStoreException("second failure"));
                 doAnswer(invocation -> {
                     String path = invocation.getArgument(0);
-                    attemptedPaths.add(path);
-                    if (attemptedPaths.size() <= failures.size()) {
-                        return CompletableFuture.failedFuture(failures.get(attemptedPaths.size() - 1));
+                    int attempt;
+                    synchronized (attemptedPaths) {
+                        attempt = attemptedPaths.size();
+                        attemptedPaths.add(path);
+                    }
+                    if (attempt < failures.size()) {
+                        return CompletableFuture.failedFuture(failures.get(attempt));
                     }
                     return store.delete(path, invocation.getArgument(1));
                 }).when(observed).delete(anyString(), any());
 
+                // close() aggregates failures in held-lock order, which is independent of the delete order.
                 assertThatThrownBy(owner::close).isInstanceOf(UnavailableException.class)
                         .satisfies(error -> {
-                            assertThat(error.getCause()).isInstanceOf(ExecutionException.class)
-                                    .hasCause(failures.get(0));
+                            assertThat(error.getCause()).isInstanceOf(ExecutionException.class);
                             assertThat(error.getSuppressed()).hasSize(1);
-                            assertThat(error.getSuppressed()[0]).isInstanceOf(ExecutionException.class)
-                                    .hasCause(failures.get(1));
+                            assertThat(error.getSuppressed()[0]).isInstanceOf(ExecutionException.class);
+                            assertThat(List.of(error.getCause().getCause(), error.getSuppressed()[0].getCause()))
+                                    .containsExactlyInAnyOrderElementsOf(failures);
                         });
                 assertThat(attemptedPaths).hasSize(LEDGERS.size());
                 for (long ledgerId : LEDGERS) {
@@ -166,7 +173,7 @@ public class PulsarLedgerUnderreplicationManagerCloseTest extends BaseMetadataSt
                 }
                 long reacquired = other.pollLedgerToRereplicate();
                 assertThat(reacquired).isIn(LEDGERS);
-                List<String> retryPaths = new ArrayList<>();
+                List<String> retryPaths = new CopyOnWriteArrayList<>();
                 doAnswer(invocation -> {
                     String path = invocation.getArgument(0);
                     retryPaths.add(path);

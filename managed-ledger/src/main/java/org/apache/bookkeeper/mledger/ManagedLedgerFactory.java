@@ -19,7 +19,10 @@
 package org.apache.bookkeeper.mledger;
 
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.Executor;
 import java.util.function.Supplier;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
@@ -269,6 +272,45 @@ public interface ManagedLedgerFactory {
 
     void estimateUnloadedTopicBacklog(PersistentOfflineTopicStats offlineTopicStats, TopicName topicName,
                                       boolean accurate, Object ctx) throws Exception;
+
+    /**
+     * Asynchronously estimate backlog without loading the topic. Implementations should override this method
+     * with non-blocking metadata and ledger reads. The default preserves compatibility with synchronous
+     * implementations by running them on the supplied executor.
+     *
+     * @param blockingExecutor executor for legacy blocking implementations
+     * @return a future completed after all statistics have been collected
+     */
+    default CompletableFuture<Void> estimateUnloadedTopicBacklogAsync(PersistentOfflineTopicStats offlineTopicStats,
+            TopicName topicName, boolean accurate, Object ctx, Executor blockingExecutor) {
+        try {
+            Objects.requireNonNull(offlineTopicStats, "offlineTopicStats");
+            Objects.requireNonNull(topicName, "topicName");
+            Objects.requireNonNull(blockingExecutor, "blockingExecutor");
+            PersistentOfflineTopicStats collectedStats = new PersistentOfflineTopicStats(
+                    offlineTopicStats.topicName, offlineTopicStats.brokerName);
+            return CompletableFuture.runAsync(() -> {
+                try {
+                    estimateUnloadedTopicBacklog(collectedStats, topicName, accurate, ctx);
+                } catch (Exception e) {
+                    throw new CompletionException(e);
+                }
+            }, blockingExecutor).thenRun(() -> {
+                offlineTopicStats.storageSize = collectedStats.storageSize;
+                offlineTopicStats.totalMessages = collectedStats.totalMessages;
+                offlineTopicStats.messageBacklog = collectedStats.messageBacklog;
+                offlineTopicStats.statGeneratedAt.setTime(collectedStats.statGeneratedAt.getTime());
+                offlineTopicStats.dataLedgerDetails.clear();
+                collectedStats.dataLedgerDetails.forEach(ledger -> offlineTopicStats.addLedgerDetails(
+                        ledger.entries, ledger.timestamp, ledger.size, ledger.ledgerId));
+                offlineTopicStats.cursorDetails.clear();
+                collectedStats.cursorDetails.forEach((name, cursor) -> offlineTopicStats.addCursorDetails(
+                        name, cursor.cursorBacklog, cursor.cursorLedgerId));
+            });
+        } catch (Exception e) {
+            return CompletableFuture.failedFuture(e);
+        }
+    }
 
     ManagedLedgerFactoryConfig getConfig();
 }

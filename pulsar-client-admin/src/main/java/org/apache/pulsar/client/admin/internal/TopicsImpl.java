@@ -653,7 +653,7 @@ public class TopicsImpl extends BaseResource implements Topics {
 
             @Override
             public void failed(Throwable throwable) {
-                future.completeExceptionally(getApiException(throwable.getCause()));
+                future.completeExceptionally(mapInvocationFailure(throwable));
             }
         };
 
@@ -666,7 +666,7 @@ public class TopicsImpl extends BaseResource implements Topics {
 
                     @Override
                     public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
+                        future.completeExceptionally(mapInvocationFailure(throwable));
                     }
                 };
 
@@ -778,7 +778,7 @@ public class TopicsImpl extends BaseResource implements Topics {
 
                     @Override
                     public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
+                        future.completeExceptionally(mapInvocationFailure(throwable));
                     }
                 };
 
@@ -794,7 +794,7 @@ public class TopicsImpl extends BaseResource implements Topics {
 
             @Override
             public void failed(Throwable throwable) {
-                future.completeExceptionally(getApiException(throwable.getCause()));
+                future.completeExceptionally(mapInvocationFailure(throwable));
             }
         };
 
@@ -936,7 +936,7 @@ public class TopicsImpl extends BaseResource implements Topics {
 
                     @Override
                     public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
+                        future.completeExceptionally(mapInvocationFailure(throwable));
                     }
                 });
         return future;
@@ -1025,7 +1025,7 @@ public class TopicsImpl extends BaseResource implements Topics {
 
                     @Override
                     public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
+                        future.completeExceptionally(mapInvocationFailure(throwable));
                     }
                 });
         return future;
@@ -1061,7 +1061,7 @@ public class TopicsImpl extends BaseResource implements Topics {
 
                     @Override
                     public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
+                        future.completeExceptionally(mapInvocationFailure(throwable));
                     }
                 });
         return future;
@@ -1657,7 +1657,7 @@ public class TopicsImpl extends BaseResource implements Topics {
 
             @Override
             public void failed(Throwable throwable) {
-                future.completeExceptionally(getApiException(throwable.getCause()));
+                future.completeExceptionally(mapInvocationFailure(throwable));
             }
         });
         return future;

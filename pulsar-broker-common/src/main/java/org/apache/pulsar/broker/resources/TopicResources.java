@@ -19,14 +19,14 @@
 package org.apache.pulsar.broker.resources;
 
 import static org.apache.pulsar.common.util.Codec.decode;
+import com.google.common.annotations.VisibleForTesting;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import lombok.CustomLog;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -42,16 +42,36 @@ import org.apache.pulsar.metadata.api.extended.SessionEvent;
 @CustomLog
 public class TopicResources {
     private static final String MANAGED_LEDGER_PATH = "/managed-ledgers";
+    private static final String MANAGED_LEDGER_TOPIC_PREFIX = MANAGED_LEDGER_PATH + "/";
+    private static final String PERSISTENT_TOPIC_PATH = "/" + TopicDomain.persistent + "/";
 
     private final MetadataStoreExtended store;
 
-    private final Map<TopicListener, Pattern> topicListeners;
+    // Keep the global registry for listener equality and session events, and index topic notifications
+    // by namespace. Mutations to both maps are serialized; callbacks do not hold this lock.
+    private final Map<TopicListener, ListenerRegistration> topicListeners;
+    private final Map<String, Set<TopicListener>> topicListenersByNamespace;
+    private final Object listenerRegistrationLock = new Object();
+    private final Runnable cancelListener;
+    private final Runnable cancelSessionListener;
+
+    private record ListenerRegistration(TopicListener listener, String namespace) {
+    }
 
     public TopicResources(MetadataStoreExtended store) {
         this.store = store;
         topicListeners = new ConcurrentHashMap<>();
-        store.registerListener(this::handleNotification);
-        store.registerSessionListener(this::handleSessionEvent);
+        topicListenersByNamespace = new ConcurrentHashMap<>();
+        cancelListener = store.registerCancellableListener(this::handleNotification);
+        cancelSessionListener = store.registerCancellableSessionListener(this::handleSessionEvent);
+    }
+
+    /**
+     * Unregister the listeners of the metadata store, so that the topic listeners are no longer notified.
+     */
+    public void close() {
+        cancelListener.run();
+        cancelSessionListener.run();
     }
 
     /***
@@ -144,37 +164,83 @@ public class TopicResources {
     }
 
     void handleNotification(Notification notification) {
-        if (topicListeners.isEmpty()) {
+        if (topicListeners.isEmpty()
+                || (notification.getType() != NotificationType.Created
+                && notification.getType() != NotificationType.Deleted)) {
             return;
         }
-        if (notification.getPath().startsWith(MANAGED_LEDGER_PATH)
-                && (notification.getType() == NotificationType.Created
-                || notification.getType() == NotificationType.Deleted)) {
-            for (Map.Entry<TopicListener, Pattern> entry :
-                    topicListeners.entrySet()) {
-                Matcher matcher = entry.getValue().matcher(notification.getPath());
-                if (matcher.matches()) {
-                    TopicName topicName = TopicName.get(
-                            matcher.group(2), NamespaceName.get(matcher.group(1)), decode(matcher.group(3)));
-                    if (!SystemTopicNames.isSystemTopic(topicName)) {
-                        entry.getKey().onTopicEvent(topicName.toString(), notification.getType());
-                    }
+
+        String path = notification.getPath();
+        if (!path.startsWith(MANAGED_LEDGER_TOPIC_PREFIX)) {
+            return;
+        }
+
+        int domainStart = path.lastIndexOf(PERSISTENT_TOPIC_PATH);
+        if (domainStart <= MANAGED_LEDGER_TOPIC_PREFIX.length()) {
+            return;
+        }
+
+        int topicStart = domainStart + PERSISTENT_TOPIC_PATH.length();
+        if (topicStart == path.length() || path.indexOf('/', topicStart) != -1) {
+            return;
+        }
+
+        String namespace = path.substring(MANAGED_LEDGER_TOPIC_PREFIX.length(), domainStart);
+        Set<TopicListener> listeners = topicListenersByNamespace.get(namespace);
+        if (listeners == null || listeners.isEmpty()) {
+            return;
+        }
+
+        TopicName topicName = TopicName.get(TopicDomain.persistent.toString(),
+                NamespaceName.get(namespace), decode(path.substring(topicStart)));
+        if (!SystemTopicNames.isSystemTopic(topicName)) {
+            String topic = topicName.toString();
+            listeners.forEach(listener -> {
+                ListenerRegistration registration = topicListeners.get(listener);
+                if (registration != null && namespace.equals(registration.namespace())) {
+                    listener.onTopicEvent(topic, notification.getType());
                 }
+            });
+        }
+    }
+
+    public void registerPersistentTopicListener(TopicListener listener) {
+        String namespace = listener.getNamespaceName().toString();
+        synchronized (listenerRegistrationLock) {
+            ListenerRegistration previous = topicListeners.get(listener);
+            TopicListener registeredListener = previous == null ? listener : previous.listener();
+            // Publish the new index entry before switching the authoritative registration.
+            // Dispatch validates the registration, so an overlapping entry cannot deliver
+            // notifications for a namespace that is no longer registered.
+            topicListenersByNamespace.computeIfAbsent(namespace, __ -> ConcurrentHashMap.newKeySet())
+                    .add(registeredListener);
+            topicListeners.put(registeredListener, new ListenerRegistration(registeredListener, namespace));
+            if (previous != null && !previous.namespace().equals(namespace)) {
+                removeFromNamespace(previous);
             }
         }
     }
 
-    Pattern namespaceNameToTopicNamePattern(NamespaceName namespaceName) {
-        return Pattern.compile(MANAGED_LEDGER_PATH + "/(" + Pattern.quote(namespaceName.toString()) + ")/("
-                        + TopicDomain.persistent + ")/(" + "[^/]+)");
-    }
-
-    public void registerPersistentTopicListener(TopicListener listener) {
-        topicListeners.put(listener, namespaceNameToTopicNamePattern(listener.getNamespaceName()));
-    }
-
     public void deregisterPersistentTopicListener(TopicListener listener) {
-        topicListeners.remove(listener);
+        synchronized (listenerRegistrationLock) {
+            ListenerRegistration registration = topicListeners.remove(listener);
+            if (registration != null) {
+                removeFromNamespace(registration);
+            }
+        }
+    }
+
+    private void removeFromNamespace(ListenerRegistration registration) {
+        Set<TopicListener> listeners = topicListenersByNamespace.get(registration.namespace());
+        listeners.remove(registration.listener());
+        if (listeners.isEmpty()) {
+            topicListenersByNamespace.remove(registration.namespace());
+        }
+    }
+
+    @VisibleForTesting
+    int namespaceListenerBucketCount() {
+        return topicListenersByNamespace.size();
     }
 
     private void handleSessionEvent(SessionEvent sessionEvent) {
@@ -194,13 +260,12 @@ public class TopicResources {
     @Deprecated
     public void registerPersistentTopicListener(
             NamespaceName namespaceName, BiConsumer<String, NotificationType> listener) {
-        topicListeners.put(new BiConsumerTopicListener(listener, namespaceName),
-                namespaceNameToTopicNamePattern(namespaceName));
+        registerPersistentTopicListener(new BiConsumerTopicListener(listener, namespaceName));
     }
 
     @Deprecated
     public void deregisterPersistentTopicListener(BiConsumer<String, NotificationType> listener) {
-        topicListeners.remove(new BiConsumerTopicListener(listener, null));
+        deregisterPersistentTopicListener(new BiConsumerTopicListener(listener, null));
     }
 
     // for backwards compatibility with broker plugins that could be using the BiConsumer based methods

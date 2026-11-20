@@ -36,6 +36,8 @@ dependencies {
     api(libs.bookkeeper.server)
     api(libs.opentelemetry.api)
     api(libs.simpleclient)
+    implementation(libs.prometheus.metrics.model)
+    implementation(libs.prometheus.metrics.exposition.textformats)
     implementation(libs.caffeine)
     api(libs.jakarta.servlet.api)
     // Legacy javax.servlet AdditionalServlet plugins are adapted to jakarta.servlet by the Apache Felix
