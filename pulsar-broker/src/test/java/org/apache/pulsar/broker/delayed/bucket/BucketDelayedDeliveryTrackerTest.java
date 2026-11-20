@@ -750,6 +750,33 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
     }
 
     /**
+     * Fails the snapshot delete of the configured bucket ids and counts the snapshot creations,
+     * so a test can verify that no replacement snapshot is allocated while a superseded ledger
+     * delete is failing.
+     */
+    private static class FailingDeleteForBucketIdStorage extends MockBucketSnapshotStorage {
+        final Set<Long> failDeleteBucketIds = ConcurrentHashMap.newKeySet();
+        final AtomicLong createCalls = new AtomicLong();
+
+        @Override
+        public CompletableFuture<Void> deleteBucketSnapshot(long bucketId) {
+            if (failDeleteBucketIds.contains(bucketId)) {
+                return FutureUtil.failedFuture(new BucketSnapshotPersistenceException("delete failed"));
+            }
+            return super.deleteBucketSnapshot(bucketId);
+        }
+
+        @Override
+        public CompletableFuture<Long> createBucketSnapshot(SnapshotMetadata snapshotMetadata,
+                                                            List<SnapshotSegment> bucketSnapshotSegments,
+                                                            String bucketKey, String topicName, String cursorName) {
+            createCalls.incrementAndGet();
+            return super.createBucketSnapshot(snapshotMetadata, bucketSnapshotSegments, bucketKey, topicName,
+                    cursorName);
+        }
+    }
+
+    /**
      * Blocks every attempt (initial + retries) of the first bucket snapshot creation until
      * {@link #gate} completes. Used to keep that bucket's snapshot creation pending while the trim
      * selects it, and then fail it to exercise the failed-create trim path.
@@ -1730,6 +1757,54 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         assertEquals(ts.tracker.getSharedBucketPriorityQueue().size(), 0);
 
         ts.close();
+    }
+
+    @Test
+    public void testSaveDoesNotAllocateReplacementWhenSupersededDeleteFails() throws Exception {
+        FailingDeleteForBucketIdStorage storage = new FailingDeleteForBucketIdStorage();
+        TrackerWithStorage ts = createTrackerWithMockLedger(31L, 5, storage);
+        try {
+            ImmutableBucket bucket = createMergeableBucket(ts, 31L, 35L, List.of(1L));
+            String bucketKey = bucket.bucketKey();
+            long supersededId = 10L;
+            ts.tracker.getCtx().cursor().putCursorProperty(bucketKey, String.valueOf(supersededId)).get();
+            storage.failDeleteBucketIds.add(supersededId);
+
+            assertThat(bucket.asyncSaveBucketSnapshot(new SnapshotMetadata(), List.of()))
+                    .failsWithin(5, TimeUnit.SECONDS)
+                    .withThrowableOfType(ExecutionException.class)
+                    .withCauseInstanceOf(BucketSnapshotPersistenceException.class);
+
+            assertEquals(storage.createCalls.get(), 0,
+                    "No replacement should be allocated when the superseded delete fails");
+            assertEquals(ts.tracker.getCtx().cursor().getCursorProperties().get(bucketKey),
+                    String.valueOf(supersededId));
+        } finally {
+            ts.close();
+        }
+    }
+
+    @Test
+    public void testDeleteDoesNotRemoveReplacementCursorProperty() throws Exception {
+        TrackerWithStorage ts = createTrackerWithMockLedger(31L, 5);
+        try {
+            ImmutableBucket bucket = createMergeableBucket(ts, 31L, 35L, List.of(1L));
+            long deletedId = 10L;
+            long replacementId = 11L;
+            bucket.setBucketId(deletedId);
+            String bucketKey = bucket.bucketKey();
+            assertThat(ts.tracker.getCtx().cursor().putCursorProperty(bucketKey, String.valueOf(replacementId)))
+                    .succeedsWithin(5, TimeUnit.SECONDS);
+
+            assertThat(bucket.asyncDeleteBucketSnapshot(new BucketDelayedMessageIndexStats()))
+                    .succeedsWithin(5, TimeUnit.SECONDS);
+
+            assertEquals(ts.tracker.getCtx().cursor().getCursorProperties().get(bucketKey),
+                    String.valueOf(replacementId),
+                    "A stale cleanup must not remove the replacement's cursor property");
+        } finally {
+            ts.close();
+        }
     }
 
     @Test

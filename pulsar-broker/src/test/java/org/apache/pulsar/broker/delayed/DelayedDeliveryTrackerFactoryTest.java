@@ -18,8 +18,10 @@
  */
 package org.apache.pulsar.broker.delayed;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import java.lang.reflect.Field;
 import java.time.Duration;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -621,5 +623,63 @@ public class DelayedDeliveryTrackerFactoryTest extends ProducerConsumerBase {
         } finally {
             consumer.close();
         }
+    }
+
+    @Test
+    public void testCleanResidualSnapshotsAccountsMalformedBucketIdInFuture() {
+        BucketDelayedDeliveryTrackerFactory factory = new BucketDelayedDeliveryTrackerFactory();
+        BucketSnapshotStorage storage = Mockito.mock(BucketSnapshotStorage.class);
+        Mockito.doReturn(CompletableFuture.completedFuture(null)).when(storage).deleteBucketSnapshot(Mockito.anyLong());
+        factory.bucketSnapshotStorage = storage;
+
+        String validKey = BucketDelayedDeliveryTracker.DELAYED_BUCKET_KEY_PREFIX + "_6_10";
+        String malformedKey = BucketDelayedDeliveryTracker.DELAYED_BUCKET_KEY_PREFIX + "_1_5";
+        // Deterministic order: the valid entry is cleaned before the malformed entry fails the
+        // aggregate future.
+        Map<String, String> properties = new LinkedHashMap<>();
+        properties.put(validKey, "123");
+        properties.put(malformedKey, "not-a-number");
+
+        ManagedCursor cursor = Mockito.mock(ManagedCursor.class);
+        Mockito.doAnswer(invocation -> new LinkedHashMap<>(properties)).when(cursor).getCursorProperties();
+        Mockito.doAnswer(invocation -> {
+            properties.remove(invocation.getArgument(0, String.class));
+            return CompletableFuture.completedFuture(null);
+        }).when(cursor).removeCursorProperty(Mockito.anyString());
+
+        // The parse must stay inside the sequenced supplier: a malformed id fails the cleanup
+        // future instead of throwing synchronously.
+        CompletableFuture<Void> cleanup = factory.cleanResidualSnapshots(cursor);
+        assertThat(cleanup)
+                .failsWithin(5, TimeUnit.SECONDS)
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(NumberFormatException.class);
+        assertThat(properties).containsKey(malformedKey).doesNotContainKey(validKey);
+    }
+
+    @Test
+    public void testCleanResidualSnapshotsDoesNotRemoveReplacedProperty() {
+        String bucketKey = BucketDelayedDeliveryTracker.DELAYED_BUCKET_KEY_PREFIX + "_1_5";
+        Map<String, String> properties = new LinkedHashMap<>();
+        properties.put(bucketKey, String.valueOf(10L));
+
+        BucketDelayedDeliveryTrackerFactory factory = new BucketDelayedDeliveryTrackerFactory();
+        BucketSnapshotStorage storage = Mockito.mock(BucketSnapshotStorage.class);
+        Mockito.doAnswer(invocation -> {
+            // A concurrent save replaces the reference while the delete is completing.
+            properties.put(bucketKey, String.valueOf(11L));
+            return CompletableFuture.completedFuture(null);
+        }).when(storage).deleteBucketSnapshot(Mockito.anyLong());
+        factory.bucketSnapshotStorage = storage;
+
+        ManagedCursor cursor = Mockito.mock(ManagedCursor.class);
+        Mockito.doAnswer(invocation -> new LinkedHashMap<>(properties)).when(cursor).getCursorProperties();
+        Mockito.doAnswer(invocation -> {
+            properties.remove(invocation.getArgument(0, String.class));
+            return CompletableFuture.completedFuture(null);
+        }).when(cursor).removeCursorProperty(Mockito.anyString());
+
+        assertThat(factory.cleanResidualSnapshots(cursor)).succeedsWithin(5, TimeUnit.SECONDS);
+        assertThat(properties).containsEntry(bucketKey, String.valueOf(11L));
     }
 }

@@ -34,6 +34,7 @@ import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerEntry;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.impl.LedgerMetadataUtils;
+import org.apache.bookkeeper.mledger.util.Errors;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.delayed.proto.SnapshotMetadata;
@@ -215,7 +216,7 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
                 BookKeeper.DigestType.fromApiDigestType(config.getManagedLedgerDigestType()),
                 LedgerPassword,
                 (rc, handle, ctx) -> {
-                    if (rc == BKException.Code.NoSuchLedgerExistsException) {
+                    if (Errors.isNoSuchLedgerExistsException(rc)) {
                         // If the ledger does not exist, throw BucketNotExistException
                         future.completeExceptionally(noSuchLedgerException("Open ledger", ledgerId));
                     } else if (rc != BKException.Code.OK) {
@@ -278,7 +279,7 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
     private CompletableFuture<Void> deleteLedger(long ledgerId) {
         CompletableFuture<Void> future = new CompletableFuture<>();
         bookKeeper.asyncDeleteLedger(ledgerId, (int rc, Object cnx) -> {
-            if (rc == BKException.Code.NoSuchLedgerExistsException || rc == BKException.Code.OK) {
+            if (Errors.isNoSuchLedgerExistsException(rc) || rc == BKException.Code.OK) {
                 // If the ledger does not exist or has been deleted, we can treat it as success
                 future.complete(null);
             } else  {
