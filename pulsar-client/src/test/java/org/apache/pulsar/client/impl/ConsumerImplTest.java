@@ -22,19 +22,18 @@ import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.withSettings;
 import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBuf;
@@ -92,9 +91,9 @@ import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.protocol.Commands;
-import org.mockito.MockedStatic;
 import org.apache.pulsar.common.util.Backoff;
 import org.awaitility.Awaitility;
+import org.mockito.MockedStatic;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -1096,6 +1095,32 @@ public class ConsumerImplTest {
             ((Runnable) invocation.getArgument(0)).run();
             return null;
         }).when(scheduledExecutorService).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+
+        List<ByteBuf> capturedBuffers = new ArrayList<>();
+        try (MockedStatic<Commands> commands = mockStatic(Commands.class, inv -> {
+            Object result = inv.callRealMethod();
+            if ("newSeek".equals(inv.getMethod().getName())) {
+                capturedBuffers.add((ByteBuf) result);
+            }
+            return result;
+        })) {
+            CompletableFuture<Void> result = consumer.seekAsync(1L);
+
+            assertThat(capturedBuffers).hasSize(1);
+            assertThat(capturedBuffers.get(0).refCnt()).isZero();
+            assertTrue(result.isCompletedExceptionally());
+        }
+    }
+
+    @Test
+    public void testSeekAsyncReleasesBufferOnRejectedRetry() {
+        ScheduledExecutorProvider provider = mock(ScheduledExecutorProvider.class);
+        ScheduledExecutorService scheduledExecutorService = mock(ScheduledExecutorService.class);
+        when(provider.getExecutor()).thenReturn(scheduledExecutorService);
+        when(consumer.getClient().getScheduledExecutorProvider()).thenReturn(provider);
+
+        when(scheduledExecutorService.schedule(any(Runnable.class), anyLong(), any(TimeUnit.class)))
+                .thenThrow(new java.util.concurrent.RejectedExecutionException("shutdown"));
 
         List<ByteBuf> capturedBuffers = new ArrayList<>();
         try (MockedStatic<Commands> commands = mockStatic(Commands.class, inv -> {
