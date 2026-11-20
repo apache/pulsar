@@ -35,6 +35,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import org.apache.pulsar.client.api.Message;
@@ -221,6 +222,14 @@ public class ReaderHandlerTest {
         verify(servletUpgradeResponse, times(1)).sendError(anyInt(), anyString());
     }
 
+    @Test
+    public void testLegacyReaderBatchMethods() {
+        Reader<byte[]> reader = new IllegalReader();
+        Assert.expectThrows(UnsupportedOperationException.class, reader::batchReadNext);
+        CompletionException error = Assert.expectThrows(CompletionException.class,
+                () -> reader.batchReadNextAsync().join());
+        Assert.assertTrue(error.getCause() instanceof UnsupportedOperationException);
+    }
 
     static class IllegalReader implements Reader<byte[]> {
 
