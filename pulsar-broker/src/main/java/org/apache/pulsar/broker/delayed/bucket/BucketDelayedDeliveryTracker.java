@@ -140,6 +140,11 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
     private volatile CompletableFuture<Void> trimFuture;
 
+    @VisibleForTesting
+    CompletableFuture<Void> getTrimFuture() {
+        return trimFuture;
+    }
+
     public BucketDelayedDeliveryTracker(AbstractPersistentDispatcherMultipleConsumers dispatcher,
                                         Timer timer, long tickTimeMillis,
                                         boolean isDelayedDeliveryDeliverAtTimeStrict,
@@ -463,8 +468,15 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                             .log("Failed to create bucket snapshot");
                     stats.recordFailEvent(BucketDelayedMessageIndexStats.Type.create);
 
-                    // Put indexes back into the shared queue and downgrade to memory mode
+                    // Downgrade to memory mode, unless a trim or clear has already claimed the
+                    // bucket: the delete owns the cleanup, and re-queuing the indexes would
+                    // resurrect entries it is about to remove.
                     synchronized (BucketDelayedDeliveryTracker.this) {
+                        if (immutableBucket.isDeleteStarted() || immutableBuckets.asMapOfRanges()
+                                .get(Range.closed(immutableBucket.getStartLedgerId(),
+                                        immutableBucket.getEndLedgerId())) != immutableBucket) {
+                            return;
+                        }
                         immutableBucket.getSnapshotSegments().ifPresent(snapshotSegments -> {
                             for (SnapshotSegment snapshotSegment : snapshotSegments) {
                                 for (DelayedIndex delayedIndex : snapshotSegment.getIndexesList()) {

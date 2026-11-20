@@ -1899,7 +1899,10 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
                         "The first bucket should still be present while its snapshot creation is pending");
             }
 
-            // Fail the first bucket's snapshot creation while the trim chain is waiting on it.
+            // Fail the first bucket's snapshot creation only once the trim chain is waiting on it,
+            // so the exercised path is a trim delete blocked on the pending create when it fails.
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+                    assertThat(ts.tracker.getTrimFuture()).isNotNull().isNotDone());
             storage.gate.completeExceptionally(new BucketSnapshotPersistenceException("Create failed"));
 
             // The trim chain must not stop on the failed create: every orphaned bucket is cleaned up.
@@ -1909,6 +1912,36 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
                             "All orphaned buckets should be removed despite the failed snapshot creation");
                 }
             });
+        } finally {
+            ts.close();
+        }
+    }
+
+    @Test
+    public void testFailedCreateDoesNotRequeueIndexesOntoADeleteClaimedBucket() throws Exception {
+        BlockingFirstCreateStorage storage = new BlockingFirstCreateStorage();
+        TrackerWithStorage ts = createTrackerWithMockLedger(31L, 50, storage);
+        try {
+            for (int i = 1; i <= 31; i++) {
+                ts.tracker.addMessage(i, i, i * 10);
+            }
+            Awaitility.await().untilAsserted(() ->
+                    assertEquals(storage.blockedBucketKeys.size(), 1));
+
+            ImmutableBucket bucket = ts.tracker.getImmutableBuckets().asMapOfRanges().values().stream()
+                    .filter(b -> b.getSnapshotCreateFuture().map(future -> !future.isDone()).orElse(false))
+                    .findFirst().orElseThrow();
+
+            // A delete claims the bucket and waits on the pending create.
+            CompletableFuture<Void> delete = bucket.asyncDeleteBucketSnapshot(new BucketDelayedMessageIndexStats());
+            assertThat(delete).isNotDone();
+            long queueSizeBefore = ts.tracker.getSharedBucketPriorityQueue().size();
+
+            storage.gate.completeExceptionally(new BucketSnapshotPersistenceException("Create failed"));
+
+            assertThat(delete).succeedsWithin(5, TimeUnit.SECONDS);
+            // The create-failure callback must not re-queue the claimed bucket's indexes.
+            assertThat(ts.tracker.getSharedBucketPriorityQueue().size()).isEqualTo(queueSizeBefore);
         } finally {
             ts.close();
         }
