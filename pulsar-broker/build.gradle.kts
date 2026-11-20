@@ -84,10 +84,11 @@ dependencies {
     api(libs.jspecify)
     api(libs.picocli)
     api(libs.simpleclient)
+    implementation(libs.prometheus.metrics.core)
     // PulsarBrokerStarter hands an in-process bookie's stats provider its own PrometheusRegistry.
     implementation(libs.prometheus.metrics.model)
-    implementation(libs.simpleclient.hotspot)
-    implementation(libs.simpleclient.caffeine)
+    implementation(libs.prometheus.metrics.instrumentation.jvm)
+    implementation(libs.prometheus.metrics.instrumentation.caffeine)
     implementation(libs.hdrHistogram)
     implementation(libs.gson)
     api(libs.java.semver)
@@ -242,6 +243,39 @@ dependencies {
     "swaggerDeps"(libs.jakarta.servlet.api)
 }
 
+// Swagger model converters for the ResolveTasks below (src/openapi/java). They are built against
+// Swagger Core, which the broker's runtime doesn't include, so they live in a source set of their
+// own that only the ResolveTasks and the broker tests put on their classpath.
+val openapi = sourceSets.create("openapi")
+configurations.named(openapi.compileClasspathConfigurationName) {
+    extendsFrom(configurations["internalPlatform"], swaggerDeps.get())
+}
+// Not used by the ResolveTasks, which take the main runtime classpath, but aligned like the other
+// resolvable classpaths because the GitHub dependency submission resolves it too.
+configurations.named(openapi.runtimeClasspathConfigurationName) {
+    extendsFrom(configurations["internalPlatform"])
+}
+// The converters' tests run in the broker's test task. Their dependencies extend the test classpaths
+// directly instead of testImplementation, which testJarElements extends, so that the modules that use
+// testJar(":pulsar-broker") don't get Swagger.
+val openapiTestDeps = configurations.dependencyScope("openapiTestDeps")
+configurations.named("testCompileClasspath") { extendsFrom(openapiTestDeps.get()) }
+configurations.named("testRuntimeClasspath") { extendsFrom(openapiTestDeps.get()) }
+dependencies {
+    "openapiImplementation"(project(":pulsar-common"))
+    "openapiTestDeps"(openapi.output)
+    "openapiTestDeps"(libs.swagger.jaxrs2)
+}
+// The conventions clear the Checkstyle classpath, so that checkstyle compiles nothing, before this
+// source set exists, and the Checkstyle plugin then sets it for this source set's task: clear it again.
+// The module's quickCheck otherwise covers only checkstyleMain and checkstyleTest.
+val checkstyleOpenapi = tasks.named<Checkstyle>(openapi.getTaskName("checkstyle", null)) {
+    classpath = files()
+}
+tasks.named("quickCheck") {
+    dependsOn(checkstyleOpenapi)
+}
+
 fun registerSwaggerTask(
     name: String,
     fileName: String,
@@ -251,7 +285,9 @@ fun registerSwaggerTask(
     group = "documentation"
     description = "Generates $fileName.json OpenAPI documentation"
     buildClasspath.setFrom(swaggerClasspath)
-    classpath.setFrom(sourceSets["main"].runtimeClasspath)
+    classpath.setFrom(sourceSets["main"].runtimeClasspath, openapi.output)
+    // Describe interface-typed values with the implementations ObjectMapperFactory maps them to.
+    modelConverterClasses.set(setOf("org.apache.pulsar.broker.openapi.AbstractTypeMappingModelConverter"))
     outputDir.set(layout.buildDirectory.dir("swagger/$name"))
     outputFileName.set(fileName)
     outputFormat.set(ResolveTask.Format.JSON)

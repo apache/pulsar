@@ -19,7 +19,7 @@
 package org.apache.pulsar.broker.service.scalable;
 
 import io.opentelemetry.api.OpenTelemetry;
-import io.prometheus.client.CollectorRegistry;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -32,6 +32,7 @@ import org.apache.pulsar.broker.resources.ScalableTopicMetadata;
 import org.apache.pulsar.broker.resources.ScalableTopicResources;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.GetStatsOptions;
+import org.apache.pulsar.broker.service.TransportCnx;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.api.proto.ScalableConsumerType;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -130,7 +131,7 @@ public class ScalableTopicService {
         }
         try {
             consumerMetrics = new ScalableTopicConsumerMetrics(
-                    brokerService.getPulsar().getOpenTelemetry().getMeter(), CollectorRegistry.defaultRegistry,
+                    brokerService.getPulsar().getOpenTelemetry().getMeter(), PrometheusRegistry.defaultRegistry,
                     brokerService.getPulsar().getConfiguration().getClusterName(), this::consumerStats);
         } catch (RuntimeException e) {
             log.warn().exceptionMessage(e)
@@ -461,13 +462,15 @@ public class ScalableTopicService {
 
     /**
      * Called when a scalable consumer's transport connection drops. Forwards to the
-     * controller which marks the session disconnected and starts its grace timer.
+     * controller which marks the session disconnected and starts its grace timer, unless the
+     * consumer is attached to another connection than {@code cnx}, the one that dropped.
      * No-op if the controller is not held locally.
      */
-    public void onConsumerDisconnect(TopicName topic, String subscription, String consumerName) {
+    public void onConsumerDisconnect(TopicName topic, String subscription, String consumerName,
+                                     TransportCnx cnx) {
         CompletableFuture<ScalableTopicController> future = controllers.get(topic.toString());
         if (future != null) {
-            future.thenAccept(c -> c.onConsumerDisconnect(subscription, consumerName))
+            future.thenAccept(c -> c.onConsumerDisconnect(subscription, consumerName, cnx))
                     .exceptionally(ex -> null);
         }
     }
