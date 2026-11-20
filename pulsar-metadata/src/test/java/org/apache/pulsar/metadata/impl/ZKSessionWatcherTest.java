@@ -639,6 +639,112 @@ public class ZKSessionWatcherTest {
         }
     }
 
+    @Test
+    public void testConnectedProbeTimeoutDoesNotReportSessionEvents() throws Exception {
+        List<SessionEvent> events = new CopyOnWriteArrayList<>();
+        ZooKeeper zk = newSessionZooKeeper();
+        when(zk.getSessionTimeout()).thenReturn(1_500);
+        AtomicReference<StatCallback> delayedCallback = new AtomicReference<>();
+        doAnswer(invocation -> {
+            delayedCallback.set(invocation.getArgument(2));
+            return null;
+        }).when(zk).exists(eq("/"), eq(false), any(StatCallback.class), isNull());
+
+        try (ZKSessionWatcher watcher = newSessionWatcher(zk, events)) {
+            // Keep the client connected, but withhold the response until the probe has timed out.
+            watcher.checkConnectionStatus();
+            delayedCallback.get().processResult(KeeperException.Code.OK.intValue(), "/", null, null);
+
+            completeExistsWith(zk, KeeperException.Code.OK);
+            watcher.checkConnectionStatus();
+
+            // A spurious Reconnected event would invalidate the metadata store's caches.
+            assertThat(events).isEmpty();
+        }
+    }
+
+    @DataProvider
+    public Object[][] disconnectedSessionStates() {
+        return new Object[][]{
+                {KeeperState.Disconnected, SessionEvent.ConnectionLost},
+                {KeeperState.Expired, SessionEvent.SessionLost}
+        };
+    }
+
+    @Test(dataProvider = "disconnectedSessionStates")
+    public void testConnectedProbeTimeoutWaitsForSuccessfulProbeToReconnect(
+            KeeperState keeperState, SessionEvent expectedEvent) throws Exception {
+        List<SessionEvent> events = new CopyOnWriteArrayList<>();
+        ZooKeeper zk = newSessionZooKeeper();
+        when(zk.getSessionTimeout()).thenReturn(1_500);
+
+        try (ZKSessionWatcher watcher = newSessionWatcher(zk, events)) {
+            watcher.process(sessionEvent(keeperState));
+
+            // The client now reports CONNECTED, but exists() never calls back.
+            watcher.checkConnectionStatus();
+            assertThat(events).containsExactly(expectedEvent);
+
+            completeExistsWith(zk, KeeperException.Code.OK);
+            watcher.checkConnectionStatus();
+
+            if (expectedEvent == SessionEvent.SessionLost) {
+                assertThat(events).containsExactly(
+                        SessionEvent.SessionLost, SessionEvent.Reconnected, SessionEvent.SessionReestablished);
+            } else {
+                assertThat(events).containsExactly(SessionEvent.ConnectionLost, SessionEvent.Reconnected);
+            }
+        }
+    }
+
+    @Test
+    public void testDisconnectedProbeTimeoutStillExpiresSession() throws Exception {
+        List<SessionEvent> events = new CopyOnWriteArrayList<>();
+        ZooKeeper zk = newSessionZooKeeper();
+        when(zk.getSessionTimeout()).thenReturn(1_500);
+        when(zk.getState()).thenReturn(States.CONNECTING);
+
+        try (ZKSessionWatcher watcher = newSessionWatcher(zk, events)) {
+            watcher.checkConnectionStatus();
+            assertThat(events).containsExactly(SessionEvent.ConnectionLost);
+
+            // exists() does not complete while the client retries the connection.
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+                watcher.checkConnectionStatus();
+                assertThat(events).containsExactly(SessionEvent.ConnectionLost, SessionEvent.SessionLost);
+            });
+        }
+    }
+
+    @DataProvider
+    public Object[][] probeTimeoutClientStates() {
+        return new Object[][]{
+                {States.CONNECTEDREADONLY, List.of(SessionEvent.ConnectionLost)},
+                {States.AUTH_FAILED, List.of(SessionEvent.SessionLost)},
+                {States.CLOSED, List.of()}
+        };
+    }
+
+    @Test(dataProvider = "probeTimeoutClientStates")
+    public void testProbeTimeoutUsesClientState(States clientState, List<SessionEvent> expectedEvents)
+            throws Exception {
+        List<SessionEvent> events = new CopyOnWriteArrayList<>();
+        ZooKeeper zk = newSessionZooKeeper();
+        AtomicLong nanoTime = new AtomicLong(TimeUnit.SECONDS.toNanos(1));
+        when(zk.getSessionTimeout()).thenReturn(1_500);
+        when(zk.getState()).thenReturn(clientState);
+
+        try (ZKSessionWatcher watcher = new ZKSessionWatcher(zk, events::add, false, nanoTime::get)) {
+            watcher.checkConnectionStatus();
+            assertThat(events).containsExactlyElementsOf(expectedEvents);
+
+            // Keep the callback unanswered beyond the 1250 ms loss deadline, including for read-only clients.
+            nanoTime.addAndGet(TimeUnit.MILLISECONDS.toNanos(1_251));
+            watcher.checkConnectionStatus();
+            assertThat(events).containsExactlyElementsOf(expectedEvents);
+        }
+    }
+
     private static ZKSessionWatcher newSessionWatcher(List<SessionEvent> events) {
         return newSessionWatcher(newSessionZooKeeper(), events);
     }

@@ -607,7 +607,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
     // held.
     boolean runStateUpdateIfCurrentHandle(CurrentHandleIdentity expectedIdentity, Runnable stateUpdate) {
         synchronized (reconnectLock) {
-            if (!expectedIdentity.equals(getCurrentHandleIdentityLocked())) {
+            if (closed.get() || !expectedIdentity.equals(getCurrentHandleIdentityLocked())) {
                 return false;
             }
             stateUpdate.run();
