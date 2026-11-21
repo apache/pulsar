@@ -22,6 +22,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
+import io.netty.channel.FixedRecvByteBufAllocator;
+import io.netty.channel.socket.SocketChannel;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -52,6 +54,8 @@ import org.testng.annotations.Test;
 @CustomLog
 @Test(groups = "broker")
 public class PublishRateLimiterOverconsumingTest extends BrokerTestBase {
+    private static final int RECEIVE_BUFFER_SIZE = 16 * 1024;
+
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
@@ -59,8 +63,15 @@ public class PublishRateLimiterOverconsumingTest extends BrokerTestBase {
     }
 
     @Override
-    protected void doInitConf() throws Exception {
-        super.doInitConf();
+    protected BrokerService customizeNewBrokerService(BrokerService brokerService) {
+        brokerService.setPulsarChannelInitializerFactory((pulsar, opts) -> new PulsarChannelInitializer(pulsar, opts) {
+            @Override
+            protected void initChannel(SocketChannel channel) throws Exception {
+                channel.config().setRecvByteBufAllocator(new FixedRecvByteBufAllocator(RECEIVE_BUFFER_SIZE));
+                super.initChannel(channel);
+            }
+        });
+        return brokerService;
     }
 
     @AfterMethod(alwaysRun = true)
@@ -75,6 +86,10 @@ public class PublishRateLimiterOverconsumingTest extends BrokerTestBase {
      */
     @Test
     public void testOverconsumingTokensWithBrokerPublishRateLimiter() throws Exception {
+        // Keep the original short-window assertions by limiting how many messages fit in one socket read.
+        // This controls the receive allocation, not the decoder's maximum permitted frame length. A batch of
+        // six 16-KiB messages spans multiple reads, so finishing already-read frames causes only a small overshoot.
+        byte[] messageBody = new byte[16 * 1024];
         int rateInMsg = 500;
         int durationSeconds = 5;
         int numberOfConsumers = 5;
@@ -82,7 +97,7 @@ public class PublishRateLimiterOverconsumingTest extends BrokerTestBase {
         int numberOfMessagesForEachProducer = (rateInMsg * (durationSeconds + 1))
                 / numberOfProducersWithIndependentClients;
 
-        // configure dispatch throttling rate
+        // Configure broker publish throttling rate.
         BrokerService brokerService = pulsar.getBrokerService();
         admin.brokers().updateDynamicConfiguration("brokerPublisherThrottlingMaxMessageRate",
                 String.valueOf(rateInMsg));
@@ -97,13 +112,12 @@ public class PublishRateLimiterOverconsumingTest extends BrokerTestBase {
 
         // state for calculating message rate
         AtomicLong startTimeNanos = new AtomicLong();
-        AtomicLong lastReceivedMessageTimeNanos = new AtomicLong();
         AtomicInteger totalMessagesReceived = new AtomicInteger();
         AtomicInteger currentSecondMessagesCount = new AtomicInteger();
         AtomicInteger lastCalculatedSecond = new AtomicInteger(0);
         List<Integer> collectedRatesForEachSecond = Collections.synchronizedList(new ArrayList<>());
 
-        // rack actual consuming rate of messages per second
+        // Track actual consuming rate of messages per second.
         // (After aligning the first message, start counting whole seconds)
         Runnable rateTracker = () -> {
             long startTime = startTimeNanos.get();
@@ -127,14 +141,13 @@ public class PublishRateLimiterOverconsumingTest extends BrokerTestBase {
 
         // message listener implementation used for all consumers
         // Set startTime when the first message arrives; then accumulate the counter
-        MessageListener<Integer> messageListener = new MessageListener<>() {
+        MessageListener<byte[]> messageListener = new MessageListener<>() {
             @Override
-            public void received(Consumer<Integer> consumer, Message<Integer> msg) {
+            public void received(Consumer<byte[]> consumer, Message<byte[]> msg) {
                 long now = System.nanoTime();
                 if (startTimeNanos.get() == 0) {
                     startTimeNanos.compareAndSet(0, now);
                 }
-                lastReceivedMessageTimeNanos.set(now);
                 currentSecondMessagesCount.incrementAndGet();
                 totalMessagesReceived.incrementAndGet();
                 consumer.acknowledgeAsync(msg);
@@ -142,10 +155,10 @@ public class PublishRateLimiterOverconsumingTest extends BrokerTestBase {
         };
 
         // create consumers using a shared subscription called "sub"
-        List<Consumer<Integer>> consumerList = IntStream.range(0, numberOfConsumers)
+        List<Consumer<byte[]>> consumerList = IntStream.range(0, numberOfConsumers)
                 .mapToObj(i -> {
                     try {
-                        return pulsarClient.newConsumer(Schema.INT32)
+                        return pulsarClient.newConsumer(Schema.BYTES)
                                 .topic(topicName)
                                 .consumerName("consumer-" + (i + 1))
                                 .subscriptionType(SubscriptionType.Shared)
@@ -194,11 +207,11 @@ public class PublishRateLimiterOverconsumingTest extends BrokerTestBase {
             });
         };
 
-        List<Producer<Integer>> producers = IntStream.range(0, numberOfProducersWithIndependentClients)
+        List<Producer<byte[]>> producers = IntStream.range(0, numberOfProducersWithIndependentClients)
                 .mapToObj(i -> {
                     try {
                         return producerClients.get(i)
-                                .newProducer(Schema.INT32).enableBatching(true)
+                                .newProducer(Schema.BYTES).enableBatching(true)
                                 .producerName("producer-" + (i + 1))
                                 .batchingMaxPublishDelay(100, TimeUnit.MILLISECONDS)
                                 .batchingMaxMessages(numberOfMessagesForEachProducer / 100)
@@ -213,7 +226,7 @@ public class PublishRateLimiterOverconsumingTest extends BrokerTestBase {
             IntStream.range(0, numberOfMessagesForEachProducer).forEach(i -> {
                 try {
                     int messageNumber = i + 1;
-                    producer.sendAsync(messageNumber).exceptionally(e -> {
+                    producer.sendAsync(messageBody).exceptionally(e -> {
                         log.error().attr("messageNumber", messageNumber).exception(e).log("Failed to send message #");
                         return null;
                     });
@@ -257,37 +270,28 @@ public class PublishRateLimiterOverconsumingTest extends BrokerTestBase {
         }
         log.info().attr("eachSecond", collectedRatesSnapshot).log("Collected rates for each second");
 
-        // Calculate the average using second-by-second windows:
-        // Skip the first second, take up to durationSeconds windows.
+        // Preserve the original average and adjacent-window assertions for the bounded-read scenario.
         int usable = Math.min(durationSeconds, Math.max(0, collectedRatesSnapshot.size() - 1));
         double windowedAvg = (usable > 0)
-                ? collectedRatesSnapshot.subList(1, 1 + usable).stream().mapToInt(Integer::intValue).average().orElse(0)
+                ? collectedRatesSnapshot.subList(1, 1 + usable).stream()
+                        .mapToInt(Integer::intValue).average().orElse(0)
                 : 0;
-
         assertSoftly(softly -> {
-            // Overall average (window mean, ±40%)
             softly.assertThat(windowedAvg)
                     .describedAs("windowed average rate during the test run")
                     .isCloseTo(rateInMsg, Percentage.withPercentage(40));
-
-            // Per second (average of two adjacent seconds, skip first/last pairs, ±55%)
             if (collectedRatesSnapshot.size() >= 4) {
-                // Starting from (1, 2), ending at (size-2, size-1)
                 for (int i = 2; i < collectedRatesSnapshot.size(); i++) {
                     int avg2 = (collectedRatesSnapshot.get(i - 1) + collectedRatesSnapshot.get(i)) / 2;
                     softly.assertThat(avg2)
                             .describedAs("Average of second %d and %d", i, i + 1)
                             .isCloseTo(rateInMsg, Percentage.withPercentage(55));
                 }
-            } else {
-                // Degenerates to: Skip head and tail with 50% tolerance (avoid false positives)
-                // when there are too few windows
-                if (collectedRatesSnapshot.size() > 2) {
-                    for (int i = 1; i < collectedRatesSnapshot.size() - 1; i++) {
-                        softly.assertThat(collectedRatesSnapshot.get(i))
-                                .describedAs("rate of second %d (fallback check)", i + 1)
-                                .isCloseTo(rateInMsg, Percentage.withPercentage(50));
-                    }
+            } else if (collectedRatesSnapshot.size() > 2) {
+                for (int i = 1; i < collectedRatesSnapshot.size() - 1; i++) {
+                    softly.assertThat(collectedRatesSnapshot.get(i))
+                            .describedAs("rate of second %d (fallback check)", i + 1)
+                            .isCloseTo(rateInMsg, Percentage.withPercentage(50));
                 }
             }
         });

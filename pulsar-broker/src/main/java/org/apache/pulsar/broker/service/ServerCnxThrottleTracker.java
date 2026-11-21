@@ -28,8 +28,9 @@ import org.apache.pulsar.broker.ServiceConfiguration;
  *
  * <p>This class provides a centralized mechanism to control connection throttling by managing
  * multiple throttling conditions simultaneously. When throttling is active, it pauses incoming
- * requests by setting Netty's {@link io.netty.channel.ChannelConfig#setAutoRead(boolean)} to
- * {@code false} for the associated channel.
+ * automatic socket reads by setting Netty's {@link io.netty.channel.ChannelConfig#setAutoRead(boolean)} to
+ * {@code false} for the associated channel. Complete frames decoded from data already read continue to be
+ * processed, so throttling thresholds can be exceeded by the current read batch.
  *
  * <h3>Throttling Mechanism</h3>
  * <p>The tracker maintains independent counters for different types of throttling conditions
