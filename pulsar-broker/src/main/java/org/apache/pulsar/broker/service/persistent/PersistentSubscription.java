@@ -31,6 +31,7 @@ import java.util.Optional;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -53,6 +54,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.ScanOutcome;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.delayed.BucketDelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
@@ -1046,92 +1048,143 @@ public class PersistentSubscription extends AbstractSubscription {
             }
         }
 
-        disconnectFuture.whenComplete((aVoid, throwable) -> {
-            if (dispatcher != null) {
-                dispatcher.resetCloseFuture();
-            }
-
-            if (throwable != null) {
-                log.error()
-                        .exception(throwable)
-                        .log("Failed to disconnect consumer from subscription");
-                IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
-                inProgressResetCursorFuture = null;
-                future.completeExceptionally(
-                        new SubscriptionBusyException("Failed to disconnect consumers from subscription"));
-                return;
-            }
-
-            log.info()
-                    .log("Successfully disconnected consumers from subscription, proceeding with cursor reset");
-
-            CompletableFuture<Boolean> forceReset = new CompletableFuture<>();
-            if (topic.getTopicCompactionService() == null) {
-                forceReset.complete(false);
-            } else {
-                topic.getTopicCompactionService().getLastCompactedPosition().thenAccept(lastCompactedPosition -> {
-                    Position resetTo = finalPosition;
-                    if (lastCompactedPosition != null && resetTo.compareTo(lastCompactedPosition.getLedgerId(),
-                            lastCompactedPosition.getEntryId()) <= 0) {
-                        forceReset.complete(true);
-                    } else {
-                        forceReset.complete(false);
+        disconnectFuture
+                .handle((ignore, throwable) -> {
+                    if (dispatcher != null) {
+                        dispatcher.resetCloseFuture();
                     }
-                }).exceptionally(ex -> {
-                    // Without readable compacted data, let the managed ledger validate the reset
-                    // against the original entries. Ordinary readers must still be able to seek;
-                    // compacted reads continue to surface the compaction failure independently.
-                    forceReset.complete(false);
+
+                    if (throwable != null) {
+                        log.error()
+                                .exception(throwable)
+                                .log("Failed to disconnect consumer from subscription");
+
+                        throw new CompletionException(
+                                new SubscriptionBusyException(
+                                        "Failed to disconnect consumers from subscription"));
+                    }
+
+                    log.info()
+                            .log("Successfully disconnected consumers from subscription, proceeding with cursor reset");
+                    return null;
+                })
+                .thenCompose(__ -> clearDelayedStateForReset())
+                .thenCompose(__ -> {
+                    CompletableFuture<Boolean> forceReset = new CompletableFuture<>();
+                    if (topic.getTopicCompactionService() == null) {
+                        forceReset.complete(false);
+                    } else {
+                        topic.getTopicCompactionService().getLastCompactedPosition()
+                                .thenAccept(lastCompactedPosition -> {
+                                    Position resetTo = finalPosition;
+                                    if (lastCompactedPosition != null
+                                            && resetTo.compareTo(lastCompactedPosition.getLedgerId(),
+                                            lastCompactedPosition.getEntryId()) <= 0) {
+                                        forceReset.complete(true);
+                                    } else {
+                                        forceReset.complete(false);
+                                    }
+                                }).exceptionally(ex -> {
+                                    // Without readable compacted data, let the managed ledger validate the reset
+                                    // against the original entries. Ordinary readers must still be able to seek;
+                                    // compacted reads continue to surface the compaction failure independently.
+                                    forceReset.complete(false);
+                                    return null;
+                                });
+                    }
+                    return forceReset;
+                })
+                .thenAccept(forceResetValue -> {
+                    cursor.asyncResetCursor(finalPosition, forceResetValue, new AsyncCallbacks.ResetCursorCallback() {
+                        @Override
+                        public void resetComplete(Object ctx) {
+                            log.debug()
+                                    .attr("finalPosition", finalPosition)
+                                    .log("Successfully reset subscription to position");
+                            if (dispatcher != null) {
+                                dispatcher.cursorIsReset();
+                                dispatcher.afterAckMessages(null, finalPosition);
+                            }
+                            IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
+                            inProgressResetCursorFuture = null;
+                            future.complete(null);
+                        }
+
+                        @Override
+                        public void resetFailed(ManagedLedgerException exception, Object ctx) {
+                            log.error()
+                                    .attr("finalPosition", finalPosition)
+                                    .exception(exception)
+                                    .log("Failed to reset subscription to position");
+                            IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
+                            inProgressResetCursorFuture = null;
+                            // todo - retry on InvalidCursorPositionException
+                            // or should we just ask user to retry one more time?
+                            if (exception instanceof InvalidCursorPositionException) {
+                                future.completeExceptionally(
+                                        new SubscriptionInvalidCursorPosition(exception.getMessage()));
+                            } else if (exception instanceof ConcurrentFindCursorPositionException) {
+                                future.completeExceptionally(new SubscriptionBusyException(exception.getMessage()));
+                            } else {
+                                future.completeExceptionally(new BrokerServiceException(exception));
+                            }
+                        }
+                    });
+                }).exceptionally((e) -> {
+                    log.error()
+                            .exception(e)
+                            .log("Error while resetting cursor");
+                    IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
+                    inProgressResetCursorFuture = null;
+                    Throwable cause = FutureUtil.unwrapCompletionException(e);
+                    future.completeExceptionally(cause instanceof BrokerServiceException exception
+                            ? exception : new BrokerServiceException(cause));
                     return null;
                 });
-            }
-
-            forceReset.thenAccept(forceResetValue -> {
-                cursor.asyncResetCursor(finalPosition, forceResetValue, new AsyncCallbacks.ResetCursorCallback() {
-                    @Override
-                    public void resetComplete(Object ctx) {
-                        log.debug()
-                                .attr("finalPosition", finalPosition)
-                                .log("Successfully reset subscription to position");
-                        if (dispatcher != null) {
-                            dispatcher.cursorIsReset();
-                            dispatcher.afterAckMessages(null, finalPosition);
-                        }
-                        IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
-                        inProgressResetCursorFuture = null;
-                        future.complete(null);
-                    }
-
-                    @Override
-                    public void resetFailed(ManagedLedgerException exception, Object ctx) {
-                        log.error()
-                                .attr("finalPosition", finalPosition)
-                                .exception(exception)
-                                .log("Failed to reset subscription to position");
-                        IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
-                        inProgressResetCursorFuture = null;
-                        // todo - retry on InvalidCursorPositionException
-                        // or should we just ask user to retry one more time?
-                        if (exception instanceof InvalidCursorPositionException) {
-                            future.completeExceptionally(new SubscriptionInvalidCursorPosition(exception.getMessage()));
-                        } else if (exception instanceof ConcurrentFindCursorPositionException) {
-                            future.completeExceptionally(new SubscriptionBusyException(exception.getMessage()));
-                        } else {
-                            future.completeExceptionally(new BrokerServiceException(exception));
-                        }
-                    }
-                });
-            }).exceptionally((e) -> {
-                log.error()
-                        .exception(e)
-                        .log("Error while resetting cursor");
-                IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
-                inProgressResetCursorFuture = null;
-                future.completeExceptionally(new BrokerServiceException(e));
-                return null;
-            });
-        });
         return future;
+    }
+
+    /**
+     * Clears the delayed-delivery state before the cursor is reset, and always completes normally:
+     * the delayed state is a derived cache of the backlog, so a failed clear must not make the reset
+     * unusable. The clear futures only settle once every cursor-property write has completed, so
+     * continuing cannot race the reset persistence. A disconnect failure never reaches this method;
+     * it propagates to the caller as {@link SubscriptionBusyException}.
+     */
+    private CompletableFuture<Void> clearDelayedStateForReset() {
+        CompletableFuture<Void> clearFuture = dispatcher != null
+                ? dispatcher.clearDelayedMessagesAfterCursorReset()
+                : CompletableFuture.completedFuture(null);
+        return clearFuture
+                .handle((ignore, throwable) -> {
+                    if (throwable != null) {
+                        log.warn()
+                                .exception(throwable)
+                                .log("Failed to clear delayed delivery state before cursor reset, continuing");
+                    }
+                    return null;
+                })
+                .thenCompose(__ -> {
+                    // A dispatcher without a bucket tracker (subscription type switched to
+                    // Exclusive/Failover, or a tracker that fell back to the in-memory
+                    // implementation) leaves the bucket cursor properties behind even on a
+                    // successful clear, and a bucket tracker that already removed them makes this
+                    // a no-op.
+                    if (topic.isDelayedDeliveryEnabled()
+                            && topic.getBrokerService().getDelayedDeliveryTrackerFactory()
+                            instanceof BucketDelayedDeliveryTrackerFactory bucketDelayedDeliveryTrackerFactory) {
+                        return bucketDelayedDeliveryTrackerFactory.cleanResidualSnapshots(cursor)
+                                .handle((ignore, throwable) -> {
+                                    if (throwable != null) {
+                                        log.warn().exception(throwable).log(
+                                                "Failed to clean residual bucket snapshots before cursor reset,"
+                                                        + " continuing");
+                                    }
+                                    return null;
+                                });
+                    }
+                    return CompletableFuture.completedFuture(null);
+                });
     }
 
     @Override

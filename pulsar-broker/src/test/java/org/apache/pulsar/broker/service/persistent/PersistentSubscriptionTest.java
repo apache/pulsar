@@ -55,6 +55,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.resources.NamespaceResources;
+import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionFencedException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
@@ -72,6 +73,7 @@ import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
@@ -136,6 +138,127 @@ public class PersistentSubscriptionTest {
             pulsarTestContext.close();
             pulsarTestContext = null;
         }
+    }
+
+    @Test
+    public void testResetCursorFailsBusyWhenDisconnectFails() throws Exception {
+        Dispatcher testDispatcher = mock(Dispatcher.class);
+        List<Consumer> consumers = new ArrayList<>();
+        doReturn(consumers).when(testDispatcher).getConsumers();
+        doAnswer(invocation -> !consumers.isEmpty()).when(testDispatcher).isConsumerConnected();
+        doReturn(CompletableFuture.completedFuture(null)).when(testDispatcher).close();
+        doAnswer(invocation -> {
+            consumers.add(invocation.getArgument(0));
+            return CompletableFuture.completedFuture(null);
+        }).when(testDispatcher).addConsumer(any());
+        doAnswer(invocation -> {
+            consumers.remove(invocation.getArgument(0));
+            return null;
+        }).when(testDispatcher).removeConsumer(any());
+        doReturn(FutureUtil.failedFuture(new RuntimeException("disconnect failed")))
+                .when(testDispatcher).disconnectActiveConsumers(true);
+
+        boolean transactionCoordinatorEnabled = pulsarTestContext.getConfig().isTransactionCoordinatorEnabled();
+        try {
+            pulsarTestContext.getConfig().setTransactionCoordinatorEnabled(false);
+            persistentSubscription = new PersistentSubscription(topic, subName, cursorMock, false) {
+                @Override
+                protected Dispatcher reuseOrCreateDispatcher(Dispatcher currentDispatcher, Consumer consumer) {
+                    return testDispatcher;
+                }
+            };
+        } finally {
+            pulsarTestContext.getConfig().setTransactionCoordinatorEnabled(transactionCoordinatorEnabled);
+        }
+
+        Consumer firstConsumer = mock(Consumer.class);
+        doReturn(CommandSubscribe.SubType.Exclusive).when(firstConsumer).subType();
+        doReturn(new ConsumerStatsImpl()).when(firstConsumer).getStats();
+        persistentSubscription.addConsumer(firstConsumer).get(5, TimeUnit.SECONDS);
+
+        List<AsyncCallbacks.ResetCursorCallback> resetCallbacks = new ArrayList<>();
+        doAnswer(invocation -> {
+            resetCallbacks.add(invocation.getArgument(2));
+            return null;
+        }).when(cursorMock).asyncResetCursor(any(), anyBoolean(), any());
+
+        CompletableFuture<Void> resetFuture = persistentSubscription.resetCursor(PositionFactory.create(1, 20));
+
+        // A failed disconnect must fail the reset as SubscriptionBusyException (HTTP 412) instead of
+        // being downgraded to a delayed-state cleanup warning that lets the reset proceed.
+        assertThat(resetFuture).failsWithin(5, TimeUnit.SECONDS)
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(BrokerServiceException.SubscriptionBusyException.class);
+        verify(cursorMock, never()).asyncResetCursor(any(), anyBoolean(), any());
+
+        // The subscription is not fenced after the failure: a later reset with a successful
+        // disconnect proceeds to the cursor reset.
+        doReturn(CompletableFuture.completedFuture(null)).when(testDispatcher).disconnectActiveConsumers(true);
+        CompletableFuture<Void> retryFuture = persistentSubscription.resetCursor(PositionFactory.create(1, 20));
+        Awaitility.await().untilAsserted(() -> assertThat(resetCallbacks).hasSize(1));
+        resetCallbacks.get(0).resetComplete(null);
+        retryFuture.get(5, TimeUnit.SECONDS);
+    }
+
+    @Test
+    public void testRepeatedResetFailsBusyWhileInProgressThenSucceeds() throws Exception {
+        Dispatcher testDispatcher = mock(Dispatcher.class);
+        List<Consumer> consumers = new ArrayList<>();
+        doReturn(consumers).when(testDispatcher).getConsumers();
+        doAnswer(invocation -> !consumers.isEmpty()).when(testDispatcher).isConsumerConnected();
+        doReturn(CompletableFuture.completedFuture(null)).when(testDispatcher).close();
+        doAnswer(invocation -> {
+            consumers.add(invocation.getArgument(0));
+            return CompletableFuture.completedFuture(null);
+        }).when(testDispatcher).addConsumer(any());
+        doAnswer(invocation -> {
+            consumers.remove(invocation.getArgument(0));
+            return null;
+        }).when(testDispatcher).removeConsumer(any());
+        doReturn(CompletableFuture.completedFuture(null))
+                .when(testDispatcher).disconnectActiveConsumers(true);
+
+        boolean transactionCoordinatorEnabled = pulsarTestContext.getConfig().isTransactionCoordinatorEnabled();
+        try {
+            pulsarTestContext.getConfig().setTransactionCoordinatorEnabled(false);
+            persistentSubscription = new PersistentSubscription(topic, subName, cursorMock, false) {
+                @Override
+                protected Dispatcher reuseOrCreateDispatcher(Dispatcher currentDispatcher, Consumer consumer) {
+                    return testDispatcher;
+                }
+            };
+        } finally {
+            pulsarTestContext.getConfig().setTransactionCoordinatorEnabled(transactionCoordinatorEnabled);
+        }
+
+        Consumer firstConsumer = mock(Consumer.class);
+        doReturn(CommandSubscribe.SubType.Exclusive).when(firstConsumer).subType();
+        doReturn(new ConsumerStatsImpl()).when(firstConsumer).getStats();
+        persistentSubscription.addConsumer(firstConsumer).get(5, TimeUnit.SECONDS);
+
+        List<AsyncCallbacks.ResetCursorCallback> resetCallbacks = new ArrayList<>();
+        doAnswer(invocation -> {
+            resetCallbacks.add(invocation.getArgument(2));
+            return null;
+        }).when(cursorMock).asyncResetCursor(any(), anyBoolean(), any());
+
+        CompletableFuture<Void> firstReset = persistentSubscription.resetCursor(PositionFactory.create(1, 20));
+        Awaitility.await().untilAsserted(() -> assertThat(resetCallbacks).hasSize(1));
+
+        // While the first reset is fenced, a repeated reset must fail busy instead of racing it.
+        CompletableFuture<Void> repeatedReset = persistentSubscription.resetCursor(PositionFactory.create(2, 20));
+        assertThat(repeatedReset).failsWithin(5, TimeUnit.SECONDS)
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(BrokerServiceException.SubscriptionBusyException.class);
+
+        resetCallbacks.get(0).resetComplete(null);
+        firstReset.get(5, TimeUnit.SECONDS);
+
+        // After the first reset completes, a later reset can proceed.
+        CompletableFuture<Void> retryReset = persistentSubscription.resetCursor(PositionFactory.create(3, 20));
+        Awaitility.await().untilAsserted(() -> assertThat(resetCallbacks).hasSize(2));
+        resetCallbacks.get(1).resetComplete(null);
+        retryReset.get(5, TimeUnit.SECONDS);
     }
 
     @Test

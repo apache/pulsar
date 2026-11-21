@@ -1565,7 +1565,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             synchronized (this) {
                 pendingDelayedMessages = messagesPendingDelayedDeliveryTracker.size();
                 if (delayedDeliveryTrackerCreateFuture != createFuture) {
-                    // The dispatcher was closed while the tracker was being created
+                    // The dispatcher was closed or a cursor reset invalidated this creation
                     stale = true;
                 } else if (ex != null) {
                     // Keep the messages pending and dispatch paused: delivering them now would ignore their delay
@@ -1766,6 +1766,38 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             skipRecovery.complete(null);
         }
         return clearFuture;
+    }
+
+    @Override
+    public CompletableFuture<Void> clearDelayedMessagesAfterCursorReset() {
+        CompletableFuture<Void> createFuture;
+        CompletableFuture<Void> skipRecovery;
+        synchronized (this) {
+            if (!topic.isDelayedDeliveryEnabled()) {
+                return CompletableFuture.completedFuture(null);
+            }
+            // Invalidate any in-flight tracker creation. The reset is fenced and may delete the
+            // snapshots that a late creation retry recovered, so the retry must close instead of
+            // installing pre-reset state. Post-reset replay starts a fresh creation.
+            createFuture = delayedDeliveryTrackerCreateFuture;
+            delayedDeliveryTrackerCreateFuture = null;
+            skipRecovery = delayedDeliveryTrackerRecoverySkipFuture;
+            delayedDeliveryTrackerRecoverySkipFuture = null;
+            delayedDeliveryTrackerCreateFailureFuture = null;
+            // Drop every pre-reset pending position: a forward reset skips them, and a backward
+            // reset re-derives them from the replay at the new cursor position.
+            messagesPendingDelayedDeliveryTracker.clear();
+        }
+        if (createFuture != null) {
+            // Fail the old creation so any clear waiting on it does not run a second residual
+            // cleanup while the reset is deleting and republishing the same bucket keys.
+            createFuture.completeExceptionally(
+                    new IllegalStateException("Tracker creation invalidated by cursor reset"));
+        }
+        if (skipRecovery != null) {
+            skipRecovery.complete(null);
+        }
+        return clearDelayedMessages();
     }
 
     @Override
