@@ -22,6 +22,7 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import org.apache.bookkeeper.client.api.LastConfirmedAndEntry;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
@@ -30,7 +31,11 @@ import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.pulsar.broker.qos.AsyncTokenBucket;
 
 /**
- * OffloadReadHandle is a wrapper of ReadHandle to offload read operations.
+ * OffloadReadHandle is a wrapper of ReadHandle to throttle the entry-data reads issued while
+ * offloading. A read is issued only after the token bucket contains tokens, and the bytes
+ * actually read are charged against the bucket once the read completes. The range reads
+ * ({@code readAsync}, {@code readUnconfirmedAsync}, {@code batchReadAsync} and
+ * {@code batchReadUnconfirmedAsync}) are throttled; every other operation is delegated unchanged.
  */
 public final class OffloadReadHandle implements ReadHandle {
     private final ReadHandle delegate;
@@ -40,7 +45,7 @@ public final class OffloadReadHandle implements ReadHandle {
     private OffloadReadHandle(ReadHandle handle, AsyncTokenBucket tokenBucket,
                               ScheduledExecutorService scheduledExecutor) {
         this.delegate = Objects.requireNonNull(handle);
-        this.tokenBucket = tokenBucket;
+        this.tokenBucket = Objects.requireNonNull(tokenBucket);
         this.scheduledExecutor = Objects.requireNonNull(scheduledExecutor);
     }
 
@@ -55,38 +60,57 @@ public final class OffloadReadHandle implements ReadHandle {
 
     @Override
     public CompletableFuture<LedgerEntries> readAsync(long firstEntry, long lastEntry) {
+        return readAsyncWithThrottling(() -> delegate.readAsync(firstEntry, lastEntry));
+    }
+
+    @Override
+    public CompletableFuture<LedgerEntries> readUnconfirmedAsync(long firstEntry, long lastEntry) {
+        return readAsyncWithThrottling(() -> delegate.readUnconfirmedAsync(firstEntry, lastEntry));
+    }
+
+    @Override
+    public CompletableFuture<LedgerEntries> batchReadAsync(long firstEntry, int maxEntries, long maxSize) {
+        return readAsyncWithThrottling(() -> delegate.batchReadAsync(firstEntry, maxEntries, maxSize));
+    }
+
+    @Override
+    public CompletableFuture<LedgerEntries> batchReadUnconfirmedAsync(long firstEntry, int maxEntries,
+                                                                      long maxSize) {
+        return readAsyncWithThrottling(() -> delegate.batchReadUnconfirmedAsync(firstEntry, maxEntries, maxSize));
+    }
+
+    private CompletableFuture<LedgerEntries> readAsyncWithThrottling(
+            Supplier<CompletableFuture<LedgerEntries>> readOperation) {
         CompletableFuture<LedgerEntries> result = new CompletableFuture<>();
-        readAsyncWithThrottling(firstEntry, lastEntry, result);
+        readAsyncWithThrottling(readOperation, result);
         return result;
     }
 
-    private void readAsyncWithThrottling(long firstEntry, long lastEntry,
+    private void readAsyncWithThrottling(Supplier<CompletableFuture<LedgerEntries>> readOperation,
                                          CompletableFuture<LedgerEntries> result) {
         if (result.isDone()) {
             return;
         }
         try {
-            if (tokenBucket != null && !tokenBucket.containsTokens()) {
+            if (!tokenBucket.containsTokens()) {
                 long delayNanos = tokenBucket.calculateThrottlingDuration();
                 if (delayNanos > 0) {
-                    scheduledExecutor.schedule(() -> readAsyncWithThrottling(firstEntry, lastEntry, result),
+                    scheduledExecutor.schedule(() -> readAsyncWithThrottling(readOperation, result),
                             delayNanos, TimeUnit.NANOSECONDS);
                     return;
                 }
             }
-            delegate.readAsync(firstEntry, lastEntry).whenComplete((entries, error) -> {
+            readOperation.get().whenComplete((entries, error) -> {
                 if (error != null) {
                     result.completeExceptionally(error);
                     return;
                 }
                 try {
-                    if (tokenBucket != null) {
-                        long bytesRead = 0;
-                        for (LedgerEntry entry : entries) {
-                            bytesRead += entry.getLength();
-                        }
-                        tokenBucket.consumeTokens(bytesRead);
+                    long bytesRead = 0;
+                    for (LedgerEntry entry : entries) {
+                        bytesRead += entry.getLength();
                     }
+                    tokenBucket.consumeTokens(bytesRead);
                 } catch (Throwable t) {
                     try {
                         entries.close();
@@ -106,54 +130,49 @@ public final class OffloadReadHandle implements ReadHandle {
     }
 
     @Override
-    public CompletableFuture<LedgerEntries> readUnconfirmedAsync(long firstEntry, long lastEntry) {
-        return this.delegate.readUnconfirmedAsync(firstEntry, lastEntry);
-    }
-
-    @Override
     public CompletableFuture<Long> readLastAddConfirmedAsync() {
-        return this.delegate.readLastAddConfirmedAsync();
+        return delegate.readLastAddConfirmedAsync();
     }
 
     @Override
     public CompletableFuture<Long> tryReadLastAddConfirmedAsync() {
-        return this.delegate.tryReadLastAddConfirmedAsync();
+        return delegate.tryReadLastAddConfirmedAsync();
     }
 
     @Override
     public long getLastAddConfirmed() {
-        return this.delegate.getLastAddConfirmed();
+        return delegate.getLastAddConfirmed();
     }
 
     @Override
     public long getLength() {
-        return this.delegate.getLength();
+        return delegate.getLength();
     }
 
     @Override
     public boolean isClosed() {
-        return this.delegate.isClosed();
+        return delegate.isClosed();
     }
 
     @Override
     public CompletableFuture<LastConfirmedAndEntry> readLastAddConfirmedAndEntryAsync(
             long entryId, long timeOutInMillis, boolean parallel) {
-        return this.delegate.readLastAddConfirmedAndEntryAsync(entryId, timeOutInMillis, parallel);
+        return delegate.readLastAddConfirmedAndEntryAsync(entryId, timeOutInMillis, parallel);
     }
 
     @Override
     public long getId() {
-        return this.delegate.getId();
+        return delegate.getId();
     }
 
     @Override
     public CompletableFuture<Void> closeAsync() {
-        return this.delegate.closeAsync();
+        return delegate.closeAsync();
     }
 
     @Override
     public LedgerMetadata getLedgerMetadata() {
-        return this.delegate.getLedgerMetadata();
+        return delegate.getLedgerMetadata();
     }
 
 }

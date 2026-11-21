@@ -19,6 +19,7 @@
 package org.apache.bookkeeper.mledger;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
@@ -119,11 +120,12 @@ public class OffloadReadHandleTest {
 
     @Test
     public void testReadAsyncClosesEntriesWhenCancelledBeforeDelegateCompletes() {
+        AsyncTokenBucket tokenBucket = newTokenBucket(100, 100, 1);
         LedgerEntries entries = entries(10);
         CompletableFuture<LedgerEntries> delegateFuture = new CompletableFuture<>();
         ReadHandle delegate = mock(ReadHandle.class);
         when(delegate.readAsync(anyLong(), anyLong())).thenReturn(delegateFuture);
-        ReadHandle handle = create(delegate, null);
+        ReadHandle handle = create(delegate, tokenBucket);
 
         CompletableFuture<LedgerEntries> readFuture = handle.readAsync(0, 0);
 
@@ -178,14 +180,60 @@ public class OffloadReadHandleTest {
     }
 
     @Test
-    public void testReadAsyncBypassesSchedulingWhenThrottlingIsDisabled() {
-        LedgerEntries entries = entries(10);
-        ReadHandle handle = create(delegateReturning(entries), null);
+    public void testCreateRejectsNullTokenBucket() {
+        CompletionException thrown = Assert.expectThrows(CompletionException.class,
+                () -> OffloadReadHandle.create(mock(ReadHandle.class), null, scheduler).join());
+        Assert.assertTrue(thrown.getCause() instanceof NullPointerException);
+    }
 
-        CompletableFuture<LedgerEntries> readFuture = handle.readAsync(0, 0);
+    @Test
+    public void testReadUnconfirmedAsyncIsThrottledAndCharged() {
+        AsyncTokenBucket tokenBucket = newTokenBucket(100, 1_000, 1);
+        LedgerEntries entries = entries(30, 70);
+        ReadHandle delegate = mock(ReadHandle.class);
+        when(delegate.readUnconfirmedAsync(anyLong(), anyLong()))
+                .thenReturn(CompletableFuture.completedFuture(entries));
+        ReadHandle handle = create(delegate, tokenBucket);
+
+        CompletableFuture<LedgerEntries> readFuture = handle.readUnconfirmedAsync(0, 1);
 
         Assert.assertSame(readFuture.join(), entries);
-        verify(scheduler, never()).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+        Assert.assertEquals(tokenBucket.getTokens(), 900);
+        verify(delegate).readUnconfirmedAsync(0, 1);
+        verify(entries, never()).close();
+    }
+
+    @Test
+    public void testBatchReadAsyncDelegatesAndChargesActualBytes() {
+        AsyncTokenBucket tokenBucket = newTokenBucket(100, 1_000, 1);
+        LedgerEntries entries = entries(30, 70);
+        ReadHandle delegate = mock(ReadHandle.class);
+        when(delegate.batchReadAsync(anyLong(), anyInt(), anyLong()))
+                .thenReturn(CompletableFuture.completedFuture(entries));
+        ReadHandle handle = create(delegate, tokenBucket);
+
+        CompletableFuture<LedgerEntries> readFuture = handle.batchReadAsync(0, 2, 100);
+
+        Assert.assertSame(readFuture.join(), entries);
+        Assert.assertEquals(tokenBucket.getTokens(), 900);
+        verify(delegate).batchReadAsync(0, 2, 100);
+        verify(entries, never()).close();
+    }
+
+    @Test
+    public void testBatchReadUnconfirmedAsyncDelegatesAndChargesActualBytes() {
+        AsyncTokenBucket tokenBucket = newTokenBucket(100, 1_000, 1);
+        LedgerEntries entries = entries(30, 70);
+        ReadHandle delegate = mock(ReadHandle.class);
+        when(delegate.batchReadUnconfirmedAsync(anyLong(), anyInt(), anyLong()))
+                .thenReturn(CompletableFuture.completedFuture(entries));
+        ReadHandle handle = create(delegate, tokenBucket);
+
+        CompletableFuture<LedgerEntries> readFuture = handle.batchReadUnconfirmedAsync(0, 2, 100);
+
+        Assert.assertSame(readFuture.join(), entries);
+        Assert.assertEquals(tokenBucket.getTokens(), 900);
+        verify(delegate).batchReadUnconfirmedAsync(0, 2, 100);
         verify(entries, never()).close();
     }
 

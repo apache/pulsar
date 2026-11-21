@@ -149,6 +149,7 @@ import org.apache.bookkeeper.mledger.util.ManagedLedgerUtils;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.broker.qos.AsyncTokenBucket;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
@@ -4900,7 +4901,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
             prepareLedgerInfoForOffloaded(ledgerId, uuid, driverName, driverMetadata)
                 .thenCompose((ignore) -> getLedgerHandle(ledgerId))
-                .thenCompose(h -> OffloadReadHandle.create(h, factory.getOffloadTokenBucket(), scheduledExecutor))
+                .thenCompose(h -> {
+                    // only wrap the handle when the offload read throttling is enabled, so that
+                    // the offloader receives the raw handle with the default configuration
+                    AsyncTokenBucket offloadTokenBucket = factory.getOffloadTokenBucket();
+                    return offloadTokenBucket != null
+                            ? OffloadReadHandle.create(h, offloadTokenBucket, scheduledExecutor)
+                            : CompletableFuture.completedFuture(h);
+                })
                 .thenCompose(readHandle -> config.getLedgerOffloader().offload(readHandle, uuid, extraMetadata))
                 .thenCompose((ignore) -> {
                         return Retries.run(Backoff.exponentialJittered(TimeUnit.SECONDS.toMillis(1),
