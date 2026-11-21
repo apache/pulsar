@@ -135,6 +135,21 @@ public class ManagedCursorImpl implements ManagedCursor {
     };
     private static final Logger slog = Logger.get(ManagedCursorImpl.class);
 
+    // A plugin overriding the original snapshot must also implement the summary to preserve its custom fields.
+    private static final ClassValue<Boolean> SUPPORTS_CURSOR_STATS_SUMMARY = new ClassValue<>() {
+        @Override
+        protected Boolean computeValue(Class<?> type) {
+            try {
+                Class<?> detailed = type.getMethod("getCursorStats").getDeclaringClass();
+                Class<?> summary = type.getMethod("getCursorStatsWithoutIndividuallyDeletedMessages")
+                        .getDeclaringClass();
+                return detailed.isAssignableFrom(summary);
+            } catch (NoSuchMethodException e) {
+                throw new IllegalStateException(e);
+            }
+        }
+    };
+
     protected final BookKeeper bookkeeper;
     protected final ManagedLedgerImpl ledger;
     private final String name;
@@ -4785,6 +4800,18 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public ManagedLedgerInternalStats.CursorStats getCursorStats() {
+        return buildCursorStats(true);
+    }
+
+    @Override
+    public ManagedLedgerInternalStats.CursorStats getCursorStatsWithoutIndividuallyDeletedMessages() {
+        if (!SUPPORTS_CURSOR_STATS_SUMMARY.get(getClass())) {
+            return ManagedCursor.super.getCursorStatsWithoutIndividuallyDeletedMessages();
+        }
+        return buildCursorStats(false);
+    }
+
+    private ManagedLedgerInternalStats.CursorStats buildCursorStats(boolean includeIndividualDeletedMessages) {
         ManagedLedgerInternalStats.CursorStats cs = new ManagedLedgerInternalStats.CursorStats();
         cs.markDeletePosition = getMarkDeletedPosition().toString();
         cs.readPosition = getReadPosition().toString();
@@ -4793,7 +4820,9 @@ public class ManagedCursorImpl implements ManagedCursor {
         cs.messagesConsumedCounter = getMessagesConsumedCounter();
         cs.cursorLedger = getCursorLedger();
         cs.cursorLedgerLastEntry = getCursorLedgerLastEntry();
-        cs.individuallyDeletedMessages = getIndividuallyDeletedMessages();
+        if (includeIndividualDeletedMessages) {
+            cs.individuallyDeletedMessages = getIndividuallyDeletedMessages();
+        }
         cs.lastLedgerSwitchTimestamp = DateFormatter.format(getLastLedgerSwitchTimestamp());
         cs.state = getState();
         cs.active = isActive();

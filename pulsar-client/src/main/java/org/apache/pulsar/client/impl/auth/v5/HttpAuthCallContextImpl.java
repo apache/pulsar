@@ -18,9 +18,15 @@
  */
 package org.apache.pulsar.client.impl.auth.v5;
 
+import static org.apache.pulsar.common.sasl.SaslConstants.SASL_AUTH_ROLE_TOKEN;
+import static org.apache.pulsar.common.sasl.SaslConstants.SASL_AUTH_TOKEN;
+import static org.apache.pulsar.common.sasl.SaslConstants.SASL_HEADER_STATE;
 import java.net.URI;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
+import org.apache.pulsar.client.api.v5.PulsarClientException;
 import org.apache.pulsar.client.api.v5.auth.HttpAuthCallContext;
 import org.apache.pulsar.client.api.v5.auth.HttpAuthHeaders;
 
@@ -39,12 +45,40 @@ import org.apache.pulsar.client.api.v5.auth.HttpAuthHeaders;
  */
 final class HttpAuthCallContextImpl implements HttpAuthCallContext {
 
+    private final CompletableFuture<?> requestLifetime;
     private final URI requestUri;
     private final ConcurrentHashMap<Class<?>, Object> stateSlot = new ConcurrentHashMap<>();
     private volatile HttpAuthHeaders serverChallengeHeaders;
+    private boolean saslTokenSent;
 
-    HttpAuthCallContextImpl(URI requestUri) {
+    HttpAuthCallContextImpl(URI requestUri, CompletableFuture<?> requestLifetime) {
         this.requestUri = requestUri;
+        this.requestLifetime = requestLifetime;
+    }
+
+    boolean isRequestDone() {
+        return requestLifetime != null && requestLifetime.isDone();
+    }
+
+    void setSaslTokenSent(boolean sent) {
+        if (requestLifetime != null) {
+            saslTokenSent = sent;
+        }
+    }
+
+    boolean isTerminalSaslRejection(HttpAuthHeaders headers) {
+        // A bare 401 on a cached role-token check lets SASL start a fresh exchange.
+        return saslTokenSent && headers.get(SASL_AUTH_TOKEN).isEmpty() && headers.get(SASL_AUTH_ROLE_TOKEN).isEmpty()
+                && headers.get(SASL_HEADER_STATE).isEmpty();
+    }
+
+    PulsarClientException.AuthenticationException authenticationFailure(String message, Supplier<Exception> cause) {
+        var failure = new PulsarClientException.AuthenticationException(message);
+        if (requestLifetime != null) {
+            // Fan-out uses the cause to classify the partition failure.
+            failure.initCause(cause.get());
+        }
+        return failure;
     }
 
     @Override

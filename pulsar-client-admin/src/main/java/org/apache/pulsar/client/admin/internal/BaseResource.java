@@ -57,6 +57,8 @@ import org.apache.pulsar.client.admin.PulsarAdminException.ServerSideErrorExcept
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2;
+import org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2StandardAuthzServer;
 import org.apache.pulsar.client.impl.auth.v5.AsyncHttpAuthenticationProvider;
 import org.apache.pulsar.client.impl.auth.v5.HttpAuthenticationDriver;
 import org.apache.pulsar.client.impl.auth.v5.V5AuthContexts;
@@ -117,9 +119,21 @@ public abstract class BaseResource {
 
     // do the authentication stage, and once authentication completed return a Builder
     public CompletableFuture<Builder> requestAsync(final WebTarget target) {
+        return requestAsync(target, null);
+    }
+
+    // A partition lookup can expire while its authentication work is still queued.
+    CompletableFuture<Builder> requestAsync(WebTarget target, CompletableFuture<?> partitionRequest) {
         CompletableFuture<Builder> builderFuture = new CompletableFuture<>();
         try {
-            computeAuthHeaders(target.getUri()).whenComplete((authHeaders, ex) -> {
+            URI uri = target.getUri();
+            var headers = partitionRequest == null
+                    ? computeAuthHeaders(uri) : computeAuthHeaders(uri, partitionRequest);
+            headers.whenComplete((authHeaders, ex) -> {
+                if (partitionRequest != null && partitionRequest.isDone()) {
+                    builderFuture.cancel(false);
+                    return;
+                }
                 if (ex != null) {
                     log.warn().attr("uri", target.getUri())
                             .exceptionMessage(ex)
@@ -158,6 +172,10 @@ public abstract class BaseResource {
      * behaviour for third-party plugins and single-pass built-ins — but off the calling thread.
      */
     protected CompletableFuture<Map<String, String>> computeAuthHeaders(URI uri) {
+        return computeAuthHeaders(uri, null);
+    }
+
+    private CompletableFuture<Map<String, String>> computeAuthHeaders(URI uri, CompletableFuture<?> partitionRequest) {
         try {
             if (auth instanceof AsyncHttpAuthenticationProvider provider) {
                 Optional<HttpAuthenticationDriver> driver = provider.httpAuthenticationDriver()
@@ -165,8 +183,8 @@ public abstract class BaseResource {
                 if (driver.isPresent()) {
                     Duration budget = Duration.ofMillis(requestTimeoutMs > 0 ? requestTimeoutMs : 60_000L);
                     // Null transport => the driver uses the plugin's own default transport (its JAX-RS client).
-                    return driver.get().authenticateAsync(uri, null, budget)
-                            .thenApply(headers -> (headers == null || headers.isEmpty()) ? null : headers.asMap());
+                    var exchange = driver.get().authenticateAsync(uri, null, budget, partitionRequest);
+                    return exchange.thenApply(headers -> headers == null || headers.isEmpty() ? null : headers.asMap());
                 }
             }
             // The deprecated v4 hooks may block — an OAuth2 or Athenz shim's getAuthData() refreshes its
@@ -183,7 +201,7 @@ public abstract class BaseResource {
             // PulsarAdmin has no pool to borrow and falls back to that shared one, which is still off the
             // caller thread.
             Executor executor = V5AuthContexts.blockingExecutorOrShared(blockingAuthExecutor);
-            return V5AuthContexts.supplyBlocking(executor, () -> v4AuthHeaders(uri, executor))
+            return V5AuthContexts.supplyBlocking(executor, () -> v4AuthHeaders(uri, executor, partitionRequest))
                     .thenCompose(headers -> headers);
         } catch (Throwable t) {
             return CompletableFuture.failedFuture(t);
@@ -196,12 +214,22 @@ public abstract class BaseResource {
      *
      * @param uri the request URI
      * @param blockingExecutor the executor this composition runs on, for the continuation below
+     * @param partitionRequest the broker's physical partition request, or {@code null} for ordinary admin calls
      * @return a future of the headers, or of {@code null} when the plugin contributes none
      */
-    private CompletableFuture<Map<String, String>> v4AuthHeaders(URI uri, Executor blockingExecutor) {
+    private CompletableFuture<Map<String, String>> v4AuthHeaders(URI uri, Executor blockingExecutor,
+                                                                CompletableFuture<?> partitionRequest) {
         try {
-            AuthenticationDataProvider authData = auth.getAuthData(uri.getHost());
-            if (!authData.hasDataForHttp()) {
+            if (partitionRequest != null && partitionRequest.isDone()) {
+                return CompletableFuture.completedFuture(null);
+            }
+            // Preserve getAuthData overrides on custom plugins, including subclasses of the built-in OAuth2 plugin.
+            AuthenticationDataProvider authData = partitionRequest != null
+                    && (auth.getClass() == AuthenticationOAuth2.class
+                            || auth.getClass() == AuthenticationOAuth2StandardAuthzServer.class)
+                    ? ((AuthenticationOAuth2) auth).getAuthDataWithFailureDetails(partitionRequest)
+                    : auth.getAuthData(uri.getHost());
+            if ((partitionRequest != null && partitionRequest.isDone()) || !authData.hasDataForHttp()) {
                 return CompletableFuture.completedFuture(null);
             }
             CompletableFuture<Map<String, String>> stage = new CompletableFuture<>();
@@ -213,6 +241,9 @@ public abstract class BaseResource {
             // this is for third-party v4 plugins; where the stage completes inline (the single-pass default)
             // the hop is to a sibling task on this same executor.
             return stage.thenApplyAsync(respHeaders -> {
+                if (partitionRequest != null && partitionRequest.isDone()) {
+                    return null;
+                }
                 try {
                     Set<Entry<String, String>> headers = auth.newRequestHeader(uri.toString(), authData, respHeaders);
                     if (headers == null) {

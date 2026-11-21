@@ -32,6 +32,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import org.apache.pulsar.client.api.v5.auth.AuthenticationCallContext;
 import org.apache.pulsar.client.api.v5.auth.AuthenticationInitContext;
+import org.apache.pulsar.client.api.v5.auth.HttpAuthCallContext;
 import org.apache.pulsar.client.api.v5.internal.ClientAuthenticationServices;
 import org.apache.pulsar.http.PulsarHttpClientFactory;
 
@@ -53,6 +54,18 @@ import org.apache.pulsar.http.PulsarHttpClientFactory;
 public final class V5AuthContexts {
 
     private V5AuthContexts() {
+    }
+
+    /** Whether queued work for this framework-managed HTTP exchange can be skipped. */
+    public static boolean isHttpCallDone(HttpAuthCallContext ctx) {
+        return ctx instanceof HttpAuthCallContextImpl call && call.isRequestDone();
+    }
+
+    /** Record whether this SASL round sends a GSSAPI token or replays a cached role token. */
+    public static void setSaslTokenSent(HttpAuthCallContext ctx, boolean sent) {
+        if (ctx instanceof HttpAuthCallContextImpl call) {
+            call.setSaslTokenSent(sent);
+        }
     }
 
     /**

@@ -1107,6 +1107,11 @@ public class CustomizedManagedLedgerStorageForTest extends ManagedLedgerClientFa
         }
 
         @Override
+        public ManagedLedgerInternalStats.CursorStats getCursorStatsWithoutIndividuallyDeletedMessages() {
+            return delegate.getCursorStatsWithoutIndividuallyDeletedMessages();
+        }
+
+        @Override
         public boolean isMessageDeleted(Position position) {
             return delegate.isMessageDeleted(position);
         }

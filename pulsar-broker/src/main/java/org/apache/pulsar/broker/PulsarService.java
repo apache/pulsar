@@ -161,6 +161,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClient;
 import org.apache.pulsar.client.impl.DnsResolverGroupImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.client.impl.auth.v5.V5AuthContexts;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 import org.apache.pulsar.client.impl.tls.ClientTlsFactorySupport;
@@ -260,7 +261,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private LoadSheddingTask loadSheddingTask = null;
     private ScheduledFuture<?> loadResourceQuotaTask = null;
     private final AtomicReference<LoadManager> loadManager = new AtomicReference<>();
-    private PulsarAdmin adminClient = null;
+    private volatile PulsarAdmin adminClient;
+    private final AtomicReference<CompletableFuture<PulsarAdmin>> adminClientInitialization = new AtomicReference<>();
     private PulsarClient client = null;
     private final String bindAddress;
     /**
@@ -2150,6 +2152,60 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             }
         }
         return this.adminClient;
+    }
+
+    /**
+     * Get the broker's Admin client without blocking on client construction or another caller's initialization.
+     * A request that finishes waiting releases its dependency on the shared initialization.
+     */
+    public CompletableFuture<PulsarAdmin> getAdminClientAsync(CompletableFuture<Void> requestCompletion) {
+        if (!isRunning()) {
+            return CompletableFuture.failedFuture(new PulsarServerException("Broker is not running"));
+        }
+        PulsarAdmin existingClient = adminClient;
+        if (existingClient != null) {
+            return CompletableFuture.completedFuture(existingClient);
+        }
+        // anyOf detaches the waiting request even if the shared initialization stays blocked.
+        CompletableFuture<?> ready = requestCompletion.isDone() ? requestCompletion
+                : CompletableFuture.anyOf(requestCompletion, initializeAdminClientAsync());
+        return ready.thenApply(result -> {
+            if (result instanceof PulsarAdmin client) {
+                return client;
+            }
+            throw new CancellationException("Request finished before the broker admin client was ready");
+        });
+    }
+
+    private CompletableFuture<PulsarAdmin> initializeAdminClientAsync() {
+        var initialization = new CompletableFuture<PulsarAdmin>();
+        var current = adminClientInitialization.compareAndExchange(null, initialization);
+        if (current != null) {
+            return current;
+        }
+
+        // Authentication startup can do blocking I/O. Keep it off the broker scheduler.
+        V5AuthContexts.supplyBlocking(null, () -> {
+            try {
+                return getAdminClient();
+            } catch (PulsarServerException e) {
+                throw new CompletionException(e);
+            }
+        }).whenComplete((client, error) -> {
+            adminClientInitialization.compareAndSet(initialization, null);
+            if (error == null) {
+                initialization.complete(client);
+            } else {
+                initialization.completeExceptionally(error);
+            }
+        });
+        return initialization;
+    }
+
+    @VisibleForTesting
+    int getAdminClientWaiterCount() {
+        var initialization = adminClientInitialization.get();
+        return initialization == null ? 0 : initialization.getNumberOfDependents();
     }
 
     private void closeAdminClient() {

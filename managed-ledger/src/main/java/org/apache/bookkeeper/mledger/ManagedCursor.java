@@ -985,6 +985,15 @@ public interface ManagedCursor {
 
     ManagedLedgerInternalStats.CursorStats getCursorStats();
 
+    /**
+     * Snapshot the same fields as {@link #getCursorStats()} without constructing the individually deleted range string.
+     *
+     * @throws UnsupportedOperationException if this cursor does not support omitting the ranges
+     */
+    default ManagedLedgerInternalStats.CursorStats getCursorStatsWithoutIndividuallyDeletedMessages() {
+        throw new UnsupportedOperationException("This cursor cannot omit individually deleted messages from stats");
+    }
+
     boolean isMessageDeleted(Position position);
 
     ManagedCursor duplicateNonDurableCursor(String nonDurableCursorName) throws ManagedLedgerException;

@@ -55,6 +55,7 @@ import org.apache.pulsar.client.admin.ListTopicsOptions;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.admin.PulsarAdminException.GettingAuthenticationDataException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.client.admin.Topics;
@@ -85,10 +86,12 @@ import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
+import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.CursorStats;
 import org.apache.pulsar.common.policies.data.NonPersistentPartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
+import org.apache.pulsar.common.policies.data.PartitionedSubscriptionCursorInternalStats;
 import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
@@ -143,6 +146,7 @@ public class TopicsImpl extends BaseResource implements Topics {
     public static final String TXN_CONSUMABLE = "X-Pulsar-txn-consumable";
     // CHECKSTYLE.ON: MemberName
 
+    public static final String CURSOR_STATS_LOCAL_ONLY_HEADER = "X-Pulsar-Cursor-Stats-Local-Only";
     public static final String PROPERTY_SHADOW_SOURCE_KEY = "PULSAR.SHADOW_SOURCE";
 
     public TopicsImpl(WebTarget web, Authentication auth, long requestTimeoutMs) {
@@ -699,6 +703,83 @@ public class TopicsImpl extends BaseResource implements Topics {
         WebTarget path = topicPath(tn, "internalStats");
         path = path.queryParam("metadata", metadata);
         return asyncGetRequest(path, new FutureCallback<PersistentTopicInternalStats>(){});
+    }
+
+    @Override
+    public CursorStats getSubscriptionCursorInternalStats(
+            String topic, String subName, boolean includeIndividualDeletedMessages) throws PulsarAdminException {
+        return sync(() -> getSubscriptionCursorInternalStatsAsync(topic, subName, includeIndividualDeletedMessages));
+    }
+
+    @Override
+    public CompletableFuture<CursorStats> getSubscriptionCursorInternalStatsAsync(
+            String topic, String subName, boolean includeIndividualDeletedMessages) {
+        return getSubscriptionCursorStatsAsync(topic, subName, "internalStats", includeIndividualDeletedMessages,
+                false, new FutureCallback<CursorStats>() {});
+    }
+
+    /** Internal broker fan-out follows ownership redirects within the local cluster only. */
+    public CompletableFuture<CursorStats> getLocalSubscriptionCursorInternalStatsAsync(
+            String topic, String subName, boolean includeIndividualDeletedMessages) {
+        return getSubscriptionCursorStatsAsync(topic, subName, "internalStats", includeIndividualDeletedMessages,
+                true, new FutureCallback<CursorStats>() {});
+    }
+
+    @Override
+    public PartitionedSubscriptionCursorInternalStats getPartitionedSubscriptionCursorInternalStats(
+            String topic, String subName, boolean includeIndividualDeletedMessages) throws PulsarAdminException {
+        return sync(() -> getPartitionedSubscriptionCursorInternalStatsAsync(
+                topic, subName, includeIndividualDeletedMessages));
+    }
+
+    @Override
+    public CompletableFuture<PartitionedSubscriptionCursorInternalStats>
+            getPartitionedSubscriptionCursorInternalStatsAsync(
+                    String topic, String subName, boolean includeIndividualDeletedMessages) {
+        return getSubscriptionCursorStatsAsync(
+                topic, subName, "partitioned-internalStats", includeIndividualDeletedMessages,
+                false, new FutureCallback<PartitionedSubscriptionCursorInternalStats>() {});
+    }
+
+    private <T> CompletableFuture<T> getSubscriptionCursorStatsAsync(String topic, String subName, String resource,
+            boolean includeIndividualDeletedMessages, boolean localOnly, FutureCallback<T> callback) {
+        return FutureUtil.supplySafely(() -> {
+            TopicName topicName = validateTopic(topic);
+            checkArgument(topicName.getDomain() == TopicDomain.persistent, "Topic must be persistent");
+            checkArgument(StringUtils.isNotEmpty(subName), "Subscription name must not be empty");
+            WebTarget path = topicPath(topicName, "subscription", subName, resource)
+                    .queryParam("includeIndividualDeletedMessages", includeIndividualDeletedMessages);
+            // Brokers also call this for partition fan-out, so credential resolution must not block the caller.
+            CompletableFuture<T> result = callback.future();
+            var builderFuture = localOnly ? requestAsync(path, result) : requestAsync(path);
+            builderFuture.whenComplete((builder, error) -> {
+                if (result.isDone()) {
+                    return;
+                }
+                if (error != null) {
+                    result.completeExceptionally(
+                            new GettingAuthenticationDataException(FutureUtil.unwrapCompletionException(error)));
+                    return;
+                }
+                try {
+                    if (localOnly) {
+                        builder.header(CURSOR_STATS_LOCAL_ONLY_HEADER, true);
+                    }
+                    var invocation = builder.async().get(callback);
+                    if (localOnly) {
+                        // Jersey skips decoding a late response when its invocation has been cancelled.
+                        result.whenComplete((unused, failure) -> {
+                            if (result.isCancelled()) {
+                                invocation.cancel(false);
+                            }
+                        });
+                    }
+                } catch (Throwable failure) {
+                    result.completeExceptionally(failure);
+                }
+            });
+            return result;
+        });
     }
 
     @Override

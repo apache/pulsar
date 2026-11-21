@@ -141,6 +141,7 @@ import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.IntRange;
+import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet;
@@ -430,6 +431,95 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         // cleanup.
         ml.delete();
+    }
+
+    @Test
+    void testGetCursorStats() throws Exception {
+        final String mlName = "ml_test_get_cursor_stats";
+        final ManagedLedgerConfig mlConfig = defaultConfig();
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(mlName, mlConfig);
+
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ml.openCursor("c1");
+        Position position0 = null;
+        Position position2 = null;
+        for (int i = 0; i < 3; i++) {
+            Position position = ml.addEntry(("entry-" + i).getBytes(Encoding));
+            if (i == 0) {
+                position0 = position;
+            } else if (i == 2) {
+                position2 = position;
+            }
+        }
+
+        // Mark-delete the first entry and individually delete the last one, leaving a hole in between.
+        cursor.markDelete(position0);
+        cursor.delete(position2);
+
+        Position finalPosition0 = position0;
+        Position finalPosition2 = position2;
+        Awaitility.await().untilAsserted(() -> {
+            ManagedLedgerInternalStats.CursorStats stats = cursor.getCursorStats();
+            assertEquals(stats.markDeletePosition, finalPosition0.toString());
+            assertEquals(stats.readPosition, finalPosition0.getNext().toString());
+            assertEquals(stats.state, "Open");
+            assertEquals(stats.totalNonContiguousDeletedMessagesRange, 1);
+            assertTrue(stats.individuallyDeletedMessages.contains(finalPosition2.toString()));
+        });
+
+        ManagedCursorImpl observedCursor = spy(cursor);
+        var summary = observedCursor.getCursorStatsWithoutIndividuallyDeletedMessages();
+        verify(observedCursor, never()).getIndividuallyDeletedMessages();
+        assertThat(summary.individuallyDeletedMessages).isNull();
+
+        ManagedLedgerInternalStats.CursorStats detailed = observedCursor.getCursorStats();
+        verify(observedCursor).getIndividuallyDeletedMessages();
+        assertThat(detailed.individuallyDeletedMessages).contains(finalPosition2.toString());
+        assertThat(summary).usingRecursiveComparison().ignoringFields("individuallyDeletedMessages")
+                .isEqualTo(detailed);
+
+        // cleanup.
+        ml.delete();
+    }
+
+    @Test
+    void testGetCursorStatsWithLegacySnapshotOverride() throws Exception {
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open("cursor-stats-override", defaultConfig());
+
+        class LegacySnapshotCursor extends NonDurableCursorImpl {
+            LegacySnapshotCursor(String name) {
+                super(bkc, ml, name, null, CommandSubscribe.InitialPosition.Latest, false);
+            }
+
+            @Override
+            public ManagedLedgerInternalStats.CursorStats getCursorStats() {
+                var stats = super.getCursorStats();
+                stats.state = "custom";
+                return stats;
+            }
+        }
+
+        ManagedCursor legacy = new LegacySnapshotCursor("legacy");
+        ManagedCursor updated = new LegacySnapshotCursor("updated") {
+            @Override
+            public ManagedLedgerInternalStats.CursorStats getCursorStatsWithoutIndividuallyDeletedMessages() {
+                var stats = super.getCursorStatsWithoutIndividuallyDeletedMessages();
+                stats.state = "custom";
+                return stats;
+            }
+        };
+        try {
+            assertEquals(legacy.getCursorStats().state, "custom");
+            Assert.expectThrows(UnsupportedOperationException.class,
+                    legacy::getCursorStatsWithoutIndividuallyDeletedMessages);
+            var summary = updated.getCursorStatsWithoutIndividuallyDeletedMessages();
+            assertNull(summary.individuallyDeletedMessages);
+            assertThat(summary).usingRecursiveComparison().ignoringFields("individuallyDeletedMessages")
+                    .isEqualTo(updated.getCursorStats());
+        } finally {
+            legacy.close();
+            updated.close();
+            ml.delete();
+        }
     }
 
     @Test

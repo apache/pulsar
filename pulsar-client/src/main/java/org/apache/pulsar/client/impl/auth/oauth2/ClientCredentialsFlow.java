@@ -18,10 +18,12 @@
  */
 package org.apache.pulsar.client.impl.auth.oauth2;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLConnection;
@@ -161,13 +163,18 @@ class ClientCredentialsFlow extends FlowBase {
         initialized = true;
     }
 
-    public TokenResult authenticate() throws PulsarClientException {
+    @Override
+    public TokenResult authenticate(boolean includeFailureDetails) throws PulsarClientException {
         // read the private key from storage
         KeyFile keyFile;
         try {
             keyFile = loadPrivateKey(this.privateKey);
         } catch (IOException e) {
-            throw new PulsarClientException.AuthenticationException("Unable to read private key: " + e.getMessage());
+            String message = "Unable to read private key: " + e.getMessage();
+            if (includeFailureDetails && (e instanceof JsonProcessingException || usesLocalCredentialSource())) {
+                throw new PulsarClientException.InvalidConfigurationException(message);
+            }
+            throw authenticationFailure(message, e, includeFailureDetails);
         }
 
         // request an access token using client credentials
@@ -185,11 +192,20 @@ class ClientCredentialsFlow extends FlowBase {
         try {
             tr = this.exchanger.exchangeClientCredentials(req);
         } catch (TokenExchangeException | IOException e) {
-            throw new PulsarClientException.AuthenticationException("Unable to obtain an access token: "
-                    + e.getMessage());
+            throw authenticationFailure("Unable to obtain an access token: " + e.getMessage(), e,
+                    includeFailureDetails);
         }
 
         return tr;
+    }
+
+    private boolean usesLocalCredentialSource() {
+        try {
+            String scheme = new URI(privateKey).getScheme();
+            return scheme == null || "file".equalsIgnoreCase(scheme) || "data".equalsIgnoreCase(scheme);
+        } catch (URISyntaxException e) {
+            return true;
+        }
     }
 
     @Override

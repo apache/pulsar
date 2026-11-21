@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl.auth.v5;
 
 import java.net.URI;
 import java.time.Duration;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
@@ -63,6 +64,21 @@ public final class HttpAuthenticationDriver {
 
     /** The fixed per-request cap on challenge rounds (internal constant, PIP-478). */
     public static final int MAX_CHALLENGE_ROUNDS = 10;
+
+    /** The HTTP status received by a broker partition request during authentication. */
+    public static final class ChallengeResponseException extends Exception {
+        private static final long serialVersionUID = 1L;
+        private final int statusCode;
+
+        public ChallengeResponseException(int statusCode) {
+            super("HTTP challenge failed with status " + statusCode);
+            this.statusCode = statusCode;
+        }
+
+        public int getStatusCode() {
+            return statusCode;
+        }
+    }
 
     private final Authentication v5;
     private final ClientAuthenticationServices services;
@@ -116,6 +132,12 @@ public final class HttpAuthenticationDriver {
      */
     public CompletableFuture<HttpAuthHeaders> authenticateAsync(URI uri, HttpChallengeTransport transport,
             Duration budget) {
+        return authenticateAsync(uri, transport, budget, null);
+    }
+
+    /** The optional request future lets queued credential work skip an expired broker fan-out request. */
+    public CompletableFuture<HttpAuthHeaders> authenticateAsync(URI uri, HttpChallengeTransport transport,
+            Duration budget, CompletableFuture<?> requestLifetime) {
         try {
             HttpAuthChallengeHandler handler = v5.capability(HttpAuthChallengeHandler.class).orElse(null);
             if (handler == null) {
@@ -136,7 +158,7 @@ public final class HttpAuthenticationDriver {
                 return CompletableFuture.failedFuture(new IllegalStateException(
                         "No HTTP challenge transport supplied and no default transport is configured"));
             }
-            HttpAuthCallContextImpl ctx = new HttpAuthCallContextImpl(uri);
+            HttpAuthCallContextImpl ctx = new HttpAuthCallContextImpl(uri, requestLifetime);
             long budgetNanos = Math.max(0L, budget == null ? 0L : budget.toNanos());
             long deadlineNanos = System.nanoTime() + budgetNanos;
             // Initialization may do I/O (SPI contract), so the exchange is chained onto it rather than the
@@ -144,7 +166,9 @@ public final class HttpAuthenticationDriver {
             // is charged to this call's budget rather than extending it.
             CompletableFuture<HttpAuthHeaders> credential = initializedAsync()
                     .thenCompose(ignored -> challengeRound(ctx, handler, t, uri, null, 0, deadlineNanos))
-                    .thenCompose(ignored -> provider.getHttpHeadersAsync(ctx));
+                    .thenCompose(ignored -> ctx.isRequestDone()
+                            ? CompletableFuture.failedFuture(new CancellationException())
+                            : provider.getHttpHeadersAsync(ctx));
             // Metrics (PIP-478): time the HTTP credential acquisition and count failures by error class.
             return authMetrics.timeCredential(credential, httpAuthMethod());
         } catch (Throwable th) {
@@ -163,11 +187,15 @@ public final class HttpAuthenticationDriver {
     private CompletableFuture<Void> challengeRound(HttpAuthCallContextImpl ctx, HttpAuthChallengeHandler handler,
             HttpChallengeTransport transport, URI uri, HttpAuthHeaders serverChallenge, int round,
             long deadlineNanos) {
+        if (ctx.isRequestDone()) {
+            return CompletableFuture.failedFuture(new CancellationException());
+        }
         ctx.setServerChallengeHeaders(serverChallenge);
         long remainingNanos = deadlineNanos - System.nanoTime();
         if (remainingNanos <= 0) {
-            return CompletableFuture.failedFuture(new PulsarClientException.AuthenticationException(
-                    "SASL over HTTP exchange exceeded its timeout budget before round " + round));
+            String message = "SASL over HTTP exchange exceeded its timeout budget before round " + round;
+            return CompletableFuture.failedFuture(ctx.authenticationFailure(message,
+                    () -> new TimeoutException(message)));
         }
         Duration remaining = Duration.ofNanos(remainingNanos);
         // Bound the WHOLE round — the plugin's challenge evaluation (respondToHttpChallengeAsync, which for
@@ -175,9 +203,9 @@ public final class HttpAuthenticationDriver {
         // deadline, so a hang in EITHER stage fails within the shared budget. boundedGet keeps its own inner
         // per-transport bound; this outer bound also covers the evaluation that runs before the GET.
         CompletableFuture<HttpChallengeTransport.Result> roundFuture = handler.respondToHttpChallengeAsync(ctx)
-                .thenCompose(reqHeaders -> boundedGet(transport, uri,
+                .thenCompose(reqHeaders -> boundedGet(ctx, transport, uri,
                         reqHeaders == null ? HttpAuthHeaders.empty() : reqHeaders, remaining, round));
-        return boundedByRemaining(roundFuture, remaining, round)
+        return boundedByRemaining(ctx, roundFuture, remaining, round)
                 .thenCompose(result -> {
                     int status = result.statusCode();
                     if (status == java.net.HttpURLConnection.HTTP_OK) {
@@ -185,7 +213,8 @@ public final class HttpAuthenticationDriver {
                         ctx.setServerChallengeHeaders(result.responseHeaders());
                         return CompletableFuture.completedFuture(null);
                     }
-                    if (status == java.net.HttpURLConnection.HTTP_UNAUTHORIZED) {
+                    if (status == java.net.HttpURLConnection.HTTP_UNAUTHORIZED
+                            && !ctx.isTerminalSaslRejection(result.responseHeaders())) {
                         int next = round + 1;
                         if (next >= MAX_CHALLENGE_ROUNDS) {
                             return CompletableFuture.failedFuture(new PulsarClientException.AuthenticationException(
@@ -195,8 +224,9 @@ public final class HttpAuthenticationDriver {
                         return challengeRound(ctx, handler, transport, uri, result.responseHeaders(), next,
                                 deadlineNanos);
                     }
-                    return CompletableFuture.failedFuture(new PulsarClientException.AuthenticationException(
-                            "SASL over HTTP auth request failed with status " + status));
+                    return CompletableFuture.failedFuture(ctx.authenticationFailure(
+                            "SASL over HTTP auth request failed with status " + status,
+                            () -> new ChallengeResponseException(status)));
                 });
     }
 
@@ -208,9 +238,12 @@ public final class HttpAuthenticationDriver {
      * {@link #challengeRound} additionally wraps the whole round (evaluation + GET) via
      * {@link #boundedByRemaining}, so the plugin's challenge evaluation is covered too.
      */
-    private static CompletableFuture<HttpChallengeTransport.Result> boundedGet(HttpChallengeTransport transport,
-            URI uri, HttpAuthHeaders headers, Duration remaining, int round) {
-        return boundedByRemaining(transport.get(uri, headers, remaining), remaining, round);
+    private static CompletableFuture<HttpChallengeTransport.Result> boundedGet(HttpAuthCallContextImpl ctx,
+            HttpChallengeTransport transport, URI uri, HttpAuthHeaders headers, Duration remaining, int round) {
+        if (ctx.isRequestDone()) {
+            return CompletableFuture.failedFuture(new CancellationException());
+        }
+        return boundedByRemaining(ctx, transport.get(uri, headers, remaining), remaining, round);
     }
 
     /**
@@ -219,16 +252,16 @@ public final class HttpAuthenticationDriver {
      * transport bound ({@link #boundedGet}) and the outer whole-round bound applied in
      * {@link #challengeRound}.
      */
-    private static CompletableFuture<HttpChallengeTransport.Result> boundedByRemaining(
+    private static CompletableFuture<HttpChallengeTransport.Result> boundedByRemaining(HttpAuthCallContextImpl ctx,
             CompletableFuture<HttpChallengeTransport.Result> future, Duration remaining, int round) {
         return future
                 .orTimeout(remaining.toNanos(), TimeUnit.NANOSECONDS)
                 .exceptionallyCompose(t -> {
                     Throwable cause = t instanceof CompletionException ? t.getCause() : t;
-                    if (cause instanceof TimeoutException) {
-                        return CompletableFuture.failedFuture(new PulsarClientException.AuthenticationException(
+                    if (cause instanceof TimeoutException timeout) {
+                        return CompletableFuture.failedFuture(ctx.authenticationFailure(
                                 "SASL over HTTP round " + round + " timed out after " + remaining.toMillis()
-                                        + " ms"));
+                                        + " ms", () -> timeout));
                     }
                     return CompletableFuture.failedFuture(cause);
                 });

@@ -78,7 +78,7 @@ public abstract class MockedPulsarStandalone implements AutoCloseable {
 
     protected static final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
 
-    private static final String BROKER_INTERNAL_CLIENT_SUBJECT = "broker_internal";
+    protected static final String BROKER_INTERNAL_CLIENT_SUBJECT = "broker_internal";
     private static final String BROKER_INTERNAL_CLIENT_TOKEN = Jwts.builder()
             .claim("sub", BROKER_INTERNAL_CLIENT_SUBJECT).signWith(SECRET_KEY).compact();
     protected static final String SUPER_USER_SUBJECT = "super-user";

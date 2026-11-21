@@ -749,19 +749,45 @@ public class CmdTopics extends CmdBase {
         }
     }
 
-    @Command(description = "Get the internal stats for the topic")
-    private class GetInternalStats extends CliCommand {
+    private abstract class SubscriptionAwareInternalStats extends CliCommand {
         @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
         private String topicName;
 
-        @Option(names = { "-m",
-        "--metadata" }, description = "Flag to include ledger metadata")
-        private boolean metadata = false;
+        @Option(names = { "-s", "--subscription" }, description = "Get cursor statistics for this subscription")
+        String subName;
+
+        @Option(names = "--include-individual-deleted-messages",
+                description = "Include the complete individually deleted message ranges for the subscription")
+        Boolean includeIndividualDeletedMessages;
+
+        String validateStatsTopic() {
+            if (subName != null) {
+                return validatePersistentTopic(topicName);
+            }
+            if (includeIndividualDeletedMessages != null) {
+                throw new ParameterException("--include-individual-deleted-messages requires --subscription");
+            }
+            return validateTopicName(topicName);
+        }
+    }
+
+    @Command(description = "Get the internal stats for the topic or one subscription")
+    private class GetInternalStats extends SubscriptionAwareInternalStats {
+        @Option(names = { "-m", "--metadata" }, description = "Flag to include ledger metadata")
+        private Boolean metadata;
 
         @Override
         void run() throws PulsarAdminException {
-            String topic = validateTopicName(topicName);
-            print(getTopics().getInternalStats(topic, metadata));
+            String topic = validateStatsTopic();
+            if (subName == null) {
+                print(getTopics().getInternalStats(topic, Boolean.TRUE.equals(metadata)));
+            } else {
+                if (metadata != null) {
+                    throw new ParameterException("--metadata and --subscription are mutually exclusive");
+                }
+                print(getTopics().getSubscriptionCursorInternalStats(
+                        topic, subName, Boolean.TRUE.equals(includeIndividualDeletedMessages)));
+            }
         }
     }
 
@@ -815,17 +841,17 @@ public class CmdTopics extends CmdBase {
         }
     }
 
-    @Command(description = "Get the internal stats for the partitioned topic "
-            + "and its connected producers and consumers. All the rates are computed over a 1 minute window "
-            + "and are relative the last completed 1 minute period.")
-    private class GetPartitionedStatsInternal extends CliCommand {
-        @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
-        private String topicName;
-
+    @Command(description = "Get the internal stats for the partitioned topic or one subscription on its partitions")
+    private class GetPartitionedStatsInternal extends SubscriptionAwareInternalStats {
         @Override
-        void run() throws Exception {
-            String topic = validateTopicName(topicName);
-            print(getTopics().getPartitionedInternalStats(topic));
+        void run() throws PulsarAdminException {
+            String topic = validateStatsTopic();
+            if (subName == null) {
+                print(getTopics().getPartitionedInternalStats(topic));
+            } else {
+                print(getTopics().getPartitionedSubscriptionCursorInternalStats(
+                        topic, subName, Boolean.TRUE.equals(includeIndividualDeletedMessages)));
+            }
         }
     }
 
