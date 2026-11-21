@@ -99,6 +99,11 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
                 && this.cursor.getManagedLedger().getConfig().isAutoSkipNonRecoverableData();
     }
 
+    @VisibleForTesting
+    public boolean isExpirationCheckInProgress() {
+        return expirationCheckInProgress == TRUE;
+    }
+
     @Override
     public CompletableFuture<Boolean> expireMessagesAsync(int messageTTLInSeconds) {
         return CompletableFuture.supplyAsync(() -> expireMessages(messageTTLInSeconds), topic.getOrderedExecutor());
@@ -277,6 +282,15 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
             log.info()
                     .attr("position", position)
                     .log("Expiring all messages until position");
+            beforeCursorMarkDelete(position);
+            if (topic.isClosingOrDeleting()) {
+                log.debug()
+                        .attr("position", position)
+                        .log("Skipping message expiry mark-delete because topic is closing or deleting");
+                expirationCheckInProgress = FALSE;
+                updateRates();
+                return;
+            }
             Position prevMarkDeletePos = cursor.getMarkDeletedPosition();
             cursor.asyncMarkDelete(position, null, markDeleteCallback, cursor.getNumberOfEntriesInBacklog(false));
             if (!Objects.equals(cursor.getMarkDeletedPosition(), prevMarkDeletePos) && subscription != null) {
@@ -287,6 +301,11 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
             expirationCheckInProgress = FALSE;
             updateRates();
         }
+    }
+
+    @VisibleForTesting
+    protected void beforeCursorMarkDelete(Position position) {
+        // No-op.
     }
 
     @Override
