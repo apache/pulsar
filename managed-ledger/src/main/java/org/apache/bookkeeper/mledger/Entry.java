@@ -19,7 +19,6 @@
 package org.apache.bookkeeper.mledger;
 
 import io.netty.buffer.ByteBuf;
-import java.util.Collection;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
@@ -123,22 +122,5 @@ public interface Entry {
             }
             return messageMetadata.getPublishTime();
         });
-    }
-
-    /**
-     * Releases each non-null entry of the given collection, ignoring a null or empty collection
-     * and the null elements a read may deliver as placeholders.
-     *
-     * @param entries the entries to release
-     */
-    static void releaseEntries(Collection<Entry> entries) {
-        if (entries == null || entries.isEmpty()) {
-            return;
-        }
-        for (Entry e : entries) {
-            if (e != null) {
-                e.release();
-            }
-        }
     }
 }

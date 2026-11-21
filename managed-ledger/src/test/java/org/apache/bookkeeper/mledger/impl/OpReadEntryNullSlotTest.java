@@ -126,9 +126,9 @@ public class OpReadEntryNullSlotTest extends MockedBookKeeperTestCase {
      * in-flight reads limiter enabled: the wrapper must deliver the re-read's batch to the
      * original callback (a bare NPE there would leave the read callback uncompleted, the valid
      * entries unreleased and the acquired permit leaked) and every permit must be returned once
-     * the delivered entries are handled — the collected entries' share on their release after the
-     * re-read discarded them. Before the re-read at the source, the short leg surfaced as a null
-     * slot delivered through the wrapper, whose immediate share return that path exercised.
+     * the delivered batch's entries are released. Before the re-read at the source, the short
+     * leg surfaced as a null slot delivered through the wrapper, whose immediate share return
+     * that path exercised.
      */
     @Test(timeOut = 20_000)
     void shortLegThroughRangeCacheWithLimiterIsRecoveredAndPermitsFullyReleased() throws Exception {
@@ -214,9 +214,8 @@ public class OpReadEntryNullSlotTest extends MockedBookKeeperTestCase {
             long totalCapacity = limiter.getRemainingBytes();
 
             // Prime the cache with [0..0] and [3..4], leaving the middle range [1..2] missing:
-            // the mixed read [0..4] assembles [cached, stored, null, cached, cached] when the
-            // storage leg answers short with only entry 1 — the null slot sits in the middle,
-            // so a cleanup stopping at it would leak the entries after it.
+            // the mixed read [0..4] asks storage for [1..2], and the read times out while that
+            // leg is in flight.
             cache.clear();
             primeCache(cache, ml.currentLedger, 0, 0);
             primeCache(cache, ml.currentLedger, 3, 4);
@@ -239,28 +238,43 @@ public class OpReadEntryNullSlotTest extends MockedBookKeeperTestCase {
             timeoutWrapper.triggerReadTimeout(new ManagedLedgerException("read timed out"));
             result.failure.get(5, TimeUnit.SECONDS);
 
-            // The sparse batch arrives late: every valid slot must be discarded and every share
-            // of the in-flight read permits must be returned. The entries list must be mutable:
-            // readFromStorage closes the LedgerEntries, whose recycle clears the list.
+            // The leg answers short with only entry 1: the mixed read rejects it, discards what
+            // it collected and re-reads the whole range, which the real ledger answers in full —
+            // a late batch the timeout wrapper must discard unread. The entries list must be
+            // mutable: readFromStorage closes the LedgerEntries, whose recycle clears the list.
             lateStorage.complete(LedgerEntriesImpl.create(new ArrayList<>(List.of(ledgerEntry(ledgerId, 1)))));
 
             Awaitility.await().untilAsserted(() ->
                     assertEquals(limiter.getRemainingBytes(), totalCapacity,
                             "every in-flight read permit must be returned"));
             assertTrue(!result.entries.isDone(), "the late batch must not be delivered after the timeout");
+
+            // A late batch may still carry null slots, as a mixed read left them before the
+            // source-side recovery: injected directly, since the recovery now keeps such a batch
+            // from being delivered, the cleanup's discard must tolerate them and release the
+            // entries after the null slot.
+            List<Entry> sparseBatch = new ArrayList<>();
+            EntryImpl lateEntry1 = EntryImpl.create(ledgerId, 1, Unpooled.EMPTY_BUFFER);
+            EntryImpl lateEntry3 = EntryImpl.create(ledgerId, 3, Unpooled.EMPTY_BUFFER);
+            sparseBatch.add(lateEntry1);
+            sparseBatch.add(null);
+            sparseBatch.add(lateEntry3);
+            timeoutWrapper.readEntriesComplete(sparseBatch, null);
+            assertEquals(lateEntry1.refCnt(), 0, "the late batch's first entry must be discarded");
+            assertEquals(lateEntry3.refCnt(), 0, "the entry after the null slot must be discarded");
+            assertTrue(!result.entries.isDone(), "the late sparse batch must not be delivered after the timeout");
         } finally {
             limiterFactory.shutdown();
         }
     }
 
     /**
-     * A replay range read whose storage persistently answers short ({@code ManagedCursorImpl.readReplayRange}):
-     * the mixed read's short leg makes it discard what it collected and re-read the whole range, which the
-     * same storage answers short as well — so the wanted position it never returned is simply absent from
-     * the delivered batch. It fails as its own read would, the delivered wanted entry and the in-between
-     * entries are released, and every in-flight read permit is returned. Before the re-read at the source,
-     * the short leg surfaced as a null slot in the assembled batch, whose skip in the replay's callback
-     * led to the same failure of the missing position.
+     * A replay range read whose storage answers short ({@code ManagedCursorImpl.readReplayRange}): the
+     * wanted position the delivered batch omits fails the replay as its own read would, while the
+     * wanted entry the read did return and the in-between entries are released and every in-flight
+     * read permit is returned. A short whole-range re-read of a mixed read now fails the read before
+     * it reaches the replay's callback ({@code RangeEntryCacheImplTest}); the plain short answer of a
+     * full miss keeps reaching it.
      */
     @Test(timeOut = 30_000)
     void shortReplayRangeReadFailsTheMissingPositionAndReleasesTheRest() throws Exception {
@@ -284,33 +298,20 @@ public class OpReadEntryNullSlotTest extends MockedBookKeeperTestCase {
             long totalCapacity = limiter.getRemainingBytes();
             long ledgerId = ml.currentLedger.getId();
 
-            // The replay positions 0 and 5 are cache misses, grouped into one range read [0..5]; the
-            // entries in between, 1 and 2, are cached, so the range read is a MIXED read.
+            // The replay positions 0 and 5 are cache misses, grouped into one range read [0..5],
+            // which nothing primes: a full miss, whose storage answer reaches the replay's callback
+            // as the plain read path delivers it.
             cache.clear();
-            primeCache(cache, ml.currentLedger, 1, 2);
             Awaitility.await().untilAsserted(() ->
                     assertEquals(limiter.getRemainingBytes(), totalCapacity, "priming read permits must return"));
-            assertTrue(!cache.hasEntry(PositionFactory.create(ledgerId, 0))
-                    && !cache.hasEntry(PositionFactory.create(ledgerId, 5)),
-                    "the replay positions must be cache misses");
-            assertTrue(cache.hasEntry(PositionFactory.create(ledgerId, 2)), "an in-between entry must be cached");
 
             ManagedCursor cursor = ml.newNonDurableCursor(PositionFactory.EARLIEST);
 
-            // Storage legs of the mixed read: the missing range [0..0] answers with its entry; the
-            // missing range [3..5] answers SHORT — entries 3 and 4 without 5, as a bookie that has
-            // fewer entries than the range asks for. The short leg makes the mixed read re-read the
-            // whole range [0..5], which the same storage answers short as well — entries 0 to 4
-            // without 5 — so the replay's wanted position 5 is absent from the delivered batch. The
-            // entries lists must be mutable: readFromStorage closes the LedgerEntries, whose recycle
-            // clears the list.
+            // Storage answers the range read [0..5] SHORT — entries 0 to 4 without 5, as a bookie
+            // that has fewer entries than the range asks for — so the replay's wanted position 5
+            // is absent from the delivered batch. The entries list must be mutable:
+            // readFromStorage closes the LedgerEntries, whose recycle clears the list.
             LedgerHandle spyLedger = Mockito.spy(ml.currentLedger);
-            Mockito.doAnswer(invocation -> CompletableFuture.completedFuture(LedgerEntriesImpl.create(
-                    new ArrayList<>(List.of(ledgerEntry(ledgerId, 0))))))
-                    .when(spyLedger).readUnconfirmedAsync(0L, 0L);
-            Mockito.doAnswer(invocation -> CompletableFuture.completedFuture(LedgerEntriesImpl.create(
-                    new ArrayList<>(List.of(ledgerEntry(ledgerId, 3), ledgerEntry(ledgerId, 4))))))
-                    .when(spyLedger).readUnconfirmedAsync(3L, 5L);
             Mockito.doAnswer(invocation -> CompletableFuture.completedFuture(LedgerEntriesImpl.create(
                     new ArrayList<>(List.of(ledgerEntry(ledgerId, 0), ledgerEntry(ledgerId, 1),
                             ledgerEntry(ledgerId, 2), ledgerEntry(ledgerId, 3), ledgerEntry(ledgerId, 4))))))
@@ -326,11 +327,10 @@ public class OpReadEntryNullSlotTest extends MockedBookKeeperTestCase {
             assertTrue(ex.getMessage().contains("Entry not found in the replay read"),
                     "unexpected message: " + ex.getMessage());
             assertTrue(!result.entries.isDone(), "the replay must fail, not deliver");
-            // the short leg made the mixed read re-read the whole range at the source
+            // the range read [0..5] went to storage and answered short
             Mockito.verify(spyLedger).readUnconfirmedAsync(0L, 5L);
-            // Every permit of the read returns: the collected entries' shares on the release that
-            // discarded them before the re-read, and the re-read batch's shares on the release of
-            // the delivered wanted entry and of the in-between entries.
+            // Every permit of the read returns: the shares of the delivered wanted entry and of
+            // the in-between entries on their release.
             Awaitility.await().untilAsserted(() ->
                     assertEquals(limiter.getRemainingBytes(), totalCapacity, "every permit must be returned"));
         } finally {
