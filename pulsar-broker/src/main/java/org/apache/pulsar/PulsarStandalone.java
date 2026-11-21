@@ -25,6 +25,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
 import io.netty.util.internal.PlatformDependent;
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -32,12 +33,15 @@ import java.util.List;
 import java.util.Optional;
 import lombok.CustomLog;
 import org.apache.bookkeeper.conf.ServerConfiguration;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
@@ -60,6 +64,7 @@ import picocli.CommandLine.ScopeType;
 @CustomLog
 @Command(name = "standalone", showDefaultValues = true, scope = ScopeType.INHERIT)
 public class PulsarStandalone implements AutoCloseable {
+    private Path tempBaseDir;
 
     private static final String PULSAR_STANDALONE_USE_ZOOKEEPER = "PULSAR_STANDALONE_USE_ZOOKEEPER";
 
@@ -216,6 +221,25 @@ public class PulsarStandalone implements AutoCloseable {
         return help;
     }
 
+    public void setTempBaseDir(Path tempBaseDir) {
+        this.tempBaseDir = tempBaseDir;
+    }
+
+    public Path getTempBaseDir() {
+        return this.tempBaseDir;
+    }
+
+    public PulsarClient buildClient() throws PulsarClientException {
+        return PulsarClient.builder()
+                .serviceUrl(this.getBrokerServiceUrl())
+                .build();
+    }
+
+    public PulsarAdmin buildAdmin() throws PulsarClientException {
+        return PulsarAdmin.builder()
+                .serviceHttpUrl(this.getWebServiceUrl())
+                .build();
+    }
     @Option(names = { "-c", "--config" }, description = "Configuration file path")
     private String configFile;
 
@@ -451,6 +475,21 @@ public class PulsarStandalone implements AutoCloseable {
             }
         } catch (Exception e) {
             log.error().exception(e).log("Shutdown failed");
+        } finally {
+            deleteTempBaseDir();
+        }
+    }
+
+    private void deleteTempBaseDir() {
+        if (tempBaseDir == null) {
+            return;
+        }
+        try {
+            FileUtils.deleteDirectory(tempBaseDir.toFile());
+        } catch (IOException e) {
+            log.error().exception(e).log("Failed to delete temp directory " + tempBaseDir);
+        } finally {
+            tempBaseDir = null;
         }
     }
 
@@ -469,7 +508,11 @@ public class PulsarStandalone implements AutoCloseable {
         }
 
         ServerConfiguration bkServerConf = new ServerConfiguration();
-        bkServerConf.loadConf(new File(configFile).toURI().toURL());
+        if (StringUtils.isNotBlank(configFile)) {
+            bkServerConf.loadConf(new File(configFile).toURI().toURL());
+        } else {
+            bkServerConf.setAllowLoopback(true);
+        }
         calculateCacheSize(bkServerConf);
         bkCluster = BKCluster.builder()
                 .baseServerConfiguration(bkServerConf)
