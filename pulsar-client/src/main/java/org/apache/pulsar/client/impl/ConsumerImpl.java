@@ -63,6 +63,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -3387,10 +3388,16 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
             log.warn().attr("nextDelayMs", nextDelay)
                     .log("Could not get connection while getLastMessageId -- Will try again after delay");
-            ((ScheduledExecutorService) client.getScheduledExecutorProvider().getExecutor()).schedule(() -> {
-                remainingTime.addAndGet(-nextDelay);
-                internalGetLastMessageIdAsync(backoff, remainingTime, future);
-            }, nextDelay, TimeUnit.MILLISECONDS);
+            try {
+                ((ScheduledExecutorService) client.getScheduledExecutorProvider().getExecutor()).schedule(() -> {
+                    remainingTime.addAndGet(-nextDelay);
+                    internalGetLastMessageIdAsync(backoff, remainingTime, future);
+                }, nextDelay, TimeUnit.MILLISECONDS);
+            } catch (RejectedExecutionException e) {
+                future.completeExceptionally(new PulsarClientException(
+                    String.format("getLastMessageId retry for subscription %s of topic %s was rejected",
+                            subscription, topicName.toString()), e));
+            }
         }
     }
 
