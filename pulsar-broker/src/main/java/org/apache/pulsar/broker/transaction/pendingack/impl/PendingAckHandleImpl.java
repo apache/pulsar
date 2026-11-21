@@ -28,8 +28,10 @@ import io.github.merlimat.slog.Logger;
 import io.netty.util.Timer;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -68,6 +70,7 @@ import org.apache.pulsar.common.policies.data.TransactionPendingAckStats;
 import org.apache.pulsar.common.stats.PositionInPendingAckStats;
 import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.LongArrayAckSets;
 import org.apache.pulsar.common.util.RecoverTimeRecord;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
@@ -113,6 +116,41 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
      *         If it does not exits the map, the position will be added to the map.
      */
     private volatile ConcurrentSkipListMap<Position, MutablePair<Position, Integer>> individualAckPositions;
+
+    /**
+     * Consumer deliveries captured when transactional ACK commands are received but before the pending ACK record is
+     * persisted. Access is protected by this handle's monitor.
+     */
+    private Map<TxnID, Map<Position, Deque<ConsumerDelivery>>> pendingConsumerAckDeliveries;
+
+    /**
+     * Consumer delivery assignments for persisted transactional ACKs. A null delivery means that the ACK was
+     * recovered after the original delivery was gone and must not debit a later delivery. Access is protected by this
+     * handle's monitor.
+     */
+    private Map<TxnID, Map<Position, List<DeliveryAck>>> individualAckDeliveryAssignments;
+
+    private static final class ConsumerDelivery {
+        private final Consumer consumer;
+        private final Object delivery;
+
+        private ConsumerDelivery(Consumer consumer, Object delivery) {
+            this.consumer = consumer;
+            this.delivery = delivery;
+        }
+    }
+
+    private static final class DeliveryAck {
+        private final ConsumerDelivery delivery;
+        private Position position;
+        private final int batchSize;
+
+        private DeliveryAck(ConsumerDelivery delivery, Position position, int batchSize) {
+            this.delivery = delivery;
+            this.position = position;
+            this.batchSize = batchSize;
+        }
+    }
 
     /**
      * The map is for transaction with position witch was cumulative acked by this transaction.
@@ -239,6 +277,8 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
             return;
         }
 
+        List<ConsumerDelivery> consumerDeliveries = takeConsumerAckDeliveries(txnID, positions);
+
         this.pendingAckStoreFuture.thenAccept(pendingAckStore ->
                 pendingAckStore.appendIndividualAck(txnID, positions).thenAcceptAsync(v -> {
                     synchronized (PendingAckHandleImpl.this) {
@@ -310,7 +350,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                             }
                         }
 
-                        handleIndividualAck(txnID, positions);
+                        handleIndividualAck(txnID, positions, consumerDeliveries);
                         completableFuture.complete(null);
                     }
                 }, internalPinnedExecutor).exceptionallyAsync(e -> {
@@ -319,7 +359,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                         // because we don't know the persistent state, when were replay it,
                         // it will produce the wrong operation. so we append fail,
                         // we should wait tc time out or client abort this transaction.
-                        handleIndividualAck(txnID, positions);
+                        handleIndividualAck(txnID, positions, consumerDeliveries);
                         completableFuture.completeExceptionally(e.getCause());
                     }
                     return null;
@@ -344,10 +384,12 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                         initPendingAckStore();
                         return;
                     case Error:
+                        takeConsumerAckDeliveries(txnID, positions);
                         completableFuture.completeExceptionally(
                                 new ServiceUnitNotReadyException("PendingAckHandle not replay error!"));
                         return;
                     case Close:
+                        takeConsumerAckDeliveries(txnID, positions);
                         completableFuture.completeExceptionally(
                                 new ServiceUnitNotReadyException("PendingAckHandle have been closed!"));
                         return;
@@ -610,16 +652,20 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                             HashMap<Position, Position> pendingAckMessageForCurrentTxn =
                                     individualAckOfTransaction.get(txnId);
                             if (pendingAckMessageForCurrentTxn != null) {
-                                    log.debug()
-                                            .attr("txnId", txnId)
-                                            .log("Transaction pending ack store abort individual success");
-                                                                individualAckAbortCommon(txnId,
-                                                                        pendingAckMessageForCurrentTxn);
+                                List<MutablePair<Position, Integer>> transactionPositions =
+                                        getTransactionConsumerPositions(pendingAckMessageForCurrentTxn);
+                                log.debug()
+                                        .attr("txnId", txnId)
+                                        .log("Transaction pending ack store abort individual success");
+                                individualAckAbortCommon(txnId, pendingAckMessageForCurrentTxn);
+                                clearConsumerPendingAcks(transactionPositions);
+                                removeConsumerAckAssignments(txnId);
                                 persistentSubscription.redeliverUnacknowledgedMessages(consumer,
                                         new ArrayList<>(pendingAckMessageForCurrentTxn.values()));
                                 abortFuture.complete(null);
                                 handleLowWaterMark(txnId, lowWaterMark);
                             } else {
+                                removeConsumerAckAssignments(txnId);
                                 abortFuture.complete(null);
                             }
                         }
@@ -708,6 +754,74 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     }
 
     @Override
+    public synchronized void recordConsumerAck(TxnID txnID, Position position, Consumer consumer, Object delivery) {
+        if (pendingConsumerAckDeliveries == null) {
+            pendingConsumerAckDeliveries = new HashMap<>();
+        }
+        pendingConsumerAckDeliveries
+                .computeIfAbsent(txnID, ignored -> new HashMap<>())
+                .computeIfAbsent(position, ignored -> new ArrayDeque<>())
+                .addLast(new ConsumerDelivery(consumer, delivery));
+    }
+
+    private synchronized List<ConsumerDelivery> takeConsumerAckDeliveries(
+            TxnID txnID, List<MutablePair<Position, Integer>> positions) {
+        List<ConsumerDelivery> result = new ArrayList<>(positions.size());
+        Map<Position, Deque<ConsumerDelivery>> deliveriesForTxn = pendingConsumerAckDeliveries == null
+                ? null : pendingConsumerAckDeliveries.get(txnID);
+        for (MutablePair<Position, Integer> position : positions) {
+            Deque<ConsumerDelivery> deliveries = deliveriesForTxn == null
+                    ? null : deliveriesForTxn.get(position.getLeft());
+            result.add(deliveries == null || deliveries.isEmpty()
+                    ? new ConsumerDelivery(null, null) : deliveries.removeFirst());
+            if (deliveries != null && deliveries.isEmpty()) {
+                deliveriesForTxn.remove(position.getLeft());
+            }
+        }
+        if (deliveriesForTxn != null && deliveriesForTxn.isEmpty()) {
+            pendingConsumerAckDeliveries.remove(txnID);
+        }
+        return result;
+    }
+
+    private synchronized void recordDeliveryAssignment(TxnID txnID, Position position,
+                                                        ConsumerDelivery delivery, Position ackPosition,
+                                                        int batchSize) {
+        if (individualAckDeliveryAssignments == null) {
+            individualAckDeliveryAssignments = new HashMap<>();
+        }
+        List<DeliveryAck> deliveryAcks = individualAckDeliveryAssignments
+                .computeIfAbsent(txnID, ignored -> new HashMap<>())
+                .computeIfAbsent(position, ignored -> new ArrayList<>());
+        long[] ackSet = getAckSetArrayOrNull(ackPosition);
+        for (DeliveryAck deliveryAck : deliveryAcks) {
+            if (deliveryAck.delivery.consumer == delivery.consumer
+                    && deliveryAck.delivery.delivery == delivery.delivery) {
+                if (ackSet != null && getAckSetArrayOrNull(deliveryAck.position) != null) {
+                    andAckSet(deliveryAck.position, ackPosition);
+                }
+                return;
+            }
+        }
+        deliveryAcks.add(new DeliveryAck(delivery, copyPosition(ackPosition), batchSize));
+    }
+
+    private static Position copyPosition(Position position) {
+        long[] ackSet = getAckSetArrayOrNull(position);
+        return createPositionWithAckSet(position.getLedgerId(), position.getEntryId(),
+                ackSet == null ? null : Arrays.copyOf(ackSet, ackSet.length));
+    }
+
+    private synchronized void removeConsumerAckAssignments(TxnID txnID) {
+        if (pendingConsumerAckDeliveries != null) {
+            pendingConsumerAckDeliveries.remove(txnID);
+        }
+        if (individualAckDeliveryAssignments != null) {
+            individualAckDeliveryAssignments.remove(txnID);
+        }
+    }
+
+    @Override
     public synchronized void syncBatchPositionAckSetForTransaction(Position position) {
         if (individualAckPositions == null) {
             individualAckPositions = new ConcurrentSkipListMap<>();
@@ -723,20 +837,26 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
 
     @Override
     public synchronized boolean checkIsCanDeleteConsumerPendingAck(Position position) {
-        if (!individualAckPositions.containsKey(position)) {
+        if (individualAckPositions == null || !individualAckPositions.containsKey(position)) {
             return true;
         } else {
             position = individualAckPositions.get(position).left;
             long[] positionAckSet = getAckSetArrayOrNull(position);
             if (positionAckSet != null) {
                 BitSetRecyclable bitSetRecyclable = BitSetRecyclable.valueOf(positionAckSet);
-                if (bitSetRecyclable.isEmpty()) {
-                    bitSetRecyclable.recycle();
-                    return true;
-                } else {
+                if (!bitSetRecyclable.isEmpty()) {
                     bitSetRecyclable.recycle();
                     return false;
                 }
+                bitSetRecyclable.recycle();
+                if (individualAckOfTransaction != null) {
+                    for (HashMap<Position, Position> transactionPositions : individualAckOfTransaction.values()) {
+                        if (transactionPositions.containsKey(position)) {
+                            return false;
+                        }
+                    }
+                }
+                return true;
             } else {
                 return true;
             }
@@ -754,6 +874,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                     individualAckAbortCommon(txnID, pendingAckMessageForCurrentTxn);
                 }
             }
+            removeConsumerAckAssignments(txnID);
         }
     }
 
@@ -809,12 +930,22 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                                                               HashMap<Position, Position> currentTxn,
                                                               Map<String, Long> properties) {
         if (currentTxn != null) {
+            List<MutablePair<Position, Integer>> transactionPositions =
+                    getTransactionConsumerPositions(currentTxn);
             // The cursor completes the ack on its own thread, while other transactions may be updating
-            // individualAckOfTransaction, so the removal must go back to the pinned executor and the lock.
+            // individualAckOfTransaction, so the state removal must go back to the pinned executor and the lock.
             return persistentSubscription.acknowledgeMessageAsync(new ArrayList<>(currentTxn.values()),
                     AckType.Individual, properties).thenRunAsync(() -> {
+                        boolean removed;
                         synchronized (PendingAckHandleImpl.this) {
-                            individualAckOfTransaction.remove(txnID);
+                            removed = individualAckOfTransaction.remove(txnID) != null;
+                        }
+                        if (removed) {
+                            try {
+                                applyConsumerPendingAcks(txnID, transactionPositions);
+                            } finally {
+                                removeConsumerAckAssignments(txnID);
+                            }
                         }
                     }, internalPinnedExecutor);
         } else {
@@ -822,7 +953,83 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         }
     }
 
-    private void handleIndividualAck(TxnID txnID, List<MutablePair<Position, Integer>> positions) {
+    private List<MutablePair<Position, Integer>> getTransactionConsumerPositions(
+            HashMap<Position, Position> transactionPositions) {
+        List<MutablePair<Position, Integer>> result = new ArrayList<>(transactionPositions.size());
+        for (Position position : transactionPositions.values()) {
+            MutablePair<Position, Integer> positionPair = individualAckPositions == null
+                    ? null : individualAckPositions.get(position);
+            result.add(MutablePair.of(position, positionPair != null ? positionPair.getRight() : 0));
+        }
+        return result;
+    }
+
+    private synchronized void applyConsumerPendingAcks(TxnID txnID,
+                                                       List<MutablePair<Position, Integer>> transactionPositions) {
+        Map<Position, List<DeliveryAck>> assignments = individualAckDeliveryAssignments == null
+                ? null : individualAckDeliveryAssignments.get(txnID);
+        for (MutablePair<Position, Integer> positionPair : transactionPositions) {
+            Position position = positionPair.getLeft();
+            List<DeliveryAck> deliveryAcks = assignments == null ? null : assignments.get(position);
+            List<ConsumerDelivery> deliveries = new ArrayList<>();
+            List<Long> ackedCounts = new ArrayList<>();
+            if (deliveryAcks != null) {
+                for (DeliveryAck deliveryAck : deliveryAcks) {
+                    if (deliveryAck.delivery.consumer == null || deliveryAck.delivery.delivery == null) {
+                        continue;
+                    }
+                    long ackedCount = AckSetStateUtil.hasAckSet(deliveryAck.position)
+                            ? getAckedCountForTransactionAck(deliveryAck.batchSize,
+                            AckSetStateUtil.getAckSetState(deliveryAck.position).getAckSet()) : 0;
+                    int deliveryIndex = -1;
+                    for (int i = 0; i < deliveries.size(); i++) {
+                        ConsumerDelivery delivery = deliveries.get(i);
+                        if (delivery.consumer == deliveryAck.delivery.consumer
+                                && delivery.delivery == deliveryAck.delivery.delivery) {
+                            deliveryIndex = i;
+                            break;
+                        }
+                    }
+                    if (deliveryIndex == -1) {
+                        deliveries.add(deliveryAck.delivery);
+                        ackedCounts.add(ackedCount);
+                    } else {
+                        ackedCounts.set(deliveryIndex, ackedCounts.get(deliveryIndex) + ackedCount);
+                    }
+                }
+            }
+            for (int i = 0; i < deliveries.size(); i++) {
+                ConsumerDelivery delivery = deliveries.get(i);
+                delivery.consumer.applyTransactionIndividualAck(position, ackedCounts.get(i), delivery.delivery);
+            }
+        }
+    }
+
+    private static long getAckedCountForTransactionAck(int batchSize, long[] ackSets) {
+        return batchSize - LongArrayAckSets.cardinality(ackSets);
+    }
+
+    private void clearConsumerPendingAcks(List<MutablePair<Position, Integer>> transactionPositions) {
+        for (MutablePair<Position, Integer> positionPair : transactionPositions) {
+            Consumer consumer = findAckOwnerConsumer(positionPair.getLeft());
+            if (consumer != null) {
+                consumer.removePendingAckAndDecrementUnacked(positionPair.getLeft());
+            }
+        }
+    }
+
+    private Consumer findAckOwnerConsumer(Position position) {
+        for (Consumer consumer : persistentSubscription.getConsumers()) {
+            if (consumer.getPendingAcks() != null
+                    && consumer.getPendingAcks().contains(position.getLedgerId(), position.getEntryId())) {
+                return consumer;
+            }
+        }
+        return null;
+    }
+
+    private void handleIndividualAck(TxnID txnID, List<MutablePair<Position, Integer>> positions,
+                                     List<ConsumerDelivery> consumerDeliveries) {
         for (int i = 0; i < positions.size(); i++) {
                 log.debug()
                         .attr("txnId", txnID.toString())
@@ -837,6 +1044,10 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
             }
 
             Position position = positions.get(i).left;
+            recordDeliveryAssignment(txnID, position,
+                    consumerDeliveries == null
+                            ? new ConsumerDelivery(null, null) : consumerDeliveries.get(i),
+                    position, positions.get(i).right);
             long[] positionAckSet = getAckSetArrayOrNull(position);
             if (positionAckSet != null) {
 
@@ -940,7 +1151,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                 }
             }
         }
-        handleIndividualAck(txnID, positions);
+        handleIndividualAck(txnID, positions, null);
     }
 
     public String getTopicName() {

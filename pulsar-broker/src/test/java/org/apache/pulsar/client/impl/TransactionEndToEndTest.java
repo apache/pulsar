@@ -1613,12 +1613,15 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         Transaction txn = getTxn();
         consumer.acknowledgeAsync(messageIds.get(1), txn).get();
 
-        // ack one message, the unack count is 4
+        // Transactional ACKs keep the consumer count unchanged until commit.
         assertEquals(getPulsarServiceList().get(0).getBrokerService().getTopic(topic, false)
-                .get().get().getSubscription(subName).getConsumers().get(0).getUnackedMessages(), 4);
+                .get().get().getSubscription(subName).getConsumers().get(0).getUnackedMessages(), 5);
+        txn.commit().get();
+        Awaitility.await().untilAsserted(() -> assertEquals(getPulsarServiceList().get(0).getBrokerService()
+                .getTopic(topic, false).get().get().getSubscription(subName).getConsumers().get(0)
+                .getUnackedMessages(), 4));
 
         // cleanup.
-        txn.abort().get();
         consumer.close();
         producer.close();
         admin.topics().delete(topic, true);
