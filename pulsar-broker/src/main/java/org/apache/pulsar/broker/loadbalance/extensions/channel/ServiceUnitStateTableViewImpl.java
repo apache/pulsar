@@ -72,7 +72,7 @@ public class ServiceUnitStateTableViewImpl extends ServiceUnitStateTableViewBase
             }
         }
 
-        producer = pulsar.getClient().newProducer(schema)
+        producer = pulsar.getLoadManagerClient().newProducer(schema)
                 .enableBatching(true)
                 .compressionType(MSG_COMPRESSION_TYPE)
                 .maxPendingMessages(MAX_OUTSTANDING_PUB_MESSAGES)
@@ -91,7 +91,7 @@ public class ServiceUnitStateTableViewImpl extends ServiceUnitStateTableViewBase
             }
         }
 
-        tableview = pulsar.getClient().newTableViewBuilder(schema)
+        tableview = pulsar.getLoadManagerClient().newTableViewBuilder(schema)
                 .topic(TOPIC)
                 .loadConf(Map.of(
                         "topicCompactionStrategyClassName",

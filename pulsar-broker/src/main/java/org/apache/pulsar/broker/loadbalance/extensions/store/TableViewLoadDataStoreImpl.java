@@ -60,7 +60,7 @@ public class TableViewLoadDataStoreImpl<T> implements LoadDataStore<T> {
             throws LoadDataStoreException {
         try {
             this.conf = pulsar.getConfiguration();
-            this.client = pulsar.getClient();
+            this.client = pulsar.getLoadManagerClient();
             this.topic = topic;
             this.clazz = clazz;
             this.isShutdown = false;
