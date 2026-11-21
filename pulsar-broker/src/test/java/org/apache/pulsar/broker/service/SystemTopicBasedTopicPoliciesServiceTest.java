@@ -399,11 +399,17 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
             }
         });
 
+        // Close the reader the cached policies were loaded with, as a namespace cleanup does, while the reads run.
+        // Only that reader: once its close has been handled, the next read starts a new initialization with a new
+        // reader, and closing that one during its first pass would fail the read waiting for it, which no cleanup
+        // does (a cleanup drops an initialization before closing its reader).
+        final CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> initialReader =
+                readers.get(TopicName.get(topic).getNamespaceObject());
         Thread thread2 = new Thread(() -> {
             for (int i = 0; i < 10; i++) {
                 CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerCompletableFuture =
                         readers.get(TopicName.get(topic).getNamespaceObject());
-                if (readerCompletableFuture != null) {
+                if (readerCompletableFuture != null && readerCompletableFuture == initialReader) {
                     readerCompletableFuture.join().closeAsync().join();
                 }
             }
