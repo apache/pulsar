@@ -36,6 +36,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -45,6 +46,7 @@ import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallbackWithPrecondition;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenReadOnlyManagedLedgerCallback;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -445,6 +447,74 @@ public class ManagedLedgerFactoryTest extends MockedBookKeeperTestCase {
 
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("ml");
         assertThat(factory.ledgers.get("ml").join()).isSameAs(ledger);
+    }
+
+    @DataProvider
+    public Object[][] initializePreconditionFailures() {
+        return new Object[][] {{true}, {false}};
+    }
+
+    @Test(dataProvider = "initializePreconditionFailures", timeOut = 30000)
+    public void testAbandonedOrUnownedOpenDoesNotInitializeAfterClientWait(boolean requestExpired) throws Exception {
+        factory.shutdownAsync().get(5, TimeUnit.SECONDS);
+        CompletableFuture<BookKeeper> client = new CompletableFuture<>();
+        AtomicInteger created = new AtomicInteger();
+        factory = new ManagedLedgerFactoryImpl(metadataStore, policy -> client, new ManagedLedgerFactoryConfig()) {
+            @Override
+            protected ManagedLedgerImpl createManagedLedger(BookKeeper bk, MetaStore store, String name,
+                    ManagedLedgerConfig config, Supplier<CompletableFuture<Boolean>> mlOwnershipChecker) {
+                created.incrementAndGet();
+                return super.createManagedLedger(bk, store, name, config, mlOwnershipChecker);
+            }
+        };
+        var request = new CompletableFuture<Void>();
+        var checkStarted = new CompletableFuture<Void>();
+        var ownershipCheck = new CompletableFuture<Void>();
+        var open = new CompletableFuture<ManagedLedger>();
+        factory.asyncOpen("ml", defaultConfig(), new OpenLedgerCallbackWithPrecondition() {
+            @Override
+            public CompletableFuture<?> getRequestFuture() {
+                return request;
+            }
+
+            @Override
+            public CompletableFuture<Void> beforeInitialize() {
+                checkStarted.complete(null);
+                return ownershipCheck;
+            }
+
+            @Override
+            public void openLedgerComplete(ManagedLedger ledger, Object ctx) {
+                open.complete(ledger);
+            }
+
+            @Override
+            public void openLedgerFailed(ManagedLedgerException exception, Object ctx) {
+                open.completeExceptionally(exception);
+            }
+        }, null, null);
+        assertThat(checkStarted).isNotDone();
+
+        if (requestExpired) {
+            var timeout = new TimeoutException("Topic load timed out");
+            request.completeExceptionally(timeout);
+            assertThatThrownBy(() -> open.get(5, TimeUnit.SECONDS)).rootCause().isSameAs(timeout);
+            assertThat(client).isNotDone();
+            client.complete(bkc);
+            assertThat(checkStarted).isNotDone();
+        } else {
+            client.complete(bkc);
+            checkStarted.get(5, TimeUnit.SECONDS);
+            assertThat(open).isNotDone();
+            var unowned = new ManagedLedgerException("Broker lost ownership during client acquisition");
+            ownershipCheck.completeExceptionally(unowned);
+            assertThatThrownBy(() -> open.get(5, TimeUnit.SECONDS)).rootCause().isSameAs(unowned);
+        }
+
+        assertThat(created).hasValue(0);
+        assertThat(factory.getManagedLedgers()).doesNotContainKey("ml");
+        assertThat(factory.open("ml")).isNotNull();
+        assertThat(created).hasValue(1);
     }
 
     @Test(timeOut = 30000)

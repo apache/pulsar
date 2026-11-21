@@ -40,6 +40,8 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import lombok.Cleanup;
+import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataEvent;
 import org.apache.pulsar.metadata.api.MetadataEventSynchronizer;
@@ -50,6 +52,8 @@ import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
+import org.apache.pulsar.metadata.bookkeeper.AbstractMetadataDriver;
+import org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver;
 import org.apache.pulsar.metadata.tableview.impl.MetadataStoreTableViewImpl;
 import org.awaitility.Awaitility;
 import org.testng.annotations.DataProvider;
@@ -88,6 +92,33 @@ public class LocalMemoryMetadataStoreTest {
                 assertThat(store.getMetadataCacheCount())
                         .as("closing a table view must release its cache from the shared store")
                         .isEqualTo(baseline);
+            }
+        }
+    }
+
+    @Test(timeOut = 30_000)
+    public void testBookKeeperCloseUnregistersMetadataCaches() throws Exception {
+        PulsarMetadataClientDriver.init();
+        try (var store = new LocalMemoryMetadataStore("memory:local", MetadataStoreConfig.builder().build())) {
+            byte[] value = "shared".getBytes(StandardCharsets.UTF_8);
+            store.put("/probe", value, Optional.empty()).get(10, TimeUnit.SECONDS);
+            int baseline = store.getMetadataCacheCount();
+            ClientConfiguration conf = new ClientConfiguration()
+                    .setMetadataServiceUri("metadata-store:memory:local")
+                    .setNumWorkerThreads(1)
+                    .setNumIOThreads(1);
+            conf.setProperty(AbstractMetadataDriver.METADATA_STORE_INSTANCE, store);
+
+            for (int i = 0; i < 3; i++) {
+                try (BookKeeper client = BookKeeper.forConfig(conf).build()) {
+                    assertThat(client.getMetadataClientDriver()).isInstanceOf(PulsarMetadataClientDriver.class);
+                    assertThat(store.getMetadataCacheCount()).isGreaterThan(baseline);
+                }
+                assertThat(store.getMetadataCacheCount())
+                        .as("closing BookKeeper must release all its caches from the shared store")
+                        .isEqualTo(baseline);
+                assertThat(store.get("/probe").get(10, TimeUnit.SECONDS)).hasValueSatisfying(
+                        result -> assertThat(result.getValue()).isEqualTo(value));
             }
         }
     }

@@ -25,13 +25,27 @@ import static org.apache.bookkeeper.client.RegionAwareEnsemblePlacementPolicy.RE
 import static org.apache.bookkeeper.client.RegionAwareEnsemblePlacementPolicy.REPP_REGIONS_TO_WRITE;
 import static org.apache.bookkeeper.conf.AbstractConfiguration.ENFORCE_MIN_NUM_RACKS_PER_WRITE_QUORUM;
 import static org.apache.bookkeeper.conf.AbstractConfiguration.MIN_NUM_RACKS_PER_WRITE_QUORUM;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.netty.channel.EventLoopGroup;
+import java.io.IOException;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.net.CachedDNSToSwitchMapping;
@@ -39,10 +53,14 @@ import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.bookie.rackawareness.BookieRackAffinityMapping;
+import org.apache.pulsar.bookie.rackawareness.BookieRackConfigurationSnapshot;
 import org.apache.pulsar.bookie.rackawareness.IsolatedBookieEnsemblePlacementPolicy;
+import org.apache.pulsar.common.policies.data.BookiesRackConfiguration;
+import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.zookeeper.ZkIsolatedBookieEnsemblePlacementPolicy;
+import org.mockito.ArgumentCaptor;
 import org.testng.annotations.Test;
 
 /**
@@ -50,6 +68,67 @@ import org.testng.annotations.Test;
  */
 @Test(groups = "broker")
 public class BookKeeperClientFactoryImplTest {
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testRackAwareAndIsolatedClientsShareSnapshotByStore() throws Exception {
+        var factory = spy(new BookKeeperClientFactoryImpl());
+        var builder = mock(BookKeeper.Builder.class);
+        when(builder.build()).thenReturn(mock(BookKeeper.class));
+        doReturn(builder).when(factory).getBookKeeperBuilder(any(), any(), any(), any());
+        var store = mock(MetadataStoreExtended.class);
+        MetadataCache<BookiesRackConfiguration> cache = mock(MetadataCache.class);
+        when(store.getMetadataCache(BookiesRackConfiguration.class)).thenReturn(cache);
+        when(cache.get("/bookies")).thenReturn(CompletableFuture.completedFuture(Optional.empty()));
+        when(store.registerCancellableListener(any())).thenReturn(() -> { });
+        when(store.registerCancellableSessionListener(any())).thenReturn(() -> { });
+        var conf = new ServiceConfiguration();
+        var eventLoop = mock(EventLoopGroup.class);
+        var configurations = ArgumentCaptor.forClass(ClientConfiguration.class);
+        try {
+            factory.create(conf, store, eventLoop, Optional.empty(), null).get(5, TimeUnit.SECONDS);
+            factory.create(conf, store, eventLoop, Optional.of(IsolatedBookieEnsemblePlacementPolicy.class), null)
+                    .get(5, TimeUnit.SECONDS);
+            verify(factory, times(2)).getBookKeeperBuilder(any(), any(), any(), configurations.capture());
+            String key = BookieRackConfigurationSnapshot.RACK_CONFIGURATION_SNAPSHOT;
+            Object snapshot = configurations.getAllValues().getFirst().getProperty(key);
+            assertThat(snapshot).isNotNull();
+            assertThat(configurations.getValue().getProperty(key)).isSameAs(snapshot);
+            verify(store).getMetadataCache(BookiesRackConfiguration.class);
+        } finally {
+            factory.close();
+        }
+        factory.close();
+        verify(cache).close();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testFailedBuildReleasesRegisteredResolverResources() throws Exception {
+        var factory = spy(new BookKeeperClientFactoryImpl());
+        var builder = mock(BookKeeper.Builder.class);
+        var failure = new IOException("BookKeeper build failed");
+        when(builder.build()).thenThrow(failure);
+        var cleanup = mock(Runnable.class);
+        doAnswer(invocation -> {
+            ClientConfiguration config = invocation.getArgument(3);
+            var register = (Consumer<Runnable>) config.getProperty(
+                    BookieRackAffinityMapping.METADATA_STORE_LISTENER_CLEANUP);
+            register.accept(cleanup);
+            return builder;
+        }).when(factory).getBookKeeperBuilder(any(), any(), any(), any());
+        try {
+            var conf = new ServiceConfiguration();
+            conf.setBookkeeperClientRackawarePolicyEnabled(false);
+            var result = factory.create(conf, mock(MetadataStoreExtended.class),
+                    mock(EventLoopGroup.class), Optional.empty(), null);
+            assertThatThrownBy(() -> result.get(5, TimeUnit.SECONDS)).cause().isSameAs(failure);
+            verify(cleanup).run();
+        } finally {
+            factory.close();
+        }
+        verify(cleanup).run();
+    }
 
     @Test
     public void testSetDefaultEnsemblePlacementPolicyRackAwareDisabled() {

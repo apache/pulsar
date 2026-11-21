@@ -181,11 +181,12 @@ class LockManagerImpl<T> implements LockManager<T> {
             locks = new HashMap<>(this.locks);
             this.state = State.Closed;
         }
-        cancelSessionListener.run();
-        cancelListener.run();
-
-        return FutureUtil.waitForAll(locks.values().stream()
-                .map(ResourceLock::release)
-                .collect(Collectors.toList()));
+        return FutureUtil.supplySafely(() -> {
+            cancelSessionListener.run();
+            cancelListener.run();
+            return FutureUtil.waitForAll(locks.values().stream()
+                    .map(ResourceLock::release)
+                    .collect(Collectors.toList()));
+        }).whenComplete((__, error) -> cache.close());
     }
 }

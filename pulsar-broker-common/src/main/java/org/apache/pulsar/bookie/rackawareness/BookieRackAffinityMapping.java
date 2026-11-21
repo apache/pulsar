@@ -18,17 +18,17 @@
  */
 package org.apache.pulsar.bookie.rackawareness;
 
+import static org.apache.pulsar.bookie.rackawareness.BookieRackConfigurationSnapshot.RACK_CONFIGURATION_SNAPSHOT;
 import static org.apache.pulsar.metadata.bookkeeper.AbstractMetadataDriver.METADATA_STORE_SCHEME;
-import java.lang.reflect.Field;
 import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 import lombok.CustomLog;
@@ -64,20 +64,22 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
     public static final String BOOKIE_INFO_ROOT_PATH = "/bookies";
     public static final String METADATA_STORE_INSTANCE = "METADATA_STORE_INSTANCE";
     /**
-     * The configuration property of a {@code Consumer<Runnable>} that receives the callback that unregisters the
-     * listener of the metadata store passed with {@link #METADATA_STORE_INSTANCE}. The factory that created the
-     * BookKeeper client runs it when the factory is closed, since the BookKeeper client doesn't close its DNS
-     * resolver.
+     * The configuration property of a {@code Consumer<Runnable>} that receives cleanup callbacks for metadata
+     * resources allocated by the rack resolver and isolation policy. The BookKeeper client factory runs these
+     * callbacks when it discards the client or closes.
      */
     public static final String METADATA_STORE_LISTENER_CLEANUP = "METADATA_STORE_LISTENER_CLEANUP";
+    /** The configuration property of a {@code Consumer<BookieRackAffinityMapping>} for a shared resolver. */
+    public static final String BOOKIE_RACK_AFFINITY_MAPPING_REGISTRATION = "bookieRackAffinityMappingRegistration";
 
-    private MetadataCache<BookiesRackConfiguration> bookieMappingCache = null;
+    private final Object configurationLock = new Object();
+    private volatile SharedRackConfiguration sharedRacks;
     private volatile ITopologyAwareEnsemblePlacementPolicy<BookieNode> rackawarePolicy = null;
-    private List<BookieId> bookieAddressListLastTime = new ArrayList<>();
+    private Set<BookieId> bookiesWithRack = new HashSet<>();
 
     private BookiesRackConfiguration racksWithHost = new BookiesRackConfiguration();
     private Map<String, BookieInfo> bookieInfoMap = new HashMap<>();
-    private Runnable cancelListener;
+    private Runnable closeMetadataResources;
 
     static MetadataStore getMetadataStore(Configuration conf) throws MetadataException {
         MetadataStore store;
@@ -120,10 +122,72 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
         return store;
     }
 
-    @Override
     @SuppressWarnings("unchecked")
-    public synchronized void setConf(Configuration conf) {
-        super.setConf(conf);
+    static void registerMetadataStoreCleanup(Configuration conf, Runnable cleanup) {
+        if (conf.getProperty(METADATA_STORE_LISTENER_CLEANUP) instanceof Consumer<?> listenerCleanup) {
+            ((Consumer<Runnable>) listenerCleanup).accept(cleanup);
+        }
+    }
+
+    @Override
+    public void setConf(Configuration conf) {
+        synchronized (configurationLock) {
+            super.setConf(conf);
+            if (closeMetadataResources != null) {
+                closeMetadataResources.run();
+            }
+            if (conf.getProperty(RACK_CONFIGURATION_SNAPSHOT) instanceof BookieRackConfigurationSnapshot snapshot) {
+                useSharedSnapshot(conf, snapshot);
+            } else {
+                sharedRacks = null;
+                useLegacyMetadataCache(conf);
+            }
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void useSharedSnapshot(Configuration conf, BookieRackConfigurationSnapshot snapshot) {
+        var shared = new SharedRackConfiguration();
+        sharedRacks = shared;
+        Runnable unsubscribe = snapshot.subscribe(shared::update);
+        Runnable unwatch;
+        try {
+            unwatch = watchAvailableBookies(() -> {
+                var latest = snapshot.latest();
+                if (latest != null) {
+                    shared.update(latest);
+                }
+            });
+        } catch (RuntimeException | Error e) {
+            shared.close();
+            unsubscribe.run();
+            throw e;
+        }
+        closeMetadataResources = () -> {
+            shared.close();
+            try {
+                unsubscribe.run();
+            } finally {
+                unwatch.run();
+            }
+        };
+        registerMetadataStoreCleanup(conf, closeMetadataResources);
+        if (conf.getProperty(BOOKIE_RACK_AFFINITY_MAPPING_REGISTRATION) instanceof Consumer<?> registration) {
+            ((Consumer<BookieRackAffinityMapping>) registration).accept(this);
+        }
+    }
+
+    /** Waits for the first shared configuration to reach BookKeeper's topology. */
+    public CompletableFuture<Void> awaitInitialRackTopology(long timeoutMillis) {
+        var shared = sharedRacks;
+        if (shared == null) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return BookieRackConfigurationSnapshot.awaitInitialLoad(shared.initialTopologyApplied, timeoutMillis,
+                "Timed out waiting for BookKeeper to apply the bookie rack configuration");
+    }
+
+    private void useLegacyMetadataCache(Configuration conf) {
         MetadataStore store;
         try {
             store = getMetadataStore(conf);
@@ -131,80 +195,70 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
             throw new RuntimeException(METADATA_STORE_INSTANCE + " failed to init BookieId list");
         }
 
-        bookieMappingCache = store.getMetadataCache(BookiesRackConfiguration.class);
-        if (cancelListener != null) {
-            cancelListener.run();
+        MetadataCache<BookiesRackConfiguration> cache = store.getMetadataCache(BookiesRackConfiguration.class);
+        Runnable unregister;
+        try {
+            unregister = store.registerCancellableListener(notification -> handleUpdates(cache, notification));
+        } catch (RuntimeException e) {
+            try {
+                cache.close();
+            } catch (RuntimeException closeError) {
+                if (closeError != e) {
+                    e.addSuppressed(closeError);
+                }
+            }
+            throw e;
         }
-        cancelListener = store.registerCancellableListener(this::handleUpdates);
-        if (conf.getProperty(METADATA_STORE_LISTENER_CLEANUP) instanceof Consumer<?> listenerCleanup) {
-            ((Consumer<Runnable>) listenerCleanup).accept(cancelListener);
-        }
+        closeMetadataResources = () -> {
+            try {
+                unregister.run();
+            } finally {
+                cache.close();
+            }
+        };
+        registerMetadataStoreCleanup(conf, closeMetadataResources);
 
         try {
-            var racksWithHost = bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH)
+            var racks = cache.get(BOOKIE_INFO_ROOT_PATH)
                     .thenApply(optRes -> optRes.orElseGet(BookiesRackConfiguration::new))
                     .get();
-
-            for (var bookieMapping : racksWithHost.values()) {
-                for (String address : bookieMapping.keySet()) {
-                    bookieAddressListLastTime.add(BookieId.parse(address));
-                }
-                log.debug()
-                        .attr("bookieAddressListLastTime", bookieAddressListLastTime)
-                        .log("BookieRackAffinityMapping init, bookieAddressListLastTime");
-            }
-            updateRacksWithHost(racksWithHost);
+            updateRackConfiguration(racks);
         } catch (ExecutionException | InterruptedException e) {
             log.error().exception(e).log("Failed to update rack info");
             throw new RuntimeException(e);
         }
 
-        watchAvailableBookies();
+        watchAvailableBookies(() -> cache.get(BOOKIE_INFO_ROOT_PATH)
+                .thenAccept(racks -> rackChangeListenerCallback(
+                        updateRackConfiguration(racks.orElseGet(BookiesRackConfiguration::new))))
+                .exceptionally(ex -> {
+                    log.error().exception(ex).log("Failed to update rack info");
+                    return null;
+                }));
     }
 
-    private void watchAvailableBookies() {
-        BookieAddressResolver bookieAddressResolver = getBookieAddressResolver();
-        if (bookieAddressResolver instanceof DefaultBookieAddressResolver) {
-            try {
-                Field field = DefaultBookieAddressResolver.class.getDeclaredField("registrationClient");
-                field.setAccessible(true);
-                RegistrationClient registrationClient = (RegistrationClient) field.get(bookieAddressResolver);
-                registrationClient.watchWritableBookies(versioned -> {
-                    bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH)
-                            .thenApply(optRes -> optRes.orElseGet(BookiesRackConfiguration::new))
-                            .thenApply(this::processRackUpdate)
-                            .exceptionally(ex -> {
-                                log.error().exception(ex).log("Failed to update rack info");
-                                return null;
-                            });
-                });
-            } catch (NoSuchFieldException | IllegalAccessException e) {
-                log.error().exception(e).log("Failed watch available bookies");
-            }
+    private Runnable watchAvailableBookies(Runnable onChange) {
+        if (getBookieAddressResolver() instanceof DefaultBookieAddressResolver resolver) {
+            RegistrationClient registrationClient = resolver.getRegistrationClient();
+            RegistrationClient.RegistrationListener listener = versioned -> onChange.run();
+            registrationClient.watchWritableBookies(listener);
+            return () -> registrationClient.unwatchWritableBookies(listener);
         }
+        return () -> { };
     }
 
-    private Void processRackUpdate(BookiesRackConfiguration racks) {
-        ArrayList<BookieId> bookieIdSet;
-        synchronized (this) {
-            updateRacksWithHost(racks);
-            bookieIdSet = new ArrayList<>(bookieAddressListLastTime);
-        }
-        // Notify ensemble placement policy after rack info is updated to ensure consistent state.
-        rackChangeListenerCallback(bookieIdSet);
-        return null;
-    }
-
-    private synchronized void updateRacksWithHost(BookiesRackConfiguration racks) {
+    private synchronized Set<BookieId> updateRackConfiguration(Map<String, Map<String, BookieInfo>> racks) {
         // In config z-node, the bookies are added in the `ip:port` notation, while BK will ask
         // for just the IP/hostname when trying to get the rack for a bookie.
         // To work around this issue, we insert in the map the bookie ip/hostname with same rack-info
         BookiesRackConfiguration newRacksWithHost = new BookiesRackConfiguration();
         Map<String, BookieInfo> newBookieInfoMap = new HashMap<>();
+        Set<BookieId> newBookiesWithRack = new HashSet<>();
         racks.forEach((group, bookies) ->
                 bookies.forEach((addr, bi) -> {
                     try {
                         BookieId bookieId = BookieId.parse(addr);
+                        newBookiesWithRack.add(bookieId);
                         BookieAddressResolver addressResolver = getBookieAddressResolver();
                         if (addressResolver == null) {
                             log.warn("Bookie address resolver not yet initialized, skipping resolution");
@@ -235,6 +289,10 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
         );
         racksWithHost = newRacksWithHost;
         bookieInfoMap = newBookieInfoMap;
+        Set<BookieId> affectedBookies = bookiesWithRack;
+        bookiesWithRack = newBookiesWithRack;
+        affectedBookies.addAll(newBookiesWithRack);
+        return affectedBookies;
     }
 
     @Override
@@ -277,36 +335,13 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
         // no-op
     }
 
-    private void handleUpdates(Notification n) {
+    private void handleUpdates(MetadataCache<BookiesRackConfiguration> cache, Notification n) {
         if (!n.getPath().equals(BOOKIE_INFO_ROOT_PATH)) {
             return;
         }
 
-        bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH)
-                .thenAccept(optVal -> {
-                    Set<BookieId> bookieIdSet = new HashSet<>();
-                    synchronized (this) {
-                        log.info()
-                                .attr("updated", optVal)
-                                .log("Bookie rack info updated to . Notifying rackaware policy");
-                        this.updateRacksWithHost(optVal.orElseGet(BookiesRackConfiguration::new));
-                        List<BookieId> bookieAddressList = new ArrayList<>();
-                        for (Map<String, BookieInfo> bookieMapping : optVal.map(Map::values).orElse(
-                                Collections.emptyList())) {
-                            for (String addr : bookieMapping.keySet()) {
-                                bookieAddressList.add(BookieId.parse(addr));
-                            }
-                        }
-                        log.debug()
-                                .attr("update", bookieAddressListLastTime)
-                                .attr("bookieAddressList", bookieAddressList)
-                                .log("Bookies with rack update from to");
-                        bookieIdSet.addAll(bookieAddressList);
-                        bookieIdSet.addAll(bookieAddressListLastTime);
-                        bookieAddressListLastTime = bookieAddressList;
-                    }
-                    rackChangeListenerCallback(bookieIdSet);
-                });
+        cache.get(BOOKIE_INFO_ROOT_PATH).thenAccept(racks -> rackChangeListenerCallback(
+                updateRackConfiguration(racks.orElseGet(BookiesRackConfiguration::new))));
     }
 
     private void rackChangeListenerCallback(Collection<BookieId> bookieIdSet) {
@@ -317,6 +352,44 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
 
     @Override
     public void registerRackChangeListener(ITopologyAwareEnsemblePlacementPolicy<BookieNode> rackawarePolicy) {
-        this.rackawarePolicy = rackawarePolicy;
+        var shared = sharedRacks;
+        if (shared == null) {
+            this.rackawarePolicy = rackawarePolicy;
+        } else {
+            shared.registerRackChangeListener(rackawarePolicy);
+        }
+    }
+
+    private final class SharedRackConfiguration {
+        private final CompletableFuture<Void> initialTopologyApplied = new CompletableFuture<>();
+        private long lastMappedVersion = -1;
+        private boolean closed;
+
+        private synchronized void update(BookieRackConfigurationSnapshot.VersionedConfiguration latest) {
+            if (closed || latest.version() < lastMappedVersion) {
+                return;
+            }
+            var affectedBookies = updateRackConfiguration(latest.configuration());
+            // BookKeeper can resolve racks while holding its topology lock. Notify after releasing our mapping lock.
+            rackChangeListenerCallback(affectedBookies);
+            lastMappedVersion = latest.version();
+            if (rackawarePolicy != null) {
+                initialTopologyApplied.complete(null);
+            }
+        }
+
+        private synchronized void registerRackChangeListener(
+                ITopologyAwareEnsemblePlacementPolicy<BookieNode> rackawarePolicy) {
+            BookieRackAffinityMapping.this.rackawarePolicy = rackawarePolicy;
+            if (!closed && lastMappedVersion >= 0) {
+                // BookKeeper builds its initial topology from the existing mappings after registering the listener.
+                initialTopologyApplied.complete(null);
+            }
+        }
+
+        private synchronized void close() {
+            closed = true;
+            initialTopologyApplied.completeExceptionally(new IllegalStateException("Bookie rack resolver is closed"));
+        }
     }
 }

@@ -95,7 +95,7 @@ import lombok.Getter;
 import lombok.Setter;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
-import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallbackWithPrecondition;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -2604,7 +2604,22 @@ public class BrokerService implements Closeable {
                 }
                 final LatencyTracer.TracePoint openMlTracePoint = context.startTrace(TopicLoadingTracePoints.OPEN_ML);
                 managedLedgerFactory.asyncOpen(topicName.getPersistenceNamingEncoding(), managedLedgerConfig,
-                        new OpenLedgerCallback() {
+                        new OpenLedgerCallbackWithPrecondition() {
+                            @Override
+                            public CompletableFuture<?> getRequestFuture() {
+                                return topicFuture;
+                            }
+
+                            @Override
+                            public CompletableFuture<Void> beforeInitialize() {
+                                // The cached client or its isolation snapshot may have needed to load.
+                                return checkTopicLoadActive(topicFuture)
+                                        .thenCompose(__ -> context.trace(
+                                                TopicLoadingTracePoints.OWNERSHIP_BEFORE_OPEN_ML,
+                                                checkTopicNsOwnership(topic)))
+                                        .thenCompose(__ -> checkTopicLoadActive(topicFuture));
+                            }
+
                             @Override
                             public void openLedgerComplete(ManagedLedger ledger, Object ctx) {
                                 try {
@@ -2689,7 +2704,10 @@ public class BrokerService implements Closeable {
                                     topicFuture.complete(Optional.empty());
                                 } else {
                                     context.finishTrace(openMlTracePoint, exception);
-                                    failTopicFuture(topic, topicFuture, new PersistenceException(exception));
+                                    Throwable failure = exception.getCause()
+                                            instanceof ServiceUnitNotReadyException ownershipFailure
+                                            ? ownershipFailure : new PersistenceException(exception);
+                                    failTopicFuture(topic, topicFuture, failure);
                                 }
                             }
                         }, () -> isTopicNsOwnedByBrokerAsync(topicName), null);
@@ -2708,6 +2726,14 @@ public class BrokerService implements Closeable {
             failTopicFuture(topic, topicFuture, exception);
             return null;
         });
+    }
+
+    private static CompletableFuture<Void> checkTopicLoadActive(CompletableFuture<Optional<Topic>> topicFuture) {
+        if (topicFuture.isDone()) {
+            return CompletableFuture.failedFuture(
+                    new ServiceUnitNotReadyException("Topic load completed before managed ledger initialization"));
+        }
+        return CompletableFuture.completedFuture(null);
     }
 
     private CompletableFuture<Void> checkTopicAlreadyMigrated(TopicName topicName) {
