@@ -90,6 +90,7 @@ import org.apache.pulsar.common.scalable.SegmentInfo;
 import org.apache.pulsar.common.scalable.SegmentLoadStats;
 import org.apache.pulsar.common.scalable.SegmentTopicName;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.coordination.CoordinationService;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
@@ -1320,6 +1321,72 @@ public class ScalableTopicControllerTest {
         controller.runGcTickAsync().get();
         assertTrue(controller.getLayout().get().getAllSegments().containsKey(0L),
                 "local keep-forever retention must win over the global one");
+    }
+
+    /**
+     * A QUEUE consumer subscribes to each segment's topic without registering its subscription on the
+     * scalable topic. The GC keeps a sealed segment while such a subscription has a backlog on it, also
+     * when an older broker doesn't report whether it is durable, and prunes it once that is drained. The
+     * non-durable cursor of a reader and the compaction cursor don't hold it.
+     */
+    @Test
+    public void testGcTickKeepsSegmentWithBacklogOfUnregisteredSubscription() throws Exception {
+        installGcMocks(0);
+        controller.initialize().get();
+        controller.splitSegment(0).get();
+        SegmentTopicStats stats = segmentTopicStats();
+        stats.getSubscriptions().put("queue-sub", subscriptionStats(true, 10));
+        stats.getSubscriptions().put("older-broker-sub", subscriptionStats(null, 0));
+        stats.getSubscriptions().put("reader-sub", subscriptionStats(false, 10));
+        stats.getSubscriptions().put(Compactor.COMPACTION_SUBSCRIPTION, subscriptionStats(true, 10));
+        when(scalableTopics.getSegmentStatsAsync(topicName.toString(), 0L))
+                .thenReturn(CompletableFuture.completedFuture(stats));
+
+        controller.runGcTickAsync().get();
+        assertTrue(controller.getLayout().get().getAllSegments().containsKey(0L),
+                "a subscription with a backlog on the sealed segment must keep it");
+
+        stats.getSubscriptions().get("queue-sub").setMsgBacklog(0);
+        stats.getSubscriptions().get("older-broker-sub").setMsgBacklog(10);
+        controller.runGcTickAsync().get();
+        assertTrue(controller.getLayout().get().getAllSegments().containsKey(0L),
+                "a subscription of unknown durability with a backlog must keep the sealed segment");
+        verify(scalableTopics, never()).deleteSegmentAsync(anyString(), anyBoolean());
+
+        stats.getSubscriptions().get("older-broker-sub").setMsgBacklog(0);
+        controller.runGcTickAsync().get();
+        assertFalse(controller.getLayout().get().getAllSegments().containsKey(0L),
+                "once every durable subscription drained the sealed segment, the GC prunes it");
+        verify(scalableTopics).deleteSegmentAsync(anyString(), anyBoolean());
+    }
+
+    /**
+     * The GC keeps a sealed segment whose subscriptions it can't read, and prunes one whose topic is gone.
+     */
+    @Test
+    public void testGcTickChecksSegmentSubscriptionsFailClosed() throws Exception {
+        installGcMocks(0);
+        controller.initialize().get();
+        controller.splitSegment(0).get();
+        when(scalableTopics.getSegmentStatsAsync(topicName.toString(), 0L))
+                .thenReturn(FutureUtil.failedFuture(new RuntimeException("connection refused")));
+        controller.runGcTickAsync().get();
+        assertTrue(controller.getLayout().get().getAllSegments().containsKey(0L),
+                "a segment whose subscriptions can't be read must be kept");
+
+        when(scalableTopics.getSegmentStatsAsync(topicName.toString(), 0L))
+                .thenReturn(FutureUtil.failedFuture(new PulsarAdminException.NotFoundException(
+                        new RuntimeException("gone"), "Segment topic not found", 404)));
+        controller.runGcTickAsync().get();
+        assertFalse(controller.getLayout().get().getAllSegments().containsKey(0L),
+                "a segment whose topic is gone has nothing left to drain");
+    }
+
+    private static SegmentTopicStats.SubscriptionStats subscriptionStats(Boolean durable, long backlog) {
+        SegmentTopicStats.SubscriptionStats sub = new SegmentTopicStats.SubscriptionStats();
+        sub.setDurable(durable);
+        sub.setMsgBacklog(backlog);
+        return sub;
     }
 
     /**

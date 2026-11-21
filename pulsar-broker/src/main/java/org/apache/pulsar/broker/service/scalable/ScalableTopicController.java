@@ -1228,6 +1228,32 @@ public class ScalableTopicController {
                 });
     }
 
+    /**
+     * The subscriptions on the topic backing a segment, other than the compaction cursor, read through the segment
+     * stats. They include those that the scalable topic doesn't know, such as a QUEUE consumer's, which subscribes
+     * to each segment's topic directly. Empty if the segment's topic doesn't exist.
+     */
+    private CompletableFuture<Optional<Map<String, SegmentTopicStats.SubscriptionStats>>> segmentSubscriptions(
+            SegmentInfo segment) {
+        return fetchSegmentStats(segment)
+                .thenApply(stats -> {
+                    if (stats == null) {
+                        return Optional.<Map<String, SegmentTopicStats.SubscriptionStats>>empty();
+                    }
+                    Map<String, SegmentTopicStats.SubscriptionStats> subscriptions =
+                            new HashMap<>(stats.getSubscriptions());
+                    subscriptions.remove(Compactor.COMPACTION_SUBSCRIPTION);
+                    return Optional.of(subscriptions);
+                })
+                .exceptionally(ex -> {
+                    Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                    if (cause instanceof PulsarAdminException.NotFoundException) {
+                        return Optional.empty();
+                    }
+                    throw FutureUtil.wrapToCompletionException(cause);
+                });
+    }
+
     private CompletableFuture<Void> electLeader() {
         // Store the brokerId as the leader-election value — not the raw pulsar:// URL.
         // Callers that need a service URL (DagWatchSession for clients, the REST layer for
@@ -2419,9 +2445,10 @@ public class ScalableTopicController {
     }
 
     /**
-     * Whether every subscription has drained {@code seg}. A legacy segment also waits for the
-     * subscriptions that the {@code persistent://} topic it wraps has of its own, from before the
-     * migration: the scalable topic doesn't know them, but deleting the topic drops their backlog.
+     * Whether every subscription has drained {@code seg}. A segment also waits for the subscriptions that
+     * its topic has without the scalable topic knowing them: those of a QUEUE consumer, which subscribes
+     * to each segment's topic directly, and for a legacy segment those that the {@code persistent://}
+     * topic it wraps has from before the migration. Deleting the topic drops their backlog.
      */
     private CompletableFuture<Boolean> prunable(SegmentInfo seg, List<String> subs) {
         if (seg.isLegacy()) {
@@ -2431,13 +2458,18 @@ public class ScalableTopicController {
                     // The topic is gone, and its data with it.
                     .orElse(true));
         }
-        if (subs.isEmpty()) {
-            // No subscribers ever attached / all unsubscribed → nothing left to drain.
-            return CompletableFuture.completedFuture(true);
+        List<CompletableFuture<Boolean>> checks = new ArrayList<>();
+        for (String sub : subs) {
+            checks.add(isSegmentDrained(seg, sub));
         }
-        List<CompletableFuture<Boolean>> checks = subs.stream()
-                .map(sub -> isSegmentDrained(seg, sub))
-                .toList();
+        checks.add(segmentSubscriptions(seg).thenApply(subscriptions -> subscriptions
+                // The non-durable cursor of a reader doesn't hold the segment. A subscription that an older broker
+                // reports without its durability does.
+                .map(bySubscription -> bySubscription.values().stream()
+                        .filter(sub -> !Boolean.FALSE.equals(sub.getDurable()))
+                        .allMatch(sub -> sub.getMsgBacklog() <= 0))
+                // The topic is gone, and its data with it.
+                .orElse(true)));
         return CompletableFuture.allOf(checks.toArray(CompletableFuture<?>[]::new))
                 .thenApply(__ -> {
                     for (CompletableFuture<Boolean> c : checks) {

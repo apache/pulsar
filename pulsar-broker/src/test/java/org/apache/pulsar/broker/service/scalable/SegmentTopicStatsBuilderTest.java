@@ -100,6 +100,7 @@ public class SegmentTopicStatsBuilderTest {
 
         SubscriptionStatsImpl sub = new SubscriptionStatsImpl();
         sub.type = "Key_Shared";
+        sub.isDurable = true;
         sub.msgRateOut = 619.2271279977319;
         sub.msgThroughputOut = 33562.681580215074;
         sub.messageAckRate = 618.0844630177503;
@@ -154,6 +155,7 @@ public class SegmentTopicStatsBuilderTest {
         assertEquals(stats.getSubscriptions().keySet(), Set.of("sub"));
         SegmentTopicStats.SubscriptionStats sub = stats.getSubscriptions().get("sub");
         assertEquals(sub.getType(), "Key_Shared");
+        assertEquals(sub.getDurable(), Boolean.TRUE);
         assertEquals(sub.getMsgRateOut(), 619.227);
         assertEquals(sub.getByteRateOut(), 33562.682);
         assertEquals(sub.getMessageAckRate(), 618.084);

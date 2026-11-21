@@ -184,6 +184,25 @@ public class ScalableTopicStatsJsonTest {
     }
 
     @Test
+    public void testSegmentSubscriptionDurabilityTriStateJson() throws Exception {
+        for (Boolean durable : new Boolean[]{null, Boolean.FALSE, Boolean.TRUE}) {
+            SegmentTopicStats.SubscriptionStats sub = new SegmentTopicStats.SubscriptionStats();
+            sub.setDurable(durable);
+            JsonNode json = toJson(sub);
+            if (durable == null) {
+                assertFalse(json.has("durable"), "unknown durability must be omitted");
+            } else {
+                assertEquals(json.get("durable").booleanValue(), durable.booleanValue());
+            }
+            SegmentTopicStats.SubscriptionStats roundTrip = MAPPER.readValue(MAPPER.writeValueAsString(sub),
+                    SegmentTopicStats.SubscriptionStats.class);
+            assertEquals(roundTrip.getDurable(), durable, "round trip preserves all three durability states");
+        }
+        assertNull(MAPPER.readValue("{}", SegmentTopicStats.SubscriptionStats.class).getDurable(),
+                "responses from older brokers do not establish durability");
+    }
+
+    @Test
     public void testDiagnosticsRoundTripAndOptionalFields() throws Exception {
         ScalableTopicStats stats = new ScalableTopicStats();
         JsonNode empty = toJson(stats);
