@@ -50,9 +50,18 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
              CompletableFuture<Consumer<T>> subscribeFuture, MessageId startMessageId, Schema<T> schema,
              ConsumerInterceptors<T> interceptors,
              boolean createTopicIfDoesNotExist) {
+        this(client, topic, conf, executorProvider, partitionIndex, hasParentConsumer, subscribeFuture,
+                startMessageId, schema, interceptors, createTopicIfDoesNotExist, null);
+    }
+
+    public ZeroQueueConsumerImpl(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
+             ExecutorProvider executorProvider, int partitionIndex, boolean hasParentConsumer,
+             CompletableFuture<Consumer<T>> subscribeFuture, MessageId startMessageId, Schema<T> schema,
+             ConsumerInterceptors<T> interceptors,
+             boolean createTopicIfDoesNotExist, String parentConsumerInstanceId) {
         super(client, topic, conf, executorProvider, partitionIndex, hasParentConsumer, false, subscribeFuture,
                 startMessageId, 0 /* startMessageRollbackDurationInSec */, schema, interceptors,
-                createTopicIfDoesNotExist);
+                createTopicIfDoesNotExist, parentConsumerInstanceId);
     }
 
     @Override

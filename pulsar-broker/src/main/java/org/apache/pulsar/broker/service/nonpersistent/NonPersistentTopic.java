@@ -273,7 +273,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                 option.getStartMessageId(), option.getMetadata(), option.isReadCompacted(),
                 option.getStartMessageRollbackDurationSec(), option.getReplicatedSubscriptionStateArg(),
                 option.getKeySharedMeta(), option.getSubscriptionProperties().orElse(null),
-                option.getSchemaType());
+                option.getSchemaType(), option.getConsumerInstanceId());
     }
 
     @Override
@@ -287,7 +287,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                                                  KeySharedMeta keySharedMeta) {
         return internalSubscribe(cnx, subscriptionName, consumerId, subType, priorityLevel, consumerName,
                 startMessageId, metadata, readCompacted, resetStartMessageBackInSec,
-                replicateSubscriptionState, keySharedMeta, null, null);
+                replicateSubscriptionState, keySharedMeta, null, null, null);
     }
 
     private CompletableFuture<Consumer> internalSubscribe(final TransportCnx cnx, String subscriptionName,
@@ -298,7 +298,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                                                           Boolean replicateSubscriptionState,
                                                           KeySharedMeta keySharedMeta,
                                                           Map<String, String> subscriptionProperties,
-                                                          SchemaType schemaType) {
+                                                          SchemaType schemaType, String consumerInstanceId) {
 
         return brokerService.checkTopicNsOwnership(getName()).thenCompose(__ -> {
             final CompletableFuture<Consumer> future = new CompletableFuture<>();
@@ -352,7 +352,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                 }
                 Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName,
                         false, cnx, cnx.getAuthRole(), metadata, readCompacted, keySharedMeta, MessageId.latest,
-                        DEFAULT_CONSUMER_EPOCH, schemaType);
+                        DEFAULT_CONSUMER_EPOCH, schemaType, consumerInstanceId);
                 return addConsumerToSubscription(subscription, consumer).thenRun(() -> {
                     if (!cnx.isActive()) {
                         try {

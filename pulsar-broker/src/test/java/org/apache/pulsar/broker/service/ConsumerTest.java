@@ -33,11 +33,13 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import java.net.SocketAddress;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.api.proto.CommandAck;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.policies.data.HierarchyTopicPolicies;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
@@ -230,6 +232,25 @@ public class ConsumerTest {
         } finally {
             receiver.getPendingAcks().forEachAndClose((ledgerId, entryId, remaining, stickyKeyHash) -> { });
             other.getPendingAcks().forEachAndClose((ledgerId, entryId, remaining, stickyKeyHash) -> { });
+        }
+    }
+
+    @Test
+    public void testConsumerInstanceIdDoesNotChangeApplicationMetadata() {
+        Map<String, String> metadata = Map.of("application", "value",
+                "__pulsar_consumer_instance_id", "an application property longer than an internal identity");
+        for (SubType type : SubType.values()) {
+            for (boolean includeInstanceId : new boolean[]{false, true}) {
+                Consumer receiver = includeInstanceId
+                        ? new Consumer(subscription, type, "topic", 2, 0, "worker", true, cnx,
+                                "role", metadata, false, null, latest, DEFAULT_CONSUMER_EPOCH, null, "instance")
+                        : new Consumer(subscription, type, "topic", 2, 0, "worker", true, cnx,
+                                "role", metadata, false, null, latest, DEFAULT_CONSUMER_EPOCH);
+                assertThat(receiver.consumerInstanceId())
+                        .isEqualTo(type == SubType.Failover && includeInstanceId ? "instance" : null);
+                assertThat(receiver.getMetadata()).isEqualTo(metadata);
+                assertThat(receiver.getStats().getMetadata()).isEqualTo(metadata);
+            }
         }
     }
 

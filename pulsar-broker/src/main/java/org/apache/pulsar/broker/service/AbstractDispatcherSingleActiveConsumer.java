@@ -134,7 +134,13 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
                 hasPriorityConsumer.set(true);
                 return priority;
             }
-            return c1.consumerName().compareTo(c2.consumerName());
+            int name = c1.consumerName().compareTo(c2.consumerName());
+            if (name != 0 || partitionIndex < 0) {
+                return name;
+            }
+            // A partition-local consumer id or arrival order cannot identify a logical consumer across partitions.
+            return Objects.toString(c1.consumerInstanceId(), "")
+                    .compareTo(Objects.toString(c2.consumerInstanceId(), ""));
         });
 
         int consumersSize = consumers.size();
@@ -187,8 +193,17 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
     private NavigableMap<Integer, Integer> makeHashRing(int consumerSize) {
         NavigableMap<Integer, Integer> hashRing = new TreeMap<>();
         for (int i = 0; i < consumerSize; i++) {
+            Consumer consumer = consumers.get(i);
+            String consumerName = consumer.consumerName();
+            boolean duplicateName = (i > 0 && consumers.get(i - 1).consumerName().equals(consumerName))
+                    || (i + 1 < consumerSize && consumers.get(i + 1).consumerName().equals(consumerName));
+            String keyPrefix = consumerName;
+            if (partitionIndex >= 0 && duplicateName && consumer.consumerInstanceId() != null) {
+                // Keep each logical consumer on its own ring points, including during metadata-cache misses.
+                keyPrefix += '\0' + consumer.consumerInstanceId() + '\0';
+            }
             for (int j = 0; j < CONSUMER_CONSISTENT_HASH_REPLICAS; j++) {
-                String key = consumers.get(i).consumerName() + j;
+                String key = keyPrefix + j;
                 int hash = Murmur3_32Hash.getInstance().makeHash(key.getBytes());
                 hashRing.put(hash, i);
             }
@@ -243,6 +258,10 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
      * assigned when its partition is still unassigned and its consumer is under quota: every consumer gets
      * {@code numPartitions / n}, and only {@code numPartitions % n} consumers can get one more. Every partition
      * computes the same assignment on its own, so the partitions need no coordination.
+     *
+     * <p>The quotas apply to indexes in {@code consumerNames}. Balance across consumer instances requires
+     * each index to identify the same logical consumer on every partition. Consumer names and instance ids establish
+     * this correspondence after sorting. Legacy clients without instance ids must use distinct consumer names.
      *
      * @param consumerNames the candidate consumer names, in the same order for every partition
      * @return for each partition, the index in {@code consumerNames} of its consumer
