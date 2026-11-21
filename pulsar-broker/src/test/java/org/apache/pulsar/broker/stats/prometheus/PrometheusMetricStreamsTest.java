@@ -156,6 +156,21 @@ public class PrometheusMetricStreamsTest {
     }
 
     @Test
+    public void primitiveFloatSamplesKeepFloatFormatting() {
+        float value = 0.0001F;
+        String[] labels = {"cluster", "local"};
+        String[] additionalLabels = {"topic", "test"};
+        underTest.writeSample("my-metric", value, "cluster", "local");
+        underTest.writeSample("my-metric", value, labels);
+        underTest.writeSample("my-metric", value, labels, additionalLabels);
+        underTest.writeSample("my-metric", value, labels, "topic", "test");
+
+        assertThat(writeToString()).isEqualTo("# TYPE my-metric gauge\n"
+                + "my-metric{cluster=\"local\"} 1.0E-4\n".repeat(2)
+                + "my-metric{cluster=\"local\",topic=\"test\"} 1.0E-4\n".repeat(2));
+    }
+
+    @Test
     public void boxedSamplesKeepTheirNumberType() {
         String[] labels = {"cluster", "local"};
         String[] additionalLabels = {"topic", "test"};

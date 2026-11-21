@@ -45,6 +45,11 @@ public class PrometheusMetricStreams {
         writeSamplePrefix(metricName, labelsAndValuesArray).write("} ").write(value).write('\n');
     }
 
+    // Keep Float formatting for primitive floats, which otherwise widen to double when labels are passed as an array.
+    void writeSample(String metricName, float value, String[] labelsAndValuesArray) {
+        writeSample(metricName, Float.valueOf(value), labelsAndValuesArray);
+    }
+
     void writeSample(String metricName, double value, String[] labelsAndValuesArray) {
         writeSamplePrefix(metricName, labelsAndValuesArray).write("} ").write(value).write('\n');
     }
@@ -59,6 +64,11 @@ public class PrometheusMetricStreams {
                      String[] additionalLabelsAndValues) {
         writeSamplePrefix(metricName, labelsAndValuesArray, additionalLabelsAndValues)
                 .write("} ").write(value).write('\n');
+    }
+
+    void writeSample(String metricName, float value, String[] labelsAndValuesArray,
+                     String[] additionalLabelsAndValues) {
+        writeSample(metricName, Float.valueOf(value), labelsAndValuesArray, additionalLabelsAndValues);
     }
 
     void writeSample(String metricName, double value, String[] labelsAndValuesArray,
@@ -77,6 +87,11 @@ public class PrometheusMetricStreams {
                      String label, String labelValue) {
         writeSamplePrefix(metricName, labelsAndValuesArray, label, labelValue)
                 .write("} ").write(value).write('\n');
+    }
+
+    void writeSample(String metricName, float value, String[] labelsAndValuesArray,
+                     String label, String labelValue) {
+        writeSample(metricName, Float.valueOf(value), labelsAndValuesArray, label, labelValue);
     }
 
     void writeSample(String metricName, double value, String[] labelsAndValuesArray,
