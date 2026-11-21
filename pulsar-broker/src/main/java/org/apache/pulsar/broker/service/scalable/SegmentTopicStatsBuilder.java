@@ -93,7 +93,6 @@ public final class SegmentTopicStatsBuilder {
     private static SegmentTopicStats.SubscriptionStats subscription(SubscriptionStats ss, boolean entryBucketDispatch) {
         SegmentTopicStats.SubscriptionStats sub = new SegmentTopicStats.SubscriptionStats();
         sub.setType(ss.getType());
-        sub.setDurable(ss.isDurable());
         sub.setMsgRateOut(round(ss.getMsgRateOut()));
         sub.setByteRateOut(round(ss.getMsgThroughputOut()));
         sub.setMsgRateRedeliver(round(ss.getMsgRateRedeliver()));

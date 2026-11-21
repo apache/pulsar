@@ -60,6 +60,10 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.ManagedLedgerInfoCallback;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
+import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.namespace.NamespaceService;
@@ -124,6 +128,8 @@ public class ScalableTopicControllerTest {
     private PulsarAdmin admin;
     private Topics topics;
     private ScalableTopics scalableTopics;
+    /** The cursors of each segment topic's managed ledger by its name, or the failure to read them. */
+    private Map<String, Object> managedLedgers;
 
     private TopicName topicName;
     private ScalableTopicController controller;
@@ -181,8 +187,34 @@ public class ScalableTopicControllerTest {
         when(scalableTopics.getSegmentStatsAsync(anyString(), anyLong()))
                 .thenAnswer(inv -> CompletableFuture.completedFuture(segmentTopicStats()));
 
+        // Managed-ledger metadata: every segment's topic exists, with no cursors unless a test sets some.
+        managedLedgers = new HashMap<>();
+        ManagedLedgerFactory managedLedgerFactory = mock(ManagedLedgerFactory.class);
+        when(brokerService.getManagedLedgerFactoryForTopic(any(TopicName.class)))
+                .thenReturn(CompletableFuture.completedFuture(managedLedgerFactory));
+        doAnswer(invocation -> {
+            ManagedLedgerInfoCallback callback = invocation.getArgument(1);
+            Object cursors = managedLedgers.getOrDefault(invocation.<String>getArgument(0), List.of());
+            if (cursors instanceof ManagedLedgerException e) {
+                callback.getInfoFailed(e, null);
+            } else {
+                ManagedLedgerInfo info = new ManagedLedgerInfo();
+                info.cursors = new HashMap<>();
+                for (Object cursor : (List<?>) cursors) {
+                    info.cursors.put((String) cursor, new ManagedLedgerInfo.CursorInfo());
+                }
+                callback.getInfoComplete(info, null);
+            }
+            return null;
+        }).when(managedLedgerFactory).asyncGetManagedLedgerInfo(anyString(), any(), any());
+
         metrics = mock(ScalableTopicControllerMetrics.class);
         controller = newController(topicName);
+    }
+
+    /** The name of the managed ledger of a segment's topic in the current layout. */
+    private String managedLedgerOf(long segmentId) throws Exception {
+        return TopicName.get(backingTopicOf(segmentId)).getPersistenceNamingEncoding();
     }
 
     /** The stats every mocked segment reports: owned by {@code segment-owner}, 1.5 msg/s in. */
@@ -1414,19 +1446,22 @@ public class ScalableTopicControllerTest {
     /**
      * A QUEUE consumer subscribes to each segment's topic without registering its subscription on the
      * scalable topic. The GC keeps a sealed segment while such a subscription has a backlog on it, also
-     * when an older broker doesn't report whether it is durable, and prunes it once that is drained. The
-     * non-durable cursor of a reader and the compaction cursor don't hold it.
+     * when the topic hasn't loaded its cursor (as with lazy cursor recovery), and prunes it once every
+     * durable subscription has drained it. The non-durable cursor of a reader, the compaction cursor and
+     * the cursors that aren't subscriptions don't hold it.
      */
     @Test
     public void testGcTickKeepsSegmentWithBacklogOfUnregisteredSubscription() throws Exception {
         installGcMocks(0);
+        when(pulsar.getConfig()).thenReturn(new ServiceConfiguration());
         controller.initialize().get();
         controller.splitSegment(0).get();
+        managedLedgers.put(managedLedgerOf(0), List.of("queue-sub", "lazily-recovered-sub",
+                Compactor.COMPACTION_SUBSCRIPTION, "pulsar.dedup", "pulsar.repl.remote-cluster"));
         SegmentTopicStats stats = segmentTopicStats();
-        stats.getSubscriptions().put("queue-sub", subscriptionStats(true, 10));
-        stats.getSubscriptions().put("older-broker-sub", subscriptionStats(null, 0));
-        stats.getSubscriptions().put("reader-sub", subscriptionStats(false, 10));
-        stats.getSubscriptions().put(Compactor.COMPACTION_SUBSCRIPTION, subscriptionStats(true, 10));
+        stats.getSubscriptions().put("queue-sub", subscriptionStats(10));
+        stats.getSubscriptions().put("reader-sub", subscriptionStats(10));
+        stats.getSubscriptions().put(Compactor.COMPACTION_SUBSCRIPTION, subscriptionStats(10));
         when(scalableTopics.getSegmentStatsAsync(topicName.toString(), 0L))
                 .thenReturn(CompletableFuture.completedFuture(stats));
 
@@ -1435,13 +1470,12 @@ public class ScalableTopicControllerTest {
                 "a subscription with a backlog on the sealed segment must keep it");
 
         stats.getSubscriptions().get("queue-sub").setMsgBacklog(0);
-        stats.getSubscriptions().get("older-broker-sub").setMsgBacklog(10);
         controller.runGcTickAsync().get();
         assertTrue(controller.getLayout().get().getAllSegments().containsKey(0L),
-                "a subscription of unknown durability with a backlog must keep the sealed segment");
+                "a durable subscription missing from the stats must keep the sealed segment");
         verify(scalableTopics, never()).deleteSegmentAsync(anyString(), anyBoolean());
 
-        stats.getSubscriptions().get("older-broker-sub").setMsgBacklog(0);
+        stats.getSubscriptions().put("lazily-recovered-sub", subscriptionStats(0));
         controller.runGcTickAsync().get();
         assertFalse(controller.getLayout().get().getAllSegments().containsKey(0L),
                 "once every durable subscription drained the sealed segment, the GC prunes it");
@@ -1449,7 +1483,9 @@ public class ScalableTopicControllerTest {
     }
 
     /**
-     * The GC keeps a sealed segment whose subscriptions it can't read, and prunes one whose topic is gone.
+     * The GC keeps a sealed segment whose topic exists but whose subscriptions it can't read, also when the
+     * segment's owner answers 404 because its cached layout doesn't have the segment yet. It prunes a segment
+     * whose managed ledger is gone.
      */
     @Test
     public void testGcTickChecksSegmentSubscriptionsFailClosed() throws Exception {
@@ -1464,15 +1500,31 @@ public class ScalableTopicControllerTest {
 
         when(scalableTopics.getSegmentStatsAsync(topicName.toString(), 0L))
                 .thenReturn(FutureUtil.failedFuture(new PulsarAdminException.NotFoundException(
+                        new RuntimeException("stale layout"), "Segment 0 not found in scalable topic", 404)));
+        controller.runGcTickAsync().get();
+        assertTrue(controller.getLayout().get().getAllSegments().containsKey(0L),
+                "a 404 for a segment whose managed ledger exists must keep it");
+
+        when(scalableTopics.getSegmentStatsAsync(topicName.toString(), 0L))
+                .thenAnswer(inv -> CompletableFuture.completedFuture(segmentTopicStats()));
+        managedLedgers.put(managedLedgerOf(0), new ManagedLedgerException.MetaStoreException("session expired"));
+        controller.runGcTickAsync().get();
+        assertTrue(controller.getLayout().get().getAllSegments().containsKey(0L),
+                "a segment whose managed-ledger metadata can't be read must be kept");
+        verify(scalableTopics, never()).deleteSegmentAsync(anyString(), anyBoolean());
+
+        when(scalableTopics.getSegmentStatsAsync(topicName.toString(), 0L))
+                .thenReturn(FutureUtil.failedFuture(new PulsarAdminException.NotFoundException(
                         new RuntimeException("gone"), "Segment topic not found", 404)));
+        managedLedgers.put(managedLedgerOf(0),
+                new ManagedLedgerException.MetadataNotFoundException("Managed ledger not found"));
         controller.runGcTickAsync().get();
         assertFalse(controller.getLayout().get().getAllSegments().containsKey(0L),
                 "a segment whose topic is gone has nothing left to drain");
     }
 
-    private static SegmentTopicStats.SubscriptionStats subscriptionStats(Boolean durable, long backlog) {
+    private static SegmentTopicStats.SubscriptionStats subscriptionStats(long backlog) {
         SegmentTopicStats.SubscriptionStats sub = new SegmentTopicStats.SubscriptionStats();
-        sub.setDurable(durable);
         sub.setMsgBacklog(backlog);
         return sub;
     }
@@ -1498,13 +1550,15 @@ public class ScalableTopicControllerTest {
         controller.splitSegment(0).get();
         long intermediate = controller.getLayout().get().getAllSegments().get(0L).childIds().get(1);
         controller.splitSegment(intermediate).get();
-        SegmentInfo root = controller.getLayout().get().getAllSegments().get(0L);
-        String rootTopic = SegmentTopicName.fromParent(topicName, root.hashRange(), 0L).toString();
         // sub-a still has backlog on segment 0 and has drained everything else.
         long[] rootBacklog = {5};
-        when(scalableTopics.getSegmentSubscriptionBacklogAsync(anyString(), eq("sub-a")))
-                .thenAnswer(invocation -> CompletableFuture.completedFuture(
-                        rootTopic.equals(invocation.getArgument(0)) ? rootBacklog[0] : 0L));
+        when(scalableTopics.getSegmentStatsAsync(eq(topicName.toString()), anyLong()))
+                .thenAnswer(invocation -> {
+                    SegmentTopicStats stats = segmentTopicStats();
+                    stats.getSubscriptions().put("sub-a",
+                            subscriptionStats(invocation.<Long>getArgument(1) == 0L ? rootBacklog[0] : 0L));
+                    return CompletableFuture.completedFuture(stats);
+                });
 
         clock.set(startMs + TimeUnit.MINUTES.toMillis(1) + 1_000L);
         controller.runGcTickAsync().get();
