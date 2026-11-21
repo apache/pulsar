@@ -26,12 +26,16 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
@@ -43,6 +47,7 @@ import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.util.RetryMessageUtil;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
+import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 import org.testng.collections.Lists;
 
@@ -1088,5 +1093,74 @@ public class RetryTopicTest extends SharedPulsarBaseTest {
                 .describedAs("producer count of retry topic %s should be 0 here",
                         retryTopic)
                 .isEqualTo(0);
+    }
+
+    /**
+     * A retry letter producer whose creation fails synchronously (for example a builder customizer that
+     * throws) must keep being retried while the failure lasts, with backoff between the retries.
+     */
+    @Test(timeOut = 60_000)
+    public void testRetryLetterProducerCreationFailureRetriesWithBackoff() throws Exception {
+        final String topic = newTopicName();
+        // track retry attempt time gap
+        Queue<Long> attemptNanos = new ConcurrentLinkedQueue<>();
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
+                .topic(topic)
+                .subscriptionName("my-subscription")
+                .subscriptionType(SubscriptionType.Shared)
+                .enableRetry(true)
+                // The unreachable max redeliver count keeps the message on the reconsumeLater path:
+                // at the max redeliver count a redelivery is parked for the dead letter producer
+                // instead, and that producer would be created successfully here.
+                .deadLetterPolicy(DeadLetterPolicy.builder()
+                        .maxRedeliverCount(Integer.MAX_VALUE)
+                        .retryLetterProducerBuilderCustomizer((context, builder) -> {
+                            attemptNanos.add(System.nanoTime());
+                            throw new RuntimeException("Injected retry letter producer creation failure");
+                        })
+                        .build())
+                .messageListener((c, msg) -> {
+                    // Every reconsumeLater triggers a creation attempt; its failure redelivers the
+                    // message back here.
+                    try {
+                        c.reconsumeLater(msg, 1, TimeUnit.MILLISECONDS);
+                    } catch (PulsarClientException e) {
+                        // ignore
+                    }
+                })
+                .subscribe();
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES).topic(topic).create();
+        producer.newMessage().key("key-0").value("m-0".getBytes()).send();
+
+        try {
+            // The first four attempts are enough to detect retries that ignore the backoff.
+            Awaitility.await().atMost(Duration.ofSeconds(10)).until(() -> attemptNanos.size() >= 4);
+            List<Long> gapsMillis = new ArrayList<>(3);
+            long previous = attemptNanos.poll();
+            for (int i = 0; i < 3; i++) {
+                long next = attemptNanos.poll();
+                gapsMillis.add(TimeUnit.NANOSECONDS.toMillis(next - previous));
+                previous = next;
+            }
+            log.info().attr("gapsMillis", gapsMillis).log("Retry letter producer creation attempt gaps");
+            // The smallest backed-off gap is ~95ms (100ms initial delay, 5% jitter); 50ms is half of
+            // that and well above a redelivery round-trip.
+            for (int i = 0; i < gapsMillis.size(); i++) {
+                assertTrue(gapsMillis.get(i) >= 50,
+                        "creation attempt " + (i + 1) + " -> " + (i + 2) + " is not backed off, gaps were "
+                                + gapsMillis + "ms");
+            }
+        } finally {
+            // The consumer fails to close while the retry letter producer cannot be created; swallow
+            // that so it cannot mask this test's own failure.
+            try {
+                consumer.close();
+            } catch (PulsarClientException e) {
+                // ignore
+            }
+        }
     }
 }
