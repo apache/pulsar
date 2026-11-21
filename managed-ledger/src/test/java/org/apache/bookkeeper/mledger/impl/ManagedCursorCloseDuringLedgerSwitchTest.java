@@ -42,6 +42,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
 import org.apache.bookkeeper.mledger.proto.ManagedCursorInfo;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
+import org.apache.pulsar.metadata.api.Option;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
 import org.awaitility.Awaitility;
@@ -132,9 +133,11 @@ public class ManagedCursorCloseDuringLedgerSwitchTest extends MockedBookKeeperTe
             }
             byte[] value = invocation.getArgument(1);
             Optional<Long> expectedVersion = invocation.getArgument(2);
+            Set<Option> options = invocation.getArgument(3);
             metadataWriteStarted.countDown();
-            return metadataGate.thenCompose(__ -> metadataStore.put(cursorPath, value, expectedVersion));
-        }).when(gatedStore).put(eq(cursorPath), any(byte[].class), any());
+            return metadataGate.thenCompose(__ -> metadataStore.put(cursorPath, value, expectedVersion, options));
+        }).when(gatedStore).put(eq(cursorPath), any(byte[].class), any(),
+                org.mockito.ArgumentMatchers.<Set<Option>>any());
 
         ManagedLedgerFactoryImpl gatedFactory = new ManagedLedgerFactoryImpl(gatedStore, bkc);
         try {
