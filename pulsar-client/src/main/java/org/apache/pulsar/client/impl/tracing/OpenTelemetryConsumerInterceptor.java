@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl.tracing;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.Tracer;
@@ -86,6 +87,11 @@ public class OpenTelemetryConsumerInterceptor<T> implements ConsumerInterceptor<
         this.tracer = instrumentProvider.getTracer();
         this.propagator = GlobalOpenTelemetry.getPropagators().getTextMapPropagator();
         this.messageSpansByTopic = new ConcurrentHashMap<>();
+    }
+
+    @VisibleForTesting
+    int getPendingSpanCount() {
+        return messageSpansByTopic.values().stream().mapToInt(Map::size).sum();
     }
 
     /**
@@ -162,11 +168,19 @@ public class OpenTelemetryConsumerInterceptor<T> implements ConsumerInterceptor<
 
     @Override
     public void onAcknowledge(Consumer<T> consumer, MessageId messageId, Throwable exception) {
-        if (!(messageId instanceof TraceableMessageId)) {
-            return;
+        Span span = null;
+        if (messageId instanceof MessageIdAdv) {
+            String topicKey = getTopicKey(messageId);
+            ConcurrentSkipListMap<MessageIdAdv, Span> topicSpans = messageSpansByTopic.get(topicKey);
+            if (topicSpans != null) {
+                // A deserialized message ID has the same position, but no attached span.
+                span = topicSpans.remove((MessageIdAdv) messageId);
+            }
         }
 
-        Span span = ((TraceableMessageId) messageId).getTracingSpan();
+        if (span == null && messageId instanceof TraceableMessageId) {
+            span = ((TraceableMessageId) messageId).getTracingSpan();
+        }
         if (span != null) {
             try {
                 if (exception != null) {
@@ -177,15 +191,8 @@ public class OpenTelemetryConsumerInterceptor<T> implements ConsumerInterceptor<
                     TracingContext.endSpan(span);
                 }
                 // Clear the span from the message ID
-                ((TraceableMessageId) messageId).setTracingSpan(null);
-
-                // Remove from map if it exists (Failover/Exclusive)
-                if (messageId instanceof MessageIdAdv) {
-                    String topicKey = getTopicKey(messageId);
-                    ConcurrentSkipListMap<MessageIdAdv, Span> topicSpans = messageSpansByTopic.get(topicKey);
-                    if (topicSpans != null) {
-                        topicSpans.remove((MessageIdAdv) messageId);
-                    }
+                if (messageId instanceof TraceableMessageId) {
+                    ((TraceableMessageId) messageId).setTracingSpan(null);
                 }
             } catch (Exception e) {
                 log.error().exception(e).log("Error ending consumer span on acknowledge");
