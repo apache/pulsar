@@ -51,16 +51,17 @@ class MutableBucket implements AutoCloseable {
     }
 
     Pair<ImmutableBucket, DelayedIndex> sealBucketAndAsyncPersistent(
-            long timeStepPerBucketSnapshotSegment,
+            BucketDelayedMessageIndexStats stats, long timeStepPerBucketSnapshotSegment,
             int maxIndexesPerBucketSnapshotSegment,
             TripleLongPriorityQueue sharedQueue) {
-        return createImmutableBucketAndAsyncPersistent(timeStepPerBucketSnapshotSegment,
+        return createImmutableBucketAndAsyncPersistent(stats, timeStepPerBucketSnapshotSegment,
                 maxIndexesPerBucketSnapshotSegment, sharedQueue,
                 TripleLongPriorityDelayedIndexQueue.wrap(priorityQueue), startLedgerId, endLedgerId);
     }
 
     Pair<ImmutableBucket, DelayedIndex> createImmutableBucketAndAsyncPersistent(
-            final long timeStepPerBucketSnapshotSegment, final int maxIndexesPerBucketSnapshotSegment,
+            BucketDelayedMessageIndexStats stats, final long timeStepPerBucketSnapshotSegment,
+            final int maxIndexesPerBucketSnapshotSegment,
             TripleLongPriorityQueue sharedQueue, DelayedIndexQueue delayedIndexQueue, final long startLedgerId,
             final long endLedgerId) {
             log.debug()
@@ -165,7 +166,7 @@ class MutableBucket implements AutoCloseable {
         Pair<ImmutableBucket, DelayedIndex> result = Pair.of(bucket, lastDelayedIndex);
 
         CompletableFuture<Long> future = bucket.asyncSaveBucketSnapshot(
-                bucketSnapshotMetadata, bucketSnapshotSegments);
+                stats, bucketSnapshotMetadata, bucketSnapshotSegments);
         bucket.setSnapshotCreateFuture(future);
 
         return result;
