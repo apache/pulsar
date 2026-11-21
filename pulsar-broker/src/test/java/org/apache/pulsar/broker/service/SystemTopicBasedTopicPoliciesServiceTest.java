@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.service;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.AssertJUnit.assertEquals;
@@ -29,6 +28,7 @@ import static org.testng.AssertJUnit.assertNotNull;
 import static org.testng.AssertJUnit.assertNull;
 import static org.testng.AssertJUnit.assertSame;
 import static org.testng.AssertJUnit.assertTrue;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -36,6 +36,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
@@ -43,6 +44,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.commons.lang3.reflect.FieldUtils;
@@ -352,76 +354,67 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         service.deleteTopicPoliciesAsync(TOPIC1).get();
     }
 
-    @Test
-    @SuppressWarnings("unchecked")
-    public void testGetTopicPoliciesWithCleanCache() throws Exception {
+    @Test(timeOut = 120_000)
+    public void testGetTopicPoliciesWhileNamespaceIsUnloaded() throws Exception {
+        // A namespace unload is what drops a namespace's cached topic policies in a broker: the policies are loaded
+        // again by a new __change_events reader when the namespace is served again. Reads that run while the
+        // namespace is unloaded over and over may fail with a retriable error while it is not served, but they must
+        // never answer "no policies" (or other policies) for a topic that has a policy. The exact interleaving of a
+        // read with the replacement of the cache is pinned by
+        // testGetTopicPoliciesWhenBundleBounceReplacesPolicyCacheGeneration.
         final String topic = "persistent://" + NAMESPACE1 + "/test" + UUID.randomUUID();
-        pulsarClient.newProducer().topic(topic).create().close();
-
-        SystemTopicBasedTopicPoliciesService topicPoliciesService =
-                (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
-
-        ConcurrentHashMap<TopicName, TopicPolicies> spyPoliciesCache =
-                spy(new ConcurrentHashMap<TopicName, TopicPolicies>());
-        FieldUtils.writeDeclaredField(topicPoliciesService, "policiesCache", spyPoliciesCache, true);
-
-        Awaitility.await().untilAsserted(() -> Assertions.assertThat(
-                TopicPolicyTestUtils.getTopicPolicies(topicPoliciesService, TopicName.get(topic))).isNull());
-
+        final TopicName topicName = TopicName.get(topic);
+        admin.topics().createNonPartitionedTopic(topic);
         admin.topicPolicies().setMaxConsumersPerSubscription(topic, 1);
-        Awaitility.await().untilAsserted(() -> {
-                Assertions.assertThat(TopicPolicyTestUtils.getTopicPolicies(pulsar.getTopicPoliciesService(),
-                        TopicName.get(topic))).isNotNull();
-            });
+        final TopicPoliciesService service = pulsar.getTopicPoliciesService();
+        Awaitility.await().untilAsserted(() -> Assertions.assertThat(
+                TopicPolicyTestUtils.getTopicPolicies(service, topicName)).isNotNull());
 
-        Map<NamespaceName, CompletableFuture<SystemTopicClient.Reader<PulsarEvent>>> readers =
-                (Map<NamespaceName, CompletableFuture<SystemTopicClient.Reader<PulsarEvent>>>)
-                        FieldUtils.readDeclaredField(topicPoliciesService, "readerCaches", true);
-
-        Mockito.doAnswer(invocation -> {
-            Thread.sleep(1000);
-            return invocation.callRealMethod();
-        }).when(spyPoliciesCache).get(Mockito.any());
-
-        CompletableFuture<Void> result = new CompletableFuture<>();
-        Thread thread = new Thread(() -> {
+        final int unloads = 10;
+        final AtomicBoolean unloading = new AtomicBoolean(true);
+        final CompletableFuture<Void> unloader = CompletableFuture.runAsync(() -> {
             try {
-                for (int i = 0; i < 10; i++) {
-                    final var policies = TopicPolicyTestUtils.getTopicPolicies(topicPoliciesService,
-                            TopicName.get(topic));
-                    if (policies == null) {
-                        throw new Exception("null policies for " + i + "th get");
-                    }
+                for (int i = 0; i < unloads; i++) {
+                    admin.namespaces().unload(NAMESPACE1);
                 }
-                result.complete(null);
-            } catch (Exception e) {
-                result.completeExceptionally(e);
+            } catch (PulsarAdminException e) {
+                throw new CompletionException(e);
+            } finally {
+                unloading.set(false);
             }
         });
-
-        // Close the reader the cached policies were loaded with, as a namespace cleanup does, while the reads run.
-        // Only that reader: once its close has been handled, the next read starts a new initialization with a new
-        // reader, and closing that one during its first pass would fail the read waiting for it, which no cleanup
-        // does (a cleanup drops an initialization before closing its reader).
-        final CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> initialReader =
-                readers.get(TopicName.get(topic).getNamespaceObject());
-        Thread thread2 = new Thread(() -> {
-            for (int i = 0; i < 10; i++) {
-                CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerCompletableFuture =
-                        readers.get(TopicName.get(topic).getNamespaceObject());
-                if (readerCompletableFuture != null && readerCompletableFuture == initialReader) {
-                    readerCompletableFuture.join().closeAsync().join();
+        final List<String> wrongAnswers = new ArrayList<>();
+        final List<String> errors = new ArrayList<>();
+        int answered = 0;
+        while (unloading.get()) {
+            try {
+                final Optional<TopicPolicies> policies =
+                        service.getTopicPoliciesAsync(topicName, TopicPoliciesService.GetType.LOCAL_ONLY)
+                                .get(30, TimeUnit.SECONDS);
+                if (policies.isEmpty()
+                        || !Integer.valueOf(1).equals(policies.get().getMaxConsumersPerSubscription())) {
+                    wrongAnswers.add(String.valueOf(policies));
+                } else {
+                    answered++;
                 }
+            } catch (ExecutionException e) {
+                // Not served at this moment (the namespace is being unloaded); a caller retries.
+                errors.add(String.valueOf(e.getCause()));
             }
-        });
+        }
+        unloader.get(60, TimeUnit.SECONDS);
 
-        thread.start();
-        thread2.start();
-
-        thread.join();
-        thread2.join();
-
-        result.join();
+        Assertions.assertThat(wrongAnswers)
+                .describedAs("reads answered without the topic's policy while its namespace was unloaded")
+                .isEmpty();
+        Assertions.assertThat(answered)
+                .describedAs("no read was answered while the namespace was unloaded, so the assertion above holds"
+                        + " vacuously; errors: %s", errors)
+                .isPositive();
+        // Served again once the unloads are over.
+        Awaitility.await().untilAsserted(() -> Assertions.assertThat(
+                TopicPolicyTestUtils.getTopicPolicies(service, topicName).getMaxConsumersPerSubscription())
+                .isEqualTo(1));
     }
 
     @Test
