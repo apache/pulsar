@@ -2953,6 +2953,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ManagedLedgerConfig config = defaultConfig()
                 .setMaxEntriesPerLedger(entriesPerLedger)
                 .setPersistIndividualAckAsLongArray(persistAsLongArray)
+                // Keep nonempty ACK ranges in the cursor ledger so reopen exercises the configured format.
+                .setMaxUnackedRangesToPersistInMetadataStore(0)
                 // Random resets can revisit any entry, including entries acknowledged before rollover.
                 .setRetentionTime(-1, TimeUnit.MILLISECONDS)
                 .setRetentionSizeInMB(-1);
