@@ -29,6 +29,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -40,6 +41,7 @@ import org.apache.pulsar.client.api.v5.auth.HttpAuthCallContext;
 import org.apache.pulsar.client.api.v5.auth.HttpAuthChallengeHandler;
 import org.apache.pulsar.client.api.v5.auth.HttpAuthHeaders;
 import org.apache.pulsar.client.api.v5.auth.HttpAuthHeadersProvider;
+import org.apache.pulsar.client.impl.auth.v5.HttpAuthenticationDriver.ChallengeResponseException;
 import org.testng.annotations.Test;
 
 /**
@@ -73,6 +75,11 @@ public class HttpAuthenticationDriverTest {
         assertThat(transport.uris).allMatch(URI_A::equals);
         // The first round saw no server challenge; later rounds saw the prior response's server-state.
         assertThat(auth.serverStatesSeen).containsExactly("none", "s1", "s2");
+
+        // A partition request can also use a provider with its own challenge headers.
+        transport.script(unauthorized("custom"), ok("RT"));
+        assertThat(driver.authenticateAsync(URI_A, transport, Duration.ofSeconds(30), new CompletableFuture<>())
+                .get().get("role-token")).contains("RT");
     }
 
     @Test
@@ -111,12 +118,14 @@ public class HttpAuthenticationDriverTest {
         transport.always(ok("RT"));
 
         // A zero budget is already exhausted by the time the first round checks the deadline.
-        assertThatThrownBy(() -> new HttpAuthenticationDriver(auth, null, null)
-                .authenticateAsync(URI_A, transport, Duration.ZERO).get())
+        var driver = new HttpAuthenticationDriver(auth, null, null);
+        assertThatThrownBy(() -> driver.authenticateAsync(URI_A, transport, Duration.ZERO).get())
                 .isInstanceOf(ExecutionException.class)
                 .hasCauseInstanceOf(PulsarClientException.AuthenticationException.class)
                 .hasMessageContaining("timeout budget")
-                .hasRootCauseInstanceOf(TimeoutException.class);
+                .cause().hasNoCause();
+        assertThatThrownBy(() -> driver.authenticateAsync(URI_A, transport, Duration.ZERO,
+                new CompletableFuture<>()).get()).hasRootCauseInstanceOf(TimeoutException.class);
 
         assertThat(transport.callCount).isZero();
         assertThat(auth.respondCalls).isZero();
@@ -129,7 +138,8 @@ public class HttpAuthenticationDriverTest {
         HttpChallengeTransport hanging = (uri, headers, timeout) -> new CompletableFuture<>();
 
         assertThatThrownBy(() -> new HttpAuthenticationDriver(auth, null, null)
-                .authenticateAsync(URI_A, hanging, Duration.ofMillis(200)).get(10, TimeUnit.SECONDS))
+                .authenticateAsync(URI_A, hanging, Duration.ofMillis(200), new CompletableFuture<>())
+                .get(10, TimeUnit.SECONDS))
                 .isInstanceOf(ExecutionException.class)
                 .hasCauseInstanceOf(PulsarClientException.AuthenticationException.class)
                 .hasMessageContaining("timed out")
@@ -148,7 +158,7 @@ public class HttpAuthenticationDriverTest {
                 .isInstanceOf(ExecutionException.class)
                 .hasCauseInstanceOf(PulsarClientException.AuthenticationException.class)
                 .hasMessageContaining("timed out")
-                .hasRootCauseInstanceOf(TimeoutException.class);
+                .cause().hasNoCause();
 
         // The GET is never issued: the hang is in the evaluation stage, before the transport is reached.
         assertThat(transport.callCount).isZero();
@@ -174,13 +184,36 @@ public class HttpAuthenticationDriverTest {
     public void nonOkNonUnauthorizedStatusFails() {
         FakeChallengeAuth auth = new FakeChallengeAuth();
         FakeTransport transport = new FakeTransport();
-        transport.script(new HttpChallengeTransport.Result(500, HttpAuthHeaders.empty()));
+        transport.script(new HttpChallengeTransport.Result(500, HttpAuthHeaders.empty()),
+                new HttpChallengeTransport.Result(429, HttpAuthHeaders.empty()));
+        var driver = new HttpAuthenticationDriver(auth, null, null);
 
-        assertThatThrownBy(() -> new HttpAuthenticationDriver(auth, null, null)
-                .authenticateAsync(URI_A, transport, Duration.ofSeconds(30)).get())
-                .isInstanceOf(ExecutionException.class)
-                .hasMessageContaining("failed with status 500");
-        assertThat(transport.callCount).isEqualTo(1);
+        assertThatThrownBy(() -> driver.authenticateAsync(URI_A, transport, Duration.ofSeconds(30)).get())
+                .cause().isExactlyInstanceOf(PulsarClientException.AuthenticationException.class)
+                .hasMessage("SASL over HTTP auth request failed with status 500").hasNoCause();
+        assertThatThrownBy(() -> driver.authenticateAsync(URI_A, transport, Duration.ofSeconds(30),
+                new CompletableFuture<>()).get())
+                .cause().isExactlyInstanceOf(PulsarClientException.AuthenticationException.class)
+                .hasMessage("SASL over HTTP auth request failed with status 429")
+                .cause().isInstanceOfSatisfying(ChallengeResponseException.class,
+                        error -> assertThat(error.getStatusCode()).isEqualTo(429));
+        assertThat(transport.callCount).isEqualTo(2);
+    }
+
+    @Test
+    public void expiredPartitionSkipsFinalHeadersWhenChallengeReturnsOk() {
+        var auth = new FakeChallengeAuth();
+        var response = new CompletableFuture<HttpChallengeTransport.Result>();
+        var lifetime = new CompletableFuture<Void>();
+        var driver = new HttpAuthenticationDriver(auth, null, null);
+        var exchange = driver.authenticateAsync(URI_A, (uri, headers, timeout) -> response,
+                Duration.ofSeconds(30), lifetime);
+
+        assertThat(auth.respondCalls).isEqualTo(1);
+        assertThat(lifetime.cancel(false)).isTrue();
+        assertThat(response.complete(ok("RT"))).isTrue();
+        assertThatThrownBy(exchange::join).hasRootCauseInstanceOf(CancellationException.class);
+        assertThat(auth.finalHeadersCalls).isZero();
     }
 
     @Test
@@ -226,6 +259,7 @@ public class HttpAuthenticationDriverTest {
     private static final class FakeChallengeAuth
             implements Authentication, HttpAuthChallengeHandler, HttpAuthHeadersProvider {
         int respondCalls;
+        int finalHeadersCalls;
         int failOnRound = -1;
         boolean hangOnRespond;
         final List<String> serverStatesSeen = new ArrayList<>();
@@ -262,6 +296,7 @@ public class HttpAuthenticationDriverTest {
 
         @Override
         public CompletableFuture<HttpAuthHeaders> getHttpHeadersAsync(HttpAuthCallContext ctx) {
+            finalHeadersCalls++;
             String roleToken = ctx.serverChallengeHeaders().flatMap(h -> h.get("role-token")).orElse(null);
             if (roleToken == null) {
                 return CompletableFuture.failedFuture(new RuntimeException("no role token in terminal response"));

@@ -42,6 +42,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
@@ -576,17 +577,25 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
         brokerAdminClientBuilder = adminClientBuilder;
 
         try {
-            var first = CompletableFuture.supplyAsync(pulsar::getAdminClientAsync, pulsar.getExecutor())
+            var stopped = new CompletableFuture<Void>();
+            var first = CompletableFuture.supplyAsync(() -> pulsar.getAdminClientAsync(stopped), pulsar.getExecutor())
                     .get(5, TimeUnit.SECONDS);
             assertThat(initializing.await(5, TimeUnit.SECONDS)).isTrue();
-            var second = CompletableFuture.supplyAsync(pulsar::getAdminClientAsync, pulsar.getExecutor())
-                    .get(5, TimeUnit.SECONDS);
-            assertThat(first.cancel(false)).isTrue();
-            assertThat(second).isNotDone();
+            var deadline = new CompletableFuture<Void>();
+            var second = pulsar.getAdminClientAsync(deadline);
 
+            stopped.complete(null);
+            assertThatThrownBy(first::join).hasCauseInstanceOf(CancellationException.class);
+            var timeout = new TimeoutException();
+            deadline.completeExceptionally(timeout);
+            assertThatThrownBy(second::join).hasCause(timeout);
+            assertThat(pulsar.getAdminClientWaiterCount()).isZero();
+
+            var third = pulsar.getAdminClientAsync(new CompletableFuture<>());
+            assertThat(third).isNotDone();
             release.countDown();
-            assertThat(second.get(5, TimeUnit.SECONDS)).isSameAs(adminClient);
-            assertThat(pulsar.getAdminClientAsync().get(5, TimeUnit.SECONDS)).isSameAs(adminClient);
+            assertThat(third.get(5, TimeUnit.SECONDS)).isSameAs(adminClient);
+            assertThat(pulsar.getAdminClientAsync(new CompletableFuture<>()).join()).isSameAs(adminClient);
             verify(adminClientBuilder).build();
         } finally {
             release.countDown();

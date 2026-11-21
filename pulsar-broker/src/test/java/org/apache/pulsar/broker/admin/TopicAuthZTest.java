@@ -746,12 +746,16 @@ public class TopicAuthZTest extends AuthZTest {
             record AuthorizationCheck(TopicName topic, String role, String subscription) { }
             var checks = new ConcurrentLinkedQueue<AuthorizationCheck>();
             var deniedPartitions = new AtomicReference<Set<TopicName>>(Set.of());
+            var authorizationUnavailable = new AtomicBoolean();
             doAnswer(invocation -> {
                 TopicName requestedTopic = invocation.getArgument(0);
                 String role = invocation.getArgument(2);
                 AuthenticationDataSource authData = invocation.getArgument(3);
                 checks.add(new AuthorizationCheck(requestedTopic, role,
                         authData == null ? null : authData.getSubscription()));
+                if (authorizationUnavailable.get() && subject.equals(role)) {
+                    throw new IllegalArgumentException("Authorization provider configuration is unavailable");
+                }
                 if (BROKER_INTERNAL_CLIENT_SUBJECT.equals(role) && deniedPartitions.get().contains(requestedTopic)) {
                     return CompletableFuture.completedFuture(false);
                 }
@@ -798,6 +802,16 @@ public class TopicAuthZTest extends AuthZTest {
             assertThat(error.errorCode).isEqualTo("AUTHORIZATION_FAILED");
 
             deniedPartitions.set(Set.of(firstPartition, secondPartition));
+            assertThatThrownBy(() -> requester.topics().getPartitionedSubscriptionCursorInternalStats(
+                    topic.toString(), subscription))
+                    .isInstanceOfSatisfying(PulsarAdminException.class,
+                            failure -> assertThat(failure.getStatusCode()).isEqualTo(503));
+
+            authorizationUnavailable.set(true);
+            assertThatThrownBy(() -> requester.topics().getSubscriptionCursorInternalStats(
+                    firstPartition.toString(), subscription))
+                    .isInstanceOfSatisfying(PulsarAdminException.class,
+                            failure -> assertThat(failure.getStatusCode()).isEqualTo(503));
             assertThatThrownBy(() -> requester.topics().getPartitionedSubscriptionCursorInternalStats(
                     topic.toString(), subscription))
                     .isInstanceOfSatisfying(PulsarAdminException.class,

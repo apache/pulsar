@@ -42,7 +42,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.Predicate;
@@ -752,12 +751,7 @@ public class TopicsImpl extends BaseResource implements Topics {
                     .queryParam("includeIndividualDeletedMessages", includeIndividualDeletedMessages);
             // Brokers also call this for partition fan-out, so credential resolution must not block the caller.
             CompletableFuture<T> result = callback.future();
-            var builderFuture = requestAsync(path);
-            result.whenComplete((unused, error) -> {
-                if (result.isCancelled()) {
-                    builderFuture.cancel(false);
-                }
-            });
+            var builderFuture = localOnly ? requestAsync(path, result) : requestAsync(path);
             builderFuture.whenComplete((builder, error) -> {
                 if (result.isDone()) {
                     return;
@@ -771,12 +765,7 @@ public class TopicsImpl extends BaseResource implements Topics {
                     if (localOnly) {
                         builder.header(CURSOR_STATS_LOCAL_ONLY_HEADER, true);
                     }
-                    Future<T> invocation = builder.async().get(callback);
-                    result.whenComplete((unused, failure) -> {
-                        if (result.isCancelled()) {
-                            invocation.cancel(false);
-                        }
-                    });
+                    builder.async().get(callback);
                 } catch (Throwable failure) {
                     result.completeExceptionally(failure);
                 }

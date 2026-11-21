@@ -30,7 +30,6 @@ import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doCallRealMethod;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -468,22 +467,59 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         });
 
         ManagedCursorImpl observedCursor = spy(cursor);
-        ManagedLedgerInternalStats.CursorStats summary = observedCursor.getCursorStats(false);
+        var summary = observedCursor.getCursorStatsWithoutIndividuallyDeletedMessages();
         verify(observedCursor, never()).getIndividuallyDeletedMessages();
         assertThat(summary.individuallyDeletedMessages).isNull();
 
-        ManagedLedgerInternalStats.CursorStats detailed = observedCursor.getCursorStats(true);
+        ManagedLedgerInternalStats.CursorStats detailed = observedCursor.getCursorStats();
         verify(observedCursor).getIndividuallyDeletedMessages();
         assertThat(detailed.individuallyDeletedMessages).contains(finalPosition2.toString());
         assertThat(summary).usingRecursiveComparison().ignoringFields("individuallyDeletedMessages")
                 .isEqualTo(detailed);
 
-        var customSnapshot = new ManagedLedgerInternalStats.CursorStats();
-        doReturn(customSnapshot).when(observedCursor).getCursorStats();
-        assertThat(observedCursor.getCursorStats(true)).isSameAs(customSnapshot);
-
         // cleanup.
         ml.delete();
+    }
+
+    @Test
+    void testGetCursorStatsWithLegacySnapshotOverride() throws Exception {
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open("cursor-stats-override", defaultConfig());
+
+        class LegacySnapshotCursor extends NonDurableCursorImpl {
+            LegacySnapshotCursor(String name) {
+                super(bkc, ml, name, null, CommandSubscribe.InitialPosition.Latest, false);
+            }
+
+            @Override
+            public ManagedLedgerInternalStats.CursorStats getCursorStats() {
+                var stats = super.getCursorStats();
+                stats.state = "custom";
+                return stats;
+            }
+        }
+
+        ManagedCursor legacy = new LegacySnapshotCursor("legacy");
+        ManagedCursor updated = new LegacySnapshotCursor("updated") {
+            @Override
+            public ManagedLedgerInternalStats.CursorStats getCursorStatsWithoutIndividuallyDeletedMessages() {
+                var stats = super.getCursorStatsWithoutIndividuallyDeletedMessages();
+                stats.state = "custom";
+                return stats;
+            }
+        };
+        try {
+            assertEquals(legacy.getCursorStats().state, "custom");
+            Assert.expectThrows(UnsupportedOperationException.class,
+                    legacy::getCursorStatsWithoutIndividuallyDeletedMessages);
+            var summary = updated.getCursorStatsWithoutIndividuallyDeletedMessages();
+            assertNull(summary.individuallyDeletedMessages);
+            assertThat(summary).usingRecursiveComparison().ignoringFields("individuallyDeletedMessages")
+                    .isEqualTo(updated.getCursorStats());
+        } finally {
+            legacy.close();
+            updated.close();
+            ml.delete();
+        }
     }
 
     @Test

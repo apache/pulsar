@@ -2156,9 +2156,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
     /**
      * Get the broker's Admin client without blocking on client construction or another caller's initialization.
-     * Each caller can time out or cancel independently of the shared initialization.
+     * A request that finishes waiting releases its dependency on the shared initialization.
      */
-    public CompletableFuture<PulsarAdmin> getAdminClientAsync() {
+    public CompletableFuture<PulsarAdmin> getAdminClientAsync(CompletableFuture<Void> requestCompletion) {
         if (!isRunning()) {
             return CompletableFuture.failedFuture(new PulsarServerException("Broker is not running"));
         }
@@ -2166,10 +2166,22 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         if (existingClient != null) {
             return CompletableFuture.completedFuture(existingClient);
         }
+        // anyOf detaches the waiting request even if the shared initialization stays blocked.
+        CompletableFuture<?> ready = requestCompletion.isDone() ? requestCompletion
+                : CompletableFuture.anyOf(requestCompletion, initializeAdminClientAsync());
+        return ready.thenApply(result -> {
+            if (result instanceof PulsarAdmin client) {
+                return client;
+            }
+            throw new CancellationException("Request finished before the broker admin client was ready");
+        });
+    }
+
+    private CompletableFuture<PulsarAdmin> initializeAdminClientAsync() {
         var initialization = new CompletableFuture<PulsarAdmin>();
         var current = adminClientInitialization.compareAndExchange(null, initialization);
         if (current != null) {
-            return current.copy();
+            return current;
         }
 
         // Authentication startup can do blocking I/O. Keep it off the broker scheduler.
@@ -2187,7 +2199,13 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 initialization.completeExceptionally(error);
             }
         });
-        return initialization.copy();
+        return initialization;
+    }
+
+    @VisibleForTesting
+    int getAdminClientWaiterCount() {
+        var initialization = adminClientInitialization.get();
+        return initialization == null ? 0 : initialization.getNumberOfDependents();
     }
 
     private void closeAdminClient() {

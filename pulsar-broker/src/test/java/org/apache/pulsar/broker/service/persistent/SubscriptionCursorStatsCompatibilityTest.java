@@ -39,9 +39,6 @@ public class SubscriptionCursorStatsCompatibilityTest {
         when(subscription.getCursor()).thenReturn(cursor);
         when(topic.getSubscriptionCursorInternalStats("sub", true)).thenCallRealMethod();
 
-        var builtInSnapshot = new CursorStats();
-        builtInSnapshot.readPosition = "7:1";
-        when(cursor.getCursorStats(true)).thenReturn(builtInSnapshot);
         when(cursor.getCursorStats()).thenReturn(new CursorStats() {
             @Override
             public String getReadPosition() {
@@ -57,7 +54,6 @@ public class SubscriptionCursorStatsCompatibilityTest {
         CursorStats stats = topic.getSubscriptionCursorInternalStats("sub", true);
         assertThat(stats.readPosition).isEqualTo("12:3");
         assertThat(stats.individuallyDeletedMessages).isEqualTo("custom range");
-        verify(cursor, never()).getCursorStats(true);
     }
 
     @Test
@@ -69,7 +65,7 @@ public class SubscriptionCursorStatsCompatibilityTest {
         when(subscription.getCursor()).thenReturn(cursor);
         when(topic.getSubscriptionCursorInternalStats("sub", false)).thenCallRealMethod();
 
-        when(cursor.getCursorStats(false)).thenReturn(new CursorStats() {
+        when(cursor.getCursorStatsWithoutIndividuallyDeletedMessages()).thenReturn(new CursorStats() {
             @Override
             public int getTotalNonContiguousDeletedMessagesRange() {
                 return 1;

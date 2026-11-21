@@ -260,11 +260,20 @@ public class AuthenticationOAuth2
     @SuppressWarnings("deprecation")
     @Override
     public synchronized AuthenticationDataProvider getAuthData() throws PulsarClientException {
+        return getAuthData(false);
+    }
+
+    /** Preserves the failure kind for internal broker diagnostics. */
+    public synchronized AuthenticationDataProvider getAuthDataWithFailureDetails() throws PulsarClientException {
+        return getAuthData(true);
+    }
+
+    private AuthenticationDataProvider getAuthData(boolean includeFailureDetails) throws PulsarClientException {
         if (isClosed) {
             throw new PulsarClientException.AlreadyClosedException("Authentication already closed.");
         }
         if (this.cachedToken == null || this.cachedToken.isExpired()) {
-            this.authenticate();
+            this.authenticate(includeFailureDetails);
         }
         return this.cachedToken.getAuthData();
     }
@@ -331,10 +340,10 @@ public class AuthenticationOAuth2
     /**
      * Retrieve the token (synchronously), and then schedule refresh runnable.
      */
-    private void authenticate() throws PulsarClientException {
-            log.debug("Attempting to retrieve OAuth2 token now.");
+    private void authenticate(boolean includeFailureDetails) throws PulsarClientException {
+        log.debug("Attempting to retrieve OAuth2 token now.");
         Instant requestedAt = this.clock.instant();
-        TokenResult tr = this.flow.authenticate();
+        TokenResult tr = includeFailureDetails ? this.flow.authenticate(true) : this.flow.authenticate();
         this.cachedToken = new CachedToken(tr, requestedAt);
         handleSuccessfulTokenRefresh();
     }
@@ -362,7 +371,7 @@ public class AuthenticationOAuth2
      */
     private void refreshToken() {
         try {
-            this.authenticate();
+            this.authenticate(false);
         } catch (PulsarClientException | RuntimeException e) {
             long delayMillis = backoff.next().toMillis();
             log.error().attr("delayMillis", delayMillis)

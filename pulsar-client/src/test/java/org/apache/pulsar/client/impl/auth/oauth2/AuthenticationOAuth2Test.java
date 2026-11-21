@@ -25,27 +25,38 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertThrows;
+import static org.testng.Assert.expectThrows;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.ByteArrayOutputStream;
 import java.io.ObjectOutputStream;
 import java.net.MalformedURLException;
+import java.net.SocketTimeoutException;
 import java.net.URI;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import lombok.Cleanup;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.DefaultMetadataResolver;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenEndpointAuthMethod;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenResult;
+import org.apache.pulsar.http.HttpResponse;
+import org.apache.pulsar.http.PulsarHttpClient;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -293,6 +304,46 @@ public class AuthenticationOAuth2Test {
     public void testStart() throws Exception {
         this.auth.start();
         verify(this.flow).initialize();
+    }
+
+    @Test
+    public void testTlsTokenTimeoutDetailsDoNotChangeLegacyException() throws Exception {
+        var timeout = new SocketTimeoutException("token endpoint timed out");
+        var metadata = HttpResponse.of(200, Map.of(),
+                "{\"token_endpoint\":\"http://localhost/token\"}".getBytes(StandardCharsets.UTF_8));
+        var httpClient = mock(PulsarHttpClient.class);
+        when(httpClient.execute(any())).thenReturn(CompletableFuture.completedFuture(metadata))
+                .thenReturn(CompletableFuture.failedFuture(timeout));
+        var tlsFlow = TlsClientAuthFlow.fromParameters(Map.of("issuerUrl", "http://localhost",
+                "tlsCertFile", "client.pem", "tlsKeyFile", "client.key"));
+        tlsFlow.bindHttpClientFactory(ignored -> httpClient);
+        this.auth.flow = tlsFlow;
+
+        var diagnostic = expectThrows(PulsarClientException.AuthenticationException.class,
+                this.auth::getAuthDataWithFailureDetails);
+        var legacy = expectThrows(PulsarClientException.AuthenticationException.class,
+                () -> this.auth.getAuthData("localhost"));
+        assertEquals(legacy.getClass(), PulsarClientException.AuthenticationException.class);
+        assertEquals(legacy.getMessage(), "Unable to obtain an access token: " + new ExecutionException(timeout));
+        assertNull(legacy.getCause());
+        assertEquals(diagnostic.getMessage(), legacy.getMessage());
+        assertSame(ExceptionUtils.getRootCause(diagnostic), timeout);
+    }
+
+    @Test
+    public void testCredentialFailureDetailsDoNotChangeLegacyException() throws Exception {
+        this.auth.flow = ClientCredentialsFlow.builder()
+                .issuerUrl(URI.create("http://localhost").toURL())
+                .privateKey("data:application/json;base64,e2JhZA==")
+                .build();
+
+        var diagnostic = expectThrows(PulsarClientException.InvalidConfigurationException.class,
+                this.auth::getAuthDataWithFailureDetails);
+        var legacy = expectThrows(PulsarClientException.AuthenticationException.class,
+                () -> this.auth.getAuthData("localhost"));
+        assertEquals(legacy.getClass(), PulsarClientException.AuthenticationException.class);
+        assertEquals(legacy.getMessage(), diagnostic.getMessage());
+        assertNull(legacy.getCause());
     }
 
     @Test

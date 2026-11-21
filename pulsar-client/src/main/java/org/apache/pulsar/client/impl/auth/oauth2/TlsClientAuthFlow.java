@@ -124,7 +124,8 @@ class TlsClientAuthFlow extends FlowBase {
         initialized = true;
     }
 
-    public TokenResult authenticate() throws PulsarClientException {
+    @Override
+    public TokenResult authenticate(boolean includeFailureDetails) throws PulsarClientException {
         // request an access token using TLS client authentication
         ClientCredentialsExchangeRequest req = ClientCredentialsExchangeRequest.builder()
                 .clientId(this.clientId)
@@ -139,8 +140,8 @@ class TlsClientAuthFlow extends FlowBase {
         try {
             tr = this.exchanger.exchangeClientCredentials(req);
         } catch (TokenExchangeException | IOException e) {
-            throw new PulsarClientException.AuthenticationException("Unable to obtain an access token: "
-                    + e.getMessage());
+            throw authenticationFailure("Unable to obtain an access token: " + e.getMessage(), e,
+                    includeFailureDetails);
         }
 
         return tr;

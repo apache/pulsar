@@ -20,20 +20,14 @@ package org.apache.pulsar.client.admin.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.RETURNS_SELF;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
-import jakarta.ws.rs.client.AsyncInvoker;
-import jakarta.ws.rs.client.Invocation.Builder;
-import jakarta.ws.rs.client.InvocationCallback;
 import jakarta.ws.rs.client.WebTarget;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.net.URI;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -49,8 +43,6 @@ import org.apache.pulsar.client.admin.PulsarAdminException.GettingAuthentication
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.CursorStats;
-import org.mockito.ArgumentMatchers;
 import org.testng.annotations.Test;
 
 /**
@@ -71,7 +63,7 @@ public class AdminAuthOffloadTest {
      */
     private static class ThreadRecordingAuthentication implements Authentication {
 
-        private final AtomicReference<Thread> getAuthDataThread = new AtomicReference<>();
+        final AtomicReference<Thread> getAuthDataThread = new AtomicReference<>();
 
         @Override
         public String getAuthMethodName() {
@@ -314,37 +306,27 @@ public class AdminAuthOffloadTest {
     }
 
     @Test
-    public void subscriptionCursorStatsCancellationBeforeAuthenticationPreventsGet() {
-        var builderFuture = new CompletableFuture<Builder>();
-        TopicsImpl topics = topicsWithBuilderFuture(builderFuture);
-        var request = topics.getLocalSubscriptionCursorInternalStatsAsync("persistent://tenant/ns/physical-topic",
-                "sub", false);
+    public void subscriptionCursorStatsCancellationSkipsQueuedAuthHooks() throws Exception {
+        var queued = new ArrayDeque<Runnable>();
+        var auth = new AsyncStageAuthentication();
+        WebTarget target = mock(WebTarget.class, RETURNS_SELF);
+        when(target.getUri()).thenReturn(URI.create("http://broker.example:8080/admin/v2"));
+        var topics = new TopicsImpl(target, auth, 30_000L);
+        topics.setBlockingAuthExecutor(queued::add);
+        String topic = "persistent://tenant/ns/physical-topic";
+        var first = topics.getLocalSubscriptionCursorInternalStatsAsync(topic, "sub", false);
+        var second = topics.getLocalSubscriptionCursorInternalStatsAsync(topic, "sub", false);
 
-        assertThat(request.cancel(false)).isTrue();
-        assertThat(builderFuture).isCancelled();
-        Builder builder = mock(Builder.class);
-        assertThat(builderFuture.complete(builder)).isFalse();
-        verifyNoInteractions(builder);
-    }
+        assertThat(queued).hasSize(2);
+        assertThat(first.cancel(false)).isTrue();
+        queued.remove().run();
+        assertThat(auth.getAuthDataThread.get()).isNull();
 
-    @Test
-    public void subscriptionCursorStatsCancellationCancelsStartedInvocation() {
-        Builder builder = mock(Builder.class);
-        AsyncInvoker invoker = mock(AsyncInvoker.class);
-        var invocation = new CompletableFuture<CursorStats>();
-        when(builder.async()).thenReturn(invoker);
-        when(invoker.get(ArgumentMatchers.<InvocationCallback<CursorStats>>any())).thenReturn(invocation);
-        TopicsImpl topics = topicsWithBuilderFuture(CompletableFuture.completedFuture(builder));
-        var request = topics.getLocalSubscriptionCursorInternalStatsAsync("persistent://tenant/ns/physical-topic",
-                "sub", false);
-
-        assertThat(request.cancel(false)).isTrue();
-        assertThat(invocation).isCancelled();
-    }
-
-    private static TopicsImpl topicsWithBuilderFuture(CompletableFuture<Builder> builderFuture) {
-        TopicsImpl topics = spy(new TopicsImpl(mock(WebTarget.class, RETURNS_SELF), null, 30_000L));
-        doReturn(builderFuture).when(topics).requestAsync(any(WebTarget.class));
-        return topics;
+        queued.remove().run();
+        auth.stage.get(5, TimeUnit.SECONDS).complete(Map.of());
+        assertThat(queued).hasSize(1);
+        assertThat(second.cancel(false)).isTrue();
+        queued.remove().run();
+        assertThat(auth.newRequestHeaderThread.get()).isNull();
     }
 }

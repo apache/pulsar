@@ -135,6 +135,21 @@ public class ManagedCursorImpl implements ManagedCursor {
     };
     private static final Logger slog = Logger.get(ManagedCursorImpl.class);
 
+    // A plugin overriding the original snapshot must also implement the summary to preserve its custom fields.
+    private static final ClassValue<Boolean> SUPPORTS_CURSOR_STATS_SUMMARY = new ClassValue<>() {
+        @Override
+        protected Boolean computeValue(Class<?> type) {
+            try {
+                Class<?> detailed = type.getMethod("getCursorStats").getDeclaringClass();
+                Class<?> summary = type.getMethod("getCursorStatsWithoutIndividuallyDeletedMessages")
+                        .getDeclaringClass();
+                return detailed.isAssignableFrom(summary);
+            } catch (NoSuchMethodException e) {
+                throw new IllegalStateException(e);
+            }
+        }
+    };
+
     protected final BookKeeper bookkeeper;
     protected final ManagedLedgerImpl ledger;
     private final String name;
@@ -4753,8 +4768,11 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     @Override
-    public ManagedLedgerInternalStats.CursorStats getCursorStats(boolean includeIndividualDeletedMessages) {
-        return includeIndividualDeletedMessages ? getCursorStats() : buildCursorStats(false);
+    public ManagedLedgerInternalStats.CursorStats getCursorStatsWithoutIndividuallyDeletedMessages() {
+        if (!SUPPORTS_CURSOR_STATS_SUMMARY.get(getClass())) {
+            return ManagedCursor.super.getCursorStatsWithoutIndividuallyDeletedMessages();
+        }
+        return buildCursorStats(false);
     }
 
     private ManagedLedgerInternalStats.CursorStats buildCursorStats(boolean includeIndividualDeletedMessages) {

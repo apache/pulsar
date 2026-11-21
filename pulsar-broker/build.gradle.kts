@@ -308,6 +308,7 @@ registerSwaggerTask("swaggerAdminV2", "swagger", "admin-v2.json") {
         "org.apache.pulsar.broker.admin.v2.MetadataMigration",
         "org.apache.pulsar.broker.admin.v2.Namespaces",
         "org.apache.pulsar.broker.admin.v2.NonPersistentTopics",
+        "org.apache.pulsar.broker.admin.v2.PersistentSubscriptionCursorStats",
         "org.apache.pulsar.broker.admin.v2.PersistentTopics",
         "org.apache.pulsar.broker.admin.v2.ResourceGroups",
         "org.apache.pulsar.broker.admin.v2.ResourceQuotas",

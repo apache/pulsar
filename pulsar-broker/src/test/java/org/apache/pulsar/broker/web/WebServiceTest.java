@@ -22,6 +22,7 @@ import static io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions.asser
 import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricLongSumValue;
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.Metric;
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.parseMetrics;
+import static org.mockito.Mockito.doThrow;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -30,6 +31,8 @@ import com.google.common.collect.Sets;
 import com.google.common.io.CharStreams;
 import com.google.common.io.Closeables;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -49,6 +52,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.ZipException;
 import javax.net.ssl.HttpsURLConnection;
@@ -62,6 +66,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.PrometheusMetricsTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.broker.web.RateLimitingFilter.Result;
 import org.apache.pulsar.broker.web.WebExecutorThreadPoolStats.LimitType;
@@ -72,7 +77,9 @@ import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.sasl.SaslConstants;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.tls.PemReader;
 import org.apache.pulsar.utils.ResourceUtils;
@@ -310,6 +317,89 @@ public class WebServiceTest {
                 Result.ACCEPTED.attributes, value -> assertThat(value).isGreaterThan(8));
         assertMetricLongSumValue(metrics, RateLimitingFilter.RATE_LIMIT_REQUEST_COUNT_METRIC_NAME,
                 Result.REJECTED.attributes, value -> assertThat(value).isPositive());
+    }
+
+    @Test
+    public void testSubscriptionCursorStatsReadinessAndRateLimitErrors() throws Exception {
+        pulsarTestContext = PulsarTestContext.builder()
+                .spyByDefault()
+                .configCustomizer(config -> {
+                    config.setHttpRequestsLimitEnabled(true);
+                    config.setHttpRequestsMaxPerSecond(0.01);
+                })
+                .build();
+        pulsar = pulsarTestContext.getPulsarService();
+        doThrow(new ExecutionException(new IOException("startup failure")))
+                .when(pulsar).waitUntilReadyForIncomingRequests();
+
+        String topic = pulsar.getWebServiceAddress() + "/admin/v2/persistent/public/default/topic";
+        try (AsyncHttpClient client = new DefaultAsyncHttpClient()) {
+            // Only the first request has a permit and reaches the readiness filter.
+            Response unavailable = client.prepareGet(topic + "/subscription;v=1/sub%2F%3Bname/internalStats;v=2")
+                    .execute().get();
+            assertCursorStatsError(unavailable, 503, "Service Unavailable");
+            Response throttled = client.prepareGet(topic + "/subscription/sub/partitioned-internalStats")
+                    .execute().get();
+            assertCursorStatsError(throttled, 429, "Too Many Requests");
+            Response legacy = client.prepareGet(topic + "/internalStats").execute().get();
+            assertEquals(legacy.getStatusCode(), 429);
+            assertThat(legacy.getContentType()).doesNotStartWith("application/json");
+            Response otherPath = client.prepareGet(topic + "/subscription/sub/internalStats%3Bv=2").execute().get();
+            assertEquals(otherPath.getStatusCode(), 429);
+            assertThat(otherPath.getContentType()).doesNotStartWith("application/json");
+        }
+    }
+
+    @Test
+    public void testSubscriptionCursorStatsProviderErrors() throws Exception {
+        pulsarTestContext = PulsarTestContext.builder()
+                .configCustomizer(config -> {
+                    config.setAuthenticationEnabled(true);
+                    config.setAuthenticationProviders(Set.of(RejectingAuthenticationProvider.class.getName()));
+                })
+                .build();
+        pulsar = pulsarTestContext.getPulsarService();
+        String topic = pulsar.getWebServiceAddress() + "/admin/v2/persistent/public/default/topic";
+        String cursorStats = topic + "/subscription/sub/internalStats";
+        try (AsyncHttpClient client = new DefaultAsyncHttpClient()) {
+            Response rejected = client.prepareGet(cursorStats).execute().get();
+            assertCursorStatsError(rejected, 401, "Authentication required");
+            assertEquals(rejected.getHeader("WWW-Authenticate"), "Bearer");
+            Response legacy = client.prepareGet(topic + "/internalStats").execute().get();
+            assertEquals(legacy.getStatusCode(), 401);
+            assertEquals(legacy.getResponseBody(), "Provider detail");
+            Response challenge = client.prepareGet(cursorStats)
+                    .setHeader(SaslConstants.SASL_HEADER_STATE, SaslConstants.SASL_STATE_NEGOTIATE).execute().get();
+            assertEquals(challenge.getStatusCode(), 401);
+            assertEquals(challenge.getHeader(SaslConstants.SASL_HEADER_STATE), SaslConstants.SASL_STATE_NEGOTIATE);
+            assertThat(challenge.getContentType()).doesNotStartWith("application/json");
+        }
+    }
+
+    public static class RejectingAuthenticationProvider extends AuthenticationProviderTls {
+        @Override
+        public boolean authenticateHttpRequest(HttpServletRequest request, HttpServletResponse response)
+                throws IOException {
+            if (SaslConstants.SASL_STATE_NEGOTIATE.equals(request.getHeader(SaslConstants.SASL_HEADER_STATE))) {
+                response.setHeader(SaslConstants.SASL_HEADER_TYPE, SaslConstants.SASL_TYPE_VALUE);
+                response.setHeader(SaslConstants.SASL_HEADER_STATE, SaslConstants.SASL_STATE_NEGOTIATE);
+                response.sendError(401, "SASL authentication not complete");
+            } else {
+                response.setStatus(401);
+                response.setHeader("WWW-Authenticate", "Bearer");
+                response.setContentType("text/plain");
+                response.getWriter().write("Provider detail");
+            }
+            return false;
+        }
+    }
+
+    private static void assertCursorStatsError(Response response, int status, String reason) throws IOException {
+        assertEquals(response.getStatusCode(), status);
+        assertThat(response.getContentType()).startsWith("application/json");
+        ErrorData error = ObjectMapperFactory.getMapper().reader().readValue(
+                response.getResponseBody(), ErrorData.class);
+        assertEquals(error.reason, reason);
     }
 
     @Test

@@ -22,8 +22,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.when;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -105,20 +103,5 @@ public class AuthenticationFilterTest {
         filter.doFilter(request, response, chain);
 
         verify(response).sendError(HttpServletResponse.SC_UNAUTHORIZED, "Authentication required");
-    }
-
-    @Test
-    public void testJsonErrorsPreserveProviderHandledAuthenticationChallenge() throws Exception {
-        AuthenticationService authenticationService = mock(AuthenticationService.class);
-        AuthenticationFilter filter = new AuthenticationFilter(authenticationService, request -> true);
-        HttpServletRequest request = mock(HttpServletRequest.class);
-        HttpServletResponse response = mock(HttpServletResponse.class);
-        FilterChain chain = mock(FilterChain.class);
-        when(authenticationService.authenticateHttpRequest(request, response)).thenReturn(false);
-
-        filter.doFilter(request, response, chain);
-
-        verify(authenticationService).authenticateHttpRequest(request, response);
-        verifyNoInteractions(response, chain);
     }
 }

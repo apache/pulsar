@@ -98,6 +98,15 @@ public class SubscriptionCursorInternalStatsTest extends SharedPulsarBaseTest {
             assertThat(defaultJson).isEqualTo(withoutRanges);
             assertThat(withoutRanges.has(DELETED_RANGES)).isFalse();
             assertThat(withoutRanges.path("totalNonContiguousDeletedMessagesRange").asInt()).isEqualTo(1);
+
+            TopicName name = TopicName.get(topic);
+            URI matrixUri = URI.create(getWebServiceUrl() + "/admin/v2/persistent;v=1/" + name.getNamespace()
+                    + "/" + name.getEncodedLocalName() + "/subscription/" + cursorName.replace("+", "%20")
+                    + "/internalStats");
+            var request = HttpRequest.newBuilder(matrixUri).timeout(Duration.ofSeconds(10)).GET().build();
+            var response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            assertThat(response.statusCode()).isEqualTo(200);
+            assertThat(ObjectMapperFactory.getMapper().reader().readTree(response.body())).isEqualTo(defaultJson);
         }
     }
 
@@ -138,6 +147,16 @@ public class SubscriptionCursorInternalStatsTest extends SharedPulsarBaseTest {
         Awaitility.await().untilAsserted(() -> assertThatThrownBy(
                 () -> admin.topics().getSubscriptionCursorInternalStats(topic, SUBSCRIPTION))
                 .isInstanceOf(PulsarAdminException.NotFoundException.class));
+    }
+
+    @Test
+    public void testNonPersistentRoutesAreAbsent() throws Exception {
+        String topic = "non-persistent://" + getNamespace() + "/topic";
+        try (HttpClient client = HttpClient.newHttpClient()) {
+            for (String resource : Set.of("internalStats", "partitioned-internalStats")) {
+                assertThat(getCursorStatsResponse(client, topic, SUBSCRIPTION, resource).statusCode()).isEqualTo(404);
+            }
+        }
     }
 
     @Test

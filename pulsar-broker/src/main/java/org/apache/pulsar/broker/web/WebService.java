@@ -38,7 +38,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
-import java.util.regex.Pattern;
 import lombok.CustomLog;
 import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
@@ -98,8 +97,6 @@ import org.glassfish.jersey.servlet.ServletContainer;
 public class WebService implements AutoCloseable {
 
     private static final String MATCH_ALL = "/*";
-    private static final Pattern SUBSCRIPTION_CURSOR_STATS_PATH = Pattern.compile(
-            "/admin/v2/persistent/[^/]+/[^/]+/[^/]+/subscription/[^/]+/(?:partitioned-)?internalStats/?");
 
     public static final String ATTRIBUTE_PULSAR_NAME = "pulsar";
     public static final String ATTRIBUTE_LISTENER_NAME = "listenerName";
@@ -316,12 +313,8 @@ public class WebService implements AutoCloseable {
             }
 
             if (config.isAuthenticationEnabled()) {
-                // Authentication runs before Jersey resolves the resource. Match the raw path so an encoded slash
-                // in a topic or subscription name stays in the same segment.
                 authenticationFilterHolder = new FilterHolder(new AuthenticationFilter(
-                        pulsarService.getBrokerService().getAuthenticationService(),
-                        request -> "GET".equals(request.getMethod())
-                                && SUBSCRIPTION_CURSOR_STATS_PATH.matcher(request.getRequestURI()).matches()));
+                        pulsarService.getBrokerService().getAuthenticationService()));
                 filterHolders.add(authenticationFilterHolder);
             } else {
                 authenticationFilterHolder = null;
@@ -343,6 +336,11 @@ public class WebService implements AutoCloseable {
         }
 
         public void addFilters(ServletContextHandler context, boolean requiresAuthentication) {
+            if ("/admin/v2".equals(context.getContextPath())) {
+                // Rate limiting and readiness checks can reject a request before authentication or Jersey sees it.
+                context.addFilter(new FilterHolder(new SubscriptionCursorStatsErrorFilter()), "/persistent/*",
+                        EnumSet.of(DispatcherType.REQUEST));
+            }
             for (FilterHolder filterHolder : filterHolders) {
                 if (requiresAuthentication || filterHolder != authenticationFilterHolder) {
                     context.addFilter(filterHolder,

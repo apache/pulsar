@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.admin.v2;
 
-import static org.apache.pulsar.client.admin.internal.TopicsImpl.CURSOR_STATS_LOCAL_ONLY_HEADER;
 import static org.apache.pulsar.common.util.Codec.decode;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.swagger.v3.oas.annotations.Operation;
@@ -35,7 +34,6 @@ import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.DefaultValue;
 import jakarta.ws.rs.Encoded;
 import jakarta.ws.rs.GET;
-import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
@@ -54,7 +52,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Supplier;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.commons.collections4.CollectionUtils;
@@ -81,9 +78,7 @@ import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.EntryFilters;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
-import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
-import org.apache.pulsar.common.policies.data.PartitionedSubscriptionCursorInternalStats;
 import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
@@ -1675,96 +1670,6 @@ public class PersistentTopics extends PersistentTopicsBase {
         } catch (Exception e) {
             asyncResponse.resume(new RestException(e));
         }
-    }
-
-    @GET
-    @Path("/{tenant}/{namespace}/{topic}/subscription/{subName}/internalStats")
-    @Operation(summary = "Get the internal cursor stats for a subscription on a physical persistent topic.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "The subscription's internal cursor stats",
-                    content = @Content(schema =
-                            @Schema(implementation = ManagedLedgerInternalStats.CursorStats.class))),
-            @ApiResponse(responseCode = "307", description = "Redirect to the owning broker"),
-            @ApiResponse(responseCode = "401", description = "Authentication or GET_STATS authorization failed"),
-            @ApiResponse(responseCode = "404", description = "Namespace, topic or subscription not found"),
-            @ApiResponse(responseCode = "412", description = "Invalid name, topic kind or ownership precondition"),
-            @ApiResponse(responseCode = "500", description = "Unexpected snapshot failure"),
-            @ApiResponse(responseCode = "503", description = "Topic metadata or ownership unavailable") })
-    public void getSubscriptionCursorInternalStats(
-            @Suspended AsyncResponse asyncResponse,
-            @PathParam("tenant") String tenant,
-            @PathParam("namespace") String namespace,
-            @PathParam("topic") @Encoded String encodedTopic,
-            @PathParam("subName") String subName,
-            @Parameter(description = "For internal ownership routing")
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-            @Parameter(description = "Include the full individually deleted message ranges")
-            @QueryParam("includeIndividualDeletedMessages") @DefaultValue("false") boolean includeRanges,
-            @Parameter(hidden = true)
-            @HeaderParam(CURSOR_STATS_LOCAL_ONLY_HEADER) @DefaultValue("false") boolean localOnly) {
-        getSubscriptionCursorStatsResponse(asyncResponse, tenant, namespace, encodedTopic, subName,
-                () -> internalGetSubscriptionCursorInternalStats(authoritative, subName, includeRanges, localOnly));
-    }
-
-    @GET
-    @Path("/{tenant}/{namespace}/{topic}/subscription/{subName}/partitioned-internalStats")
-    @Operation(summary = "Get per-partition internal cursor stats for a subscription on a partitioned base topic.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Complete or partial per-partition cursor stats",
-                    content = @Content(schema =
-                            @Schema(implementation = PartitionedSubscriptionCursorInternalStats.class))),
-            @ApiResponse(responseCode = "307", description = "Redirect for global namespace routing"),
-            @ApiResponse(responseCode = "401", description = "Authentication or GET_STATS authorization failed"),
-            @ApiResponse(responseCode = "404", description = "Partition metadata or all partition cursors not found"),
-            @ApiResponse(responseCode = "412", description = "Invalid name, topic kind or routing precondition"),
-            @ApiResponse(responseCode = "500", description = "Unexpected coordinator failure"),
-            @ApiResponse(responseCode = "503", description = "Metadata unavailable or all partition requests failed") })
-    public void getPartitionedSubscriptionCursorInternalStats(
-            @Suspended AsyncResponse asyncResponse,
-            @PathParam("tenant") String tenant,
-            @PathParam("namespace") String namespace,
-            @PathParam("topic") @Encoded String encodedTopic,
-            @PathParam("subName") String subName,
-            @Parameter(description = "For internal ownership routing")
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-            @Parameter(description = "Include the full individually deleted message ranges")
-            @QueryParam("includeIndividualDeletedMessages") @DefaultValue("false") boolean includeRanges) {
-        getSubscriptionCursorStatsResponse(asyncResponse, tenant, namespace, encodedTopic, subName,
-                () -> internalGetPartitionedSubscriptionCursorInternalStats(subName, includeRanges));
-    }
-
-    private <T> void getSubscriptionCursorStatsResponse(AsyncResponse asyncResponse, String tenant, String namespace,
-                                                        String encodedTopic, String subName,
-                                                        Supplier<CompletableFuture<T>> fetchStats) {
-        CompletableFuture<?> request;
-        try {
-            validateTopicName(tenant, namespace, encodedTopic);
-            request = fetchStats.get();
-        } catch (IllegalArgumentException e) {
-            asyncResponse.resume(new RestException(Response.Status.PRECONDITION_FAILED, "Topic name is not valid"));
-            return;
-        } catch (RuntimeException e) {
-            request = CompletableFuture.failedFuture(e);
-        }
-        request.whenComplete((stats, error) -> {
-            if (error == null) {
-                asyncResponse.resume(stats);
-                return;
-            }
-            Throwable cause = FutureUtil.unwrapCompletionException(error);
-            if (cause instanceof WebApplicationException webException
-                    && webException.getResponse().getStatus() != 500) {
-                asyncResponse.resume(webException);
-            } else {
-                log.debug()
-                        .attr("topic", topicName)
-                        .attr("subscription", subName)
-                        .exceptionMessage(cause)
-                        .log("Failed to get subscription cursor stats");
-                asyncResponse.resume(new RestException(Response.Status.INTERNAL_SERVER_ERROR,
-                        "Failed to get subscription cursor stats"));
-            }
-        });
     }
 
     @DELETE

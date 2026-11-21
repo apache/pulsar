@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.net.SocketTimeoutException;
 import java.nio.channels.UnresolvedAddressException;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,11 +36,13 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
-import java.util.function.Supplier;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.internal.http.AsyncHttpConnector.MaxRedirectException;
 import org.apache.pulsar.client.admin.internal.http.AsyncHttpConnector.RetryException;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.v5.PulsarClientException.InvalidConfigurationException;
+import org.apache.pulsar.client.impl.auth.v5.HttpAuthenticationDriver.ChallengeResponseException;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.CursorStats;
@@ -74,27 +77,21 @@ final class PartitionedSubscriptionCursorStats {
 
     static CompletableFuture<PartitionedSubscriptionCursorInternalStats> collect(
             TopicName topic, PartitionedTopicMetadata metadata,
-            Supplier<CompletableFuture<Function<String, CompletableFuture<CursorStats>>>> prepareRequest,
+            Function<CompletableFuture<Void>, CompletableFuture<Function<String, CompletableFuture<CursorStats>>>>
+                    prepareRequest,
             ScheduledExecutorService executor, Duration timeout) {
         return FutureUtil.supplySafely(() -> {
             var collection = new PartitionedSubscriptionCursorStats(topic, metadata, executor, timeout);
-            return collection.collect(prepareRequest);
+            var request = FutureUtil.supplySafely(() -> prepareRequest.apply(collection.completion));
+            return collection.collect(request);
         });
     }
 
     private CompletableFuture<PartitionedSubscriptionCursorInternalStats> collect(
-            Supplier<CompletableFuture<Function<String, CompletableFuture<CursorStats>>>> prepareRequest) {
+            CompletableFuture<Function<String, CompletableFuture<CursorStats>>> request) {
         // The same deadline covers getting the internal client and collecting the partition responses.
-        var request = FutureUtil.supplySafely(prepareRequest);
-        request.thenCompose(this::requestPartitions).whenComplete((unused, error) -> {
-            if (error == null) {
-                completion.complete(null);
-            } else {
-                completion.completeExceptionally(FutureUtil.unwrapCompletionException(error));
-            }
-        });
+        FutureUtil.completeAfter(completion, request.thenCompose(this::requestPartitions));
         return completion.handle((unused, error) -> {
-            request.cancel(false);
             PartitionResult[] snapshot;
             List<CompletableFuture<CursorStats>> outstanding;
             synchronized (this) {
@@ -105,10 +102,11 @@ final class PartitionedSubscriptionCursorStats {
             }
             // Pending auth and HTTP callbacks need not retain already collected cursor data.
             outstanding.forEach(future -> future.cancel(false));
-            if (error instanceof RestException restException) {
+            Throwable cause = FutureUtil.unwrapCompletionException(error);
+            if (cause instanceof RestException restException) {
                 throw restException;
             }
-            if (error != null && !(error instanceof TimeoutException)) {
+            if (cause != null && !(cause instanceof TimeoutException)) {
                 throw new RestException(Status.INTERNAL_SERVER_ERROR, "Failed to collect partition cursor stats");
             }
             return buildResponse(snapshot);
@@ -168,6 +166,13 @@ final class PartitionedSubscriptionCursorStats {
     }
 
     private PartitionedSubscriptionCursorInternalStats buildResponse(PartitionResult[] snapshot) {
+        if (Arrays.stream(snapshot).noneMatch(result -> result != null && result.stats() != null)) {
+            if (Arrays.stream(snapshot).allMatch(result -> result != null && result.error().statusCode == 404)) {
+                throw new RestException(Status.NOT_FOUND, "Subscription cursor not found on any partition");
+            }
+            throw new RestException(Status.SERVICE_UNAVAILABLE, "Could not retrieve any partition cursor stats");
+        }
+
         Map<String, CursorStats> partitions = new HashMap<>();
         Map<String, PartitionError> errors = new HashMap<>();
         for (int i = 0; i < snapshot.length; i++) {
@@ -180,12 +185,6 @@ final class PartitionedSubscriptionCursorStats {
             } else {
                 partitions.put(partition, result.stats());
             }
-        }
-        if (partitions.isEmpty()) {
-            if (errors.values().stream().allMatch(error -> error.statusCode == 404)) {
-                throw new RestException(Status.NOT_FOUND, "Subscription cursor not found on any partition");
-            }
-            throw new RestException(Status.SERVICE_UNAVAILABLE, "Could not retrieve any partition cursor stats");
         }
         return new PartitionedSubscriptionCursorInternalStats(metadata, partitions, errors);
     }
@@ -208,13 +207,24 @@ final class PartitionedSubscriptionCursorStats {
         }
         boolean transportFailure = false;
         for (Throwable current = cause; current != null; current = current.getCause()) {
-            if (current instanceof JsonProcessingException) {
+            if (current instanceof ChallengeResponseException challenge) {
+                return errorForStatus(challenge.getStatusCode());
+            }
+            if (current instanceof JsonProcessingException
+                    || current instanceof PulsarClientException.InvalidConfigurationException
+                    || current instanceof InvalidConfigurationException) {
                 return errorForStatus(500);
             }
             if (current instanceof PulsarAdminException.TimeoutException || current instanceof TimeoutException
+                    || current instanceof PulsarClientException.TimeoutException
+                    || current instanceof org.apache.pulsar.client.api.v5.PulsarClientException.TimeoutException
                     || current instanceof SocketTimeoutException || current instanceof ConnectTimeoutException
                     || current instanceof SslHandshakeTimeoutException) {
                 return new PartitionError(503, "TIMEOUT", "Partition request timed out");
+            }
+            // Admin credential preparation wraps all plugin failures in this generic IOException subtype.
+            if (current.getClass() == PulsarClientException.class) {
+                continue;
             }
             transportFailure |= current instanceof PulsarAdminException.ConnectException
                     || current instanceof IOException || current instanceof UnresolvedAddressException

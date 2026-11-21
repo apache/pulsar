@@ -3711,7 +3711,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         ManagedCursor cursor = sub.getCursor();
         // Complete snapshots honor the same storage plugin overrides as topic-level internal stats.
         CursorStats cursorStats = includeIndividualDeletedMessages
-                ? cursor.getCursorStats() : cursor.getCursorStats(false);
+                ? cursor.getCursorStats() : cursor.getCursorStatsWithoutIndividuallyDeletedMessages();
         return buildSubscriptionAwareCursorStats(cursorStats, sub, includeIndividualDeletedMessages);
     }
 
