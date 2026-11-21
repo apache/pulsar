@@ -303,18 +303,38 @@ public class WindowFunctionExecutor<T, X> implements Function<T, X> {
                 this.windowManager.add(record, ts, record);
             } else {
                 if (this.windowConfig.getLateDataTopic() != null) {
-                    context.newOutputMessage(this.windowConfig.getLateDataTopic(), null).value(input).sendAsync();
+                    context.newOutputMessage(this.windowConfig.getLateDataTopic(), null)
+                            .value(input)
+                            .sendAsync()
+                            .whenComplete((__, error) -> {
+                                if (windowConfig.getProcessingGuarantees()
+                                        != WindowConfig.ProcessingGuarantees.ATLEAST_ONCE) {
+                                    return;
+                                }
+                                if (error == null) {
+                                    record.ack();
+                                } else {
+                                    record.fail();
+                                }
+                            });
                 } else {
                     log.info()
                             .attr("input", input)
                             .attr("timestamp", ts)
                             .log("Received a late tuple. This will not be processed");
+                    ackIfAtleastOnce(record);
                 }
             }
         } else {
             this.windowManager.add(record, System.currentTimeMillis(), record);
         }
         return null;
+    }
+
+    private void ackIfAtleastOnce(Record<T> record) {
+        if (windowConfig.getProcessingGuarantees() == WindowConfig.ProcessingGuarantees.ATLEAST_ONCE) {
+            record.ack();
+        }
     }
 
     public X process(Window<Record<T>> inputWindow, WindowContext context) throws Exception {
