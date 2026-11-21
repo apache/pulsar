@@ -1,0 +1,271 @@
+# TYPE pulsar_average_msg_size gauge
+pulsar_average_msg_size{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0.0
+# TYPE pulsar_compaction_compacted_entries_count gauge
+pulsar_compaction_compacted_entries_count{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_compaction_compacted_entries_size gauge
+pulsar_compaction_compacted_entries_size{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_compaction_duration_time_in_mills gauge
+pulsar_compaction_duration_time_in_mills{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_compaction_failed_count gauge
+pulsar_compaction_failed_count{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_compaction_latency_count gauge
+pulsar_compaction_latency_count{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_compaction_latency_le_0_5 gauge
+pulsar_compaction_latency_le_0_5{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_compaction_latency_le_1 gauge
+pulsar_compaction_latency_le_1{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_compaction_latency_le_10 gauge
+pulsar_compaction_latency_le_10{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_compaction_latency_le_100 gauge
+pulsar_compaction_latency_le_100{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_compaction_latency_le_1000 gauge
+pulsar_compaction_latency_le_1000{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_compaction_latency_le_20 gauge
+pulsar_compaction_latency_le_20{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_compaction_latency_le_200 gauge
+pulsar_compaction_latency_le_200{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_compaction_latency_le_5 gauge
+pulsar_compaction_latency_le_5{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_compaction_latency_le_50 gauge
+pulsar_compaction_latency_le_50{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_compaction_latency_overflow gauge
+pulsar_compaction_latency_overflow{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_compaction_latency_sum gauge
+pulsar_compaction_latency_sum{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_compaction_read_throughput gauge
+pulsar_compaction_read_throughput{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 6.500
+# TYPE pulsar_compaction_removed_event_count gauge
+pulsar_compaction_removed_event_count{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 19
+# TYPE pulsar_compaction_succeed_count gauge
+pulsar_compaction_succeed_count{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_compaction_write_throughput gauge
+pulsar_compaction_write_throughput{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0.0
+# TYPE pulsar_consumer_available_permits gauge
+pulsar_consumer_available_permits{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a",subscription="sub\"a",consumer_name="consumer\"a",consumer_id="9876543210"} 0
+# TYPE pulsar_consumer_blocked_on_unacked_messages gauge
+pulsar_consumer_blocked_on_unacked_messages{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a",subscription="sub\"a",consumer_name="consumer\"a",consumer_id="9876543210"} 0
+# TYPE pulsar_consumer_msg_ack_rate gauge
+pulsar_consumer_msg_ack_rate{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a",subscription="sub\"a",consumer_name="consumer\"a",consumer_id="9876543210"} 0.0
+# TYPE pulsar_consumer_msg_rate_out gauge
+pulsar_consumer_msg_rate_out{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a",subscription="sub\"a",consumer_name="consumer\"a",consumer_id="9876543210"} 5.250
+# TYPE pulsar_consumer_msg_rate_redeliver gauge
+pulsar_consumer_msg_rate_redeliver{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a",subscription="sub\"a",consumer_name="consumer\"a",consumer_id="9876543210"} 0.0
+# TYPE pulsar_consumer_msg_throughput_out gauge
+pulsar_consumer_msg_throughput_out{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a",subscription="sub\"a",consumer_name="consumer\"a",consumer_id="9876543210"} 0.0
+# TYPE pulsar_consumer_unacked_messages gauge
+pulsar_consumer_unacked_messages{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a",subscription="sub\"a",consumer_name="consumer\"a",consumer_id="9876543210"} 9007199254740993
+# TYPE pulsar_consumers_count gauge
+pulsar_consumers_count{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_delayed_message_index_size_bytes gauge
+pulsar_delayed_message_index_size_bytes{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_entry_size_count gauge
+pulsar_entry_size_count{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_entry_size_le_100_kb gauge
+pulsar_entry_size_le_100_kb{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_entry_size_le_128 gauge
+pulsar_entry_size_le_128{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_entry_size_le_16_kb gauge
+pulsar_entry_size_le_16_kb{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_entry_size_le_1_kb gauge
+pulsar_entry_size_le_1_kb{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_entry_size_le_1_mb gauge
+pulsar_entry_size_le_1_mb{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_entry_size_le_2_kb gauge
+pulsar_entry_size_le_2_kb{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_entry_size_le_4_kb gauge
+pulsar_entry_size_le_4_kb{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_entry_size_le_512 gauge
+pulsar_entry_size_le_512{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_entry_size_le_overflow gauge
+pulsar_entry_size_le_overflow{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_entry_size_sum gauge
+pulsar_entry_size_sum{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_in_bytes_total gauge
+pulsar_in_bytes_total{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 9223372036854775807
+# TYPE pulsar_in_messages_total gauge
+pulsar_in_messages_total{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 9007199254740993
+# TYPE pulsar_msg_backlog gauge
+pulsar_msg_backlog{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_out_bytes_total gauge
+pulsar_out_bytes_total{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a",subscription="sub\"a"} 9007199254740993
+pulsar_out_bytes_total{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a",subscription="sub\"a",consumer_name="consumer\"a",consumer_id="9876543210"} 9223372036854775807
+# TYPE pulsar_out_messages_total gauge
+pulsar_out_messages_total{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a",subscription="sub\"a"} 0
+pulsar_out_messages_total{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a",subscription="sub\"a",consumer_name="consumer\"a",consumer_id="9876543210"} 0
+# TYPE pulsar_producer_msg_average_Size gauge
+pulsar_producer_msg_average_Size{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a",producer_name="producer\"a",producer_id="1234567890"} 4.0
+# TYPE pulsar_producer_msg_rate_in gauge
+pulsar_producer_msg_rate_in{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a",producer_name="producer\"a",producer_id="1234567890"} 2.500
+# TYPE pulsar_producer_msg_throughput_in gauge
+pulsar_producer_msg_throughput_in{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a",producer_name="producer\"a",producer_id="1234567890"} 3.750
+# TYPE pulsar_producers_count gauge
+pulsar_producers_count{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_publish_rate_limit_times gauge
+pulsar_publish_rate_limit_times{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_rate_in gauge
+pulsar_rate_in{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 1.250
+# TYPE pulsar_rate_out gauge
+pulsar_rate_out{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0.0
+# TYPE pulsar_replication_backlog gauge
+pulsar_replication_backlog{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a",remote_cluster="remote\"a"} 9007199254740993
+# TYPE pulsar_replication_connected_count gauge
+pulsar_replication_connected_count{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a",remote_cluster="remote\"a"} 0
+# TYPE pulsar_replication_delay_in_seconds gauge
+pulsar_replication_delay_in_seconds{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a",remote_cluster="remote\"a"} 0
+# TYPE pulsar_replication_disconnected_count gauge
+pulsar_replication_disconnected_count{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a",remote_cluster="remote\"a"} 0
+# TYPE pulsar_replication_rate_expired gauge
+pulsar_replication_rate_expired{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a",remote_cluster="remote\"a"} 0.0
+# TYPE pulsar_replication_rate_in gauge
+pulsar_replication_rate_in{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a",remote_cluster="remote\"a"} 0.0
+# TYPE pulsar_replication_rate_out gauge
+pulsar_replication_rate_out{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a",remote_cluster="remote\"a"} 0.0
+# TYPE pulsar_replication_throughput_in gauge
+pulsar_replication_throughput_in{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a",remote_cluster="remote\"a"} 0.0
+# TYPE pulsar_replication_throughput_out gauge
+pulsar_replication_throughput_out{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a",remote_cluster="remote\"a"} 0.0
+# TYPE pulsar_storage_backlog_age_seconds gauge
+pulsar_storage_backlog_age_seconds{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_storage_backlog_quota_exceeded_evictions_total gauge
+pulsar_storage_backlog_quota_exceeded_evictions_total{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a",quota_type="size"} 11
+pulsar_storage_backlog_quota_exceeded_evictions_total{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a",quota_type="time"} 12
+# TYPE pulsar_storage_backlog_quota_limit gauge
+pulsar_storage_backlog_quota_limit{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_storage_backlog_quota_limit_time gauge
+pulsar_storage_backlog_quota_limit_time{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_storage_backlog_size gauge
+pulsar_storage_backlog_size{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_storage_ledger_write_latency_count gauge
+pulsar_storage_ledger_write_latency_count{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_storage_ledger_write_latency_le_0_5 gauge
+pulsar_storage_ledger_write_latency_le_0_5{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_storage_ledger_write_latency_le_1 gauge
+pulsar_storage_ledger_write_latency_le_1{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_storage_ledger_write_latency_le_10 gauge
+pulsar_storage_ledger_write_latency_le_10{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_storage_ledger_write_latency_le_100 gauge
+pulsar_storage_ledger_write_latency_le_100{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_storage_ledger_write_latency_le_1000 gauge
+pulsar_storage_ledger_write_latency_le_1000{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_storage_ledger_write_latency_le_20 gauge
+pulsar_storage_ledger_write_latency_le_20{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_storage_ledger_write_latency_le_200 gauge
+pulsar_storage_ledger_write_latency_le_200{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_storage_ledger_write_latency_le_5 gauge
+pulsar_storage_ledger_write_latency_le_5{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_storage_ledger_write_latency_le_50 gauge
+pulsar_storage_ledger_write_latency_le_50{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_storage_ledger_write_latency_overflow gauge
+pulsar_storage_ledger_write_latency_overflow{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_storage_ledger_write_latency_sum gauge
+pulsar_storage_ledger_write_latency_sum{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_storage_logical_size gauge
+pulsar_storage_logical_size{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_storage_offloaded_size gauge
+pulsar_storage_offloaded_size{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_storage_read_cache_misses_rate gauge
+pulsar_storage_read_cache_misses_rate{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0.0
+# TYPE pulsar_storage_read_rate gauge
+pulsar_storage_read_rate{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0.0
+# TYPE pulsar_storage_size gauge
+pulsar_storage_size{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_storage_write_latency_count gauge
+pulsar_storage_write_latency_count{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_storage_write_latency_le_0_5 gauge
+pulsar_storage_write_latency_le_0_5{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_storage_write_latency_le_1 gauge
+pulsar_storage_write_latency_le_1{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_storage_write_latency_le_10 gauge
+pulsar_storage_write_latency_le_10{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_storage_write_latency_le_100 gauge
+pulsar_storage_write_latency_le_100{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_storage_write_latency_le_1000 gauge
+pulsar_storage_write_latency_le_1000{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_storage_write_latency_le_20 gauge
+pulsar_storage_write_latency_le_20{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_storage_write_latency_le_200 gauge
+pulsar_storage_write_latency_le_200{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_storage_write_latency_le_5 gauge
+pulsar_storage_write_latency_le_5{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_storage_write_latency_le_50 gauge
+pulsar_storage_write_latency_le_50{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_storage_write_latency_overflow gauge
+pulsar_storage_write_latency_overflow{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_storage_write_latency_sum gauge
+pulsar_storage_write_latency_sum{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_storage_write_rate gauge
+pulsar_storage_write_rate{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0.0
+# TYPE pulsar_subscription_back_log gauge
+pulsar_subscription_back_log{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a",subscription="sub\"a"} 9007199254740993
+# TYPE pulsar_subscription_back_log_no_delayed gauge
+pulsar_subscription_back_log_no_delayed{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a",subscription="sub\"a"} 0
+# TYPE pulsar_subscription_blocked_on_unacked_messages gauge
+pulsar_subscription_blocked_on_unacked_messages{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a",subscription="sub\"a"} 1
+# TYPE pulsar_subscription_consumers_count gauge
+pulsar_subscription_consumers_count{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a",subscription="sub\"a"} 0
+# TYPE pulsar_subscription_delayed gauge
+pulsar_subscription_delayed{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a",subscription="sub\"a"} 0
+# TYPE pulsar_subscription_delayed_message_index_size_bytes gauge
+pulsar_subscription_delayed_message_index_size_bytes{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a",subscription="sub\"a"} 0
+# TYPE pulsar_subscription_dispatch_throttled_bytes_events gauge
+pulsar_subscription_dispatch_throttled_bytes_events{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a",subscription="sub\"a",reason="subscription"} 22
+pulsar_subscription_dispatch_throttled_bytes_events{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a",subscription="sub\"a",reason="topic"} 24
+pulsar_subscription_dispatch_throttled_bytes_events{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a",subscription="sub\"a",reason="broker"} 26
+# TYPE pulsar_subscription_dispatch_throttled_msg_events gauge
+pulsar_subscription_dispatch_throttled_msg_events{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a",subscription="sub\"a",reason="subscription"} 21
+pulsar_subscription_dispatch_throttled_msg_events{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a",subscription="sub\"a",reason="topic"} 23
+pulsar_subscription_dispatch_throttled_msg_events{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a",subscription="sub\"a",reason="broker"} 25
+# TYPE pulsar_subscription_filter_accepted_msg_count gauge
+pulsar_subscription_filter_accepted_msg_count{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a",subscription="sub\"a"} 0
+# TYPE pulsar_subscription_filter_processed_msg_count gauge
+pulsar_subscription_filter_processed_msg_count{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a",subscription="sub\"a"} 0
+# TYPE pulsar_subscription_filter_rejected_msg_count gauge
+pulsar_subscription_filter_rejected_msg_count{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a",subscription="sub\"a"} 0
+# TYPE pulsar_subscription_filter_rescheduled_msg_count gauge
+pulsar_subscription_filter_rescheduled_msg_count{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a",subscription="sub\"a"} 0
+# TYPE pulsar_subscription_in_replay gauge
+pulsar_subscription_in_replay{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a",subscription="sub\"a"} 0
+# TYPE pulsar_subscription_last_acked_timestamp gauge
+pulsar_subscription_last_acked_timestamp{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a",subscription="sub\"a"} 0
+# TYPE pulsar_subscription_last_consumed_flow_timestamp gauge
+pulsar_subscription_last_consumed_flow_timestamp{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a",subscription="sub\"a"} 0
+# TYPE pulsar_subscription_last_consumed_timestamp gauge
+pulsar_subscription_last_consumed_timestamp{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a",subscription="sub\"a"} 0
+# TYPE pulsar_subscription_last_expire_timestamp gauge
+pulsar_subscription_last_expire_timestamp{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a",subscription="sub\"a"} 0
+# TYPE pulsar_subscription_last_mark_delete_advanced_timestamp gauge
+pulsar_subscription_last_mark_delete_advanced_timestamp{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a",subscription="sub\"a"} 0
+# TYPE pulsar_subscription_msg_ack_rate gauge
+pulsar_subscription_msg_ack_rate{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a",subscription="sub\"a"} 0.0
+# TYPE pulsar_subscription_msg_drop_rate gauge
+pulsar_subscription_msg_drop_rate{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a",subscription="sub\"a"} 0.0
+# TYPE pulsar_subscription_msg_rate_expired gauge
+pulsar_subscription_msg_rate_expired{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a",subscription="sub\"a"} 0.0
+# TYPE pulsar_subscription_msg_rate_out gauge
+pulsar_subscription_msg_rate_out{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a",subscription="sub\"a"} 0.0
+# TYPE pulsar_subscription_msg_rate_redeliver gauge
+pulsar_subscription_msg_rate_redeliver{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a",subscription="sub\"a"} 0.0
+# TYPE pulsar_subscription_msg_throughput_out gauge
+pulsar_subscription_msg_throughput_out{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a",subscription="sub\"a"} 0.0
+# TYPE pulsar_subscription_storage_backlog_age_seconds gauge
+pulsar_subscription_storage_backlog_age_seconds{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a",subscription="sub\"a"} 17
+# TYPE pulsar_subscription_total_msg_expired gauge
+pulsar_subscription_total_msg_expired{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a",subscription="sub\"a"} 0
+# TYPE pulsar_subscription_unacked_messages gauge
+pulsar_subscription_unacked_messages{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a",subscription="sub\"a"} 0
+# TYPE pulsar_subscriptions_count gauge
+pulsar_subscriptions_count{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 1
+# TYPE pulsar_test_subscription_bucket gauge
+pulsar_test_subscription_bucket{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a",subscription="sub\"a",bucket="bucket\"a"} 8.250
+# TYPE pulsar_test_topic_bucket gauge
+pulsar_test_topic_bucket{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a",bucket="bucket\"a"} 7.500
+# TYPE pulsar_throughput_in gauge
+pulsar_throughput_in{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0.0
+# TYPE pulsar_throughput_out gauge
+pulsar_throughput_out{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0.0
+# TYPE pulsar_txn_tb_aborted_total gauge
+pulsar_txn_tb_aborted_total{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_txn_tb_active_total gauge
+pulsar_txn_tb_active_total{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
+# TYPE pulsar_txn_tb_committed_total gauge
+pulsar_txn_tb_committed_total{cluster="cluster",namespace="tenant/ns",topic="persistent://tenant/ns/topic",partition="7",rack="rack-a"} 0
