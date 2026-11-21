@@ -116,6 +116,8 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
     private final AtomicLong segmentLength = new AtomicLong(0);
     private final long maxBufferLength;
     private final OffsetsCache entryOffsetsCache;
+    // Shared by the offloaders of the factory; null without one
+    private final OffloadedDataChunkCache dataChunkCache;
     private final ConcurrentLinkedQueue<Entry> offloadBuffer = new ConcurrentLinkedQueue<>();
     private CompletableFuture<OffloadResult> offloadResult;
     private volatile Position lastOfferedPosition = PositionFactory.LATEST;
@@ -135,15 +137,33 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                                                          LedgerOffloaderStats offloaderStats,
                                                          OffsetsCache entryOffsetsCache)
             throws IOException {
+        return create(config, userMetadata, scheduler, readExecutor, offloaderStats, entryOffsetsCache, null);
+    }
+
+    public static BlobStoreManagedLedgerOffloader create(TieredStorageConfiguration config,
+                                                         Map<String, String> userMetadata,
+                                                         OrderedScheduler scheduler,
+                                                         OrderedScheduler readExecutor,
+                                                         LedgerOffloaderStats offloaderStats,
+                                                         OffsetsCache entryOffsetsCache,
+                                                         OffloadedDataChunkCache dataChunkCache)
+            throws IOException {
 
         return new BlobStoreManagedLedgerOffloader(config, scheduler, readExecutor,
-                userMetadata, offloaderStats, entryOffsetsCache);
+                userMetadata, offloaderStats, entryOffsetsCache, dataChunkCache);
     }
 
     BlobStoreManagedLedgerOffloader(TieredStorageConfiguration config, OrderedScheduler scheduler,
                                     OrderedScheduler readExecutor,
                                     Map<String, String> userMetadata, LedgerOffloaderStats offloaderStats,
                                     OffsetsCache entryOffsetsCache) {
+        this(config, scheduler, readExecutor, userMetadata, offloaderStats, entryOffsetsCache, null);
+    }
+
+    BlobStoreManagedLedgerOffloader(TieredStorageConfiguration config, OrderedScheduler scheduler,
+                                    OrderedScheduler readExecutor,
+                                    Map<String, String> userMetadata, LedgerOffloaderStats offloaderStats,
+                                    OffsetsCache entryOffsetsCache, OffloadedDataChunkCache dataChunkCache) {
         this.scheduler = scheduler;
         this.readExecutor = readExecutor;
         this.userMetadata = userMetadata;
@@ -158,6 +178,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         //ensure buffer can have enough content to fill a block
         this.maxBufferLength = Math.max(config.getWriteBufferSizeInBytes(), config.getMinBlockSizeInBytes());
         this.entryOffsetsCache = entryOffsetsCache;
+        this.dataChunkCache = dataChunkCache;
         this.segmentBeginTimeMillis = System.currentTimeMillis();
         if (!Strings.isNullOrEmpty(config.getRegion())) {
             this.writeLocation = new LocationBuilder()
@@ -624,7 +645,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                         DataBlockUtils.VERSION_CHECK,
                         ledgerId, config.getReadBufferSizeInBytes(),
                         this.offloaderStats, offloadDriverMetadata.get(MANAGED_LEDGER_NAME),
-                        this.entryOffsetsCache));
+                        this.entryOffsetsCache, this.dataChunkCache));
             } catch (Throwable t) {
                 log.error().exception(t).log("Failed readOffloaded");
                 promise.completeExceptionally(t);
@@ -658,7 +679,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                         readBucket, keys, indexKeys,
                         DataBlockUtils.VERSION_CHECK,
                         ledgerId, config.getReadBufferSizeInBytes(),
-                        this.offloaderStats, offloadDriverMetadata.get(MANAGED_LEDGER_NAME)));
+                        this.offloaderStats, offloadDriverMetadata.get(MANAGED_LEDGER_NAME), this.dataChunkCache));
             } catch (Throwable t) {
                 log.error().exception(t).log("Failed readOffloaded");
                 promise.completeExceptionally(t);
