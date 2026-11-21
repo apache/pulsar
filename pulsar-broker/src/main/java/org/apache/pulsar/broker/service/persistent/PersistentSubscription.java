@@ -291,6 +291,13 @@ public class PersistentSubscription extends AbstractSubscription {
                         return FutureUtil.failedFuture(new ServerMetadataException("Unsupported subscription type"));
                     }
                     dispatcher = reuseOrCreateDispatcher(dispatcher, consumer);
+                    if (inProgressBacklogClearFuture != null
+                            && dispatcher instanceof PersistentDispatcherMultipleConsumers created) {
+                        // A dispatcher created while a backlog clear is running buffers from the
+                        // start, so a delayed entry it reads before the clear's cleanup runs is
+                        // not erased by that cleanup.
+                        created.startBufferingDelayedMessagesForBacklogClear();
+                    }
                 } else {
                     Optional<CompletableFuture<Void>> compatibilityError =
                             checkForConsumerCompatibilityErrorWithDispatcher(dispatcher, consumer);
@@ -872,7 +879,9 @@ public class PersistentSubscription extends AbstractSubscription {
         CompletableFuture<Void> future = new CompletableFuture<>();
         synchronized (this) {
             if (inProgressBacklogClearFuture != null) {
-                return FutureUtil.failedFuture(new SubscriptionBusyException("Failed to fence subscription"));
+                // The cursor converges overlapping backlog clears, so chain onto the in-flight
+                // clear instead of rejecting the caller.
+                return inProgressBacklogClearFuture;
             }
             inProgressBacklogClearFuture = future;
         }
@@ -884,54 +893,89 @@ public class PersistentSubscription extends AbstractSubscription {
         if (dispatcher instanceof PersistentDispatcherMultipleConsumers persistentDispatcher) {
             persistentDispatcher.startBufferingDelayedMessagesForBacklogClear();
         }
-        cursor.asyncClearBacklog(new ClearBacklogCallback() {
-            @Override
-            public void clearBacklogComplete(Object ctx) {
-                log.debug()
-                        .attr("entriesInBacklog", cursor.getNumberOfEntriesInBacklog(false))
-                        .log("Backlog size after clearing");
-                if (dispatcher != null) {
-                    // clearDelayedMessagesAfterBacklogClear() releases the buffered entries when
-                    // the delayed-state cleanup settles, including on cleanup failure.
-                    dispatcher.clearDelayedMessagesAfterBacklogClear().whenComplete((__, ex) -> {
-                        synchronized (PersistentSubscription.this) {
-                            inProgressBacklogClearFuture = null;
-                        }
-                        if (ex != null) {
-                            future.completeExceptionally(ex);
+        try {
+            cursor.asyncClearBacklog(new ClearBacklogCallback() {
+                @Override
+                public void clearBacklogComplete(Object ctx) {
+                    // Run off the cursor's mark-delete thread: the finalization takes the
+                    // dispatcher and subscription monitors, and the cursor invokes callbacks while
+                    // holding pendingMarkDeleteOps.
+                    topic.getOrderedExecutor().execute(() -> {
+                        log.debug()
+                                .attr("entriesInBacklog", cursor.getNumberOfEntriesInBacklog(false))
+                                .log("Backlog size after clearing");
+                        if (dispatcher != null) {
+                            CompletableFuture<Void> cleanup;
+                            try {
+                                // clearDelayedMessagesAfterBacklogClear() releases the buffered
+                                // entries when the delayed-state cleanup settles, including on
+                                // cleanup failure.
+                                cleanup = dispatcher.clearDelayedMessagesAfterBacklogClear();
+                            } catch (RuntimeException e) {
+                                cleanup = FutureUtil.failedFuture(e);
+                            }
+                            cleanup.whenComplete((__, ex) -> {
+                                synchronized (PersistentSubscription.this) {
+                                    inProgressBacklogClearFuture = null;
+                                }
+                                if (ex != null) {
+                                    future.completeExceptionally(ex);
+                                } else {
+                                    future.complete(null);
+                                }
+                            });
+                            dispatcher.markDeletePositionMoveForward();
+                            dispatcher.afterAckMessages(null, ctx);
                         } else {
+                            synchronized (PersistentSubscription.this) {
+                                inProgressBacklogClearFuture = null;
+                            }
                             future.complete(null);
                         }
                     });
-                    dispatcher.markDeletePositionMoveForward();
-                    dispatcher.afterAckMessages(null, ctx);
-                } else {
-                    synchronized (PersistentSubscription.this) {
-                        inProgressBacklogClearFuture = null;
-                    }
-                    future.complete(null);
                 }
-            }
 
-            @Override
-            public void clearBacklogFailed(ManagedLedgerException exception, Object ctx) {
-                log.error()
-                        .exception(exception)
-                        .log("Failed to clear backlog");
-                if (dispatcher != null) {
-                    if (dispatcher instanceof PersistentDispatcherMultipleConsumers d) {
-                        d.releaseBufferedDelayedMessagesAfterBacklogClear();
-                    }
-                    dispatcher.afterAckMessages(exception, ctx);
+                @Override
+                public void clearBacklogFailed(ManagedLedgerException exception, Object ctx) {
+                    topic.getOrderedExecutor().execute(() -> {
+                        log.error()
+                                .exception(exception)
+                                .log("Failed to clear backlog");
+                        if (dispatcher != null) {
+                            if (dispatcher instanceof PersistentDispatcherMultipleConsumers d) {
+                                d.releaseBufferedDelayedMessagesAfterBacklogClear();
+                            }
+                            dispatcher.afterAckMessages(exception, ctx);
+                        }
+                        synchronized (PersistentSubscription.this) {
+                            inProgressBacklogClearFuture = null;
+                        }
+                        future.completeExceptionally(exception);
+                    });
                 }
-                synchronized (PersistentSubscription.this) {
-                    inProgressBacklogClearFuture = null;
-                }
-                future.completeExceptionally(exception);
-            }
-        }, null);
+            }, null);
+        } catch (RuntimeException e) {
+            // A synchronous throw must not leave the fence and the buffering gate armed.
+            handleClearBacklogStartupFailure(future, e);
+        }
 
         return future;
+    }
+
+    private void handleClearBacklogStartupFailure(CompletableFuture<Void> future, RuntimeException e) {
+        log.error()
+                .exception(e)
+                .log("Failed to start clearing backlog");
+        if (dispatcher instanceof PersistentDispatcherMultipleConsumers d) {
+            d.releaseBufferedDelayedMessagesAfterBacklogClear();
+        }
+        if (dispatcher != null) {
+            dispatcher.afterAckMessages(new ManagedLedgerException(e.getMessage()), null);
+        }
+        synchronized (this) {
+            inProgressBacklogClearFuture = null;
+        }
+        future.completeExceptionally(e);
     }
 
     @Override

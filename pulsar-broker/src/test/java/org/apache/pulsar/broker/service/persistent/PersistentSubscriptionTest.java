@@ -140,7 +140,7 @@ public class PersistentSubscriptionTest {
     }
 
     @Test
-    public void testRepeatedClearBacklogFailsBusyWhileInProgressThenSucceeds() throws Exception {
+    public void testRepeatedClearBacklogConvergesOntoInFlightClear() throws Exception {
         List<AsyncCallbacks.ClearBacklogCallback> callbacks = new ArrayList<>();
         doAnswer(invocation -> {
             callbacks.add(invocation.getArgument(0));
@@ -150,16 +150,17 @@ public class PersistentSubscriptionTest {
         CompletableFuture<Void> firstClear = persistentSubscription.clearBacklog();
         Awaitility.await().untilAsserted(() -> assertThat(callbacks).hasSize(1));
 
-        // While the first clear is in progress, a repeated clear must fail busy instead of racing it.
+        // While the first clear is in progress, a repeated clear converges onto it: the cursor
+        // treats the overlapping mark-delete as success, so both callers observe the same outcome.
         CompletableFuture<Void> repeatedClear = persistentSubscription.clearBacklog();
-        assertThat(repeatedClear).failsWithin(5, TimeUnit.SECONDS)
-                .withThrowableOfType(ExecutionException.class)
-                .withCauseInstanceOf(BrokerServiceException.SubscriptionBusyException.class);
+        assertThat(repeatedClear).isNotDone();
+        assertThat(callbacks).hasSize(1);
 
         callbacks.get(0).clearBacklogComplete(null);
         firstClear.get(5, TimeUnit.SECONDS);
+        repeatedClear.get(5, TimeUnit.SECONDS);
 
-        // After the first clear completes, a later clear can proceed.
+        // After the in-flight clear completes, a later clear starts a new one.
         CompletableFuture<Void> retryClear = persistentSubscription.clearBacklog();
         Awaitility.await().untilAsserted(() -> assertThat(callbacks).hasSize(2));
         callbacks.get(1).clearBacklogComplete(null);

@@ -762,6 +762,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             this.delayedDeliveryTrackerCreateFuture = null;
             delayedDeliveryTrackerRecoverySkipFuture = null;
             delayedDeliveryTrackerCreateFailureFuture = null;
+            delayedDeliveryTrackerClearPending = false;
             messagesPendingDelayedDeliveryTracker.clear();
         }
 
@@ -1487,6 +1488,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
         CompletableFuture<Void> skipRecovery;
         synchronized (this) {
             if (delayedDeliveryTrackerClearPending) {
+                if (isClosed()) {
+                    // A closed dispatcher does not buffer; the message stays unacknowledged.
+                    return true;
+                }
                 if (!msgMetadata.hasDeliverAtTime()) {
                     return false;
                 }
@@ -1772,9 +1777,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
      */
     public void startBufferingDelayedMessagesForBacklogClear() {
         synchronized (this) {
-            if (!topic.isDelayedDeliveryEnabled()) {
-                return;
-            }
+            // Arm regardless of the current policy: it is read live and can change while the
+            // clear is in flight, and tracking consults the policy again anyway.
             delayedDeliveryTrackerClearPending = true;
         }
     }
@@ -1790,17 +1794,20 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     @Override
     public CompletableFuture<Void> clearDelayedMessagesAfterBacklogClear() {
         synchronized (this) {
-            if (!topic.isDelayedDeliveryEnabled()) {
-                return CompletableFuture.completedFuture(null);
-            }
             Position markDeletedPosition = cursor.getMarkDeletedPosition();
-            messagesPendingDelayedDeliveryTracker.keySet().removeIf(position ->
-                    position.compareTo(markDeletedPosition) <= 0);
+            if (markDeletedPosition != null) {
+                messagesPendingDelayedDeliveryTracker.keySet().removeIf(position ->
+                        position.compareTo(markDeletedPosition) <= 0);
+            }
             // Keep positions arriving during the clear pending until the old tracker state is
-            // cleared, then install them once.
+            // cleared, then install them once. The release below runs regardless of the current
+            // delayed-delivery policy: the policy is read live and can change while the clear is
+            // in flight, and an armed gate must not outlive the clear.
             delayedDeliveryTrackerClearPending = true;
             CompletableFuture<Void> clearFuture;
-            if (delayedDeliveryTrackerCreateFuture == null) {
+            if (!topic.isDelayedDeliveryEnabled()) {
+                clearFuture = CompletableFuture.completedFuture(null);
+            } else if (delayedDeliveryTrackerCreateFuture == null) {
                 clearFuture = clearDelayedMessages();
             } else {
                 clearFuture = delayedDeliveryTrackerCreateFuture
@@ -1818,14 +1825,27 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     }
 
     private void installPendingAfterBacklogClear() {
+        boolean installedOrStarted = false;
         synchronized (this) {
             delayedDeliveryTrackerClearPending = false;
+            if (isClosed()) {
+                // A closed dispatcher must not start a tracker or keep buffered positions.
+                messagesPendingDelayedDeliveryTracker.clear();
+                return;
+            }
             if (delayedDeliveryTracker.isPresent()) {
                 addPendingMessagesToTracker(delayedDeliveryTracker.get());
+                installedOrStarted = true;
             } else if (delayedDeliveryTrackerCreateFuture == null
                     && !messagesPendingDelayedDeliveryTracker.isEmpty()) {
                 startDelayedDeliveryTrackerCreation();
+                installedOrStarted = true;
             }
+        }
+        if (installedOrStarted) {
+            // Due entries moved to the replay set need a read to be dispatched; the release is not
+            // running inside a read loop, so request one.
+            readMoreEntriesAsync();
         }
     }
 
@@ -1833,7 +1853,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
         CompletableFuture<Void> createFuture;
         CompletableFuture<Void> skipRecovery;
         synchronized (this) {
-            if (delayedDeliveryTrackerCreateFuture != null || messagesPendingDelayedDeliveryTracker.isEmpty()) {
+            if (isClosed() || delayedDeliveryTrackerCreateFuture != null
+                    || messagesPendingDelayedDeliveryTracker.isEmpty()) {
                 return;
             }
             createFuture = new CompletableFuture<>();

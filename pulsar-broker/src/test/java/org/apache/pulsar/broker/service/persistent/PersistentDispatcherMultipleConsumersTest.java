@@ -771,12 +771,14 @@ public class PersistentDispatcherMultipleConsumersTest extends SharedPulsarBaseT
                     "Only the position above mark-delete should remain pending");
 
             gatedRetry.complete(tracker);
-            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                    assertThat(dispatcher.isDelayedDeliveryTrackerCreatePending()).isFalse());
-
-            Mockito.verify(tracker, Mockito.never()).addMessage(1L, 0L, deliverAtTime);
-            Mockito.verify(tracker).addMessage(2L, 1L, deliverAtTime);
-            Assert.assertEquals(dispatcher.getDelayedDeliveryTrackerCreatePendingMessages(), 0);
+            // The pending field clears before the map drains, so the install checks must be part
+            // of the same wait.
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+                assertThat(dispatcher.isDelayedDeliveryTrackerCreatePending()).isFalse();
+                Mockito.verify(tracker, Mockito.never()).addMessage(1L, 0L, deliverAtTime);
+                Mockito.verify(tracker).addMessage(2L, 1L, deliverAtTime);
+                Assert.assertEquals(dispatcher.getDelayedDeliveryTrackerCreatePendingMessages(), 0);
+            });
         } finally {
             // Stop any further retry
             dispatcher.close(false, Optional.empty()).get(1, TimeUnit.MINUTES);
@@ -794,7 +796,10 @@ public class PersistentDispatcherMultipleConsumersTest extends SharedPulsarBaseT
         DelayedDeliveryTracker tracker = Mockito.mock(DelayedDeliveryTracker.class);
         Mockito.doNothing().when(tracker).resetTickTime(Mockito.anyLong());
         Mockito.doReturn(true).when(tracker).addMessage(Mockito.anyLong(), Mockito.anyLong(), Mockito.anyLong());
-        Mockito.doReturn(CompletableFuture.completedFuture(null)).when(tracker).clear();
+        // Gate the clear so the install-then-clear ordering is observable: with the base
+        // install-before-clear behavior, an addMessage would land while the clear is pending.
+        CompletableFuture<Void> gatedClear = new CompletableFuture<>();
+        Mockito.doReturn(gatedClear).when(tracker).clear();
 
         PersistentDispatcherMultipleConsumers dispatcher = newDispatcherWithDelayedTrackerFactory(factory);
         ManagedCursor dispatcherCursor = dispatcher.getCursor();
@@ -808,8 +813,12 @@ public class PersistentDispatcherMultipleConsumersTest extends SharedPulsarBaseT
             CompletableFuture<Void> backlogClear = dispatcher.clearDelayedMessagesAfterBacklogClear();
             gatedCreation.complete(tracker);
 
-            backlogClear.get(5, TimeUnit.SECONDS);
             Mockito.verify(tracker).clear();
+            Mockito.verify(tracker, Mockito.never()).addMessage(Mockito.anyLong(), Mockito.anyLong(),
+                    Mockito.anyLong());
+            gatedClear.complete(null);
+
+            backlogClear.get(5, TimeUnit.SECONDS);
             Mockito.verify(tracker, Mockito.never()).addMessage(1L, 0L, deliverAtTime);
             Mockito.verify(tracker, Mockito.times(1)).addMessage(2L, 1L, deliverAtTime);
             Assert.assertEquals(dispatcher.getDelayedDeliveryTrackerCreatePendingMessages(), 0);
@@ -830,7 +839,10 @@ public class PersistentDispatcherMultipleConsumersTest extends SharedPulsarBaseT
         DelayedDeliveryTracker tracker = Mockito.mock(DelayedDeliveryTracker.class);
         Mockito.doNothing().when(tracker).resetTickTime(Mockito.anyLong());
         Mockito.doReturn(true).when(tracker).addMessage(Mockito.anyLong(), Mockito.anyLong(), Mockito.anyLong());
-        Mockito.doReturn(CompletableFuture.completedFuture(null)).when(tracker).clear();
+        // Gate the clear: the arriving position must stay pending while the clear is in flight,
+        // and be installed exactly once after it settles.
+        CompletableFuture<Void> gatedClear = new CompletableFuture<>();
+        Mockito.doReturn(gatedClear).when(tracker).clear();
 
         PersistentDispatcherMultipleConsumers dispatcher = newDispatcherWithDelayedTrackerFactory(factory);
         ManagedCursor dispatcherCursor = dispatcher.getCursor();
@@ -843,6 +855,10 @@ public class PersistentDispatcherMultipleConsumersTest extends SharedPulsarBaseT
             CompletableFuture<Void> backlogClear = dispatcher.clearDelayedMessagesAfterBacklogClear();
             Assert.assertTrue(dispatcher.trackDelayedDelivery(2, 1, newDelayedMessageMetadata(deliverAtTime)));
             gatedCreation.complete(tracker);
+
+            Mockito.verify(tracker, Mockito.never()).addMessage(Mockito.anyLong(), Mockito.anyLong(),
+                    Mockito.anyLong());
+            gatedClear.complete(null);
 
             backlogClear.get(5, TimeUnit.SECONDS);
             Mockito.verify(tracker, Mockito.times(1)).addMessage(1L, 1L, deliverAtTime);
@@ -1028,12 +1044,12 @@ public class PersistentDispatcherMultipleConsumersTest extends SharedPulsarBaseT
             Assert.assertTrue(dispatcher.trackDelayedDelivery(2L, 1L, newDelayedMessageMetadata(deliverAtTime)));
 
             gatedRetry.complete(tracker);
-            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                    assertThat(dispatcher.isDelayedDeliveryTrackerCreatePending()).isFalse());
-
-            Mockito.verify(tracker, Mockito.never()).addMessage(1L, 1L, deliverAtTime);
-            Mockito.verify(tracker).addMessage(2L, 1L, deliverAtTime);
-            Assert.assertEquals(dispatcher.getDelayedDeliveryTrackerCreatePendingMessages(), 0);
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+                assertThat(dispatcher.isDelayedDeliveryTrackerCreatePending()).isFalse();
+                Mockito.verify(tracker, Mockito.never()).addMessage(1L, 1L, deliverAtTime);
+                Mockito.verify(tracker).addMessage(2L, 1L, deliverAtTime);
+                Assert.assertEquals(dispatcher.getDelayedDeliveryTrackerCreatePendingMessages(), 0);
+            });
         } finally {
             // Stop any further retry
             dispatcher.close(false, Optional.empty()).get(1, TimeUnit.MINUTES);
