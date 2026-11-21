@@ -306,7 +306,17 @@ public class WindowFunctionExecutor<T, X> implements Function<T, X> {
                     context.newOutputMessage(this.windowConfig.getLateDataTopic(), null)
                             .value(input)
                             .sendAsync()
-                            .thenAccept(__ -> ackIfAtleastOnce(record));
+                            .whenComplete((__, error) -> {
+                                if (windowConfig.getProcessingGuarantees()
+                                        != WindowConfig.ProcessingGuarantees.ATLEAST_ONCE) {
+                                    return;
+                                }
+                                if (error == null) {
+                                    record.ack();
+                                } else {
+                                    record.fail();
+                                }
+                            });
                 } else {
                     log.info()
                             .attr("input", input)

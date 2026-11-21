@@ -326,7 +326,7 @@ public class WindowFunctionExecutorTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    public void testLateTupleNotAckedWhenLateDataSendFails() throws Exception {
+    public void testLateDataSendFailureFailsRecord() throws Exception {
         windowConfig.setProcessingGuarantees(WindowConfig.ProcessingGuarantees.ATLEAST_ONCE);
         windowConfig.setLateDataTopic("$late");
         doReturn(Optional.of(new Gson().fromJson(new Gson().toJson(windowConfig), Map.class)))
@@ -343,8 +343,13 @@ public class WindowFunctionExecutorTest {
         testWindowedPulsarFunction.waterMarkEventGenerator.run();
 
         Record<?> lateRecord = processRecord(600L);
+        verify(typedMessageBuilder).sendAsync();
+        verify(lateRecord, never()).ack();
+        verify(lateRecord, never()).fail();
+
         sendFuture.completeExceptionally(new RuntimeException("late data send failed"));
         verify(lateRecord, never()).ack();
+        verify(lateRecord, times(1)).fail();
     }
 
     private void processOnTimeEvents() throws Exception {
