@@ -41,9 +41,11 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -1487,6 +1489,69 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
                 .describedAs("producer count of dlq topic %s should be 0 here",
                         dlqTopic)
                 .isEqualTo(0);
+    }
+
+    /**
+     * A dead letter producer whose creation fails synchronously (for example a builder customizer that
+     * throws) must keep being retried while the failure lasts, with backoff between the retries.
+     */
+    @Test(timeOut = 60_000)
+    public void testDeadLetterProducerCreationFailureRetriesWithBackoff() throws Exception {
+        final String topic = newTopicName();
+        // track retry attempt time gap
+        Queue<Long> attemptNanos = new ConcurrentLinkedQueue<>();
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
+                .topic(topic)
+                .subscriptionName("my-subscription")
+                .subscriptionType(SubscriptionType.Shared)
+                .ackTimeout(1, TimeUnit.SECONDS)
+                .ackTimeoutTickTime(100, TimeUnit.MILLISECONDS)
+                .deadLetterPolicy(DeadLetterPolicy.builder()
+                        .maxRedeliverCount(1)
+                        .deadLetterProducerBuilderCustomizer((context, builder) -> {
+                            attemptNanos.add(System.nanoTime());
+                            throw new RuntimeException("Injected dead letter producer creation failure");
+                        })
+                        .build())
+                .messageListener((c, msg) -> {
+                    // Consume without acknowledging: the message stays tracked for the ack timeout, so
+                    // it is redelivered until it is parked as a dead letter candidate.
+                })
+                .subscribe();
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES).topic(topic).create();
+        producer.newMessage().key("key-0").value("m-0".getBytes()).send();
+
+        try {
+            // The first four attempts are enough to detect retries that ignore the backoff.
+            Awaitility.await().atMost(Duration.ofSeconds(10)).until(() -> attemptNanos.size() >= 4);
+            List<Long> gapsMillis = new ArrayList<>(3);
+            long previous = attemptNanos.poll();
+            for (int i = 0; i < 3; i++) {
+                long next = attemptNanos.poll();
+                gapsMillis.add(TimeUnit.NANOSECONDS.toMillis(next - previous));
+                previous = next;
+            }
+            log.info().attr("gapsMillis", gapsMillis).log("Dead letter producer creation attempt gaps");
+            // The smallest backed-off gap is ~95ms (100ms initial delay, 5% jitter); 50ms is half of
+            // that and well above a redelivery round-trip.
+            for (int i = 0; i < gapsMillis.size(); i++) {
+                assertTrue(gapsMillis.get(i) >= 50,
+                        "creation attempt " + (i + 1) + " -> " + (i + 2) + " is not backed off, gaps were "
+                                + gapsMillis + "ms");
+            }
+        } finally {
+            // A consumer whose dead letter producer could not be created also fails to close cleanly;
+            // swallow that here (as testCloseDeadLetterTopicProducerOnExceptionToPreventProducerLeak does)
+            // so a close failure cannot mask this test's own failure signal.
+            try {
+                consumer.close();
+            } catch (PulsarClientException e) {
+                // ignore
+            }
+        }
     }
 
     @Test

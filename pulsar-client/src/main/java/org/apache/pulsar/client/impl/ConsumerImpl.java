@@ -73,6 +73,7 @@ import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -2884,21 +2885,18 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                         .enableChunking(true);
                         customizeDeadLetterProducerBuilder(deadLetterPolicy.getDeadLetterProducerBuilderCustomizer(),
                                 deadLetterPolicy.getDeadLetterTopic(), builder);
-                        CompletableFuture<Producer<byte[]>> newProducer = builder.createAsync();
-                        newProducer.whenComplete((producer, ex) -> {
-                            if (ex != null) {
-                                log.error().attr("deadLetterTopic", deadLetterPolicy.getDeadLetterTopic())
-                                        .exception(ex)
-                                        .log("Failed to create dead letter producer");
-                                deadLetterProducerFailureCount++;
-                            } else {
-                                deadLetterProducerFailureCount = 0;
-                                stats.setDeadLetterProducerStats(producer.getStats());
-                            }
-                        });
-                        return newProducer;
-                    }, deadLetterProducerFailureCount, () -> "dead letter producer (topic: "
-                            + deadLetterPolicy.getDeadLetterTopic() + ")");
+                        return builder.createAsync();
+                    }, deadLetterProducerFailureCount, (producer, ex) -> {
+                        if (ex != null) {
+                            log.error().attr("deadLetterTopic", deadLetterPolicy.getDeadLetterTopic())
+                                    .exception(ex)
+                                    .log("Failed to create dead letter producer");
+                            deadLetterProducerFailureCount++;
+                        } else {
+                            deadLetterProducerFailureCount = 0;
+                            stats.setDeadLetterProducerStats(producer.getStats());
+                        }
+                    }, () -> "dead letter producer (topic: " + deadLetterPolicy.getDeadLetterTopic() + ")");
                     deadLetterProducer = p;
                 }
             } finally {
@@ -2910,9 +2908,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private CompletableFuture<Producer<byte[]>> createProducerWithBackOff(
             Supplier<CompletableFuture<Producer<byte[]>>> producerSupplier, int failureCount,
-            Supplier<String> logDescription) {
+            BiConsumer<Producer<byte[]>, Throwable> completionAction, Supplier<String> logDescription) {
+        CompletableFuture<Producer<byte[]>> newProducer;
         if (failureCount == 0) {
-            return FutureUtil.supplySafely(producerSupplier);
+            newProducer = FutureUtil.supplySafely(producerSupplier);
         } else {
             // calculate backoff time for given failure count
             Backoff backoff = Backoff.builder()
@@ -2922,7 +2921,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             for (int i = 0; i < failureCount; i++) {
                 backoffTimeMillis = backoff.next().toMillis();
             }
-            CompletableFuture<Producer<byte[]>> newProducer = new CompletableFuture<>();
+            newProducer = new CompletableFuture<>();
             ScheduledExecutorService executor =
                     (ScheduledExecutorService) client.getScheduledExecutorProvider().getExecutor(this);
             log.info().attr("creating", logDescription.get())
@@ -2930,8 +2929,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     .log("Creating with backoff time of ms");
             executor.schedule(() -> FutureUtil.completeAfter(newProducer, FutureUtil.supplySafely(producerSupplier)),
                     backoffTimeMillis, TimeUnit.MILLISECONDS);
-            return newProducer;
         }
+        // The completion action must observe the future this method returns: a builder customizer that
+        // throws synchronously fails before createAsync, so an action registered inside the supplier
+        // would never run, the failure count would stay at zero and every retry would run without
+        // backoff. Returning the derived future also guarantees the action has run (the failure count
+        // has been updated) before the failure becomes observable to the next retry.
+        return newProducer.whenComplete(completionAction);
     }
 
     private CompletableFuture<Producer<byte[]>> initRetryLetterProducerIfNeeded() {
@@ -2950,21 +2954,18 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                 .blockIfQueueFull(false);
                         customizeDeadLetterProducerBuilder(deadLetterPolicy.getRetryLetterProducerBuilderCustomizer(),
                                 deadLetterPolicy.getRetryLetterTopic(), builder);
-                        CompletableFuture<Producer<byte[]>> newProducer = builder.createAsync();
-                        newProducer.whenComplete((producer, ex) -> {
-                            if (ex != null) {
-                                log.error().attr("retryLetterTopic", deadLetterPolicy.getRetryLetterTopic())
-                                        .exception(ex)
-                                        .log("Failed to create retry letter producer");
-                                retryLetterProducerFailureCount++;
-                            } else {
-                                retryLetterProducerFailureCount = 0;
-                                stats.setRetryLetterProducerStats(producer.getStats());
-                            }
-                        });
-                        return newProducer;
-                    }, retryLetterProducerFailureCount, () -> "retry letter producer (topic: "
-                            + deadLetterPolicy.getRetryLetterTopic() + ")");
+                        return builder.createAsync();
+                    }, retryLetterProducerFailureCount, (producer, ex) -> {
+                        if (ex != null) {
+                            log.error().attr("retryLetterTopic", deadLetterPolicy.getRetryLetterTopic())
+                                    .exception(ex)
+                                    .log("Failed to create retry letter producer");
+                            retryLetterProducerFailureCount++;
+                        } else {
+                            retryLetterProducerFailureCount = 0;
+                            stats.setRetryLetterProducerStats(producer.getStats());
+                        }
+                    }, () -> "retry letter producer (topic: " + deadLetterPolicy.getRetryLetterTopic() + ")");
                     retryLetterProducer = p;
                 }
             } finally {
