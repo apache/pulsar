@@ -867,6 +867,21 @@ public class ScalableTopicControllerTest {
                 && subs.containsAll(List.of("queue-sub-a", "queue-sub-b", "queue-sub"))));
     }
 
+    /** A rebucket creates on its successor the durable subscriptions of the segment it replaces. */
+    @Test
+    public void testRebucketCreatesParentSubscriptionsOnSuccessor() throws Exception {
+        controller.initialize().get();
+        SegmentTopicStats stats = segmentTopicStats();
+        stats.getSubscriptions().put("queue-sub", subscriptionStats(true, 0));
+        when(scalableTopics.getSegmentStatsAsync(topicName.toString(), 0L))
+                .thenReturn(CompletableFuture.completedFuture(stats));
+        clearInvocations(scalableTopics);
+
+        controller.rebucketSegment(0, 2).get();
+
+        verify(scalableTopics).createSegmentAsync(anyString(), eq(List.of("queue-sub")));
+    }
+
     /**
      * A split whose parent's subscriptions can't be read is given up before sealing it, rather than creating the
      * children without them. A parent whose topic is gone has no subscription.

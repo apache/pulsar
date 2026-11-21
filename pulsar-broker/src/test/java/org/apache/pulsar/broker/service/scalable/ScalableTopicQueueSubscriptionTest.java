@@ -94,6 +94,28 @@ public class ScalableTopicQueueSubscriptionTest extends V5ClientBaseTest {
         assertComingBackReceivesWhatWasPublished(topic);
     }
 
+    /**
+     * As {@link #testSplitCreatesQueueSubscriptionOnChildren()}, with the consumer connected during the split: the
+     * children have the subscription as soon as the split completes, whether or not the consumer attached to them.
+     */
+    @Test
+    public void testSplitCreatesQueueSubscriptionOnChildrenWhileConsumerConnected() throws Exception {
+        String topic = newScalableTopic(1);
+        @Cleanup
+        QueueConsumer<String> consumer = subscribe(topic);
+        long parent = segmentIds(topic).get(0);
+
+        admin.scalableTopics().splitSegment(topic, parent);
+
+        for (long segmentId : activeSegmentIds(topic, 2)) {
+            assertThat(admin.scalableTopics().getSegmentStats(topic, segmentId).getSubscriptions())
+                    .as("subscriptions of the new segment %s", segmentId)
+                    .containsKey(SUBSCRIPTION);
+        }
+        publish(topic);
+        assertReceivesWhatWasPublished(consumer);
+    }
+
     /** As {@link #testSplitCreatesQueueSubscriptionOnChildren()}, for the child of a merge. */
     @Test
     public void testMergeCreatesQueueSubscriptionOnChild() throws Exception {
@@ -115,13 +137,17 @@ public class ScalableTopicQueueSubscriptionTest extends V5ClientBaseTest {
                 .subscribe();
     }
 
-    private void assertQueueSubscriptionOnActiveSegments(String topic, int expectedSegments) throws Exception {
+    private List<Long> activeSegmentIds(String topic, int expectedSegments) throws Exception {
         List<Long> active = admin.scalableTopics().getMetadata(topic).getSegments().values().stream()
                 .filter(segment -> segment.isActive())
                 .map(segment -> segment.getSegmentId())
                 .toList();
         assertThat(active).hasSize(expectedSegments);
-        for (long segmentId : active) {
+        return active;
+    }
+
+    private void assertQueueSubscriptionOnActiveSegments(String topic, int expectedSegments) throws Exception {
+        for (long segmentId : activeSegmentIds(topic, expectedSegments)) {
             SegmentTopicStats.SubscriptionStats sub = admin.scalableTopics().getSegmentStats(topic, segmentId)
                     .getSubscriptions().get(SUBSCRIPTION);
             assertThat(sub).as("the queue subscription on the new segment %s", segmentId).isNotNull();
@@ -134,6 +160,10 @@ public class ScalableTopicQueueSubscriptionTest extends V5ClientBaseTest {
         publish(topic);
         @Cleanup
         QueueConsumer<String> consumer = subscribe(topic);
+        assertReceivesWhatWasPublished(consumer);
+    }
+
+    private void assertReceivesWhatWasPublished(QueueConsumer<String> consumer) throws Exception {
         List<String> received = new ArrayList<>();
         for (int i = 0; i < MESSAGES; i++) {
             Message<String> msg = consumer.receive(Duration.ofSeconds(10));
