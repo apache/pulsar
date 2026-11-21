@@ -2573,7 +2573,11 @@ public class BrokerService implements Closeable {
     }
 
     public void checkReplicationPolicies() {
-        forEachTopic(Topic::checkReplication);
+        forEachTopic(topic -> topic.checkReplication().whenComplete((ignored, error) -> {
+            if (error != null) {
+                log.warn("[{}] Failed to check replication policies", topic.getName(), error);
+            }
+        }));
     }
 
     public void checkCompaction() {
