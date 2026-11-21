@@ -201,16 +201,13 @@ public class ConsumedLedgersCheckSchedulerTest {
         fixture.topics.put("cancelled", cancelled);
         fixture.topics.put("absent", CompletableFuture.completedFuture(Optional.empty()));
         fixture.topics.put("no-ledger", CompletableFuture.completedFuture(Optional.of(mock(PersistentTopic.class))));
-        ManagedLedger fencedLedger = fixture.addTopic("fenced");
-        PersistentTopic fenced = (PersistentTopic) fixture.topics.get("fenced").join().orElseThrow();
-        when(fenced.isFenced()).thenReturn(true);
 
         try (ConsumedLedgersCheckScheduler scheduler = fixture.scheduler()) {
             scheduler.start(fixture.timer.executor(), INTERVAL);
             // Ineligible entries are skipped together rather than consuming individual pacing slots.
             runTicks(fixture.timer, 2);
             assertThat(fixture.events).containsExactlyElementsOf(expectedEvents(0, 1));
-            verify(fencedLedger, never()).trimConsumedLedgersInBackground(any());
+            assertThat(fixture.timer.nextDelayNanos()).isEqualTo(INTERVAL.minus(STEP).toNanos());
 
             PersistentTopic loaded = mock(PersistentTopic.class);
             ManagedLedger ledger = mock(ManagedLedger.class);
@@ -223,26 +220,28 @@ public class ConsumedLedgersCheckSchedulerTest {
     }
 
     @Test
-    public void testNullLedgerFencedAndClosingTopicsAfterSnapshotAreSkipped() {
+    public void testFencedTopicAfterSnapshotStillGetsMaintenanceUnlessClosing() {
         Fixture fixture = new Fixture(4);
         PersistentTopic noLedger = (PersistentTopic) fixture.topics.get("topic-1").join().orElseThrow();
-        PersistentTopic fenced = (PersistentTopic) fixture.topics.get("topic-2").join().orElseThrow();
-        PersistentTopic closing = (PersistentTopic) fixture.topics.get("topic-3").join().orElseThrow();
+        PersistentTopic closing = (PersistentTopic) fixture.topics.get("topic-2").join().orElseThrow();
+        PersistentTopic fenced = (PersistentTopic) fixture.topics.get("topic-3").join().orElseThrow();
         try (ConsumedLedgersCheckScheduler scheduler = fixture.scheduler()) {
             scheduler.start(fixture.timer.executor(), INTERVAL);
             fixture.timer.runNext();
             when(noLedger.getManagedLedger()).thenReturn(null);
             when(fenced.isFenced()).thenReturn(true);
+            when(closing.isFenced()).thenReturn(true);
             when(closing.isClosingOrDeleting()).thenReturn(true);
             fixture.timer.runNext();
-            assertThat(fixture.events).containsExactlyElementsOf(expectedEvents(0, 1));
+            List<String> expected = new ArrayList<>(expectedEvents(0, 1));
+            expected.addAll(expectedEvents(3, 4));
+            assertThat(fixture.events).containsExactlyElementsOf(expected);
             assertThat(fixture.timer.pendingCount()).isEqualTo(1);
 
             when(noLedger.getManagedLedger()).thenReturn(fixture.ledgers.get("topic-1"));
-            when(fenced.isFenced()).thenReturn(false);
+            when(closing.isFenced()).thenReturn(false);
             when(closing.isClosingOrDeleting()).thenReturn(false);
             runTicks(fixture.timer, 4);
-            List<String> expected = new ArrayList<>(expectedEvents(0, 1));
             expected.addAll(expectedEvents(0, 4));
             assertThat(fixture.events).containsExactlyElementsOf(expected);
         }

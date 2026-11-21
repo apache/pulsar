@@ -193,6 +193,7 @@ public class BrokerServiceConsumedLedgersMonitorTest {
         CompletableFuture<Optional<Topic>> expected = broker.getTopics().get(pendingName);
         PersistentTopic pending = (PersistentTopic) expected.join().orElseThrow();
         ManagedLedger unloadedLedger = pending.getManagedLedger();
+        // Bundle unload cleanup checks the fence before evicting the topic from the cache.
         when(pending.isFenced()).thenReturn(true);
         NamespaceBundle bundle = mock(NamespaceBundle.class);
         when(bundle.toString()).thenReturn("public/default/0x00000000_0xffffffff");

@@ -130,7 +130,7 @@ final class ConsumedLedgersCheckScheduler implements AutoCloseable {
             CompletableFuture<Optional<Topic>> future = topics.get(name);
             if (future == null
                     || !(BrokerService.extractTopic(future).orElse(null) instanceof PersistentTopic topic)
-                    || topic.isFenced() || topic.isClosingOrDeleting()) {
+                    || topic.isClosingOrDeleting()) {
                 return false;
             }
             ManagedLedger managedLedger = topic.getManagedLedger();
