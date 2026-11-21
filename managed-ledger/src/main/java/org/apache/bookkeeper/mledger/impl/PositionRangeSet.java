@@ -154,6 +154,15 @@ class PositionRangeSet implements LongPairRangeSet<Position> {
     }
 
     /**
+     * Returns the number of entries of {@code ledgerId} below {@code entryId} that are present in this set. This is a
+     * bitmap rank, so it doesn't depend on how many ranges the set holds.
+     */
+    long countBefore(long ledgerId, long entryId) {
+        LongBitmap bitmap = rangeBitmapMap.get(ledgerId);
+        return bitmap == null ? 0 : bitmap.rank(entryId);
+    }
+
+    /**
      * Returns {@code true} if any entry in the closed range {@code [lowerEntryId, upperEntryId]} of
      * {@code ledgerId} is present in this set. Both bounds are inclusive (matching
      * {@link #cardinality}), unlike the open lower bound of {@link #addOpenClosed}. A negative
