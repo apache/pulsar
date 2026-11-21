@@ -54,6 +54,7 @@ import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.admin.impl.NamespacesBase;
 import org.apache.pulsar.broker.admin.impl.OffloaderObjectsScannerUtils;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.client.admin.GetStatsOptions;
 import org.apache.pulsar.client.admin.GrantTopicPermissionOptions;
 import org.apache.pulsar.client.admin.RevokeTopicPermissionOptions;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -152,6 +153,51 @@ public class Namespaces extends NamespacesBase {
                                 .attr("namespace", namespaceName)
                                 .exception(ex)
                                 .log("Failed to get topics list for namespace");
+                    }
+                    resumeAsyncResponseExceptionally(response, ex);
+                    return null;
+                });
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/stats")
+    @Operation(summary = "Get the stats for all topics in a namespace.",
+            description = "Returns a map structure: Map<String, TopicStats>. Only topics that are currently "
+                    + "loaded on a broker are included; unloaded topics and topics whose stats cannot be "
+                    + "retrieved are omitted.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Get the stats for all topics in a namespace.",
+                    content = @Content(schema = @Schema(type = "object"))),
+            @ApiResponse(responseCode = "403", description = "Don't have admin or operate permission on the namespace"),
+            @ApiResponse(responseCode = "404", description = "Tenant or cluster or namespace doesn't exist")})
+    public void getTopicsStats(@Suspended AsyncResponse response,
+                               @PathParam("tenant") String tenant,
+                               @PathParam("namespace") String namespace,
+                               @Parameter(description = "Include system topic")
+                               @QueryParam("includeSystemTopic") @DefaultValue("false") boolean includeSystemTopic,
+                               @QueryParam("getPreciseBacklog") @DefaultValue("false") boolean getPreciseBacklog,
+                               @QueryParam("subscriptionBacklogSize") @DefaultValue("false")
+                                       boolean subscriptionBacklogSize,
+                               @QueryParam("getEarliestTimeInBacklog") @DefaultValue("false")
+                                       boolean getEarliestTimeInBacklog,
+                               @QueryParam("excludePublishers") @DefaultValue("false") boolean excludePublishers,
+                               @QueryParam("excludeConsumers") @DefaultValue("false") boolean excludeConsumers) {
+        validateNamespaceName(tenant, namespace);
+        GetStatsOptions statsOptions = new GetStatsOptions(getPreciseBacklog, subscriptionBacklogSize,
+                getEarliestTimeInBacklog, excludePublishers, excludeConsumers);
+        validateNamespaceOperationAsync(NamespaceName.get(tenant, namespace), NamespaceOperation.GET_TOPICS)
+                // Validate that namespace exists, throws 404 if it doesn't exist
+                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+                .thenCompose(policies -> internalGetListOfTopics(response, policies, Mode.PERSISTENT))
+                .thenApply(topics -> filterSystemTopic(topics, includeSystemTopic))
+                .thenCompose(topics -> internalGetTopicsStatsAsync(topics, statsOptions))
+                .thenAccept(response::resume)
+                .exceptionally(ex -> {
+                    if (!isTopicListLimitRejection(ex)) {
+                        log.error()
+                                .attr("namespace", namespaceName)
+                                .exception(ex)
+                                .log("Failed to get topics stats for namespace");
                     }
                     resumeAsyncResponseExceptionally(response, ex);
                     return null;
