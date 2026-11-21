@@ -43,7 +43,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 import lombok.Getter;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.ManagedLedgerInfoCallback;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.resources.ScalableTopicMetadata;
@@ -68,6 +72,7 @@ import org.apache.pulsar.common.scalable.HashRange;
 import org.apache.pulsar.common.scalable.SegmentInfo;
 import org.apache.pulsar.common.scalable.SegmentTopicName;
 import org.apache.pulsar.common.util.Backoff;
+import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
@@ -1229,29 +1234,47 @@ public class ScalableTopicController {
     }
 
     /**
-     * The subscriptions on the topic backing a segment, other than the compaction cursor, read through the segment
-     * stats. They include those that the scalable topic doesn't know, such as a QUEUE consumer's, which subscribes
-     * to each segment's topic directly. Empty if the segment's topic doesn't exist.
+     * The durable subscriptions of the topic backing a segment: the cursors in its managed-ledger metadata, other
+     * than the compaction, deduplication and replicator cursors. They include the subscriptions that the scalable
+     * topic doesn't know, such as a QUEUE consumer's, which subscribes to each segment's topic directly, and those
+     * whose cursor the topic hasn't loaded, as with {@code lazyCursorRecovery}. Empty if the segment's topic doesn't
+     * exist.
      */
-    private CompletableFuture<Optional<Map<String, SegmentTopicStats.SubscriptionStats>>> segmentSubscriptions(
-            SegmentInfo segment) {
-        return fetchSegmentStats(segment)
-                .thenApply(stats -> {
-                    if (stats == null) {
-                        return Optional.<Map<String, SegmentTopicStats.SubscriptionStats>>empty();
-                    }
-                    Map<String, SegmentTopicStats.SubscriptionStats> subscriptions =
-                            new HashMap<>(stats.getSubscriptions());
-                    subscriptions.remove(Compactor.COMPACTION_SUBSCRIPTION);
-                    return Optional.of(subscriptions);
-                })
-                .exceptionally(ex -> {
-                    Throwable cause = FutureUtil.unwrapCompletionException(ex);
-                    if (cause instanceof PulsarAdminException.NotFoundException) {
-                        return Optional.empty();
-                    }
-                    throw FutureUtil.wrapToCompletionException(cause);
-                });
+    private CompletableFuture<Optional<Set<String>>> segmentDurableSubscriptions(SegmentInfo segment) {
+        TopicName backingTopic = TopicName.get(SegmentTopicName.backingTopicName(topicName, segment));
+        return brokerService.getManagedLedgerFactoryForTopic(backingTopic).thenCompose(factory -> {
+            CompletableFuture<Optional<Set<String>>> future = new CompletableFuture<>();
+            factory.asyncGetManagedLedgerInfo(backingTopic.getPersistenceNamingEncoding(),
+                    new ManagedLedgerInfoCallback() {
+                        @Override
+                        public void getInfoComplete(ManagedLedgerInfo info, Object ctx) {
+                            ServiceConfiguration config = brokerService.getPulsar().getConfig();
+                            Set<String> subscriptions = new HashSet<>();
+                            for (String cursor : info.cursors.keySet()) {
+                                // The cursors that aren't subscriptions, as in PersistentTopic.
+                                if (cursor.equals(PersistentTopic.DEDUPLICATION_CURSOR_NAME)
+                                        || (config != null && cursor.startsWith(config.getReplicatorPrefix()))) {
+                                    continue;
+                                }
+                                String subscription = Codec.decode(cursor);
+                                if (!Compactor.COMPACTION_SUBSCRIPTION.equals(subscription)) {
+                                    subscriptions.add(subscription);
+                                }
+                            }
+                            future.complete(Optional.of(subscriptions));
+                        }
+
+                        @Override
+                        public void getInfoFailed(ManagedLedgerException exception, Object ctx) {
+                            if (exception instanceof ManagedLedgerException.MetadataNotFoundException) {
+                                future.complete(Optional.empty());
+                            } else {
+                                future.completeExceptionally(exception);
+                            }
+                        }
+                    }, null);
+            return future;
+        });
     }
 
     private CompletableFuture<Void> electLeader() {
@@ -2282,9 +2305,10 @@ public class ScalableTopicController {
 
     /**
      * One iteration of the sealed-segment GC. For every sealed segment in the current
-     * layout whose retention window has expired, polls every known subscription's
-     * backlog on that segment; if all subscriptions are drained, prunes the segment
-     * from the DAG (CAS) and deletes its backing managed-ledger topic.
+     * layout whose retention window has expired, checks the backlog of every registered
+     * subscription and of every durable subscription of its backing topic; if all of them
+     * are drained, prunes the segment from the DAG (CAS) and deletes its backing
+     * managed-ledger topic.
      *
      * <p>The retention window is resolved from topic-policies on the parent
      * {@code topic://...} → namespace policy → broker default, the same precedence
@@ -2333,12 +2357,12 @@ public class ScalableTopicController {
      * concurrently, but the resulting layout mutation is coalesced into a <em>single</em>
      * CAS write so multiple eligible segments don't compete on the same metadata znode.
      *
-     * <p><b>Subscription-type behaviour.</b> The drain check is the per-segment backlog
-     * admin endpoint — Pulsar's standard cursor-position view, which works the same way
-     * for STREAM (Exclusive) and QUEUE (Shared) subscriptions: a sealed segment with
-     * cursor at the end reports backlog 0. For CHECKPOINT subscriptions there is no
-     * broker-side cursor, the endpoint returns {@code NotFoundException}, and
-     * {@code isSegmentDrained} reports {@code false} — the segment is treated as
+     * <p><b>Subscription-type behaviour.</b> The drain check reads the backlogs from the
+     * segment's stats, for the registered subscriptions and for every cursor in the
+     * managed-ledger metadata of its backing topic (see {@link #prunable}). A QUEUE consumer's
+     * subscription is never registered, so only the latter covers it. A sealed segment with
+     * the cursor at the end reports backlog 0. For CHECKPOINT subscriptions there is no
+     * broker-side cursor, so the stats don't have them — the segment is treated as
      * "still in use" and never pruned while a CHECKPOINT subscription is registered.
      *
      * <p><b>Parent-vs-child ordering.</b> {@link SegmentLayout#pruneSegment} drops the
@@ -2449,6 +2473,11 @@ public class ScalableTopicController {
      * its topic has without the scalable topic knowing them: those of a QUEUE consumer, which subscribes
      * to each segment's topic directly, and for a legacy segment those that the {@code persistent://}
      * topic it wraps has from before the migration. Deleting the topic drops their backlog.
+     *
+     * <p>A segment that isn't legacy takes its durable subscriptions from the managed-ledger metadata
+     * rather than from the stats, which list only the cursors that the topic has loaded: with
+     * {@code lazyCursorRecovery}, a cursor recovered after the topic was loaded is missing from them. Such
+     * a subscription keeps the segment until a consumer attaches to it.
      */
     private CompletableFuture<Boolean> prunable(SegmentInfo seg, List<String> subs) {
         if (seg.isLegacy()) {
@@ -2458,26 +2487,29 @@ public class ScalableTopicController {
                     // The topic is gone, and its data with it.
                     .orElse(true));
         }
-        List<CompletableFuture<Boolean>> checks = new ArrayList<>();
-        for (String sub : subs) {
-            checks.add(isSegmentDrained(seg, sub));
-        }
-        checks.add(segmentSubscriptions(seg).thenApply(subscriptions -> subscriptions
-                // The non-durable cursor of a reader doesn't hold the segment. A subscription that an older broker
-                // reports without its durability does.
-                .map(bySubscription -> bySubscription.values().stream()
-                        .filter(sub -> !Boolean.FALSE.equals(sub.getDurable()))
-                        .allMatch(sub -> sub.getMsgBacklog() <= 0))
-                // The topic is gone, and its data with it.
-                .orElse(true)));
-        return CompletableFuture.allOf(checks.toArray(CompletableFuture<?>[]::new))
-                .thenApply(__ -> {
-                    for (CompletableFuture<Boolean> c : checks) {
-                        if (!c.join()) {
-                            return false;
-                        }
+        // The stats first: a subscription created between the two reads is then among the durable ones but not in
+        // the stats, which keeps the segment.
+        CompletableFuture<SegmentTopicStats> stats = fetchSegmentStats(seg);
+        return stats.handle((__, ex) -> null)
+                .thenCompose(__ -> segmentDurableSubscriptions(seg))
+                .thenApply(durable -> {
+                    if (durable.isEmpty()) {
+                        // The topic is gone, and its data with it.
+                        return true;
                     }
-                    return true;
+                    // The topic exists, so a failed stats read, such as a 404 from an owner whose cached layout
+                    // doesn't have the segment yet, fails the check: the segment is kept until the next tick.
+                    SegmentTopicStats segmentStats = stats.join();
+                    if (segmentStats == null) {
+                        return false;
+                    }
+                    Map<String, SegmentTopicStats.SubscriptionStats> bySubscription = segmentStats.getSubscriptions();
+                    return Stream.concat(subs.stream(), durable.get().stream()).allMatch(name -> {
+                        SegmentTopicStats.SubscriptionStats sub = bySubscription.get(name);
+                        // No cursor, as for a CHECKPOINT subscription or a STREAM one that hasn't attached yet,
+                        // or a cursor that the topic hasn't loaded: not drained.
+                        return sub != null && sub.getMsgBacklog() <= 0;
+                    });
                 });
     }
 

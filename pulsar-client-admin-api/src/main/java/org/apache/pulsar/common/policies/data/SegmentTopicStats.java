@@ -133,13 +133,6 @@ public class SegmentTopicStats {
         /** The subscription type on the segment's topic (Exclusive, Shared, Key_Shared, ...). */
         private String type;
 
-        /**
-         * Whether the subscription is durable, i.e. not the non-durable cursor of a reader, absent when an
-         * older broker did not report it.
-         */
-        @JsonInclude(JsonInclude.Include.NON_NULL)
-        private Boolean durable;
-
         /** Rate of messages delivered on this subscription (msg/s). */
         private double msgRateOut;
 
