@@ -206,6 +206,8 @@ public class ClientCnx extends PulsarHandler {
     private boolean brokerSupportsReplDedupByLidAndEid;
     @Getter
     private boolean supportsTopicWatcherReconcile;
+    @Getter
+    private boolean supportsAutoProduceBytesWithoutSchema;
 
     /** Idle stat. **/
     @Getter
@@ -341,7 +343,7 @@ public class ClientCnx extends PulsarHandler {
         lastDisconnectedTimestamp = System.currentTimeMillis();
         log.info("{} Disconnected", ctx.channel());
         if (!connectionFuture.isDone()) {
-            connectionFuture.completeExceptionally(new PulsarClientException("Connection already closed"));
+            connectionFuture.completeExceptionally(new ConnectException("Connection already closed"));
         }
 
         ConnectException e = new ConnectException(
@@ -424,6 +426,8 @@ public class ClientCnx extends PulsarHandler {
             connected.hasFeatureFlags() && connected.getFeatureFlags().isSupportsReplDedupByLidAndEid();
         supportsTopicWatcherReconcile =
             connected.hasFeatureFlags() && connected.getFeatureFlags().isSupportsTopicWatcherReconcile();
+        supportsAutoProduceBytesWithoutSchema = connected.hasFeatureFlags()
+                && connected.getFeatureFlags().isSupportsAutoProduceBytesWithoutSchema();
 
         // set remote protocol version to the correct version before we complete the connection future
         setRemoteEndpointProtocolVersion(connected.getProtocolVersion());

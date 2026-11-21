@@ -316,6 +316,9 @@ message FeatureFlags {
   optional bool supports_get_partitioned_metadata_without_auto_creation = 5 [default = false];
   optional bool supports_repl_dedup_by_lid_and_eid = 6 [default = false];
   optional bool supports_topic_watcher_reconcile = 7 [default = false];
+  // Field numbers 8 and 9 are used on master (supports_scalable_topics, supports_tc_metadata_discovery);
+  // keep 10 for wire compatibility.
+  optional bool supports_auto_produce_bytes_without_schema = 10 [default = false];
 }
 
 message CommandConnected {
@@ -527,6 +530,9 @@ message CommandProducer {
     // If this field is set but the broker's `allowAutoSubscriptionCreation`
     // is disabled, the producer will fail to be created.
     optional string initial_subscription_name = 13;
+
+    // The producer uses Schema.AUTO_PRODUCE_BYTES and associates schemas with individual messages.
+    optional bool auto_produce_bytes = 14 [default = false];
 }
 
 message CommandSend {

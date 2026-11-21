@@ -29,7 +29,6 @@ import com.google.common.collect.Range;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.opentelemetry.api.OpenTelemetry;
 import java.io.IOException;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -48,6 +47,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.Getter;
@@ -99,6 +99,7 @@ import org.apache.bookkeeper.mledger.util.Errors;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.bookkeeper.stats.NullStatsLogger;
 import org.apache.bookkeeper.stats.StatsLogger;
+import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
@@ -145,6 +146,8 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
     //indicate whether shutdown() is called.
     private volatile boolean closed;
+    // Only guards open registration and the transition to closed, never initialization or callbacks.
+    private final Object ledgerRegistrationLock = new Object();
     // How long shutdown waits for each managed ledger to close
     private long shutdownLedgerCloseTimeoutMillis =
             TimeUnit.SECONDS.toMillis(ManagedLedgerImpl.AsyncOperationTimeoutSeconds);
@@ -159,10 +162,16 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     private static class PendingInitializeManagedLedger {
 
         private final ManagedLedgerImpl ledger;
+        private final CompletableFuture<ManagedLedgerImpl> future;
         private final long createTimeMs;
+        private volatile boolean ledgerInitialized;
+        // State.Closed is set before cleanup finishes, so all factory paths must share one close completion.
+        private final AtomicBoolean closeStarted = new AtomicBoolean();
+        private final Futures.CloseFuture closeFuture = new Futures.CloseFuture();
 
-        PendingInitializeManagedLedger(ManagedLedgerImpl ledger) {
+        PendingInitializeManagedLedger(ManagedLedgerImpl ledger, CompletableFuture<ManagedLedgerImpl> future) {
             this.ledger = ledger;
+            this.future = future;
             this.createTimeMs = System.currentTimeMillis();
         }
 
@@ -447,50 +456,98 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                         // Managed ledger is in unusable state. Recreate it.
                         log.warn("[{}] Attempted to open ledger in {} state. Removing from the map to recreate it",
                                 name, l.getState());
-                        ledgers.remove(name, existingFuture);
+                        removeLedgerFuture(name, existingFuture);
                     }
                 } catch (Exception e) {
-                    // Unable to get the future
+                    // Unable to get the future. Remove it, so that a failed open is retried.
                     log.warn("[{}] Got exception while trying to retrieve ledger", name, e);
+                    removeLedgerFuture(name, existingFuture);
                 }
             } else {
                 PendingInitializeManagedLedger pendingLedger = pendingInitializeLedgers.get(name);
                 if (null != pendingLedger) {
                     long pendingMs = System.currentTimeMillis() - pendingLedger.createTimeMs;
-                    if (pendingMs > TimeUnit.SECONDS.toMillis(config.getMetadataOperationsTimeoutSeconds())) {
+                    // Removing the pending entry claims the initialization, so that it can't complete or be timed
+                    // out concurrently. The pending entry could belong to a newer open than the future read above,
+                    // if the future was already replaced.
+                    if (pendingMs > TimeUnit.SECONDS.toMillis(config.getMetadataOperationsTimeoutSeconds())
+                            && pendingLedger.future == existingFuture
+                            && pendingInitializeLedgers.remove(name, pendingLedger)) {
                         log.warn("[{}] Managed ledger has been pending in initialize state more than {} milliseconds,"
                             + " remove it from cache to retry ...", name, pendingMs);
-                        ledgers.remove(name, existingFuture);
-                        pendingInitializeLedgers.remove(name, pendingLedger);
+                        pendingLedger.ledger.abandonInitialization();
+                        removeLedgerFuture(name, existingFuture);
+                        // Fail the opens waiting for the timed out initialization. The managed ledger instance is
+                        // closed once its initialization completes or fails.
+                        existingFuture.completeExceptionally(new ManagedLedgerException(
+                                "Managed ledger initialization timed out after " + pendingMs + " ms"));
                     }
                 }
-
             }
         }
 
-        // Ensure only one managed ledger is created and initialized
+        // Publish the open before starting initialization, so shutdown cannot miss an in-progress mapping function.
+        CompletableFuture<ManagedLedgerImpl> newFuture = new CompletableFuture<>();
+        CompletableFuture<ManagedLedgerImpl> ledgerFuture;
+        synchronized (ledgerRegistrationLock) {
+            ledgerFuture = closed ? null : ledgers.computeIfAbsent(name, __ -> newFuture);
+        }
+        if (ledgerFuture == null) {
+            callback.openLedgerFailed(new ManagedLedgerException.ManagedLedgerFactoryClosedException(), ctx);
+            return;
+        }
+
+        // Ensure only one managed ledger is created and initialized. Do not run initialization under the map lock.
         long startTimeOfCreation = System.currentTimeMillis();
-        ledgers.computeIfAbsent(name, (mlName) -> {
-            // Create the managed ledger
-            CompletableFuture<ManagedLedgerImpl> future = new CompletableFuture<>();
-            bookkeeperFactory.get(
+        if (ledgerFuture == newFuture) {
+            CompletableFuture<ManagedLedgerImpl> future = newFuture;
+            FutureUtil.supplySafely(() -> bookkeeperFactory.get(
                             new EnsemblePlacementPolicyConfig(config.getBookKeeperEnsemblePlacementPolicyClassName(),
-                                    config.getBookKeeperEnsemblePlacementPolicyProperties()))
+                                    config.getBookKeeperEnsemblePlacementPolicyProperties())))
                     .thenAccept(bk -> {
+                        if (closed || future.isDone()) {
+                            future.completeExceptionally(
+                                    new ManagedLedgerException.ManagedLedgerFactoryClosedException());
+                            return;
+                        }
                         final ManagedLedgerImpl newledger =
                                 createManagedLedger(bk, store, name, config, mlOwnershipChecker);
-                        PendingInitializeManagedLedger pendingLedger = new PendingInitializeManagedLedger(newledger);
+                        PendingInitializeManagedLedger pendingLedger =
+                                new PendingInitializeManagedLedger(newledger, future);
                         pendingInitializeLedgers.put(name, pendingLedger);
                         newledger.initialize(new ManagedLedgerInitializeLedgerCallback() {
                             @Override
                             public void initializeComplete() {
+                                pendingLedger.ledgerInitialized = true;
+                                // The future is already done also if the factory shutdown timed out waiting for
+                                // an open whose initialization hadn't started yet, so it couldn't be claimed
+                                if (pendingInitializeLedgers.get(name) != pendingLedger || future.isDone()) {
+                                    // The initialization timed out or the factory was shut down while it was in
+                                    // progress, and the future was failed and removed from the map. Close the
+                                    // instance so that it doesn't keep running next to the one of a retried open.
+                                    log.warn("[{}] Managed ledger initialization completed after it was abandoned,"
+                                            + " closing it, cost {} ms", name,
+                                            System.currentTimeMillis() - startTimeOfCreation);
+                                    pendingInitializeLedgers.remove(name, pendingLedger);
+                                    closePendingInitializeLedger(name, pendingLedger);
+                                    future.completeExceptionally(new ManagedLedgerException(
+                                            "Managed ledger initialization was abandoned"));
+                                    return;
+                                }
                                 log.info("[{}] Successfully initialize managed ledger, cost {} ms", name,
                                         System.currentTimeMillis() - startTimeOfCreation);
-                                pendingInitializeLedgers.remove(name, pendingLedger);
                                 // May need to update the cursor position and wait them finished
                                 newledger.maybeUpdateCursorBeforeTrimmingConsumedLedger().whenComplete((__, ex) -> {
                                     // ignore ex since it is handled in maybeUpdateCursorBeforeTrimmingConsumedLedger
-                                    future.complete(newledger);
+                                    // Keep the initialization claim until the cursor updates finish, so that an open
+                                    // still waiting for them can be abandoned by a timeout or factory shutdown.
+                                    if (!pendingInitializeLedgers.remove(name, pendingLedger)
+                                            || !future.complete(newledger)) {
+                                        closePendingInitializeLedger(name, pendingLedger);
+                                        future.completeExceptionally(new ManagedLedgerException(
+                                                "Managed ledger initialization was abandoned"));
+                                        return;
+                                    }
                                     // May need to trigger offloading
                                     if (config.isTriggerOffloadOnTopicLoad()) {
                                         newledger.maybeOffloadInBackground(AUTOMATIC_OFFLOAD_TRIGGER);
@@ -504,24 +561,14 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                                     log.error("[{}] Failed to initialize managed ledger: {}", name, e.getMessage());
                                 }
 
-                                // Clean the map if initialization fails
-                                ledgers.remove(name, future);
-                                entryCacheManager.removeEntryCache(name);
-
-                                if (pendingInitializeLedgers.remove(name, pendingLedger)) {
-                                    pendingLedger.ledger.asyncClose(new CloseCallback() {
-                                        @Override
-                                        public void closeComplete(Object ctx) {
-                                            // no-op
-                                        }
-
-                                        @Override
-                                        public void closeFailed(ManagedLedgerException exception, Object ctx) {
-                                            log.warn("[{}] Failed to a pending initialization managed ledger", name,
-                                                    exception);
-                                        }
-                                    }, null);
-                                }
+                                // Clean the map if initialization fails. The future is no longer in the map if the
+                                // initialization timed out, and then the entry cache could already belong to the
+                                // managed ledger of a retried open.
+                                removeLedgerFuture(name, future);
+                                // Close the instance also when the initialization timed out or the factory was shut
+                                // down, since the instance is no longer closed elsewhere
+                                pendingInitializeLedgers.remove(name, pendingLedger);
+                                closePendingInitializeLedger(name, pendingLedger);
 
                                 future.completeExceptionally(e);
                             }
@@ -530,8 +577,8 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                         future.completeExceptionally(ex);
                         return null;
                     });
-            return future;
-        }).thenAccept(ml -> callback.openLedgerComplete(ml, ctx)).exceptionally(exception -> {
+        }
+        ledgerFuture.thenAccept(ml -> callback.openLedgerComplete(ml, ctx)).exceptionally(exception -> {
             callback.openLedgerFailed(ManagedLedgerException
                     .getManagedLedgerException(FutureUtil.unwrapCompletionException(exception)), ctx);
             return null;
@@ -553,6 +600,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         if (closed) {
             callback.openReadOnlyManagedLedgerFailed(
                     new ManagedLedgerException.ManagedLedgerFactoryClosedException(), ctx);
+            return;
         }
 
         bookkeeperFactory
@@ -639,16 +687,55 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
             return;
         }
         // Remove the ledger from the internal factory cache.
-        if (ledgers.remove(ledger.getName(), ledgerFuture)) {
-            entryCacheManager.removeEntryCache(ledger.getName());
+        removeLedgerFuture(ledger.getName(), ledgerFuture);
+    }
+
+    /**
+     * Removes the future of a managed ledger from the map, and its entry cache with it, if the future is still mapped.
+     *
+     * <p>The entry cache is keyed by the managed ledger name, so it's removed atomically with the future. Otherwise a
+     * concurrent open could create a new managed ledger instance between the two removals, and the new instance would
+     * either get the entry cache of the old instance or have its own entry cache removed.
+     *
+     * @return true if the future was removed
+     */
+    private boolean removeLedgerFuture(String name, CompletableFuture<ManagedLedgerImpl> future) {
+        MutableBoolean removed = new MutableBoolean();
+        ledgers.computeIfPresent(name, (__, currentFuture) -> {
+            if (currentFuture != future) {
+                return currentFuture;
+            }
+            entryCacheManager.removeEntryCache(name);
+            removed.setTrue();
+            return null;
+        });
+        return removed.booleanValue();
+    }
+
+    private CompletableFuture<Void> closePendingInitializeLedger(String name,
+                                                                 PendingInitializeManagedLedger pendingLedger) {
+        if (pendingLedger.closeStarted.compareAndSet(false, true)) {
+            pendingLedger.closeFuture.whenComplete((__, exception) -> {
+                if (exception != null) {
+                    log.warn("[{}] Failed to close a pending initialization managed ledger", name, exception);
+                }
+            });
+            try {
+                pendingLedger.ledger.asyncClose(pendingLedger.closeFuture, null);
+            } catch (Exception e) {
+                pendingLedger.closeFuture.completeExceptionally(e);
+            }
         }
+        return pendingLedger.closeFuture;
     }
 
     public CompletableFuture<Void> shutdownAsync() throws ManagedLedgerException {
-        if (closed) {
-            throw new ManagedLedgerException.ManagedLedgerFactoryClosedException();
+        synchronized (ledgerRegistrationLock) {
+            if (closed) {
+                throw new ManagedLedgerException.ManagedLedgerFactoryClosedException();
+            }
+            closed = true;
         }
-        closed = true;
 
         statsTask.cancel(true);
         flushCursorsTask.cancel(true);
@@ -699,13 +786,26 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
     private CompletableFuture<Void> closeLedgerOnShutdown(String ledgerName,
                                                           CompletableFuture<ManagedLedgerImpl> ledgerFuture) {
+        PendingInitializeManagedLedger pendingLedger = pendingInitializeLedgers.get(ledgerName);
         CompletableFuture<Void> future = new CompletableFuture<>();
         ledgerFuture.whenCompleteAsync((managedLedger, throwable) -> {
             if (throwable != null || managedLedger == null) {
-                future.complete(null);
+                if (pendingLedger == null || pendingLedger.future != ledgerFuture || !pendingLedger.ledgerInitialized) {
+                    future.complete(null);
+                    return;
+                }
+            }
+            // Cursor position updates can still be pending after the ledger itself initialized. Close that
+            // instance while the scheduler is alive, even though shutdown has already failed its open future.
+            ManagedLedgerImpl ledgerToClose = managedLedger != null ? managedLedger : pendingLedger.ledger;
+            if (pendingLedger != null && pendingLedger.future == ledgerFuture) {
+                // An abandonment callback may already be closing this instance. Wait for that close rather than
+                // calling asyncClose again, which reports success as soon as the instance's state is Closed.
+                closePendingInitializeLedger(ledgerName, pendingLedger)
+                        .whenComplete((__, exception) -> future.complete(null));
                 return;
             }
-            managedLedger.asyncClose(new AsyncCallbacks.CloseCallback() {
+            ledgerToClose.asyncClose(new CloseCallback() {
                 @Override
                 public void closeComplete(Object ctx) {
                     future.complete(null);
@@ -713,23 +813,25 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
                 @Override
                 public void closeFailed(ManagedLedgerException exception, Object ctx) {
-                    log.warn("[{}] Got exception when closing managed ledger: {}", managedLedger.getName(),
+                    log.warn("[{}] Got exception when closing managed ledger: {}", ledgerToClose.getName(),
                             exception);
                     future.complete(null);
                 }
             }, null);
 
         }, scheduledExecutor.chooseThread());
-        //close pendingInitializeManagedLedger directly to make sure all callbacks is called.
-        PendingInitializeManagedLedger pendingLedger = pendingInitializeLedgers.get(ledgerName);
-        if (pendingLedger != null && !ledgerFuture.isDone()) {
+        // Fail an open whose initialization is in progress directly to make sure all callbacks are called. Removing
+        // the pending entry claims the initialization, so that the managed ledger instance is closed once its
+        // initialization completes.
+        if (pendingLedger != null && pendingLedger.future == ledgerFuture
+                && pendingInitializeLedgers.remove(ledgerName, pendingLedger)) {
+            pendingLedger.ledger.abandonInitialization();
             ledgerFuture.completeExceptionally(new ManagedLedgerException.ManagedLedgerFactoryClosedException());
         }
         // Bound the wait, so that a ledger that never finishes opening or closing cannot hang the shutdown
-        return FutureUtil.addTimeoutHandling(future, Duration.ofMillis(shutdownLedgerCloseTimeoutMillis),
-                        scheduledExecutor, () -> FutureUtil.createTimeoutException("Timed out closing managed ledger",
-                                ManagedLedgerFactoryImpl.class, "closeLedgerOnShutdown"))
-                .exceptionally(ex -> {
+        // The scheduler may itself be stalled. Use the JDK timer and keep user callbacks off its timer thread.
+        return future.orTimeout(shutdownLedgerCloseTimeoutMillis, TimeUnit.MILLISECONDS)
+                .exceptionallyAsync(ex -> {
                     log.warn("[{}] Timed out closing managed ledger on shutdown after {} ms", ledgerName,
                             shutdownLedgerCloseTimeoutMillis);
                     // Make sure that the callbacks of an open that is still in progress are called

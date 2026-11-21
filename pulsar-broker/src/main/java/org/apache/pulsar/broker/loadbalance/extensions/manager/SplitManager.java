@@ -26,6 +26,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Supplier;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData;
@@ -60,25 +61,41 @@ public class SplitManager implements StateChangeListener {
         }
     }
 
-    public CompletableFuture<Void> waitAsync(CompletableFuture<Void> eventPubFuture,
+    /**
+     * Waits for the split that {@code eventPublisher} publishes on the channel.
+     *
+     * <p>The request is registered before the event is published: this broker's channel can tombstone the parent
+     * bundle before the publish future completes.
+     */
+    public CompletableFuture<Void> waitAsync(Supplier<CompletableFuture<Void>> eventPublisher,
                                              String bundle,
                                              SplitDecision decision,
                                              long timeout,
                                              TimeUnit timeoutUnit) {
-        return eventPubFuture.thenCompose(__ -> {
-            CompletableFuture<Void> future = inFlightSplitRequests.computeIfAbsent(bundle, ignore -> {
-                log.info("Published the bundle split event for bundle:{}. "
-                                + "Waiting the split event to complete. Timeout: {} {}",
-                        bundle, timeout, timeoutUnit);
-                return new CompletableFuture<Void>().orTimeout(timeout, timeoutUnit);
-            });
-            // Return the dependent stage so callers cannot observe completion before timeout cleanup finishes.
-            return future.whenComplete((v, ex) -> {
-                if (ex instanceof TimeoutException && inFlightSplitRequests.remove(bundle, future)) {
-                    log.warn("Timed out while waiting for the bundle split event: {}", bundle, ex);
-                }
-            });
-        })
+        CompletableFuture<Void> future = inFlightSplitRequests.computeIfAbsent(bundle, ignore -> {
+            log.info("Waiting for the split event of the bundle:{} to complete. Timeout: {} {}",
+                    bundle, timeout, timeoutUnit);
+            return new CompletableFuture<Void>().orTimeout(timeout, timeoutUnit);
+        });
+        // Return the dependent stage so callers cannot observe completion before timeout cleanup finishes.
+        CompletableFuture<Void> split = future.whenComplete((v, ex) -> {
+            if (ex instanceof TimeoutException && inFlightSplitRequests.remove(bundle, future)) {
+                log.warn("Timed out while waiting for the bundle split event: {}", bundle, ex);
+            }
+        });
+        CompletableFuture<Void> eventPubFuture;
+        try {
+            eventPubFuture = eventPublisher.get();
+        } catch (Throwable e) {
+            eventPubFuture = CompletableFuture.failedFuture(e);
+        }
+        return eventPubFuture.whenComplete((__, ex) -> {
+                    // No event will complete the request, which the waiters of the bundle share: fail it
+                    if (ex != null && inFlightSplitRequests.remove(bundle, future)) {
+                        future.completeExceptionally(ex);
+                    }
+                })
+                .thenCompose(__ -> split)
                 .whenComplete((__, ex) -> {
                     if (ex != null) {
                         log.error("Failed the bundle split event for bundle:{}", bundle, ex);

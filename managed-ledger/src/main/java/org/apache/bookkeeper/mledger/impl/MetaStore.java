@@ -83,10 +83,11 @@ public interface MetaStore {
     void watchManagedLedgerInfo(String ledgerName, UpdateCallback<ManagedLedgerInfo> callback);
 
     /**
-     * Unwatch the metadata changes for ledgerName.
+     * Unwatch the metadata changes for ledgerName, if the callback is still the one watching them.
      * @param ledgerName
+     * @param callback the callback that was passed to {@link #watchManagedLedgerInfo(String, UpdateCallback)}
      */
-    void unwatchManagedLedgerInfo(String ledgerName);
+    void unwatchManagedLedgerInfo(String ledgerName, UpdateCallback<ManagedLedgerInfo> callback);
 
     /**
      *

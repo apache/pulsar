@@ -525,18 +525,13 @@ func (gi *goInstance) setupLogHandler() error {
 }
 
 func (gi *goInstance) addLogTopicHandler() {
-	// Clear StrEntry regardless gi.context.logAppender is set or not
-	defer func() {
-		log.StrEntry = nil
-	}()
-
+	// Drain the captured entries regardless gi.context.logAppender is set or not
 	if gi.context.logAppender == nil {
+		log.DrainEntries()
 		return
 	}
 
-	for _, logByte := range log.StrEntry {
-		gi.context.logAppender.Append([]byte(logByte))
-	}
+	gi.context.logAppender.Flush()
 }
 
 func (gi *goInstance) closeLogTopic() {

@@ -224,6 +224,7 @@ public class NegativeAcksTest extends SharedPulsarBaseTest {
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
                 .topic(topic)
                 .enableBatching(batching)
+                .batchingMaxPublishDelay(30, TimeUnit.SECONDS)
                 .create();
 
         Set<String> sentMessages = new HashSet<>();
@@ -242,8 +243,9 @@ public class NegativeAcksTest extends SharedPulsarBaseTest {
         for (int i = 0; i < redeliverCount; i++) {
             Message<String> msg = null;
             for (int j = 0; j < num; j++) {
-                msg = consumer.receive();
-                log.info("Received message {}", msg.getValue());
+                msg = consumer.receive(10, TimeUnit.SECONDS);
+                assertNotNull(msg);
+                log.info("Received message {} {}", msg.getMessageId(), msg.getValue());
                 if (!batching) {
                     consumer.negativeAcknowledge(msg);
                 }
@@ -259,7 +261,8 @@ public class NegativeAcksTest extends SharedPulsarBaseTest {
 
         // All the messages should be received again
         for (int i = 0; i < num; i++) {
-            Message<String> msg = consumer.receive();
+            Message<String> msg = consumer.receive(10, TimeUnit.SECONDS);
+            assertNotNull(msg);
             receivedMessages.add(msg.getValue());
             consumer.acknowledge(msg);
         }

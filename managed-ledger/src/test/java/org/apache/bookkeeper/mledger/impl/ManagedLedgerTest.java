@@ -20,6 +20,7 @@ package org.apache.bookkeeper.mledger.impl;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -41,6 +42,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNotSame;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
@@ -73,10 +75,12 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -114,6 +118,7 @@ import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenCursorCallback;
@@ -127,6 +132,7 @@ import org.apache.bookkeeper.mledger.ManagedCursor.IndividualDeletedEntries;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerAlreadyClosedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerFencedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerNotFoundException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
@@ -833,7 +839,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             log.info("createComplete finished, state: " + ledger.getState());
             ledger.executor.execute(createLatch::countDown);
             return o;
-        }).when(ledger).createComplete(anyInt(), any(), any());
+        }).when(ledger).createComplete(anyInt(), any(), any(), anyLong());
         ledger.internalAsyncAddEntry(op);
         createLatch.await();
         closeLatch.await();
@@ -3189,6 +3195,174 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertEquals(cursor.getMarkDeletedPosition(), p1);
     }
 
+    /**
+     * Returns a factory whose managed ledgers recover each cursor once the future of its name in
+     * {@code recoveryGates} completes, and fail its recovery if that future fails.
+     */
+    private ManagedLedgerFactoryImpl createFactoryWithGatedCursorRecovery(
+            Map<String, CompletableFuture<Void>> recoveryGates) throws Exception {
+        return new ManagedLedgerFactoryImpl(metadataStore, bkc) {
+            @Override
+            protected ManagedLedgerImpl createManagedLedger(BookKeeper bk, MetaStore store, String name,
+                                                            ManagedLedgerConfig config,
+                                                            Supplier<CompletableFuture<Boolean>> mlOwnershipChecker) {
+                return new ManagedLedgerImpl(this, bk, store, config, scheduledExecutor, name, mlOwnershipChecker) {
+                    @Override
+                    protected ManagedCursorImpl createCursor(BookKeeper bookKeeper, String cursorName) {
+                        return new ManagedCursorImpl(bookKeeper, this, cursorName) {
+                            @Override
+                            void recover(VoidCallback callback) {
+                                recoveryGates.get(cursorName).whenComplete((__, ex) -> {
+                                    if (ex != null) {
+                                        callback.operationFailed(new ManagedLedgerException(ex));
+                                    } else {
+                                        super.recover(callback);
+                                    }
+                                });
+                            }
+                        };
+                    }
+                };
+            }
+        };
+    }
+
+    @Test
+    public void testLazyCursorRecoveryDefersTrimming() throws Exception {
+        ManagedLedgerConfig config = initManagedLedgerConfig(new ManagedLedgerConfig()).setMaxEntriesPerLedger(2);
+        ManagedLedger ledger = factory.open("testLazyCursorRecoveryDefersTrimming", config);
+        ManagedCursor slowCursor = ledger.openCursor("slow-cursor");
+        ManagedCursor fastCursor = ledger.openCursor("fast-cursor");
+        Position lastPosition = null;
+        for (int i = 0; i < 6; i++) {
+            lastPosition = ledger.addEntry(("entry-" + i).getBytes());
+        }
+        Position slowPosition = slowCursor.getMarkDeletedPosition();
+        fastCursor.markDelete(lastPosition);
+        ledger.close();
+
+        Map<String, CompletableFuture<Void>> recoveryGates = new ConcurrentHashMap<>();
+        recoveryGates.put("slow-cursor", new CompletableFuture<>());
+        recoveryGates.put("fast-cursor", new CompletableFuture<>());
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory2 = createFactoryWithGatedCursorRecovery(recoveryGates);
+        ManagedLedgerImpl reopened = (ManagedLedgerImpl) factory2.open("testLazyCursorRecoveryDefersTrimming",
+                initManagedLedgerConfig(new ManagedLedgerConfig()).setMaxEntriesPerLedger(2)
+                        .setLazyCursorRecovery(true));
+        List<Long> ledgerIds = new ArrayList<>(reopened.getLedgersInfo().keySet());
+
+        // No cursor recovered yet: trimming must not see the managed ledger as having no durable cursors
+        CompletableFuture<Void> trimmed = new CompletableFuture<>();
+        reopened.trimConsumedLedgersInBackground(trimmed);
+        Awaitility.await().during(500, TimeUnit.MILLISECONDS).atMost(5, TimeUnit.SECONDS)
+                .until(() -> !trimmed.isDone());
+        assertEquals(new ArrayList<>(reopened.getLedgersInfo().keySet()), ledgerIds);
+
+        // Only the fast cursor recovered: its position alone must not decide the trimming
+        recoveryGates.get("fast-cursor").complete(null);
+        assertEquals(reopened.openCursor("fast-cursor").getMarkDeletedPosition(), lastPosition);
+        Awaitility.await().during(500, TimeUnit.MILLISECONDS).atMost(5, TimeUnit.SECONDS)
+                .until(() -> !trimmed.isDone());
+        assertEquals(new ArrayList<>(reopened.getLedgersInfo().keySet()), ledgerIds);
+
+        // Once the slow cursor recovered, the deferred trimming completes and keeps the ledgers it needs
+        recoveryGates.get("slow-cursor").complete(null);
+        trimmed.get(5, TimeUnit.SECONDS);
+        ManagedCursor recoveredSlowCursor = reopened.openCursor("slow-cursor");
+        assertEquals(recoveredSlowCursor.getMarkDeletedPosition(), slowPosition);
+        assertEquals(new ArrayList<>(reopened.getLedgersInfo().keySet()), ledgerIds);
+        assertEquals(recoveredSlowCursor.getNumberOfEntriesInBacklog(false), 6);
+
+        // Trimming proceeds normally after the slow cursor acknowledges everything
+        recoveredSlowCursor.markDelete(lastPosition);
+        CompletableFuture<Void> trimmedAfterAck = new CompletableFuture<>();
+        reopened.trimConsumedLedgersInBackground(trimmedAfterAck);
+        trimmedAfterAck.get(5, TimeUnit.SECONDS);
+        assertTrue(reopened.getLedgersInfo().size() < ledgerIds.size());
+    }
+
+    @Test
+    public void testFailedLazyCursorRecoveryBlocksTrimmingUntilRecovered() throws Exception {
+        ManagedLedgerConfig config = initManagedLedgerConfig(new ManagedLedgerConfig()).setMaxEntriesPerLedger(2);
+        ManagedLedger ledger = factory.open("testFailedLazyCursorRecovery", config);
+        ManagedCursor cursor = ledger.openCursor("cursor");
+        Position lastPosition = null;
+        for (int i = 0; i < 6; i++) {
+            lastPosition = ledger.addEntry(("entry-" + i).getBytes());
+        }
+        Position markDeletePosition = cursor.getMarkDeletedPosition();
+        ledger.close();
+
+        Map<String, CompletableFuture<Void>> recoveryGates = new ConcurrentHashMap<>();
+        recoveryGates.put("cursor", CompletableFuture.failedFuture(new Exception("recovery failed")));
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory2 = createFactoryWithGatedCursorRecovery(recoveryGates);
+        ManagedLedgerImpl reopened = (ManagedLedgerImpl) factory2.open("testFailedLazyCursorRecovery",
+                initManagedLedgerConfig(new ManagedLedgerConfig()).setMaxEntriesPerLedger(2)
+                        .setLazyCursorRecovery(true));
+        List<Long> ledgerIds = new ArrayList<>(reopened.getLedgersInfo().keySet());
+
+        // The failed cursor isn't known to the managed ledger, but its position still protects the ledgers
+        Awaitility.await().until(() -> {
+            synchronized (reopened) {
+                return reopened.uninitializedCursors.isEmpty();
+            }
+        });
+        CompletableFuture<Void> trimmed = new CompletableFuture<>();
+        reopened.trimConsumedLedgersInBackground(trimmed);
+        try {
+            trimmed.get(5, TimeUnit.SECONDS);
+            fail("Trimming should fail while a cursor isn't recovered");
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof ManagedLedgerException);
+        }
+        assertEquals(new ArrayList<>(reopened.getLedgersInfo().keySet()), ledgerIds);
+
+        // Opening the cursor recovers it again instead of creating it at the end of the managed ledger
+        recoveryGates.put("cursor", CompletableFuture.completedFuture(null));
+        ManagedCursor recovered = reopened.openCursor("cursor");
+        assertEquals(recovered.getMarkDeletedPosition(), markDeletePosition);
+        assertEquals(recovered.getNumberOfEntriesInBacklog(false), 6);
+
+        recovered.markDelete(lastPosition);
+        CompletableFuture<Void> trimmedAfterAck = new CompletableFuture<>();
+        reopened.trimConsumedLedgersInBackground(trimmedAfterAck);
+        trimmedAfterAck.get(5, TimeUnit.SECONDS);
+        assertTrue(reopened.getLedgersInfo().size() < ledgerIds.size());
+    }
+
+    @Test
+    public void testLazyCursorRecoveryBacklogWithEntriesAddedBeforeRecovery() throws Exception {
+        ManagedLedgerConfig config = initManagedLedgerConfig(new ManagedLedgerConfig());
+        ManagedLedger ledger = factory.open("testLazyCursorRecoveryBacklog", config);
+        ledger.openCursor("cursor");
+        for (int i = 0; i < 3; i++) {
+            ledger.addEntry(("entry-" + i).getBytes());
+        }
+        ledger.close();
+
+        Map<String, CompletableFuture<Void>> recoveryGates = new ConcurrentHashMap<>();
+        recoveryGates.put("cursor", new CompletableFuture<>());
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory2 = createFactoryWithGatedCursorRecovery(recoveryGates);
+        ManagedLedger reopened = factory2.open("testLazyCursorRecoveryBacklog",
+                initManagedLedgerConfig(new ManagedLedgerConfig()).setLazyCursorRecovery(true));
+
+        // The managed ledger accepts entries while the cursor is still recovering
+        Position lastPosition = null;
+        for (int i = 3; i < 5; i++) {
+            lastPosition = reopened.addEntry(("entry-" + i).getBytes());
+        }
+        recoveryGates.get("cursor").complete(null);
+        ManagedCursor cursor = reopened.openCursor("cursor");
+        assertEquals(cursor.getNumberOfEntriesInBacklog(true), 5);
+        assertEquals(cursor.getNumberOfEntriesInBacklog(false), cursor.getNumberOfEntriesInBacklog(true));
+
+        // Once everything is acknowledged, the estimate must not report a backlog left
+        cursor.markDelete(lastPosition);
+        assertEquals(cursor.getNumberOfEntriesInBacklog(false), 0);
+    }
+
     @Test
     public void testConcurrentOpenCursor() throws Exception {
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testConcurrentOpenCursor");
@@ -3397,11 +3571,11 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         AtomicReference<Object> ctxHolder = new AtomicReference<>();
         ledger.asyncCreateLedger(bk, config, null, (rc, lh, ctx) -> {
             response.set(rc);
-            latch.countDown();
             ctxHolder.set(ctx);
+            latch.countDown();
         }, Collections.emptyMap());
 
-        latch.await(config.getMetadataOperationsTimeoutSeconds() + 2, TimeUnit.SECONDS);
+        assertTrue(latch.await(config.getMetadataOperationsTimeoutSeconds() + 2, TimeUnit.SECONDS));
         assertEquals(response.get(), BKException.Code.TimeoutException);
         assertTrue(ctxHolder.get() instanceof CompletableFuture);
         CompletableFuture ledgerCreateHook = (CompletableFuture) ctxHolder.get();
@@ -3517,6 +3691,78 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         // cleanup.
         factory.delete(ledger.name);
+    }
+
+    /**
+     * The add timeout check runs on the managed ledger executor, after the add completions already queued there. The
+     * check must not act on an add that has completed: once its completion runs, the add is recycled and may be
+     * reused by another add, possibly of another managed ledger.
+     */
+    @Test(timeOut = 30000)
+    public void testAddTimeoutCheckRunsAfterQueuedAddCompletion() throws Exception {
+        // A timeout this long keeps the periodic check from running by itself: the test triggers it.
+        ManagedLedgerConfig config = initManagedLedgerConfig(new ManagedLedgerConfig()).setAddEntryTimeoutSeconds(3600);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("add_timeout_check_after_completion", config);
+
+        // Hold the bookie's add response, to deliver it at a chosen moment.
+        record BookieAdd(AddCallback callback, Object ctx) {
+        }
+        CompletableFuture<BookieAdd> bookieAdd = new CompletableFuture<>();
+        LedgerHandle spyLedger = spy(ledger.currentLedger);
+        doAnswer(invocation -> {
+            ((ByteBuf) invocation.getArgument(0)).release();
+            bookieAdd.complete(new BookieAdd(invocation.getArgument(1), invocation.getArgument(2)));
+            return null;
+        }).when(spyLedger).asyncAddEntry(any(ByteBuf.class), any(AddCallback.class), any());
+        ledger.currentLedger = spyLedger;
+
+        CompletableFuture<Position> addResult = new CompletableFuture<>();
+        ledger.asyncAddEntry("entry".getBytes(UTF_8), new AddEntryCallback() {
+            @Override
+            public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                addResult.complete(position);
+            }
+
+            @Override
+            public void addFailed(ManagedLedgerException exception, Object ctx) {
+                addResult.completeExceptionally(exception);
+            }
+        }, null);
+        BookieAdd pendingBookieAdd = bookieAdd.get(10, TimeUnit.SECONDS);
+        OpAddEntry op = ledger.pendingAddEntries.peek();
+        assertThat(op).isNotNull();
+        // Make the add older than the timeout.
+        op.lastInitTime = System.nanoTime() - TimeUnit.HOURS.toNanos(2);
+
+        CountDownLatch executorBlocked = new CountDownLatch(1);
+        CountDownLatch releaseExecutor = new CountDownLatch(1);
+        ledger.getExecutor().execute(() -> {
+            executorBlocked.countDown();
+            try {
+                releaseExecutor.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+        assertThat(executorBlocked.await(10, TimeUnit.SECONDS)).isTrue();
+        try {
+            // The bookie confirms the add, whose completion queues on the managed ledger executor...
+            pendingBookieAdd.callback().addComplete(BKException.Code.OK, spyLedger, 0, pendingBookieAdd.ctx());
+            // ...and the periodic timeout check fires before that completion has run.
+            ledger.scheduleAddTimeoutCheck();
+            assertThat(ledger.currentLedgerTimeoutTriggered)
+                    .as("timeout applied to an add whose completion is queued")
+                    .isFalse();
+        } finally {
+            releaseExecutor.countDown();
+        }
+
+        assertThat(addResult.get(10, TimeUnit.SECONDS)).isEqualTo(PositionFactory.create(spyLedger.getId(), 0));
+        // Wait for the timeout check queued after the completion.
+        CompletableFuture.runAsync(() -> { }, ledger.getExecutor()).get(10, TimeUnit.SECONDS);
+        assertThat(ledger.currentLedgerTimeoutTriggered).isFalse();
+        assertThat(ledger.pendingAddEntries).isEmpty();
+        assertThat(ledger.currentLedger).isSameAs(spyLedger);
     }
 
     private static class CollectCtxAddEntryCallback implements AddEntryCallback {
@@ -4135,6 +4381,81 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ledger.close();
     }
 
+    @DataProvider
+    public Object[][] closeFailures() {
+        return new Object[][] {{true}, {false}};
+    }
+
+    @Test(dataProvider = "closeFailures")
+    public void testReadHandlesReleasedWhenCloseFails(boolean fenced) throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        initManagedLedgerConfig(config);
+        config.setMaxEntriesPerLedger(1);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testReadHandlesReleasedWhenCloseFails", config);
+        ManagedCursor cursor = ledger.openCursor("test-cursor");
+        for (int i = 0; i < 3; i++) {
+            ledger.addEntry(String.valueOf(i).getBytes(Encoding));
+        }
+        Awaitility.await().untilAsserted(() -> assertEquals(ledger.ledgers.size(), 4));
+        factory.getEntryCacheManager().clear();
+        cursor.readEntries(3).forEach(Entry::release);
+        Awaitility.await().untilAsserted(() -> assertEquals(ledger.ledgerCache.size(), 3));
+
+        // Nothing else releases the cached read handles, so the close must release them even if the managed ledger
+        // cannot be closed cleanly
+        if (fenced) {
+            ledger.setFenced();
+        } else {
+            bkc.failNow(BKException.Code.UnexpectedConditionException);
+        }
+        assertThatThrownBy(ledger::close).isInstanceOf(ManagedLedgerException.class);
+        assertEquals(ledger.ledgerCache.size(), 0);
+    }
+
+    @Test
+    public void testReadHandleOpenedAfterCloseIsNotCached() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        initManagedLedgerConfig(config);
+        config.setMaxEntriesPerLedger(1);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testReadHandleOpenedAfterCloseIsNotCached",
+                config);
+        ledger.openCursor("test-cursor");
+        ledger.addEntry("0".getBytes(Encoding));
+        Awaitility.await().untilAsserted(() -> assertEquals(ledger.ledgers.size(), 2));
+        long ledgerId = ledger.ledgers.firstKey();
+        ledger.close();
+
+        // A read that started before the close can ask for a handle after the cached ones were released
+        assertThatThrownBy(() -> ledger.getLedgerHandle(ledgerId).get())
+                .hasCauseInstanceOf(ManagedLedgerAlreadyClosedException.class);
+        assertEquals(ledger.ledgerCache.size(), 0);
+    }
+
+    @Test
+    public void testFailedReadHandleDoesNotEvictItsReplacement() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        initManagedLedgerConfig(config);
+        config.setMaxEntriesPerLedger(1);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testFailedReadHandleDoesNotEvictItsReplacement",
+                config);
+        ledger.openCursor("test-cursor");
+        ledger.addEntry("0".getBytes(Encoding));
+        Awaitility.await().untilAsserted(() -> assertEquals(ledger.ledgers.size(), 2));
+        long ledgerId = ledger.ledgers.firstKey();
+
+        ReadHandle failedHandle = ledger.getLedgerHandle(ledgerId).get();
+        ledger.invalidateLedgerHandle(failedHandle);
+        assertNull(ledger.ledgerCache.get(ledgerId));
+        ReadHandle replacement = ledger.getLedgerHandle(ledgerId).get();
+        assertNotSame(replacement, failedHandle);
+
+        // Another read that failed on the first handle must not evict the handle that replaced it, which nothing
+        // would close then
+        ledger.invalidateLedgerHandle(failedHandle);
+        assertSame(ledger.ledgerCache.get(ledgerId).get(), replacement);
+        ledger.close();
+    }
+
     @Test
     public void testLockReleaseWhenTrimLedger() throws Exception {
         ManagedLedgerConfig config = new ManagedLedgerConfig();
@@ -4656,6 +4977,86 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             }
         });
         future.join();
+    }
+
+    // Deletes of a cursor that overlap, such as the deletes of a subscription that two clients unsubscribe at the same
+    // time: the one that finds the cursor being deleted completes with the delete in progress
+    @Test
+    public void testConcurrentDeleteCursor() throws Exception {
+        String mlName = "testConcurrentDeleteCursor";
+        String cursorName = "cursor_1";
+        CompletableFuture<Void> cursorRemovalGate = new CompletableFuture<>();
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(
+                gateCursorRemoval(mlName, cursorName, cursorRemovalGate), bkc);
+        ManagedLedgerImpl ml =
+                (ManagedLedgerImpl) factory.open(mlName, initManagedLedgerConfig(new ManagedLedgerConfig()));
+        ml.openCursor(cursorName);
+
+        CompletableFuture<Void> firstDelete = deleteCursor(ml, cursorName);
+        CompletableFuture<Void> secondDelete = deleteCursor(ml, cursorName);
+        assertThat(firstDelete).as("the first delete waits for the removal of the cursor").isNotDone();
+        assertThat(secondDelete).as("the second delete waits for the first").isNotDone();
+
+        cursorRemovalGate.complete(null);
+        assertThat(firstDelete).succeedsWithin(Duration.ofSeconds(10));
+        assertThat(secondDelete).succeedsWithin(Duration.ofSeconds(10));
+        assertNull(ml.getCursors().get(cursorName));
+    }
+
+    // A delete that fails fails the deletes that overlapped it too, and the cursor can be deleted again
+    @Test
+    public void testConcurrentDeleteCursorFailure() throws Exception {
+        String mlName = "testConcurrentDeleteCursorFailure";
+        String cursorName = "cursor_1";
+        CompletableFuture<Void> cursorRemovalGate = new CompletableFuture<>();
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(
+                gateCursorRemoval(mlName, cursorName, cursorRemovalGate), bkc);
+        ManagedLedgerImpl ml =
+                (ManagedLedgerImpl) factory.open(mlName, initManagedLedgerConfig(new ManagedLedgerConfig()));
+        ml.openCursor(cursorName);
+
+        CompletableFuture<Void> firstDelete = deleteCursor(ml, cursorName);
+        CompletableFuture<Void> secondDelete = deleteCursor(ml, cursorName);
+
+        cursorRemovalGate.completeExceptionally(new MetadataStoreException("failed"));
+        assertThat(firstDelete).failsWithin(Duration.ofSeconds(10)).withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(MetaStoreException.class);
+        assertThat(secondDelete).failsWithin(Duration.ofSeconds(10)).withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(MetaStoreException.class);
+        assertNotNull(ml.getCursors().get(cursorName));
+
+        assertThat(deleteCursor(ml, cursorName)).succeedsWithin(Duration.ofSeconds(10));
+        assertNull(ml.getCursors().get(cursorName));
+    }
+
+    // A metadata store whose first removal of the cursor completes once the gate does
+    private FaultInjectionMetadataStore gateCursorRemoval(String mlName, String cursorName,
+                                                          CompletableFuture<Void> gate) {
+        FaultInjectionMetadataStore spyStore = spy(metadataStore);
+        doAnswer(inv -> {
+            @SuppressWarnings("unchecked")
+            CompletableFuture<Void> removal = (CompletableFuture<Void>) inv.callRealMethod();
+            return removal.thenCompose(__ -> gate);
+        }).doCallRealMethod().when(spyStore).delete(eq("/managed-ledgers/" + mlName + "/" + cursorName), any());
+        return spyStore;
+    }
+
+    private static CompletableFuture<Void> deleteCursor(ManagedLedgerImpl ml, String cursorName) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        ml.asyncDeleteCursor(cursorName, new DeleteCursorCallback() {
+            @Override
+            public void deleteCursorComplete(Object ctx) {
+                future.complete(null);
+            }
+
+            @Override
+            public void deleteCursorFailed(ManagedLedgerException exception, Object ctx) {
+                future.completeExceptionally(exception);
+            }
+        }, null);
+        return future;
     }
 
     @Test

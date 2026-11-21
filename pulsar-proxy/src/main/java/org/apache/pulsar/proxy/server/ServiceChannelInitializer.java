@@ -27,6 +27,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.common.protocol.FrameDecoderUtil;
 import org.apache.pulsar.common.protocol.OptionalProxyProtocolDecoder;
+import org.apache.pulsar.common.tls.TlsClientAuthMode;
 import org.apache.pulsar.common.util.PulsarSslConfiguration;
 import org.apache.pulsar.common.util.PulsarSslFactory;
 import org.slf4j.Logger;
@@ -105,7 +106,9 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
                 .tlsCertificateFilePath(config.getTlsCertificateFilePath())
                 .tlsKeyFilePath(config.getTlsKeyFilePath())
                 .allowInsecureConnection(config.isTlsAllowInsecureConnection())
-                .requireTrustedClientCertOnConnect(config.isTlsRequireTrustedClientCertOnConnect())
+                .requireTrustedClientCertOnConnect(
+                        config.resolveTlsClientAuthMode() == TlsClientAuthMode.REQUIRE)
+                .clientAuthMode(config.resolveTlsClientAuthMode())
                 .tlsEnabledWithKeystore(config.isTlsEnabledWithKeyStore())
                 .tlsCustomParams(config.getSslFactoryPluginParams())
                 .authData(null)

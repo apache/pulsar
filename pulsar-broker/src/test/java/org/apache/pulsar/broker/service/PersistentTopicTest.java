@@ -1842,6 +1842,22 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
 
     @Test
+    public void testCompactorSubscriptionCannotBeReplicated() {
+        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+        PersistentSubscription sub = new PulsarCompactorSubscription(topic, mock(CompactedTopic.class),
+                Compactor.COMPACTION_SUBSCRIPTION, cursorMock);
+        doReturn(true).when(cursorMock).putProperty(anyString(), anyLong());
+        doReturn(true).when(cursorMock).removeProperty(anyString());
+
+        assertFalse(sub.setReplicated(true));
+        assertFalse(sub.isReplicated());
+        verify(cursorMock, Mockito.never()).putProperty(anyString(), anyLong());
+
+        // Disabling still works, so a replicated status that was set before can be removed
+        assertTrue(sub.setReplicated(false));
+    }
+
+    @Test
     public void testCompactorSubscriptionUpdatedOnInit() {
         long ledgerId = 0xc0bfefeL;
         Map<String, Long> properties = Map.of(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY, ledgerId);
@@ -2008,7 +2024,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         assertFalse(cursor3.isActive());
 
         // Write messages to ledger
-        CountDownLatch latch = new CountDownLatch(backloggedThreshold);
+        CountDownLatch latch = new CountDownLatch(backloggedThreshold + 1);
         for (int i = 0; i < backloggedThreshold + 1; i++) {
             String content = "entry"; // 5 bytes
             ByteBuf entry = getMessageWithMetadata(content.getBytes());

@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static java.lang.Math.min;
 import static org.apache.bookkeeper.mledger.util.Errors.isNoSuchLedgerExistsException;
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Lists;
@@ -176,6 +177,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     .expectedItems(16) // initial capacity
                     .concurrencyLevel(1) // number of sections
                     .build();
+    // Set when closing this managed ledger releases the cached read handles, after which none can be cached
+    private volatile boolean readHandlesReleased = false;
     protected final NavigableMap<Long, LedgerInfo> ledgers = new ConcurrentSkipListMap<>();
     protected volatile Stat ledgersStat;
 
@@ -213,6 +216,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     // uninitialized cursor future from the 1st request
     final Map<String, CompletableFuture<ManagedCursor>> uninitializedCursors;
 
+    // The deletes of durable cursors in progress, by cursor name: a concurrent delete of the same cursor completes
+    // with the one in progress
+    final Map<String, CompletableFuture<Void>> deletingCursors;
+
+    // Cursors whose lazy recovery failed: they are recovered again when opened, and until then they block trimming,
+    // since their mark-delete position is unknown
+    final Set<String> failedLazyRecoveryCursors;
+
     final EntryCache entryCache;
 
     private ScheduledFuture<?> timeoutTask;
@@ -248,6 +259,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     protected volatile long lastLedgerCreatedTimestamp = 0;
     private volatile long lastLedgerCreationFailureTimestamp = 0;
     private long lastLedgerCreationInitiationTimestamp = 0;
+    // Identifies the ledger creation in progress, so that the late completion of a creation that was given up on is
+    // discarded instead of replacing the current ledger
+    private long ledgerCreationGeneration = 0;
 
     private long lastOffloadLedgerId = 0;
     private volatile long lastOffloadSuccessTimestamp = 0;
@@ -322,6 +336,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             AtomicReferenceFieldUpdater.newUpdater(ManagedLedgerImpl.class, State.class, "state");
     protected volatile State state = null;
     private volatile boolean migrated = false;
+    // Set when the factory abandons the initialization, so that it stops before its next step
+    private volatile boolean initializationAbandoned = false;
 
     @Getter
     private final OrderedScheduler scheduledExecutor;
@@ -412,7 +428,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         this.entryCache = factory.getEntryCacheManager().getEntryCache(this);
         this.waitingCursors = Queues.newConcurrentLinkedQueue();
         this.waitingEntryCallBacks = Queues.newConcurrentLinkedQueue();
-        this.uninitializedCursors = new HashMap();
+        this.uninitializedCursors = new HashMap<>();
+        this.deletingCursors = new HashMap<>();
+        this.failedLazyRecoveryCursors = new HashSet<>();
         this.clock = config.getClock();
 
         // Get the next rollover time. Add a random value upto 5% to avoid rollover multiple ledgers at the same time
@@ -430,6 +448,28 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
+    /**
+     * Abandons the initialization of this instance, because it timed out or the factory is shut down. The
+     * initialization fails before its next step, instead of fencing the ledgers or updating the metadata of an
+     * instance that a retried open initializes.
+     */
+    void abandonInitialization() {
+        initializationAbandoned = true;
+    }
+
+    /**
+     * Fails the initialization if it has been abandoned.
+     *
+     * @return true if the initialization was abandoned and failed
+     */
+    protected boolean failInitializationIfAbandoned(ManagedLedgerInitializeLedgerCallback callback) {
+        if (!initializationAbandoned) {
+            return false;
+        }
+        callback.initializeFailed(new ManagedLedgerException("Managed ledger initialization was abandoned"));
+        return true;
+    }
+
     synchronized void initialize(final ManagedLedgerInitializeLedgerCallback callback, final Object ctx) {
         log.info("Opening managed ledger {} (lazyCursorRecovery={}, triggerOffloadOnTopicLoad={})", name,
                 config.isLazyCursorRecovery(), config.isTriggerOffloadOnTopicLoad());
@@ -439,6 +479,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 new MetaStoreCallback<ManagedLedgerInfo>() {
             @Override
             public void operationComplete(ManagedLedgerInfo mlInfo, Stat stat) {
+                if (failInitializationIfAbandoned(callback)) {
+                    return;
+                }
                 ledgersStat = stat;
                 if (mlInfo.hasTerminatedPosition()) {
                     state = State.Terminated;
@@ -572,6 +615,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     protected synchronized void initializeBookKeeper(final ManagedLedgerInitializeLedgerCallback callback) {
+        if (failInitializationIfAbandoned(callback)) {
+            return;
+        }
         if (log.isDebugEnabled()) {
             log.debug("[{}] initializing bookkeeper; ledgers {}", name, ledgers);
         }
@@ -615,6 +661,25 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             @Override
             public void operationFailed(MetaStoreException e) {
                 handleBadVersion(e);
+                if (e instanceof BadVersionException) {
+                    // BadVersion proves this ledger was never published. Fenced close skips write handles,
+                    // so close this handle before deleting the orphan. Other failures can have committed the write.
+                    LedgerHandle unpublishedLedger = currentLedger;
+                    unpublishedLedger.closeAsync().whenComplete((__, error) -> {
+                        if (error != null && log.isDebugEnabled()) {
+                            log.debug("[{}] Failed to close an unpublished ledger after initialization", name,
+                                    error);
+                        }
+                        mbean.startDataLedgerDeleteOp();
+                        asyncDeleteLedgerWithConcurrencyLimit(unpublishedLedger.getId(), (rc, ctx) -> {
+                            mbean.endDataLedgerDeleteOp();
+                            if (rc != BKException.Code.OK && log.isDebugEnabled()) {
+                                log.debug("[{}] Failed to delete an unpublished ledger {} after initialization: {}",
+                                        name, unpublishedLedger.getId(), BKException.getMessage(rc));
+                            }
+                        }, null);
+                    });
+                }
                 callback.initializeFailed(new ManagedLedgerException(e));
             }
         };
@@ -669,6 +734,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     protected void initializeCursors(final ManagedLedgerInitializeLedgerCallback callback) {
+        if (failInitializationIfAbandoned(callback)) {
+            return;
+        }
         if (log.isDebugEnabled()) {
             log.debug("[{}] initializing cursors", name);
         }
@@ -722,37 +790,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 } else {
                     // Lazily recover cursors by put them to uninitializedCursors map.
                     for (final String cursorName : consumers) {
-                        if (log.isDebugEnabled()) {
-                            log.debug("[{}] Recovering cursor {} lazily", name, cursorName);
-                        }
-                        final ManagedCursorImpl cursor;
-                        cursor = createCursor(ManagedLedgerImpl.this.bookKeeper, cursorName);
-                        final long timestampStartRecoverCursor = System.currentTimeMillis();
-                        CompletableFuture<ManagedCursor> cursorRecoveryFuture = new CompletableFuture<>();
-                        uninitializedCursors.put(cursorName, cursorRecoveryFuture);
-
-                        cursor.recover(new VoidCallback() {
-                            @Override
-                            public void operationComplete() {
-                                log.info("[{}] Lazy recovery for cursor {} completed. pos={} -- todo={}, cost {} ms",
-                                        name, cursorName, cursor.getMarkDeletedPosition(), cursorCount.get() - 1,
-                                        System.currentTimeMillis() - timestampStartRecoverCursor);
-                                cursor.setActive();
-                                synchronized (ManagedLedgerImpl.this) {
-                                    addCursor(cursor);
-                                    uninitializedCursors.remove(cursor.getName()).complete(cursor);
-                                }
-                            }
-
-                            @Override
-                            public void operationFailed(ManagedLedgerException exception) {
-                                log.warn("[{}] Lazy recovery for cursor {} failed, cost {} ms", name, cursorName,
-                                        System.currentTimeMillis() - timestampStartRecoverCursor, exception);
-                                synchronized (ManagedLedgerImpl.this) {
-                                    uninitializedCursors.remove(cursor.getName()).completeExceptionally(exception);
-                                }
-                            }
-                        });
+                        recoverCursorLazily(cursorName);
                     }
                     // Complete ledger recovery.
                     callback.initializeComplete();
@@ -765,6 +803,42 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 callback.initializeFailed(new ManagedLedgerException(e));
             }
         });
+    }
+
+    private synchronized CompletableFuture<ManagedCursor> recoverCursorLazily(String cursorName) {
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] Recovering cursor {} lazily", name, cursorName);
+        }
+        final ManagedCursorImpl cursor = createCursor(bookKeeper, cursorName);
+        final long timestampStartRecoverCursor = System.currentTimeMillis();
+        CompletableFuture<ManagedCursor> cursorRecoveryFuture = new CompletableFuture<>();
+        uninitializedCursors.put(cursorName, cursorRecoveryFuture);
+
+        cursor.recover(new VoidCallback() {
+            @Override
+            public void operationComplete() {
+                log.info("[{}] Lazy recovery for cursor {} completed. pos={}, cost {} ms",
+                        name, cursorName, cursor.getMarkDeletedPosition(),
+                        System.currentTimeMillis() - timestampStartRecoverCursor);
+                cursor.setActive();
+                synchronized (ManagedLedgerImpl.this) {
+                    failedLazyRecoveryCursors.remove(cursorName);
+                    addCursor(cursor);
+                    uninitializedCursors.remove(cursorName).complete(cursor);
+                }
+            }
+
+            @Override
+            public void operationFailed(ManagedLedgerException exception) {
+                log.warn("[{}] Lazy recovery for cursor {} failed, cost {} ms", name, cursorName,
+                        System.currentTimeMillis() - timestampStartRecoverCursor, exception);
+                synchronized (ManagedLedgerImpl.this) {
+                    failedLazyRecoveryCursors.add(cursorName);
+                    uninitializedCursors.remove(cursorName).completeExceptionally(exception);
+                }
+            }
+        });
+        return cursorRecoveryFuture;
     }
 
     private void addCursor(ManagedCursorImpl cursor) {
@@ -915,7 +989,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 log.info("[{}] Creating a new ledger", name);
                 this.lastLedgerCreationInitiationTimestamp = System.currentTimeMillis();
                 mbean.startDataLedgerCreateOp();
-                asyncCreateLedger(bookKeeper, config, digestType, this, Collections.emptyMap());
+                asyncCreateLedger(bookKeeper, config, digestType, newLedgerCreationCallback(), Collections.emptyMap());
             }
         } else {
             checkArgument(state == State.LedgerOpened, "ledger=%s is not opened", state);
@@ -1051,12 +1125,18 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return;
         }
 
-        if (uninitializedCursors.containsKey(cursorName)) {
-            uninitializedCursors.get(cursorName).thenAccept(cursor -> callback.openCursorComplete(cursor, ctx))
-                    .exceptionally(ex -> {
-                callback.openCursorFailed(ManagedLedgerException
-                        .getManagedLedgerException(FutureUtil.unwrapCompletionException(ex)), ctx);
-                return null;
+        // A cursor whose lazy recovery failed still has its position persisted: recover it again rather than
+        // replacing it with a new one
+        CompletableFuture<ManagedCursor> uninitializedCursor = failedLazyRecoveryCursors.contains(cursorName)
+                ? recoverCursorLazily(cursorName) : uninitializedCursors.get(cursorName);
+        if (uninitializedCursor != null) {
+            uninitializedCursor.whenComplete((cursor, error) -> {
+                if (error == null) {
+                    callback.openCursorComplete(cursor, ctx);
+                } else {
+                    callback.openCursorFailed(ManagedLedgerException.getManagedLedgerException(
+                            FutureUtil.unwrapCompletionException(error)), ctx);
+                }
             });
             return;
         }
@@ -1076,35 +1156,54 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         final ManagedCursorImpl cursor = createCursor(bookKeeper, cursorName);
         CompletableFuture<ManagedCursor> cursorFuture = new CompletableFuture<>();
         uninitializedCursors.put(cursorName, cursorFuture);
-        Position position = InitialPosition.Earliest == initialPosition ? getFirstPosition() : getLastPosition();
         long startTimeInit = System.currentTimeMillis();
-        cursor.initialize(position, properties, cursorProperties, new VoidCallback() {
+        AtomicBoolean initializationCallbackEntered = new AtomicBoolean();
+        VoidCallback initializationCallback = new VoidCallback() {
             @Override
             public void operationComplete() {
-                log.info("[{}] Opened new cursor: {}, cost {} ms", name, cursor,
-                        System.currentTimeMillis() - startTimeInit);
-                cursor.setActive();
                 synchronized (ManagedLedgerImpl.this) {
-                    // Update the ack position (ignoring entries that were written while the cursor was being created)
+                    if (uninitializedCursors.get(cursorName) != cursorFuture || cursorFuture.isDone()) {
+                        return;
+                    }
+                    initializationCallbackEntered.set(true);
+                    log.info("[{}] Opened new cursor: {}, cost {} ms", name, cursor,
+                            System.currentTimeMillis() - startTimeInit);
+                    cursor.setActive();
+                    // Update the ack position, ignoring entries written while the cursor was being created.
                     cursor.initializeCursorPosition(InitialPosition.Earliest == initialPosition
-                            ? getFirstPositionAndCounter()
-                            : getLastPositionAndCounter());
+                            ? getFirstPositionAndCounter() : getLastPositionAndCounter());
                     addCursor(cursor);
-                    uninitializedCursors.remove(cursorName).complete(cursor);
+                    if (!uninitializedCursors.remove(cursorName, cursorFuture)) {
+                        return;
+                    }
                 }
+                cursorFuture.complete(cursor);
                 callback.openCursorComplete(cursor, ctx);
             }
 
             @Override
             public void operationFailed(ManagedLedgerException exception) {
-                log.warn("[{}] Failed to open cursor: {}", name, cursor);
-
                 synchronized (ManagedLedgerImpl.this) {
-                    uninitializedCursors.remove(cursorName).completeExceptionally(exception);
+                    if (!uninitializedCursors.remove(cursorName, cursorFuture)) {
+                        return;
+                    }
+                    initializationCallbackEntered.set(true);
                 }
+                log.warn("[{}] Failed to open cursor: {}", name, cursor);
+                cursorFuture.completeExceptionally(exception);
                 callback.openCursorFailed(exception, ctx);
             }
-        });
+        };
+        try {
+            Position position = InitialPosition.Earliest == initialPosition ? getFirstPosition() : getLastPosition();
+            cursor.initialize(position, properties, cursorProperties, initializationCallback);
+        } catch (Throwable error) {
+            if (initializationCallbackEntered.get()) {
+                // Do not reinterpret a callback or post-persistence initialization error as a new failed open.
+                throw error;
+            }
+            initializationCallback.operationFailed(ManagedLedgerException.getManagedLedgerException(error));
+        }
     }
 
     protected ManagedCursorImpl createCursor(BookKeeper bookKeeper, String cursorName) {
@@ -1138,9 +1237,23 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         // Set the state to deleting (which is a closed state) to avoid any new writes
         ManagedCursorImpl.State beforeChangingState = cursor.changeStateToDeletingIfNotDeleted();
         if (beforeChangingState.isDeletingOrDeleted()) {
-            log.warn("[{}] [{}] Cursor is already being deleted or has been deleted.", name, consumerName);
+            // A cursor stays listed until its delete in progress completes, such as the delete of a subscription that
+            // two clients unsubscribe at the same time: complete with that delete
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] [{}] Cursor is already being deleted", name, consumerName);
+            }
+            deletingCursors.get(consumerName).whenComplete((__, ex) -> {
+                if (ex == null) {
+                    callback.deleteCursorComplete(ctx);
+                } else {
+                    callback.deleteCursorFailed(ManagedLedgerException
+                            .getManagedLedgerException(FutureUtil.unwrapCompletionException(ex)), ctx);
+                }
+            });
             return;
         }
+        CompletableFuture<Void> deleteFuture = new CompletableFuture<>();
+        deletingCursors.put(consumerName, deleteFuture);
 
         // First remove the consumer form the MetaStore. If this operation succeeds and the next one (removing the
         // ledger from BK) don't, we end up having a loose ledger leaked but the state will be consistent.
@@ -1149,17 +1262,25 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             public void operationComplete(Void result, Stat stat) {
                 cursor.asyncDeleteCursorLedger();
                 cursors.removeCursor(consumerName);
+                synchronized (ManagedLedgerImpl.this) {
+                    deletingCursors.remove(consumerName, deleteFuture);
+                }
 
                 trimConsumedLedgersInBackground();
 
                 log.info("[{}] [{}] Deleted cursor", name, consumerName);
                 callback.deleteCursorComplete(ctx);
+                deleteFuture.complete(null);
             }
 
             @Override
             public void operationFailed(MetaStoreException e) {
                 cursor.getAndSetState(ManagedCursorImpl.State.DeletingFailed);
+                synchronized (ManagedLedgerImpl.this) {
+                    deletingCursors.remove(consumerName, deleteFuture);
+                }
                 callback.deleteCursorFailed(e, ctx);
+                deleteFuture.completeExceptionally(e);
             }
 
         });
@@ -1711,6 +1832,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         if (state.isFenced()) {
             cancelScheduledTasks();
             factory.close(this);
+            invalidateAllReadHandles();
             callback.closeFailed(new ManagedLedgerFencedException(), ctx);
             return;
         } else if (state == State.Closed) {
@@ -1732,6 +1854,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         if (lh == null) {
             // No ledger to close, proceed with next step
+            invalidateAllReadHandles();
             closeAllCursors(callback, ctx);
             return;
         }
@@ -1746,14 +1869,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 log.debug("[{}] Close complete for ledger {}: rc = {}", name, lh.getId(), rc);
             }
             mbean.endDataLedgerCloseOp();
+            // Release the read handles even if the current ledger failed to close, as nothing would release them later
+            invalidateAllReadHandles();
             if (rc != BKException.Code.OK) {
                 callback.closeFailed(createManagedLedgerException(rc), ctx);
                 return;
             }
-
-            ledgerCache.forEach((ledgerId, readHandle) -> {
-                invalidateReadHandle(ledgerId);
-            });
 
             closeAllCursors(callback, ctx);
         }, null);
@@ -1783,6 +1904,22 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     @Override
     public synchronized void createComplete(int rc, final LedgerHandle lh, Object ctx) {
+        createComplete(rc, lh, ctx, ledgerCreationGeneration);
+    }
+
+    private synchronized CreateCallback newLedgerCreationCallback() {
+        long generation = ++ledgerCreationGeneration;
+        return (rc, lh, ctx) -> createComplete(rc, lh, ctx, generation);
+    }
+
+    /**
+     * Completes a ledger creation.
+     *
+     * @param generation the ledger creation that completed: if it is not the one in progress, because it was failed
+     *                   by force and a new creation was started since, its ledger is discarded
+     */
+    @VisibleForTesting
+    synchronized void createComplete(int rc, final LedgerHandle lh, Object ctx, long generation) {
         if (STATE_UPDATER.get(this) == State.Closed) {
             if (lh != null) {
                 log.warn("[{}] ledger create completed after the managed ledger is closed rc={} ledger={}, so just"
@@ -1800,6 +1937,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return;
         }
 
+        if (generation != ledgerCreationGeneration) {
+            discardStaleLedger(lh);
+            return;
+        }
+
         mbean.endDataLedgerCreateOp();
         if (STATE_UPDATER.get(this) == State.Terminated) {
             // Terminated while the ledger was being created, whether the creation succeeded, failed or timed out
@@ -1810,6 +1952,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         if (rc != BKException.Code.OK) {
             log.error("[{}] Error creating ledger rc={} {}", name, rc, BKException.getMessage(rc));
             ManagedLedgerException status = createManagedLedgerException(rc);
+            // The creation is over: if it was failed by force, its ledger may still be created later, and must not be
+            // used then
+            ledgerCreationGeneration++;
 
             // no pending entries means that creating this new ledger is NOT caused by write failure
             if (pendingAddEntries.isEmpty()) {
@@ -1851,6 +1996,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                 // to the in-memory list, so the metadata update of the terminate, which waits for
                                 // this one to complete, drops it again
                                 abortRolloverAfterTerminate(lh);
+                            } else if (generation != ledgerCreationGeneration) {
+                                // Failed by force while the ledgers list was being updated. As above, the next
+                                // metadata update drops the new ledger again
+                                discardStaleLedger(lh);
                             } else {
                                 LedgerHandle originalCurrentLedger = currentLedger;
                                 ledgers.put(lh.getId(), newLedger);
@@ -1901,6 +2050,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
                     synchronized (ManagedLedgerImpl.this) {
                         lastLedgerCreationFailureTimestamp = clock.millis();
+                        if (generation != ledgerCreationGeneration) {
+                            // Failed by force already: the state and the pending adds belong to a newer creation
+                            return;
+                        }
                         if (STATE_UPDATER.get(ManagedLedgerImpl.this) == State.Terminated) {
                             // Terminated while the ledgers list was being updated. The new ledger is deleted above
                             abortRolloverAfterTerminate(null);
@@ -1912,7 +2065,20 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 }
             };
 
-            updateLedgersListAfterRollover(cb, lh, newLedger);
+            updateLedgersListAfterRollover(cb, lh, newLedger, generation);
+        }
+    }
+
+    /**
+     * Discards the ledger of a creation that was failed by force, because it did not complete in time, and that was
+     * superseded by a new creation since.
+     *
+     * @param lh the ledger that was created, or null if the creation failed
+     */
+    private void discardStaleLedger(@Nullable LedgerHandle lh) {
+        if (lh != null) {
+            log.warn("[{}] Ledger {} created after its creation was given up on, deleting it", name, lh.getId());
+            lh.closeAsync().whenComplete((ignore, ex) -> asyncDeleteLedger(lh.getId(), DEFAULT_LEDGER_DELETE_RETRIES));
         }
     }
 
@@ -1940,16 +2106,21 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     private synchronized void updateLedgersListAfterRollover(MetaStoreCallback<Void> callback, LedgerHandle lh,
-                                                             LedgerInfo newLedger) {
+                                                             LedgerInfo newLedger, long generation) {
         if (STATE_UPDATER.get(this) == State.Terminated) {
             // Terminated while this update was deferred: the new ledger must not make it to the ledgers list
             abortRolloverAfterTerminate(lh);
             return;
         }
+        if (generation != ledgerCreationGeneration) {
+            // Failed by force while this update was deferred
+            discardStaleLedger(lh);
+            return;
+        }
 
         if (!metadataMutex.tryLock()) {
             // Defer update for later
-            scheduledExecutor.schedule(() -> updateLedgersListAfterRollover(callback, lh, newLedger),
+            scheduledExecutor.schedule(() -> updateLedgersListAfterRollover(callback, lh, newLedger, generation),
                     100, TimeUnit.MILLISECONDS);
             return;
         }
@@ -2136,10 +2307,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             STATE_UPDATER.set(this, State.CreatingLedger);
             this.lastLedgerCreationInitiationTimestamp = System.currentTimeMillis();
             mbean.startDataLedgerCreateOp();
+            CreateCallback createCallback = newLedgerCreationCallback();
             // Use the executor here is to avoid use the Zookeeper thread to create the ledger which will lead
             // to deadlock at the zookeeper client, details to see https://github.com/apache/pulsar/issues/13736
             this.executor.execute(() ->
-                    asyncCreateLedger(bookKeeper, config, digestType, this, Collections.emptyMap()));
+                    asyncCreateLedger(bookKeeper, config, digestType, createCallback, Collections.emptyMap()));
         }
     }
 
@@ -2357,6 +2529,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     CompletableFuture<ReadHandle> getLedgerHandle(long ledgerId) {
+        if (readHandlesReleased) {
+            return FutureUtil.failedFuture(
+                    new ManagedLedgerAlreadyClosedException("Managed ledger was already closed"));
+        }
         CompletableFuture<ReadHandle> ledgerHandle = ledgerCache.get(ledgerId);
         if (ledgerHandle != null) {
             return ledgerHandle;
@@ -2403,6 +2579,16 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 if (ex != null) {
                     ledgerCache.remove(ledgerId, promise);
                     promise.completeExceptionally(createManagedLedgerException(ex));
+                } else if (readHandlesReleased && ledgerCache.remove(ledgerId, promise)) {
+                    // This managed ledger was closed after this open started and its cached handles were released, so
+                    // nothing would release this one. A handle cached before that is released by the close.
+                    res.closeAsync().exceptionally(closeEx -> {
+                        log.warn("[{}] Failed to close a Ledger ReadHandle {} opened while closing", name, ledgerId,
+                                closeEx);
+                        return null;
+                    });
+                    promise.completeExceptionally(
+                            new ManagedLedgerAlreadyClosedException("Managed ledger was already closed"));
                 } else {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] Successfully opened ledger {} for reading", name, ledgerId);
@@ -2434,15 +2620,51 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
+    private void invalidateAllReadHandles() {
+        // Set before releasing them, so that a handle cached after this is released by its open instead
+        readHandlesReleased = true;
+        ledgerCache.forEach((ledgerId, readHandle) -> invalidateReadHandle(ledgerId));
+    }
+
+    /**
+     * Releases a handle that a read failed on, like {@link #invalidateLedgerHandle(ReadHandle)}, and opens the ledger
+     * again with its current metadata, which the reads that failed on the same handle share.
+     *
+     * @return the handle opened again when its ensembles differ from the failed one's, e.g. after the ledger was
+     *         re-replicated off a decommissioned bookie, so that the read can be retried on the new bookies; null when
+     *         a retry would read from the same bookies, the handle reads offloaded data, which re-replication doesn't
+     *         move, the ledger no longer belongs to the managed ledger, or it can't be opened again
+     */
+    public CompletableFuture<ReadHandle> reopenLedgerHandleIfReplicated(ReadHandle ledgerHandle) {
+        invalidateLedgerHandle(ledgerHandle);
+        long ledgerId = ledgerHandle.getId();
+        LedgerHandle currentLedger = this.currentLedger;
+        if (ledgerHandle == currentLedger || ledgerHandle instanceof OffloadedLedgerHandle
+                || !ledgers.containsKey(ledgerId)) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return getLedgerHandle(ledgerId).handle((reopened, ex) -> {
+            if (ex != null || reopened.getLedgerMetadata().getAllEnsembles()
+                    .equals(ledgerHandle.getLedgerMetadata().getAllEnsembles())) {
+                return null;
+            }
+            return reopened;
+        });
+    }
+
     public void invalidateLedgerHandle(ReadHandle ledgerHandle) {
         long ledgerId = ledgerHandle.getId();
         LedgerHandle currentLedger = this.currentLedger;
 
-        if (currentLedger != null && ledgerId != currentLedger.getId()) {
-            // remove handle from ledger cache since we got a (read) error
-            ledgerCache.remove(ledgerId);
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Removed ledger read handle {} from cache", name, ledgerId);
+        if (ledgerHandle != currentLedger) {
+            // remove handle from ledger cache since we got a (read) error, unless another read already replaced it:
+            // that handle would never be closed
+            CompletableFuture<ReadHandle> cachedHandle = ledgerCache.get(ledgerId);
+            if (cachedHandle != null && cachedHandle.getNow(null) == ledgerHandle) {
+                ledgerCache.remove(ledgerId, cachedHandle);
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Removed ledger read handle {} from cache", name, ledgerId);
+                }
             }
             ledgerHandle.closeAsync()
                     .exceptionally(ex -> {
@@ -2821,6 +3043,32 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     private void updateActiveCursor(ManagedCursorImpl cursor, Position newPosition) {
+        // The cursor publishes its position before notifying us. An active cursor has already been registered,
+        // and any later activation will snapshot that published position, so ordinary reads need no monitor.
+        if (cursor.isActive()) {
+            updateActiveCursorPosition(cursor, newPosition);
+            return;
+        }
+        // Activation snapshots the position and adds the cursor before publishing its active flag. Serialize
+        // an inactive cursor's notification with those steps so it cannot be lost before the insertion.
+        synchronized (activeCursors) {
+            // Waiting can make the notification's argument stale. Reconcile with the published position,
+            // and retry if an active update overtakes this snapshot before it reaches the container.
+            Position currentPosition;
+            do {
+                currentPosition = getCursorPositionForCacheEviction(cursor);
+                updateActiveCursorPosition(cursor, currentPosition);
+            } while (!currentPosition.equals(getCursorPositionForCacheEviction(cursor)));
+        }
+    }
+
+    private Position getCursorPositionForCacheEviction(ManagedCursor cursor) {
+        Position position = config.isCacheEvictionByMarkDeletedPosition()
+                ? cursor.getMarkDeletedPosition() : cursor.getReadPosition();
+        return position != null ? position : PositionFactory.EARLIEST;
+    }
+
+    private void updateActiveCursorPosition(ManagedCursorImpl cursor, Position newPosition) {
         if (config.isCacheEvictionByExpectedReadCount()) {
             activeCursors.updateCursor(cursor, newPosition);
         } else {
@@ -2970,27 +3218,49 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         automaticOffloadCompletion.whenComplete((res, ex) -> finishAutomaticOffload(ex));
         try {
             maybeOffloadInBackground(automaticOffloadCompletion, OffloadRequestSource.AUTOMATIC);
-        } catch (RuntimeException e) {
-            automaticOffloadCompletion.completeExceptionally(e);
+        } catch (Throwable t) {
+            failOffload(automaticOffloadCompletion, t);
         }
     }
 
     private void maybeOffloadInBackground(CompletableFuture<Position> promise, OffloadRequestSource source) {
-        Optional<OffloadThresholds> offloadThresholds = getOffloadThresholds();
-        if (offloadThresholds.isEmpty()) {
-            if (source == OffloadRequestSource.AUTOMATIC) {
-                promise.complete(PositionFactory.LATEST);
-            }
-            return;
-        }
-
-        OffloadThresholds thresholds = offloadThresholds.get();
         try {
-            executor.execute(() -> maybeOffload(thresholds.thresholdInBytes(), thresholds.thresholdInSeconds(),
-                    promise, source));
-        } catch (RuntimeException e) {
-            promise.completeExceptionally(e);
+            Optional<OffloadThresholds> offloadThresholds = getOffloadThresholds();
+            if (offloadThresholds.isEmpty()) {
+                if (source == OffloadRequestSource.AUTOMATIC) {
+                    promise.complete(PositionFactory.LATEST);
+                }
+                return;
+            }
+
+            OffloadThresholds thresholds = offloadThresholds.get();
+            executor.execute(() -> {
+                try {
+                    maybeOffload(thresholds.thresholdInBytes(), thresholds.thresholdInSeconds(), promise, source);
+                } catch (Throwable t) {
+                    // Complete the promise so that an automatic offload run is not left running forever.
+                    failOffload(promise, t);
+                }
+            });
+        } catch (Throwable t) {
+            failOffload(promise, t);
         }
+    }
+
+    /**
+     * Completes an offload promise with a failure that was thrown instead of being reported through the promise.
+     * Such a failure is unexpected, apart from executor rejection on shutdown, so it is logged at WARN level:
+     * the automatic offload completion handler logs the failures it receives only at DEBUG level.
+     */
+    private void failOffload(CompletableFuture<Position> promise, Throwable t) {
+        if (t instanceof RejectedExecutionException) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Offload task was rejected", name, t);
+            }
+        } else {
+            log.warn("[{}] Unexpected failure while offloading ledgers", name, t);
+        }
+        promise.completeExceptionally(t);
     }
 
     private Optional<OffloadThresholds> getOffloadThresholds() {
@@ -3234,6 +3504,27 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 log.debug("[{}] Ignoring trimming request since the managed ledger was already fenced", name);
                 trimmerMutex.unlock();
                 promise.completeExceptionally(new ManagedLedgerFencedException("Can't trim fenced ledger"));
+                return;
+            }
+            // The slowest position below only covers the cursors in the container: a cursor that is still being
+            // recovered (or created) isn't there yet, and its mark-delete position may be in any ledger
+            if (!uninitializedCursors.isEmpty()) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Deferring trimming until the cursors {} are initialized", name,
+                            uninitializedCursors.keySet());
+                }
+                trimmerMutex.unlock();
+                scheduleDeferredTrimming(isTruncate, promise);
+                return;
+            }
+            if (!failedLazyRecoveryCursors.isEmpty()) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Ignoring trimming request since cursors {} failed to recover", name,
+                            failedLazyRecoveryCursors);
+                }
+                trimmerMutex.unlock();
+                promise.completeExceptionally(new ManagedLedgerException(
+                        "Can't trim ledger until cursors are recovered: " + failedLazyRecoveryCursors));
                 return;
             }
 
@@ -3917,6 +4208,17 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     void offloadLoop(CompletableFuture<Position> promise, Queue<LedgerInfo> ledgersToOffload,
             Position firstUnoffloaded, Optional<Throwable> firstError) {
+        // The loop continues from callbacks of the previous ledger's offload, where a synchronous throw would be
+        // lost. Complete the promise instead so that the offload mutex is released.
+        try {
+            offloadNextLedger(promise, ledgersToOffload, firstUnoffloaded, firstError);
+        } catch (Throwable t) {
+            failOffload(promise, t);
+        }
+    }
+
+    private void offloadNextLedger(CompletableFuture<Position> promise, Queue<LedgerInfo> ledgersToOffload,
+            Position firstUnoffloaded, Optional<Throwable> firstError) {
         State currentState = getState();
         if (currentState == State.Closed) {
             promise.completeExceptionally(new ManagedLedgerAlreadyClosedException(
@@ -4498,13 +4800,17 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     public Position getFirstPosition() {
-        Long ledgerId = ledgers.firstKey();
-        if (ledgerId == null) {
-            return null;
+        Map.Entry<Long, LedgerInfo> firstLedger = ledgers.firstEntry();
+        Position lastPosition = lastConfirmedEntry;
+        if (firstLedger == null) {
+            // A recovered terminated ledger can have no retained data ledgers. Its final position
+            // is still the boundary for a new cursor, including when the ledger was always empty.
+            return lastPosition;
         }
-        if (ledgerId > lastConfirmedEntry.getLedgerId()) {
-            checkState(ledgers.get(ledgerId).getEntries() == 0);
-            ledgerId = lastConfirmedEntry.getLedgerId();
+        long ledgerId = firstLedger.getKey();
+        if (ledgerId > lastPosition.getLedgerId()) {
+            checkState(firstLedger.getValue().getEntries() == 0);
+            ledgerId = lastPosition.getLedgerId();
         }
         return PositionFactory.create(ledgerId, -1);
     }
@@ -4561,13 +4867,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     public void activateCursor(ManagedCursor cursor) {
         synchronized (activeCursors) {
             if (!isCursorActive(cursor)) {
-                Position positionForOrdering = config.isCacheEvictionByMarkDeletedPosition()
-                        ? cursor.getMarkDeletedPosition()
-                        : cursor.getReadPosition();
-                if (positionForOrdering == null) {
-                    positionForOrdering = PositionFactory.EARLIEST;
-                }
-                activeCursors.add(cursor, positionForOrdering);
+                activeCursors.add(cursor, getCursorPositionForCacheEviction(cursor));
             }
         }
     }
@@ -4930,7 +5230,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     ? Math.max(config.getAddEntryTimeoutSeconds(), config.getReadEntryTimeoutSeconds())
                     : timeoutSec;
             this.timeoutTask = this.scheduledExecutor.scheduleAtFixedRate(
-                    this::checkTimeouts, timeoutSec, timeoutSec, TimeUnit.SECONDS);
+                    catchingAndLoggingThrowables(this::checkTimeouts), timeoutSec, timeoutSec, TimeUnit.SECONDS);
         }
     }
 
@@ -4940,11 +5240,28 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 || state.isFenced()) {
             return;
         }
-        checkAddTimeout();
+        if (config.getAddEntryTimeoutSeconds() > 0) {
+            scheduleAddTimeoutCheck();
+        }
         checkReadTimeout();
     }
 
+    /**
+     * Runs the add timeout check on the managed ledger executor. The pending adds complete and get recycled on that
+     * executor, so checking the head of the queue from the scheduler thread could read a recycled, possibly reused,
+     * OpAddEntry. An exception must not escape to the scheduler, or the periodic check would stop for good.
+     */
+    @VisibleForTesting
+    void scheduleAddTimeoutCheck() {
+        executor.execute(catchingAndLoggingThrowables(this::checkAddTimeout));
+    }
+
     private void checkAddTimeout() {
+        final State state = STATE_UPDATER.get(this);
+        if (state == State.Closed
+                || state.isFenced()) {
+            return;
+        }
         long timeoutSec = config.getAddEntryTimeoutSeconds();
         if (timeoutSec < 1) {
             return;

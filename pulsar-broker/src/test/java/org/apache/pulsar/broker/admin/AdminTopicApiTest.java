@@ -19,6 +19,14 @@
 package org.apache.pulsar.broker.admin;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.AdditionalAnswers.delegatesTo;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertThrows;
@@ -33,8 +41,15 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import javax.servlet.http.HttpServletRequest;
+import javax.ws.rs.container.AsyncResponse;
+import javax.ws.rs.core.Response;
 import lombok.Cleanup;
+import org.apache.pulsar.broker.admin.v2.PersistentTopics;
+import org.apache.pulsar.broker.resources.NamespaceResources;
+import org.apache.pulsar.broker.resources.NamespaceResources.PartitionedTopicResources;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
+import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -45,11 +60,15 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.TopicDomain;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentTopicStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyClosedException;
 import org.awaitility.Awaitility;
+import org.mockito.ArgumentCaptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -59,6 +78,48 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-admin")
 public class AdminTopicApiTest extends SharedPulsarBaseTest {
     private static final Logger log = LoggerFactory.getLogger(AdminTopicApiTest.class);
+
+    @Test
+    public void testCreatePartitionedTopicReportsMetadataStoreFailure() {
+        TopicName topicName = TopicName.get(newTopicName());
+        NamespaceResources sharedNamespaceResources = getPulsar().getPulsarResources().getNamespaceResources();
+        NamespaceResources namespaceResources = mock(NamespaceResources.class, delegatesTo(sharedNamespaceResources));
+        PartitionedTopicResources partitionedTopicResources = mock(PartitionedTopicResources.class,
+                delegatesTo(sharedNamespaceResources.getPartitionedTopicResources()));
+        doReturn(partitionedTopicResources).when(namespaceResources).getPartitionedTopicResources();
+        AlreadyClosedException alreadyClosedException = new AlreadyClosedException("Metadata store is getting closed");
+        doReturn(CompletableFuture.failedFuture(alreadyClosedException)).when(partitionedTopicResources)
+                .createPartitionedTopicAsync(eq(topicName), any());
+
+        HttpServletRequest httpServletRequest = mock(HttpServletRequest.class);
+        PersistentTopics persistentTopics = new PersistentTopics() {
+            {
+                httpRequest = httpServletRequest;
+            }
+
+            @Override
+            protected NamespaceResources namespaceResources() {
+                return namespaceResources;
+            }
+
+            @Override
+            protected String domain() {
+                return TopicDomain.persistent.value();
+            }
+        };
+        persistentTopics.setPulsar(getPulsar());
+        AsyncResponse asyncResponse = mock(AsyncResponse.class);
+        persistentTopics.createPartitionedTopic(asyncResponse, topicName.getTenant(), topicName.getNamespacePortion(),
+                topicName.getEncodedLocalName(), 2, false);
+
+        ArgumentCaptor<RestException> argumentCaptor = ArgumentCaptor.forClass(RestException.class);
+        verify(asyncResponse, timeout(5000)).resume(argumentCaptor.capture());
+        Response response = argumentCaptor.getValue().getResponse();
+        assertThat(response.getStatus()).as("partitioned topic creation status")
+                .isEqualTo(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode());
+        assertThat(((ErrorData) response.getEntity()).reason).as("partitioned topic creation error")
+                .contains(alreadyClosedException.getMessage());
+    }
 
     @Test
     public void testDeleteNonExistTopic() throws Exception {

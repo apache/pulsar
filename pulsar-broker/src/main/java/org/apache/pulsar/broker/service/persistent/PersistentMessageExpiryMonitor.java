@@ -23,6 +23,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.SortedMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
@@ -210,12 +212,7 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
             long numMessagesExpired = (long) ctx - cursor.getNumberOfEntriesInBacklog(false);
             msgExpired.recordMultipleEvents(numMessagesExpired, 0 /* no value stats */);
             totalMsgExpired.add(numMessagesExpired);
-            if (subscription != null) {
-                Dispatcher dispatcher = subscription.getDispatcher();
-                if (dispatcher != null) {
-                    dispatcher.markDeletePositionMoveForward();
-                }
-            }
+            notifyMarkDeletePositionMoveForward();
             expirationCheckInProgress = FALSE;
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] Mark deleted {} messages", topicName, subName, numMessagesExpired);
@@ -227,6 +224,35 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
             log.warn("[{}][{}] Message expiry failed - mark delete failed", topicName, subName, exception);
             expirationCheckInProgress = FALSE;
             updateRates();
+            // The cursor keeps its in-memory mark-delete position when persisting it fails, and a later expiry check
+            // for the same position returns early, so this is the only cleanup until the position moves again.
+            // The cursor can invoke this callback while holding its pending mark-delete lock, and the cleanup takes
+            // the dispatcher's lock, which dispatch holds while acknowledging entries on the cursor. Run the cleanup
+            // on the topic's executor so that the two locks are never taken in the reverse order. It reads the
+            // current mark-delete position when it runs.
+            ExecutorService executor = topic.getOrderedExecutor();
+            if (executor == null) {
+                // only tests that mock the broker service create a topic without an executor
+                notifyMarkDeletePositionMoveForward();
+                return;
+            }
+            try {
+                executor.execute(this::notifyMarkDeletePositionMoveForward);
+            } catch (RejectedExecutionException e) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}][{}] Skipping pending acks cleanup after failed expiry, the executor was shut down:"
+                            + " {}", topicName, subName, e.getMessage());
+                }
+            }
+        }
+
+        private void notifyMarkDeletePositionMoveForward() {
+            if (subscription != null) {
+                Dispatcher dispatcher = subscription.getDispatcher();
+                if (dispatcher != null) {
+                    dispatcher.markDeletePositionMoveForward();
+                }
+            }
         }
     };
 

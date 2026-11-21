@@ -355,8 +355,8 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
     }
 
     @Override
-    public void unwatchManagedLedgerInfo(String ledgerName) {
-        managedLedgerInfoUpdateCallbackMap.remove(PREFIX + ledgerName);
+    public void unwatchManagedLedgerInfo(String ledgerName, UpdateCallback<ManagedLedgerInfo> callback) {
+        managedLedgerInfoUpdateCallbackMap.remove(PREFIX + ledgerName, callback);
     }
 
     @Override
@@ -516,6 +516,7 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
                 try {
                     ManagedCursorInfo info = new ManagedCursorInfo();
                     info.parseFrom(uncompressed, uncompressed.readableBytes());
+                    info.materialize();
                     return info;
                 } finally {
                     uncompressed.release();

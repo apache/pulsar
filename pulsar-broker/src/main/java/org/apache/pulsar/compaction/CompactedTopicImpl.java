@@ -76,20 +76,13 @@ public class CompactedTopicImpl implements CompactedTopic {
 
             compactionHorizon = p;
 
-            // The compacted ledger may no longer exist: for example, a cursor recovery rolled the cursor
-            // properties back to a metadata-store snapshot that still referenced a ledger a newer
-            // compaction has already deleted. Reads at or before the compaction horizon would then fail
-            // on the failed open instead of reading the original topic data. Unregister the stale
-            // reference so that readCompacted falls back to the original data.
+            // Keep the failed context and horizon if the referenced ledger is missing. The original
+            // entries may already have been trimmed, so treating this as an uncompacted topic could
+            // return an incomplete key set and let the next compaction persist that incomplete view.
             newCompactedLedger.whenComplete((context, exception) -> {
                 if (exception != null && isNoSuchLedgerExists(exception)) {
-                    synchronized (CompactedTopicImpl.this) {
-                        if (compactedTopicContext == newCompactedLedger) {
-                            log.warn("Compacted ledger {} no longer exists at horizon {}, falling back to reading"
-                                    + " uncompacted data until the next compaction", compactedLedgerId, p);
-                            reset();
-                        }
-                    }
+                    log.warn("Compacted ledger {} no longer exists at horizon {}; compacted reads will fail"
+                            + " because the original data may have been removed", compactedLedgerId, p);
                 }
             });
 
@@ -270,9 +263,7 @@ public class CompactedTopicImpl implements CompactedTopic {
 
     @Override
     public CompletableFuture<Entry> readLastEntryOfCompactedLedger() {
-        // Capture the context once: the missing-ledger callback may clear the field between a null
-        // check and the composition below, which would dereference null a second time and throw a
-        // synchronous NullPointerException instead of failing through the returned future.
+        // Capture the context once so an explicit reset cannot race the null check and composition.
         CompletableFuture<CompactedTopicContext> context = compactedTopicContext;
         if (compactionHorizon == null || context == null) {
             return CompletableFuture.completedFuture(null);
@@ -353,7 +344,7 @@ public class CompactedTopicImpl implements CompactedTopic {
         return Optional.ofNullable(this.compactionHorizon);
     }
 
-    public void reset() {
+    public synchronized void reset() {
         this.compactionHorizon = null;
         this.compactedTopicContext = null;
     }
@@ -364,4 +355,3 @@ public class CompactedTopicImpl implements CompactedTopic {
     }
     private static final Logger log = LoggerFactory.getLogger(CompactedTopicImpl.class);
 }
-
