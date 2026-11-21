@@ -36,6 +36,7 @@ import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateM
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateTableViewImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLoadData;
 import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStore;
+import org.apache.pulsar.broker.service.MetadataStoreTopicPoliciesService;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.broker.testcontext.SpyConfig;
@@ -214,6 +215,47 @@ public class LoadManagerClientTest extends SharedPulsarBaseTest {
         }
     }
 
+    @Test(dataProvider = "stateTableViews", timeOut = 60_000)
+    public void testClientRemainsOpenWhenShutdownFailsBeforeUnloading(String stateTableViewClass) throws Exception {
+        try (PulsarTestContext context = newContextBuilder(stateTableViewClass)
+                .configCustomizer(config -> {
+                    config.setTopicLevelPoliciesEnabled(true);
+                    config.setTopicPoliciesServiceClassName(FailingCloseTopicPoliciesService.class.getName());
+                }).build()) {
+            PulsarService broker = context.getPulsarService();
+            ExtensibleLoadManagerImpl loadManager = ExtensibleLoadManagerImpl.get(broker);
+            Awaitility.await().atMost(10, TimeUnit.SECONDS)
+                    .until(() -> loadManager.getRole() == ExtensibleLoadManagerImpl.Role.Leader);
+            PulsarClient client = broker.getLoadManagerClient();
+            LoadDataStore<BrokerLoadData> store = loadManager.getBrokerLoadDataStore();
+            String key = getNamespace();
+            store.pushAsync(key, new BrokerLoadData()).get(10, TimeUnit.SECONDS);
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> store.get(key).isPresent());
+
+            assertThatThrownBy(() -> broker.closeAsync().get(15, TimeUnit.SECONDS))
+                    .hasRootCauseMessage("Injected topic policies service close failure");
+            assertThat(broker.isRunning()).isTrue();
+            assertThat(loadManager.running()).isTrue();
+
+            // The failed close hook runs before unloading, so reporting must continue on the same client.
+            String nextKey = key + "-after-close-failure";
+            store.pushAsync(nextKey, new BrokerLoadData()).get(10, TimeUnit.SECONDS);
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> store.get(nextKey).isPresent());
+            assertThat(client.isClosed()).isFalse();
+            assertThat(broker.getLoadManagerClient()).isSameAs(client);
+
+            store.init();
+            String restartedKey = key + "-after-store-restart";
+            store.pushAsync(restartedKey, new BrokerLoadData()).get(10, TimeUnit.SECONDS);
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> store.get(restartedKey).isPresent());
+
+            broker.closeAsync().get(15, TimeUnit.SECONDS);
+            assertThat(client.isClosed()).isTrue();
+            assertThat(loadManager.running()).isFalse();
+            assertThatThrownBy(broker::getLoadManagerClient).isInstanceOf(PulsarServerException.class);
+        }
+    }
+
     private PulsarTestContext newContext(String stateTableViewClass) {
         return newContextBuilder(stateTableViewClass).build();
     }
@@ -238,6 +280,18 @@ public class LoadManagerClientTest extends SharedPulsarBaseTest {
                 throw new RuntimeException(e);
             }
             return channel;
+        }
+    }
+
+    public static class FailingCloseTopicPoliciesService extends MetadataStoreTopicPoliciesService {
+        private final AtomicBoolean failOnce = new AtomicBoolean(true);
+
+        @Override
+        public void close() {
+            if (failOnce.getAndSet(false)) {
+                throw new IllegalStateException("Injected topic policies service close failure");
+            }
+            super.close();
         }
     }
 }

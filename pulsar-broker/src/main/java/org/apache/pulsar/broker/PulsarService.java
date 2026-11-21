@@ -817,10 +817,14 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             } else {
                 pse = new PulsarServerException(e);
             }
-            try {
-                closeLoadManagerClient();
-            } catch (PulsarClientException closeException) {
-                pse.addSuppressed(closeException);
+            // An early close hook can fail while the broker and load manager are still running.
+            // Keep their client alive, but retain cleanup for partial startup and later shutdown failures.
+            if (state != State.Started) {
+                try {
+                    closeLoadManagerClient();
+                } catch (PulsarClientException closeException) {
+                    pse.addSuppressed(closeException);
+                }
             }
             // A failed shutdown step must not leave this service registered with the metadata stores
             unregisterMetadataStoreListeners();
