@@ -21,8 +21,10 @@ package org.apache.pulsar.broker.stats.prometheus;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import com.google.common.io.Resources;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
@@ -81,61 +83,25 @@ public class TopicStatsTest {
     }
 
     @Test
-    public void testNestedLabelsAndValues() {
-        TopicStats stats = populatedStats();
+    public void testPopulatedTopicMetricFamilies() throws IOException {
         CompactorMXBean compactor = mock(CompactorMXBean.class);
         when(compactor.getCompactionRecordForTopic(TOPIC)).thenReturn(Optional.of(new CompactionRecord()));
-        String labels = BASE_LABELS + ",rack=\"rack-a\"";
-        String subscriptionLabels = labels + ",subscription=\"sub\\\"a\"";
-        String consumerLabels = subscriptionLabels + ",consumer_name=\"consumer\\\"a\",consumer_id=\"9876543210\"";
-        String producerLabels = labels + ",producer_name=\"producer\\\"a\",producer_id=\"1234567890\"";
 
-        String output = render(stats, TOPIC, true, true, new String[]{"rack", "rack-a"}, compactor);
-        List<String> samples = samples(output);
+        String output = render(populatedStats(), TOPIC, true, true, new String[]{"rack", "rack-a"}, compactor);
+        // Captured before the label-reuse optimization, with the duplicate topic delayed-index sample removed.
+        String expected = Resources.toString(Resources.getResource("topic_stats_metrics.txt"), StandardCharsets.UTF_8)
+                .replace("\r\n", "\n");
 
-        assertThat(samples).contains(
-                "pulsar_subscriptions_count{" + labels + "} 1",
-                "pulsar_in_bytes_total{" + labels + "} 9223372036854775807",
-                "pulsar_in_messages_total{" + labels + "} 9007199254740993",
-                "pulsar_rate_in{" + labels + "} 1.250",
-                "pulsar_storage_backlog_quota_exceeded_evictions_total{" + labels + ",quota_type=\"size\"} 11",
-                "pulsar_storage_backlog_quota_exceeded_evictions_total{" + labels + ",quota_type=\"time\"} 12",
-                "pulsar_producer_msg_rate_in{" + producerLabels + "} 2.500",
-                "pulsar_producer_msg_throughput_in{" + producerLabels + "} 3.750",
-                "pulsar_producer_msg_average_Size{" + producerLabels + "} 4.0",
-                "pulsar_subscription_back_log{" + subscriptionLabels + "} 9007199254740993",
-                "pulsar_subscription_storage_backlog_age_seconds{" + subscriptionLabels + "} 17",
-                "pulsar_subscription_blocked_on_unacked_messages{" + subscriptionLabels + "} 1",
-                "pulsar_out_bytes_total{" + subscriptionLabels + "} 9007199254740993",
-                "pulsar_consumer_unacked_messages{" + consumerLabels + "} 9007199254740993",
-                "pulsar_consumer_msg_rate_out{" + consumerLabels + "} 5.250",
-                "pulsar_consumer_blocked_on_unacked_messages{" + consumerLabels + "} 0",
-                "pulsar_out_bytes_total{" + consumerLabels + "} 9223372036854775807",
-                "pulsar_replication_backlog{" + labels + ",remote_cluster=\"remote\\\"a\"} 9007199254740993",
-                "pulsar_compaction_removed_event_count{" + labels + "} 19",
-                "pulsar_compaction_read_throughput{" + labels + "} 6.500",
-                "pulsar_test_subscription_bucket{" + subscriptionLabels + ",bucket=\"bucket\\\"a\"} 8.250");
-        assertThat(samples).containsOnlyOnce("pulsar_test_subscription_bucket{" + subscriptionLabels
-                        + ",bucket=\"bucket\\\"a\"} 8.250");
-        assertThat(samples.stream().filter(line -> line.equals("pulsar_test_topic_bucket{" + labels
-                + ",bucket=\"bucket\\\"a\"} 7.500")).count())
-                .as("Compaction currently repeats the topic delayed-index samples").isEqualTo(2);
-        assertThat(samples).contains(
-                "pulsar_subscription_dispatch_throttled_msg_events{" + subscriptionLabels
-                        + ",reason=\"subscription\"} 21",
-                "pulsar_subscription_dispatch_throttled_bytes_events{" + subscriptionLabels
-                        + ",reason=\"subscription\"} 22",
-                "pulsar_subscription_dispatch_throttled_msg_events{" + subscriptionLabels
-                        + ",reason=\"topic\"} 23",
-                "pulsar_subscription_dispatch_throttled_bytes_events{" + subscriptionLabels
-                        + ",reason=\"topic\"} 24",
-                "pulsar_subscription_dispatch_throttled_msg_events{" + subscriptionLabels
-                        + ",reason=\"broker\"} 25",
-                "pulsar_subscription_dispatch_throttled_bytes_events{" + subscriptionLabels
-                        + ",reason=\"broker\"} 26");
-        assertThat(output.lines().filter(line -> line.startsWith("# TYPE ")).toList())
-                .as("One TYPE header per metric, including shared consumer and subscription counters")
-                .doesNotHaveDuplicates();
+        // HashMap iteration determines family order. Keep each TYPE header and its samples together.
+        String familyStart = "(?m)(?=^# TYPE )";
+        assertThat(output.split(familyStart)).containsExactlyInAnyOrder(expected.split(familyStart));
+    }
+
+    @Test
+    public void testTopicDelayedIndexBucketWithoutCompaction() {
+        String output = render(populatedStats(), TOPIC, true, true, null, null);
+        assertThat(samples(output)).containsOnlyOnce("pulsar_test_topic_bucket{" + BASE_LABELS
+                + ",bucket=\"bucket\\\"a\"} 7.500");
     }
 
     @DataProvider

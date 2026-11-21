@@ -392,11 +392,6 @@ class TopicStats {
             writeMetric(stream, "pulsar_compaction_latency_sum", stats.compactionLatencyBuckets.getSum(), topicLabels);
             writeMetric(stream, "pulsar_compaction_latency_count",
                 stats.compactionLatencyBuckets.getCount(), topicLabels);
-
-            for (TopicMetricBean topicMetricBean : stats.bucketDelayedIndexStats.values()) {
-                stream.writeSample(topicMetricBean.name, topicMetricBean.value, topicLabels,
-                        topicMetricBean.labelsAndValues);
-            }
         }
     }
 

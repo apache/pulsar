@@ -123,7 +123,7 @@ public class NamespaceStatsAggregatorTest {
         when(topic.getPersistentTopicMetrics()).thenReturn(persistentTopicMetrics);
         topicsMap.put("my-topic", topic);
         @Cleanup("releaseAll")
-        PrometheusMetricStreams metricStreams = Mockito.spy(new PrometheusMetricStreams());
+        PrometheusMetricStreams metricStreams = new PrometheusMetricStreams();
 
         // Populate subscriptions stats
         ServiceConfiguration config = pulsar.getConfiguration();
@@ -144,26 +144,26 @@ public class NamespaceStatsAggregatorTest {
         ByteBuf buffer = Unpooled.buffer();
         try {
             metricStreams.flushAllToStream(new SimpleTextOutputStream(buffer));
-            String metrics = buffer.toString(StandardCharsets.UTF_8);
+            List<String> lines = buffer.toString(StandardCharsets.UTF_8).lines().toList();
             if (includeTopicMetrics) {
                 String subscriptionLabels = "{cluster=\"\",namespace=\"tenant/cluster/ns\",topic=\"my-topic\","
                         + "partition=\"-1\",subscription=\"my-subscription\"";
-                assertThat(metrics).contains(
-                        "pulsar_subscription_blocked_on_unacked_messages" + subscriptionLabels + "} 1\n",
+                assertThat(lines).containsOnlyOnce(
+                        "pulsar_subscription_blocked_on_unacked_messages" + subscriptionLabels + "} 1",
                         "pulsar_consumer_blocked_on_unacked_messages" + subscriptionLabels
-                                + ",consumer_name=\"\",consumer_id=\"0\"} 0\n",
-                        "pulsar_subscription_msg_rate_redeliver" + subscriptionLabels + "} 0.700\n",
-                        "pulsar_subscription_unacked_messages" + subscriptionLabels + "} 1\n",
-                        "pulsar_subscription_storage_backlog_age_seconds" + subscriptionLabels + "} 123\n");
+                                + ",consumer_name=\"\",consumer_id=\"0\"} 0",
+                        "pulsar_subscription_msg_rate_redeliver" + subscriptionLabels + "} 0.700",
+                        "pulsar_subscription_unacked_messages" + subscriptionLabels + "} 1",
+                        "pulsar_subscription_storage_backlog_age_seconds" + subscriptionLabels + "} 123");
             } else {
-                assertThat(metrics).contains("pulsar_test_delayed_bucket{cluster=\"\","
-                        + "namespace=\"tenant/cluster/ns\",bucket=\"bucket-a\"} 2.500\n");
+                assertThat(lines).containsOnlyOnce("pulsar_test_delayed_bucket{cluster=\"\","
+                        + "namespace=\"tenant/cluster/ns\",bucket=\"bucket-a\"} 2.500");
             }
-            assertThat(metrics).contains(
-                    "pulsar_broker_in_bytes_total{cluster=\"\",system_topic=\"false\"} 9007199254740993\n",
-                    "pulsar_broker_in_bytes_total{cluster=\"\",system_topic=\"true\"} 0\n",
-                    "pulsar_broker_out_bytes_total{cluster=\"\",system_subscription=\"false\"} 9007199254740993\n",
-                    "pulsar_broker_out_bytes_total{cluster=\"\",system_subscription=\"true\"} 0\n");
+            assertThat(lines).containsOnlyOnce(
+                    "pulsar_broker_in_bytes_total{cluster=\"\",system_topic=\"false\"} 9007199254740993",
+                    "pulsar_broker_in_bytes_total{cluster=\"\",system_topic=\"true\"} 0",
+                    "pulsar_broker_out_bytes_total{cluster=\"\",system_subscription=\"false\"} 9007199254740993",
+                    "pulsar_broker_out_bytes_total{cluster=\"\",system_subscription=\"true\"} 0");
         } finally {
             buffer.release();
         }

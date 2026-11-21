@@ -68,6 +68,11 @@ public class TopicStatsPrintBenchmark {
     @Param({"false", "true"})
     public boolean splitTopicAndPartitionIndexLabel;
 
+    /**
+     * When true, each topic snapshot includes one producer, one subscription, two consumers and one remote cluster.
+     * When false, each snapshot has none of these entities. The broker collects subscription and replication stats
+     * even when producer- and consumer-level metrics are disabled.
+     */
     @Param({"false", "true"})
     public boolean includeEntities;
 
