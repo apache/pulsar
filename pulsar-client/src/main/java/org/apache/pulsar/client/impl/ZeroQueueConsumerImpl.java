@@ -37,6 +37,7 @@ import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.util.CompletableFutureCancellationHandler;
+import org.apache.pulsar.common.util.ExceptionHandler;
 
 public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
 
@@ -142,6 +143,7 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
             stats.updateNumMsgsReceived(message);
             return message;
         } catch (InterruptedException e) {
+            ExceptionHandler.handleInterruptedException(e);
             stats.incrementNumReceiveFailed();
             throw PulsarClientException.unwrap(e);
         } finally {
