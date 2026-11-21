@@ -25,6 +25,7 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doAnswer;
@@ -816,6 +817,78 @@ public class ScalableTopicControllerTest {
         verify(scalableTopics, org.mockito.Mockito.times(1))
                 .createSegmentAsync(anyString(), any());
         verify(scalableTopics, org.mockito.Mockito.times(2)).terminateSegmentAsync(anyString());
+    }
+
+    /**
+     * A QUEUE consumer subscribes to each segment's topic without registering its subscription on the scalable
+     * topic. A split creates on the children every durable subscription of the parent, besides the registered
+     * ones, but not the non-durable cursor of a reader, one whose durability an older broker doesn't report, nor
+     * the compaction cursor.
+     */
+    @Test
+    public void testSplitCreatesParentSubscriptionsOnChildren() throws Exception {
+        controller.initialize().get();
+        controller.createSubscription("stream-sub", SubscriptionType.STREAM).get();
+        SegmentTopicStats stats = segmentTopicStats();
+        stats.getSubscriptions().put("stream-sub", subscriptionStats(true, 0));
+        stats.getSubscriptions().put("queue-sub", subscriptionStats(true, 0));
+        stats.getSubscriptions().put("reader-sub", subscriptionStats(false, 0));
+        stats.getSubscriptions().put("older-broker-sub", subscriptionStats(null, 0));
+        stats.getSubscriptions().put(Compactor.COMPACTION_SUBSCRIPTION, subscriptionStats(true, 0));
+        when(scalableTopics.getSegmentStatsAsync(topicName.toString(), 0L))
+                .thenReturn(CompletableFuture.completedFuture(stats));
+        clearInvocations(scalableTopics);
+
+        controller.splitSegment(0).get();
+
+        verify(scalableTopics, times(2)).createSegmentAsync(anyString(),
+                argThat(subs -> subs.size() == 2 && subs.containsAll(List.of("stream-sub", "queue-sub"))));
+    }
+
+    /** A merge creates on the child the durable subscriptions of both parents. */
+    @Test
+    public void testMergeCreatesParentSubscriptionsOnChild() throws Exception {
+        controller.initialize().get();
+        SegmentTopicStats first = segmentTopicStats();
+        first.getSubscriptions().put("queue-sub-a", subscriptionStats(true, 0));
+        first.getSubscriptions().put("queue-sub", subscriptionStats(true, 0));
+        SegmentTopicStats second = segmentTopicStats();
+        second.getSubscriptions().put("queue-sub-b", subscriptionStats(true, 0));
+        second.getSubscriptions().put("queue-sub", subscriptionStats(true, 0));
+        when(scalableTopics.getSegmentStatsAsync(topicName.toString(), 0L))
+                .thenReturn(CompletableFuture.completedFuture(first));
+        when(scalableTopics.getSegmentStatsAsync(topicName.toString(), 1L))
+                .thenReturn(CompletableFuture.completedFuture(second));
+        clearInvocations(scalableTopics);
+
+        controller.mergeSegments(0, 1).get();
+
+        verify(scalableTopics).createSegmentAsync(anyString(), argThat(subs -> subs.size() == 3
+                && subs.containsAll(List.of("queue-sub-a", "queue-sub-b", "queue-sub"))));
+    }
+
+    /**
+     * A split whose parent's subscriptions can't be read is given up before sealing it, rather than creating the
+     * children without them. A parent whose topic is gone has no subscription.
+     */
+    @Test
+    public void testSplitChecksParentSubscriptionsFailClosed() throws Exception {
+        controller.initialize().get();
+        when(scalableTopics.getSegmentStatsAsync(topicName.toString(), 0L))
+                .thenReturn(FutureUtil.failedFuture(new RuntimeException("connection refused")));
+        clearInvocations(scalableTopics);
+
+        assertThrows(ExecutionException.class, () -> controller.splitSegment(0).get());
+        verify(scalableTopics, never()).createSegmentAsync(anyString(), any());
+        verify(scalableTopics, never()).terminateSegmentAsync(anyString());
+        assertTrue(controller.getLayout().get().getAllSegments().get(0L).isActive(),
+                "the parent keeps serving");
+
+        when(scalableTopics.getSegmentStatsAsync(topicName.toString(), 0L))
+                .thenReturn(FutureUtil.failedFuture(new PulsarAdminException.NotFoundException(
+                        new RuntimeException("gone"), "Segment topic not found", 404)));
+        controller.splitSegment(0).get();
+        verify(scalableTopics, times(2)).createSegmentAsync(anyString(), eq(List.of()));
     }
 
     @Test

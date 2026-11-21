@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -1543,7 +1544,7 @@ public class ScalableTopicController {
     private CompletableFuture<Void> replayLayoutTransition(PendingLayoutTransition pending, long operationTerm,
                                                            LayoutOperation operation) {
         return validatePendingLayoutTransition(pending, operationTerm)
-                .thenCompose(__ -> resources.listSubscriptionsAsync(topicName))
+                .thenCompose(__ -> successorSubscriptions(pending))
                 .thenCompose(subscriptionNames -> {
                     CompletableFuture<Void> created = CompletableFuture.completedFuture(null);
                     for (SegmentInfo successor : pending.replacements().values()) {
@@ -1578,6 +1579,33 @@ public class ScalableTopicController {
                         operation.committed();
                     }
                 });
+    }
+
+    /**
+     * The subscriptions to create on the successors of {@code pending}: those registered on the scalable topic,
+     * and every durable subscription of the sources' topics. The latter include those that the scalable topic
+     * doesn't know, such as a QUEUE consumer's, which subscribes to each segment's topic directly: created on the
+     * successors before they can take a message, they hold every message the successors store, also while no
+     * consumer is connected. A subscription that an older broker reports without its durability isn't created,
+     * since it may be the non-durable cursor of a reader.
+     */
+    private CompletableFuture<List<String>> successorSubscriptions(PendingLayoutTransition pending) {
+        List<CompletableFuture<Optional<Map<String, SegmentTopicStats.SubscriptionStats>>>> sources =
+                pending.sources().values().stream().map(this::segmentSubscriptions).toList();
+        return resources.listSubscriptionsAsync(topicName)
+                .thenCombine(CompletableFuture.allOf(sources.toArray(CompletableFuture<?>[]::new)),
+                        (registered, __) -> {
+                            Set<String> names = new LinkedHashSet<>(registered);
+                            for (var source : sources) {
+                                // A missing source has no subscription: sealSource creates it again empty.
+                                source.join().ifPresent(subscriptions -> subscriptions.forEach((name, sub) -> {
+                                    if (Boolean.TRUE.equals(sub.getDurable())) {
+                                        names.add(name);
+                                    }
+                                }));
+                            }
+                            return List.copyOf(names);
+                        });
     }
 
     /**

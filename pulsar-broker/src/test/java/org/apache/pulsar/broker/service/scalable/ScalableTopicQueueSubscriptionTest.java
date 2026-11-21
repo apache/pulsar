@@ -20,7 +20,9 @@ package org.apache.pulsar.broker.service.scalable;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.IntStream;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.v5.Message;
 import org.apache.pulsar.client.api.v5.Producer;
@@ -29,6 +31,7 @@ import org.apache.pulsar.client.api.v5.V5ClientBaseTest;
 import org.apache.pulsar.client.api.v5.config.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.v5.schema.Schema;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.SegmentTopicStats;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
@@ -72,6 +75,74 @@ public class ScalableTopicQueueSubscriptionTest extends V5ClientBaseTest {
                     .as("the queue subscription acknowledged every message of the sealed parent")
                     .doesNotContain(parent);
         });
+    }
+
+    /**
+     * A split creates the queue subscription on the children before they can take a message, also while no
+     * consumer is connected: a consumer that comes back at the latest position still receives what the children
+     * stored in the meantime.
+     */
+    @Test
+    public void testSplitCreatesQueueSubscriptionOnChildren() throws Exception {
+        String topic = newScalableTopic(1);
+        subscribe(topic).close();
+        long parent = segmentIds(topic).get(0);
+
+        admin.scalableTopics().splitSegment(topic, parent);
+
+        assertQueueSubscriptionOnActiveSegments(topic, 2);
+        assertComingBackReceivesWhatWasPublished(topic);
+    }
+
+    /** As {@link #testSplitCreatesQueueSubscriptionOnChildren()}, for the child of a merge. */
+    @Test
+    public void testMergeCreatesQueueSubscriptionOnChild() throws Exception {
+        String topic = newScalableTopic(2);
+        subscribe(topic).close();
+        List<Long> parents = segmentIds(topic);
+
+        admin.scalableTopics().mergeSegments(topic, parents.get(0), parents.get(1));
+
+        assertQueueSubscriptionOnActiveSegments(topic, 1);
+        assertComingBackReceivesWhatWasPublished(topic);
+    }
+
+    private QueueConsumer<String> subscribe(String topic) throws Exception {
+        return v5Client.newQueueConsumer(Schema.string())
+                .topic(topic)
+                .subscriptionName(SUBSCRIPTION)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.LATEST)
+                .subscribe();
+    }
+
+    private void assertQueueSubscriptionOnActiveSegments(String topic, int expectedSegments) throws Exception {
+        List<Long> active = admin.scalableTopics().getMetadata(topic).getSegments().values().stream()
+                .filter(segment -> segment.isActive())
+                .map(segment -> segment.getSegmentId())
+                .toList();
+        assertThat(active).hasSize(expectedSegments);
+        for (long segmentId : active) {
+            SegmentTopicStats.SubscriptionStats sub = admin.scalableTopics().getSegmentStats(topic, segmentId)
+                    .getSubscriptions().get(SUBSCRIPTION);
+            assertThat(sub).as("the queue subscription on the new segment %s", segmentId).isNotNull();
+            assertThat(sub.getDurable()).isTrue();
+            assertThat(sub.getConsumers()).as("no consumer is connected").isEmpty();
+        }
+    }
+
+    private void assertComingBackReceivesWhatWasPublished(String topic) throws Exception {
+        publish(topic);
+        @Cleanup
+        QueueConsumer<String> consumer = subscribe(topic);
+        List<String> received = new ArrayList<>();
+        for (int i = 0; i < MESSAGES; i++) {
+            Message<String> msg = consumer.receive(Duration.ofSeconds(10));
+            assertThat(msg).as("message %s", i).isNotNull();
+            received.add(msg.value());
+            consumer.acknowledge(msg.id());
+        }
+        assertThat(received).containsExactlyInAnyOrderElementsOf(
+                IntStream.range(0, MESSAGES).mapToObj(i -> "m" + i).toList());
     }
 
     private void publish(String topic) throws Exception {
