@@ -307,6 +307,32 @@ public class BrokerServiceTest extends BrokerTestBase {
     }
 
     @Test
+    public void testTopicLoadRechecksOwnershipBeforeManagedLedgerInitialization() throws Exception {
+        TopicName topicName = TopicName.get("persistent://prop/ns-abc/lost-ownership-" + UUID.randomUUID());
+        BrokerService brokerService = spy(pulsar.getBrokerService());
+        var validationStarted = new CompletableFuture<Void>();
+        var validation = new CompletableFuture<Void>();
+        doReturn(CompletableFuture.completedFuture(null)).doAnswer(invocation -> {
+            validationStarted.complete(null);
+            return validation;
+        }).when(brokerService).checkTopicNsOwnership(topicName.toString());
+        TopicLoadingContext context = new TopicLoadingContext(topicName, true, new CompletableFuture<>(),
+                mock(PulsarStats.class));
+
+        brokerService.createPersistentTopic0(context);
+        validationStarted.get(10, TimeUnit.SECONDS);
+        var lostOwnership = new BrokerServiceException.ServiceUnitNotReadyException("Namespace bundle was transferred");
+        validation.completeExceptionally(lostOwnership);
+
+        ExecutionException e = expectThrows(ExecutionException.class,
+                () -> context.getTopicFuture().get(10, TimeUnit.SECONDS));
+        assertThat(e.getCause()).isSameAs(lostOwnership);
+        assertEquals(context.getTopicLoadFailureReason(), TopicLoadFailureReason.FAILED_CHECK_OWNERSHIP);
+        assertFalse(pulsar.getDefaultManagedLedgerFactory().getManagedLedgers()
+                .containsKey(topicName.getPersistenceNamingEncoding()));
+    }
+
+    @Test
     public void testPersistentTopicReloadPropagatesMigrationPolicyFailure() throws Exception {
         String topicName = newTopicName();
         admin.topics().createNonPartitionedTopic(topicName);

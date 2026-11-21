@@ -29,12 +29,13 @@ import io.netty.channel.EventLoopGroup;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import lombok.CustomLog;
@@ -43,11 +44,14 @@ import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.BookKeeperClientConfigAccessor;
 import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.RackawareEnsemblePlacementPolicy;
+import org.apache.bookkeeper.client.RackawareEnsemblePlacementPolicyImpl;
 import org.apache.bookkeeper.client.RegionAwareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.stats.NullStatsLogger;
 import org.apache.bookkeeper.stats.StatsLogger;
+import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.apache.pulsar.bookie.rackawareness.BookieRackAffinityMapping;
+import org.apache.pulsar.bookie.rackawareness.BookieRackConfigurationSnapshot;
 import org.apache.pulsar.bookie.rackawareness.IsolatedBookieEnsemblePlacementPolicy;
 import org.apache.pulsar.client.internal.PropertiesUtils;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
@@ -60,12 +64,10 @@ import org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver;
 
 @CustomLog
 public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
-    // The callbacks that unregister the metadata store listeners of the BookieRackAffinityMapping instances of the
-    // created clients. Guarded by this
-    private final List<ClientListenerCleanup> metadataStoreListenerCleanups = new ArrayList<>();
-    // Results that have not been completed or handed to shutdown. Guarded by this.
-    private final Set<CompletableFuture<BookKeeper>> pendingCreations = new HashSet<>();
-    // Guarded by this
+    // Snapshots span all placement policies using the same metadata store. The factory owns these and the cleanup
+    // registrations for DNS resolver resources, which BookKeeper itself does not close. Guarded by this.
+    private final Map<MetadataStore, BookieRackConfigurationSnapshot> rackSnapshots = new IdentityHashMap<>();
+    private final Set<ClientResources> clientResources = new HashSet<>();
     private boolean closed;
 
     @Override
@@ -82,120 +84,126 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
                              EventLoopGroup eventLoopGroup,
                              Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
                              Map<String, Object> properties, StatsLogger statsLogger) {
-        CompletableFuture<BookKeeper> result = new CompletableFuture<>();
-        ClientListenerCleanup listenerCleanup = new ClientListenerCleanup();
-        synchronized (this) {
-            if (closed) {
-                return CompletableFuture.failedFuture(new IllegalStateException("BookKeeper client factory is closed"));
-            }
-            pendingCreations.add(result);
-            metadataStoreListenerCleanups.add(listenerCleanup);
+        return FutureUtil.supplySafely(() -> createClient(conf, store, eventLoopGroup, ensemblePlacementPolicyClass,
+                properties, statsLogger));
+    }
+
+    private CompletableFuture<BookKeeper> createClient(ServiceConfiguration conf, MetadataStoreExtended store,
+            EventLoopGroup eventLoopGroup, Optional<Class<? extends EnsemblePlacementPolicy>> policyClass,
+            Map<String, Object> properties, StatsLogger statsLogger) {
+        PulsarMetadataClientDriver.init();
+
+        ClientConfiguration bkConf = createBkClientConfiguration(store, conf);
+        if (properties != null) {
+            // The isolation groups of a namespace reach the placement policy through the custom metadata of each
+            // ledger. They must not become the client's default groups: the client is shared and kept after the
+            // namespace bookie affinity group is removed, and new ledgers would still be placed on those groups.
+            properties.forEach((key, value) -> {
+                if (!IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS.equals(key)
+                        && !IsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS.equals(key)) {
+                    bkConf.setProperty(key, value);
+                }
+            });
+        }
+        if (policyClass.isPresent()) {
+            setEnsemblePlacementPolicy(bkConf, conf, store, policyClass.get());
+        } else {
+            setDefaultEnsemblePlacementPolicy(bkConf, conf, store);
         }
 
-        result.whenComplete((bk, error) -> {
-            synchronized (this) {
-                pendingCreations.remove(result);
+        ClientResources resources = new ClientResources();
+        CompletableFuture<BookKeeper> result = new CompletableFuture<>();
+        CompletableFuture.supplyAsync(() -> {
+            try {
+                var snapshot = configureResources(bkConf, store, resources,
+                        TimeUnit.SECONDS.toMillis(conf.getMetadataStoreOperationTimeoutSeconds()));
+                if (snapshot != null) {
+                    snapshot.start();
+                }
+                return getBookKeeperBuilder(conf, eventLoopGroup, statsLogger, bkConf).build();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new CompletionException(e);
+            } catch (BKException | IOException | ConfigurationException e) {
+                throw new CompletionException(e);
             }
+        }).whenComplete((client, error) -> {
             if (error != null) {
-                listenerCleanup.run();
-            }
-        });
-        CompletableFuture<BookKeeper> creation = FutureUtil.supplySafely(() -> {
-            PulsarMetadataClientDriver.init();
-            ClientConfiguration bkConf = createBkClientConfiguration(store, conf);
-            if (properties != null) {
-                // Namespace isolation groups are stored in each ledger's metadata. Keep them out of the client
-                // defaults so shared clients honor the broker defaults again when namespace affinity is removed.
-                properties.forEach((key, value) -> {
-                    if (!IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS.equals(key)
-                            && !IsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS.equals(key)) {
-                        bkConf.setProperty(key, value);
-                    }
-                });
-            }
-            if (ensemblePlacementPolicyClass.isPresent()) {
-                setEnsemblePlacementPolicy(bkConf, conf, store, ensemblePlacementPolicyClass.get());
-            } else {
-                setDefaultEnsemblePlacementPolicy(bkConf, conf, store);
-            }
-
-            bkConf.setProperty(BookieRackAffinityMapping.METADATA_STORE_LISTENER_CLEANUP, listenerCleanup);
-            Map<String, Object> ledgerProperties = ensemblePlacementPolicyClass.isPresent() ? properties : null;
-            return CompletableFuture.supplyAsync(() -> {
-                if (!isPendingCreation(result)) {
-                    throw new CancellationException("BookKeeper client creation was abandoned");
-                }
-                try {
-                    return getBookKeeperBuilder(conf, eventLoopGroup, statsLogger, bkConf).build();
-                } catch (InterruptedException | BKException | IOException e) {
-                    throw new RuntimeException(e);
-                }
-            }).thenCompose(bk -> isPendingCreation(result)
-                    ? waitForPlacementPolicyInitialization(bk, bkConf, ledgerProperties, listenerCleanup)
-                    : CompletableFuture.completedFuture(bk));
-        });
-        // Keep the creation chain alive after cancellation or shutdown so it still owns any late BookKeeper client.
-        creation.whenComplete((bk, error) -> {
-            if (error != null) {
-                // A builder can register its resolver before failing without returning a BookKeeper instance.
-                listenerCleanup.run();
-                if (isPendingCreation(result)) {
-                    result.completeExceptionally(error);
-                }
-            } else if (!isPendingCreation(result) || !result.complete(bk)) {
-                closeBookKeeperAsync(bk, new CancellationException("BookKeeper client creation was abandoned"),
-                        listenerCleanup);
+                resources.run();
+                result.completeExceptionally(error);
+            } else if (!result.complete(client)) {
+                // The caller owns the client once handed off. If it cancelled construction, the builder still owns it.
+                CompletableFuture.runAsync(() -> closeUnclaimedClient(client, resources));
             }
         });
         return result;
     }
 
-    private synchronized boolean isPendingCreation(CompletableFuture<BookKeeper> result) {
-        return !result.isDone() && pendingCreations.contains(result);
-    }
-
-    // The default client is awaited during broker startup, and lazy namespace clients are awaited before ML opens.
-    private CompletableFuture<BookKeeper> waitForPlacementPolicyInitialization(BookKeeper bk,
-                                                                               ClientConfiguration bkConf,
-                                                                               Map<String, Object> properties,
-                                                                               ClientListenerCleanup listenerCleanup) {
-        CompletableFuture<Void> initialization;
-        try {
-            EnsemblePlacementPolicy policy = bk.getClientCtx().getPlacementPolicy();
-            if (!(policy instanceof IsolatedBookieEnsemblePlacementPolicy isolatedPolicy)) {
-                return CompletableFuture.completedFuture(bk);
-            }
-            // The timeout starts after construction and bounds only this client's snapshot wait.
-            // Apply it to a copy so it does not modify the policy's metadata-load future.
-            initialization = isolatedPolicy.getInitializationFuture(properties).copy()
-                    .orTimeout(bkConf.getZkTimeout(), TimeUnit.MILLISECONDS);
-        } catch (Exception e) {
-            initialization = CompletableFuture.failedFuture(e);
+    private synchronized BookieRackConfigurationSnapshot configureResources(ClientConfiguration bkConf,
+            MetadataStore store,
+            ClientResources resources, long readTimeoutMillis) throws ConfigurationException {
+        if (closed) {
+            throw new IllegalStateException("BookKeeper client factory is closed");
         }
-        return initialization.thenApply(__ -> bk).exceptionallyCompose(error -> {
-            Throwable cause = FutureUtil.unwrapCompletionException(error);
-            // Report the initialization failure after cleanup so any close error can be attached to it.
-            return closeBookKeeperAsync(bk, cause, listenerCleanup)
-                    .thenCompose(__ -> CompletableFuture.failedFuture(cause));
-        });
+        var policyClass = bkConf.getEnsemblePlacementPolicy();
+        boolean usesRackMapping = RackawareEnsemblePlacementPolicyImpl.class.isAssignableFrom(policyClass)
+                && usesPulsarRackMapping(bkConf);
+        BookieRackConfigurationSnapshot snapshot = null;
+        if (usesRackMapping || IsolatedBookieEnsemblePlacementPolicy.class.isAssignableFrom(policyClass)) {
+            snapshot = rackSnapshots.computeIfAbsent(store,
+                    key -> new BookieRackConfigurationSnapshot(key, readTimeoutMillis));
+            bkConf.setProperty(BookieRackConfigurationSnapshot.RACK_CONFIGURATION_SNAPSHOT, snapshot);
+        }
+        if (usesRackMapping && (bkConf.getEnforceMinNumRacksPerWriteQuorum()
+                || RegionAwareEnsemblePlacementPolicy.class.isAssignableFrom(policyClass))) {
+            bkConf.setProperty(BookieRackAffinityMapping.BOOKIE_RACK_AFFINITY_MAPPING_REGISTRATION,
+                    (Consumer<BookieRackAffinityMapping>) resources::registerRackMapping);
+        }
+        bkConf.setProperty(BookieRackAffinityMapping.METADATA_STORE_LISTENER_CLEANUP, resources);
+        clientResources.add(resources);
+        return snapshot;
     }
 
-    private CompletableFuture<Void> closeBookKeeperAsync(BookKeeper bk, Throwable error,
-                                                        ClientListenerCleanup listenerCleanup) {
-        // BookKeeper.close() can block. Never run it on the metadata callback or timeout thread.
-        return CompletableFuture.runAsync(() -> {
-            listenerCleanup.run();
-            try {
-                bk.close();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                error.addSuppressed(e);
-                log.debug().exception(e).log("Interrupted while closing an unpublished BookKeeper client");
-            } catch (Exception e) {
-                error.addSuppressed(e);
-                log.debug().exception(e).log("Failed to close an unpublished BookKeeper client");
-            }
-        });
+    private static boolean usesPulsarRackMapping(ClientConfiguration conf) {
+        String className = conf.getString(REPP_DNS_RESOLVER_CLASS, "");
+        try {
+            return BookieRackAffinityMapping.class.isAssignableFrom(
+                    Class.forName(className, false, BookieRackAffinityMapping.class.getClassLoader()));
+        } catch (ClassNotFoundException e) {
+            // BookKeeper handles an unavailable resolver class using its usual fallback.
+            return false;
+        }
+    }
+
+    static CompletableFuture<Void> awaitRackTopology(BookKeeper client, long timeoutMillis) {
+        var resources = resourcesOf(client);
+        return resources == null ? CompletableFuture.completedFuture(null) : resources.awaitRackTopology(timeoutMillis);
+    }
+
+    private static ClientResources resourcesOf(BookKeeper client) {
+        Object resources = BookKeeperClientConfigAccessor.getConfigurationProperty(client,
+                BookieRackAffinityMapping.METADATA_STORE_LISTENER_CLEANUP);
+        return resources instanceof ClientResources clientResources ? clientResources : null;
+    }
+
+    static void releaseClientResources(BookKeeper client) {
+        var resources = resourcesOf(client);
+        if (resources != null) {
+            resources.run();
+        }
+    }
+
+    private static void closeUnclaimedClient(BookKeeper client, ClientResources resources) {
+        try {
+            client.close();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.debug().exception(e).log("Interrupted while closing a BookKeeper client");
+        } catch (Exception e) {
+            log.debug().exception(e).log("Failed to close a BookKeeper client");
+        } finally {
+            resources.run();
+        }
     }
 
     @VisibleForTesting
@@ -366,79 +374,74 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
 
     @Override
     public void close() {
-        List<CompletableFuture<BookKeeper>> pending;
-        List<ClientListenerCleanup> cleanups;
+        List<ClientResources> resources;
+        List<BookieRackConfigurationSnapshot> snapshots;
         synchronized (this) {
             closed = true;
-            pending = new ArrayList<>(pendingCreations);
-            pendingCreations.clear();
-            cleanups = new ArrayList<>(metadataStoreListenerCleanups);
-            metadataStoreListenerCleanups.clear();
+            resources = List.copyOf(clientResources);
+            clientResources.clear();
+            snapshots = List.copyOf(rackSnapshots.values());
+            rackSnapshots.clear();
         }
-        // Resolve pending results before releasing their resources. Both can invoke callbacks outside the lock.
-        pending.forEach(result -> result.completeExceptionally(
-                new IllegalStateException("BookKeeper client factory is closed")));
-        cleanups.forEach(ClientListenerCleanup::run);
+        resources.forEach(ClientResources::run);
+        snapshots.forEach(BookieRackConfigurationSnapshot::close);
     }
 
-    // A storage factory can discard a late client even after the provider's own creation future succeeded.
-    static void releaseClientListeners(BookKeeper client) {
-        try {
-            Object registration = BookKeeperClientConfigAccessor.getConfigurationProperty(client,
-                    BookieRackAffinityMapping.METADATA_STORE_LISTENER_CLEANUP);
-            if (registration instanceof ClientListenerCleanup cleanup) {
-                cleanup.run();
+    private final class ClientResources implements Consumer<Runnable>, Runnable {
+        private final List<Runnable> cleanups = new ArrayList<>();
+        private final List<BookieRackAffinityMapping> rackMappings = new ArrayList<>();
+        private boolean released;
+
+        private synchronized void registerRackMapping(BookieRackAffinityMapping mapping) {
+            if (!released) {
+                rackMappings.add(mapping);
             }
-        } catch (RuntimeException e) {
-            // A custom client can override the configuration getter. Its failure must not prevent closing the client.
-            log.debug().exception(e).log("Failed to inspect a BookKeeper client's metadata store listener cleanup");
         }
-    }
 
-    @VisibleForTesting
-    synchronized int getMetadataStoreListenerCleanupCount() {
-        return metadataStoreListenerCleanups.size();
-    }
-
-    // Both factory shutdown and a failed or cancelled creation can claim this client's resolver listeners.
-    // Callbacks registered after either cleanup are unregistered immediately, without invoking them under a lock.
-    private final class ClientListenerCleanup implements Consumer<Runnable>, Runnable {
-        private final List<Runnable> callbacks = new ArrayList<>();
-        private boolean disposed;
+        private CompletableFuture<Void> awaitRackTopology(long timeoutMillis) {
+            List<BookieRackAffinityMapping> mappings;
+            synchronized (this) {
+                mappings = List.copyOf(rackMappings);
+            }
+            return CompletableFuture.allOf(mappings.stream()
+                    .map(mapping -> mapping.awaitInitialRackTopology(timeoutMillis))
+                    .toArray(CompletableFuture[]::new));
+        }
 
         @Override
-        public void accept(Runnable callback) {
+        public void accept(Runnable cleanup) {
             synchronized (this) {
-                if (!disposed) {
-                    callbacks.add(callback);
+                if (!released) {
+                    cleanups.add(cleanup);
                     return;
                 }
             }
-            runCallback(callback);
+            runCleanup(cleanup);
         }
 
         @Override
         public void run() {
-            List<Runnable> pending;
+            List<Runnable> callbacks;
             synchronized (this) {
-                if (disposed) {
+                if (released) {
                     return;
                 }
-                disposed = true;
-                pending = new ArrayList<>(callbacks);
-                callbacks.clear();
+                released = true;
+                callbacks = List.copyOf(cleanups);
+                cleanups.clear();
+                rackMappings.clear();
             }
             synchronized (BookKeeperClientFactoryImpl.this) {
-                metadataStoreListenerCleanups.remove(this);
+                clientResources.remove(this);
             }
-            pending.forEach(ClientListenerCleanup::runCallback);
+            callbacks.forEach(this::runCleanup);
         }
 
-        private static void runCallback(Runnable callback) {
+        private void runCleanup(Runnable cleanup) {
             try {
-                callback.run();
+                cleanup.run();
             } catch (RuntimeException e) {
-                log.debug().exception(e).log("Failed to unregister a BookKeeper metadata store listener");
+                log.debug().exception(e).log("Failed to release BookKeeper client metadata resources");
             }
         }
     }

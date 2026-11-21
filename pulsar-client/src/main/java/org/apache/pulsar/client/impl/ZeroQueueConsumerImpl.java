@@ -187,7 +187,7 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
         Objects.requireNonNull(listener, "listener can't be null");
         Objects.requireNonNull(message, "unqueued message can't be null");
 
-        externalPinnedExecutor.execute(() -> {
+        externalPinnedExecutor.get().execute(() -> {
             stats.updateNumMsgsReceived(message);
             try {
                     log.debug().attr("messageId", message.getMessageId())

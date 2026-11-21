@@ -21,34 +21,35 @@ package org.apache.pulsar.broker;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.isNull;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import io.netty.channel.EventLoopGroup;
-import io.netty.util.concurrent.DefaultThreadFactory;
 import io.opentelemetry.api.OpenTelemetry;
+import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.bookkeeper.client.ClientContext;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerFactoryClosedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl.BookkeeperFactoryForCustomEnsemblePlacementPolicy;
+import org.apache.bookkeeper.stats.NullStatsLogger;
 import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.pulsar.bookie.rackawareness.IsolatedBookieEnsemblePlacementPolicy;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.mockito.ArgumentCaptor;
 import org.testng.annotations.DataProvider;
@@ -57,173 +58,177 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class ManagedLedgerClientFactoryTest {
 
-    @Test
-    public void testStartupWaitsForDefaultBookKeeperClient() throws Exception {
-        ServiceConfiguration conf = new ServiceConfiguration();
+    @DataProvider
+    public Object[][] isolatedClients() {
+        return new Object[][] {{false, false}, {true, false}, {false, true}, {true, true}};
+    }
+
+    @Test(dataProvider = "isolatedClients")
+    public void testPlacementReadinessKeepsBuiltClient(boolean customClient, boolean failFirstRead) throws Exception {
+        var conf = new ServiceConfiguration();
         conf.setBookkeeperClientExposeStatsToPrometheus(false);
-        BookKeeper defaultClient = mock(BookKeeper.class);
-        CompletableFuture<BookKeeper> clientFuture = new CompletableFuture<>();
-        CompletableFuture<Void> clientRequested = new CompletableFuture<>();
-        BookKeeperClientFactory bookkeeperProvider = mock(BookKeeperClientFactory.class);
-        when(bookkeeperProvider.create(any(), any(), any(), any(), isNull(), any())).thenAnswer(invocation -> {
-            clientRequested.complete(null);
-            return clientFuture;
-        });
-        ExecutorService startupExecutor = Executors.newSingleThreadExecutor(
-                new DefaultThreadFactory("test-managed-ledger-startup"));
-        try (ManagedLedgerClientFactory factory = spy(new ManagedLedgerClientFactory())) {
-            doReturn(mock(ManagedLedgerFactoryImpl.class)).when(factory)
-                    .createManagedLedgerFactory(any(), any(), any(), any(), any());
-            Future<?> startup = startupExecutor.submit(() -> {
-                factory.initialize(conf, mock(MetadataStoreExtended.class), bookkeeperProvider,
-                        mock(EventLoopGroup.class), OpenTelemetry.noop());
-                return null;
-            });
-            try {
-                clientRequested.get(5, TimeUnit.SECONDS);
-                assertThat(startup.isDone()).isFalse();
-                verify(factory, never()).createManagedLedgerFactory(any(), any(), any(), any(), any());
+        var bookkeeperProvider = mock(BookKeeperClientFactory.class);
+        var client = mock(BookKeeper.class);
+        var clientContext = mock(ClientContext.class);
+        var policy = mock(IsolatedBookieEnsemblePlacementPolicy.class);
+        when(client.getClientCtx()).thenReturn(clientContext);
+        when(clientContext.getPlacementPolicy()).thenReturn(policy);
 
-                clientFuture.complete(defaultClient);
-
-                startup.get(5, TimeUnit.SECONDS);
-                assertThat(factory.getDefaultStorageClass()).isNotNull();
-                verify(factory).createManagedLedgerFactory(any(), any(), any(), any(), any());
-            } finally {
-                clientFuture.complete(defaultClient);
-                startup.cancel(true);
-            }
-        } finally {
-            startupExecutor.shutdownNow();
+        var policyConfig = customClient ? new EnsemblePlacementPolicyConfig(IsolatedBookieEnsemblePlacementPolicy.class,
+                Map.of(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, "group1"))
+                : new EnsemblePlacementPolicyConfig(null, null);
+        var firstLoad = new CompletableFuture<Void>();
+        var retryLoad = new CompletableFuture<Void>();
+        when(policy.awaitRackConfiguration(any(), anyLong())).thenReturn(firstLoad).thenReturn(retryLoad);
+        when(bookkeeperProvider.create(any(), any(), any(), any(), any(), any()))
+                .thenReturn(CompletableFuture.completedFuture(client));
+        if (customClient) {
+            when(bookkeeperProvider.create(any(), any(), any(), any(), isNull(), any()))
+                    .thenReturn(CompletableFuture.completedFuture(mock(BookKeeper.class)));
         }
-        verify(defaultClient).close();
-    }
 
-    @Test
-    public void testDefaultBookKeeperClientFailureStopsStatsProvider() {
-        ServiceConfiguration conf = new ServiceConfiguration();
-        conf.setBookkeeperClientExposeStatsToPrometheus(false);
-        StatsProvider statsProvider = mock(StatsProvider.class);
-        BookKeeperClientFactory bookkeeperProvider = mock(BookKeeperClientFactory.class);
-        RuntimeException loadFailure = new RuntimeException("rack metadata unavailable");
-        RuntimeException stopFailure = new RuntimeException("could not stop stats provider");
-        when(bookkeeperProvider.create(any(), any(), any(), any(), isNull(), any()))
-                .thenReturn(CompletableFuture.failedFuture(loadFailure));
-        doThrow(stopFailure).when(statsProvider).stop();
-
-        ManagedLedgerClientFactory factory = new ManagedLedgerClientFactory(statsProvider);
-        assertThatThrownBy(() -> factory.initialize(conf, mock(MetadataStoreExtended.class), bookkeeperProvider,
-                mock(EventLoopGroup.class), OpenTelemetry.noop()))
-                .isInstanceOfSatisfying(ExecutionException.class, error -> {
-                    assertThat(error.getCause()).isSameAs(loadFailure);
-                    assertThat(error.getSuppressed()).containsExactly(stopFailure);
-                });
-        verify(statsProvider).start(any());
-        verify(statsProvider).stop();
-    }
-
-    @Test
-    public void testStartupInterruptionClosesLateDefaultBookKeeperClient() throws Exception {
-        ServiceConfiguration conf = new ServiceConfiguration();
-        conf.setBookkeeperClientExposeStatsToPrometheus(false);
-        StatsProvider statsProvider = mock(StatsProvider.class);
-        BookKeeper defaultClient = mock(BookKeeper.class);
-        CompletableFuture<BookKeeper> clientFuture = new CompletableFuture<>();
-        CompletableFuture<Thread> clientRequested = new CompletableFuture<>();
-        CompletableFuture<Thread> closingThread = new CompletableFuture<>();
-        BookKeeperClientFactory bookkeeperProvider = mock(BookKeeperClientFactory.class);
-        when(bookkeeperProvider.create(any(), any(), any(), any(), isNull(), any())).thenAnswer(invocation -> {
-            clientRequested.complete(Thread.currentThread());
-            return clientFuture;
-        });
-        doAnswer(invocation -> {
-            closingThread.complete(Thread.currentThread());
-            return null;
-        }).when(defaultClient).close();
-
-        ExecutorService startupExecutor = Executors.newSingleThreadExecutor(
-                new DefaultThreadFactory("test-managed-ledger-interrupted-startup"));
-        ManagedLedgerClientFactory factory = new ManagedLedgerClientFactory(statsProvider);
-        try {
-            Future<?> startup = startupExecutor.submit(() -> {
-                factory.initialize(conf, mock(MetadataStoreExtended.class), bookkeeperProvider,
-                        mock(EventLoopGroup.class), OpenTelemetry.noop());
-                return null;
-            });
-            clientRequested.get(5, TimeUnit.SECONDS).interrupt();
-
-            assertThatThrownBy(() -> startup.get(5, TimeUnit.SECONDS))
-                    .cause().isInstanceOf(InterruptedException.class);
-            verify(statsProvider).stop();
-            assertThat(clientFuture).isNotDone();
-
-            clientFuture.complete(defaultClient);
-            assertThat(closingThread.get(5, TimeUnit.SECONDS)).isNotSameAs(Thread.currentThread());
-            verify(defaultClient).close();
-        } finally {
-            startupExecutor.shutdownNow();
-            clientFuture.complete(defaultClient);
-        }
-    }
-
-    @Test
-    public void testManagedLedgerFactoryInitializationFailurePreservesCleanupFailures() throws Exception {
-        ServiceConfiguration conf = new ServiceConfiguration();
-        conf.setBookkeeperClientExposeStatsToPrometheus(false);
-        StatsProvider statsProvider = mock(StatsProvider.class);
-        BookKeeper defaultClient = mock(BookKeeper.class);
-        BookKeeperClientFactory bookkeeperProvider = mock(BookKeeperClientFactory.class);
-        RuntimeException initializationFailure = new RuntimeException("managed ledger initialization failed");
-        RuntimeException stopFailure = new RuntimeException("could not stop stats provider");
-        RuntimeException closeFailure = new RuntimeException("could not close default client");
-        when(bookkeeperProvider.create(any(), any(), any(), any(), isNull(), any()))
-                .thenReturn(CompletableFuture.completedFuture(defaultClient));
-        doThrow(stopFailure).when(statsProvider).stop();
-        doThrow(closeFailure).when(defaultClient).close();
-        ManagedLedgerClientFactory factory = spy(new ManagedLedgerClientFactory(statsProvider));
-        doThrow(initializationFailure).when(factory).createManagedLedgerFactory(any(), any(), any(), any(), any());
-
-        assertThatThrownBy(() -> factory.initialize(conf, mock(MetadataStoreExtended.class), bookkeeperProvider,
-                mock(EventLoopGroup.class), OpenTelemetry.noop()))
-                .isSameAs(initializationFailure);
-        assertThat(initializationFailure.getSuppressed()).containsExactly(stopFailure, closeFailure);
-        verify(statsProvider).stop();
-        verify(defaultClient).close();
-    }
-
-    @Test
-    public void testFailedLazyClientCanBeCreatedOnNextRequest() throws Exception {
-        ServiceConfiguration conf = new ServiceConfiguration();
-        conf.setBookkeeperClientExposeStatsToPrometheus(false);
-        BookKeeper defaultClient = mock(BookKeeper.class);
-        BookKeeper policyClient = mock(BookKeeper.class);
-        RuntimeException loadFailure = new RuntimeException("rack metadata unavailable");
-        CompletableFuture<BookKeeper> firstClient = new CompletableFuture<>();
-        BookKeeperClientFactory bookkeeperProvider = mock(BookKeeperClientFactory.class);
-        when(bookkeeperProvider.create(any(), any(), any(), any(), isNull(), any()))
-                .thenReturn(CompletableFuture.completedFuture(defaultClient));
-        when(bookkeeperProvider.create(any(), any(), any(), any(), anyMap(), any()))
-                .thenReturn(firstClient, CompletableFuture.completedFuture(policyClient));
-
-        try (ManagedLedgerClientFactory factory = spy(new ManagedLedgerClientFactory())) {
+        try (var factory = spy(new ManagedLedgerClientFactory())) {
             doReturn(mock(ManagedLedgerFactoryImpl.class)).when(factory)
                     .createManagedLedgerFactory(any(), any(), any(), any(), any());
             factory.initialize(conf, mock(MetadataStoreExtended.class), bookkeeperProvider,
                     mock(EventLoopGroup.class), OpenTelemetry.noop());
-            ArgumentCaptor<BookkeeperFactoryForCustomEnsemblePlacementPolicy> policyFactory =
-                    ArgumentCaptor.forClass(BookkeeperFactoryForCustomEnsemblePlacementPolicy.class);
-            verify(factory).createManagedLedgerFactory(any(), any(), policyFactory.capture(), any(), any());
-            EnsemblePlacementPolicyConfig config = new EnsemblePlacementPolicyConfig(
-                    IsolatedBookieEnsemblePlacementPolicy.class,
-                    Map.of(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, "group1"));
+            var captor = ArgumentCaptor.forClass(BookkeeperFactoryForCustomEnsemblePlacementPolicy.class);
+            verify(factory).createManagedLedgerFactory(any(), any(), captor.capture(), any(), any());
+            var clients = captor.getValue();
 
-            CompletableFuture<BookKeeper> failedClient = policyFactory.getValue().get(config);
-            assertThat(failedClient).isNotDone();
-            firstClient.completeExceptionally(loadFailure);
-            assertThatThrownBy(() -> failedClient.get(5, TimeUnit.SECONDS)).cause().isSameAs(loadFailure);
+            var firstPlacement = clients.getForPlacement(policyConfig);
+            assertThat(firstPlacement).isNotDone();
+            assertThat(clients.get(policyConfig).get(5, TimeUnit.SECONDS)).isSameAs(client);
+            CompletableFuture<BookKeeper> readyPlacement;
+            if (failFirstRead) {
+                var failure = new MetadataStoreException("rack configuration read failed");
+                firstLoad.completeExceptionally(failure);
+                assertThatThrownBy(() -> firstPlacement.get(5, TimeUnit.SECONDS)).cause().isSameAs(failure);
+                readyPlacement = clients.getForPlacement(policyConfig);
+                assertThat(readyPlacement).isNotDone();
+                retryLoad.complete(null);
+            } else {
+                readyPlacement = firstPlacement;
+                firstLoad.complete(null);
+            }
+            assertThat(readyPlacement.get(5, TimeUnit.SECONDS)).isSameAs(client);
+            verify(policy, times(failFirstRead ? 2 : 1))
+                    .awaitRackConfiguration(policyConfig,
+                            TimeUnit.SECONDS.toMillis(conf.getMetadataStoreOperationTimeoutSeconds()));
+            verify(bookkeeperProvider, times(customClient ? 2 : 1)).create(any(), any(), any(), any(), any(), any());
+            verify(client, never()).close();
+        }
+    }
 
-            assertThat(policyFactory.getValue().get(config).get(5, TimeUnit.SECONDS)).isSameAs(policyClient);
-            verify(bookkeeperProvider, times(2)).create(any(), any(), any(), any(), anyMap(), any());
+    @Test(timeOut = 30_000)
+    public void testShutdownClosesLatePolicyClientWithoutCancellingItsBuild() throws Exception {
+        var conf = new ServiceConfiguration();
+        conf.setBookkeeperClientExposeStatsToPrometheus(false);
+        var provider = mock(BookKeeperClientFactory.class);
+        var defaultClient = mock(BookKeeper.class);
+        var lateClient = mock(BookKeeper.class);
+        var builderInvoked = new CompletableFuture<Void>();
+        var build = new CompletableFuture<BookKeeper>();
+        when(provider.create(any(), any(), any(), any(), isNull(), any()))
+                .thenReturn(CompletableFuture.completedFuture(defaultClient));
+        when(provider.create(any(), any(), any(), any(), anyMap(), any())).thenAnswer(invocation -> {
+            builderInvoked.complete(null);
+            return build;
+        });
+        var policyConfig = new EnsemblePlacementPolicyConfig(IsolatedBookieEnsemblePlacementPolicy.class, Map.of());
+
+        try (var factory = spy(new ManagedLedgerClientFactory())) {
+            var ml = mock(ManagedLedgerFactoryImpl.class);
+            doReturn(ml).when(factory).createManagedLedgerFactory(any(), any(), any(), any(), any());
+            factory.initialize(conf, mock(MetadataStoreExtended.class), provider,
+                    mock(EventLoopGroup.class), OpenTelemetry.noop());
+            var captor = ArgumentCaptor.forClass(BookkeeperFactoryForCustomEnsemblePlacementPolicy.class);
+            verify(factory).createManagedLedgerFactory(any(), any(), captor.capture(), any(), any());
+            var clients = captor.getValue();
+
+            var waiting = clients.get(policyConfig);
+            var cancelled = clients.get(policyConfig);
+            builderInvoked.get(5, TimeUnit.SECONDS);
+            assertThat(cancelled.cancel(false)).isTrue();
+            assertThat(waiting).isNotDone();
+            assertThat(build).isNotDone();
+
+            factory.close();
+            assertThatThrownBy(() -> waiting.get(5, TimeUnit.SECONDS))
+                    .cause().isInstanceOf(ManagedLedgerFactoryClosedException.class);
+            assertThatThrownBy(() -> clients.get(policyConfig).get(5, TimeUnit.SECONDS))
+                    .cause().isInstanceOf(ManagedLedgerFactoryClosedException.class);
+            assertThat(build.complete(lateClient)).isTrue();
+            verify(lateClient, timeout(5_000)).close();
+            factory.close();
+            verify(ml).shutdown();
+            verify(defaultClient).close();
+            verify(provider).create(any(), any(), any(), any(), anyMap(), any());
+        }
+    }
+
+    @Test(timeOut = 30_000)
+    public void testInterruptedStartupClosesLateDefaultClient() throws Exception {
+        var conf = new ServiceConfiguration();
+        conf.setBookkeeperClientExposeStatsToPrometheus(false);
+        var provider = mock(BookKeeperClientFactory.class);
+        var stats = mock(StatsProvider.class);
+        when(stats.getStatsLogger(any())).thenReturn(NullStatsLogger.INSTANCE);
+        var builderInvoked = new CompletableFuture<Void>();
+        var build = new CompletableFuture<BookKeeper>();
+        var lateClient = mock(BookKeeper.class);
+        when(provider.create(any(), any(), any(), any(), any(), any())).thenAnswer(invocation -> {
+            builderInvoked.complete(null);
+            return build;
+        });
+        try (var factory = new ManagedLedgerClientFactory(stats)) {
+            var startupFailure = new CompletableFuture<Exception>();
+            var interruptRestored = new CompletableFuture<Boolean>();
+            Thread startup = Thread.ofPlatform().name("managed-ledger-startup").start(() -> {
+                try {
+                    factory.initialize(conf, mock(MetadataStoreExtended.class), provider,
+                            mock(EventLoopGroup.class), OpenTelemetry.noop());
+                    startupFailure.completeExceptionally(new AssertionError("Startup should be interrupted"));
+                } catch (Exception error) {
+                    interruptRestored.complete(Thread.currentThread().isInterrupted());
+                    startupFailure.complete(error);
+                }
+            });
+            try {
+                builderInvoked.get(5, TimeUnit.SECONDS);
+                startup.interrupt();
+                assertThat(startupFailure.get(5, TimeUnit.SECONDS)).isInstanceOf(InterruptedException.class);
+                assertThat(interruptRestored.get(5, TimeUnit.SECONDS)).isTrue();
+            } finally {
+                startup.interrupt();
+                startup.join(TimeUnit.SECONDS.toMillis(5));
+                build.complete(lateClient);
+            }
+            verify(stats).stop();
+            verify(lateClient, timeout(5_000)).close();
+        }
+    }
+
+    @Test
+    public void testStartupPreservesBuildFailureWhenStatsStopFails() throws Exception {
+        var conf = new ServiceConfiguration();
+        conf.setBookkeeperClientExposeStatsToPrometheus(false);
+        var provider = mock(BookKeeperClientFactory.class);
+        var startupError = new IllegalStateException("client start");
+        var stopError = new IllegalStateException("stats stop");
+        var stats = mock(StatsProvider.class);
+        when(stats.getStatsLogger(any())).thenReturn(NullStatsLogger.INSTANCE);
+        doThrow(stopError).when(stats).stop();
+        when(provider.create(any(), any(), any(), any(), any(), any()))
+                .thenReturn(CompletableFuture.failedFuture(startupError));
+
+        try (var factory = new ManagedLedgerClientFactory(stats)) {
+            assertThatThrownBy(() -> factory.initialize(conf, mock(MetadataStoreExtended.class), provider,
+                    mock(EventLoopGroup.class), OpenTelemetry.noop()))
+                    .hasCause(startupError)
+                    .satisfies(error -> assertThat(error.getSuppressed()).singleElement().satisfies(suppressed ->
+                            assertThat(suppressed).isInstanceOf(IOException.class).hasCause(stopError)));
+            verify(stats).stop();
         }
     }
 

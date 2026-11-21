@@ -151,8 +151,7 @@ public class PulsarRegistrationClient implements RegistrationClient {
     }
 
     /**
-     * Lists registered bookies and loads any service information missing from the cache.
-     * A null or empty path fails the returned future with {@link IllegalArgumentException}.
+     * @throws IllegalArgumentException if parameter path is null or empty.
      */
     private CompletableFuture<Versioned<Set<BookieId>>> getBookiesThenFreshCache(String path) {
         if (path == null || path.isEmpty()) {

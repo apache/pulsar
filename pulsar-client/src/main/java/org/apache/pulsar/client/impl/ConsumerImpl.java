@@ -1470,7 +1470,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             return;
         }
 
-        externalPinnedExecutor.execute(() -> {
+        externalPinnedExecutor.get().execute(() -> {
             if (isActive) {
                 consumerEventListener.becameActive(this, partitionIndex);
             } else {

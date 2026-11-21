@@ -72,6 +72,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ManagedLedgerInfoCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallbackWithPrecondition;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenReadOnlyCursorCallback;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -553,14 +554,16 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         long startTimeOfCreation = System.currentTimeMillis();
         if (ledgerFuture == newFuture) {
             CompletableFuture<ManagedLedgerImpl> future = newFuture;
-            FutureUtil.supplySafely(() -> bookkeeperFactory.get(
-                            new EnsemblePlacementPolicyConfig(config.getBookKeeperEnsemblePlacementPolicyClassName(),
-                                    config.getBookKeeperEnsemblePlacementPolicyProperties())))
+            FutureUtil.supplySafely(() -> awaitBookKeeperForOpen(config, callback))
                     .thenAccept(bk -> {
                         if (closed || future.isDone()) {
-                            future.completeExceptionally(
+                            throw new CompletionException(
                                     new ManagedLedgerException.ManagedLedgerFactoryClosedException());
-                            return;
+                        }
+                        if (callback instanceof OpenLedgerCallbackWithPrecondition openCallback
+                                && openCallback.getRequestFuture().isDone()) {
+                            throw new CompletionException(
+                                    new ManagedLedgerException("Open request completed before ledger initialization"));
                         }
                         final ManagedLedgerImpl newledger =
                                 createManagedLedger(bk, store, name, config, mlOwnershipChecker);
@@ -630,6 +633,11 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                             }
                         }, null);
                     }).exceptionally(ex -> {
+                        // If readiness failed before creating a ledger, no initialization callback owns this entry.
+                        var pending = pendingInitializeLedgers.get(name);
+                        if (pending == null || pending.future != future) {
+                            removeLedgerFuture(name, future);
+                        }
                         future.completeExceptionally(ex);
                         return null;
                     });
@@ -639,6 +647,33 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                     .getManagedLedgerException(FutureUtil.unwrapCompletionException(exception)), ctx);
             return null;
         });
+    }
+
+    private CompletableFuture<BookKeeper> awaitBookKeeperForOpen(ManagedLedgerConfig config,
+                                                                 OpenLedgerCallback callback) {
+        var policy = new EnsemblePlacementPolicyConfig(config.getBookKeeperEnsemblePlacementPolicyClassName(),
+                config.getBookKeeperEnsemblePlacementPolicyProperties());
+        if (!(callback instanceof OpenLedgerCallbackWithPrecondition openCallback)) {
+            return bookkeeperFactory.getForPlacement(policy);
+        }
+
+        var request = openCallback.getRequestFuture();
+        if (request.isDone()) {
+            return CompletableFuture.failedFuture(new ManagedLedgerException("Open request has already completed"));
+        }
+        // Completing the request releases this open without cancelling client construction or the shared metadata read.
+        var client = bookkeeperFactory.getForPlacement(policy).copy();
+        var checked = client.thenCompose(bk -> FutureUtil.supplySafely(openCallback::beforeInitialize)
+                .thenApply(ignored -> bk));
+        request.whenComplete((ignored, error) -> {
+            if (!checked.isDone()) {
+                Throwable failure = error != null ? error
+                        : new ManagedLedgerException("Open request completed before ledger initialization");
+                client.completeExceptionally(failure);
+                checked.completeExceptionally(failure);
+            }
+        });
+        return checked;
     }
 
     protected ManagedLedgerImpl createManagedLedger(BookKeeper bk, MetaStore store, String name,
@@ -2016,6 +2051,13 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     public interface BookkeeperFactoryForCustomEnsemblePlacementPolicy {
         default CompletableFuture<BookKeeper> get() {
             return get(null);
+        }
+
+        /**
+         * Returns a client ready to create or recover a writable ledger.
+         */
+        default CompletableFuture<BookKeeper> getForPlacement(EnsemblePlacementPolicyConfig policyConfig) {
+            return get(policyConfig);
         }
 
         /**
