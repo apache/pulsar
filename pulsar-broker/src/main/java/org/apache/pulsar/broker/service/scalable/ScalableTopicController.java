@@ -1606,29 +1606,44 @@ public class ScalableTopicController {
 
     /**
      * The subscriptions to create on the successors of {@code pending}: those registered on the scalable topic,
-     * and every durable subscription of the sources' topics. The latter include those that the scalable topic
-     * doesn't know, such as a QUEUE consumer's, which subscribes to each segment's topic directly: created on the
-     * successors before they can take a message, they hold every message the successors store, also while no
-     * consumer is connected. A subscription that an older broker reports without its durability isn't created,
-     * since it may be the non-durable cursor of a reader.
+     * and every durable subscription of the sources' topics, read from their managed-ledger metadata. The latter
+     * include those that the scalable topic doesn't know, such as a QUEUE consumer's, which subscribes to each
+     * segment's topic directly: created on the successors before they can take a message, they hold every message
+     * the successors store, also while no consumer is connected. Only the names are carried over: the successors'
+     * cursors don't get the subscription properties of the sources' cursors.
+     *
+     * <p>Once the plan is marked sealing, every successor was created with its subscriptions before the marker.
+     * A replay then creates the successors with the registered subscriptions only, which leaves the existing
+     * cursors as they are, rather than reading the sources again.
      */
     private CompletableFuture<List<String>> successorSubscriptions(PendingLayoutTransition pending) {
-        List<CompletableFuture<Optional<Map<String, SegmentTopicStats.SubscriptionStats>>>> sources =
-                pending.sources().values().stream().map(this::segmentSubscriptions).toList();
-        return resources.listSubscriptionsAsync(topicName)
-                .thenCombine(CompletableFuture.allOf(sources.toArray(CompletableFuture<?>[]::new)),
-                        (registered, __) -> {
-                            Set<String> names = new LinkedHashSet<>(registered);
-                            for (var source : sources) {
-                                // A missing source has no subscription: sealSource creates it again empty.
-                                source.join().ifPresent(subscriptions -> subscriptions.forEach((name, sub) -> {
-                                    if (Boolean.TRUE.equals(sub.getDurable())) {
-                                        names.add(name);
-                                    }
-                                }));
+        CompletableFuture<List<String>> registered = resources.listSubscriptionsAsync(topicName);
+        if (pending.sealing()) {
+            return registered;
+        }
+        List<CompletableFuture<Optional<Set<String>>>> sources =
+                pending.sources().values().stream().map(this::segmentDurableSubscriptions).toList();
+        return registered.thenCombine(CompletableFuture.allOf(sources.toArray(CompletableFuture<?>[]::new)),
+                (registeredNames, __) -> {
+                    Set<String> names = new LinkedHashSet<>(registeredNames);
+                    List<String> unregistered = new ArrayList<>();
+                    for (var source : sources) {
+                        // A missing source has no subscription: sealSource creates it again empty.
+                        source.join().ifPresent(subscriptions -> subscriptions.forEach(name -> {
+                            if (names.add(name)) {
+                                unregistered.add(name);
                             }
-                            return List.copyOf(names);
-                        });
+                        }));
+                    }
+                    if (!unregistered.isEmpty()) {
+                        // Such as a QUEUE consumer's, or a cursor that deleting a subscription left behind.
+                        log.info().attr("subscriptions", unregistered)
+                                .attr("sources", pending.sources().keySet())
+                                .log("Creating on the successors the subscriptions of their sources"
+                                        + " that aren't registered on the scalable topic");
+                    }
+                    return List.copyOf(names);
+                });
     }
 
     /**

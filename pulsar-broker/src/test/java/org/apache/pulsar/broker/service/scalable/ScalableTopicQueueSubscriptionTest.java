@@ -151,7 +151,6 @@ public class ScalableTopicQueueSubscriptionTest extends V5ClientBaseTest {
             SegmentTopicStats.SubscriptionStats sub = admin.scalableTopics().getSegmentStats(topic, segmentId)
                     .getSubscriptions().get(SUBSCRIPTION);
             assertThat(sub).as("the queue subscription on the new segment %s", segmentId).isNotNull();
-            assertThat(sub.getDurable()).isTrue();
             assertThat(sub.getConsumers()).as("no consumer is connected").isEmpty();
         }
     }

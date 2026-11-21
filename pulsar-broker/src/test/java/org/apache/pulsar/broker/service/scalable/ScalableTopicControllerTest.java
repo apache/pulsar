@@ -27,6 +27,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doCallRealMethod;
@@ -215,6 +216,10 @@ public class ScalableTopicControllerTest {
     /** The name of the managed ledger of a segment's topic in the current layout. */
     private String managedLedgerOf(long segmentId) throws Exception {
         return TopicName.get(backingTopicOf(segmentId)).getPersistenceNamingEncoding();
+    }
+
+    private String managedLedgerOf(SegmentInfo segment) {
+        return TopicName.get(SegmentTopicName.backingTopicName(topicName, segment)).getPersistenceNamingEncoding();
     }
 
     /** The stats every mocked segment reports: owned by {@code segment-owner}, 1.5 msg/s in. */
@@ -853,22 +858,17 @@ public class ScalableTopicControllerTest {
 
     /**
      * A QUEUE consumer subscribes to each segment's topic without registering its subscription on the scalable
-     * topic. A split creates on the children every durable subscription of the parent, besides the registered
-     * ones, but not the non-durable cursor of a reader, one whose durability an older broker doesn't report, nor
-     * the compaction cursor.
+     * topic. A split creates on the children every durable subscription of the parent, read from its managed-ledger
+     * metadata, besides the registered ones, but not the compaction cursor nor the cursors that aren't
+     * subscriptions. A reader's non-durable cursor has no metadata.
      */
     @Test
     public void testSplitCreatesParentSubscriptionsOnChildren() throws Exception {
+        when(pulsar.getConfig()).thenReturn(new ServiceConfiguration());
         controller.initialize().get();
         controller.createSubscription("stream-sub", SubscriptionType.STREAM).get();
-        SegmentTopicStats stats = segmentTopicStats();
-        stats.getSubscriptions().put("stream-sub", subscriptionStats(true, 0));
-        stats.getSubscriptions().put("queue-sub", subscriptionStats(true, 0));
-        stats.getSubscriptions().put("reader-sub", subscriptionStats(false, 0));
-        stats.getSubscriptions().put("older-broker-sub", subscriptionStats(null, 0));
-        stats.getSubscriptions().put(Compactor.COMPACTION_SUBSCRIPTION, subscriptionStats(true, 0));
-        when(scalableTopics.getSegmentStatsAsync(topicName.toString(), 0L))
-                .thenReturn(CompletableFuture.completedFuture(stats));
+        managedLedgers.put(managedLedgerOf(0), List.of("stream-sub", "queue-sub",
+                Compactor.COMPACTION_SUBSCRIPTION, "pulsar.dedup", "pulsar.repl.remote-cluster"));
         clearInvocations(scalableTopics);
 
         controller.splitSegment(0).get();
@@ -881,16 +881,8 @@ public class ScalableTopicControllerTest {
     @Test
     public void testMergeCreatesParentSubscriptionsOnChild() throws Exception {
         controller.initialize().get();
-        SegmentTopicStats first = segmentTopicStats();
-        first.getSubscriptions().put("queue-sub-a", subscriptionStats(true, 0));
-        first.getSubscriptions().put("queue-sub", subscriptionStats(true, 0));
-        SegmentTopicStats second = segmentTopicStats();
-        second.getSubscriptions().put("queue-sub-b", subscriptionStats(true, 0));
-        second.getSubscriptions().put("queue-sub", subscriptionStats(true, 0));
-        when(scalableTopics.getSegmentStatsAsync(topicName.toString(), 0L))
-                .thenReturn(CompletableFuture.completedFuture(first));
-        when(scalableTopics.getSegmentStatsAsync(topicName.toString(), 1L))
-                .thenReturn(CompletableFuture.completedFuture(second));
+        managedLedgers.put(managedLedgerOf(0), List.of("queue-sub-a", "queue-sub"));
+        managedLedgers.put(managedLedgerOf(1), List.of("queue-sub-b", "queue-sub"));
         clearInvocations(scalableTopics);
 
         controller.mergeSegments(0, 1).get();
@@ -903,10 +895,7 @@ public class ScalableTopicControllerTest {
     @Test
     public void testRebucketCreatesParentSubscriptionsOnSuccessor() throws Exception {
         controller.initialize().get();
-        SegmentTopicStats stats = segmentTopicStats();
-        stats.getSubscriptions().put("queue-sub", subscriptionStats(true, 0));
-        when(scalableTopics.getSegmentStatsAsync(topicName.toString(), 0L))
-                .thenReturn(CompletableFuture.completedFuture(stats));
+        managedLedgers.put(managedLedgerOf(0), List.of("queue-sub"));
         clearInvocations(scalableTopics);
 
         controller.rebucketSegment(0, 2).get();
@@ -916,13 +905,13 @@ public class ScalableTopicControllerTest {
 
     /**
      * A split whose parent's subscriptions can't be read is given up before sealing it, rather than creating the
-     * children without them. A parent whose topic is gone has no subscription.
+     * children without them. A parent whose managed ledger is gone has no subscription. The segment stats aren't
+     * read, so an owner whose cached layout lags doesn't matter.
      */
     @Test
     public void testSplitChecksParentSubscriptionsFailClosed() throws Exception {
         controller.initialize().get();
-        when(scalableTopics.getSegmentStatsAsync(topicName.toString(), 0L))
-                .thenReturn(FutureUtil.failedFuture(new RuntimeException("connection refused")));
+        managedLedgers.put(managedLedgerOf(0), new ManagedLedgerException.MetaStoreException("session expired"));
         clearInvocations(scalableTopics);
 
         assertThrows(ExecutionException.class, () -> controller.splitSegment(0).get());
@@ -931,11 +920,52 @@ public class ScalableTopicControllerTest {
         assertTrue(controller.getLayout().get().getAllSegments().get(0L).isActive(),
                 "the parent keeps serving");
 
-        when(scalableTopics.getSegmentStatsAsync(topicName.toString(), 0L))
-                .thenReturn(FutureUtil.failedFuture(new PulsarAdminException.NotFoundException(
-                        new RuntimeException("gone"), "Segment topic not found", 404)));
+        managedLedgers.put(managedLedgerOf(0),
+                new ManagedLedgerException.MetadataNotFoundException("Managed ledger not found"));
         controller.splitSegment(0).get();
         verify(scalableTopics, times(2)).createSegmentAsync(anyString(), eq(List.of()));
+        verify(scalableTopics, never()).getSegmentStatsAsync(anyString(), anyLong());
+    }
+
+    /**
+     * A new leader that replays a transition which a previous leader reserved but didn't start sealing creates the
+     * source's durable subscriptions on the children.
+     */
+    @Test
+    public void testTakeoverOfAnUnsealedTransitionCreatesSourceSubscriptionsOnChildren() throws Exception {
+        ScalableTopicMetadata before = readMetadata();
+        reserveSplit(before, 0);
+        managedLedgers.put(managedLedgerOf(before.getSegments().get(0L)), List.of("queue-sub"));
+
+        controller.initialize().get(10, TimeUnit.SECONDS);
+
+        assertThat(readMetadata().getPendingLayoutTransition()).isNull();
+        verify(scalableTopics, times(2)).createSegmentAsync(anyString(), eq(List.of("queue-sub")));
+    }
+
+    /**
+     * Once a transition is marked sealing, its successors were created with their subscriptions: a new leader
+     * completes it without reading the sources' subscriptions again, so a source it can't read doesn't hold it.
+     */
+    @Test
+    public void testTakeoverOfASealingTransitionDoesNotReadSourceSubscriptionsAgain() throws Exception {
+        ScalableTopicMetadata before = readMetadata();
+        PendingLayoutTransition plan = reserveSplit(before, 0);
+        resources.markLayoutTransitionSealingAsync(topicName, plan, () -> true).get(10, TimeUnit.SECONDS);
+        managedLedgers.put(managedLedgerOf(before.getSegments().get(0L)),
+                new ManagedLedgerException.MetaStoreException("session expired"));
+
+        controller.initialize().get(10, TimeUnit.SECONDS);
+
+        ScalableTopicMetadata after = readMetadata();
+        assertThat(after.getPendingLayoutTransition()).isNull();
+        assertThat(after.getEpoch()).isEqualTo(before.getEpoch() + 1);
+        for (long child : plan.replacements().keySet()) {
+            if (!plan.sources().containsKey(child)) {
+                verify(scalableTopics, atLeastOnce()).createSegmentAsync(
+                        SegmentTopicName.backingTopicName(topicName, after.getSegments().get(child)), List.of());
+            }
+        }
     }
 
     @Test

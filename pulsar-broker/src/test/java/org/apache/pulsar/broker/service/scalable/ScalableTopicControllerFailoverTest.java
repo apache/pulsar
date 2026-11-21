@@ -40,6 +40,7 @@ import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -53,9 +54,11 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BooleanSupplier;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.ManagedLedgerInfoCallback;
+import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
+import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.resources.ScalableTopicMetadata;
@@ -67,7 +70,6 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.ScalableTopics;
 import org.apache.pulsar.common.api.proto.ScalableConsumerType;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.SegmentTopicStats;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.metadata.TestZKServer;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
@@ -651,13 +653,16 @@ public class ScalableTopicControllerFailoverTest {
             // No segment ever drains.
             when(scalableTopics.getSegmentSubscriptionBacklogAsync(anyString(), anyString()))
                     .thenReturn(CompletableFuture.completedFuture(1L));
-            // No segment is owned here, and none has a subscription of its own.
-            NamespaceService namespaceService = mock(NamespaceService.class);
-            when(pulsar.getNamespaceService()).thenReturn(namespaceService);
-            when(namespaceService.isServiceUnitOwnedAsync(any()))
-                    .thenReturn(CompletableFuture.completedFuture(false));
-            when(scalableTopics.getSegmentStatsAsync(anyString(), anyLong()))
-                    .thenAnswer(inv -> CompletableFuture.completedFuture(new SegmentTopicStats()));
+            // No segment has a subscription of its own.
+            ManagedLedgerFactory managedLedgerFactory = mock(ManagedLedgerFactory.class);
+            when(brokerService.getManagedLedgerFactoryForTopic(any(TopicName.class)))
+                    .thenReturn(CompletableFuture.completedFuture(managedLedgerFactory));
+            doAnswer(invocation -> {
+                ManagedLedgerInfo info = new ManagedLedgerInfo();
+                info.cursors = new HashMap<>();
+                invocation.<ManagedLedgerInfoCallback>getArgument(1).getInfoComplete(info, null);
+                return null;
+            }).when(managedLedgerFactory).asyncGetManagedLedgerInfo(anyString(), any(), any());
         }
 
         ScalableTopicController newController() {
