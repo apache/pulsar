@@ -35,6 +35,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBuf;
 import java.time.Duration;
@@ -336,7 +337,16 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         reopened.internalTrimConsumedLedgers(trimAfterReload);
         trimAfterReload.join();
         assertTrue(reopened.getLedgersInfo().containsKey(finalLedgerId));
+
+        // Without a ledger to write to, a read error and the close must still release the read handles
+        assertNull(reopened.currentLedger);
+        long firstLedgerId = reopened.getLedgersInfo().firstKey();
+        reopened.invalidateLedgerHandle(reopened.getLedgerHandle(firstLedgerId).get());
+        assertNull(reopened.ledgerCache.get(firstLedgerId));
+        reopened.getLedgerHandle(finalLedgerId).get();
+        assertFalse(reopened.ledgerCache.isEmpty());
         reopened.close();
+        assertTrue(reopened.ledgerCache.isEmpty());
     }
 
     private static void assertReadsAllEntries(ManagedLedgerImpl ledger, int numberOfEntries) throws Exception {

@@ -128,7 +128,7 @@ public class SplitScheduler implements LoadManagerScheduler {
                         var split = decision.getSplit();
                         futures.add(
                                 splitManager.waitAsync(
-                                        serviceUnitStateChannel.publishSplitEventAsync(split),
+                                        () -> serviceUnitStateChannel.publishSplitEventAsync(split),
                                         split.serviceUnit(),
                                         decision,
                                         asyncOpTimeoutMs, TimeUnit.MILLISECONDS)

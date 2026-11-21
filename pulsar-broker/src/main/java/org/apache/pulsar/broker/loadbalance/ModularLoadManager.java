@@ -69,6 +69,19 @@ public interface ModularLoadManager {
     Optional<String> selectBrokerForAssignment(ServiceUnitId serviceUnit);
 
     /**
+     * Asynchronous version of {@link #selectBrokerForAssignment(ServiceUnitId)}.
+     * The default implementation calls the synchronous method on the caller's thread. Implementations should override
+     * this method to avoid blocking the caller on metadata reads.
+     */
+    default CompletableFuture<Optional<String>> selectBrokerForAssignmentAsync(ServiceUnitId serviceUnit) {
+        try {
+            return CompletableFuture.completedFuture(selectBrokerForAssignment(serviceUnit));
+        } catch (Exception e) {
+            return CompletableFuture.failedFuture(e);
+        }
+    }
+
+    /**
      * As any broker, start the load manager.
      *
      * @throws PulsarServerException

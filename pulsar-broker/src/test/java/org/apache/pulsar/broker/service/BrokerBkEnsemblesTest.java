@@ -86,7 +86,7 @@ public class BrokerBkEnsemblesTest extends BkEnsemblesTestBase {
     }
 
     /**
-     * It verifies that broker deletes cursor-ledger when broker-crashes without closing topic gracefully
+     * It verifies that broker deletes cursor-ledger when broker-crashes without closing topic gracefully.
      *
      * <pre>
      * 1. Create topic : publish/consume-ack msgs to update new cursor-ledger

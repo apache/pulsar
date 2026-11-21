@@ -20,7 +20,7 @@ package org.apache.pulsar.broker.transaction.pendingack.impl;
 
 import io.github.merlimat.slog.Logger;
 import io.netty.util.Timer;
-import io.prometheus.client.CollectorRegistry;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -242,7 +242,7 @@ public class MLPendingAckStoreProvider implements TransactionPendingAckStoreProv
             super("pulsar_txn_pending_ack_store",
                     new String[]{"broker"},
                     new String[]{brokerAdvertisedAddress},
-                    CollectorRegistry.defaultRegistry);
+                    PrometheusRegistry.defaultRegistry);
         }
     }
 }

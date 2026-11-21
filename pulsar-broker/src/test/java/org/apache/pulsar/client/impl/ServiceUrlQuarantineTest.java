@@ -24,10 +24,17 @@ import static org.testng.Assert.assertTrue;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import lombok.CustomLog;
 import org.apache.pulsar.client.api.ClientBuilder;
@@ -147,88 +154,159 @@ public class ServiceUrlQuarantineTest extends ProducerConsumerBase {
         String topic = "persistent://my-property/my-ns/topic" + UUID.randomUUID();
         admin.topics().createNonPartitionedTopic(topic);
         int createCount = 20;
-        // 1. test binary service url
-        // trigger unhealthy address removal by creating consumers and producers
-        int successCount = createConsumerAndProducers(pulsarClientWithBinaryServiceUrl, createCount, topic);
-        assertTrue(successCount < createCount,
-                "Expected some creations to fail due to unavailable nodes, but all succeeded.");
-        // all unavailable nodes should have been removed
-        successCount = createConsumerAndProducers(pulsarClientWithBinaryServiceUrl, createCount, topic);
-        assertEquals(successCount, createCount,
-                "Expected all subscription creations to succeed, but only " + successCount + " succeeded.");
+        // Each client keeps the availability of its hosts to itself, so the four clients run at the same time.
+        runConcurrently(List.of(
+                // 1. test binary service url
+                () -> {
+                    // trigger unhealthy address removal by creating consumers and producers
+                    int successCount = createConsumerAndProducers(pulsarClientWithBinaryServiceUrl, createCount,
+                            topic);
+                    assertTrue(successCount < createCount,
+                            "Expected some creations to fail due to unavailable nodes, but all succeeded.");
+                    // all unavailable nodes should have been removed
+                    successCount = createConsumerAndProducers(pulsarClientWithBinaryServiceUrl, createCount, topic);
+                    assertEquals(successCount, createCount,
+                            "Expected all subscription creations to succeed, but only " + successCount
+                                    + " succeeded.");
+                    return null;
+                },
+                // test binary service url with disable quarantine
+                () -> {
+                    int successCount = createConsumerAndProducersConcurrently(
+                            pulsarClientWithBinaryServiceUrlDisableQuarantine, createCount, topic);
+                    assertTrue(successCount < createCount,
+                            "Expected some creations to fail due to unavailable nodes, but all succeeded.");
+                    // no unavailable nodes should be removed since backoff is disabled
+                    successCount = createConsumerAndProducersConcurrently(
+                            pulsarClientWithBinaryServiceUrlDisableQuarantine, createCount, topic);
+                    assertTrue(successCount < createCount,
+                            "Expected all subscription creations to succeed, but only " + successCount
+                                    + " succeeded.");
+                    return null;
+                },
+                // 2. test http service url
+                () -> {
+                    // trigger unhealthy address removal by creating consumers and producers
+                    int successCount = createConsumerAndProducers(pulsarClientWithHttpServiceUrl, createCount, topic);
+                    assertTrue(successCount < createCount,
+                            "Expected some creations to fail due to unavailable nodes, but all succeeded.");
+                    // all unavailable nodes should have been removed
+                    successCount = createConsumerAndProducers(pulsarClientWithHttpServiceUrl, createCount, topic);
+                    assertEquals(successCount, createCount,
+                            "Expected some creations to fail due to unavailable nodes, but all succeeded.");
+                    return null;
+                },
+                // test http service url with disable quarantine
+                () -> {
+                    int successCount = createConsumerAndProducersConcurrently(
+                            pulsarClientWithHttpServiceUrlDisableQuarantine, createCount, topic);
+                    assertTrue(successCount < createCount,
+                            "Expected some creations to fail due to unavailable nodes, but all succeeded.");
+                    // no unavailable nodes should be removed since backoff is disabled
+                    successCount = createConsumerAndProducersConcurrently(
+                            pulsarClientWithHttpServiceUrlDisableQuarantine, createCount, topic);
+                    assertTrue(successCount < createCount,
+                            "Expected some creations to fail due to unavailable nodes, but all succeeded.");
+                    return null;
+                }));
+    }
 
-        // test binary service url with disable quarantine
-        successCount =
-                createConsumerAndProducers(pulsarClientWithBinaryServiceUrlDisableQuarantine, createCount, topic);
-        assertTrue(successCount < createCount,
-                "Expected some creations to fail due to unavailable nodes, but all succeeded.");
-        // no unavailable nodes should be removed since backoff is disabled
-        successCount =
-                createConsumerAndProducers(pulsarClientWithBinaryServiceUrlDisableQuarantine, createCount, topic);
-        assertTrue(successCount < createCount,
-                "Expected all subscription creations to succeed, but only " + successCount + " succeeded.");
-
-        // 2. test http service url
-        // trigger unhealthy address removal by creating consumers and producers
-        successCount = createConsumerAndProducers(pulsarClientWithHttpServiceUrl, createCount, topic);
-        assertTrue(successCount < createCount,
-                "Expected some creations to fail due to unavailable nodes, but all succeeded.");
-        // all unavailable nodes should have been removed
-        successCount = createConsumerAndProducers(pulsarClientWithHttpServiceUrl, createCount, topic);
-        assertEquals(successCount, createCount,
-                "Expected some creations to fail due to unavailable nodes, but all succeeded.");
-
-        // test http service url with disable quarantine
-        successCount = createConsumerAndProducers(pulsarClientWithHttpServiceUrlDisableQuarantine, createCount, topic);
-        assertTrue(successCount < createCount,
-                "Expected some creations to fail due to unavailable nodes, but all succeeded.");
-        // no unavailable nodes should be removed since backoff is disabled
-        successCount = createConsumerAndProducers(pulsarClientWithHttpServiceUrlDisableQuarantine, createCount, topic);
-        assertTrue(successCount < createCount,
-                "Expected some creations to fail due to unavailable nodes, but all succeeded.");
+    /**
+     * Runs the tasks at the same time, each on a thread of its own, and fails with the first task that failed.
+     */
+    private static void runConcurrently(List<Callable<Void>> tasks) throws Exception {
+        ExecutorService executor = Executors.newFixedThreadPool(tasks.size());
+        try {
+            for (Future<Void> future : executor.invokeAll(tasks)) {
+                future.get();
+            }
+        } finally {
+            executor.shutdownNow();
+        }
     }
 
     private int createConsumerAndProducers(PulsarClientImpl pulsarClient, int createCount, String topic) {
         int successCount = 0;
         for (int i = 0; i < createCount; i++) {
-            String subName = "my-sub" + UUID.randomUUID();
-            try {
-                Consumer<byte[]> consumer = pulsarClient.newConsumer()
-                        .subscriptionMode(SubscriptionMode.Durable)
-                        .topic(topic).receiverQueueSize(1).subscriptionName(subName)
-                        .subscribe();
-                consumer.close();
-                Producer<byte[]> producer = pulsarClient.newProducer()
-                        .topic(topic)
-                        .create();
-                producer.close();
+            if (createConsumerAndProducer(pulsarClient, topic)) {
                 successCount++;
-            } catch (Exception e) {
-                log.warn()
-                        .attr("subscription", subName)
-                        .attr("topic", topic)
-                        .exceptionMessage(e)
-                        .log("Failed to create consumer and producer");
             }
         }
         return successCount;
     }
 
+    /**
+     * Like {@link #createConsumerAndProducers}, but the creations run at the same time. Only for a client with
+     * quarantine disabled: there, a failed creation doesn't change the hosts that the other creations use.
+     */
+    private int createConsumerAndProducersConcurrently(PulsarClientImpl pulsarClient, int createCount,
+                                                       String topic) throws Exception {
+        Callable<Boolean> creation = () -> createConsumerAndProducer(pulsarClient, topic);
+        ExecutorService executor = Executors.newFixedThreadPool(createCount);
+        try {
+            int successCount = 0;
+            for (Future<Boolean> created : executor.invokeAll(Collections.nCopies(createCount, creation))) {
+                if (created.get()) {
+                    successCount++;
+                }
+            }
+            return successCount;
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    private boolean createConsumerAndProducer(PulsarClientImpl pulsarClient, String topic) {
+        String subName = "my-sub" + UUID.randomUUID();
+        try {
+            Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                    .subscriptionMode(SubscriptionMode.Durable)
+                    .topic(topic).receiverQueueSize(1).subscriptionName(subName)
+                    .subscribe();
+            consumer.close();
+            Producer<byte[]> producer = pulsarClient.newProducer()
+                    .topic(topic)
+                    .create();
+            producer.close();
+            return true;
+        } catch (Exception e) {
+            log.warn()
+                    .attr("subscription", subName)
+                    .attr("topic", topic)
+                    .exceptionMessage(e)
+                    .log("Failed to create consumer and producer");
+            return false;
+        }
+    }
+
     @Test(invocationCount = 10)
     public void testServiceUrlHealthCheck() throws Exception {
-        doTestServiceUrlResolve(pulsarClientWithBinaryServiceUrl,
-                "pulsar+ssl://host1:6651,host2:6651,127.0.0.1:" + brokerServicePort,
-                InetSocketAddress.createUnresolved("127.0.0.1", brokerServicePort), true);
-        doTestServiceUrlResolve(pulsarClientWithHttpServiceUrl,
-                "http://host1:6651,host2:6651,127.0.0.1:" + webServicePort,
-                InetSocketAddress.createUnresolved("127.0.0.1", webServicePort), true);
-
-        doTestServiceUrlResolve(pulsarClientWithBinaryServiceUrlDisableQuarantine,
-                "pulsar+ssl://host1:6651,host2:6651,127.0.0.1:" + brokerServicePort,
-                InetSocketAddress.createUnresolved("127.0.0.1", brokerServicePort), false);
-        doTestServiceUrlResolve(pulsarClientWithHttpServiceUrlDisableQuarantine,
-                "http://host1:6651,host2:6651,127.0.0.1:" + webServicePort,
-                InetSocketAddress.createUnresolved("127.0.0.1", webServicePort), false);
+        // Each client keeps the availability of its hosts to itself, so the four clients run at the same time.
+        runConcurrently(List.of(
+                () -> {
+                    doTestServiceUrlResolve(pulsarClientWithBinaryServiceUrl,
+                            "pulsar+ssl://host1:6651,host2:6651,127.0.0.1:" + brokerServicePort,
+                            InetSocketAddress.createUnresolved("127.0.0.1", brokerServicePort), true);
+                    return null;
+                },
+                () -> {
+                    doTestServiceUrlResolve(pulsarClientWithHttpServiceUrl,
+                            "http://host1:6651,host2:6651,127.0.0.1:" + webServicePort,
+                            InetSocketAddress.createUnresolved("127.0.0.1", webServicePort), true);
+                    return null;
+                },
+                () -> {
+                    doTestServiceUrlResolve(pulsarClientWithBinaryServiceUrlDisableQuarantine,
+                            "pulsar+ssl://host1:6651,host2:6651,127.0.0.1:" + brokerServicePort,
+                            InetSocketAddress.createUnresolved("127.0.0.1", brokerServicePort), false);
+                    return null;
+                },
+                () -> {
+                    doTestServiceUrlResolve(pulsarClientWithHttpServiceUrlDisableQuarantine,
+                            "http://host1:6651,host2:6651,127.0.0.1:" + webServicePort,
+                            InetSocketAddress.createUnresolved("127.0.0.1", webServicePort), false);
+                    return null;
+                }));
     }
 
     private void doTestServiceUrlResolve(PulsarClientImpl pulsarClient, String serviceUrl,
@@ -266,22 +344,21 @@ public class ServiceUrlQuarantineTest extends ProducerConsumerBase {
         }
         String topic = "persistent://my-property/my-ns/topic" + UUID.randomUUID();
         admin.topics().createNonPartitionedTopic(topic);
-        // Create consumers to trigger unhealthy address removal
+        // Create consumers to trigger unhealthy address removal. With quarantine disabled, a failed creation doesn't
+        // change the hosts that the other creations use, so they run at the same time.
+        List<Callable<Void>> creations = new ArrayList<>();
         for (int i = 0; i < originAllAddresses.size(); i++) {
-            String subName = "my-sub" + UUID.randomUUID();
-            try {
-                Consumer<byte[]> consumer = pulsarClient.newConsumer()
-                        .subscriptionMode(SubscriptionMode.Durable)
-                        .topic(topic).receiverQueueSize(1).subscriptionName(subName)
-                        .subscribe();
-                consumer.closeAsync();
-            } catch (PulsarClientException e) {
-                log.warn()
-                        .attr("subscription", subName)
-                        .attr("topic", topic)
-                        .exceptionMessage(e)
-                        .log("Failed to create consumer");
+            creations.add(() -> {
+                createConsumer(pulsarClient, topic);
+                return null;
+            });
+        }
+        if (enableQuarantine) {
+            for (Callable<Void> creation : creations) {
+                creation.call();
             }
+        } else {
+            runConcurrently(creations);
         }
         // check if the unhealthy address is removed
         Set<InetSocketAddress> expectedHealthyAddresses = new HashSet<>();
@@ -299,6 +376,23 @@ public class ServiceUrlQuarantineTest extends ProducerConsumerBase {
         if (!enableQuarantine) {
             assertEquals(resolvedAddresses, originAllAddresses,
                     "Expected all addresses to be healthy, but found: " + resolvedAddresses);
+        }
+    }
+
+    private void createConsumer(PulsarClientImpl pulsarClient, String topic) {
+        String subName = "my-sub" + UUID.randomUUID();
+        try {
+            Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                    .subscriptionMode(SubscriptionMode.Durable)
+                    .topic(topic).receiverQueueSize(1).subscriptionName(subName)
+                    .subscribe();
+            consumer.closeAsync();
+        } catch (PulsarClientException e) {
+            log.warn()
+                    .attr("subscription", subName)
+                    .attr("topic", topic)
+                    .exceptionMessage(e)
+                    .log("Failed to create consumer");
         }
     }
 }

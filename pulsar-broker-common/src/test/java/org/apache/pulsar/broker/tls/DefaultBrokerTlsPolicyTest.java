@@ -19,9 +19,12 @@
 package org.apache.pulsar.broker.tls;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.security.Security;
 import java.util.Set;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
+import org.apache.pulsar.common.tls.TlsClientAuthMode;
 import org.apache.pulsar.common.util.tls.JcaProviders;
 import org.apache.pulsar.tls.TlsPolicy;
 import org.testng.annotations.Test;
@@ -157,5 +160,23 @@ public class DefaultBrokerTlsPolicyTest {
         conf.setWebServiceTlsProvider("OPENSSL");
 
         assertThat(DefaultBrokerTlsFactory.webPolicy(conf).jsseProvider()).isNull();
+    }
+
+    @Test
+    @SuppressWarnings("deprecation")
+    public void clientAuthModeMapsIntoFactorySettings() {
+        ServiceConfiguration conf = conf();
+        assertThat(clientAuthMode(conf)).as("no TLS authentication").isEqualTo(TlsClientAuthMode.NONE);
+        conf.setAuthenticationEnabled(true);
+        conf.setAuthenticationProviders(Set.of(AuthenticationProviderTls.class.getName()));
+        assertThat(clientAuthMode(conf)).isEqualTo(TlsClientAuthMode.OPTIONAL);
+        conf.setTlsRequireTrustedClientCertOnConnect(true);
+        assertThat(clientAuthMode(conf)).isEqualTo(TlsClientAuthMode.REQUIRE);
+        conf.setTlsClientAuthMode(TlsClientAuthMode.NONE);
+        assertThatThrownBy(() -> clientAuthMode(conf)).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    private static TlsClientAuthMode clientAuthMode(ServiceConfiguration conf) {
+        return DefaultBrokerTlsFactory.fromServiceConfiguration(conf).settings().clientAuthMode();
     }
 }

@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl.auth.oauth2;
 
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.atLeast;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -314,6 +315,30 @@ public class AuthenticationOAuth2Test {
         data = this.auth.getAuthData();
         verify(this.flow, times(2)).authenticate();
         assertEquals(data.getCommandData(), tr.getAccessToken());
+    }
+
+    @Test
+    public void testGetAuthDataExpiresTokenBeforeItsExpClaim() throws Exception {
+        // The identity provider issues the token at some point between the request and the response, and the
+        // token's exp claim, in whole seconds, can be up to a second before the issue time plus expires_in.
+        TokenResult tr = TokenResult.builder().accessToken(TEST_ACCESS_TOKEN).expiresIn(TEST_EXPIRES_IN).build();
+        doAnswer(invocation -> {
+            clock.advance(Duration.ofMillis(1500));
+            return tr;
+        }).when(this.flow).authenticate();
+        Instant requestedAt = clock.instant();
+        this.auth.getAuthData();
+        verify(this.flow, times(1)).authenticate();
+
+        // cache hit up to a second before the request time plus expires_in
+        clock.setInstant(requestedAt.plusSeconds(TEST_EXPIRES_IN - 1));
+        this.auth.getAuthData();
+        verify(this.flow, times(1)).authenticate();
+
+        // cache miss past it, although expires_in has not passed since the response
+        clock.advance(Duration.ofMillis(1));
+        this.auth.getAuthData();
+        verify(this.flow, times(2)).authenticate();
     }
 
     // This test skips the early refresh logic and just ensures that if the class were to somehow fail

@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import java.util.concurrent.TimeUnit;
+import lombok.Cleanup;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
@@ -48,6 +49,7 @@ public class DispatchAccordingPermitsTest extends SharedPulsarBaseTest {
         final String subName = "test";
         admin.topics().createSubscription(topic, "test", MessageId.earliest);
 
+        @Cleanup
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
                 .topic(topic)
                 .batchingMaxPublishDelay(Long.MAX_VALUE, TimeUnit.MILLISECONDS)
@@ -68,6 +70,7 @@ public class DispatchAccordingPermitsTest extends SharedPulsarBaseTest {
             producer.flush();
         }
 
+        @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topic)
                 .subscriptionName(subName)

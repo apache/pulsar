@@ -93,7 +93,9 @@ public class PulsarSaslServer {
                     .log("SASL configuration");
 
                 try {
-                    return Subject.doAs(subject, new PrivilegedExceptionAction<SaslServer>() {
+                    // Subject.callAs would wrap the RuntimeException below in a CompletionException.
+                    @SuppressWarnings("removal")
+                    SaslServer server = Subject.doAs(subject, new PrivilegedExceptionAction<SaslServer>() {
                             @Override
                             public SaslServer run() {
                                 try {
@@ -107,6 +109,7 @@ public class PulsarSaslServer {
                             }
                         }
                     );
+                    return server;
                 } catch (PrivilegedActionException e) {
                     throw new SaslException("error on GSSAPI boot", e.getCause());
                 }

@@ -136,6 +136,9 @@ public abstract class AbstractPulsarProfilingTest extends PulsarTestSuite {
         // roughly 290k msg/s, so this is a bit over a minute of load - long enough for a profile,
         // short enough that a run which does not finish is a real stall rather than the normal end.
 
+        // How produce() and consume() start pulsar-perf; enableProfiling passes the profiler's options to it.
+        private String pulsarPerf = "/pulsar/bin/pulsar-perf";
+
         public PulsarPerfContainer(File testOutputDir,
                                    String clusterName,
                                    String brokerHostname,
@@ -162,7 +165,7 @@ public abstract class AbstractPulsarProfilingTest extends PulsarTestSuite {
         public CompletableFuture<Long> consume(String topicName) throws Exception {
             return DockerUtils.runCommandAsyncWithLogging(getDockerClient(), getContainerId(),
                     "bash", "-c", "set -o pipefail; echo $$ > /tmp/command.pid; "
-                            + "/pulsar/bin/pulsar-perf consume " + topicName + " "
+                            + pulsarPerf + " consume " + topicName + " "
                             + "-u pulsar://" + brokerHostname + ":6650 "
                             + "-st " + load.subscriptionType() + " "
                             + "-q " + load.receiverQueueSize() + " "
@@ -178,7 +181,7 @@ public abstract class AbstractPulsarProfilingTest extends PulsarTestSuite {
         public CompletableFuture<Long> produce(String topicName) throws Exception {
             return DockerUtils.runCommandAsyncWithLogging(getDockerClient(), getContainerId(),
                     "bash", "-c", "set -o pipefail; echo $$ > /tmp/command.pid; "
-                            + "/pulsar/bin/pulsar-perf produce " + topicName + " "
+                            + pulsarPerf + " produce " + topicName + " "
                             + "-u pulsar://" + brokerHostname + ":6650 "
                             + "-au http://" + brokerHostname + ":8080 "
                             + "-r " + load.produceRate() + " "
@@ -210,9 +213,12 @@ public abstract class AbstractPulsarProfilingTest extends PulsarTestSuite {
             withCreateContainerCmdModifier(cmd -> cmd.getHostConfig()
                     .withCapAdd(Capability.PERFMON)
                     .withSecurityOpts(List.of("seccomp=unconfined")));
-            withEnv("PULSAR_EXTRA_OPTS", "-XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints "
+            // DockerUtils runs commands with an empty PULSAR_EXTRA_OPTS, which replaces the container's value,
+            // so keep the options in a variable of their own and set PULSAR_EXTRA_OPTS for pulsar-perf alone.
+            withEnv("PERF_PROFILING_OPTS", "-XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints "
                     + "-agentpath:/opt/async-profiler/lib/libasyncProfiler.so=start," + options
                     + ",file=/testoutput/client-" + role + "-%t-%p.jfr");
+            pulsarPerf = "PULSAR_EXTRA_OPTS=\"$PERF_PROFILING_OPTS\" /pulsar/bin/pulsar-perf";
         }
 
         /**
