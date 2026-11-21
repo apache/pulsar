@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.service;
 
 import com.google.common.annotations.VisibleForTesting;
-import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.flush.FlushConsolidationHandler;
@@ -133,22 +132,29 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
         }
         ch.pipeline().addLast("ByteBufPairEncoder", ByteBufPair.getEncoder(this.enableTls));
 
+        InProgressRequestFrameMemoryLimiter inProgressRequestFrameMemoryLimiter =
+                pulsar.getBrokerService().getInProgressRequestFrameMemoryLimiter();
+        InProgressRequestFrameTrackingDecoder frameDecoder = inProgressRequestFrameMemoryLimiter == null ? null
+                : new InProgressRequestFrameTrackingDecoder(brokerConf.getMaxMessageSize(),
+                        inProgressRequestFrameMemoryLimiter);
         if (pulsar.getConfiguration().isHaProxyProtocolEnabled()) {
-            ch.pipeline().addLast(OptionalProxyProtocolDecoder.NAME, new OptionalProxyProtocolDecoder());
+            ch.pipeline().addLast(OptionalProxyProtocolDecoder.NAME, frameDecoder == null
+                    ? new OptionalProxyProtocolDecoder()
+                    : new OptionalProxyProtocolDecoder(frameDecoder::validateUpstreamHandlers));
         }
-        FrameDecoderUtil.addFrameDecoder(ch.pipeline(), brokerConf.getMaxMessageSize());
-        // https://stackoverflow.com/questions/37535482/netty-disabling-auto-read-doesnt-work-for-bytetomessagedecoder
-        // Classes such as {@link ByteToMessageDecoder} or {@link MessageToByteEncoder} are free to emit as many events
-        // as they like for any given input. so, disabling auto-read on `ByteToMessageDecoder` doesn't work properly and
-        // ServerCnx ends up reading higher number of messages and broker can not throttle the messages by disabling
-        // auto-read.
-        // PulsarFlowControlHandler is used instead of Netty's FlowControlHandler since Netty 4.2.15 changed the
-        // behavior to ignore setAutoRead(false) made by a downstream handler while queued messages are being
-        // delivered, which breaks throttling of already buffered messages. See PulsarFlowControlHandler javadoc.
-        ch.pipeline().addLast("flowController", new PulsarFlowControlHandler());
-        // using "ChannelHandler" type to workaround an IntelliJ bug that shows a false positive error
-        ChannelHandler cnx = newServerCnx(pulsar, listenerName);
-        ch.pipeline().addLast("handler", cnx);
+        // DISABLED keeps the original decoder. Other modes validate the completed upstream pipeline when the
+        // channel becomes active; PROXY protocol validates its later transition through the callback above.
+        if (frameDecoder == null) {
+            FrameDecoderUtil.addFrameDecoder(ch.pipeline(), brokerConf.getMaxMessageSize());
+        } else {
+            ch.pipeline().addLast(FrameDecoderUtil.FRAME_DECODER_HANDLER, frameDecoder);
+        }
+        // Keep per-message business backpressure after decoding. Frame-memory pressure pauses new socket reads,
+        // but queued frames must still complete so they can release the root buffers that caused that pressure.
+        ServerCnx cnx = newServerCnx(pulsar, listenerName);
+        ch.pipeline().addLast("flowController", new PulsarFlowControlHandler(
+                cnx.getThrottleTracker()::isMessageDeliveryPaused));
+        ch.pipeline().addLast(ServerCnx.SERVER_CNX_HANDLER_NAME, cnx);
     }
 
     @VisibleForTesting
