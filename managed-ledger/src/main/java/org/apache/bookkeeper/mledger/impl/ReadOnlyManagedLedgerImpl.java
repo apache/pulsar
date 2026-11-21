@@ -24,10 +24,12 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import lombok.CustomLog;
 import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerAlreadyClosedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerNotFoundException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetadataNotFoundException;
@@ -42,6 +44,8 @@ import org.apache.pulsar.metadata.api.Stat;
 
 @CustomLog
 public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
+
+    private volatile boolean closingOrClosed;
 
     public ReadOnlyManagedLedgerImpl(ManagedLedgerFactoryImpl factory, BookKeeper bookKeeper, MetaStore store,
                                      ManagedLedgerConfig config, OrderedScheduler scheduledExecutor,
@@ -164,6 +168,26 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
     public ReadOnlyCursor createReadOnlyCursor(Position startPosition) {
         initializeLastConfirmedEntry();
         return new ReadOnlyCursorImpl(bookKeeper, this, startPosition, "read-only-cursor");
+    }
+
+    @Override
+    public void asyncClose(AsyncCallbacks.CloseCallback callback, Object ctx) {
+        closingOrClosed = true;
+        entryCache.clear();
+        super.asyncClose(callback, ctx);
+    }
+
+    @Override
+    CompletableFuture<ReadHandle> getLedgerHandle(long ledgerId) {
+        if (closingOrClosed) {
+            return CompletableFuture.failedFuture(new ManagedLedgerAlreadyClosedException("Managed ledger is closed"));
+        }
+        CompletableFuture<ReadHandle> handle = super.getLedgerHandle(ledgerId);
+        // The parent releases late handles. Reject a lookup that raced with close before the open completes.
+        if (closingOrClosed) {
+            return CompletableFuture.failedFuture(new ManagedLedgerAlreadyClosedException("Managed ledger is closed"));
+        }
+        return handle;
     }
 
     @Override

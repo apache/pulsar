@@ -32,7 +32,6 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 import java.lang.reflect.Field;
 import java.util.LinkedList;
 import java.util.List;
@@ -89,7 +88,6 @@ import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
-import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.events.EventType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.Commands;
@@ -754,6 +752,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         TopicName snapshotSegmentTopicName = TopicName.getPartitionedTopicName(snapshotTopic);
 
         //send message to create manager ledger
+        @Cleanup
         Producer<TransactionBufferSnapshotSegment> producer =
                 pulsarClient.newProducer(Schema.AVRO(
                                 TransactionBufferSnapshotSegment.class))
@@ -765,14 +764,12 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         BrokerService brokerService = pulsarService.getBrokerService();
 
         // create snapshot segment writer
-        final var pulsar = pulsarServiceList.get(0);
-        SystemTopicTxnBufferSnapshotService<TransactionBufferSnapshotSegment>
-                transactionBufferSnapshotSegmentService =
-                new TransactionBufferSnapshotServiceFactory(pulsar).getTxnBufferSnapshotSegmentService();
-
-        SystemTopicClient.Writer<TransactionBufferSnapshotSegment>
-                segmentWriter = transactionBufferSnapshotSegmentService
-                .getReferenceWriter(snapshotSegmentTopicName.getNamespaceObject()).getFuture().get();
+        @Cleanup
+        var snapshotServiceFactory = new TransactionBufferSnapshotServiceFactory(pulsarService);
+        @Cleanup("release")
+        var segmentWriterRef = snapshotServiceFactory.getTxnBufferSnapshotSegmentService()
+                .getReferenceWriter(snapshotSegmentTopicName.getNamespaceObject());
+        var segmentWriter = segmentWriterRef.getFuture().get(10, TimeUnit.SECONDS);
 
         // write two snapshot to snapshot segment topic
         TransactionBufferSnapshotSegment snapshot =
@@ -792,51 +789,67 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
 
         MessageIdImpl messageId = (MessageIdImpl) segmentWriter.write(buildKey(snapshot), snapshot);
 
-        //Create read-only managed ledger
-        //And read the entry and decode entry to snapshot
-        CompletableFuture<Entry> entryCompletableFuture = new CompletableFuture<>();
+        CompletableFuture<ReadOnlyManagedLedger> opened = new CompletableFuture<>();
         AsyncCallbacks.OpenReadOnlyManagedLedgerCallback callback = new AsyncCallbacks
                 .OpenReadOnlyManagedLedgerCallback() {
             @Override
             public void openReadOnlyManagedLedgerComplete(ReadOnlyManagedLedger readOnlyManagedLedger, Object ctx) {
-                readOnlyManagedLedger.asyncReadEntry(
-                        PositionFactory.create(messageId.getLedgerId(), messageId.getEntryId()),
-                        new AsyncCallbacks.ReadEntryCallback() {
-                            @Override
-                            public void readEntryComplete(Entry entry, Object ctx) {
-                                entryCompletableFuture.complete(entry);
-                            }
-
-                            @Override
-                            public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
-                                entryCompletableFuture.completeExceptionally(exception);
-                            }
-                        }, null);
+                opened.complete(readOnlyManagedLedger);
             }
 
             @Override
             public void openReadOnlyManagedLedgerFailed(ManagedLedgerException exception, Object ctx) {
-                //
+                opened.completeExceptionally(exception);
             }
         };
         pulsarService.getDefaultManagedLedgerFactory()
                 .asyncOpenReadOnlyManagedLedger(snapshotSegmentTopicName.getPersistenceNamingEncoding(), callback,
-                        brokerService.getManagedLedgerConfig(snapshotSegmentTopicName).get(), null);
+                        brokerService.getManagedLedgerConfig(snapshotSegmentTopicName).get(10, TimeUnit.SECONDS), null);
+        ReadOnlyManagedLedger reader;
+        try {
+            reader = opened.get(10, TimeUnit.SECONDS);
+        } catch (Exception error) {
+            opened.thenAccept(ReadOnlyManagedLedger::asyncClose);
+            throw error;
+        }
 
-        Entry entry = entryCompletableFuture.get();
-        //decode snapshot from entry
-        ByteBuf headersAndPayload = entry.getDataBuffer();
-        //skip metadata
-        MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
-        snapshot = Schema.AVRO(TransactionBufferSnapshotSegment.class)
-                .decode(Unpooled.wrappedBuffer(headersAndPayload).nioBuffer());
+        try {
+            CompletableFuture<Entry> read = new CompletableFuture<>();
+            reader.asyncReadEntry(PositionFactory.create(messageId.getLedgerId(), messageId.getEntryId()),
+                    new AsyncCallbacks.ReadEntryCallback() {
+                        @Override
+                        public void readEntryComplete(Entry entry, Object ctx) {
+                            read.complete(entry);
+                        }
 
-        //verify snapshot
-        assertEquals(snapshot.getTopicName(), snapshotTopic);
-        assertEquals(snapshot.getSequenceId(), 2L);
-        assertEquals(snapshot.getPersistentPositionLedgerId(), 2L);
-        assertEquals(snapshot.getPersistentPositionEntryId(), 3L);
-        assertEquals(snapshot.getAborts().toArray()[0], new TxnIDData(1, 1));
+                        @Override
+                        public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                            read.completeExceptionally(exception);
+                        }
+                    }, null);
+            Entry entry;
+            try {
+                entry = read.get(10, TimeUnit.SECONDS);
+            } catch (Exception error) {
+                read.thenAccept(Entry::release);
+                throw error;
+            }
+            try {
+                ByteBuf headersAndPayload = entry.getDataBuffer();
+                Commands.parseMessageMetadata(headersAndPayload);
+                snapshot = Schema.AVRO(TransactionBufferSnapshotSegment.class).decode(headersAndPayload.nioBuffer());
+
+                assertEquals(snapshot.getTopicName(), snapshotTopic);
+                assertEquals(snapshot.getSequenceId(), 2L);
+                assertEquals(snapshot.getPersistentPositionLedgerId(), 2L);
+                assertEquals(snapshot.getPersistentPositionEntryId(), 3L);
+                assertEquals(snapshot.getAborts().toArray()[0], new TxnIDData(1, 1));
+            } finally {
+                entry.release();
+            }
+        } finally {
+            reader.asyncClose().get(10, TimeUnit.SECONDS);
+        }
     }
 
     //Verify the snapshotSegmentProcessor end to end

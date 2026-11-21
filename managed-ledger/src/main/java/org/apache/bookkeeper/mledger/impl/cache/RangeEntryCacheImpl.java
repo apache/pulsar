@@ -73,6 +73,7 @@ public class RangeEntryCacheImpl implements EntryCache {
     private final Logger log;
     private ManagedLedgerInterceptor interceptor;
     private final RangeCache entries;
+    private final boolean cacheEntries;
     // inserts the managed ledger's added entries, which come in order on the managed ledger's executor
     private final RangeCache.Inserter addedEntriesInserter;
     private final PendingReadsManager pendingReadsManager;
@@ -91,6 +92,20 @@ public class RangeEntryCacheImpl implements EntryCache {
     RangeEntryCacheImpl(RangeEntryCacheManagerImpl manager, ManagedLedgerImpl ml,
                         RangeCacheRemovalQueue rangeCacheRemovalQueue, EntryLengthFunction entryLengthFunction,
                         PendingReadsManager pendingReadsManager) {
+        this(manager, ml, rangeCacheRemovalQueue, entryLengthFunction, pendingReadsManager, true);
+    }
+
+    static RangeEntryCacheImpl forReadOnlyLedger(RangeEntryCacheManagerImpl manager, ManagedLedgerImpl ml,
+                                                RangeCacheRemovalQueue rangeCacheRemovalQueue,
+                                                EntryLengthFunction entryLengthFunction) {
+        // Keep storage retry and limiting for the reader. Pending reads may finish after close, so this
+        // unregistered cache does not retain entries or contribute to the factory's entry cache size.
+        return new RangeEntryCacheImpl(manager, ml, rangeCacheRemovalQueue, entryLengthFunction, null, false);
+    }
+
+    private RangeEntryCacheImpl(RangeEntryCacheManagerImpl manager, ManagedLedgerImpl ml,
+                                RangeCacheRemovalQueue rangeCacheRemovalQueue, EntryLengthFunction entryLengthFunction,
+                                PendingReadsManager pendingReadsManager, boolean cacheEntries) {
         this.manager = manager;
         this.ml = ml;
         Logger mlLogger = ml.getLogger();
@@ -100,6 +115,7 @@ public class RangeEntryCacheImpl implements EntryCache {
         this.pendingReadsManager = pendingReadsManager == null ? new PendingReadsManager(this) : pendingReadsManager;
         this.entryLengthFunction = entryLengthFunction;
         this.interceptor = ml.getManagedLedgerInterceptor();
+        this.cacheEntries = cacheEntries;
         this.entries = new RangeCache(rangeCacheRemovalQueue);
         this.addedEntriesInserter = entries.newInserter();
 
@@ -172,6 +188,9 @@ public class RangeEntryCacheImpl implements EntryCache {
      * @return whether the entry was inserted
      */
     private boolean insert(Entry entry, boolean copy, RangeCache.Inserter inserter) {
+        if (!cacheEntries) {
+            return false;
+        }
         int entryLength = entryLengthFunction.getEntryLength(ml, entry);
 
         log.debug().attr("position", entry.getPosition())
@@ -592,7 +611,7 @@ public class RangeEntryCacheImpl implements EntryCache {
     @Override
     public boolean readAhead(ReadHandle lh, long firstEntry, long lastEntry, long maxSizeBytes,
                              BooleanSupplier cacheKeepsEntries, IntSupplier expectedReadCount, Runnable onComplete) {
-        if (entries.exists(lh.getId(), firstEntry) || manager.isAtEvictionWatermark()) {
+        if (!cacheEntries || entries.exists(lh.getId(), firstEntry) || manager.isAtEvictionWatermark()) {
             return false;
         }
         long estimatedEntrySize = Math.max(1, getEstimatedEntrySize(lh));
@@ -719,7 +738,7 @@ public class RangeEntryCacheImpl implements EntryCache {
                                     entriesToReturn.add(entry);
                                     totalSize += entry.getLength();
                                 }
-                                if (expectedReadCountVal >= 0) {
+                                if (cacheEntries && expectedReadCountVal >= 0) {
                                     insert(entriesToReturn, batchRead);
                                 }
 

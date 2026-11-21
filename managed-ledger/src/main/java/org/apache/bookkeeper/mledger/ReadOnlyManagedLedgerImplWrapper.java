@@ -25,6 +25,8 @@ import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.MetaStore;
 import org.apache.bookkeeper.mledger.impl.ReadOnlyManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.util.Futures;
+import org.apache.pulsar.common.util.FutureUtil;
 
 public class ReadOnlyManagedLedgerImplWrapper implements ReadOnlyManagedLedger {
 
@@ -59,5 +61,14 @@ public class ReadOnlyManagedLedgerImplWrapper implements ReadOnlyManagedLedger {
     @Override
     public Map<String, String> getProperties() {
         return readOnlyManagedLedger.getProperties();
+    }
+
+    @Override
+    public CompletableFuture<Void> asyncClose() {
+        return FutureUtil.supplySafely(() -> {
+            Futures.CloseFuture closeFuture = new Futures.CloseFuture();
+            readOnlyManagedLedger.asyncClose(closeFuture, null);
+            return closeFuture;
+        });
     }
 }

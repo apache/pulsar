@@ -84,7 +84,6 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.ReadOnlyCursor;
 import org.apache.bookkeeper.mledger.ReadOnlyManagedLedger;
-import org.apache.bookkeeper.mledger.impl.cache.EntryCache;
 import org.apache.bookkeeper.mledger.impl.cache.EntryCacheManager;
 import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.proto.PositionInfo;
@@ -921,6 +920,8 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         }, config, null);
         ReadOnlyManagedLedger reader = opened.get(10, TimeUnit.SECONDS);
         @Cleanup
+        AutoCloseable closeReader = () -> reader.asyncClose().get(10, TimeUnit.SECONDS);
+        @Cleanup
         ReadOnlyCursor cursor = reader.createReadOnlyCursor(PositionFactory.EARLIEST);
         long confirmedEntries = reader.getNumberOfEntries();
         assertThat(confirmedEntries).isEqualTo(2);
@@ -964,7 +965,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
     }
 
     @Test(timeOut = 30000)
-    public void testReadOnlyDirectReadWithSharedCacheAfterRollover() throws Exception {
+    public void testReadOnlyDirectReadAfterRolloverWithPrivateCaches() throws Exception {
         assertThat(baseClientConf.getExplictLacInterval()).isZero();
         ManagedLedgerFactoryConfig factoryConfig = new ManagedLedgerFactoryConfig();
         factoryConfig.setMaxCacheSize(16 * 1024 * 1024);
@@ -975,22 +976,22 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         ManagedLedgerConfig config = defaultConfig().setEnsembleSize(2).setWriteQuorumSize(2).setAckQuorumSize(2)
                 .setRetentionTime(1, TimeUnit.HOURS).setRetentionSizeInMB(-1).setMaxEntriesPerLedger(3);
         config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
-        String name = "read-only-shared-cache-rollover-" + UUID.randomUUID();
+        String name = "read-only-private-cache-rollover-" + UUID.randomUUID();
         ManagedLedger writer = writerFactory.open(name, config);
         Position first = writer.addEntry("old-first".getBytes(StandardCharsets.UTF_8));
         writer.addEntry("old-second".getBytes(StandardCharsets.UTF_8));
 
-        ReadOnlyManagedLedger firstReader = openReadOnlyForSharedCacheTest(readerFactory, name, config);
+        ReadOnlyManagedLedger firstReader = openReadOnly(readerFactory, name, config);
+        @Cleanup
+        AutoCloseable closeFirstReader = () -> firstReader.asyncClose().get(10, TimeUnit.SECONDS);
         @Cleanup
         ReadOnlyCursor firstCursor = firstReader.createReadOnlyCursor(PositionFactory.EARLIEST);
-        // Public cursor/ledger hooks inspect metadata without reflecting into the wrapper or reading any entry.
-        ManagedLedger firstView = ((ManagedCursor) firstCursor).getManagedLedger();
+        ManagedLedgerImpl firstView = (ManagedLedgerImpl) ((ManagedCursor) firstCursor).getManagedLedger();
         Position firstFrontier = firstView.getLastConfirmedEntry();
         long firstCount = firstReader.getNumberOfEntries();
         Position firstReadPosition = firstCursor.getReadPosition();
         assertThat(firstFrontier).isEqualTo(first);
         assertThat(firstCount).isEqualTo(1);
-        EntryCache sharedCache = readerFactory.getEntryCacheManager().getEntryCache(firstView);
 
         writer.addEntry("rollover-edge".getBytes(StandardCharsets.UTF_8));
         Position newFirst = writer.addEntry("new-first".getBytes(StandardCharsets.UTF_8));
@@ -1006,13 +1007,15 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
             assertThat(handle.getLastAddConfirmed()).isLessThan(published.getEntryId());
         }
 
-        ReadOnlyManagedLedger secondReader = openReadOnlyForSharedCacheTest(readerFactory, name, config);
+        ReadOnlyManagedLedger secondReader = openReadOnly(readerFactory, name, config);
+        @Cleanup
+        AutoCloseable closeSecondReader = () -> secondReader.asyncClose().get(10, TimeUnit.SECONDS);
         @Cleanup
         ReadOnlyCursor secondCursor = secondReader.createReadOnlyCursor(PositionFactory.EARLIEST);
-        ManagedLedger secondView = ((ManagedCursor) secondCursor).getManagedLedger();
+        ManagedLedgerImpl secondView = (ManagedLedgerImpl) ((ManagedCursor) secondCursor).getManagedLedger();
         assertThat(secondView).isNotSameAs(firstView);
         assertThat(secondView.getOptionalLedgerInfo(published.getLedgerId())).isPresent();
-        assertThat(readerFactory.getEntryCacheManager().getEntryCache(secondView)).isSameAs(sharedCache);
+        assertThat(secondView.entryCache).isNotSameAs(firstView.entryCache);
         Position secondFrontier = secondView.getLastConfirmedEntry();
         long secondCount = secondReader.getNumberOfEntries();
         Position secondReadPosition = secondCursor.getReadPosition();
@@ -1048,8 +1051,8 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         assertThat(secondCursor.getReadPosition()).isEqualTo(secondReadPosition);
     }
 
-    private ReadOnlyManagedLedger openReadOnlyForSharedCacheTest(ManagedLedgerFactory factory, String name,
-                                                                 ManagedLedgerConfig config) throws Exception {
+    private ReadOnlyManagedLedger openReadOnly(ManagedLedgerFactory factory, String name,
+                                                ManagedLedgerConfig config) throws Exception {
         CompletableFuture<ReadOnlyManagedLedger> opened = new CompletableFuture<>();
         factory.asyncOpenReadOnlyManagedLedger(name, new AsyncCallbacks.OpenReadOnlyManagedLedgerCallback() {
             @Override

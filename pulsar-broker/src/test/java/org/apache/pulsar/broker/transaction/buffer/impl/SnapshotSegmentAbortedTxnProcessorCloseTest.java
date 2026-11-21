@@ -18,12 +18,14 @@
  */
 package org.apache.pulsar.broker.transaction.buffer.impl;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertFalse;
@@ -34,8 +36,10 @@ import java.util.Collections;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -58,20 +62,82 @@ import org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBuffer
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.mockito.ArgumentCaptor;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class SnapshotSegmentAbortedTxnProcessorCloseTest {
 
     @Test(timeOut = 10_000)
-    @SuppressWarnings("unchecked")
     public void testCloseWaitsForRecoveryIndexUpdate() throws Exception {
-        ListeningScheduledExecutorService recoveryExecutor =
-                MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor());
         CompletableFuture<MessageId> indexUpdateFuture = new CompletableFuture<>();
         CountDownLatch indexUpdateStarted = new CountDownLatch(1);
-        SnapshotSegmentAbortedTxnProcessorImpl processor = null;
-        try {
+        try (var fixture = new RecoveryFixture(5_000)) {
+            when(fixture.indexSystemWriter.writeAsync(anyString(), any())).thenAnswer(invocation -> {
+                indexUpdateStarted.countDown();
+                return indexUpdateFuture;
+            });
+            doAnswer(invocation -> {
+                AsyncCallbacks.OpenReadOnlyManagedLedgerCallback callback = invocation.getArgument(1);
+                callback.openReadOnlyManagedLedgerComplete(fixture.readOnlyManagedLedger, invocation.getArgument(3));
+                return null;
+            }).when(fixture.managedLedgerFactory).asyncOpenReadOnlyManagedLedger(anyString(), any(), any(), isNull());
+            doAnswer(invocation -> {
+                AsyncCallbacks.ReadEntryCallback callback = invocation.getArgument(1);
+                callback.readEntryFailed(new ManagedLedgerException("missing segment"), invocation.getArgument(2));
+                return null;
+            }).when(fixture.readOnlyManagedLedger).asyncReadEntry(any(), any(), isNull());
+
+            try {
+                fixture.processor.recoverFromSnapshot().get(5, TimeUnit.SECONDS);
+                assertTrue(indexUpdateStarted.await(5, TimeUnit.SECONDS));
+                // A later recovery must not replace the in-flight update in the close barrier.
+                fixture.processor.recoverFromSnapshot().get(5, TimeUnit.SECONDS);
+                verify(fixture.readOnlyManagedLedger, times(2)).asyncClose();
+
+                CompletableFuture<Void> closeFuture = fixture.processor.closeAsync();
+
+                assertFalse(closeFuture.isDone(), "Closing must wait for the recovery index update");
+                verify(fixture.indexWriter, never()).release();
+
+                indexUpdateFuture.complete(MessageId.earliest);
+                closeFuture.get(5, TimeUnit.SECONDS);
+                verify(fixture.indexWriter).release();
+            } finally {
+                indexUpdateFuture.complete(MessageId.earliest);
+            }
+        }
+    }
+
+    @Test(timeOut = 10_000)
+    public void testClosesReadOnlyManagedLedgerWhenOpenCompletesAfterTimeout() throws Exception {
+        try (var fixture = new RecoveryFixture(0)) {
+            assertThatThrownBy(() -> fixture.processor.recoverFromSnapshot().get(5, TimeUnit.SECONDS))
+                    .isInstanceOf(ExecutionException.class).hasCauseInstanceOf(TimeoutException.class);
+
+            var callback = ArgumentCaptor.forClass(AsyncCallbacks.OpenReadOnlyManagedLedgerCallback.class);
+            verify(fixture.managedLedgerFactory)
+                    .asyncOpenReadOnlyManagedLedger(anyString(), callback.capture(), any(), isNull());
+            verify(fixture.readOnlyManagedLedger, never()).asyncClose();
+
+            callback.getValue().openReadOnlyManagedLedgerComplete(fixture.readOnlyManagedLedger, null);
+
+            verify(fixture.readOnlyManagedLedger).asyncClose();
+            verify(fixture.readOnlyManagedLedger, never()).asyncReadEntry(any(), any(), isNull());
+        }
+    }
+
+    private static final class RecoveryFixture implements AutoCloseable {
+        private final ListeningScheduledExecutorService recoveryExecutor =
+                MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor());
+        private final ManagedLedgerFactory managedLedgerFactory = mock(ManagedLedgerFactory.class);
+        private final ReadOnlyManagedLedger readOnlyManagedLedger = mock(ReadOnlyManagedLedger.class);
+        private final ReferenceCountedWriter<TransactionBufferSnapshotIndexes> indexWriter;
+        private final SystemTopicClient.Writer<TransactionBufferSnapshotIndexes> indexSystemWriter;
+        private final SnapshotSegmentAbortedTxnProcessorImpl processor;
+
+        @SuppressWarnings("unchecked")
+        RecoveryFixture(long operationTimeoutMs) throws Exception {
             String topicName = "persistent://public/default/test-close-during-index-update";
             PersistentTopic topic = mock(PersistentTopic.class);
             BrokerService brokerService = mock(BrokerService.class);
@@ -79,7 +145,7 @@ public class SnapshotSegmentAbortedTxnProcessorCloseTest {
             ServiceConfiguration configuration = mock(ServiceConfiguration.class);
             PulsarClientImpl client = mock(PulsarClientImpl.class);
             ClientConfigurationData clientConfiguration = new ClientConfigurationData();
-            clientConfiguration.setOperationTimeoutMs(5_000);
+            clientConfiguration.setOperationTimeoutMs(operationTimeoutMs);
             OrderedScheduler recoveryScheduler = mock(OrderedScheduler.class);
             TransactionBufferSnapshotServiceFactory serviceFactory =
                     mock(TransactionBufferSnapshotServiceFactory.class);
@@ -101,12 +167,10 @@ public class SnapshotSegmentAbortedTxnProcessorCloseTest {
                     mock(SystemTopicTxnBufferSnapshotService.class);
             ReferenceCountedWriter<TransactionBufferSnapshotSegment> segmentWriter =
                     mock(ReferenceCountedWriter.class);
-            ReferenceCountedWriter<TransactionBufferSnapshotIndexes> indexWriter =
-                    mock(ReferenceCountedWriter.class);
+            indexWriter = mock(ReferenceCountedWriter.class);
             SystemTopicClient.Writer<TransactionBufferSnapshotSegment> segmentSystemWriter =
                     mock(SystemTopicClient.Writer.class);
-            SystemTopicClient.Writer<TransactionBufferSnapshotIndexes> indexSystemWriter =
-                    mock(SystemTopicClient.Writer.class);
+            indexSystemWriter = mock(SystemTopicClient.Writer.class);
 
             when(serviceFactory.getTxnBufferSnapshotSegmentService()).thenReturn(segmentService);
             when(serviceFactory.getTxnBufferSnapshotIndexService()).thenReturn(indexService);
@@ -114,10 +178,6 @@ public class SnapshotSegmentAbortedTxnProcessorCloseTest {
             when(indexService.getReferenceWriter(any())).thenReturn(indexWriter);
             when(segmentWriter.getFuture()).thenReturn(CompletableFuture.completedFuture(segmentSystemWriter));
             when(indexWriter.getFuture()).thenReturn(CompletableFuture.completedFuture(indexSystemWriter));
-            when(indexSystemWriter.writeAsync(anyString(), any())).thenAnswer(invocation -> {
-                indexUpdateStarted.countDown();
-                return indexUpdateFuture;
-            });
 
             TransactionBufferSnapshotIndex invalidIndex = new TransactionBufferSnapshotIndex(0, 1, 1, 2, 2);
             TransactionBufferSnapshotIndexesMetadata metadata =
@@ -132,42 +192,21 @@ public class SnapshotSegmentAbortedTxnProcessorCloseTest {
             when(topic.getManagedLedger()).thenReturn(managedLedger);
             when(managedLedger.getConfig()).thenReturn(new ManagedLedgerConfig());
             when(managedLedger.getLedgersInfo()).thenReturn(new TreeMap<>());
-            ManagedLedgerFactory managedLedgerFactory = mock(ManagedLedgerFactory.class);
-            ReadOnlyManagedLedger readOnlyManagedLedger = mock(ReadOnlyManagedLedger.class);
+            when(readOnlyManagedLedger.asyncClose()).thenReturn(CompletableFuture.completedFuture(null));
             when(brokerService.getManagedLedgerFactoryForTopic(any()))
                     .thenReturn(CompletableFuture.completedFuture(managedLedgerFactory));
-            doAnswer(invocation -> {
-                AsyncCallbacks.OpenReadOnlyManagedLedgerCallback callback = invocation.getArgument(1);
-                callback.openReadOnlyManagedLedgerComplete(readOnlyManagedLedger, invocation.getArgument(3));
-                return null;
-            }).when(managedLedgerFactory).asyncOpenReadOnlyManagedLedger(anyString(), any(), any(), isNull());
-            doAnswer(invocation -> {
-                AsyncCallbacks.ReadEntryCallback callback = invocation.getArgument(1);
-                callback.readEntryFailed(new ManagedLedgerException("missing segment"), invocation.getArgument(2));
-                return null;
-            }).when(readOnlyManagedLedger).asyncReadEntry(any(), any(), isNull());
 
             processor = new SnapshotSegmentAbortedTxnProcessorImpl(topic);
-            processor.recoverFromSnapshot().get(5, TimeUnit.SECONDS);
-            assertTrue(indexUpdateStarted.await(5, TimeUnit.SECONDS));
-            // A later recovery must not replace the in-flight update in the close barrier.
-            processor.recoverFromSnapshot().get(5, TimeUnit.SECONDS);
+        }
 
-            CompletableFuture<Void> closeFuture = processor.closeAsync();
-
-            assertFalse(closeFuture.isDone(), "Closing must wait for the recovery index update");
-            verify(indexWriter, never()).release();
-
-            indexUpdateFuture.complete(MessageId.earliest);
-            closeFuture.get(5, TimeUnit.SECONDS);
-            verify(indexWriter).release();
-        } finally {
-            indexUpdateFuture.complete(MessageId.earliest);
-            if (processor != null) {
+        @Override
+        public void close() throws Exception {
+            try {
                 processor.closeAsync().get(5, TimeUnit.SECONDS);
+            } finally {
+                recoveryExecutor.shutdownNow();
+                assertTrue(recoveryExecutor.awaitTermination(5, TimeUnit.SECONDS));
             }
-            recoveryExecutor.shutdownNow();
-            assertTrue(recoveryExecutor.awaitTermination(5, TimeUnit.SECONDS));
         }
     }
 }

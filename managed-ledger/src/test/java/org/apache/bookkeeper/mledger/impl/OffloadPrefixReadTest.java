@@ -28,16 +28,19 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -53,7 +56,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import lombok.Cleanup;
 import lombok.SneakyThrows;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.api.DigestType;
@@ -69,12 +74,16 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.OffloadReadHandleClosedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.OffloadedLedgerHandle;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.bookkeeper.mledger.ReadOnlyCursor;
+import org.apache.bookkeeper.mledger.ReadOnlyManagedLedger;
 import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.mledger.util.MockClock;
 import org.apache.bookkeeper.net.BookieId;
@@ -95,6 +104,129 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         super.initManagedLedgerFactoryConfig(config);
         // disable cache.
         config.setMaxCacheSize(0);
+    }
+
+    @Test
+    public void testAsyncReadEntryRetriesOffloadWithPrivateReadOnlyCache() throws Exception {
+        LedgerOffloader offloader = mock(LedgerOffloader.class);
+        OffloadPoliciesImpl policies = new OffloadPoliciesImpl();
+        policies.setManagedLedgerOffloadedReadPriority(OffloadedReadPriority.TIERED_STORAGE_FIRST);
+        when(offloader.getOffloadPolicies()).thenReturn(policies);
+        when(offloader.getOffloadDriverName()).thenReturn("mock");
+        when(offloader.isAppendable()).thenReturn(true);
+        when(offloader.offload(any(), any(UUID.class), anyMap())).thenReturn(CompletableFuture.completedFuture(null));
+        ManagedLedgerConfig config = defaultConfig().setMaxEntriesPerLedger(1)
+                .setRetentionTime(1, TimeUnit.HOURS)
+                .setRetentionSizeInMB(-1).setLedgerOffloader(offloader);
+        config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
+        String name = "offload-retry-after-read-only-close";
+        ManagedLedgerImpl seed = (ManagedLedgerImpl) factory.open(name, config);
+        Position position;
+        byte[] data = {42};
+        try {
+            position = seed.addEntry(data);
+            Position next = seed.addEntry(new byte[] {1});
+            assertThat(next.getLedgerId()).isNotEqualTo(position.getLedgerId());
+            seed.offloadPrefix(next);
+            assertThat(seed.getLedgersInfo().get(position.getLedgerId()).getOffloadContext().isComplete()).isTrue();
+        } finally {
+            seed.close();
+        }
+
+        long ledgerId = position.getLedgerId();
+        long entryId = position.getEntryId();
+        Supplier<CompletableFuture<LedgerEntries>> expiredRead =
+                () -> CompletableFuture.failedFuture(new OffloadReadHandleClosedException());
+        Supplier<CompletableFuture<LedgerEntries>> successfulRead = () -> {
+            LedgerEntry entry = LedgerEntryImpl.create(ledgerId, entryId, data.length, Unpooled.wrappedBuffer(data));
+            return CompletableFuture.completedFuture(LedgerEntriesImpl.create(new ArrayList<>(List.of(entry))));
+        };
+        ReadHandle expiredReader = offloadReadHandle(position, expiredRead);
+        ReadHandle reopenedReader = offloadReadHandle(position, successfulRead);
+        ReadHandle expiredWriter = offloadReadHandle(position, expiredRead);
+        ReadHandle reopenedWriter = offloadReadHandle(position, successfulRead);
+        when(offloader.readOffloaded(eq(ledgerId), any(UUID.class), anyMap()))
+                .thenReturn(CompletableFuture.completedFuture(expiredReader))
+                .thenReturn(CompletableFuture.completedFuture(reopenedReader))
+                .thenReturn(CompletableFuture.completedFuture(expiredWriter))
+                .thenReturn(CompletableFuture.completedFuture(reopenedWriter));
+
+        // Open the read-only ledger first on a factory with caching enabled.
+        ManagedLedgerFactoryConfig cacheConfig = new ManagedLedgerFactoryConfig();
+        cacheConfig.setMaxCacheSize(1024 * 1024);
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl cachedFactory = new ManagedLedgerFactoryImpl(metadataStore, bkc, cacheConfig);
+        CompletableFuture<ReadOnlyManagedLedger> opened = new CompletableFuture<>();
+        cachedFactory.asyncOpenReadOnlyManagedLedger(name, new AsyncCallbacks.OpenReadOnlyManagedLedgerCallback() {
+            @Override
+            public void openReadOnlyManagedLedgerComplete(ReadOnlyManagedLedger managedLedger, Object ctx) {
+                opened.complete(managedLedger);
+            }
+
+            @Override
+            public void openReadOnlyManagedLedgerFailed(ManagedLedgerException exception, Object ctx) {
+                opened.completeExceptionally(exception);
+            }
+        }, config, null);
+        ReadOnlyManagedLedger readOnly;
+        try {
+            readOnly = opened.get(10, TimeUnit.SECONDS);
+        } catch (Exception exception) {
+            opened.thenAccept(ReadOnlyManagedLedger::asyncClose);
+            throw exception;
+        }
+        ManagedLedgerImpl readOnlyView;
+        ManagedLedger writer;
+        boolean retainedEntry;
+        try {
+            @Cleanup
+            ReadOnlyCursor cursor = readOnly.createReadOnlyCursor(PositionFactory.EARLIEST);
+            readOnlyView = (ManagedLedgerImpl) ((ManagedCursor) cursor).getManagedLedger();
+            CompletableFuture<byte[]> read = new CompletableFuture<>();
+            readOnlyView.asyncReadEntry(position, 1, completeEntryRead(read), null);
+            assertThat(read.get(10, TimeUnit.SECONDS)).containsExactly(data);
+            retainedEntry = readOnlyView.entryCache.hasEntry(position);
+            verify(offloader, times(2)).readOffloaded(eq(ledgerId), any(UUID.class), anyMap());
+            verify(expiredReader).closeAsync();
+            verify(reopenedReader).readAsync(entryId, entryId);
+            writer = cachedFactory.open(name, config);
+        } finally {
+            readOnly.asyncClose().get(10, TimeUnit.SECONDS);
+        }
+        verify(reopenedReader).closeAsync();
+        CompletableFuture<byte[]> read = new CompletableFuture<>();
+        writer.asyncReadEntry(position, completeEntryRead(read), null);
+        assertThat(read.get(10, TimeUnit.SECONDS)).containsExactly(data);
+        verify(offloader, times(4)).readOffloaded(eq(ledgerId), any(UUID.class), anyMap());
+        verify(expiredWriter).closeAsync();
+        verify(reopenedWriter).readUnconfirmedAsync(entryId, entryId);
+        assertThat(retainedEntry).isFalse();
+        assertThat(((ManagedLedgerImpl) writer).entryCache).isNotSameAs(readOnlyView.entryCache);
+    }
+
+    private static ReadHandle offloadReadHandle(Position position, Supplier<CompletableFuture<LedgerEntries>> read) {
+        ReadHandle handle = mock(ReadHandle.class);
+        long entryId = position.getEntryId();
+        when(handle.getId()).thenReturn(position.getLedgerId());
+        when(handle.isClosed()).thenReturn(true);
+        when(handle.closeAsync()).thenReturn(CompletableFuture.completedFuture(null));
+        when(handle.readAsync(entryId, entryId)).thenAnswer(invocation -> read.get());
+        when(handle.readUnconfirmedAsync(entryId, entryId)).thenAnswer(invocation -> read.get());
+        return handle;
+    }
+
+    private static ReadEntryCallback completeEntryRead(CompletableFuture<byte[]> read) {
+        return new ReadEntryCallback() {
+            @Override
+            public void readEntryComplete(Entry entry, Object ctx) {
+                read.complete(entry.getDataAndRelease());
+            }
+
+            @Override
+            public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                read.completeExceptionally(exception);
+            }
+        };
     }
 
     @DataProvider(name = "offloadAndDeleteTypes")
