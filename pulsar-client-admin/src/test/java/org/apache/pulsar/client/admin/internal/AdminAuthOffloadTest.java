@@ -21,8 +21,14 @@ package org.apache.pulsar.client.admin.internal;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.RETURNS_SELF;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
+import jakarta.ws.rs.client.AsyncInvoker;
+import jakarta.ws.rs.client.Invocation.Builder;
+import jakarta.ws.rs.client.InvocationCallback;
 import jakarta.ws.rs.client.WebTarget;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -43,6 +49,8 @@ import org.apache.pulsar.client.admin.PulsarAdminException.GettingAuthentication
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.CursorStats;
+import org.mockito.ArgumentMatchers;
 import org.testng.annotations.Test;
 
 /**
@@ -328,5 +336,26 @@ public class AdminAuthOffloadTest {
         assertThat(second.cancel(false)).isTrue();
         queued.remove().run();
         assertThat(auth.newRequestHeaderThread.get()).isNull();
+    }
+
+    @Test
+    public void cancellingPartitionRequestWhileGetStartsCancelsJerseyInvocation() {
+        var builderReady = new CompletableFuture<Builder>();
+        var topics = spy(new TopicsImpl(mock(WebTarget.class, RETURNS_SELF), null, 30_000L));
+        doReturn(builderReady).when(topics).requestAsync(any(WebTarget.class), any());
+        var request = topics.getLocalSubscriptionCursorInternalStatsAsync(
+                "persistent://tenant/ns/physical-topic-partition-0", "sub", false);
+
+        var builder = mock(Builder.class);
+        var invoker = mock(AsyncInvoker.class);
+        var invocation = new CompletableFuture<CursorStats>();
+        when(builder.async()).thenReturn(invoker);
+        when(invoker.get(ArgumentMatchers.<InvocationCallback<CursorStats>>any())).thenAnswer(ignored -> {
+            request.cancel(false);
+            return invocation;
+        });
+
+        builderReady.complete(builder);
+        assertThat(invocation).isCancelled();
     }
 }

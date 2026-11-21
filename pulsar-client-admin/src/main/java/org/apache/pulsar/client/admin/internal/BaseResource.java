@@ -227,7 +227,8 @@ public abstract class BaseResource {
             AuthenticationDataProvider authData = partitionRequest != null
                     && (auth.getClass() == AuthenticationOAuth2.class
                             || auth.getClass() == AuthenticationOAuth2StandardAuthzServer.class)
-                    ? ((AuthenticationOAuth2) auth).getAuthDataWithFailureDetails() : auth.getAuthData(uri.getHost());
+                    ? ((AuthenticationOAuth2) auth).getAuthDataWithFailureDetails(partitionRequest)
+                    : auth.getAuthData(uri.getHost());
             if ((partitionRequest != null && partitionRequest.isDone()) || !authData.hasDataForHttp()) {
                 return CompletableFuture.completedFuture(null);
             }

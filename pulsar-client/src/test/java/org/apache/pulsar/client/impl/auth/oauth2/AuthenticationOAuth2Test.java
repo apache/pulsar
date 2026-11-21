@@ -35,6 +35,7 @@ import static org.testng.Assert.expectThrows;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.ByteArrayOutputStream;
 import java.io.ObjectOutputStream;
+import java.lang.management.ManagementFactory;
 import java.net.MalformedURLException;
 import java.net.SocketTimeoutException;
 import java.net.URI;
@@ -45,9 +46,12 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
@@ -57,6 +61,7 @@ import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenEndpointAuthMetho
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenResult;
 import org.apache.pulsar.http.HttpResponse;
 import org.apache.pulsar.http.PulsarHttpClient;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -307,6 +312,31 @@ public class AuthenticationOAuth2Test {
     }
 
     @Test
+    public void testExpiredPartitionSkipsTokenFetchAfterWaitingForLock() throws Exception {
+        var partitionRequest = new CompletableFuture<Void>();
+        var waitingLookup = new FutureTask<>(() -> auth.getAuthDataWithFailureDetails(partitionRequest));
+        var waiter = Thread.ofPlatform().daemon().unstarted(waitingLookup);
+        var failure = new PulsarClientException.AuthenticationException("Token request failed");
+        when(flow.authenticate(true)).thenAnswer(invocation -> {
+            waiter.start();
+            var threads = ManagementFactory.getThreadMXBean();
+            Awaitility.await().until(() -> {
+                var info = threads.getThreadInfo(waiter.threadId());
+                return info != null && info.getThreadState() == Thread.State.BLOCKED
+                        && info.getLockInfo().getIdentityHashCode() == System.identityHashCode(auth);
+            });
+            partitionRequest.cancel(false);
+            throw failure;
+        }).thenThrow(failure);
+
+        assertSame(expectThrows(PulsarClientException.AuthenticationException.class,
+                () -> auth.getAuthDataWithFailureDetails(new CompletableFuture<>())), failure);
+        var expired = expectThrows(ExecutionException.class, () -> waitingLookup.get(5, TimeUnit.SECONDS));
+        assertEquals(expired.getCause().getClass(), CancellationException.class);
+        verify(flow).authenticate(true);
+    }
+
+    @Test
     public void testTlsTokenTimeoutDetailsDoNotChangeLegacyException() throws Exception {
         var timeout = new SocketTimeoutException("token endpoint timed out");
         var metadata = HttpResponse.of(200, Map.of(),
@@ -320,7 +350,7 @@ public class AuthenticationOAuth2Test {
         this.auth.flow = tlsFlow;
 
         var diagnostic = expectThrows(PulsarClientException.AuthenticationException.class,
-                this.auth::getAuthDataWithFailureDetails);
+                () -> this.auth.getAuthDataWithFailureDetails(new CompletableFuture<>()));
         var legacy = expectThrows(PulsarClientException.AuthenticationException.class,
                 () -> this.auth.getAuthData("localhost"));
         assertEquals(legacy.getClass(), PulsarClientException.AuthenticationException.class);
@@ -338,7 +368,7 @@ public class AuthenticationOAuth2Test {
                 .build();
 
         var diagnostic = expectThrows(PulsarClientException.InvalidConfigurationException.class,
-                this.auth::getAuthDataWithFailureDetails);
+                () -> this.auth.getAuthDataWithFailureDetails(new CompletableFuture<>()));
         var legacy = expectThrows(PulsarClientException.AuthenticationException.class,
                 () -> this.auth.getAuthData("localhost"));
         assertEquals(legacy.getClass(), PulsarClientException.AuthenticationException.class);

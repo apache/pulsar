@@ -25,6 +25,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -263,8 +265,12 @@ public class AuthenticationOAuth2
         return getAuthData(false);
     }
 
-    /** Preserves the failure kind for internal broker diagnostics. */
-    public synchronized AuthenticationDataProvider getAuthDataWithFailureDetails() throws PulsarClientException {
+    /** Preserves the failure kind for broker diagnostics and skips requests that expired waiting for the token lock. */
+    public synchronized AuthenticationDataProvider getAuthDataWithFailureDetails(CompletableFuture<?> partitionRequest)
+            throws PulsarClientException {
+        if (partitionRequest.isDone()) {
+            throw new CancellationException();
+        }
         return getAuthData(true);
     }
 

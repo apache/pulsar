@@ -765,7 +765,15 @@ public class TopicsImpl extends BaseResource implements Topics {
                     if (localOnly) {
                         builder.header(CURSOR_STATS_LOCAL_ONLY_HEADER, true);
                     }
-                    builder.async().get(callback);
+                    var invocation = builder.async().get(callback);
+                    if (localOnly) {
+                        // Jersey skips decoding a late response when its invocation has been cancelled.
+                        result.whenComplete((unused, failure) -> {
+                            if (result.isCancelled()) {
+                                invocation.cancel(false);
+                            }
+                        });
+                    }
                 } catch (Throwable failure) {
                     result.completeExceptionally(failure);
                 }
