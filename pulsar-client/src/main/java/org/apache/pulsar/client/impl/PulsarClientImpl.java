@@ -1823,6 +1823,41 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     /**
+     * Open a TC assignment watch without confusing an any-broker pairing request with an actual
+     * proxy route. A direct broker advertises TC discovery on an ordinary connection; a proxy's
+     * lookup/control connection does not and must first pair to a supporting broker. Both attempts
+     * use the same unresolved service endpoint, including its TLS/SNI hostname and port.
+     */
+    public CompletableFuture<ClientCnx> getTcAssignmentsWatchConnection() {
+        return FutureUtil.supplySafely(() -> {
+            if (!lookup.isBinaryProtoLookupService()) {
+                return FutureUtil.failedFuture(new PulsarClientException.InvalidServiceURL(
+                        "TC assignment watches require a pulsar:// service URL", null));
+            }
+            InetSocketAddress endpoint = lookup.resolveHost();
+            int key = cnxPool.genRandomKeyToSelectCon();
+            return getConnection(endpoint, endpoint, key).thenCompose(probe -> {
+                if (probe.isSupportsTcMetadataDiscovery()) {
+                    return CompletableFuture.completedFuture(probe);
+                }
+                // No watch uses the capability probe. Respect the pool's ownership policy (which
+                // closes it only when pooling is disabled), rather than closing a shared channel.
+                cnxPool.releaseConnection(probe);
+                return getConnection(PulsarChannelInitializer.PROXY_TO_ANY_BROKER, endpoint, key)
+                        .thenCompose(paired -> {
+                            if (paired.isSupportsTcMetadataDiscovery()) {
+                                return CompletableFuture.completedFuture(paired);
+                            }
+                            cnxPool.releaseConnection(paired);
+                            return FutureUtil.failedFuture(new PulsarClientException.NotSupportedException(
+                                    "Broker does not support scalable-topics transactions "
+                                            + "(metadata-store TC discovery)"));
+                        });
+            });
+        });
+    }
+
+    /**
      * Open a connection to the proxy and ask it to pair the connection to any broker it selects
      * (an empty proxyToBrokerUrl). Used for control-plane operations that aren't tied to a specific
      * broker (e.g. scalable-topic subscribe/namespace-watch) when connecting through a proxy.
