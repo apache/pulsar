@@ -118,6 +118,7 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
 
         final int sendMessages = 100;
 
+        @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
                 .topic(topic)
                 .subscriptionName("my-subscription")
@@ -173,7 +174,6 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
         } while (totalInDeadLetter < sendMessages);
 
         deadLetterConsumer.close();
-        consumer.close();
     }
 
     @Test
@@ -184,6 +184,7 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
 
         final int sendMessages = 100;
 
+        @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
                 .topic(topic)
                 .subscriptionName("my-subscription")
@@ -240,7 +241,6 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
         } while (totalInDeadLetter < sendMessages);
 
         deadLetterConsumer.close();
-        consumer.close();
     }
 
     @Test
@@ -251,6 +251,7 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
 
         final int sendMessages = 100;
 
+        @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
                 .topic(topic)
                 .subscriptionName("my-subscription")
@@ -307,7 +308,6 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
         } while (totalInDeadLetter < sendMessages);
 
         deadLetterConsumer.close();
-        consumer.close();
     }
 
     @Test
