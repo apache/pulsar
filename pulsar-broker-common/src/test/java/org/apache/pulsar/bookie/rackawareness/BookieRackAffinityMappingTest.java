@@ -160,7 +160,7 @@ public class BookieRackAffinityMappingTest {
         assertEquals(mapping.resolve(Lists.newArrayList(bookie1.getHostName())).get(0), "/rack0");
     }
 
-    @Test(expectedExceptions = RuntimeException.class)
+    @Test(expectedExceptions = RuntimeException.class, expectedExceptionsMessageRegExp = ".*batchingMaxOperations.*")
     public void testInvalidMetadataStoreConfigQueryParamInMetadataServiceUri() {
         BookieRackAffinityMapping mapping = new BookieRackAffinityMapping();
         ClientConfiguration bkClientConf = new ClientConfiguration();

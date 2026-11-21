@@ -20,7 +20,6 @@ package org.apache.pulsar.metadata.bookkeeper;
 
 import java.util.Map;
 import java.util.function.BiConsumer;
-import org.apache.bookkeeper.conf.AbstractConfiguration;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig.MetadataStoreConfigBuilder;
 
@@ -43,12 +42,6 @@ class MetadataStoreConfigQueryParams {
         return PARAM_SETTERS.containsKey(key);
     }
 
-    @SuppressWarnings("rawtypes")
-    static MetadataStoreConfig createConfig(AbstractConfiguration conf, Map<String, String> configParams) {
-        return createConfig(conf.getZkTimeout(), configParams);
-    }
-
-    @SuppressWarnings("rawtypes")
     static MetadataStoreConfig createConfig(int sessionTimeoutMillis, Map<String, String> configParams) {
         MetadataStoreConfigBuilder builder = MetadataStoreConfig.builder()
                 .sessionTimeoutMillis(sessionTimeoutMillis)

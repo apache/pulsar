@@ -91,13 +91,9 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
             String metadataServiceUri = ConfigurationStringUtil.castToString(conf.getProperty("metadataServiceUri"));
             if (StringUtils.isNotBlank(metadataServiceUri)) {
                 int zkTimeout = Integer.parseInt((String) conf.getProperty("zkTimeout"));
-                try {
-                    // Parsed as the BookKeeper metadata drivers parse it, so that MetadataStoreConfig parameters in
-                    // the query string, such as configFilePath, configure the store rather than end up in its URL.
-                    store = AbstractMetadataDriver.createMetadataStore(metadataServiceUri, zkTimeout);
-                } catch (IllegalArgumentException | MetadataStoreException e) {
-                    throw new MetadataException(Code.METADATA_SERVICE_ERROR, e);
-                }
+                // Parsed as the BookKeeper metadata drivers parse it, so that MetadataStoreConfig parameters in the
+                // query string, such as configFilePath, configure the store rather than end up in its URL.
+                store = AbstractMetadataDriver.createMetadataStore(metadataServiceUri, zkTimeout);
             } else {
                 String zkServers = ConfigurationStringUtil.castToString(conf.getProperty("zkServers"));
                 if (StringUtils.isBlank(zkServers)) {
@@ -128,7 +124,7 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
         try {
             store = getMetadataStore(conf);
         } catch (MetadataException e) {
-            throw new RuntimeException(METADATA_STORE_INSTANCE + " failed to init BookieId list");
+            throw new RuntimeException(METADATA_STORE_INSTANCE + " failed to init BookieId list: " + e.getMessage(), e);
         }
 
         bookieMappingCache = store.getMetadataCache(BookiesRackConfiguration.class);
