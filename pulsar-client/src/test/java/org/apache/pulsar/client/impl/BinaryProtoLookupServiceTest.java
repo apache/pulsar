@@ -565,13 +565,12 @@ public class BinaryProtoLookupServiceTest {
             ClientConfigurationData conf = new ClientConfigurationData();
             conf.setOperationTimeoutMs(operationTimeoutMs);
 
-            EventLoopGroup eventLoopGroup = mock(EventLoopGroup.class);
-            doReturn(mock(io.netty.util.concurrent.ScheduledFuture.class)).when(eventLoopGroup)
-                    .scheduleAtFixedRate(any(Runnable.class), anyLong(), anyLong(), any(TimeUnit.class));
-
             ConnectionPool cnxPool = mock(ConnectionPool.class);
             doAnswer(invocation -> {
-                ClientCnx cnx = new ClientCnx(InstrumentProvider.NOOP, conf, eventLoopGroup);
+                // The connection checks for request timeouts on the channel's event loop, with the operation timeout
+                // as the period, which can't be 0: it keeps the default timeout
+                ClientCnx cnx = new ClientCnx(InstrumentProvider.NOOP, new ClientConfigurationData(),
+                        mock(EventLoopGroup.class));
                 channel = new EmbeddedChannel(new ChannelInitializer<Channel>() {
                     @Override
                     protected void initChannel(Channel ch) {

@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map.Entry;
+import java.util.function.Predicate;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
@@ -33,6 +34,10 @@ public class UnAckedTopicMessageRedeliveryTracker extends UnAckedMessageRedelive
     }
 
     public int removeTopicMessages(String topicName) {
+        return removeTopicMessages(topicMessageId -> topicMessageId.hasSameBasePartitionedTopic(topicName));
+    }
+
+    public int removeTopicMessages(Predicate<TopicMessageId> filter) {
         writeLock.lock();
         try {
             int removed = 0;
@@ -42,8 +47,7 @@ public class UnAckedTopicMessageRedeliveryTracker extends UnAckedMessageRedelive
                 Entry<UnackMessageIdWrapper, HashSet<UnackMessageIdWrapper>> entry = iterator.next();
                 UnackMessageIdWrapper messageIdWrapper = entry.getKey();
                 MessageId messageId = messageIdWrapper.getMessageId();
-                if (messageId instanceof TopicMessageId topicMessageId
-                        && topicMessageId.hasSameBasePartitionedTopic(topicName)) {
+                if (messageId instanceof TopicMessageId topicMessageId && filter.test(topicMessageId)) {
                     entry.getValue().remove(messageIdWrapper);
                     iterator.remove();
                     messageIdWrapper.recycle();
@@ -54,14 +58,13 @@ public class UnAckedTopicMessageRedeliveryTracker extends UnAckedMessageRedelive
             Iterator<MessageId> iteratorAckTimeOut = ackTimeoutMessages.keySet().iterator();
             while (iteratorAckTimeOut.hasNext()) {
                 MessageId messageId = iteratorAckTimeOut.next();
-                if (messageId instanceof TopicMessageId topicMessageId
-                        && topicMessageId.hasSameBasePartitionedTopic(topicName)) {
+                if (messageId instanceof TopicMessageId topicMessageId && filter.test(topicMessageId)) {
                     iteratorAckTimeOut.remove();
                     removed++;
                 }
             }
             localRedeliveryCounts.keySet().removeIf(messageId -> messageId instanceof TopicMessageId topicMessageId
-                    && topicMessageId.hasSameBasePartitionedTopic(topicName));
+                    && filter.test(topicMessageId));
             return removed;
         } finally {
             writeLock.unlock();

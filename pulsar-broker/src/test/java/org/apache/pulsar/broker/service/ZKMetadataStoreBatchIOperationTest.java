@@ -90,8 +90,10 @@ public class ZKMetadataStoreBatchIOperationTest extends CanReconnectZKClientPuls
         }
         log.info().attr("operationsIn", (System.currentTimeMillis() - start))
                 .log("Send multi ZK operations in ms. If it is larger than 20, may can not reproduce the issue");
-        client.newConsumer().topic(defaultTp).subscriptionName("s1").subscribe().close();
+        // Wait for the admin request before subscribing; otherwise the consumer may create "s1" first and
+        // the admin request fails with 409 Conflict.
         createSubscriptionFuture.get(10, TimeUnit.SECONDS);
+        client.newConsumer().topic(defaultTp).subscriptionName("s1").subscribe().close();
 
         // cleanup.
         for (int i = 0; i < nsCount; i++) {

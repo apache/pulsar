@@ -47,6 +47,7 @@ import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.ZooKeeper.States;
 import org.apache.zookeeper.client.ZKClientConfig;
 import org.awaitility.Awaitility;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test
@@ -240,7 +241,7 @@ public class ZKSessionWatcherTest {
         CountDownLatch releaseEventExecutor = new CountDownLatch(1);
 
         try (ZKMetadataStore store = new ZKMetadataStore(zk, false)) {
-            store.registerSessionListener(events::add);
+            store.registerCancellableSessionListener(events::add);
             store.getEventExecutor().execute(() -> {
                 eventExecutorBlocked.countDown();
                 try {
@@ -343,6 +344,75 @@ public class ZKSessionWatcherTest {
         }
     }
 
+    @DataProvider
+    public Object[][] replacementConnectionOrder() {
+        return new Object[][]{
+                {true, false},
+                {true, true},
+                {false, false},
+                {false, true}
+        };
+    }
+
+    @Test(dataProvider = "replacementConnectionOrder")
+    public void testReplacementConnectsBeforeQueuedExpiration(boolean probeFirst, boolean disconnected)
+            throws Exception {
+        PulsarZooKeeperClient zk = mock(PulsarZooKeeperClient.class);
+        when(zk.getSessionTimeout()).thenReturn(600_000);
+        when(zk.getCurrentHandleGeneration()).thenReturn(1L);
+        when(zk.getSessionId()).thenReturn(1L);
+        List<SessionEvent> events = new CopyOnWriteArrayList<>();
+        AtomicBoolean updatingCurrentHandle = new AtomicBoolean();
+
+        try (ZKSessionWatcher watcher = new ZKSessionWatcher(zk, event -> {
+            assertThat(updatingCurrentHandle.get()).isFalse();
+            events.add(event);
+        }, false)) {
+            if (disconnected) {
+                watcher.process(new ZKSessionWatcher.SessionEventSnapshot(
+                        sessionEvent(KeeperState.Disconnected), 1, 1, States.CONNECTING));
+                assertThat(events).containsExactly(SessionEvent.ConnectionLost);
+                events.clear();
+            }
+
+            PulsarZooKeeperClient.CurrentHandleIdentity replacement =
+                    new PulsarZooKeeperClient.CurrentHandleIdentity(2, 2);
+            when(zk.getCurrentHandleGeneration()).thenReturn(replacement.generation());
+            when(zk.getCurrentHandleIdentity()).thenReturn(replacement);
+            when(zk.getSessionId()).thenReturn(replacement.sessionId());
+            when(zk.getState()).thenReturn(States.CONNECTED);
+            when(zk.runStateUpdateIfCurrentHandle(eq(replacement), any())).thenAnswer(invocation -> {
+                Runnable stateUpdate = invocation.getArgument(1);
+                updatingCurrentHandle.set(true);
+                try {
+                    stateUpdate.run();
+                } finally {
+                    updatingCurrentHandle.set(false);
+                }
+                return true;
+            });
+            completeExistsWith(zk, KeeperException.Code.OK);
+
+            ZKSessionWatcher.SessionEventSnapshot connected = new ZKSessionWatcher.SessionEventSnapshot(
+                    sessionEvent(KeeperState.SyncConnected), 2, 2, States.CONNECTED);
+            if (probeFirst) {
+                watcher.checkConnectionStatus();
+            } else {
+                watcher.process(connected);
+            }
+            assertThat(events).containsExactly(
+                    SessionEvent.SessionLost, SessionEvent.Reconnected, SessionEvent.SessionReestablished);
+
+            // The old expiration and repeated H2 connection observations must not restart recovery.
+            watcher.process(new ZKSessionWatcher.SessionEventSnapshot(
+                    sessionEvent(KeeperState.Expired), 1, 1, States.CLOSED));
+            watcher.process(connected);
+            watcher.checkConnectionStatus();
+            assertThat(events).containsExactly(
+                    SessionEvent.SessionLost, SessionEvent.Reconnected, SessionEvent.SessionReestablished);
+        }
+    }
+
     @Test
     public void testProbeListenerRunsOutsideCurrentHandleUpdate() throws Exception {
         PulsarZooKeeperClient zk = mock(PulsarZooKeeperClient.class);
@@ -434,7 +504,7 @@ public class ZKSessionWatcherTest {
         CountDownLatch eventExecutorBlocked = new CountDownLatch(1);
         CountDownLatch releaseEventExecutor = new CountDownLatch(1);
         try (ZKMetadataStore store = new ZKMetadataStore(zk, false)) {
-            store.registerSessionListener(events::add);
+            store.registerCancellableSessionListener(events::add);
             store.processSessionWatcher(sessionEvent(KeeperState.Expired));
             Awaitility.await().atMost(5, TimeUnit.SECONDS)
                     .untilAsserted(() -> assertThat(events).containsExactly(SessionEvent.SessionLost));
@@ -566,6 +636,112 @@ public class ZKSessionWatcherTest {
             watcher.checkConnectionStatus();
 
             assertThat(events).containsExactly(SessionEvent.Reconnected, SessionEvent.SessionReestablished);
+        }
+    }
+
+    @Test
+    public void testConnectedProbeTimeoutDoesNotReportSessionEvents() throws Exception {
+        List<SessionEvent> events = new CopyOnWriteArrayList<>();
+        ZooKeeper zk = newSessionZooKeeper();
+        when(zk.getSessionTimeout()).thenReturn(1_500);
+        AtomicReference<StatCallback> delayedCallback = new AtomicReference<>();
+        doAnswer(invocation -> {
+            delayedCallback.set(invocation.getArgument(2));
+            return null;
+        }).when(zk).exists(eq("/"), eq(false), any(StatCallback.class), isNull());
+
+        try (ZKSessionWatcher watcher = newSessionWatcher(zk, events)) {
+            // Keep the client connected, but withhold the response until the probe has timed out.
+            watcher.checkConnectionStatus();
+            delayedCallback.get().processResult(KeeperException.Code.OK.intValue(), "/", null, null);
+
+            completeExistsWith(zk, KeeperException.Code.OK);
+            watcher.checkConnectionStatus();
+
+            // A spurious Reconnected event would invalidate the metadata store's caches.
+            assertThat(events).isEmpty();
+        }
+    }
+
+    @DataProvider
+    public Object[][] disconnectedSessionStates() {
+        return new Object[][]{
+                {KeeperState.Disconnected, SessionEvent.ConnectionLost},
+                {KeeperState.Expired, SessionEvent.SessionLost}
+        };
+    }
+
+    @Test(dataProvider = "disconnectedSessionStates")
+    public void testConnectedProbeTimeoutWaitsForSuccessfulProbeToReconnect(
+            KeeperState keeperState, SessionEvent expectedEvent) throws Exception {
+        List<SessionEvent> events = new CopyOnWriteArrayList<>();
+        ZooKeeper zk = newSessionZooKeeper();
+        when(zk.getSessionTimeout()).thenReturn(1_500);
+
+        try (ZKSessionWatcher watcher = newSessionWatcher(zk, events)) {
+            watcher.process(sessionEvent(keeperState));
+
+            // The client now reports CONNECTED, but exists() never calls back.
+            watcher.checkConnectionStatus();
+            assertThat(events).containsExactly(expectedEvent);
+
+            completeExistsWith(zk, KeeperException.Code.OK);
+            watcher.checkConnectionStatus();
+
+            if (expectedEvent == SessionEvent.SessionLost) {
+                assertThat(events).containsExactly(
+                        SessionEvent.SessionLost, SessionEvent.Reconnected, SessionEvent.SessionReestablished);
+            } else {
+                assertThat(events).containsExactly(SessionEvent.ConnectionLost, SessionEvent.Reconnected);
+            }
+        }
+    }
+
+    @Test
+    public void testDisconnectedProbeTimeoutStillExpiresSession() throws Exception {
+        List<SessionEvent> events = new CopyOnWriteArrayList<>();
+        ZooKeeper zk = newSessionZooKeeper();
+        when(zk.getSessionTimeout()).thenReturn(1_500);
+        when(zk.getState()).thenReturn(States.CONNECTING);
+
+        try (ZKSessionWatcher watcher = newSessionWatcher(zk, events)) {
+            watcher.checkConnectionStatus();
+            assertThat(events).containsExactly(SessionEvent.ConnectionLost);
+
+            // exists() does not complete while the client retries the connection.
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+                watcher.checkConnectionStatus();
+                assertThat(events).containsExactly(SessionEvent.ConnectionLost, SessionEvent.SessionLost);
+            });
+        }
+    }
+
+    @DataProvider
+    public Object[][] probeTimeoutClientStates() {
+        return new Object[][]{
+                {States.CONNECTEDREADONLY, List.of(SessionEvent.ConnectionLost)},
+                {States.AUTH_FAILED, List.of(SessionEvent.SessionLost)},
+                {States.CLOSED, List.of()}
+        };
+    }
+
+    @Test(dataProvider = "probeTimeoutClientStates")
+    public void testProbeTimeoutUsesClientState(States clientState, List<SessionEvent> expectedEvents)
+            throws Exception {
+        List<SessionEvent> events = new CopyOnWriteArrayList<>();
+        ZooKeeper zk = newSessionZooKeeper();
+        AtomicLong nanoTime = new AtomicLong(TimeUnit.SECONDS.toNanos(1));
+        when(zk.getSessionTimeout()).thenReturn(1_500);
+        when(zk.getState()).thenReturn(clientState);
+
+        try (ZKSessionWatcher watcher = new ZKSessionWatcher(zk, events::add, false, nanoTime::get)) {
+            watcher.checkConnectionStatus();
+            assertThat(events).containsExactlyElementsOf(expectedEvents);
+
+            // Keep the callback unanswered beyond the 1250 ms loss deadline, including for read-only clients.
+            nanoTime.addAndGet(TimeUnit.MILLISECONDS.toNanos(1_251));
+            watcher.checkConnectionStatus();
+            assertThat(events).containsExactlyElementsOf(expectedEvents);
         }
     }
 

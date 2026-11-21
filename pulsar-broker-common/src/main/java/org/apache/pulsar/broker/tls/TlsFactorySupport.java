@@ -28,6 +28,7 @@ import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
@@ -35,6 +36,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Supplier;
 import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
+import org.apache.pulsar.common.tls.TlsClientAuthMode;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.tls.JcaProviders;
 import org.apache.pulsar.tls.PulsarTlsFactory;
@@ -66,6 +69,89 @@ public final class TlsFactorySupport {
     public static final String DEFAULT_FACTORY = "default";
 
     private TlsFactorySupport() {
+    }
+
+    /**
+     * Resolve a server component's effective {@link TlsClientAuthMode} from its configuration; see
+     * {@link TlsClientAuthMode#resolve}. TLS client-certificate authentication counts as enabled when
+     * authentication is enabled and an {@link AuthenticationProviderTls} (or a subclass) is among the
+     * authentication providers. A custom provider that reads client certificates otherwise needs an explicit
+     * {@code tlsClientAuthMode}.
+     *
+     * @param configured                        the configured {@code tlsClientAuthMode}, or {@code null}
+     * @param requireTrustedClientCertOnConnect the deprecated {@code tlsRequireTrustedClientCertOnConnect} setting
+     * @param authenticationEnabled             the {@code authenticationEnabled} setting
+     * @param authenticationProviders           the {@code authenticationProviders} class names
+     * @return the effective mode
+     * @throws IllegalArgumentException if the settings conflict
+     */
+    public static TlsClientAuthMode resolveClientAuthMode(TlsClientAuthMode configured,
+                                                          boolean requireTrustedClientCertOnConnect,
+                                                          boolean authenticationEnabled,
+                                                          Set<String> authenticationProviders) {
+        return TlsClientAuthMode.resolve(configured, requireTrustedClientCertOnConnect,
+                isClientCertAuthenticationEnabled(authenticationEnabled, authenticationProviders));
+    }
+
+    /**
+     * Resolve the effective {@link TlsClientAuthMode} like {@link #resolveClientAuthMode} and log it together with
+     * where it came from. A component with a TLS listener calls this once when it starts, so the log explains why
+     * a client certificate is or is not requested.
+     *
+     * @param component                         the component name for the log, such as {@code broker}
+     * @param configured                        the configured {@code tlsClientAuthMode}, or {@code null}
+     * @param requireTrustedClientCertOnConnect the deprecated {@code tlsRequireTrustedClientCertOnConnect} setting
+     * @param authenticationEnabled             the {@code authenticationEnabled} setting
+     * @param authenticationProviders           the {@code authenticationProviders} class names
+     * @return the effective mode
+     * @throws IllegalArgumentException if the settings conflict
+     */
+    public static TlsClientAuthMode logClientAuthMode(String component, TlsClientAuthMode configured,
+                                                      boolean requireTrustedClientCertOnConnect,
+                                                      boolean authenticationEnabled,
+                                                      Set<String> authenticationProviders) {
+        boolean clientCertAuthenticationEnabled =
+                isClientCertAuthenticationEnabled(authenticationEnabled, authenticationProviders);
+        TlsClientAuthMode mode = TlsClientAuthMode.resolve(configured, requireTrustedClientCertOnConnect,
+                clientCertAuthenticationEnabled);
+        String source;
+        if (configured != null) {
+            source = "configured";
+        } else if (requireTrustedClientCertOnConnect) {
+            source = "derived: deprecated tlsRequireTrustedClientCertOnConnect=true";
+        } else if (clientCertAuthenticationEnabled) {
+            source = "derived: AuthenticationProviderTls enabled";
+        } else if (!authenticationEnabled) {
+            source = "derived: authentication disabled";
+        } else {
+            source = "derived: AuthenticationProviderTls not among authenticationProviders";
+        }
+        log.info().attr("component", component).attr("mode", mode).attr("source", source)
+                .log("TLS client auth mode");
+        return mode;
+    }
+
+    private static boolean isClientCertAuthenticationEnabled(boolean authenticationEnabled,
+                                                             Set<String> authenticationProviders) {
+        return authenticationEnabled && authenticationProviders != null
+                && authenticationProviders.stream().anyMatch(TlsFactorySupport::isTlsAuthenticationProvider);
+    }
+
+    private static boolean isTlsAuthenticationProvider(String className) {
+        if (StringUtils.isBlank(className)) {
+            return false;
+        }
+        String name = className.trim();
+        if (AuthenticationProviderTls.class.getName().equals(name)) {
+            return true;
+        }
+        try {
+            // Loaded like AuthenticationService loads the providers, to recognize a subclass.
+            return AuthenticationProviderTls.class.isAssignableFrom(Class.forName(name));
+        } catch (ClassNotFoundException | LinkageError e) {
+            // AuthenticationService reports the unloadable provider when it starts.
+            return false;
+        }
     }
 
     /**

@@ -38,8 +38,8 @@ import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
  * 3. A scheduled task will call {@link PatternMultiTopicsConsumerImpl#recheckTopicsChange()}, this scenario only
  *    exists in the version < 2.11.
  * 4. The topics change events will trigger a
- *    {@link PatternMultiTopicsConsumerImpl#topicsChangeListener#onTopicsRemoved(Collection)} or
- *    {@link PatternMultiTopicsConsumerImpl#topicsChangeListener#onTopicsAdded(Collection)}.
+ *    {@code PatternMultiTopicsConsumerImpl#topicsChangeListener#onTopicsRemoved(Collection)} or
+ *    {@code PatternMultiTopicsConsumerImpl#topicsChangeListener#onTopicsAdded(Collection)}.
  *
  * When you are using this client connect to the broker whose version >= 2.11, there are three scenarios: [1, 2, 4].
  * When you are using this client connect to the broker whose version < 2.11, there is only one scenario: [3] and all

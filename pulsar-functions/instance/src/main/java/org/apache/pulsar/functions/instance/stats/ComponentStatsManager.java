@@ -19,8 +19,12 @@
 package org.apache.pulsar.functions.instance.stats;
 
 import com.google.common.collect.EvictingQueue;
+import io.prometheus.metrics.core.metrics.Counter;
+import io.prometheus.metrics.core.metrics.Gauge;
+import io.prometheus.metrics.expositionformats.PrometheusTextFormatWriter;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.StringWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -48,6 +52,9 @@ public abstract class ComponentStatsManager implements AutoCloseable {
             {"tenant", "namespace", "name", "instance_id", "cluster", "fqfn"};
 
     protected static final String[] EXCEPTION_METRICS_LABEL_NAMES;
+
+    private static final PrometheusTextFormatWriter TEXT_WRITER = PrometheusTextFormatWriter.builder()
+            .setIncludeCreatedTimestamps(false).build();
 
     static {
         EXCEPTION_METRICS_LABEL_NAMES = Arrays.copyOf(METRICS_LABEL_NAMES, METRICS_LABEL_NAMES.length + 1);
@@ -140,11 +147,36 @@ public abstract class ComponentStatsManager implements AutoCloseable {
     getLatestSinkExceptions();
 
     public String getStatsAsString() throws IOException {
-        StringWriter outputWriter = new StringWriter();
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        TEXT_WRITER.write(out, collectorRegistry.scrape());
+        return out.toString(StandardCharsets.UTF_8);
+    }
 
-        PrometheusTextFormat.write004(outputWriter, collectorRegistry.metricFamilySamples());
+    /** A counter with the component labels, shared with the other instances on the same registry. */
+    protected Counter counter(String name, String help) {
+        return collectorRegistry.registerIfNotExist(name, Counter.builder()
+                .name(name)
+                .help(help)
+                .labelNames(METRICS_LABEL_NAMES)
+                .build());
+    }
 
-        return outputWriter.toString();
+    /** A gauge with the component labels, shared with the other instances on the same registry. */
+    protected Gauge gauge(String name, String help) {
+        return collectorRegistry.registerIfNotExist(name, Gauge.builder()
+                .name(name)
+                .help(help)
+                .labelNames(METRICS_LABEL_NAMES)
+                .build());
+    }
+
+    /** A gauge with the component labels plus the exception message, set to 1 when an exception is reported. */
+    protected Gauge exceptionGauge(String name, String help) {
+        return collectorRegistry.registerIfNotExist(name, Gauge.builder()
+                .name(name)
+                .help(help)
+                .labelNames(EXCEPTION_METRICS_LABEL_NAMES)
+                .build());
     }
 
     protected FunctionStatus.ExceptionInformation getExceptionInfo(Throwable th, long ts) {

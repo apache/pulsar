@@ -222,7 +222,7 @@ public class TableViewImplTest {
      */
     private static final class TailRetryFixture implements AutoCloseable {
         final PulsarClientImpl client = mock(PulsarClientImpl.class);
-        final Reader<String> reader = mock(Reader.class);
+        final Reader<String> reader = mock();
         final List<Long> retryDelays = new ArrayList<>();
         final List<Runnable> retries = new ArrayList<>();
         /** When set, the next retry runs before the call that queued it has returned. */
@@ -587,7 +587,7 @@ public class TableViewImplTest {
             f.tableView.start().get(5, TimeUnit.SECONDS);
             CompletableFuture<List<TopicMessageId>> firstLookup = new CompletableFuture<>();
             CompletableFuture<List<TopicMessageId>> secondLookup = new CompletableFuture<>();
-            when(f.reader.getLastMessageIdsAsync()).thenReturn(firstLookup, secondLookup);
+            when(f.reader.getLastMessageIdsAsync()).thenReturn(firstLookup).thenReturn(secondLookup);
             CompletableFuture<Void> first = f.tableView.refreshAsync();
             CompletableFuture<Void> second = f.tableView.refreshAsync();
             // Whichever refresh the stop fails first, the answer for the other one arrives at that very moment,
@@ -949,7 +949,7 @@ public class TableViewImplTest {
     public void testFailedReadIsLoggedAsARetry() throws Exception {
         try (TailRetryFixture f = new TailRetryFixture();
              TableViewLogCapture logs = new TableViewLogCapture()) {
-            when(f.reader.readNextAsync()).thenReturn(failedRead(), new CompletableFuture<>());
+            when(f.reader.readNextAsync()).thenReturn(failedRead()).thenReturn(new CompletableFuture<>());
 
             f.tableView.start().get(5, TimeUnit.SECONDS);
 

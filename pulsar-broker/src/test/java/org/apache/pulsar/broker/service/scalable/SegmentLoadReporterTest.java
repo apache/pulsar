@@ -31,6 +31,7 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.resources.ScalableTopicResources;
@@ -59,6 +60,9 @@ public class SegmentLoadReporterTest {
         store = new LocalMemoryMetadataStore("memory:local", MetadataStoreConfig.builder().build());
         resources = new ScalableTopicResources(store, 30);
         reporter = new SegmentLoadReporter(resources, THRESHOLD);
+        // The reporter writes nothing for a topic with no record.
+        resources.createScalableTopicAsync(TOPIC, ScalableTopicController.createInitialMetadata(1, 4, Map.of()))
+                .get();
     }
 
     @AfterMethod(alwaysRun = true)
@@ -234,5 +238,41 @@ public class SegmentLoadReporterTest {
         reporter.reportIfChanged(TOPIC, 7, stats(100)).get();
         resources.deleteSegmentLoadAsync(TOPIC, 7).get();
         assertFalse(resources.getSegmentLoadAsync(TOPIC, 7).get().isPresent());
+    }
+
+    // --- deleted topic ---
+
+    @Test
+    public void testNoReportAfterTopicRecordDeleted() throws Exception {
+        assertTrue(reporter.reportIfChanged(TOPIC, 0, stats(1000)).get());
+        // The topic delete deletes the record before the segment topics, which stay loaded until then.
+        resources.deleteScalableTopicAsync(TOPIC).get();
+
+        // Neither the broker that reported before nor one whose segment topic just loaded writes.
+        boolean written = reporter.reportIfChanged(TOPIC, 0, stats(2000)).get();
+        boolean writtenByNewOwner =
+                new SegmentLoadReporter(resources, THRESHOLD).reportIfChanged(TOPIC, 1, stats(0)).get();
+
+        // A write would have brought the topic back, with no record.
+        assertThat(resources.listScalableTopicsAsync(TOPIC.getNamespaceObject()).get()).isEmpty();
+        assertFalse(written);
+        assertFalse(writtenByNewOwner);
+    }
+
+    @Test
+    public void testNoReportForTopicMarkedDeleted() throws Exception {
+        assertTrue(reporter.reportIfChanged(TOPIC, 0, stats(1000)).get());
+        // The topic delete marks the topic deleted before it deletes the record.
+        resources.markScalableTopicDeletedAsync(TOPIC).get();
+
+        boolean written = reporter.reportIfChanged(TOPIC, 0, stats(2000)).get();
+        boolean writtenByNewOwner =
+                new SegmentLoadReporter(resources, THRESHOLD).reportIfChanged(TOPIC, 1, stats(0)).get();
+
+        assertThat(resources.getSegmentLoadAsync(TOPIC, 0).get()).hasValueSatisfying(
+                stored -> assertThat(stored.getValue()).isEqualTo(stats(1000)));
+        assertThat(resources.getSegmentLoadAsync(TOPIC, 1).get()).isEmpty();
+        assertFalse(written);
+        assertFalse(writtenByNewOwner);
     }
 }

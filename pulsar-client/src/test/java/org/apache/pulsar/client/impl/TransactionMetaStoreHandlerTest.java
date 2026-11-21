@@ -32,6 +32,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.ReferenceCountUtil;
+import java.net.URI;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -49,6 +50,85 @@ import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
 public class TransactionMetaStoreHandlerTest {
+
+    @Test
+    public void testMetadataDiscoveryRetriesTransientInitialConnectionPastLookupDeadline() throws Exception {
+        @Cleanup
+        final PulsarClientImpl client = (PulsarClientImpl) PulsarClient.builder()
+                .serviceUrl("pulsar://localhost:6650")
+                .lookupTimeout(0, TimeUnit.MILLISECONDS)
+                .operationTimeout(1, TimeUnit.SECONDS)
+                .build();
+        final CompletableFuture<Void> connectFuture = new CompletableFuture<>();
+        final TransactionMetaStoreHandler handler = new TransactionMetaStoreHandler(
+                15L, client, URI.create("pulsar://localhost:6650"), false, connectFuture);
+        try {
+            handler.setState(HandlerState.State.Connecting);
+            awaitPastInitialLookupDeadline();
+            assertThat(handler.connectionFailed(new PulsarClientException.TimeoutException("leader unavailable")))
+                    .as("the assignment watch still owns this handler after its initial lookup deadline").isTrue();
+            assertThat(connectFuture).isNotDone();
+            assertThat(handler.getConnectHandleState()).isEqualTo(HandlerState.State.Connecting);
+
+            CompletableFuture<TxnID> transaction = handler.newTransactionAsync(1, TimeUnit.MINUTES);
+            Awaitility.await().untilAsserted(() -> assertThat(handler.getPendingRequestsCount()).isEqualTo(1));
+            final List<ByteBuf> sentRequests = connectToSilentCoordinator(handler);
+            final ByteBuf request = awaitFirstSentRequest(sentRequests);
+            assertThat(connectFuture).isCompleted();
+            assertThat(handler.getConnectHandleState()).isEqualTo(HandlerState.State.Ready);
+            // A reconnectable handler does not remove the original operation's time limit.
+            assertThat(transaction).failsWithin(Duration.ofSeconds(10))
+                    .withThrowableOfType(ExecutionException.class)
+                    .withCauseInstanceOf(PulsarClientException.TimeoutException.class);
+            awaitReleased(handler, request);
+        } finally {
+            handler.close();
+        }
+    }
+
+    @Test
+    public void testLegacyDiscoveryKeepsInitialLookupDeadline() throws Exception {
+        @Cleanup
+        final PulsarClientImpl client = (PulsarClientImpl) PulsarClient.builder()
+                .serviceUrl("pulsar://localhost:6650").lookupTimeout(0, TimeUnit.MILLISECONDS).build();
+        final CompletableFuture<Void> connectFuture = new CompletableFuture<>();
+        final TransactionMetaStoreHandler handler =
+                new TransactionMetaStoreHandler(15L, client, "topic", connectFuture);
+        try {
+            handler.setState(HandlerState.State.Connecting);
+            awaitPastInitialLookupDeadline();
+            assertThat(handler.connectionFailed(new PulsarClientException.TimeoutException("leader unavailable")))
+                    .isFalse();
+            assertThat(connectFuture).isCompletedExceptionally();
+            assertThat(handler.getConnectHandleState()).isEqualTo(HandlerState.State.Failed);
+        } finally {
+            handler.close();
+        }
+    }
+
+    @Test
+    public void testMetadataDiscoveryDoesNotRetryPermanentInitialConnectionFailure() throws Exception {
+        @Cleanup
+        final PulsarClientImpl client = (PulsarClientImpl) PulsarClient.builder()
+                .serviceUrl("pulsar://localhost:6650").build();
+        final CompletableFuture<Void> connectFuture = new CompletableFuture<>();
+        final TransactionMetaStoreHandler handler = new TransactionMetaStoreHandler(
+                15L, client, URI.create("pulsar://localhost:6650"), false, connectFuture);
+        try {
+            handler.setState(HandlerState.State.Connecting);
+            assertThat(handler.connectionFailed(new PulsarClientException.AuthorizationException("denied"))).isFalse();
+            assertThat(connectFuture).isCompletedExceptionally();
+            assertThat(handler.getConnectHandleState()).isEqualTo(HandlerState.State.Failed);
+        } finally {
+            handler.close();
+        }
+    }
+
+    private static void awaitPastInitialLookupDeadline() {
+        // The handler was built with a zero-millisecond lookup budget before this timestamp.
+        long afterConstruction = System.currentTimeMillis();
+        Awaitility.await().until(() -> System.currentTimeMillis() > afterConstruction);
+    }
 
     @Test
     public void testStateChangeFailure() throws Exception {

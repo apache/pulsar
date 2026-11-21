@@ -54,13 +54,19 @@ dependencies {
         // Swagger 1.x annotations on the generated k8s models are inert metadata; nothing reads them at runtime
         exclude(group = "io.swagger", module = "swagger-annotations")
     }
-    implementation(libs.simpleclient.hotspot)
+    implementation(libs.prometheus.metrics.exporter.httpserver) {
+        // Like opentelemetry-exporter-prometheus: use the exposition formats without the shaded protobuf,
+        // so the distribution does not ship both variants
+        exclude(group = "io.prometheus", module = "prometheus-metrics-exposition-formats")
+    }
+    runtimeOnly(libs.prometheus.metrics.exposition.formats.no.protobuf)
+    implementation(libs.prometheus.metrics.instrumentation.jvm)
     implementation(libs.prometheus.jmx.collector)
     implementation(libs.protobuf.java.util)
     implementation(libs.guava)
     api(project(":pulsar-functions:pulsar-functions-proto"))
     implementation(project(":pulsar-client-original"))
-    implementation(libs.grpc.netty.shaded)
+    implementation(libs.grpc.netty)
     implementation(libs.grpc.stub)
     implementation(libs.jetty.util)
     implementation(libs.byte.buddy)

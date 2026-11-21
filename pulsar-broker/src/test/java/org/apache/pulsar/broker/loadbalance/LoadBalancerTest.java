@@ -25,6 +25,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import java.lang.reflect.Field;
+import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -106,8 +107,8 @@ public class LoadBalancerTest {
 
     @BeforeMethod
     void setup() throws Exception {
-        // Start local bookkeeper ensemble
-        bkEnsemble = new LocalBookkeeperEnsemble(3, 0);
+        // A ZooKeeper server without bookies: the tests write no ledgers
+        bkEnsemble = new LocalBookkeeperEnsemble(0, 0);
         bkEnsemble.start();
         ZkUtils.createFullPathOptimistic(bkEnsemble.getZkClient(),
                 SimpleLoadManagerImpl.LOADBALANCER_DYNAMIC_SETTING_STRATEGY_ZPATH,
@@ -142,7 +143,7 @@ public class LoadBalancerTest {
             brokerWebServicePorts[i] = pulsarServices[i].getListenPortHTTP().get();
             brokerNativeBrokerPorts[i] = pulsarServices[i].getBrokerListenPort().get();
 
-            brokerUrls[i] = new URL("http://127.0.0.1" + ":" + brokerWebServicePorts[i]);
+            brokerUrls[i] = URI.create("http://127.0.0.1" + ":" + brokerWebServicePorts[i]).toURL();
             lookupAddresses[i] = pulsarServices[i].getBrokerId();
             pulsarAdmins[i] = PulsarAdmin.builder().serviceHttpUrl(brokerUrls[i].toString()).build();
         }
@@ -175,7 +176,6 @@ public class LoadBalancerTest {
 
     private void loopUntilLeaderChangesForAllBroker(List<PulsarService> activePulsars, LeaderBroker oldLeader) {
         Awaitility.await()
-            .pollInterval(1, TimeUnit.SECONDS)
             .atMost(MAX_RETRIES, TimeUnit.SECONDS)
             .until(() -> {
                 boolean settled = true;
@@ -515,41 +515,55 @@ public class LoadBalancerTest {
             pulsarServices[i].getBrokerService().getBundlesQuotas().setDefaultResourceQuota(defaultQuota).join();
         }
 
-        // publish the initial load reports and wait for quotas be updated
+        // publish the initial load reports and wait for quotas be updated. Each broker re-ranks on every load report
+        // change, and has the quotas of all the reported bundles once it has read all the reports. The quotas move by
+        // how much newer the newest report is than at the previous re-ranking, so they change once per publish.
         writeLoadReportsForDynamicQuota(startTime);
-        Thread.sleep(5000);
+        Awaitility.await().untilAsserted(() -> {
+            for (int i = 0; i < BROKER_COUNT; i++) {
+                Map<String, ResourceQuota> quotas = getRealtimeResourceQuota(pulsarServices[i]).get();
+                for (int broker = 0; broker < BROKER_COUNT; broker++) {
+                    for (int j = 0; j < 5; j++) {
+                        assertTrue(quotas.containsKey(
+                                String.format("pulsar/primary-ns-%d-%d/0x00000000_0xffffffff", broker, j)));
+                    }
+                }
+            }
+        });
 
         // publish test report for 15 minutes later and wait for quotas be updated
         writeLoadReportsForDynamicQuota(startTime + SimpleLoadManagerImpl.RESOURCE_QUOTA_GO_UP_TIMEWINDOW);
-        Thread.sleep(5000);
 
         // print & verify resource quotas
-        for (int i = 0; i < BROKER_COUNT; i++) {
-            Map<String, ResourceQuota> quotas = getRealtimeResourceQuota(pulsarServices[i]).get();
-            printResourceQuotas(quotas);
-            verifyBundleResourceQuota(quotas.get("pulsar/primary-ns-0-0/0x00000000_0xffffffff"), 19.0, 58.0,
-                    19791.0, 58958.0, 74.0);
-            verifyBundleResourceQuota(quotas.get("pulsar/primary-ns-2-2/0x00000000_0xffffffff"), 20.0, 60.0,
-                    20000.0, 60000.0, 100.0);
-            verifyBundleResourceQuota(quotas.get("pulsar/primary-ns-4-4/0x00000000_0xffffffff"), 40.0, 120.0,
-                    40000.0, 120000.0, 150.0);
-        }
+        Awaitility.await().untilAsserted(() -> {
+            for (int i = 0; i < BROKER_COUNT; i++) {
+                Map<String, ResourceQuota> quotas = getRealtimeResourceQuota(pulsarServices[i]).get();
+                printResourceQuotas(quotas);
+                verifyBundleResourceQuota(quotas.get("pulsar/primary-ns-0-0/0x00000000_0xffffffff"), 19.0, 58.0,
+                        19791.0, 58958.0, 74.0);
+                verifyBundleResourceQuota(quotas.get("pulsar/primary-ns-2-2/0x00000000_0xffffffff"), 20.0, 60.0,
+                        20000.0, 60000.0, 100.0);
+                verifyBundleResourceQuota(quotas.get("pulsar/primary-ns-4-4/0x00000000_0xffffffff"), 40.0, 120.0,
+                        40000.0, 120000.0, 150.0);
+            }
+        });
 
         // publish test report for 24 hours later and wait for quotas be updated
         writeLoadReportsForDynamicQuota(startTime + SimpleLoadManagerImpl.RESOURCE_QUOTA_GO_DOWN_TIMEWINDOW);
-        Thread.sleep(5000);
 
         // print & verify resource quotas
-        for (int i = 0; i < BROKER_COUNT; i++) {
-            Map<String, ResourceQuota> quotas = getRealtimeResourceQuota(pulsarServices[i]).get();
-            printResourceQuotas(quotas);
-            verifyBundleResourceQuota(quotas.get("pulsar/primary-ns-0-0/0x00000000_0xffffffff"), 5.0, 6.0, 10203.0,
-                    11019.0, 50.0);
-            verifyBundleResourceQuota(quotas.get("pulsar/primary-ns-2-2/0x00000000_0xffffffff"), 20.0, 60.0,
-                    20000.0, 60000.0, 100.0);
-            verifyBundleResourceQuota(quotas.get("pulsar/primary-ns-4-4/0x00000000_0xffffffff"), 40.0, 120.0,
-                    40000.0, 120000.0, 150.0);
-        }
+        Awaitility.await().untilAsserted(() -> {
+            for (int i = 0; i < BROKER_COUNT; i++) {
+                Map<String, ResourceQuota> quotas = getRealtimeResourceQuota(pulsarServices[i]).get();
+                printResourceQuotas(quotas);
+                verifyBundleResourceQuota(quotas.get("pulsar/primary-ns-0-0/0x00000000_0xffffffff"), 5.0, 6.0,
+                        10203.0, 11019.0, 50.0);
+                verifyBundleResourceQuota(quotas.get("pulsar/primary-ns-2-2/0x00000000_0xffffffff"), 20.0, 60.0,
+                        20000.0, 60000.0, 100.0);
+                verifyBundleResourceQuota(quotas.get("pulsar/primary-ns-4-4/0x00000000_0xffffffff"), 40.0, 120.0,
+                        40000.0, 120000.0, 150.0);
+            }
+        });
     }
 
     private NamespaceBundleStats newBundleStats(long topics, int producers, int consumers, double msgRateIn,
@@ -653,8 +667,7 @@ public class LoadBalancerTest {
         FieldUtils.writeField(pulsarServices[0].getLoadManager().get(), "lastLoadReport", lr, true);
         updateLastReport(pulsarServices[0].getLoadManager().get(), lr);
 
-        // sleep to wait load ranking be triggered and trigger bundle split
-        Thread.sleep(5000);
+        // the bundle split reads the bundle stats of the load report set above
         pulsarServices[0].getLoadManager().get().doNamespaceBundleSplit();
 
         boolean isAutoUnooadSplitBundleEnabled = pulsarServices[0].getConfiguration()
