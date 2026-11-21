@@ -150,12 +150,28 @@ public class BucketDelayedDeliveryTrackerFactory implements DelayedDeliveryTrack
             if (k != null && v != null && k.startsWith(BucketDelayedDeliveryTracker.DELAYED_BUCKET_KEY_PREFIX)) {
                 CompletableFuture<Void> future = sequencer.sequential(() ->
                         bucketSnapshotStorage.deleteBucketSnapshot(Long.parseLong(v))
-                                .thenCompose(__ -> cursor.removeCursorProperty(k)));
+                                .thenCompose(__ -> removeCursorPropertyIfStillReferences(cursor, k, v)));
                 futures.add(future);
             }
         });
 
         return FutureUtil.waitForAll(futures);
+    }
+
+    /**
+     * Removes the property only while it still references the deleted ledger. This closes the
+     * common ordering (the replacement published before the check); the check and the removal are
+     * still two cursor operations, so a publication completing strictly between them can slip
+     * through — the atomic conditional removal is tracked separately.
+     */
+    private CompletableFuture<Void> removeCursorPropertyIfStillReferences(ManagedCursor cursor, String key,
+                                                                          String deletedBucketId) {
+        String currentBucketId = cursor.getCursorProperties().get(key);
+        if (currentBucketId == null || !currentBucketId.equals(deletedBucketId)) {
+            // The property has been replaced by a later snapshot; do not remove it.
+            return CompletableFuture.completedFuture(null);
+        }
+        return cursor.removeCursorProperty(key);
     }
 
     @Override

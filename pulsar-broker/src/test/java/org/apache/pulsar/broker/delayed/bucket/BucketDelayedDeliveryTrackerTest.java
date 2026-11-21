@@ -52,12 +52,15 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -816,6 +819,70 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
                 return future;
             }
             return gate.thenCompose(__ -> future);
+        }
+    }
+
+    /**
+     * Fails the snapshot delete of the configured bucket ids and counts the snapshot creations,
+     * so a test can verify that no replacement snapshot is allocated while a superseded ledger
+     * delete is failing.
+     */
+    private static class FailingDeleteForBucketIdStorage extends MockBucketSnapshotStorage {
+        final Set<Long> failDeleteBucketIds = ConcurrentHashMap.newKeySet();
+        // bucket id -> number of leading delete attempts that fail before succeeding
+        final ConcurrentHashMap<Long, AtomicInteger> failDeleteAttemptsBucketIds = new ConcurrentHashMap<>();
+        final AtomicLong createCalls = new AtomicLong();
+
+        @Override
+        public CompletableFuture<Void> deleteBucketSnapshot(long bucketId) {
+            if (failDeleteBucketIds.contains(bucketId)) {
+                return FutureUtil.failedFuture(new BucketSnapshotPersistenceException("delete failed"));
+            }
+            AtomicInteger remainingFailures = failDeleteAttemptsBucketIds.get(bucketId);
+            if (remainingFailures != null && remainingFailures.getAndDecrement() > 0) {
+                return FutureUtil.failedFuture(new BucketSnapshotPersistenceException("transient delete failure"));
+            }
+            return super.deleteBucketSnapshot(bucketId);
+        }
+
+        @Override
+        public CompletableFuture<Long> createBucketSnapshot(SnapshotMetadata snapshotMetadata,
+                                                            List<SnapshotSegment> bucketSnapshotSegments,
+                                                            String bucketKey, String topicName, String cursorName) {
+            createCalls.incrementAndGet();
+            return super.createBucketSnapshot(snapshotMetadata, bucketSnapshotSegments, bucketKey, topicName,
+                    cursorName);
+        }
+    }
+
+    /**
+     * Blocks every attempt (initial + retries) of the first bucket snapshot creation until
+     * {@link #gate} completes. Used to keep that bucket's snapshot creation pending while the trim
+     * selects it, and then fail it to exercise the failed-create trim path.
+     */
+    private static class BlockingFirstCreateStorage extends MockBucketSnapshotStorage {
+        final CompletableFuture<Void> gate = new CompletableFuture<>();
+        final Set<String> blockedBucketKeys = ConcurrentHashMap.newKeySet();
+        private final AtomicLong createCalls = new AtomicLong();
+
+        @Override
+        public CompletableFuture<Long> createBucketSnapshot(SnapshotMetadata snapshotMetadata,
+                                                            List<SnapshotSegment> bucketSnapshotSegments,
+                                                            String bucketKey, String topicName, String cursorName) {
+            if (createCalls.incrementAndGet() == 1) {
+                blockedBucketKeys.add(bucketKey);
+            }
+            if (blockedBucketKeys.contains(bucketKey)) {
+                return gate.handle((__, ex) -> {
+                    if (ex != null) {
+                        throw new CompletionException(ex);
+                    }
+                    throw new CompletionException(
+                            new BucketSnapshotPersistenceException("Unexpected create success"));
+                });
+            }
+            return super.createBucketSnapshot(snapshotMetadata, bucketSnapshotSegments,
+                    bucketKey, topicName, cursorName);
         }
     }
 
@@ -1769,6 +1836,194 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         assertEquals(ts.tracker.getSharedBucketPriorityQueue().size(), 0);
 
         ts.close();
+    }
+
+    @Test
+    public void testSaveDoesNotAllocateReplacementWhenSupersededDeleteFails() throws Exception {
+        FailingDeleteForBucketIdStorage storage = new FailingDeleteForBucketIdStorage();
+        TrackerWithStorage ts = createTrackerWithMockLedger(31L, 5, storage);
+        try {
+            ImmutableBucket bucket = createMergeableBucket(ts, 31L, 35L, List.of(1L));
+            String bucketKey = bucket.bucketKey();
+            long supersededId = 10L;
+            ts.tracker.getCtx().cursor().putCursorProperty(bucketKey, String.valueOf(supersededId)).get();
+            storage.failDeleteBucketIds.add(supersededId);
+
+            assertThat(bucket.asyncSaveBucketSnapshot(new BucketDelayedMessageIndexStats(),
+                    new SnapshotMetadata(), List.of()))
+                    .failsWithin(5, TimeUnit.SECONDS)
+                    .withThrowableOfType(ExecutionException.class)
+                    .withCauseInstanceOf(BucketSnapshotPersistenceException.class);
+
+            assertEquals(storage.createCalls.get(), 0,
+                    "No replacement should be allocated when the superseded delete fails");
+            assertEquals(ts.tracker.getCtx().cursor().getCursorProperties().get(bucketKey),
+                    String.valueOf(supersededId));
+        } finally {
+            ts.close();
+        }
+    }
+
+    @Test
+    public void testSaveRetriesTransientSupersededLedgerDelete() throws Exception {
+        FailingDeleteForBucketIdStorage storage = new FailingDeleteForBucketIdStorage();
+        TrackerWithStorage ts = createTrackerWithMockLedger(31L, 5, storage);
+        try {
+            ImmutableBucket bucket = createMergeableBucket(ts, 31L, 35L, List.of(1L));
+            String bucketKey = bucket.bucketKey();
+            long supersededId = 10L;
+            assertThat(ts.tracker.getCtx().cursor().putCursorProperty(bucketKey, String.valueOf(supersededId)))
+                    .succeedsWithin(5, TimeUnit.SECONDS);
+            // The first superseded-ledger delete fails transiently; the retry succeeds.
+            storage.failDeleteAttemptsBucketIds.put(supersededId, new AtomicInteger(1));
+
+            assertThat(bucket.asyncSaveBucketSnapshot(new BucketDelayedMessageIndexStats(),
+                    new SnapshotMetadata(), List.of())).succeedsWithin(5, TimeUnit.SECONDS);
+            assertThat(storage.createCalls.get()).isEqualTo(1);
+            assertThat(ts.tracker.getCtx().cursor().getCursorProperties().get(bucketKey))
+                    .isNotEqualTo(String.valueOf(supersededId));
+        } finally {
+            ts.close();
+        }
+    }
+
+    @Test
+    public void testDeleteDoesNotRemoveReplacementCursorProperty() throws Exception {
+        TrackerWithStorage ts = createTrackerWithMockLedger(31L, 5);
+        try {
+            ImmutableBucket bucket = createMergeableBucket(ts, 31L, 35L, List.of(1L));
+            long deletedId = 10L;
+            long replacementId = 11L;
+            bucket.setBucketId(deletedId);
+            String bucketKey = bucket.bucketKey();
+            assertThat(ts.tracker.getCtx().cursor().putCursorProperty(bucketKey, String.valueOf(replacementId)))
+                    .succeedsWithin(5, TimeUnit.SECONDS);
+
+            assertThat(bucket.asyncDeleteBucketSnapshot(new BucketDelayedMessageIndexStats()))
+                    .succeedsWithin(5, TimeUnit.SECONDS);
+
+            assertEquals(ts.tracker.getCtx().cursor().getCursorProperties().get(bucketKey),
+                    String.valueOf(replacementId),
+                    "A stale cleanup must not remove the replacement's cursor property");
+        } finally {
+            ts.close();
+        }
+    }
+
+    @Test
+    public void testTrimSkipsFailedSnapshotCreation() throws Exception {
+        long firstLedgerId = 31L;
+        BlockingFirstCreateStorage storage = new BlockingFirstCreateStorage();
+        TrackerWithStorage ts = createTrackerWithMockLedger(firstLedgerId, 5, storage);
+        try {
+            // Sealing the sixth bucket exceeds maxNumBuckets and triggers the trim while the first
+            // bucket's snapshot creation is still in flight (blocked by the gate).
+            for (int i = 1; i <= 31; i++) {
+                ts.tracker.addMessage(i, i, i * 10);
+            }
+
+            synchronized (ts.tracker) {
+                assertEquals(storage.blockedBucketKeys.size(), 1,
+                        "The first bucket snapshot creation should have been blocked");
+                assertTrue(ts.tracker.getImmutableBuckets().asMapOfRanges().keySet().stream()
+                                .anyMatch(range -> range.lowerEndpoint() == 1L && range.upperEndpoint() == 5L),
+                        "The first bucket should still be present while its snapshot creation is pending");
+            }
+
+            // Fail the first bucket's snapshot creation only once a trim delete has claimed that
+            // bucket, so the exercised path is a trim delete blocked on the pending create.
+            ImmutableBucket gatedBucket = ts.tracker.getImmutableBuckets().asMapOfRanges().values().stream()
+                    .filter(b -> storage.blockedBucketKeys.contains(b.bucketKey()))
+                    .findFirst().orElseThrow();
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+                    assertThat(gatedBucket.isDeleteStarted()).isTrue());
+            storage.gate.completeExceptionally(new BucketSnapshotPersistenceException("Create failed"));
+
+            // The trim chain must not stop on the failed create: every orphaned bucket is cleaned up.
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+                synchronized (ts.tracker) {
+                    assertTrue(ts.tracker.getImmutableBuckets().asMapOfRanges().isEmpty(),
+                            "All orphaned buckets should be removed despite the failed snapshot creation");
+                }
+            });
+        } finally {
+            // Release the gate before closing, so a failed assertion cannot strand teardown on the
+            // pending create.
+            storage.gate.completeExceptionally(new BucketSnapshotPersistenceException("Create failed"));
+            ts.close();
+        }
+    }
+
+    @Test
+    public void testFailedCreateDoesNotRequeueIndexesOntoADeleteClaimedBucket() throws Exception {
+        BlockingFirstCreateStorage storage = new BlockingFirstCreateStorage();
+        TrackerWithStorage ts = createTrackerWithMockLedger(31L, 50, storage);
+        try {
+            for (int i = 1; i <= 31; i++) {
+                ts.tracker.addMessage(i, i, i * 10);
+            }
+            Awaitility.await().untilAsserted(() ->
+                    assertEquals(storage.blockedBucketKeys.size(), 1));
+
+            ImmutableBucket bucket = ts.tracker.getImmutableBuckets().asMapOfRanges().values().stream()
+                    .filter(b -> b.getSnapshotCreateFuture().map(future -> !future.isDone()).orElse(false))
+                    .findFirst().orElseThrow();
+
+            // A delete claims the bucket and waits on the pending create.
+            CompletableFuture<Void> delete = bucket.asyncDeleteBucketSnapshot(new BucketDelayedMessageIndexStats());
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+                    assertThat(bucket.isDeleteStarted()).isTrue());
+            long queueSizeBefore = ts.tracker.getSharedBucketPriorityQueue().size();
+
+            storage.gate.completeExceptionally(new BucketSnapshotPersistenceException("Create failed"));
+
+            assertThat(delete).succeedsWithin(5, TimeUnit.SECONDS);
+            // The create-failure callback must not re-queue the claimed bucket's indexes.
+            assertThat(ts.tracker.getSharedBucketPriorityQueue().size()).isEqualTo(queueSizeBefore);
+        } finally {
+            storage.gate.completeExceptionally(new BucketSnapshotPersistenceException("Create failed"));
+            ts.close();
+        }
+    }
+
+    @Test
+    public void testFailedCreateClearDoesNotRemoveCursorProperty() throws Exception {
+        AtomicLong propertyRemoveCalls = new AtomicLong();
+        ManagedCursor cursor = new MockManagedCursor("test_failed_create_cursor") {
+            @Override
+            public CompletableFuture<Void> removeCursorProperty(String key) {
+                propertyRemoveCalls.incrementAndGet();
+                return super.removeCursorProperty(key);
+            }
+        };
+        AbstractPersistentDispatcherMultipleConsumers testDispatcher =
+                mock(AbstractPersistentDispatcherMultipleConsumers.class);
+        Clock testClock = mock(Clock.class);
+        AtomicLong testClockTime = new AtomicLong();
+        when(testClock.millis()).then(x -> testClockTime.get());
+        doReturn(cursor).when(testDispatcher).getCursor();
+        doReturn("persistent://public/default/testFailedCreate / " + cursor.getName())
+                .when(testDispatcher).getName();
+        MockBucketSnapshotStorage storage = new MockBucketSnapshotStorage();
+        storage.start();
+        try {
+            BucketDelayedDeliveryTracker tracker = new BucketDelayedDeliveryTracker(
+                    testDispatcher, timer, 100000, testClock, true, storage,
+                    5, TimeUnit.MILLISECONDS.toMillis(10), -1, 50);
+            try {
+                TrackerWithStorage ts = new TrackerWithStorage(tracker, storage, testClockTime);
+                ImmutableBucket bucket = createMergeableBucket(ts, 31L, 35L, List.of(1L));
+                bucket.setSnapshotCreateFuture(
+                        FutureUtil.failedFuture(new BucketSnapshotPersistenceException("create failed")));
+                bucket.clear(new BucketDelayedMessageIndexStats()).get(5, TimeUnit.SECONDS);
+                assertEquals(propertyRemoveCalls.get(), 0,
+                        "A failed creation with no snapshot ID must not remove the cursor property");
+            } finally {
+                tracker.close();
+            }
+        } finally {
+            storage.close();
+        }
     }
 
     @Test

@@ -94,6 +94,15 @@ class ImmutableBucket {
     @Setter
     private volatile CompletableFuture<Long> snapshotCreateFuture;
 
+    // Set when a delete has claimed this bucket, so a late create-failure callback does not
+    // requeue indexes the delete is about to remove. Volatile for visibility: the set can be
+    // observed before the delete's synchronized sections run, which is harmless.
+    private volatile boolean deleteStarted;
+
+    boolean isDeleteStarted() {
+        return deleteStarted;
+    }
+
     ImmutableBucket(BucketContext ctx, long startLedgerId, long endLedgerId) {
         this.ctx = ctx;
         this.startLedgerId = startLedgerId;
@@ -126,23 +135,26 @@ class ImmutableBucket {
     }
 
     CompletableFuture<Long> asyncSaveBucketSnapshot(
-            SnapshotMetadata snapshotMetadata, List<SnapshotSegment> bucketSnapshotSegments) {
+            BucketDelayedMessageIndexStats stats, SnapshotMetadata snapshotMetadata,
+            List<SnapshotSegment> bucketSnapshotSegments) {
         final String bucketKey = bucketKey();
         final String cursorName = Codec.decode(ctx.cursor().getName());
         final String dispatcher = ctx.dispatcherName();
         final String topicName = dispatcher.substring(0, dispatcher.lastIndexOf(" / " + cursorName));
-        return executeWithRetry(
-                () -> ctx.bucketSnapshotStorage().createBucketSnapshot(snapshotMetadata, bucketSnapshotSegments,
-                                bucketKey, topicName, cursorName)
-                        .whenComplete((__, ex) -> {
-                            if (ex != null) {
-                                log.warn()
-                                        .attr("dispatcher", dispatcher)
-                                        .attr("bucketKey", bucketKey)
-                                        .exception(ex)
-                                        .log("Failed to create bucket snapshot");
-                            }
-                        }), BucketSnapshotPersistenceException.class, MaxRetryTimes).thenCompose(newBucketId -> {
+        return deleteSupersededSnapshotLedger(bucketKey, stats)
+                .thenCompose(ignored -> executeWithRetry(
+                        () -> ctx.bucketSnapshotStorage().createBucketSnapshot(snapshotMetadata,
+                                        bucketSnapshotSegments, bucketKey, topicName, cursorName)
+                                .whenComplete((__, ex) -> {
+                                    if (ex != null) {
+                                        log.warn()
+                                                .attr("dispatcher", dispatcher)
+                                                .attr("bucketKey", bucketKey)
+                                                .exception(ex)
+                                                .log("Failed to create bucket snapshot");
+                                    }
+                                }), BucketSnapshotPersistenceException.class, MaxRetryTimes))
+                .thenCompose(newBucketId -> {
                     setBucketId(newBucketId);
 
                     return putBucketKeyId(bucketKey, newBucketId).exceptionally(ex -> {
@@ -153,7 +165,47 @@ class ImmutableBucket {
                                 .exception(ex)
                                 .log("Failed to record bucketId to cursor property");
                         return null;
-                    }).thenApply(__ -> newBucketId);
+                    }).thenApply(ignored -> newBucketId);
+                });
+    }
+
+    /**
+     * The property is the only durable reference to the superseded ledger: delete it before the
+     * replacement is allocated, or fail the save so the reference survives for a retry.
+     */
+    private CompletableFuture<Void> deleteSupersededSnapshotLedger(String bucketKey,
+                                                                   BucketDelayedMessageIndexStats stats) {
+        String supersededBucketIdStr = ctx.cursor().getCursorProperties().get(bucketKey);
+        if (supersededBucketIdStr == null) {
+            return CompletableFuture.completedFuture(null);
+        }
+        final long supersededBucketId;
+        try {
+            supersededBucketId = Long.parseLong(supersededBucketIdStr);
+        } catch (NumberFormatException e) {
+            log.warn()
+                    .attr("bucketKey", bucketKey)
+                    .attr("bucketId", supersededBucketIdStr)
+                    .log("Skipping the superseded snapshot ledger delete, the bucket id is malformed");
+            return CompletableFuture.completedFuture(null);
+        }
+        long deleteStartTime = System.currentTimeMillis();
+        stats.recordTriggerEvent(BucketDelayedMessageIndexStats.Type.delete);
+        return executeWithRetry(() -> ctx.bucketSnapshotStorage().deleteBucketSnapshot(supersededBucketId),
+                BucketSnapshotPersistenceException.class, MaxRetryTimes)
+                .whenComplete((__, ex) -> {
+                    if (ex != null) {
+                        log.error()
+                                .attr("dispatcher", ctx.dispatcherName())
+                                .attr("bucketId", supersededBucketId)
+                                .attr("bucketKey", bucketKey)
+                                .exception(ex)
+                                .log("Failed to delete superseded bucket snapshot");
+                        stats.recordFailEvent(BucketDelayedMessageIndexStats.Type.delete);
+                    } else {
+                        stats.recordSuccessEvent(BucketDelayedMessageIndexStats.Type.delete,
+                                System.currentTimeMillis() - deleteStartTime);
+                    }
                 });
     }
 
@@ -166,10 +218,20 @@ class ImmutableBucket {
                         ManagedLedgerException.BadVersionException.class, MaxRetryTimes));
     }
 
-    CompletableFuture<Void> removeBucketCursorProperty(String bucketKey) {
-        return ctx.sequencer().sequential(() ->
-                executeWithRetry(() -> ctx.cursor().removeCursorProperty(bucketKey),
-                        ManagedLedgerException.BadVersionException.class, MaxRetryTimes));
+    /**
+     * Removes the property only while it still references the deleted ledger, so a delete racing a
+     * later save does not drop the replacement's only durable reference.
+     */
+    private CompletableFuture<Void> removeBucketCursorPropertyIfStillReferences(String bucketKey,
+                                                                                long bucketId) {
+        return ctx.sequencer().sequential(() -> executeWithRetry(() -> {
+            String currentBucketId = ctx.cursor().getCursorProperties().get(bucketKey);
+            if (currentBucketId == null || !currentBucketId.equals(String.valueOf(bucketId))) {
+                // The property has been replaced by a later snapshot; do not remove it.
+                return CompletableFuture.completedFuture(null);
+            }
+            return ctx.cursor().removeCursorProperty(bucketKey);
+        }, ManagedLedgerException.BadVersionException.class, MaxRetryTimes));
     }
 
     public Optional<List<SnapshotSegment>> getSnapshotSegments() {
@@ -314,35 +376,61 @@ class ImmutableBucket {
     }
 
     CompletableFuture<Void> asyncDeleteBucketSnapshot(BucketDelayedMessageIndexStats stats) {
-        long deleteStartTime = System.currentTimeMillis();
-        stats.recordTriggerEvent(BucketDelayedMessageIndexStats.Type.delete);
         String bucketKey = bucketKey();
-        long bucketId = getAndUpdateBucketId();
+        deleteStarted = true;
+        CompletableFuture<Optional<Long>> bucketIdFuture = resolveBucketIdForDelete();
 
-        return executeWithRetry(() -> ctx.bucketSnapshotStorage().deleteBucketSnapshot(bucketId),
-                BucketSnapshotPersistenceException.class, MaxRetryTimes)
-                .whenComplete((__, ex) -> {
-                    if (ex != null) {
-                        log.error()
-                                .attr("dispatcher", ctx.dispatcherName())
-                                .attr("bucketId", bucketId)
-                                .attr("bucketKey", bucketKey)
-                                .exception(ex)
-                                .log("Failed to delete bucket snapshot");
+        return bucketIdFuture.thenCompose(optionalBucketId -> {
+            if (optionalBucketId.isEmpty()) {
+                // A failed creation left no snapshot to delete: not a delete attempt, so no metric.
+                return CompletableFuture.completedFuture(null);
+            }
+            long deleteStartTime = System.currentTimeMillis();
+            stats.recordTriggerEvent(BucketDelayedMessageIndexStats.Type.delete);
+            long bucketId = optionalBucketId.get();
+            return executeWithRetry(() -> ctx.bucketSnapshotStorage().deleteBucketSnapshot(bucketId),
+                    BucketSnapshotPersistenceException.class, MaxRetryTimes)
+                    .whenComplete((__, ex) -> {
+                        if (ex != null) {
+                            log.error()
+                                    .attr("dispatcher", ctx.dispatcherName())
+                                    .attr("bucketId", bucketId)
+                                    .attr("bucketKey", bucketKey)
+                                    .exception(ex)
+                                    .log("Failed to delete bucket snapshot");
 
-                        stats.recordFailEvent(BucketDelayedMessageIndexStats.Type.delete);
-                    } else {
-                        log.info()
-                                .attr("dispatcher", ctx.dispatcherName())
-                                .attr("bucketId", bucketId)
-                                .attr("bucketKey", bucketKey)
-                                .log("Delete bucket snapshot finish");
+                            stats.recordFailEvent(BucketDelayedMessageIndexStats.Type.delete);
+                        } else {
+                            log.info()
+                                    .attr("dispatcher", ctx.dispatcherName())
+                                    .attr("bucketId", bucketId)
+                                    .attr("bucketKey", bucketKey)
+                                    .log("Delete bucket snapshot finish");
 
-                        stats.recordSuccessEvent(BucketDelayedMessageIndexStats.Type.delete,
-                                System.currentTimeMillis() - deleteStartTime);
-                    }
-                })
-                .thenCompose(__ -> removeBucketCursorProperty(bucketKey));
+                            stats.recordSuccessEvent(BucketDelayedMessageIndexStats.Type.delete,
+                                    System.currentTimeMillis() - deleteStartTime);
+                        }
+                    })
+                    .thenCompose(__ -> removeBucketCursorPropertyIfStillReferences(bucketKey, bucketId));
+        });
+    }
+
+    private CompletableFuture<Optional<Long>> resolveBucketIdForDelete() {
+        Optional<CompletableFuture<Long>> snapshotCreateFuture = getSnapshotCreateFuture();
+        if (snapshotCreateFuture.isPresent()) {
+            return snapshotCreateFuture.get().handle((bucketId, ex) -> {
+                if (ex != null) {
+                    return Optional.empty();
+                }
+                setBucketId(bucketId);
+                return Optional.of(bucketId);
+            });
+        }
+        try {
+            return CompletableFuture.completedFuture(Optional.of(getAndUpdateBucketId()));
+        } catch (Exception e) {
+            return FutureUtil.failedFuture(e);
+        }
     }
 
     CompletableFuture<Void> clear(BucketDelayedMessageIndexStats stats) {
