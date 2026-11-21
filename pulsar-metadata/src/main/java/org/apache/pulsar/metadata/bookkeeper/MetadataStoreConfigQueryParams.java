@@ -45,8 +45,13 @@ class MetadataStoreConfigQueryParams {
 
     @SuppressWarnings("rawtypes")
     static MetadataStoreConfig createConfig(AbstractConfiguration conf, Map<String, String> configParams) {
+        return createConfig(conf.getZkTimeout(), configParams);
+    }
+
+    @SuppressWarnings("rawtypes")
+    static MetadataStoreConfig createConfig(int sessionTimeoutMillis, Map<String, String> configParams) {
         MetadataStoreConfigBuilder builder = MetadataStoreConfig.builder()
-                .sessionTimeoutMillis(conf.getZkTimeout())
+                .sessionTimeoutMillis(sessionTimeoutMillis)
                 .metadataStoreName(MetadataStoreConfig.METADATA_STORE);
         configParams.forEach((key, value) -> {
             BiConsumer<MetadataStoreConfigBuilder, String> setter = PARAM_SETTERS.get(key);

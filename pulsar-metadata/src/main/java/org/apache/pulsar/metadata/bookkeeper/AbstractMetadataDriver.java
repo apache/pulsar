@@ -124,6 +124,20 @@ public abstract class AbstractMetadataDriver implements Closeable {
         }
     }
 
+    /**
+     * Creates a metadata store for a BookKeeper metadata service URI the way these drivers do: the
+     * {@value #METADATA_STORE_SCHEME} scheme is removed, and the MetadataStoreConfig parameters in the query string,
+     * such as {@code configFilePath}, configure the store rather than becoming part of its URL.
+     *
+     * @throws IllegalArgumentException if a MetadataStoreConfig query parameter is malformed
+     */
+    public static MetadataStoreExtended createMetadataStore(String metadataServiceUri, int sessionTimeoutMillis)
+            throws MetadataStoreException {
+        MetadataStoreUrl metadataStoreUrl = MetadataStoreUrl.parse(metadataServiceUri);
+        return MetadataStoreExtended.create(metadataStoreUrl.url(),
+                MetadataStoreConfigQueryParams.createConfig(sessionTimeoutMillis, metadataStoreUrl.configParams()));
+    }
+
     private static MetadataException metadataStoreCreationException(
             String metadataServiceUri, String metadataStoreUrl, Exception cause) {
         String message = "Failed to create BookKeeper metadata store";
