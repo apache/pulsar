@@ -400,10 +400,17 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
                 log.debug().attr("consumer", consumer).log("Current active consumer disappears while adding consumer");
             } else {
                 consumer.notifyActiveConsumerChange(currentActiveConsumer);
+                if (subscriptionType == SubType.Failover) {
+                    onConsumerAddedToStandby(consumer);
+                }
             }
         }
 
         return CompletableFuture.completedFuture(null);
+    }
+
+    /** Called under the dispatcher monitor when a new Failover consumer leaves the active consumer unchanged. */
+    protected void onConsumerAddedToStandby(Consumer consumer) {
     }
 
     public synchronized void removeConsumer(Consumer consumer) throws BrokerServiceException {
