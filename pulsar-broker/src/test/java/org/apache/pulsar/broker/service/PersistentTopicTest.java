@@ -2577,4 +2577,165 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                 any(AsyncCallbacks.ReadEntryCallback.class), any()); // Now 2 calls
     }
 
+    @Test
+    public void testSubscriptionBacklogSizeFallback() throws Exception {
+        doReturn("test-broker-id").when(pulsarTestContext.getPulsarService()).getBrokerId();
+        when(ledgerMock.getLastAddEntryTime()).thenReturn(1L);
+        Position position = PositionFactory.create(1, 2);
+        when(cursorMock.getMarkDeletedPosition()).thenReturn(position);
+        when(ledgerMock.getEstimatedBacklogSize(position)).thenReturn(123L);
+        ManagedCursor secondCursor = mock(ManagedCursor.class);
+        when(secondCursor.getName()).thenReturn("two");
+        Position secondPosition = PositionFactory.create(2, 3);
+        when(secondCursor.getMarkDeletedPosition()).thenReturn(secondPosition);
+        when(ledgerMock.getEstimatedBacklogSize(secondPosition)).thenReturn(234L);
+        ManagedCursor customCursor = mock(ManagedCursor.class);
+        when(customCursor.getName()).thenReturn("custom");
+        when(customCursor.getMarkDeletedPosition()).thenThrow(new AssertionError("Custom stats owns its position"));
+
+        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+        topic.initialize().join();
+        topic.getSubscriptions().put("one", new PersistentSubscription(topic, "one", cursorMock, false));
+        topic.getSubscriptions().put("two", new PersistentSubscription(topic, "two", secondCursor, false));
+        topic.getSubscriptions().put("custom", new PersistentSubscription(topic, "custom", customCursor, false) {
+            @Override
+            public CompletableFuture<SubscriptionStatsImpl> getStatsAsync(GetStatsOptions options) {
+                SubscriptionStatsImpl stats = new SubscriptionStatsImpl();
+                stats.backlogSize = 456L;
+                return CompletableFuture.completedFuture(stats);
+            }
+        });
+
+        var stats = topic.asyncGetStats(new GetStatsOptions(false, true, false, false, false)).get();
+        assertEquals(stats.subscriptions.get("one").backlogSize, 123L);
+        assertEquals(stats.subscriptions.get("two").backlogSize, 234L);
+        assertEquals(stats.subscriptions.get("custom").backlogSize, 456L);
+        verify(ledgerMock, times(1)).getEstimatedBacklogSize(position);
+        verify(ledgerMock, times(1)).getEstimatedBacklogSize(secondPosition);
+
+        stats = topic.asyncGetStats(new GetStatsOptions(false, false, false, false, false)).get();
+        assertEquals(stats.subscriptions.get("one").backlogSize, -1L);
+        verify(ledgerMock, times(1)).getEstimatedBacklogSize(position);
+        verify(ledgerMock, times(1)).getEstimatedBacklogSize(secondPosition);
+
+        topic.getSubscriptions().remove("two");
+        topic.getSubscriptions().remove("custom");
+        when(ledgerMock.getEstimatedBacklogSize(position)).thenReturn(321L);
+        stats = topic.asyncGetStats(new GetStatsOptions(false, true, false, false, false)).get();
+        assertEquals(stats.subscriptions.get("one").backlogSize, 321L);
+        verify(ledgerMock, times(2)).getEstimatedBacklogSize(position);
+    }
+
+    @Test
+    public void testSubscriptionBacklogSizeWithMissingPosition() throws Exception {
+        doReturn("test-broker-id").when(pulsarTestContext.getPulsarService()).getBrokerId();
+        when(ledgerMock.getLastAddEntryTime()).thenReturn(1L);
+        when(cursorMock.getMarkDeletedPosition()).thenReturn(null);
+        when(ledgerMock.getEstimatedBacklogSize(null)).thenReturn(0L);
+        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+        topic.initialize().join();
+        topic.getSubscriptions().put("missing", new PersistentSubscription(topic, "missing", cursorMock, false));
+        for (int i = 1; i <= 2; i++) {
+            String name = "sub-" + i;
+            ManagedCursor cursor = mock(ManagedCursor.class);
+            Position position = PositionFactory.create(i, 0);
+            when(cursor.getName()).thenReturn(name);
+            when(cursor.getMarkDeletedPosition()).thenReturn(position);
+            when(ledgerMock.getEstimatedBacklogSize(position)).thenReturn(i * 100L);
+            topic.getSubscriptions().put(name, new PersistentSubscription(topic, name, cursor, false));
+        }
+
+        var stats = topic.asyncGetStats(new GetStatsOptions(false, true, false, false, false)).get();
+        assertEquals(stats.subscriptions.get("missing").backlogSize, 0L);
+        assertEquals(stats.subscriptions.get("sub-1").backlogSize, 100L);
+        assertEquals(stats.subscriptions.get("sub-2").backlogSize, 200L);
+        verify(ledgerMock, times(1)).getEstimatedBacklogSize(null);
+
+        stats = topic.asyncGetStats(new GetStatsOptions(false, false, false, false, false)).get();
+        assertEquals(stats.subscriptions.get("missing").backlogSize, -1L);
+        assertEquals(stats.subscriptions.get("sub-1").backlogSize, -1L);
+        assertEquals(stats.subscriptions.get("sub-2").backlogSize, -1L);
+        verify(ledgerMock, times(1)).getEstimatedBacklogSize(null);
+    }
+
+    @Test
+    public void testSubscriptionBacklogSizeBatch() throws Exception {
+        doReturn("test-broker-id").when(pulsarTestContext.getPulsarService()).getBrokerId();
+        ManagedLedgerConfig config = new ManagedLedgerConfig()
+                .setMaxEntriesPerLedger(2)
+                .setRetentionTime(1, TimeUnit.HOURS);
+        config.setMinimumRolloverTime(0, TimeUnit.MILLISECONDS);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("subscription-backlog-size-batch", config);
+        ManagedCursor firstCursor = ledger.openCursor("one");
+        ManagedCursor secondCursor = ledger.openCursor("two");
+        List<Position> positions = new ArrayList<>();
+        for (int i = 0; i < 12; i++) {
+            ByteBuf entry = getMessageWithMetadata(new byte[100]);
+            try {
+                byte[] data = new byte[entry.readableBytes()];
+                entry.getBytes(entry.readerIndex(), data);
+                positions.add(ledger.addEntry(data));
+            } finally {
+                entry.release();
+            }
+        }
+        firstCursor.markDelete(positions.get(2));
+        secondCursor.markDelete(positions.get(7));
+        assertThat(ledger.getLedgersInfo()).hasSizeGreaterThan(1);
+        long firstBacklogSize = ledger.getEstimatedBacklogSize(firstCursor.getMarkDeletedPosition());
+        long secondBacklogSize = ledger.getEstimatedBacklogSize(secondCursor.getMarkDeletedPosition());
+
+        ManagedLedgerImpl ledgerSpy = spy(ledger);
+        // The optimization intentionally excludes subclasses with different metadata synchronization.
+        assertSame(ledgerSpy.getClass(), ManagedLedgerImpl.class);
+        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerSpy, brokerService);
+        topic.initialize().join();
+        topic.getSubscriptions().put("one", new PersistentSubscription(topic, "one", firstCursor, false));
+        topic.getSubscriptions().put("two", new PersistentSubscription(topic, "two", secondCursor, false));
+
+        var stats = topic.asyncGetStats(new GetStatsOptions(false, true, false, false, false)).get();
+        assertEquals(stats.subscriptions.get("one").backlogSize, firstBacklogSize);
+        assertEquals(stats.subscriptions.get("two").backlogSize, secondBacklogSize);
+        verify(ledgerSpy, times(0)).getEstimatedBacklogSize(any(Position.class));
+
+        stats = topic.asyncGetStats(new GetStatsOptions(false, false, false, false, false)).get();
+        assertEquals(stats.subscriptions.get("one").backlogSize, -1L);
+        assertEquals(stats.subscriptions.get("two").backlogSize, -1L);
+        verify(ledgerSpy, times(0)).getEstimatedBacklogSize(any(Position.class));
+
+        ManagedCursor replacementCursor = ledger.openCursor("replacement", InitialPosition.Earliest);
+        replacementCursor.markDelete(positions.get(10));
+        long replacementBacklogSize = ledger.getEstimatedBacklogSize(replacementCursor.getMarkDeletedPosition());
+        assertTrue(replacementBacklogSize < firstBacklogSize);
+        PersistentSubscription replacement = new PersistentSubscription(topic, "one", replacementCursor, false);
+        ManagedCursor capturedCursor = spy(firstCursor);
+        Position originalPosition = firstCursor.getMarkDeletedPosition();
+        Position capturedPosition = mock(Position.class);
+        doReturn(capturedPosition).when(capturedCursor).getMarkDeletedPosition();
+        when(capturedPosition.getEntryId()).thenReturn(originalPosition.getEntryId());
+        AtomicBoolean replaced = new AtomicBoolean();
+        // The estimator reads the position only after the complete subscription list has been captured.
+        when(capturedPosition.getLedgerId()).thenAnswer(invocation -> {
+            if (replaced.compareAndSet(false, true)) {
+                assertFalse(Thread.holdsLock(ledgerSpy));
+                topic.getSubscriptions().put("one", replacement);
+            }
+            return originalPosition.getLedgerId();
+        });
+        PersistentSubscription captured = new PersistentSubscription(topic, "one", capturedCursor, false);
+        topic.getSubscriptions().put("one", captured);
+
+        stats = topic.asyncGetStats(new GetStatsOptions(false, true, false, false, false)).get();
+        assertTrue(replaced.get());
+        assertSame(topic.getSubscriptions().get("one"), replacement);
+        assertEquals(stats.subscriptions.get("one").backlogSize, firstBacklogSize);
+        assertEquals(stats.subscriptions.get("two").backlogSize, secondBacklogSize);
+        verify(ledgerSpy, times(0)).getEstimatedBacklogSize(any(Position.class));
+
+        stats = topic.asyncGetStats(new GetStatsOptions(false, true, false, false, false)).get();
+        assertEquals(stats.subscriptions.get("one").backlogSize, replacementBacklogSize);
+        assertEquals(stats.subscriptions.get("two").backlogSize, secondBacklogSize);
+        verify(ledgerSpy, times(0)).getEstimatedBacklogSize(any(Position.class));
+    }
+
 }

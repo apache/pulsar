@@ -1520,8 +1520,15 @@ public class PersistentSubscription extends AbstractSubscription {
         return cursor.getEstimatedSizeSinceMarkDeletePosition();
     }
 
-    @SuppressWarnings("deprecation")
     public CompletableFuture<SubscriptionStatsImpl> getStatsAsync(GetStatsOptions getStatsOptions) {
+        long backlogSize = getStatsOptions.isSubscriptionBacklogSize()
+                ? topic.getManagedLedger().getEstimatedBacklogSize(cursor.getMarkDeletedPosition()) : -1;
+        return getStatsAsync(getStatsOptions, backlogSize);
+    }
+
+    @SuppressWarnings("deprecation")
+    CompletableFuture<SubscriptionStatsImpl> getStatsAsync(GetStatsOptions getStatsOptions,
+                                                           long backlogSize) {
         SubscriptionStatsImpl subStats = new SubscriptionStatsImpl();
         subStats.lastExpireTimestamp = lastExpireTimestamp;
         subStats.lastConsumedFlowTimestamp = lastConsumedFlowTimestamp;
@@ -1610,12 +1617,7 @@ public class PersistentSubscription extends AbstractSubscription {
         subStats.msgBacklog = getNumberOfEntriesInBacklog(getStatsOptions.isGetPreciseBacklog());
         subStats.oldestBacklogMessageAgeSeconds =
                 topic.getBestEffortOldestUnacknowledgedMessageAgeSeconds(subName);
-        if (getStatsOptions.isSubscriptionBacklogSize()) {
-            subStats.backlogSize = topic.getManagedLedger()
-                    .getEstimatedBacklogSize(cursor.getMarkDeletedPosition());
-        } else {
-            subStats.backlogSize = -1;
-        }
+        subStats.backlogSize = backlogSize;
         subStats.msgBacklogNoDelayed = subStats.msgBacklog - subStats.msgDelayed;
         if (Subscription.isIndividualAckMode(subType)
                 && dispatcher instanceof AbstractPersistentDispatcherMultipleConsumers d

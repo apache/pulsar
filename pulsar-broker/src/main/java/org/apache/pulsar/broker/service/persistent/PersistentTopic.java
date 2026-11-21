@@ -95,6 +95,7 @@ import org.apache.bookkeeper.mledger.PositionBound;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer.CursorInfo;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerBacklogSizeEstimator;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.util.Futures;
@@ -3294,7 +3295,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         topicStatsStream.writePair("msgThroughputIn", topicStatsHelper.aggMsgThroughputIn);
         topicStatsStream.writePair("msgThroughputOut", topicStatsHelper.aggMsgThroughputOut);
         topicStatsStream.writePair("storageSize", ledger.getTotalSize());
-        topicStatsStream.writePair("backlogSize", ledger.getEstimatedBacklogSize());
+        long backlogSize = ledger.getEstimatedBacklogSize();
+        topicStatsStream.writePair("backlogSize", backlogSize);
         topicStatsStream.writePair("pendingAddEntriesCount", ledger.getPendingAddEntriesCount());
         topicStatsStream.writePair("filteredEntriesCount", getFilteredEntriesCount());
 
@@ -3302,7 +3304,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         nsStats.msgRateOut += topicStatsHelper.aggMsgRateOut;
         nsStats.msgThroughputIn += topicStatsHelper.aggMsgThroughputIn;
         nsStats.msgThroughputOut += topicStatsHelper.aggMsgThroughputOut;
-        nsStats.storageSize += ledger.getEstimatedBacklogSize();
+        nsStats.storageSize += backlogSize;
 
         bundleStats.msgRateIn += topicStatsHelper.aggMsgRateIn;
         bundleStats.msgRateOut += topicStatsHelper.aggMsgRateOut;
@@ -3479,10 +3481,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     compactionRecord.getLastCompactionDurationTimeInMills();
         });
 
-        Map<String, CompletableFuture<SubscriptionStatsImpl>> subscriptionFutures = new HashMap<>();
-        subscriptions.forEach((name, subscription) -> {
-            subscriptionFutures.put(name, subscription.getStatsAsync(getStatsOptions));
-        });
+        Map<String, CompletableFuture<SubscriptionStatsImpl>> subscriptionFutures =
+                getSubscriptionStats(getStatsOptions);
 
         return lastPublishTimeFuture.thenCompose(ignore ->
             FutureUtil.waitForAll(subscriptionFutures.values()).thenCompose(ignore2 -> {
@@ -3529,6 +3529,46 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 return CompletableFuture.completedFuture(stats);
             }
         }));
+    }
+
+    private record SubscriptionBacklogPosition(String name, PersistentSubscription subscription, Position position) {
+    }
+
+    private Map<String, CompletableFuture<SubscriptionStatsImpl>> getSubscriptionStats(
+            GetStatsOptions getStatsOptions) {
+        Map<String, CompletableFuture<SubscriptionStatsImpl>> subscriptionFutures = new HashMap<>();
+        ManagedLedger backlogLedger = getStatsOptions.isSubscriptionBacklogSize() && subscriptions.size() > 1
+                ? getManagedLedger() : null;
+        if (backlogLedger == null || backlogLedger.getClass() != ManagedLedgerImpl.class) {
+            // Custom ledgers may return different estimates for equal positions.
+            subscriptions.forEach((name, subscription) ->
+                    subscriptionFutures.put(name, subscription.getStatsAsync(getStatsOptions)));
+            return subscriptionFutures;
+        }
+        // Keep using the captured subscription instances if a name is removed or replaced during sampling.
+        List<SubscriptionBacklogPosition> capturedSubscriptions = new ArrayList<>(subscriptions.size());
+        List<Position> positions = new ArrayList<>(subscriptions.size());
+        for (Map.Entry<String, PersistentSubscription> entry : subscriptions.entrySet()) {
+            PersistentSubscription subscription = entry.getValue();
+            // Preserve public overrides before capturing cursor positions for the batch.
+            if (subscription.getClass() != PersistentSubscription.class) {
+                subscriptionFutures.put(entry.getKey(), subscription.getStatsAsync(getStatsOptions));
+                continue;
+            }
+            Position position = subscription.getCursor().getMarkDeletedPosition();
+            if (position == null) {
+                subscriptionFutures.put(entry.getKey(), subscription.getStatsAsync(getStatsOptions));
+                continue;
+            }
+            capturedSubscriptions.add(new SubscriptionBacklogPosition(entry.getKey(), subscription, position));
+            positions.add(position);
+        }
+        Map<Position, Long> backlogSizes = ManagedLedgerBacklogSizeEstimator.estimate(backlogLedger, positions);
+        for (SubscriptionBacklogPosition captured : capturedSubscriptions) {
+            subscriptionFutures.put(captured.name(), captured.subscription()
+                    .getStatsAsync(getStatsOptions, backlogSizes.get(captured.position())));
+        }
+        return subscriptionFutures;
     }
 
     private Optional<CompactorMXBean> getCompactorMXBean() {
