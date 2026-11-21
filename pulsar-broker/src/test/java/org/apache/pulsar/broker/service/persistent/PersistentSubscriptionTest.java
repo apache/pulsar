@@ -139,6 +139,34 @@ public class PersistentSubscriptionTest {
     }
 
     @Test
+    public void testRepeatedClearBacklogConvergesOntoInFlightClear() throws Exception {
+        List<AsyncCallbacks.ClearBacklogCallback> callbacks = new ArrayList<>();
+        doAnswer(invocation -> {
+            callbacks.add(invocation.getArgument(0));
+            return null;
+        }).when(cursorMock).asyncClearBacklog(any(AsyncCallbacks.ClearBacklogCallback.class), any());
+
+        CompletableFuture<Void> firstClear = persistentSubscription.clearBacklog();
+        Awaitility.await().untilAsserted(() -> assertThat(callbacks).hasSize(1));
+
+        // While the first clear is in progress, a repeated clear converges onto it: the cursor
+        // treats the overlapping mark-delete as success, so both callers observe the same outcome.
+        CompletableFuture<Void> repeatedClear = persistentSubscription.clearBacklog();
+        assertThat(repeatedClear).isNotDone();
+        assertThat(callbacks).hasSize(1);
+
+        callbacks.get(0).clearBacklogComplete(null);
+        firstClear.get(5, TimeUnit.SECONDS);
+        repeatedClear.get(5, TimeUnit.SECONDS);
+
+        // After the in-flight clear completes, a later clear starts a new one.
+        CompletableFuture<Void> retryClear = persistentSubscription.clearBacklog();
+        Awaitility.await().untilAsserted(() -> assertThat(callbacks).hasSize(2));
+        callbacks.get(1).clearBacklogComplete(null);
+        retryClear.get(5, TimeUnit.SECONDS);
+    }
+
+    @Test
     public void testNonDurableSubscriptionResetFencesQueuedAndNewConsumers() throws Exception {
         Dispatcher testDispatcher = mock(Dispatcher.class);
         List<Consumer> consumers = new ArrayList<>();
