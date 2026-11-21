@@ -520,7 +520,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
             stats.recordTriggerEvent(BucketDelayedMessageIndexStats.Type.create);
             Pair<ImmutableBucket, DelayedIndex> immutableBucketDelayedIndexPair =
                     lastMutableBucket.sealBucketAndAsyncPersistent(
-                            this.timeStepPerBucketSnapshotSegmentInMillis,
+                            stats, this.timeStepPerBucketSnapshotSegmentInMillis,
                             this.maxIndexesPerBucketSnapshotSegment,
                             this.sharedBucketPriorityQueue);
             afterCreateImmutableBucket(immutableBucketDelayedIndexPair, createStartTime);
@@ -669,7 +669,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                             stats.recordTriggerEvent(BucketDelayedMessageIndexStats.Type.create);
                             Pair<ImmutableBucket, DelayedIndex> immutableBucketDelayedIndexPair =
                                     lastMutableBucket.createImmutableBucketAndAsyncPersistent(
-                                            timeStepPerBucketSnapshotSegmentInMillis,
+                                            stats, timeStepPerBucketSnapshotSegmentInMillis,
                                             maxIndexesPerBucketSnapshotSegment,
                                             sharedBucketPriorityQueue, combinedDelayedIndexQueue,
                                             buckets.get(0).getStartLedgerId(),

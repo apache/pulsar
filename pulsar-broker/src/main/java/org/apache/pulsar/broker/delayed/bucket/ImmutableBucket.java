@@ -95,7 +95,8 @@ class ImmutableBucket {
     private volatile CompletableFuture<Long> snapshotCreateFuture;
 
     // Set when a delete has claimed this bucket, so a late create-failure callback does not
-    // requeue indexes the delete is about to remove. Guarded by the tracker monitor.
+    // requeue indexes the delete is about to remove. Volatile for visibility: the set can be
+    // observed before the delete's synchronized sections run, which is harmless.
     private volatile boolean deleteStarted;
 
     boolean isDeleteStarted() {
@@ -134,12 +135,13 @@ class ImmutableBucket {
     }
 
     CompletableFuture<Long> asyncSaveBucketSnapshot(
-            SnapshotMetadata snapshotMetadata, List<SnapshotSegment> bucketSnapshotSegments) {
+            BucketDelayedMessageIndexStats stats, SnapshotMetadata snapshotMetadata,
+            List<SnapshotSegment> bucketSnapshotSegments) {
         final String bucketKey = bucketKey();
         final String cursorName = Codec.decode(ctx.cursor().getName());
         final String dispatcher = ctx.dispatcherName();
         final String topicName = dispatcher.substring(0, dispatcher.lastIndexOf(" / " + cursorName));
-        return deleteSupersededSnapshotLedger(bucketKey)
+        return deleteSupersededSnapshotLedger(bucketKey, stats)
                 .thenCompose(ignored -> executeWithRetry(
                         () -> ctx.bucketSnapshotStorage().createBucketSnapshot(snapshotMetadata,
                                         bucketSnapshotSegments, bucketKey, topicName, cursorName)
@@ -171,14 +173,15 @@ class ImmutableBucket {
      * The property is the only durable reference to the superseded ledger: delete it before the
      * replacement is allocated, or fail the save so the reference survives for a retry.
      */
-    private CompletableFuture<Void> deleteSupersededSnapshotLedger(String bucketKey) {
+    private CompletableFuture<Void> deleteSupersededSnapshotLedger(String bucketKey,
+                                                                   BucketDelayedMessageIndexStats stats) {
         String supersededBucketIdStr = ctx.cursor().getCursorProperties().get(bucketKey);
         if (supersededBucketIdStr == null) {
             return CompletableFuture.completedFuture(null);
         }
+        final long supersededBucketId;
         try {
-            long supersededBucketId = Long.parseLong(supersededBucketIdStr);
-            return ctx.bucketSnapshotStorage().deleteBucketSnapshot(supersededBucketId);
+            supersededBucketId = Long.parseLong(supersededBucketIdStr);
         } catch (NumberFormatException e) {
             log.warn()
                     .attr("bucketKey", bucketKey)
@@ -186,6 +189,24 @@ class ImmutableBucket {
                     .log("Skipping the superseded snapshot ledger delete, the bucket id is malformed");
             return CompletableFuture.completedFuture(null);
         }
+        long deleteStartTime = System.currentTimeMillis();
+        stats.recordTriggerEvent(BucketDelayedMessageIndexStats.Type.delete);
+        return executeWithRetry(() -> ctx.bucketSnapshotStorage().deleteBucketSnapshot(supersededBucketId),
+                BucketSnapshotPersistenceException.class, MaxRetryTimes)
+                .whenComplete((__, ex) -> {
+                    if (ex != null) {
+                        log.error()
+                                .attr("dispatcher", ctx.dispatcherName())
+                                .attr("bucketId", supersededBucketId)
+                                .attr("bucketKey", bucketKey)
+                                .exception(ex)
+                                .log("Failed to delete superseded bucket snapshot");
+                        stats.recordFailEvent(BucketDelayedMessageIndexStats.Type.delete);
+                    } else {
+                        stats.recordSuccessEvent(BucketDelayedMessageIndexStats.Type.delete,
+                                System.currentTimeMillis() - deleteStartTime);
+                    }
+                });
     }
 
     private CompletableFuture<Void> putBucketKeyId(String bucketKey, Long bucketId) {
@@ -194,12 +215,6 @@ class ImmutableBucket {
         }
         return ctx.sequencer().sequential(() ->
                 executeWithRetry(() -> ctx.cursor().putCursorProperty(bucketKey, String.valueOf(bucketId)),
-                        ManagedLedgerException.BadVersionException.class, MaxRetryTimes));
-    }
-
-    CompletableFuture<Void> removeBucketCursorProperty(String bucketKey) {
-        return ctx.sequencer().sequential(() ->
-                executeWithRetry(() -> ctx.cursor().removeCursorProperty(bucketKey),
                         ManagedLedgerException.BadVersionException.class, MaxRetryTimes));
     }
 

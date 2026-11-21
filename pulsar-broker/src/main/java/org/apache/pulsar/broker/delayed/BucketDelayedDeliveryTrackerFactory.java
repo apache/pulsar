@@ -159,8 +159,10 @@ public class BucketDelayedDeliveryTrackerFactory implements DelayedDeliveryTrack
     }
 
     /**
-     * Removes the property only while it still references the deleted ledger, so a cleanup racing a
-     * later save does not drop the replacement's only durable reference.
+     * Removes the property only while it still references the deleted ledger. This closes the
+     * common ordering (the replacement published before the check); the check and the removal are
+     * still two cursor operations, so a publication completing strictly between them can slip
+     * through — the atomic conditional removal is tracked separately.
      */
     private CompletableFuture<Void> removeCursorPropertyIfStillReferences(ManagedCursor cursor, String key,
                                                                           String deletedBucketId) {
