@@ -338,6 +338,64 @@ public class OpReadEntryNullSlotTest extends MockedBookKeeperTestCase {
         }
     }
 
+    /**
+     * The null-slot skip of {@code ManagedCursorImpl.readReplayRange}: the mixed read now rejects
+     * incomplete answers before delivery, so a slot the range read left unfilled cannot reach the
+     * replay's callback through the pipeline anymore — this injects one at the range read itself,
+     * keeping the guard covered as defense in depth. The null slot is skipped, the wanted position
+     * the batch omits fails the replay as its own read would, and every entry the batch did
+     * deliver is released.
+     */
+    @Test(timeOut = 30_000)
+    void nullSlotInReplayRangeReadIsSkippedAndTheMissingPositionFails() throws Exception {
+        ManagedLedgerFactoryConfig factoryConfig = new ManagedLedgerFactoryConfig();
+        factoryConfig.setManagedLedgerMaxReadsInFlightSize(100_000);
+        ManagedLedgerFactoryImpl limiterFactory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConfig);
+        try {
+            ManagedLedgerConfig config = defaultConfig();
+            config.setBatchReadEnabled(false);
+            ManagedLedgerImpl ml = (ManagedLedgerImpl) limiterFactory.open("opreadentry_null_slot_replay_null", config);
+            for (int i = 0; i < 6; i++) {
+                ml.addEntry(("entry-" + i).getBytes(StandardCharsets.UTF_8));
+            }
+            long ledgerId = ml.currentLedger.getId();
+
+            // The range read delivers [0..3, null] for [0..5]: the null slot is entry 4's, and the
+            // wanted position 5 the batch never carries.
+            List<EntryImpl> batchEntries = new ArrayList<>();
+            List<Entry> sparse = new ArrayList<>();
+            for (long entryId = 0; entryId <= 3; entryId++) {
+                EntryImpl entry = entry(ledgerId, entryId, "entry-" + entryId);
+                batchEntries.add(entry);
+                sparse.add(entry);
+            }
+            sparse.add(null);
+            ManagedLedgerImpl spyMl = Mockito.spy(ml);
+            Mockito.doAnswer(invocation -> {
+                AsyncCallbacks.ReadEntriesCallback callback = invocation.getArgument(5);
+                callback.readEntriesComplete(sparse, invocation.getArgument(6));
+                return null;
+            }).when(spyMl).asyncReadEntries(Mockito.anyLong(), Mockito.anyLong(), Mockito.anyLong(),
+                    Mockito.anyInt(), Mockito.anyInt(), Mockito.any(), Mockito.any());
+
+            ManagedCursor cursor = spyMl.newNonDurableCursor(PositionFactory.EARLIEST);
+            ReadResult result = new ReadResult();
+            cursor.asyncReplayEntries(
+                    Set.of(PositionFactory.create(ledgerId, 0), PositionFactory.create(ledgerId, 5)),
+                    result.callback, new Object(), false);
+
+            ManagedLedgerException ex = result.failure.get(5, TimeUnit.SECONDS);
+            assertTrue(ex.getMessage().contains("Entry not found in the replay read"),
+                    "unexpected message: " + ex.getMessage());
+            assertTrue(!result.entries.isDone(), "the replay must fail, not deliver");
+            for (EntryImpl batchEntry : batchEntries) {
+                assertEquals(batchEntry.refCnt(), 0, "every entry the batch delivered must be released");
+            }
+        } finally {
+            limiterFactory.shutdown();
+        }
+    }
+
     private static void primeCache(RangeEntryCacheImpl cache, LedgerHandle lh, long firstEntry, long lastEntry)
             throws Exception {
         ReadResult prime = new ReadResult();

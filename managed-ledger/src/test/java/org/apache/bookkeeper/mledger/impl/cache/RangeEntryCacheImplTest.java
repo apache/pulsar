@@ -843,6 +843,8 @@ public class RangeEntryCacheImplTest {
         stubLegAnswer(0, 49, entriesForRange(0, 49, leftLegEntries));
         List<EntryImpl> rightLegEntries = new ArrayList<>();
         stubLegAnswer(51, 99, sparseEntriesForRange(51, 99, 70, rightLegEntries));
+        AtomicInteger leftLegDiscards = armDiscardRecorder(leftLegEntries);
+        AtomicInteger rightLegDiscards = armDiscardRecorder(rightLegEntries);
 
         CompletableFuture<List<Entry>> future = readEntriesAsync();
         assertThat(future).isCompleted();
@@ -855,12 +857,11 @@ public class RangeEntryCacheImplTest {
         verify(pendingReadsManager, times(1)).readEntries(any(), eq(0L), eq(49L), anyLong(), any(), any(), any());
         verify(pendingReadsManager, times(1)).readEntries(any(), eq(51L), eq(99L), anyLong(), any(), any(), any());
         verify(pendingReadsManager, times(1)).readEntries(any(), eq(0L), eq(99L), anyLong(), any(), any(), any());
-        for (EntryImpl entry : leftLegEntries) {
-            assertThat(entry.refCnt()).isZero();
-        }
-        for (EntryImpl entry : rightLegEntries) {
-            assertThat(entry.refCnt()).isZero();
-        }
+        // every leg entry was discarded — the sparse answer's at its rejection, the left leg's at
+        // the failure cleanup — and the read's delivery is released
+        assertThat(leftLegDiscards.get()).isEqualTo(leftLegEntries.size());
+        assertThat(rightLegDiscards.get()).isEqualTo(rightLegEntries.size());
+        delivered.forEach(Entry::release);
     }
 
     @Test(timeOut = 30_000)
@@ -871,6 +872,7 @@ public class RangeEntryCacheImplTest {
         rangeEntryCache.insert(EntryImpl.create(1, 50, Unpooled.EMPTY_BUFFER));
         List<EntryImpl> shortLegEntries = new ArrayList<>();
         stubLegAnswer(51, 99, entriesForRange(51, 90, shortLegEntries));
+        AtomicInteger shortLegDiscards = armDiscardRecorder(shortLegEntries);
 
         CompletableFuture<List<Entry>> future = readEntriesAsync();
         assertThat(future).isCompleted();
@@ -881,9 +883,9 @@ public class RangeEntryCacheImplTest {
         verify(pendingReadsManager, times(1)).readEntries(any(), eq(0L), eq(49L), anyLong(), any(), any(), any());
         verify(pendingReadsManager, times(1)).readEntries(any(), eq(51L), eq(99L), anyLong(), any(), any(), any());
         verify(pendingReadsManager, times(1)).readEntries(any(), eq(0L), eq(99L), anyLong(), any(), any(), any());
-        for (EntryImpl entry : shortLegEntries) {
-            assertThat(entry.refCnt()).isZero();
-        }
+        // the short answer's entries were discarded at its rejection, the delivery released
+        assertThat(shortLegDiscards.get()).isEqualTo(shortLegEntries.size());
+        delivered.forEach(Entry::release);
     }
 
     @Test(timeOut = 30_000)
@@ -895,6 +897,7 @@ public class RangeEntryCacheImplTest {
         stubLegFailure(0, 49);
         List<EntryImpl> rightLegEntries = new ArrayList<>();
         stubLegAnswer(51, 99, sparseEntriesForRange(51, 99, 70, rightLegEntries));
+        AtomicInteger rightLegDiscards = armDiscardRecorder(rightLegEntries);
 
         CompletableFuture<List<Entry>> future = readEntriesAsync();
         assertThat(future).isCompleted();
@@ -905,9 +908,9 @@ public class RangeEntryCacheImplTest {
         verify(pendingReadsManager, times(1)).readEntries(any(), eq(0L), eq(49L), anyLong(), any(), any(), any());
         verify(pendingReadsManager, times(1)).readEntries(any(), eq(51L), eq(99L), anyLong(), any(), any(), any());
         verify(pendingReadsManager, times(1)).readEntries(any(), eq(0L), eq(99L), anyLong(), any(), any(), any());
-        for (EntryImpl entry : rightLegEntries) {
-            assertThat(entry.refCnt()).isZero();
-        }
+        // the sparse answer's entries were discarded at its rejection, the delivery released
+        assertThat(rightLegDiscards.get()).isEqualTo(rightLegEntries.size());
+        delivered.forEach(Entry::release);
     }
 
     @Test(timeOut = 30_000)
@@ -972,6 +975,7 @@ public class RangeEntryCacheImplTest {
         rangeEntryCache.insert(EntryImpl.create(1, 50, Unpooled.EMPTY_BUFFER));
         List<EntryImpl> shiftedLegEntries = new ArrayList<>();
         stubLegAnswer(51, 99, entriesForRange(52, 100, shiftedLegEntries));
+        AtomicInteger shiftedLegDiscards = armDiscardRecorder(shiftedLegEntries);
 
         CompletableFuture<List<Entry>> future = readEntriesAsync();
         assertThat(future).isCompleted();
@@ -983,9 +987,9 @@ public class RangeEntryCacheImplTest {
         assertThat(delivered.get(99).getEntryId()).isEqualTo(99L);
         verify(pendingReadsManager, times(1)).readEntries(any(), eq(51L), eq(99L), anyLong(), any(), any(), any());
         verify(pendingReadsManager, times(1)).readEntries(any(), eq(0L), eq(99L), anyLong(), any(), any(), any());
-        for (EntryImpl entry : shiftedLegEntries) {
-            assertThat(entry.refCnt()).isZero();
-        }
+        // the shifted answer's entries were discarded at its rejection, the delivery released
+        assertThat(shiftedLegDiscards.get()).isEqualTo(shiftedLegEntries.size());
+        delivered.forEach(Entry::release);
     }
 
     @Test(timeOut = 30_000)
@@ -1245,6 +1249,21 @@ public class RangeEntryCacheImplTest {
             }
         }
         return entries;
+    }
+
+    /**
+     * Arms a discard recorder on every entry: the recovery tests release the legs' entries before
+     * the whole-range re-read creates its own batch on the same thread, so a discarded entry's
+     * object may already be recycled and re-acquired by that batch, and its {@code refCnt()} can
+     * belong to the re-read. This hook records the discard itself, exactly once, whatever happens
+     * to the object afterwards.
+     */
+    private static AtomicInteger armDiscardRecorder(List<EntryImpl> entries) {
+        AtomicInteger discards = new AtomicInteger();
+        for (EntryImpl entry : entries) {
+            entry.onDeallocate(discards::incrementAndGet);
+        }
+        return discards;
     }
 
     private void performReadAndValidateResult() {
