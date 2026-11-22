@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.BooleanSupplier;
 import lombok.CustomLog;
 import lombok.Getter;
 import org.apache.bookkeeper.client.BKException.BKNotEnoughBookiesException;
@@ -47,10 +48,10 @@ import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.bookie.rackawareness.BookieRackConfigurationSnapshot.VersionedConfiguration;
 import org.apache.pulsar.common.policies.data.BookieInfo;
 import org.apache.pulsar.common.policies.data.BookiesRackConfiguration;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
-import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStore;
 
@@ -66,8 +67,11 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
     private static final String PULSAR_SYSTEM_TOPIC_ISOLATION_GROUP = "*";
     private BookieRackConfigurationSnapshot snapshot;
     private boolean ownsSnapshot;
+    // Guarded by the BookKeeper topology lock. A Pulsar rack resolver publishes its applied revision here.
+    private boolean usesResolverConfiguration;
+    private VersionedConfiguration appliedRackConfiguration;
 
-    /** Completes when the initial rack configuration is applied or fails with the read error. */
+    /** Completes when the initial rack configuration read finishes. */
     @Getter
     @VisibleForTesting
     private volatile CompletableFuture<Void> initialRackConfigurationLoadFuture =
@@ -106,16 +110,17 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
         } else {
             try {
                 MetadataStore store = BookieRackAffinityMapping.getMetadataStore(conf);
-                // Standalone policies have no owner to manage a background refresh lifecycle.
                 snapshot = new BookieRackConfigurationSnapshot(store, conf.getZkTimeout());
                 ownsSnapshot = true;
             } catch (MetadataException e) {
                 throw new RuntimeException(METADATA_STORE_INSTANCE + " failed initialized", e);
             }
         }
-        // Per-ledger configuration can require isolation on a client with no default groups.
-        initialRackConfigurationLoadFuture = ownsSnapshot ? snapshot.refresh().copy() : snapshot.initialLoad();
         try {
+            if (ownsSnapshot) {
+                snapshot.start();
+            }
+            initialRackConfigurationLoadFuture = snapshot.initialRead();
             return super.initialize(conf, optionalDnsResolver, timer, featureProvider, statsLogger,
                     bookieAddressResolver);
         } catch (RuntimeException | Error e) {
@@ -138,25 +143,31 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
     }
 
     @VisibleForTesting
+    VersionedConfiguration latestRackConfiguration() {
+        return snapshot.latest();
+    }
+
+    @VisibleForTesting
     public MetadataCache<BookiesRackConfiguration> getBookieMappingCache() {
         return snapshot == null ? null : snapshot.cache();
     }
 
-    /**
-     * Awaits rack configuration for a placement using this client. Each caller has its own deadline.
-     */
-    public CompletableFuture<Void> awaitRackConfiguration(EnsemblePlacementPolicyConfig placementConfig,
-                                                           long timeoutMillis) {
-        if (snapshot.latest() != null) {
-            return CompletableFuture.completedFuture(null);
-        }
-        return FutureUtil.supplySafely(() -> {
-            var groups = getEffectiveIsolationGroups(placementConfig);
-            if (groups == null || isWildcard(groups)) {
-                return CompletableFuture.completedFuture(null);
+    void applyRackConfiguration(VersionedConfiguration configuration, BooleanSupplier isClosed,
+                                Runnable applyTopology) {
+        rwLock.writeLock().lock();
+        try {
+            if (isClosed.getAsBoolean()) {
+                return;
             }
-            return snapshot.await(timeoutMillis);
-        });
+            usesResolverConfiguration = true;
+            // A callback can fail after changing part of the topology. Refuse isolated placement until
+            // a complete revision is applied.
+            appliedRackConfiguration = null;
+            applyTopology.run();
+            appliedRackConfiguration = configuration;
+        } finally {
+            rwLock.writeLock().unlock();
+        }
     }
 
     @Override
@@ -274,15 +285,14 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
         rwLock.readLock().lock();
         try {
             if (snapshot != null) {
-                if (ownsSnapshot) {
-                    snapshot.refresh();
-                }
-                var latest = snapshot.latest();
+                var latest = usesResolverConfiguration ? appliedRackConfiguration : snapshot.latest();
                 if (latest == null) {
                     log.warn().onceEvery(Duration.ofMinutes(1))
                             .attr("path", BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH)
                             .log("Refusing isolated bookie placement before the rack configuration is available");
-                    throw new BKNotEnoughBookiesException();
+                    throw new BKNotEnoughBookiesException(new IllegalStateException(
+                            "Bookie isolation configuration at " + BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH
+                                    + " has not been loaded"));
                 }
                 var allGroupsBookieMapping = latest.configuration();
                 Set<String> allGroups = allGroupsBookieMapping.keySet();

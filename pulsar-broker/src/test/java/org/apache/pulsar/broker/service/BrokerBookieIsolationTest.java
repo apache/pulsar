@@ -37,6 +37,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -64,8 +65,6 @@ import org.apache.pulsar.broker.ManagedLedgerClientFactory;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
-import org.apache.pulsar.broker.service.TopicEventsListener.EventStage;
-import org.apache.pulsar.broker.service.TopicEventsListener.TopicEvent;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -149,8 +148,10 @@ public class BrokerBookieIsolationTest {
 
         CompletableFuture<Void> initialReadStarted = new CompletableFuture<>();
         CompletableFuture<Void> releaseInitialRead = new CompletableFuture<>();
-        CompletableFuture<Void> failedRefresh = new CompletableFuture<>();
-        AtomicBoolean failRefresh = new AtomicBoolean();
+        CompletableFuture<Void> refreshStarted = new CompletableFuture<>();
+        CompletableFuture<Void> refreshRetried = new CompletableFuture<>();
+        var refresh = new CompletableFuture<Optional<GetResult>>();
+        AtomicBoolean holdRefresh = new AtomicBoolean();
         AtomicInteger initialReads = new AtomicInteger();
 
         ServiceConfiguration config = new ServiceConfiguration();
@@ -186,9 +187,13 @@ public class BrokerBookieIsolationTest {
                         if (!BOOKIE_INFO_ROOT_PATH.equals(path)) {
                             return super.get(path, options);
                         }
-                        if (failRefresh.get()) {
-                            failedRefresh.complete(null);
-                            return CompletableFuture.failedFuture(new MetadataStoreException("Unavailable /bookies"));
+                        if (holdRefresh.get()) {
+                            if (refresh.isCompletedExceptionally()) {
+                                refreshRetried.complete(null);
+                            } else {
+                                refreshStarted.complete(null);
+                            }
+                            return refresh;
                         }
                         initialReads.incrementAndGet();
                         initialReadStarted.complete(null);
@@ -198,9 +203,19 @@ public class BrokerBookieIsolationTest {
             }
         };
 
+        CompletableFuture<Void> startup = CompletableFuture.runAsync(() -> {
+            try {
+                pulsarService.start();
+            } catch (Exception e) {
+                throw new CompletionException(e);
+            }
+        });
         try {
-            pulsarService.start();
             initialReadStarted.get(10, TimeUnit.SECONDS);
+            assertThrows(TimeoutException.class, () -> startup.get(250, TimeUnit.MILLISECONDS));
+            assertEquals(initialReads.get(), 1);
+            releaseInitialRead.complete(null);
+            startup.get(10, TimeUnit.SECONDS);
             @Cleanup
             PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarService.getWebServiceAddress()).build();
             admin.clusters().createCluster(cluster,
@@ -214,35 +229,9 @@ public class BrokerBookieIsolationTest {
             @Cleanup
             PulsarClient client = PulsarClient.builder().serviceUrl(pulsarService.getBrokerServiceUrl())
                     .operationTimeout(10, TimeUnit.SECONDS).build();
-            BrokerService broker = pulsarService.getBrokerService();
-            admin.lookups().lookupTopic(plainTopic);
-            CompletableFuture<Void> plainLoadStarted = new CompletableFuture<>();
-            broker.addTopicEventListener((topic, event, stage, __) -> {
-                if (plainTopic.equals(topic) && event == TopicEvent.LOAD && stage == EventStage.BEFORE) {
-                    plainLoadStarted.complete(null);
-                }
-            });
-            CompletableFuture<Optional<Topic>> plainOpen = broker.getTopic(plainTopic, true);
-            plainLoadStarted.get(10, TimeUnit.SECONDS);
-            if (enforceRacks) {
-                assertThrows(TimeoutException.class, () -> plainOpen.get(250, TimeUnit.MILLISECONDS));
-            } else {
-                assertTrue(plainOpen.get(10, TimeUnit.SECONDS).isPresent());
-                try (Producer<byte[]> producer = client.newProducer().topic(plainTopic).create()) {
-                    producer.send(new byte[] {1});
-                }
+            try (Producer<byte[]> producer = client.newProducer().topic(plainTopic).create()) {
+                producer.send(new byte[] {1});
             }
-
-            admin.lookups().lookupTopic(isolatedTopic);
-            CompletableFuture<Optional<Topic>> isolatedOpen = broker.getTopic(isolatedTopic, true);
-            ManagedLedgerClientFactory storage = (ManagedLedgerClientFactory) pulsarService.getManagedLedgerStorage();
-            Awaitility.await().untilAsserted(() ->
-                    assertEquals(storage.getBkEnsemblePolicyToBookKeeperMap().size(), 1));
-            assertThrows(TimeoutException.class, () -> isolatedOpen.get(250, TimeUnit.MILLISECONDS));
-            assertEquals(initialReads.get(), 1);
-            releaseInitialRead.complete(null);
-            assertTrue(plainOpen.get(10, TimeUnit.SECONDS).isPresent());
-            assertTrue(isolatedOpen.get(10, TimeUnit.SECONDS).isPresent());
 
             LedgerManager ledgerManager = pulsarService.getBookKeeperClient().getLedgerManager();
             try (Producer<byte[]> producer = client.newProducer().topic(isolatedTopic)
@@ -252,9 +241,9 @@ public class BrokerBookieIsolationTest {
                         .get(10, TimeUnit.SECONDS).getValue();
                 assertEquals(Set.copyOf(firstLedger.getEnsembleAt(0)), isolatedBookies);
 
-                failRefresh.set(true);
+                holdRefresh.set(true);
                 setDefaultIsolationGroup(isolatedGroup, bkEnsemble.getZkClient(), otherBookies);
-                failedRefresh.get(10, TimeUnit.SECONDS);
+                refreshStarted.get(10, TimeUnit.SECONDS);
 
                 producer.send(new byte[] {2});
                 MessageIdAdv rolled = (MessageIdAdv) producer.send(new byte[] {3});
@@ -262,9 +251,19 @@ public class BrokerBookieIsolationTest {
                 LedgerMetadata nextLedger = ledgerManager.readLedgerMetadata(rolled.getLedgerId())
                         .get(10, TimeUnit.SECONDS).getValue();
                 assertEquals(Set.copyOf(nextLedger.getEnsembleAt(0)), isolatedBookies);
+
+                refresh.completeExceptionally(new MetadataStoreException("Unavailable /bookies"));
+                refreshRetried.get(10, TimeUnit.SECONDS);
+                producer.send(new byte[] {4});
+                MessageIdAdv afterFailure = (MessageIdAdv) producer.send(new byte[] {5});
+                assertNotEquals(afterFailure.getLedgerId(), rolled.getLedgerId());
+                LedgerMetadata recovered = ledgerManager.readLedgerMetadata(afterFailure.getLedgerId())
+                        .get(10, TimeUnit.SECONDS).getValue();
+                assertEquals(Set.copyOf(recovered.getEnsembleAt(0)), isolatedBookies);
             }
         } finally {
             releaseInitialRead.complete(null);
+            refresh.completeExceptionally(new MetadataStoreException("Test ended"));
         }
     }
 

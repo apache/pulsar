@@ -32,6 +32,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import lombok.CustomLog;
 import org.apache.pulsar.common.policies.data.BookieInfo;
@@ -58,9 +59,9 @@ public final class BookieRackConfigurationSnapshot implements AutoCloseable {
     private final long readTimeoutMillis;
     private final CompletableFuture<Void> firstLoad = new CompletableFuture<>();
 
-    private final Object publicationLock = new Object();
-    // Guarded by publicationLock. Subscribers see versions in publication order.
-    private final List<Consumer<VersionedConfiguration>> subscribers = new ArrayList<>();
+    private final CompletableFuture<Void> firstRead = new CompletableFuture<>();
+    // Guarded by this. Each subscriber orders its callbacks independently.
+    private final List<Subscription> subscribers = new ArrayList<>();
     // Null means no successful read. An authoritative missing node is stored as an empty map.
     private volatile VersionedConfiguration latest;
     private volatile boolean closed;
@@ -139,22 +140,39 @@ public final class BookieRackConfigurationSnapshot implements AutoCloseable {
         return firstLoad.copy();
     }
 
-    Runnable subscribe(Consumer<VersionedConfiguration> listener) {
-        Consumer<VersionedConfiguration> subscription = listener::accept;
-        synchronized (publicationLock) {
+    /** First completed read at startup, including its failure. A superseded success waits for publication. */
+    public CompletableFuture<Void> initialRead() {
+        return firstRead.copy();
+    }
+
+    /** Includes a successful read of an absent configuration. */
+    public boolean hasLoaded() {
+        return latest != null;
+    }
+
+    Subscription subscribe(Consumer<VersionedConfiguration> listener) {
+        var subscription = new Subscription(listener);
+        VersionedConfiguration current;
+        synchronized (this) {
             if (closed) {
-                return () -> { };
+                throw new IllegalStateException("Bookie rack configuration is closed");
             }
             subscribers.add(subscription);
-            if (latest != null) {
-                notifySubscriber(subscription, latest);
+            current = latest;
+        }
+        if (current != null) {
+            try {
+                subscription.publish(current);
+            } catch (RuntimeException | Error e) {
+                subscription.run();
+                throw e;
             }
         }
-        return () -> {
-            synchronized (publicationLock) {
-                subscribers.remove(subscription);
-            }
-        };
+        return subscription;
+    }
+
+    private synchronized ScheduledFuture<?> schedule(Runnable task, long delayNanos) {
+        return closed || executor == null ? null : executor.schedule(task, delayNanos, TimeUnit.NANOSECONDS);
     }
 
     MetadataCache<BookiesRackConfiguration> cache() {
@@ -221,38 +239,38 @@ public final class BookieRackConfigurationSnapshot implements AutoCloseable {
     }
 
     private void finishAttempt(ReadAttempt read, Map<String, Map<String, BookieInfo>> configuration, Throwable error) {
-        synchronized (publicationLock) {
-            VersionedConfiguration published = null;
-            synchronized (this) {
-                if (closed || attempt != read) {
-                    return;
-                }
-                if (error == null && changeGeneration == read.generation
-                        && (latest == null || !latest.configuration().equals(configuration))) {
-                    published = new VersionedConfiguration(latest == null ? 1 : latest.version() + 1, configuration);
-                    latest = published;
-                }
-                if (error == null) {
-                    retryAfterNanos = 0;
-                    retryDelayNanos = INITIAL_RETRY_DELAY_NANOS;
-                } else {
-                    retryAfterNanos = System.nanoTime() + retryDelayNanos;
-                    retryDelayNanos = Math.min(MAX_RETRY_DELAY_NANOS, 2 * retryDelayNanos);
-                    // Retire the cache entry so a stuck raw read cannot pin the next attempt.
-                    invalidateBeforeRetry |= error instanceof TimeoutException;
-                }
+        VersionedConfiguration published = null;
+        List<Subscription> listeners = List.of();
+        synchronized (this) {
+            if (closed || attempt != read) {
+                return;
             }
-            if (published != null) {
-                if (published.version() == 1) {
-                    // Placement that only needs groups can proceed independently of resolver callbacks.
-                    firstLoad.completeAsync(() -> null);
+            if (error == null && changeGeneration == read.generation
+                    && (latest == null || !latest.configuration().equals(configuration))) {
+                published = new VersionedConfiguration(latest == null ? 1 : latest.version() + 1, configuration);
+                latest = published;
+                listeners = List.copyOf(subscribers);
+            }
+            if (error == null) {
+                retryAfterNanos = 0;
+                retryDelayNanos = INITIAL_RETRY_DELAY_NANOS;
+            } else {
+                retryAfterNanos = System.nanoTime() + retryDelayNanos;
+                retryDelayNanos = Math.min(MAX_RETRY_DELAY_NANOS, 2 * retryDelayNanos);
+                // Retire the cache entry so a stuck raw read cannot pin the next attempt.
+                invalidateBeforeRetry |= error instanceof TimeoutException;
+            }
+        }
+        if (published != null) {
+            if (published.version() == 1) {
+                firstRead.complete(null);
+                firstLoad.complete(null);
+            }
+            for (var listener : listeners) {
+                if (closed) {
+                    break;
                 }
-                for (var subscriber : List.copyOf(subscribers)) {
-                    if (closed) {
-                        break;
-                    }
-                    notifySubscriber(subscriber, published);
-                }
+                listener.publishOrRetry(published);
             }
         }
         if (error == null) {
@@ -262,6 +280,7 @@ public final class BookieRackConfigurationSnapshot implements AutoCloseable {
                     ? new TimeoutException("Timed out after " + readTimeoutMillis
                             + " ms reading bookie isolation metadata at " + BOOKIE_INFO_ROOT_PATH)
                     : FutureUtil.unwrapCompletionException(error);
+            firstRead.completeExceptionally(cause);
             read.result.completeExceptionally(cause);
             log.warn().onceEvery(Duration.ofMinutes(1)).attr("path", BOOKIE_INFO_ROOT_PATH)
                     .exceptionMessage(cause).log("Failed to refresh the bookie rack configuration");
@@ -283,46 +302,6 @@ public final class BookieRackConfigurationSnapshot implements AutoCloseable {
         return Collections.unmodifiableMap(groups);
     }
 
-    private static void notifySubscriber(Consumer<VersionedConfiguration> subscriber,
-                                         VersionedConfiguration configuration) {
-        try {
-            subscriber.accept(configuration);
-        } catch (RuntimeException error) {
-            log.warn().onceEvery(Duration.ofMinutes(1)).exception(error)
-                    .log("Failed to apply bookie rack configuration");
-        }
-    }
-
-    CompletableFuture<Void> await(long timeoutMillis) {
-        if (latest != null) {
-            return CompletableFuture.completedFuture(null);
-        }
-        return awaitInitialLoad(executor == null ? refresh() : firstLoad, timeoutMillis,
-                "Timed out after " + timeoutMillis + " ms waiting for bookie isolation metadata at "
-                        + BOOKIE_INFO_ROOT_PATH);
-    }
-
-    static CompletableFuture<Void> awaitInitialLoad(CompletableFuture<Void> load, long timeoutMillis,
-                                                    String timeoutMessage) {
-        if (load.isDone()) {
-            return load.copy();
-        }
-        var deadline = new CompletableFuture<Boolean>().completeOnTimeout(true, timeoutMillis, TimeUnit.MILLISECONDS);
-        // A timeout must detach its waiter from the shared load, which may be pending through many retries.
-        return CompletableFuture.anyOf(load, deadline)
-                // Keep callers off the JDK timer thread, including when the shared read times out.
-                .handleAsync((timedOut, error) -> {
-                    deadline.complete(false);
-                    if (error != null) {
-                        throw new CompletionException(FutureUtil.unwrapCompletionException(error));
-                    }
-                    if (Boolean.TRUE.equals(timedOut)) {
-                        throw new CompletionException(new TimeoutException(timeoutMessage));
-                    }
-                    return null;
-                });
-    }
-
     @Override
     public void close() {
         ReadAttempt inFlight;
@@ -332,6 +311,7 @@ public final class BookieRackConfigurationSnapshot implements AutoCloseable {
                 return;
             }
             closed = true;
+            subscribers.clear();
             inFlight = attempt;
             // A reserved call to get() may still be entering the cache. Its initiator will close it.
             closeCache = !startingRead;
@@ -340,13 +320,11 @@ public final class BookieRackConfigurationSnapshot implements AutoCloseable {
             }
         }
         var error = new IllegalStateException("Bookie rack configuration is closed");
+        firstRead.completeExceptionally(error);
         firstLoad.completeExceptionally(error);
         if (inFlight != null) {
             inFlight.result.completeExceptionally(error);
             inFlight.bounded.completeExceptionally(error);
-        }
-        synchronized (publicationLock) {
-            subscribers.clear();
         }
         try {
             if (cancelMetadataListener != null) {
@@ -377,6 +355,93 @@ public final class BookieRackConfigurationSnapshot implements AutoCloseable {
         @Override
         public String getHostname() {
             return hostname;
+        }
+    }
+
+    final class Subscription implements Runnable {
+        private final Consumer<VersionedConfiguration> listener;
+        private final AtomicBoolean firstBookieNotification = new AtomicBoolean(true);
+        private final AtomicBoolean reapplyQueued = new AtomicBoolean();
+        private long lastVersion;
+        private long retryDelay = INITIAL_RETRY_DELAY_NANOS;
+        private volatile ScheduledFuture<?> retry;
+        private volatile boolean cancelled;
+
+        private Subscription(Consumer<VersionedConfiguration> listener) {
+            this.listener = listener;
+        }
+
+        // A new subscriber can replay the current version concurrently with a publication.
+        private synchronized void publish(VersionedConfiguration configuration) {
+            if (!closed && !cancelled && configuration.version() > lastVersion) {
+                listener.accept(configuration);
+                lastVersion = configuration.version();
+                if (retry != null) {
+                    retry.cancel(false);
+                    retry = null;
+                }
+                retryDelay = INITIAL_RETRY_DELAY_NANOS;
+            }
+        }
+
+        private synchronized void publishOrRetry(VersionedConfiguration configuration) {
+            try {
+                publish(configuration);
+            } catch (RuntimeException error) {
+                log.warn().onceEvery(Duration.ofMinutes(1)).exception(error)
+                        .log("Failed to apply bookie rack configuration");
+                if (retry == null && !cancelled) {
+                    var scheduled = schedule(this::retryLatest, retryDelay);
+                    retry = scheduled;
+                    if (cancelled && scheduled != null) {
+                        scheduled.cancel(false);
+                    }
+                    retryDelay = Math.min(MAX_RETRY_DELAY_NANOS, 2 * retryDelay);
+                }
+            }
+        }
+
+        private synchronized void retryLatest() {
+            retry = null;
+            publishOrRetry(latest);
+        }
+
+        // Bookie service info can become resolvable after a configuration has already been applied.
+        void reapplyOnBookieChange() {
+            if (cancelled) {
+                return;
+            }
+            if (firstBookieNotification.getAndSet(false)) {
+                // Registration has just filled its service-info cache. BookKeeper builds its initial topology
+                // after this callback returns, so opaque bookie IDs must have their addresses mapped now.
+                reapplyLatest();
+            } else if (reapplyQueued.compareAndSet(false, true)) {
+                schedule(() -> {
+                    reapplyQueued.set(false);
+                    reapplyLatest();
+                }, 0);
+            }
+        }
+
+        private synchronized void reapplyLatest() {
+            var current = latest;
+            if (current != null) {
+                lastVersion = 0;
+                publishOrRetry(current);
+            }
+        }
+
+        @Override
+        public void run() {
+            // Do not acquire this subscription's monitor, which can be held by an active callback.
+            cancelled = true;
+            synchronized (BookieRackConfigurationSnapshot.this) {
+                subscribers.remove(this);
+            }
+            var scheduled = retry;
+            if (scheduled != null) {
+                scheduled.cancel(false);
+            }
         }
     }
 

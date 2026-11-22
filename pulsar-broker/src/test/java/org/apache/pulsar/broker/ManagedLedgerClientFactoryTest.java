@@ -21,13 +21,11 @@ package org.apache.pulsar.broker;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
@@ -40,7 +38,6 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.client.BookKeeper;
-import org.apache.bookkeeper.client.ClientContext;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerFactoryClosedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
@@ -49,7 +46,6 @@ import org.apache.bookkeeper.stats.NullStatsLogger;
 import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.pulsar.bookie.rackawareness.IsolatedBookieEnsemblePlacementPolicy;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
-import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.mockito.ArgumentCaptor;
 import org.testng.annotations.DataProvider;
@@ -58,65 +54,39 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class ManagedLedgerClientFactoryTest {
 
-    @DataProvider
-    public Object[][] isolatedClients() {
-        return new Object[][] {{false, false}, {true, false}, {false, true}, {true, true}};
-    }
-
-    @Test(dataProvider = "isolatedClients")
-    public void testPlacementReadinessKeepsBuiltClient(boolean customClient, boolean failFirstRead) throws Exception {
-        var conf = new ServiceConfiguration();
+    @Test
+    public void testFailedLazyClientCanBeCreatedOnNextRequest() throws Exception {
+        ServiceConfiguration conf = new ServiceConfiguration();
         conf.setBookkeeperClientExposeStatsToPrometheus(false);
-        var bookkeeperProvider = mock(BookKeeperClientFactory.class);
-        var client = mock(BookKeeper.class);
-        var clientContext = mock(ClientContext.class);
-        var policy = mock(IsolatedBookieEnsemblePlacementPolicy.class);
-        when(client.getClientCtx()).thenReturn(clientContext);
-        when(clientContext.getPlacementPolicy()).thenReturn(policy);
+        BookKeeper defaultClient = mock(BookKeeper.class);
+        BookKeeper policyClient = mock(BookKeeper.class);
+        RuntimeException loadFailure = new RuntimeException("rack metadata unavailable");
+        CompletableFuture<BookKeeper> firstClient = new CompletableFuture<>();
+        BookKeeperClientFactory bookkeeperProvider = mock(BookKeeperClientFactory.class);
+        when(bookkeeperProvider.create(any(), any(), any(), any(), isNull(), any()))
+                .thenReturn(CompletableFuture.completedFuture(defaultClient));
+        when(bookkeeperProvider.create(any(), any(), any(), any(), anyMap(), any()))
+                .thenReturn(firstClient, CompletableFuture.completedFuture(policyClient));
 
-        var policyConfig = customClient ? new EnsemblePlacementPolicyConfig(IsolatedBookieEnsemblePlacementPolicy.class,
-                Map.of(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, "group1"))
-                : new EnsemblePlacementPolicyConfig(null, null);
-        var firstLoad = new CompletableFuture<Void>();
-        var retryLoad = new CompletableFuture<Void>();
-        when(policy.awaitRackConfiguration(any(), anyLong())).thenReturn(firstLoad).thenReturn(retryLoad);
-        when(bookkeeperProvider.create(any(), any(), any(), any(), any(), any()))
-                .thenReturn(CompletableFuture.completedFuture(client));
-        if (customClient) {
-            when(bookkeeperProvider.create(any(), any(), any(), any(), isNull(), any()))
-                    .thenReturn(CompletableFuture.completedFuture(mock(BookKeeper.class)));
-        }
-
-        try (var factory = spy(new ManagedLedgerClientFactory())) {
+        try (ManagedLedgerClientFactory factory = spy(new ManagedLedgerClientFactory())) {
             doReturn(mock(ManagedLedgerFactoryImpl.class)).when(factory)
                     .createManagedLedgerFactory(any(), any(), any(), any(), any());
             factory.initialize(conf, mock(MetadataStoreExtended.class), bookkeeperProvider,
                     mock(EventLoopGroup.class), OpenTelemetry.noop());
-            var captor = ArgumentCaptor.forClass(BookkeeperFactoryForCustomEnsemblePlacementPolicy.class);
-            verify(factory).createManagedLedgerFactory(any(), any(), captor.capture(), any(), any());
-            var clients = captor.getValue();
+            ArgumentCaptor<BookkeeperFactoryForCustomEnsemblePlacementPolicy> policyFactory =
+                    ArgumentCaptor.forClass(BookkeeperFactoryForCustomEnsemblePlacementPolicy.class);
+            verify(factory).createManagedLedgerFactory(any(), any(), policyFactory.capture(), any(), any());
+            EnsemblePlacementPolicyConfig config = new EnsemblePlacementPolicyConfig(
+                    IsolatedBookieEnsemblePlacementPolicy.class,
+                    Map.of(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, "group1"));
 
-            var firstPlacement = clients.getForPlacement(policyConfig);
-            assertThat(firstPlacement).isNotDone();
-            assertThat(clients.get(policyConfig).get(5, TimeUnit.SECONDS)).isSameAs(client);
-            CompletableFuture<BookKeeper> readyPlacement;
-            if (failFirstRead) {
-                var failure = new MetadataStoreException("rack configuration read failed");
-                firstLoad.completeExceptionally(failure);
-                assertThatThrownBy(() -> firstPlacement.get(5, TimeUnit.SECONDS)).cause().isSameAs(failure);
-                readyPlacement = clients.getForPlacement(policyConfig);
-                assertThat(readyPlacement).isNotDone();
-                retryLoad.complete(null);
-            } else {
-                readyPlacement = firstPlacement;
-                firstLoad.complete(null);
-            }
-            assertThat(readyPlacement.get(5, TimeUnit.SECONDS)).isSameAs(client);
-            verify(policy, times(failFirstRead ? 2 : 1))
-                    .awaitRackConfiguration(policyConfig,
-                            TimeUnit.SECONDS.toMillis(conf.getMetadataStoreOperationTimeoutSeconds()));
-            verify(bookkeeperProvider, times(customClient ? 2 : 1)).create(any(), any(), any(), any(), any(), any());
-            verify(client, never()).close();
+            CompletableFuture<BookKeeper> failedClient = policyFactory.getValue().get(config);
+            assertThat(failedClient).isNotDone();
+            firstClient.completeExceptionally(loadFailure);
+            assertThatThrownBy(() -> failedClient.get(5, TimeUnit.SECONDS)).cause().isSameAs(loadFailure);
+
+            assertThat(policyFactory.getValue().get(config).get(5, TimeUnit.SECONDS)).isSameAs(policyClient);
+            verify(bookkeeperProvider, times(2)).create(any(), any(), any(), any(), anyMap(), any());
         }
     }
 

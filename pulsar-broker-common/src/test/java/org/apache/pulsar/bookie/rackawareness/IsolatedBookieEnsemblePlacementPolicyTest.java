@@ -23,7 +23,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -31,8 +30,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertNotEquals;
-import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -57,7 +54,9 @@ import java.util.concurrent.FutureTask;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import org.apache.bookkeeper.client.BKException.BKNotEnoughBookiesException;
 import org.apache.bookkeeper.client.RackawareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.conf.ClientConfiguration;
@@ -78,10 +77,13 @@ import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
+import org.apache.pulsar.metadata.api.Notification;
+import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.cache.impl.MetadataCacheImpl;
 import org.apache.pulsar.zookeeper.ZkIsolatedBookieEnsemblePlacementPolicy;
 import org.awaitility.Awaitility;
+import org.mockito.ArgumentCaptor;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -97,6 +99,7 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
     private static final String BOOKIE5 = "127.0.0.5:3181";
     private static final int RACK_CONFIGURATION_LOAD_TIMEOUT_SECONDS = 30;
     private MetadataStore store;
+    private final List<IsolatedBookieEnsemblePlacementPolicy> policies = new ArrayList<>();
 
     private final ObjectMapper jsonMapper = ObjectMapperFactory.create();
     Set<BookieId> writableBookies = new HashSet<>();
@@ -119,6 +122,8 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
 
     @AfterMethod(alwaysRun = true)
     void teardown() throws Exception {
+        policies.forEach(IsolatedBookieEnsemblePlacementPolicy::uninitalize);
+        policies.clear();
         writableBookies.clear();
         isolationGroups.clear();
         store.close();
@@ -154,94 +159,42 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
     @Test
     @SuppressWarnings("unchecked")
     public void testMetadataStoreCases() throws Exception {
-        Map<String, BookieInfo> mainBookieGroup = new HashMap<>();
-        mainBookieGroup.put(BOOKIE1, BookieInfo.builder().rack("rack0").build());
-        mainBookieGroup.put(BOOKIE2, BookieInfo.builder().rack("rack1").build());
-        mainBookieGroup.put(BOOKIE3, BookieInfo.builder().rack("rack1").build());
-        mainBookieGroup.put(BOOKIE4, BookieInfo.builder().rack("rack0").build());
-
-        Map<String, BookieInfo> secondaryBookieGroup = new HashMap<>();
-
+        String path = BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH;
+        store.close();
         store = mock(MetadataStoreExtended.class);
         MetadataCacheImpl<BookiesRackConfiguration> cache = mock(MetadataCacheImpl.class);
         doReturn(cache).when(store).getMetadataCache(BookiesRackConfiguration.class);
-        CompletableFuture<Optional<BookiesRackConfiguration>> initialFuture = new CompletableFuture<>();
-        //The initialFuture only has group1.
-        BookiesRackConfiguration rackConfiguration1 = new BookiesRackConfiguration();
-        rackConfiguration1.put("group1", mainBookieGroup);
-        rackConfiguration1.put("group2", secondaryBookieGroup);
-        initialFuture.complete(Optional.of(rackConfiguration1));
+        var configuration = new BookiesRackConfiguration();
+        for (BookieId bookie : writableBookies) {
+            configuration.updateBookie("group1", bookie.toString(), BookieInfo.builder().rack("rack0").build());
+        }
+        var updated = new CompletableFuture<Optional<BookiesRackConfiguration>>();
+        var deleted = new CompletableFuture<Optional<BookiesRackConfiguration>>();
+        when(cache.get(path)).thenReturn(CompletableFuture.completedFuture(Optional.of(configuration)))
+                .thenReturn(updated).thenReturn(deleted);
 
-        //The waitingCompleteFuture has group1 and group2.
-        BookiesRackConfiguration rackConfiguration2 = new BookiesRackConfiguration();
-        Map<String, BookieInfo> mainBookieGroup2 = new HashMap<>();
-        mainBookieGroup2.put(BOOKIE1, BookieInfo.builder().rack("rack0").build());
-        mainBookieGroup2.put(BOOKIE2, BookieInfo.builder().rack("rack1").build());
-        mainBookieGroup2.put(BOOKIE4, BookieInfo.builder().rack("rack0").build());
+        var conf = new ClientConfiguration();
+        conf.setProperty(BookieRackAffinityMapping.METADATA_STORE_INSTANCE, store);
+        conf.setProperty(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, isolationGroups);
+        var policy = createIsolationPolicy(conf);
+        policy.onClusterChanged(writableBookies, readOnlyBookies);
+        var groups = Pair.of(Set.of("group1"), Set.<String>of());
+        ArgumentCaptor<Consumer<Notification>> listener = ArgumentCaptor.captor();
+        verify(store).registerCancellableListener(listener.capture());
 
-        Map<String, BookieInfo> secondaryBookieGroup2 = new HashMap<>();
-        secondaryBookieGroup2.put(BOOKIE3, BookieInfo.builder().rack("rack0").build());
-        rackConfiguration2.put("group1", mainBookieGroup2);
-        rackConfiguration2.put("group2", secondaryBookieGroup2);
+        listener.getValue().accept(new Notification(NotificationType.Modified, path));
+        assertThat(policy.getExcludedBookiesWithIsolationGroups(2, groups)).isEmpty();
+        configuration.updateBookie("group2", BOOKIE3, BookieInfo.builder().rack("rack1").build());
+        updated.complete(Optional.of(configuration));
+        Awaitility.await().untilAsserted(() -> assertThat(policy.getExcludedBookiesWithIsolationGroups(2, groups))
+                .containsExactly(BookieId.parse(BOOKIE3)));
 
-        // Use manually-controlled futures instead of Thread.sleep-based timing
-        // to avoid races where the thread completes earlier than expected.
-        CompletableFuture<Optional<BookiesRackConfiguration>> waitingCompleteFuture = new CompletableFuture<>();
-        //The emptyFuture means that the zk node /bookies already be removed.
-        CompletableFuture<Optional<BookiesRackConfiguration>> emptyFuture = new CompletableFuture<>();
-
-        //Return different future means that cache expire.
-        when(cache.get(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH))
-                .thenReturn(initialFuture).thenReturn(initialFuture)
-                .thenReturn(waitingCompleteFuture).thenReturn(waitingCompleteFuture)
-                .thenReturn(emptyFuture).thenReturn(emptyFuture);
-
-        ClientConfiguration bkClientConf = new ClientConfiguration();
-        bkClientConf.setProperty(BookieRackAffinityMapping.METADATA_STORE_INSTANCE, store);
-        bkClientConf.setProperty(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, isolationGroups);
-        IsolatedBookieEnsemblePlacementPolicy isolationPolicy = createIsolationPolicy(bkClientConf);
-        isolationPolicy.onClusterChanged(writableBookies, readOnlyBookies);
-
-        MutablePair<Set<String>, Set<String>> groups = new MutablePair<>();
-        groups.setLeft(Sets.newHashSet("group1"));
-        groups.setRight(new HashSet<>());
-
-        //initialFuture, the future is waiting done.
-        Set<BookieId> blacklist =
-                isolationPolicy.getExcludedBookiesWithIsolationGroups(2, groups);
-        assertTrue(blacklist.isEmpty());
-
-        //waitingCompleteFuture, the future is not yet done.
-        blacklist =
-                isolationPolicy.getExcludedBookiesWithIsolationGroups(2, groups);
-        assertTrue(blacklist.isEmpty());
-
-        // Complete the future manually (simulates cache expiry and refresh)
-        waitingCompleteFuture.complete(Optional.of(rackConfiguration2));
-
-        //waitingCompleteFuture, the future is already done.
-        blacklist =
-                isolationPolicy.getExcludedBookiesWithIsolationGroups(2, groups);
-        assertFalse(blacklist.isEmpty());
-        assertEquals(blacklist.size(), 1);
-        BookieId excludeBookie = blacklist.iterator().next();
-        assertEquals(excludeBookie.toString(), BOOKIE3);
-
-        //emptyFuture, the future is not yet done.
-        blacklist =
-                isolationPolicy.getExcludedBookiesWithIsolationGroups(2, groups);
-        assertFalse(blacklist.isEmpty());
-        assertEquals(blacklist.size(), 1);
-        excludeBookie = blacklist.iterator().next();
-        assertEquals(excludeBookie.toString(), BOOKIE3);
-
-        // Complete the empty future manually (simulates zk node removal)
-        emptyFuture.complete(Optional.empty());
-
-        //emptyFuture, the future is already done.
-        blacklist =
-                isolationPolicy.getExcludedBookiesWithIsolationGroups(2, groups);
-        assertTrue(blacklist.isEmpty());
+        listener.getValue().accept(new Notification(NotificationType.Deleted, path));
+        assertThat(policy.getExcludedBookiesWithIsolationGroups(2, groups)).containsExactly(BookieId.parse(BOOKIE3));
+        deleted.complete(Optional.empty());
+        Awaitility.await().untilAsserted(() -> assertThat(policy.getExcludedBookiesWithIsolationGroups(2, groups))
+                .isEmpty());
+        verify(cache, times(3)).get(path);
     }
 
     @Test
@@ -789,7 +742,6 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
             finishPlacement.countDown();
             placementThread.join(TimeUnit.SECONDS.toMillis(10));
             updateThread.join(TimeUnit.SECONDS.toMillis(10));
-            isolationPolicy.uninitalize();
             assertThat(placementThread.isAlive()).as("placement thread stopped").isFalse();
             assertThat(updateThread.isAlive()).as("cluster update thread stopped").isFalse();
         }
@@ -1236,59 +1188,116 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
                 "default ensemble should come from " + defaultGroup + ", got " + defaultEnsemble);
     }
 
+    @Test
+    public void testPlacementUsesGroupRevisionAppliedToRackTopology() throws Exception {
+        String path = BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH;
+        var rack1 = BookieInfo.builder().rack("/rack1").build();
+        var rack2 = BookieInfo.builder().rack("/rack2").build();
+        var configuration = new BookiesRackConfiguration();
+        configuration.updateBookie("primary", BOOKIE1, rack1);
+        configuration.updateBookie("other", BOOKIE2, rack2);
+        store.put(path, jsonMapper.writeValueAsBytes(configuration), Optional.empty()).join();
+
+        var pauseNextLookup = new AtomicBoolean();
+        var lookupStarted = new CompletableFuture<Void>();
+        var resumeLookup = new CompletableFuture<Void>();
+        BookieAddressResolver resolver = bookie -> {
+            if (pauseNextLookup.compareAndSet(true, false)) {
+                lookupStarted.complete(null);
+                resumeLookup.orTimeout(10, TimeUnit.SECONDS).join();
+            }
+            return BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER.resolve(bookie);
+        };
+        try (var snapshot = new BookieRackConfigurationSnapshot(store, 30_000)) {
+            snapshot.start();
+            snapshot.initialRead().get(5, TimeUnit.SECONDS);
+            var conf = new ClientConfiguration();
+            conf.setProperty(RACK_CONFIGURATION_SNAPSHOT, snapshot);
+            conf.setProperty(RackawareEnsemblePlacementPolicy.REPP_DNS_RESOLVER_CLASS,
+                    BookieRackAffinityMapping.class.getName());
+            conf.setProperty(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, "primary");
+            var policy = new IsolatedBookieEnsemblePlacementPolicy();
+            policy.initialize(conf, Optional.empty(), timer, SettableFeatureProvider.DISABLE_ALL,
+                    NullStatsLogger.INSTANCE, resolver);
+            try {
+                policy.onClusterChanged(Set.of(BookieId.parse(BOOKIE1), BookieId.parse(BOOKIE2)), Set.of());
+                configuration.updateBookie("other", BOOKIE1, rack2);
+                configuration.updateBookie("primary", BOOKIE2, rack1);
+                pauseNextLookup.set(true);
+                store.put(path, jsonMapper.writeValueAsBytes(configuration), Optional.empty()).join();
+                lookupStarted.get(5, TimeUnit.SECONDS);
+
+                assertThat(snapshot.latest().configuration().get("primary")).containsOnlyKeys(BOOKIE2);
+                assertThat(policy.newEnsemble(1, 1, 1, Map.of(), null).getResult())
+                        .containsExactly(BookieId.parse(BOOKIE1));
+                resumeLookup.complete(null);
+                Awaitility.await().untilAsserted(() -> assertThat(policy.newEnsemble(1, 1, 1, Map.of(), null)
+                        .getResult()).containsExactly(BookieId.parse(BOOKIE2)));
+            } finally {
+                resumeLookup.complete(null);
+                policy.uninitalize();
+            }
+        }
+    }
+
+    @DataProvider
+    public Object[][] coldPlacementOperations() {
+        return new Object[][]{{false, null}, {true, null}, {false, "*"}, {true, "*"}};
+    }
+
     @SuppressWarnings("unchecked")
-    @Test(dataProvider = "placementOperations")
-    public void testIsolatedPlacementRequiresRackConfiguration(boolean replaceBookie) throws Exception {
+    @Test(dataProvider = "coldPlacementOperations")
+    public void testIsolatedPlacementRequiresRackConfiguration(boolean replaceBookie, String defaultGroup)
+            throws Exception {
         store.close();
         store = mock(MetadataStoreExtended.class);
         MetadataCacheImpl<BookiesRackConfiguration> cache = mock(MetadataCacheImpl.class);
         doReturn(cache).when(store).getMetadataCache(BookiesRackConfiguration.class);
         String path = BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH;
-        CompletableFuture<Optional<BookiesRackConfiguration>> load = new CompletableFuture<>();
-        when(cache.get(path)).thenReturn(load);
+        var initialRead = new CompletableFuture<Optional<BookiesRackConfiguration>>();
+        var retry = new CompletableFuture<Optional<BookiesRackConfiguration>>();
+        when(cache.get(path)).thenReturn(initialRead).thenReturn(retry);
 
-        ClientConfiguration bkClientConf = new ClientConfiguration();
-        bkClientConf.setProperty(BookieRackAffinityMapping.METADATA_STORE_INSTANCE, store);
-        IsolatedBookieEnsemblePlacementPolicy isolationPolicy = new IsolatedBookieEnsemblePlacementPolicy();
-        isolationPolicy.initialize(bkClientConf, Optional.empty(), timer, SettableFeatureProvider.DISABLE_ALL,
+        var conf = new ClientConfiguration();
+        conf.setProperty(BookieRackAffinityMapping.METADATA_STORE_INSTANCE, store);
+        if (defaultGroup != null) {
+            conf.setProperty(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, defaultGroup);
+        }
+        var policy = new IsolatedBookieEnsemblePlacementPolicy();
+        policy.initialize(conf, Optional.empty(), timer, SettableFeatureProvider.DISABLE_ALL,
                 NullStatsLogger.INSTANCE, BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER);
         try {
-            isolationPolicy.onClusterChanged(writableBookies, readOnlyBookies);
-            Map<String, byte[]> metadata = isolationMetadata("group1");
-            assertThat(isolationPolicy.getInitialRackConfigurationLoadFuture()).isNotDone();
-            assertThat(isolationPolicy.newEnsemble(4, 4, 4, Map.of(), null).getResult())
+            policy.onClusterChanged(writableBookies, readOnlyBookies);
+            var ledgerMetadata = isolationMetadata("group1");
+            assertThat(policy.newEnsemble(4, 4, 4, Map.of(), null).getResult())
                     .containsExactlyInAnyOrderElementsOf(writableBookies);
-            assertThat(isolationPolicy.newEnsemble(4, 4, 4, isolationMetadata("*"), null).getResult())
+            assertThat(policy.newEnsemble(4, 4, 4, isolationMetadata("*"), null).getResult())
                     .containsExactlyInAnyOrderElementsOf(writableBookies);
-            assertThatThrownBy(() -> placeBookies(isolationPolicy, metadata, replaceBookie))
+            assertThatThrownBy(() -> placeBookies(policy, ledgerMetadata, replaceBookie))
+                    .isInstanceOf(BKNotEnoughBookiesException.class).cause().hasMessageContaining("/bookies");
+            assertThatThrownBy(() -> placeBookies(policy, isolationMetadata(""), replaceBookie))
                     .isInstanceOf(BKNotEnoughBookiesException.class);
 
-            MetadataStoreException loadFailure = new MetadataStoreException("rack configuration load failed");
-            load.completeExceptionally(loadFailure);
-            assertThatThrownBy(() -> isolationPolicy.getInitialRackConfigurationLoadFuture()
-                    .get(RACK_CONFIGURATION_LOAD_TIMEOUT_SECONDS, TimeUnit.SECONDS))
-                    .isInstanceOf(ExecutionException.class).cause().isSameAs(loadFailure);
-            assertThatThrownBy(() -> placeBookies(isolationPolicy, metadata, replaceBookie))
-                    .isInstanceOf(BKNotEnoughBookiesException.class);
-            doThrow(new IllegalStateException("simulated synchronous refresh failure")).when(cache).get(path);
-            assertThatThrownBy(() -> placeBookies(isolationPolicy, metadata, replaceBookie))
+            initialRead.completeExceptionally(new MetadataStoreException("rack configuration read failed"));
+            Awaitility.await().untilAsserted(() -> verify(cache, times(2)).get(path));
+            assertThat(policy.getInitialRackConfigurationLoadFuture()).isCompletedExceptionally();
+            assertThatThrownBy(() -> placeBookies(policy, ledgerMetadata, replaceBookie))
                     .isInstanceOf(BKNotEnoughBookiesException.class);
 
-            BookiesRackConfiguration snapshot = new BookiesRackConfiguration();
-            snapshot.put("group1", Map.of(BOOKIE1, BookieInfo.builder().rack("rack0").build(),
+            var configuration = new BookiesRackConfiguration();
+            configuration.put("group1", Map.of(BOOKIE1, BookieInfo.builder().rack("rack0").build(),
                     BOOKIE2, BookieInfo.builder().rack("rack1").build()));
-            snapshot.put("group2", Map.of(BOOKIE3, BookieInfo.builder().rack("rack0").build(),
+            configuration.put("group2", Map.of(BOOKIE3, BookieInfo.builder().rack("rack0").build(),
                     BOOKIE4, BookieInfo.builder().rack("rack1").build()));
-            List<BookieId> expected = replaceBookie ? List.of(BookieId.parse(BOOKIE2))
+            retry.complete(Optional.of(configuration));
+            Awaitility.await().until(() -> policy.latestRackConfiguration() != null);
+            var expected = replaceBookie ? List.of(BookieId.parse(BOOKIE2))
                     : List.of(BookieId.parse(BOOKIE1), BookieId.parse(BOOKIE2));
-            doReturn(CompletableFuture.completedFuture(Optional.of(snapshot))).when(cache).get(path);
-            assertThat(placeBookies(isolationPolicy, metadata, replaceBookie))
+            assertThat(placeBookies(policy, ledgerMetadata, replaceBookie))
                     .containsExactlyInAnyOrderElementsOf(expected);
-            when(cache.get(path)).thenReturn(CompletableFuture.failedFuture(loadFailure));
-            assertThat(placeBookies(isolationPolicy, metadata, replaceBookie))
-                    .containsExactlyInAnyOrderElementsOf(expected);
+            verify(cache, times(2)).get(path);
         } finally {
-            isolationPolicy.uninitalize();
+            policy.uninitalize();
         }
     }
 
@@ -1297,45 +1306,6 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
         var config = new EnsemblePlacementPolicyConfig(IsolatedBookieEnsemblePlacementPolicy.class,
                 Map.of(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, group));
         return Map.of(EnsemblePlacementPolicyConfig.ENSEMBLE_PLACEMENT_POLICY_CONFIG, config.encode());
-    }
-
-    @SuppressWarnings("unchecked")
-    @Test
-    public void testRackConfigurationWaitCanTimeOutAndRetryWithoutReplacingPolicy() throws Exception {
-        store.close();
-        store = mock(MetadataStoreExtended.class);
-        MetadataCacheImpl<BookiesRackConfiguration> cache = mock(MetadataCacheImpl.class);
-        doReturn(cache).when(store).getMetadataCache(BookiesRackConfiguration.class);
-        var initialLoad = new CompletableFuture<Optional<BookiesRackConfiguration>>();
-        var retryLoad = new CompletableFuture<Optional<BookiesRackConfiguration>>();
-        when(cache.get(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH)).thenReturn(initialLoad).thenReturn(retryLoad);
-
-        var conf = new ClientConfiguration();
-        conf.setProperty(BookieRackAffinityMapping.METADATA_STORE_INSTANCE, store);
-        conf.setProperty(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, "group1");
-        var policy = new IsolatedBookieEnsemblePlacementPolicy();
-        policy.initialize(conf, Optional.empty(), timer, SettableFeatureProvider.DISABLE_ALL,
-                NullStatsLogger.INSTANCE, BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER);
-        try {
-            var quickWait = policy.awaitRackConfiguration(null, 1);
-            var longWait = policy.awaitRackConfiguration(null, TimeUnit.SECONDS.toMillis(10));
-            assertThatThrownBy(() -> quickWait.get(5, TimeUnit.SECONDS)).cause()
-                    .isInstanceOf(TimeoutException.class)
-                    .hasMessage("Timed out after 1 ms waiting for bookie isolation metadata at /bookies");
-            assertThat(initialLoad).isNotDone();
-            assertThat(longWait).isNotDone();
-
-            var failure = new MetadataStoreException("rack configuration read failed");
-            initialLoad.completeExceptionally(failure);
-            assertThatThrownBy(() -> longWait.get(5, TimeUnit.SECONDS)).cause().isSameAs(failure);
-            var retry = policy.awaitRackConfiguration(null, TimeUnit.SECONDS.toMillis(10));
-            assertThat(retry).isNotDone();
-            retryLoad.complete(Optional.empty());
-            retry.get(5, TimeUnit.SECONDS);
-            assertThat(policy.awaitRackConfiguration(null, 1)).isCompleted();
-        } finally {
-            policy.uninitalize();
-        }
     }
 
     @SuppressWarnings("unchecked")
@@ -1360,7 +1330,7 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
             assertThat(stuckRead).isNotDone();
             assertThat(snapshot.latest()).isNull();
 
-            snapshot.await(TimeUnit.SECONDS.toMillis(5)).get(5, TimeUnit.SECONDS);
+            snapshot.refresh().get(5, TimeUnit.SECONDS);
             verify(cache).invalidate(path);
             var latest = snapshot.latest();
             assertThat(latest.configuration().get("group1").get(BOOKIE1).getRack()).isEqualTo("rack0");
@@ -1389,7 +1359,7 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
             var initiating = CompletableFuture.supplyAsync(snapshot::refresh);
             try {
                 entered.get(5, TimeUnit.SECONDS);
-                var waiting = snapshot.await(TimeUnit.SECONDS.toMillis(10));
+                var waiting = snapshot.initialRead();
                 snapshot.close();
                 assertThatThrownBy(() -> waiting.get(5, TimeUnit.SECONDS)).cause()
                         .isInstanceOf(IllegalStateException.class);
@@ -1422,16 +1392,16 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
             snapshot.start();
             snapshot.start();
             var initialLoad = snapshot.initialLoad();
-            assertThatThrownBy(() -> snapshot.await(1).get(5, TimeUnit.SECONDS)).cause()
-                    .isInstanceOf(TimeoutException.class);
-            var waiting = snapshot.await(TimeUnit.SECONDS.toMillis(5));
-            firstRead.completeExceptionally(new MetadataStoreException("Initial load failed"));
+            var loadFailure = new MetadataStoreException("Initial load failed");
+            var initialRead = snapshot.initialRead();
+            firstRead.completeExceptionally(loadFailure);
+            assertThatThrownBy(() -> initialRead.get(5, TimeUnit.SECONDS)).cause().isSameAs(loadFailure);
             Awaitility.await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> verify(cache, times(2)).get(path));
             assertThat(initialLoad).isNotDone();
-            assertThat(waiting).isNotDone();
             retryRead.complete(Optional.empty());
             initialLoad.get(5, TimeUnit.SECONDS);
-            waiting.get(5, TimeUnit.SECONDS);
+            assertThat(snapshot.hasLoaded()).isTrue();
+            assertThatThrownBy(() -> snapshot.initialRead().get(5, TimeUnit.SECONDS)).cause().isSameAs(loadFailure);
             assertThat(snapshot.latest().configuration()).isEmpty();
             verify(store).registerCancellableListener(any());
         }
@@ -1498,14 +1468,12 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
             secondPolicy.initialize(conf, Optional.empty(), timer, SettableFeatureProvider.DISABLE_ALL,
                     NullStatsLogger.INSTANCE, BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER);
             try {
-                var first = firstPolicy.awaitRackConfiguration(null, TimeUnit.SECONDS.toMillis(5));
-                var second = secondPolicy.awaitRackConfiguration(null, TimeUnit.SECONDS.toMillis(5));
-                assertThat(firstPolicy.getInitialRackConfigurationLoadFuture().cancel(false)).isTrue();
-                assertThat(first).isNotDone();
+                var first = firstPolicy.getInitialRackConfigurationLoadFuture();
+                var second = secondPolicy.getInitialRackConfigurationLoadFuture();
+                assertThat(first.cancel(false)).isTrue();
                 assertThat(second).isNotDone();
                 verify(store).getMetadataCache(BookiesRackConfiguration.class);
                 read.complete(Optional.empty());
-                first.get(5, TimeUnit.SECONDS);
                 second.get(5, TimeUnit.SECONDS);
                 firstPolicy.onClusterChanged(writableBookies, readOnlyBookies);
                 firstPolicy.newEnsemble(4, 4, 4, Map.of(), null);
@@ -1538,21 +1506,15 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
         IsolatedBookieEnsemblePlacementPolicy isolationPolicy = new IsolatedBookieEnsemblePlacementPolicy();
         isolationPolicy.initialize(bkClientConf, Optional.empty(), timer, SettableFeatureProvider.DISABLE_ALL,
                 NullStatsLogger.INSTANCE, BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER);
+        policies.add(isolationPolicy);
         isolationPolicy.getInitialRackConfigurationLoadFuture().get(RACK_CONFIGURATION_LOAD_TIMEOUT_SECONDS,
                 TimeUnit.SECONDS);
         return isolationPolicy;
     }
 
-    // The policy gets the bookie info asynchronously before each query or update, when putting the bookie info into
-    // the metadata store, the cache needs some time to receive the notification and update accordingly.
     private void updateBookieInfo(IsolatedBookieEnsemblePlacementPolicy isolationPolicy, byte[] bookieInfo) {
-        final var cache = isolationPolicy.getBookieMappingCache();
-        assertNotNull(cache); // the policy must have been initialized
-
-        final var key = BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH;
-        final var previousBookieInfo = cache.getIfCached(key);
-        store.put(key, bookieInfo, Optional.empty()).join();
-        Awaitility.await().atMost(Duration.ofSeconds(1)).untilAsserted(() ->
-                assertNotEquals(cache.getIfCached(key), previousBookieInfo));
+        var previous = isolationPolicy.latestRackConfiguration();
+        store.put(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, bookieInfo, Optional.empty()).join();
+        Awaitility.await().until(() -> isolationPolicy.latestRackConfiguration().version() > previous.version());
     }
 }

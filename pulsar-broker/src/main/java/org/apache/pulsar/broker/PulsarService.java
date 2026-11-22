@@ -1016,6 +1016,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             // Now we are ready to start services
             this.bkClientFactory = newBookKeeperClientFactory();
+            if (bkClientFactory instanceof BookKeeperClientFactoryImpl factory) {
+                factory.preloadBookieRackConfiguration(config, localMetadataStore);
+            }
 
             managedLedgerStorage = newManagedLedgerStorage();
 

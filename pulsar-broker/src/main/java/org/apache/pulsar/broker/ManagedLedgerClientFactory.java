@@ -32,7 +32,6 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import lombok.CustomLog;
 import org.apache.bookkeeper.client.BookKeeper;
@@ -47,7 +46,6 @@ import org.apache.bookkeeper.stats.NullStatsProvider;
 import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.commons.configuration2.Configuration;
-import org.apache.pulsar.bookie.rackawareness.IsolatedBookieEnsemblePlacementPolicy;
 import org.apache.pulsar.broker.stats.prometheus.metrics.PrometheusMetricsProvider;
 import org.apache.pulsar.broker.storage.BookkeeperManagedLedgerStorageClass;
 import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
@@ -170,37 +168,17 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
                     conf, metadataStore, eventLoopGroup, Optional.empty(), null, statsLogger));
             borrowClient(defaultBkClient).get();
 
-            BookkeeperFactoryForCustomEnsemblePlacementPolicy bkFactory =
-                    new BookkeeperFactoryForCustomEnsemblePlacementPolicy() {
-                @Override
-                public CompletableFuture<BookKeeper> get(EnsemblePlacementPolicyConfig policyConfig) {
-                    if (policyConfig == null || policyConfig.getPolicyClass() == null) {
-                        return borrowClient(defaultBkClient);
-                    }
-
-                    @SuppressWarnings("unchecked")
-                    Optional<Class<? extends EnsemblePlacementPolicy>> policyClass =
-                            (Optional) Optional.of(policyConfig.getPolicyClass());
-                    return borrowPolicyClient(policyConfig, () ->
-                            bookkeeperProvider.create(conf, metadataStore, eventLoopGroup, policyClass,
-                                    policyConfig.getProperties(), statsLogger));
+            BookkeeperFactoryForCustomEnsemblePlacementPolicy bkFactory = policyConfig -> {
+                if (policyConfig == null || policyConfig.getPolicyClass() == null) {
+                    return borrowClient(defaultBkClient);
                 }
 
-                @Override
-                public CompletableFuture<BookKeeper> getForPlacement(EnsemblePlacementPolicyConfig policyConfig) {
-                    // A failed readiness check affects the request. The cache still owns the built client.
-                    return FutureUtil.supplySafely(() -> get(policyConfig)).thenCompose(client -> {
-                        long timeoutMillis = TimeUnit.SECONDS.toMillis(conf.getMetadataStoreOperationTimeoutSeconds());
-                        var topology = BookKeeperClientFactoryImpl.awaitRackTopology(client, timeoutMillis);
-                        var context = client.getClientCtx();
-                        if (context != null && context.getPlacementPolicy()
-                                instanceof IsolatedBookieEnsemblePlacementPolicy policy) {
-                            topology = CompletableFuture.allOf(topology,
-                                    policy.awaitRackConfiguration(policyConfig, timeoutMillis));
-                        }
-                        return topology.thenCompose(__ -> clientIfOpen(client));
-                    });
-                }
+                @SuppressWarnings("unchecked")
+                Optional<Class<? extends EnsemblePlacementPolicy>> policyClass =
+                        (Optional) Optional.of(policyConfig.getPolicyClass());
+                return borrowPolicyClient(policyConfig, () ->
+                        bookkeeperProvider.create(conf, metadataStore, eventLoopGroup, policyClass,
+                                policyConfig.getProperties(), statsLogger));
             };
 
             var ledgerFactory = createManagedLedgerFactory(

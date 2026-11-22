@@ -22,7 +22,6 @@ import io.netty.buffer.ByteBuf;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
 import org.apache.bookkeeper.mledger.util.ManagedLedgerUtils;
@@ -40,21 +39,6 @@ public interface AsyncCallbacks {
         void openLedgerComplete(ManagedLedger ledger, Object ctx);
 
         void openLedgerFailed(ManagedLedgerException exception, Object ctx);
-    }
-
-    /**
-     * Checks that the request may still initialize a ledger after the client becomes available.
-     */
-    interface OpenLedgerCallbackWithPrecondition extends OpenLedgerCallback {
-        /**
-         * Returns the caller-owned request future. Completing it ends the wait to initialize the ledger.
-         */
-        CompletableFuture<?> getRequestFuture();
-
-        /**
-         * Validates the request immediately before starting ledger initialization.
-         */
-        CompletableFuture<Void> beforeInitialize();
     }
 
     interface OpenReadOnlyCursorCallback {

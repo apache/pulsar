@@ -147,25 +147,59 @@ public class LocalMemoryMetadataStoreTest {
         String url = "memory:" + UUID.randomUUID();
         @Cleanup
         LocalMemoryMetadataStore store1 = new LocalMemoryMetadataStore(url, MetadataStoreConfig.builder().build());
-        int listenerCountWithoutSharedStores = store1.getListenerCount();
         @Cleanup
         LocalMemoryMetadataStore store2 = new LocalMemoryMetadataStore(url, MetadataStoreConfig.builder().build());
         @Cleanup
         LocalMemoryMetadataStore store3 = new LocalMemoryMetadataStore(url, MetadataStoreConfig.builder().build());
-        assertEquals(store1.getListenerCount(), listenerCountWithoutSharedStores + 2);
-        assertEquals(store2.getListenerCount(), listenerCountWithoutSharedStores + 2);
+        assertEquals(store1.getSharedStoreCount(), 3);
+        assertEquals(store2.getSharedStoreCount(), 3);
 
-        // Closing the store that registered the listeners of both directions, and the one that didn't
         store2.close();
         store1.close();
 
-        assertEquals(store3.getListenerCount(), listenerCountWithoutSharedStores);
+        assertEquals(store3.getSharedStoreCount(), 1);
         // The stores created later are still linked with the open ones
         @Cleanup
         LocalMemoryMetadataStore store4 = new LocalMemoryMetadataStore(url, MetadataStoreConfig.builder().build());
-        assertEquals(store3.getListenerCount(), listenerCountWithoutSharedStores + 1);
-        assertEquals(store4.getListenerCount(), listenerCountWithoutSharedStores + 1);
+        assertEquals(store3.getSharedStoreCount(), 2);
+        assertEquals(store4.getSharedStoreCount(), 2);
     }
+
+    @Test(timeOut = 30_000)
+    public void testSharedStoreListenersObserveUpdatedCache() throws Exception {
+        var url = "memory:" + UUID.randomUUID();
+        var config = MetadataStoreConfig.builder().build();
+        try (var writer = new LocalMemoryMetadataStore(url, config);
+             var reader = new LocalMemoryMetadataStore(url, config);
+             var cache = reader.getMetadataCache(Integer.class)) {
+            String path = "/group/number";
+            assertThat(cache.get(path).join()).isEmpty();
+            var notifications = new CopyOnWriteArrayList<NotificationType>();
+            var parentChanges = new LinkedBlockingQueue<NotificationType>();
+            var values = new LinkedBlockingQueue<CompletableFuture<Optional<Integer>>>();
+            reader.registerListener(event -> {
+                if (path.equals(event.getPath())) {
+                    notifications.add(event.getType());
+                    values.add(cache.get(path));
+                } else if ("/group".equals(event.getPath())) {
+                    parentChanges.add(event.getType());
+                }
+            });
+
+            writer.put(path, "1".getBytes(StandardCharsets.UTF_8), Optional.empty()).join();
+            assertThat(values.take().get()).contains(1);
+            assertThat(parentChanges.take()).isEqualTo(NotificationType.ChildrenChanged);
+            writer.put(path, "2".getBytes(StandardCharsets.UTF_8), Optional.empty()).join();
+            assertThat(values.take().get()).contains(2);
+            writer.delete(path, Optional.empty()).join();
+            assertThat(values.take().get()).isEmpty();
+            assertThat(parentChanges.take()).isEqualTo(NotificationType.ChildrenChanged);
+            assertThat(notifications).containsExactly(NotificationType.Created, NotificationType.Modified,
+                    NotificationType.Deleted);
+            assertThat(parentChanges).isEmpty();
+        }
+    }
+
     @Test
     public void testNotifyEvent() throws Exception {
         TestMetadataEventSynchronizer sync = new TestMetadataEventSynchronizer();
