@@ -244,9 +244,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     // Guarded by this. Retain recovered cursor state for deletion if this fenced instance is still in use.
     private List<ManagedCursorImpl> cursorsRecoveredWhileFenced;
 
-    // Guarded by this. Closing stops cursor admission before the asynchronous writer close completes.
-    private boolean closeStarted;
-
     final EntryCache entryCache;
 
     private ScheduledFuture<?> timeoutTask;
@@ -953,7 +950,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             cursorsRecoveredWhileFenced.add(cursor);
             return new ManagedLedgerFencedException();
         }
-        if (closeStarted || currentState == State.Closed) {
+        if (currentState == State.Closed) {
             return new ManagedLedgerAlreadyClosedException("Managed ledger is closed");
         }
         cursor.setActive();
@@ -1290,10 +1287,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             checkFenced();
         } catch (ManagedLedgerException e) {
             callback.openCursorFailed(e, ctx);
-            return;
-        }
-        if (closeStarted) {
-            callback.openCursorFailed(new ManagedLedgerAlreadyClosedException("Managed ledger is closed"), ctx);
             return;
         }
 
@@ -1845,7 +1838,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         LedgerHandle ledgerToClose = null;
         boolean recoverLedger = false;
         synchronized (this) {
-            if (state.isFenced()) {
+            if (state == State.Closed) {
+                result = CompletableFuture.failedFuture(
+                        new ManagedLedgerAlreadyClosedException("Managed ledger is closed"));
+            } else if (state.isFenced()) {
                 result = CompletableFuture.failedFuture(new ManagedLedgerFencedException());
             } else if (state == State.Terminated && terminationFuture == null) {
                 // The terminated position was recovered from metadata, so no persistence is in flight.
@@ -2088,7 +2084,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     @Override
     public synchronized void asyncClose(final CloseCallback callback, final Object ctx) {
-        closeStarted = true;
         State state = STATE_UPDATER.get(this);
         if (state.isFenced()) {
             cancelScheduledTasks();

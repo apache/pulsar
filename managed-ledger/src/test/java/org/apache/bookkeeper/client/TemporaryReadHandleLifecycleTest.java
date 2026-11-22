@@ -620,8 +620,9 @@ public class TemporaryReadHandleLifecycleTest extends MockedBookKeeperTestCase {
         }
     }
 
-    @Test
-    public void testLateRecoveryReleasesListenerWhileWriterCloseIsPending() throws Exception {
+    @Test(dataProvider = "booleans")
+    public void testLateRecoveryReleasesListenerWhileWriterCloseIsPending(boolean terminateWhileClosing)
+            throws Exception {
         ManagedLedgerConfig config = defaultConfig().setRetentionTime(1, TimeUnit.DAYS).setRetentionSizeInMB(-1)
                 .setMaxUnackedRangesToPersistInMetadataStore(0);
         ManagedLedger ledger = factory.open("late-recovery-during-writer-close", config);
@@ -648,6 +649,24 @@ public class TemporaryReadHandleLifecycleTest extends MockedBookKeeperTestCase {
             Futures.CloseFuture closing = new Futures.CloseFuture();
             previousOwner.asyncClose(closing, null);
             assertThat(closing).isNotDone();
+
+            if (terminateWhileClosing) {
+                CompletableFuture<Position> terminating = new CompletableFuture<>();
+                previousOwner.asyncTerminate(new AsyncCallbacks.TerminateCallback() {
+                    @Override
+                    public void terminateComplete(Position position, Object ctx) {
+                        terminating.complete(position);
+                    }
+
+                    @Override
+                    public void terminateFailed(ManagedLedgerException exception, Object ctx) {
+                        terminating.completeExceptionally(exception);
+                    }
+                }, null);
+                assertThatThrownBy(() -> terminating.get(5, TimeUnit.SECONDS))
+                        .hasCauseInstanceOf(ManagedLedgerAlreadyClosedException.class);
+                assertThat(closing).isNotDone();
+            }
 
             resumeRead.complete(null);
             assertThatThrownBy(() -> opening.get(5, TimeUnit.SECONDS))
