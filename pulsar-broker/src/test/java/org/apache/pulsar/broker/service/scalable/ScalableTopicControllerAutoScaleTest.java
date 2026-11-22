@@ -24,7 +24,6 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -37,15 +36,13 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
-import org.apache.bookkeeper.mledger.AsyncCallbacks.ManagedLedgerInfoCallback;
-import org.apache.bookkeeper.mledger.ManagedLedgerException;
-import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.resources.ScalableTopicResources;
+import org.apache.pulsar.broker.resources.TopicResources;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.TopicPoliciesService;
 import org.apache.pulsar.broker.service.TransportCnx;
@@ -134,16 +131,6 @@ public class ScalableTopicControllerAutoScaleTest {
         when(pulsar.getNamespaceService()).thenReturn(namespaceService);
         when(namespaceService.isServiceUnitOwnedAsync(any()))
                 .thenReturn(CompletableFuture.completedFuture(true));
-        // Neither do their managed ledgers.
-        ManagedLedgerFactory managedLedgerFactory = mock(ManagedLedgerFactory.class);
-        when(brokerService.getManagedLedgerFactoryForTopic(any(TopicName.class)))
-                .thenReturn(CompletableFuture.completedFuture(managedLedgerFactory));
-        doAnswer(invocation -> {
-            invocation.<ManagedLedgerInfoCallback>getArgument(1).getInfoFailed(
-                    new ManagedLedgerException.MetadataNotFoundException("Managed ledger not found"), null);
-            return null;
-        }).when(managedLedgerFactory).asyncGetManagedLedgerInfo(anyString(), any(), any());
-
         // Namespace policies feed the per-namespace auto-scale override resolution.
         // Default: no policies → broker config applies. Tests install overrides via
         // namespacePolicies. Reset explicitly — TestNG reuses the test instance.
@@ -152,6 +139,11 @@ public class ScalableTopicControllerAutoScaleTest {
         namespaceResources = mock(NamespaceResources.class);
         when(pulsar.getPulsarResources()).thenReturn(pulsarResources);
         when(pulsarResources.getNamespaceResources()).thenReturn(namespaceResources);
+        // The segments' topics have no managed ledgers either.
+        TopicResources topicResources = mock(TopicResources.class);
+        when(pulsarResources.getTopicResources()).thenReturn(topicResources);
+        when(topicResources.getManagedLedgerCursorsFromStoreAsync(any(TopicName.class)))
+                .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
         when(namespaceResources.getPoliciesAsync(any(NamespaceName.class)))
                 .thenAnswer(__ -> CompletableFuture.completedFuture(
                         Optional.ofNullable(namespacePolicies)));
