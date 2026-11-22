@@ -1057,6 +1057,31 @@ public class ConsumerImplTest {
     }
 
     @Test
+    public void testSeekRetriesWhenConnectionDetachesBeforeStateChanges() {
+        ConsumerImpl<byte[]> seekingConsumer = spy(consumer);
+        ScheduledExecutorService scheduler = mock(ScheduledExecutorService.class);
+        when(seekingConsumer.getClient().getScheduledExecutorProvider().getExecutor()).thenReturn(scheduler);
+        ClientCnx detachedConnection = mock(ClientCnx.class);
+        seekingConsumer.setClientCnx(detachedConnection);
+        doAnswer(invocation -> {
+            ClientCnx captured = seekingConsumer.getClientCnx();
+            // Match the disconnect sequence before the state changes from Ready to Connecting.
+            seekingConsumer.getConnectionHandler().setClientCnx(null);
+            return captured;
+        }).when(seekingConsumer).cnx();
+        doAnswer(invocation -> {
+            invocation.<ByteBuf>getArgument(0).release();
+            return CompletableFuture.failedFuture(new PulsarClientException.NotConnectedException());
+        }).when(detachedConnection).sendRequestWithId(any(ByteBuf.class), anyLong());
+
+        CompletableFuture<Void> seek = seekingConsumer.seekAsync(1L);
+
+        verify(detachedConnection, never()).sendRequestWithId(any(ByteBuf.class), anyLong());
+        verify(scheduler).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+        assertThat(seek).isNotDone();
+    }
+
+    @Test
     public void testSeekFailsWhenRetrySchedulingIsRejected() {
         ScheduledExecutorService scheduler = mock(ScheduledExecutorService.class);
         when(consumer.getClient().getScheduledExecutorProvider().getExecutor()).thenReturn(scheduler);

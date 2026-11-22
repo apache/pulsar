@@ -64,8 +64,10 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.client.util.ExecutorProvider.CleanupTask;
@@ -473,6 +475,36 @@ public class PatternMultiTopicsConsumerImplTest {
         assertThat(consumer.getUnAckedMessageTracker().remove(otherTopicMessageId)).isTrue();
         verify(partitionConsumer0).closeAsync();
         verify(partitionConsumer1).closeAsync();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testSeekClearsUnackedMessagesForRemovedNonPartitionedTopic() {
+        String topic = "persistent://tenant/namespace/removed-topic";
+        TopicsPattern pattern =
+                TopicsPatternFactory.create("persistent://tenant/namespace/.*", TopicsPattern.RegexImplementation.JDK);
+        ConsumerConfigurationData<byte[]> conf = createConsumerConfigurationData();
+        conf.setAckTimeoutMillis(60_000);
+        conf.setSubscriptionType(SubscriptionType.Shared);
+        PatternMultiTopicsConsumerImpl<byte[]> consumer = createPatternMultiTopicsConsumer(conf, pattern);
+
+        ConsumerImpl<byte[]> child = mock(ConsumerImpl.class);
+        when(child.closeAsync()).thenReturn(CompletableFuture.completedFuture(null));
+        consumer.consumers.put(topic, child);
+        UnAckedMessageTracker tracker = consumer.getUnAckedMessageTracker();
+        try {
+            assertThat(tracker.add(new TopicMessageIdImpl(topic, new MessageIdImpl(1, 1, -1)))).isTrue();
+
+            CompletableFuture<Void> seek = consumer.seekAsync(partition -> {
+                consumer.topicsChangeListener.onTopicsRemoved(List.of(partition)).join();
+                return MessageId.earliest;
+            });
+
+            assertThatThrownBy(seek::join).hasCauseInstanceOf(PulsarClientException.AlreadyClosedException.class);
+            assertThat(tracker.size()).isZero();
+        } finally {
+            tracker.close();
+        }
     }
 
     @Test

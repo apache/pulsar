@@ -3053,7 +3053,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             failSeek(new PulsarClientException.AlreadyClosedException("Consumer was already closed"));
             return;
         }
-        if (cnx != null && state == State.Ready) {
+        // Disconnect clears the connection before changing the state to Connecting.
+        if (cnx != null && state == State.Ready && cnx == cnx()) {
             // The retry task holds only the seek position. Allocate the buffer at the point of sending it.
             final long requestId;
             final ByteBuf seek;

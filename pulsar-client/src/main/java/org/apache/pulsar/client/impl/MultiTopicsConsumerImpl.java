@@ -949,7 +949,11 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         removeTopicMessagesFromUnackedTracker(messageId -> {
             String topic = messageId.getOwnerTopic();
             SeekTarget<T> target = topic == null ? null : targets.get(topic);
-            return target != null && consumers.get(topic) == target.consumer();
+            if (target == null) {
+                return false;
+            }
+            ConsumerImpl<T> current = consumers.get(topic);
+            return current == null || current == target.consumer();
         });
         List<Message<T>> discarded = new ArrayList<>();
         incomingMessages.removeIf(message -> {
