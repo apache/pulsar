@@ -45,12 +45,14 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.netty.channel.EventLoopGroup;
 import java.io.IOException;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.bookkeeper.client.RegionAwareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.net.CachedDNSToSwitchMapping;
 import org.apache.bookkeeper.stats.StatsLogger;
@@ -76,7 +78,39 @@ import org.testng.annotations.Test;
 public class BookKeeperClientFactoryImplTest {
 
     @Test
-    public void testDefaultClientWaitsForInitialRackConfiguration() throws Exception {
+    public void testCreateRackAwareClientWithMetadataUriOnly() throws Exception {
+        var factory = spy(new BookKeeperClientFactoryImpl());
+        var builder = mock(BookKeeper.Builder.class);
+        var client = mock(BookKeeper.class);
+        when(builder.build()).thenReturn(client);
+        doReturn(builder).when(factory).getBookKeeperBuilder(any(), any(), any(), any());
+        String uri = "metadata-store:zk:localhost:2181";
+        var conf = new ServiceConfiguration();
+        conf.setBookkeeperMetadataServiceUri(uri);
+        conf.setBookkeeperClientRackawarePolicyEnabled(true);
+        var configurations = ArgumentCaptor.forClass(ClientConfiguration.class);
+        try {
+            var result = factory.create(conf, null, mock(EventLoopGroup.class), Optional.empty(), null);
+            assertThat(result.get(5, TimeUnit.SECONDS)).isSameAs(client);
+
+            verify(factory).getBookKeeperBuilder(any(), any(), any(), configurations.capture());
+            var bkConf = configurations.getValue();
+            assertEquals(bkConf.getMetadataServiceUri(), uri);
+            assertEquals(bkConf.getString(REPP_DNS_RESOLVER_CLASS), BookieRackAffinityMapping.class.getName());
+            assertNull(bkConf.getProperty(BookieRackAffinityMapping.METADATA_STORE_INSTANCE));
+            assertNull(bkConf.getProperty(BookieRackConfigurationSnapshot.RACK_CONFIGURATION_SNAPSHOT));
+        } finally {
+            factory.close();
+        }
+    }
+
+    @DataProvider
+    public Object[][] defaultPlacementPolicies() {
+        return new Object[][] {{new ServiceConfiguration()}, {regionAwareConfiguration("east;west", "2")}};
+    }
+
+    @Test(dataProvider = "defaultPlacementPolicies")
+    public void testDefaultClientWaitsForInitialRackConfiguration(ServiceConfiguration conf) throws Exception {
         var factory = spy(new BookKeeperClientFactoryImpl());
         var builder = mock(BookKeeper.Builder.class);
         var client = mock(BookKeeper.class);
@@ -87,7 +121,7 @@ public class BookKeeperClientFactoryImplTest {
         var cache = mockRackConfigurationCache(store, read);
         var eventLoop = mock(EventLoopGroup.class);
         try {
-            var result = factory.create(new ServiceConfiguration(), store, eventLoop, Optional.empty(), null);
+            var result = factory.create(conf, store, eventLoop, Optional.empty(), null);
             verify(cache, timeout(5000)).get(BOOKIE_INFO_ROOT_PATH);
             assertThat(result).isNotCompleted();
             verify(builder, never()).build();
@@ -99,12 +133,19 @@ public class BookKeeperClientFactoryImplTest {
     }
 
     @DataProvider
-    public Object[][] rackEnforcement() {
-        return new Object[][] {{false}, {true}};
+    public Object[][] rackReadFailurePolicies() {
+        var hardRacks = new ServiceConfiguration();
+        hardRacks.setBookkeeperClientEnforceMinNumRacksPerWriteQuorum(true);
+        return new Object[][] {
+                {new ServiceConfiguration(), false},
+                {hardRacks, true},
+                {regionAwareConfiguration("east;west", "2"), true}
+        };
     }
 
-    @Test(dataProvider = "rackEnforcement")
-    public void testInitialRackReadFailurePreservesEnforcement(boolean enforceRacks) throws Exception {
+    @Test(dataProvider = "rackReadFailurePolicies")
+    public void testInitialRackReadFailurePreservesEnforcement(ServiceConfiguration conf, boolean strict)
+            throws Exception {
         var factory = spy(new BookKeeperClientFactoryImpl());
         var builder = mock(BookKeeper.Builder.class);
         var client = mock(BookKeeper.class);
@@ -113,11 +154,9 @@ public class BookKeeperClientFactoryImplTest {
         var store = mock(MetadataStoreExtended.class);
         var failure = new MetadataStoreException("Failed to read " + BOOKIE_INFO_ROOT_PATH);
         mockRackConfigurationCache(store, CompletableFuture.failedFuture(failure));
-        var conf = new ServiceConfiguration();
-        conf.setBookkeeperClientEnforceMinNumRacksPerWriteQuorum(enforceRacks);
         try {
             var result = factory.create(conf, store, mock(EventLoopGroup.class), Optional.empty(), null);
-            if (enforceRacks) {
+            if (strict) {
                 assertThatThrownBy(() -> result.get(5, TimeUnit.SECONDS)).cause().isSameAs(failure);
                 verify(builder, never()).build();
             } else {
@@ -149,17 +188,73 @@ public class BookKeeperClientFactoryImplTest {
     }
 
     @Test
-    public void testHardRackBootstrapTimeoutNamesBookieMetadata() {
-        var factory = new BookKeeperClientFactoryImpl();
+    public void testLazyCrossRegionClientFailsWithoutWaitingForRackConfiguration() {
+        var factory = spy(new BookKeeperClientFactoryImpl());
         var store = mock(MetadataStoreExtended.class);
-        mockRackConfigurationCache(store, new CompletableFuture<>());
+        var read = new CompletableFuture<Optional<BookiesRackConfiguration>>();
+        mockRackConfigurationCache(store, read);
+        try {
+            // Explicit clients get region properties from their effective client configuration.
+            var result = factory.create(new ServiceConfiguration(), store, mock(EventLoopGroup.class),
+                    Optional.of(RegionAwareEnsemblePlacementPolicy.class),
+                    Map.of(REPP_REGIONS_TO_WRITE, "east;west", REPP_MINIMUM_REGIONS_FOR_DURABILITY, 2));
+            assertThatThrownBy(() -> result.get(5, TimeUnit.SECONDS)).cause()
+                    .isInstanceOf(IllegalStateException.class).hasMessageContaining(BOOKIE_INFO_ROOT_PATH);
+            verify(factory, never()).getBookKeeperBuilder(any(), any(), any(), any());
+            assertThat(read).isNotCompleted();
+        } finally {
+            factory.close();
+        }
+    }
+
+    @DataProvider
+    public Object[][] rackBootstrapTimeoutPolicies() {
+        var hardRacks = new ServiceConfiguration();
+        hardRacks.setBookkeeperClientEnforceMinNumRacksPerWriteQuorum(true);
+        return new Object[][] {
+                {hardRacks, true},
+                {new ServiceConfiguration(), false},
+                {regionAwareConfiguration("east;west", null), true},
+                {regionAwareConfiguration("east;west", "0"), false},
+                {regionAwareConfiguration("east;west", "1"), false},
+                {regionAwareConfiguration(null, "2"), false}
+        };
+    }
+
+    private static ServiceConfiguration regionAwareConfiguration(String writeRegions, String minRegions) {
         var conf = new ServiceConfiguration();
+        conf.setBookkeeperClientRegionawarePolicyEnabled(true);
+        if (writeRegions != null) {
+            conf.getProperties().setProperty(REPP_REGIONS_TO_WRITE, writeRegions);
+        }
+        if (minRegions != null) {
+            conf.getProperties().setProperty(REPP_MINIMUM_REGIONS_FOR_DURABILITY, minRegions);
+        }
+        return conf;
+    }
+
+    @Test(dataProvider = "rackBootstrapTimeoutPolicies")
+    public void testRackBootstrapTimeoutPreservesPlacementConstraints(ServiceConfiguration conf, boolean strict)
+            throws Exception {
+        var factory = spy(new BookKeeperClientFactoryImpl());
+        var builder = mock(BookKeeper.Builder.class);
+        var client = mock(BookKeeper.class);
+        when(builder.build()).thenReturn(client);
+        doReturn(builder).when(factory).getBookKeeperBuilder(any(), any(), any(), any());
+        var store = mock(MetadataStoreExtended.class);
+        var read = new CompletableFuture<Optional<BookiesRackConfiguration>>();
+        mockRackConfigurationCache(store, read);
         conf.setMetadataStoreOperationTimeoutSeconds(1);
-        conf.setBookkeeperClientEnforceMinNumRacksPerWriteQuorum(true);
         try {
             var result = factory.create(conf, store, mock(EventLoopGroup.class), Optional.empty(), null);
-            assertThatThrownBy(() -> result.get(5, TimeUnit.SECONDS)).cause().isInstanceOf(TimeoutException.class)
-                    .hasMessageContaining(BOOKIE_INFO_ROOT_PATH).hasMessageContaining("1000 ms");
+            if (strict) {
+                assertThatThrownBy(() -> result.get(5, TimeUnit.SECONDS)).cause().isInstanceOf(TimeoutException.class)
+                        .hasMessageContaining(BOOKIE_INFO_ROOT_PATH).hasMessageContaining("1000 ms");
+                verify(builder, never()).build();
+            } else {
+                assertThat(result.get(5, TimeUnit.SECONDS)).isSameAs(client);
+            }
+            assertThat(read).isNotCompleted();
         } finally {
             factory.close();
         }

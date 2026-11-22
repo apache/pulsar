@@ -50,6 +50,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -81,12 +82,14 @@ import org.apache.bookkeeper.versioning.Versioned;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.config.Configurator;
+import org.apache.pulsar.bookie.rackawareness.BookieRackConfigurationSnapshot.VersionedConfiguration;
 import org.apache.pulsar.common.policies.data.BookieInfo;
 import org.apache.pulsar.common.policies.data.BookiesRackConfiguration;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
@@ -119,6 +122,18 @@ public class BookieRackAffinityMappingTest {
     @AfterMethod(alwaysRun = true)
     void teardown() throws Exception {
         store.close();
+    }
+
+    private void writeInitialRackMetadata(byte[] metadata) throws Exception {
+        var created = new CompletableFuture<Void>();
+        @Cleanup("run") var cancel = store.registerCancellableListener(notification -> {
+            if (BOOKIE_INFO_ROOT_PATH.equals(notification.getPath())
+                    && notification.getType() == NotificationType.Created) {
+                created.complete(null);
+            }
+        });
+        store.put(BOOKIE_INFO_ROOT_PATH, metadata, Optional.empty()).get(5, TimeUnit.SECONDS);
+        created.get(5, TimeUnit.SECONDS);
     }
 
     @Test
@@ -176,6 +191,56 @@ public class BookieRackAffinityMappingTest {
         cleanups.get(1).run();
         verify(secondUnregister).run();
         verify(secondCache).close();
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    public void testLegacyResolverKeepsLatestAppliedRackWhenReadsCompleteOutOfOrder() throws Exception {
+        var source = mock(MetadataStore.class);
+        MetadataCache<BookiesRackConfiguration> cache = mock(MetadataCache.class);
+        when(source.getMetadataCache(BookiesRackConfiguration.class)).thenReturn(cache);
+        var watcher = new AtomicReference<Consumer<Notification>>();
+        when(source.registerCancellableListener(any())).thenAnswer(call -> {
+            watcher.set(call.getArgument(0));
+            return (Runnable) () -> { };
+        });
+        var bookie = bookie1.toString();
+        var oldRacks = new BookiesRackConfiguration();
+        oldRacks.updateBookie("group", bookie, BookieInfo.builder().rack("/old").build());
+        var newRacks = new BookiesRackConfiguration();
+        newRacks.updateBookie("group", bookie, BookieInfo.builder().rack("/new").build());
+        var latestRacks = new BookiesRackConfiguration();
+        latestRacks.updateBookie("group", bookie, BookieInfo.builder().rack("/latest").build());
+        var initialRead = new CompletableFuture<Optional<BookiesRackConfiguration>>();
+        var olderRefresh = new CompletableFuture<Optional<BookiesRackConfiguration>>();
+        var initialReadStarted = new CompletableFuture<Void>();
+        when(cache.get(BOOKIE_INFO_ROOT_PATH)).thenAnswer(call -> {
+            initialReadStarted.complete(null);
+            return initialRead;
+        }).thenReturn(CompletableFuture.completedFuture(Optional.of(newRacks)),
+                olderRefresh, CompletableFuture.completedFuture(Optional.of(latestRacks)));
+
+        var conf = new ClientConfiguration();
+        conf.setProperty(BookieRackAffinityMapping.METADATA_STORE_INSTANCE, source);
+        var mapping = new BookieRackAffinityMapping();
+        mapping.setBookieAddressResolver(BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER);
+        var initializing = CompletableFuture.runAsync(() -> mapping.setConf(conf));
+        var addresses = List.of(bookie1.getHostName());
+        var modified = new Notification(NotificationType.Modified, BOOKIE_INFO_ROOT_PATH);
+        try {
+            initialReadStarted.get(5, TimeUnit.SECONDS);
+            watcher.get().accept(modified);
+            assertEquals(mapping.resolve(addresses), List.of("/new"));
+        } finally {
+            initialRead.complete(Optional.of(oldRacks));
+        }
+        initializing.get(5, TimeUnit.SECONDS);
+        assertEquals(mapping.resolve(addresses), List.of("/new"));
+
+        watcher.get().accept(modified);
+        watcher.get().accept(modified);
+        olderRefresh.complete(Optional.of(oldRacks));
+        assertEquals(mapping.resolve(addresses), List.of("/latest"));
     }
 
     @Test
@@ -283,7 +348,7 @@ public class BookieRackAffinityMappingTest {
         BookieId bookieId = BookieId.parse("bookie-id");
         var racks = new BookiesRackConfiguration();
         racks.updateBookie("group", bookieId.toString(), BookieInfo.builder().rack("/rack0").build());
-        store.put(BOOKIE_INFO_ROOT_PATH, jsonMapper.writeValueAsBytes(racks), Optional.empty()).join();
+        writeInitialRackMetadata(jsonMapper.writeValueAsBytes(racks));
         @Cleanup
         var snapshot = new BookieRackConfigurationSnapshot(store, 30_000);
         snapshot.start();
@@ -335,6 +400,110 @@ public class BookieRackAffinityMappingTest {
     }
 
     @Test
+    public void testUnchangedRackMetadataWriteRemapsBookieAddress() throws Exception {
+        var bookie = BookieId.parse("bookie-id");
+        var racks = new BookiesRackConfiguration();
+        racks.updateBookie("group", bookie.toString(), BookieInfo.builder().rack("/rack0").build());
+        byte[] metadata = jsonMapper.writeValueAsBytes(racks);
+        writeInitialRackMetadata(metadata);
+
+        @Cleanup var snapshot = new BookieRackConfigurationSnapshot(store, 30_000);
+        snapshot.start();
+        snapshot.initialRead().get(5, TimeUnit.SECONDS);
+        var initial = snapshot.latest();
+
+        var endpoint = new AtomicReference<>(bookie1);
+        var mapping = new BookieRackAffinityMapping();
+        mapping.setBookieAddressResolver(id -> endpoint.get());
+        var conf = new ClientConfiguration();
+        conf.setProperty(RACK_CONFIGURATION_SNAPSHOT, snapshot);
+        mapping.setConf(conf);
+        var addresses = List.of(bookie1.getHostName(), bookie2.getHostName());
+        assertEquals(mapping.resolve(addresses), Lists.newArrayList("/rack0", null));
+
+        endpoint.set(bookie2);
+        store.put(BOOKIE_INFO_ROOT_PATH, metadata, Optional.empty()).get(5, TimeUnit.SECONDS);
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() ->
+                assertEquals(mapping.resolve(addresses), Lists.newArrayList(null, "/rack0")));
+        assertThat(snapshot.latest()).isSameAs(initial);
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    public void testUnchangedRackMetadataRecreationRemapsBookieAddress() throws Exception {
+        var racks = new BookiesRackConfiguration();
+        racks.updateBookie("group", "bookie-id", BookieInfo.builder().rack("/rack0").build());
+        var source = mock(MetadataStore.class);
+        MetadataCache<BookiesRackConfiguration> cache = mock(MetadataCache.class);
+        when(source.getMetadataCache(BookiesRackConfiguration.class)).thenReturn(cache);
+        var watcher = new AtomicReference<Consumer<Notification>>();
+        when(source.registerCancellableListener(any())).thenAnswer(call -> {
+            watcher.set(call.getArgument(0));
+            return (Runnable) () -> { };
+        });
+        var cached = CompletableFuture.completedFuture(Optional.of(racks));
+        var deletionReadStarted = new CompletableFuture<Void>();
+        var deleted = new CompletableFuture<Optional<BookiesRackConfiguration>>();
+        when(cache.get(BOOKIE_INFO_ROOT_PATH)).thenReturn(cached).thenAnswer(call -> {
+            deletionReadStarted.complete(null);
+            return deleted;
+        }).thenReturn(cached);
+
+        @Cleanup var snapshot = new BookieRackConfigurationSnapshot(source, 30_000);
+        snapshot.start();
+        snapshot.initialRead().get(5, TimeUnit.SECONDS);
+        var initial = snapshot.latest();
+        var endpoint = new AtomicReference<>(bookie1);
+        var mapping = new BookieRackAffinityMapping();
+        mapping.setBookieAddressResolver(id -> endpoint.get());
+        var conf = new ClientConfiguration();
+        conf.setProperty(RACK_CONFIGURATION_SNAPSHOT, snapshot);
+        mapping.setConf(conf);
+
+        watcher.get().accept(new Notification(NotificationType.Deleted, BOOKIE_INFO_ROOT_PATH));
+        deletionReadStarted.get(5, TimeUnit.SECONDS);
+        endpoint.set(bookie2);
+        watcher.get().accept(new Notification(NotificationType.Created, BOOKIE_INFO_ROOT_PATH));
+        deleted.complete(Optional.empty());
+
+        var addresses = List.of(bookie1.getHostName(), bookie2.getHostName());
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() ->
+                assertEquals(mapping.resolve(addresses), Lists.newArrayList(null, "/rack0")));
+        assertThat(snapshot.latest()).isSameAs(initial);
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    public void testUnchangedRackMetadataWriteReappliesAfterReadFailure() throws Exception {
+        var racks = new BookiesRackConfiguration();
+        racks.updateBookie("group", bookie1.toString(), BookieInfo.builder().rack("/rack0").build());
+        var source = mock(MetadataStore.class);
+        MetadataCache<BookiesRackConfiguration> cache = mock(MetadataCache.class);
+        when(source.getMetadataCache(BookiesRackConfiguration.class)).thenReturn(cache);
+        var watcher = new AtomicReference<Consumer<Notification>>();
+        when(source.registerCancellableListener(any())).thenAnswer(call -> {
+            watcher.set(call.getArgument(0));
+            return (Runnable) () -> { };
+        });
+        var cached = CompletableFuture.completedFuture(Optional.of(racks));
+        when(cache.get(BOOKIE_INFO_ROOT_PATH)).thenReturn(cached,
+                CompletableFuture.failedFuture(new MetadataStoreException("Transient refresh failure")), cached);
+
+        @Cleanup var snapshot = new BookieRackConfigurationSnapshot(source, 30_000);
+        snapshot.start();
+        snapshot.initialRead().get(5, TimeUnit.SECONDS);
+        var initial = snapshot.latest();
+        var updates = new ConcurrentLinkedQueue<VersionedConfiguration>();
+        @Cleanup("run") var subscription = snapshot.subscribe(updates::add);
+        assertEquals(updates.poll(), initial);
+
+        watcher.get().accept(new Notification(NotificationType.Modified, BOOKIE_INFO_ROOT_PATH));
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() ->
+                assertThat(updates.peek()).isSameAs(initial));
+        assertThat(snapshot.latest()).isSameAs(initial);
+    }
+
+    @Test
     public void testSubscriberRetriesUnchangedConfiguration() throws Exception {
         @Cleanup var snapshot = new BookieRackConfigurationSnapshot(store, 30_000);
         var failedOnce = new CompletableFuture<Void>();
@@ -351,11 +520,57 @@ public class BookieRackAffinityMappingTest {
     }
 
     @Test
-    public void testResolverServesPreviousMappingDuringRefresh() throws Exception {
+    public void testNewSubscriberRetriesRefreshPublishedDuringInitialReplay() throws Exception {
+        var racks = new BookiesRackConfiguration();
+        var bookie = bookie1.toBookieId();
+        racks.updateBookie("group", bookie.toString(), BookieInfo.builder().rack("/initial").build());
+        writeInitialRackMetadata(jsonMapper.writeValueAsBytes(racks));
+        @Cleanup var snapshot = new BookieRackConfigurationSnapshot(store, 30_000);
+        snapshot.start();
+        snapshot.initialRead().get(5, TimeUnit.SECONDS);
+
+        var initialReplayStarted = new CompletableFuture<Void>();
+        var finishInitialReplay = new CompletableFuture<Void>();
+        var firstRefreshAttempt = new CompletableFuture<Void>();
+        var refreshRetried = new CompletableFuture<Long>();
+        var attempts = new ConcurrentLinkedQueue<Long>();
+        var subscription = CompletableFuture.supplyAsync(() -> snapshot.subscribe(configuration -> {
+            attempts.add(configuration.version());
+            if (configuration.version() == 1) {
+                initialReplayStarted.complete(null);
+                finishInitialReplay.orTimeout(10, TimeUnit.SECONDS).join();
+            } else if (firstRefreshAttempt.complete(null)) {
+                throw new IllegalStateException("Transient failure applying refresh");
+            } else {
+                refreshRetried.complete(configuration.version());
+            }
+        }));
+        var otherClientRefreshed = new CompletableFuture<Long>();
+        @Cleanup("run") var other = snapshot.subscribe(configuration -> {
+            if (configuration.version() > 1) {
+                otherClientRefreshed.complete(configuration.version());
+            }
+        });
+        try {
+            initialReplayStarted.get(5, TimeUnit.SECONDS);
+            racks.updateBookie("group", bookie.toString(), BookieInfo.builder().rack("/updated").build());
+            store.put(BOOKIE_INFO_ROOT_PATH, jsonMapper.writeValueAsBytes(racks), Optional.empty()).join();
+            assertEquals(otherClientRefreshed.get(5, TimeUnit.SECONDS).longValue(), 2L);
+            assertFalse(firstRefreshAttempt.isDone());
+        } finally {
+            finishInitialReplay.complete(null);
+        }
+        @Cleanup("run") var subscribed = subscription.get(5, TimeUnit.SECONDS);
+        assertEquals(refreshRetried.get(5, TimeUnit.SECONDS).longValue(), 2L);
+        assertEquals(List.copyOf(attempts), List.of(1L, 2L, 2L));
+    }
+
+    @Test
+    public void testSlowResolverDoesNotBlockOtherClientsOrSnapshotRefresh() throws Exception {
         var racks = new BookiesRackConfiguration();
         var bookie = bookie1.toBookieId();
         racks.updateBookie("group", bookie.toString(), BookieInfo.builder().rack("/old").build());
-        store.put(BOOKIE_INFO_ROOT_PATH, jsonMapper.writeValueAsBytes(racks), Optional.empty()).join();
+        writeInitialRackMetadata(jsonMapper.writeValueAsBytes(racks));
         @Cleanup var snapshot = new BookieRackConfigurationSnapshot(store, 30_000);
         snapshot.start();
         snapshot.initialRead().get(10, TimeUnit.SECONDS);
@@ -365,7 +580,7 @@ public class BookieRackAffinityMappingTest {
         var addressResolver = mock(BookieAddressResolver.class);
         when(addressResolver.resolve(bookie)).thenReturn(bookie1).thenAnswer(call -> {
             started.complete(null);
-            release.get(10, TimeUnit.SECONDS);
+            release.get(30, TimeUnit.SECONDS);
             return bookie1;
         });
         var mapping = new BookieRackAffinityMapping();
@@ -373,6 +588,9 @@ public class BookieRackAffinityMappingTest {
         var conf = new ClientConfiguration();
         conf.setProperty(RACK_CONFIGURATION_SNAPSHOT, snapshot);
         mapping.setConf(conf);
+        var otherMapping = new BookieRackAffinityMapping();
+        otherMapping.setBookieAddressResolver(BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER);
+        otherMapping.setConf(conf);
         var addresses = List.of(bookie1.getHostName());
         try {
             racks.updateBookie("group", bookie.toString(), BookieInfo.builder().rack("/new").build());
@@ -380,10 +598,19 @@ public class BookieRackAffinityMappingTest {
             started.get(10, TimeUnit.SECONDS);
             assertEquals(CompletableFuture.supplyAsync(() -> mapping.resolve(addresses)).get(5, TimeUnit.SECONDS),
                     List.of("/old"));
+            Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() ->
+                    assertEquals(otherMapping.resolve(addresses), List.of("/new")));
+            racks.updateBookie("group", bookie.toString(), BookieInfo.builder().rack("/latest").build());
+            store.put(BOOKIE_INFO_ROOT_PATH, jsonMapper.writeValueAsBytes(racks), Optional.empty()).join();
+            Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
+                assertEquals(snapshot.latest().version(), 3L);
+                assertEquals(otherMapping.resolve(addresses), List.of("/latest"));
+            });
+            assertEquals(mapping.resolve(addresses), List.of("/old"));
         } finally {
             release.complete(null);
         }
-        Awaitility.await().untilAsserted(() -> assertEquals(mapping.resolve(addresses), List.of("/new")));
+        Awaitility.await().untilAsserted(() -> assertEquals(mapping.resolve(addresses), List.of("/latest")));
     }
 
     @DataProvider
@@ -397,7 +624,7 @@ public class BookieRackAffinityMappingTest {
         var racks = new BookiesRackConfiguration();
         var bookie = bookie1.toBookieId();
         racks.updateBookie("group", bookie.toString(), BookieInfo.builder().rack("/old").build());
-        store.put(BOOKIE_INFO_ROOT_PATH, jsonMapper.writeValueAsBytes(racks), Optional.empty()).join();
+        writeInitialRackMetadata(jsonMapper.writeValueAsBytes(racks));
         @Cleanup var snapshot = new BookieRackConfigurationSnapshot(store, 30_000);
         snapshot.start();
         snapshot.initialRead().get(10, TimeUnit.SECONDS);
@@ -407,7 +634,7 @@ public class BookieRackAffinityMappingTest {
         var delivered = new CompletableFuture<Void>();
         Runnable pause = () -> {
             started.complete(null);
-            release.orTimeout(10, TimeUnit.SECONDS).join();
+            release.orTimeout(30, TimeUnit.SECONDS).join();
         };
         var addressResolver = mock(BookieAddressResolver.class);
         var resolve = when(addressResolver.resolve(bookie)).thenReturn(bookie1);
@@ -444,10 +671,13 @@ public class BookieRackAffinityMappingTest {
             store.put(BOOKIE_INFO_ROOT_PATH, jsonMapper.writeValueAsBytes(racks), Optional.empty()).join();
             started.get(5, TimeUnit.SECONDS);
             CompletableFuture.runAsync(cleanup.get()).get(5, TimeUnit.SECONDS);
+            delivered.get(5, TimeUnit.SECONDS);
+            CompletableFuture.runAsync(snapshot::close).get(5, TimeUnit.SECONDS);
         } finally {
             release.complete(null);
         }
-        delivered.get(5, TimeUnit.SECONDS);
+        // Registering acquires this resolver's binding monitor after its in-flight update has returned.
+        CompletableFuture.runAsync(() -> mapping.registerRackChangeListener(policy)).get(5, TimeUnit.SECONDS);
         if (pauseAddressResolution) {
             assertEquals(mapping.resolve(List.of(bookie1.getHostName())), List.of("/old"));
             verify(policy, never()).onBookieRackChange(any());

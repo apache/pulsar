@@ -28,6 +28,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -57,6 +59,10 @@ public final class BookieRackConfigurationSnapshot implements AutoCloseable {
     private final MetadataStore store;
     private final MetadataCache<BookiesRackConfiguration> cache;
     private final long readTimeoutMillis;
+    // DNS and BookKeeper topology locks can block independently for each subscriber. An idle subscriber
+    // needs no thread, and each busy subscriber has at most one background task.
+    private final ExecutorService applicationExecutor =
+            Executors.newCachedThreadPool(new DefaultThreadFactory("bookie-rack-application", true));
     private final CompletableFuture<Void> firstLoad = new CompletableFuture<>();
 
     private final CompletableFuture<Void> firstRead = new CompletableFuture<>();
@@ -76,6 +82,7 @@ public final class BookieRackConfigurationSnapshot implements AutoCloseable {
     private long retryDelayNanos = INITIAL_RETRY_DELAY_NANOS;
     private long retryAfterNanos;
     private boolean invalidateBeforeRetry;
+    private boolean reapplyAfterNotification;
     private boolean startingRead;
 
     /**
@@ -103,7 +110,7 @@ public final class BookieRackConfigurationSnapshot implements AutoCloseable {
         if (store instanceof MetadataStoreExtended storeExtended) {
             cancelSessionListener = storeExtended.registerCancellableSessionListener(event -> {
                 if (event.isConnected()) {
-                    requestRefresh(true);
+                    requestRefresh(true, false);
                 }
             });
         }
@@ -111,16 +118,17 @@ public final class BookieRackConfigurationSnapshot implements AutoCloseable {
     }
 
     private void handleNotification(Notification notification) {
-        if (BOOKIE_INFO_ROOT_PATH.equals(notification.getPath())
-                && notification.getType() != NotificationType.ChildrenChanged) {
+        var type = notification.getType();
+        if (BOOKIE_INFO_ROOT_PATH.equals(notification.getPath()) && type != NotificationType.ChildrenChanged) {
             // The store has already invalidated the cache or replaced the old entry with the new, pending read.
-            requestRefresh(false);
+            requestRefresh(false, type == NotificationType.Created || type == NotificationType.Modified);
         }
     }
 
-    private synchronized void requestRefresh(boolean invalidate) {
+    private synchronized void requestRefresh(boolean invalidate, boolean reapplyOnUnchanged) {
         changeGeneration++;
         invalidateBeforeRetry |= invalidate;
+        reapplyAfterNotification |= reapplyOnUnchanged;
         scheduleRead();
     }
 
@@ -152,23 +160,19 @@ public final class BookieRackConfigurationSnapshot implements AutoCloseable {
 
     Subscription subscribe(Consumer<VersionedConfiguration> listener) {
         var subscription = new Subscription(listener);
-        VersionedConfiguration current;
-        synchronized (this) {
-            if (closed) {
-                throw new IllegalStateException("Bookie rack configuration is closed");
-            }
-            subscribers.add(subscription);
-            current = latest;
-        }
-        if (current != null) {
-            try {
-                subscription.publish(current);
-            } catch (RuntimeException | Error e) {
-                subscription.run();
-                throw e;
-            }
+        try {
+            subscription.initialize();
+        } catch (RuntimeException | Error e) {
+            subscription.run();
+            throw e;
         }
         return subscription;
+    }
+
+    private synchronized void executeApplication(Runnable task) {
+        if (!closed) {
+            applicationExecutor.execute(task);
+        }
     }
 
     private synchronized ScheduledFuture<?> schedule(Runnable task, long delayNanos) {
@@ -240,16 +244,25 @@ public final class BookieRackConfigurationSnapshot implements AutoCloseable {
 
     private void finishAttempt(ReadAttempt read, Map<String, Map<String, BookieInfo>> configuration, Throwable error) {
         VersionedConfiguration published = null;
+        boolean reapply = false;
         List<Subscription> listeners = List.of();
         synchronized (this) {
             if (closed || attempt != read) {
                 return;
             }
-            if (error == null && changeGeneration == read.generation
-                    && (latest == null || !latest.configuration().equals(configuration))) {
-                published = new VersionedConfiguration(latest == null ? 1 : latest.version() + 1, configuration);
-                latest = published;
-                listeners = List.copyOf(subscribers);
+            if (error == null && changeGeneration == read.generation) {
+                if (latest == null || !latest.configuration().equals(configuration)) {
+                    published = new VersionedConfiguration(latest == null ? 1 : latest.version() + 1, configuration);
+                    latest = published;
+                } else {
+                    // A rewrite or recreation can change a Bookie's address without changing its rack or group.
+                    reapply = reapplyAfterNotification;
+                }
+                if (published != null || reapply) {
+                    listeners = List.copyOf(subscribers);
+                }
+                // Keep the request pending through failed or superseded reads.
+                reapplyAfterNotification = false;
             }
             if (error == null) {
                 retryAfterNanos = 0;
@@ -261,17 +274,15 @@ public final class BookieRackConfigurationSnapshot implements AutoCloseable {
                 invalidateBeforeRetry |= error instanceof TimeoutException;
             }
         }
-        if (published != null) {
-            if (published.version() == 1) {
-                firstRead.complete(null);
-                firstLoad.complete(null);
+        if (published != null && published.version() == 1) {
+            firstRead.complete(null);
+            firstLoad.complete(null);
+        }
+        for (var listener : listeners) {
+            if (closed) {
+                break;
             }
-            for (var listener : listeners) {
-                if (closed) {
-                    break;
-                }
-                listener.publishOrRetry(published);
-            }
+            listener.requestApplication(reapply);
         }
         if (error == null) {
             read.result.complete(null);
@@ -318,6 +329,7 @@ public final class BookieRackConfigurationSnapshot implements AutoCloseable {
             if (executor != null) {
                 executor.shutdownNow();
             }
+            applicationExecutor.shutdownNow();
         }
         var error = new IllegalStateException("Bookie rack configuration is closed");
         firstRead.completeExceptionally(error);
@@ -361,86 +373,156 @@ public final class BookieRackConfigurationSnapshot implements AutoCloseable {
     final class Subscription implements Runnable {
         private final Consumer<VersionedConfiguration> listener;
         private final AtomicBoolean firstBookieNotification = new AtomicBoolean(true);
-        private final AtomicBoolean reapplyQueued = new AtomicBoolean();
-        private long lastVersion;
-        private long retryDelay = INITIAL_RETRY_DELAY_NANOS;
-        private volatile ScheduledFuture<?> retry;
+        private final Object workLock = new Object();
         private volatile boolean cancelled;
+        // Guarded by workLock. Never hold it while invoking the listener.
+        private boolean applicationRequested;
+        private boolean applicationScheduled;
+        private boolean reapplyRequested;
+        private ScheduledFuture<?> retry;
+        private long retryGeneration;
+        private long retryDelay = INITIAL_RETRY_DELAY_NANOS;
+        // Guarded by this subscription's monitor, which serializes the listener.
+        private long appliedVersion;
+        private boolean reapplyPending;
 
         private Subscription(Consumer<VersionedConfiguration> listener) {
             this.listener = listener;
         }
 
-        // A new subscriber can replay the current version concurrently with a publication.
-        private synchronized void publish(VersionedConfiguration configuration) {
-            if (!closed && !cancelled && configuration.version() > lastVersion) {
-                listener.accept(configuration);
-                lastVersion = configuration.version();
-                if (retry != null) {
-                    retry.cancel(false);
-                    retry = null;
+        private synchronized void initialize() {
+            VersionedConfiguration current;
+            // Take the application monitor before publishing the subscription so no newer revision can
+            // be attempted before the synchronous initial replay used by BookKeeper initialization.
+            synchronized (BookieRackConfigurationSnapshot.this) {
+                if (closed) {
+                    throw new IllegalStateException("Bookie rack configuration is closed");
                 }
+                subscribers.add(this);
+                current = latest;
+            }
+            if (current != null && !closed) {
+                apply(current);
+            }
+        }
+
+        private void requestApplication(boolean reapply) {
+            synchronized (workLock) {
+                if (!closed && !cancelled) {
+                    applicationRequested = true;
+                    reapplyRequested |= reapply;
+                    scheduleApplication();
+                }
+            }
+        }
+
+        // Called under workLock. Multiple notifications can share one application of the latest revision.
+        private void scheduleApplication() {
+            if (!closed && !cancelled && applicationRequested && !applicationScheduled) {
+                applicationScheduled = true;
+                executeApplication(this::drainApplications);
+            }
+        }
+
+        private void drainApplications() {
+            try {
+                while (true) {
+                    boolean reapply;
+                    synchronized (workLock) {
+                        if (closed || cancelled || !applicationRequested) {
+                            return;
+                        }
+                        applicationRequested = false;
+                        reapply = reapplyRequested;
+                        reapplyRequested = false;
+                    }
+                    applyLatestOrRetry(reapply);
+                }
+            } finally {
+                synchronized (workLock) {
+                    applicationScheduled = false;
+                    scheduleApplication();
+                }
+            }
+        }
+
+        private synchronized void applyLatestOrRetry(boolean reapply) {
+            if (closed || cancelled) {
+                return;
+            }
+            reapplyPending |= reapply;
+            var current = latest;
+            if (current == null || (!reapplyPending && current.version() <= appliedVersion)) {
+                return;
+            }
+            try {
+                apply(current);
+            } catch (RuntimeException error) {
+                log.warn().onceEvery(Duration.ofMinutes(1)).exception(error)
+                        .log("Failed to apply bookie rack configuration");
+                synchronized (workLock) {
+                    if (retry == null && !cancelled) {
+                        long generation = ++retryGeneration;
+                        retry = schedule(() -> requestRetry(generation), retryDelay);
+                        retryDelay = Math.min(MAX_RETRY_DELAY_NANOS, 2 * retryDelay);
+                    }
+                }
+            }
+        }
+
+        // Called under the application monitor. Later attempts always select the latest revision under that
+        // same monitor, so an older successful replay cannot cancel a newer revision's retry.
+        private void apply(VersionedConfiguration configuration) {
+            listener.accept(configuration);
+            appliedVersion = configuration.version();
+            reapplyPending = false;
+            synchronized (workLock) {
+                cancelRetry();
                 retryDelay = INITIAL_RETRY_DELAY_NANOS;
             }
         }
 
-        private synchronized void publishOrRetry(VersionedConfiguration configuration) {
-            try {
-                publish(configuration);
-            } catch (RuntimeException error) {
-                log.warn().onceEvery(Duration.ofMinutes(1)).exception(error)
-                        .log("Failed to apply bookie rack configuration");
-                if (retry == null && !cancelled) {
-                    var scheduled = schedule(this::retryLatest, retryDelay);
-                    retry = scheduled;
-                    if (cancelled && scheduled != null) {
-                        scheduled.cancel(false);
-                    }
-                    retryDelay = Math.min(MAX_RETRY_DELAY_NANOS, 2 * retryDelay);
+        private void requestRetry(long generation) {
+            synchronized (workLock) {
+                if (generation == retryGeneration) {
+                    retry = null;
+                    requestApplication(false);
                 }
             }
         }
 
-        private synchronized void retryLatest() {
-            retry = null;
-            publishOrRetry(latest);
+        // Called under workLock.
+        private void cancelRetry() {
+            if (retry != null) {
+                retryGeneration++;
+                retry.cancel(false);
+                retry = null;
+            }
         }
 
         // Bookie service info can become resolvable after a configuration has already been applied.
         void reapplyOnBookieChange() {
-            if (cancelled) {
+            if (closed || cancelled) {
                 return;
             }
             if (firstBookieNotification.getAndSet(false)) {
                 // Registration has just filled its service-info cache. BookKeeper builds its initial topology
                 // after this callback returns, so opaque bookie IDs must have their addresses mapped now.
-                reapplyLatest();
-            } else if (reapplyQueued.compareAndSet(false, true)) {
-                schedule(() -> {
-                    reapplyQueued.set(false);
-                    reapplyLatest();
-                }, 0);
-            }
-        }
-
-        private synchronized void reapplyLatest() {
-            var current = latest;
-            if (current != null) {
-                lastVersion = 0;
-                publishOrRetry(current);
+                applyLatestOrRetry(true);
+            } else {
+                requestApplication(true);
             }
         }
 
         @Override
         public void run() {
-            // Do not acquire this subscription's monitor, which can be held by an active callback.
-            cancelled = true;
+            // Do not acquire the application monitor, which can be held by an active callback.
+            synchronized (workLock) {
+                cancelled = true;
+                cancelRetry();
+            }
             synchronized (BookieRackConfigurationSnapshot.this) {
                 subscribers.remove(this);
-            }
-            var scheduled = retry;
-            if (scheduled != null) {
-                scheduled.cancel(false);
             }
         }
     }

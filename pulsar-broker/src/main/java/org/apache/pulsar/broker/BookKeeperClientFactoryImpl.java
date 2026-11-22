@@ -68,6 +68,8 @@ import org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver;
 
 @CustomLog
 public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
+    private static final int DEFAULT_MIN_REGIONS_FOR_DURABILITY = 2;
+
     // Snapshots span all placement policies using the same metadata store. The factory owns these and the cleanup
     // registrations for DNS resolver resources, which BookKeeper itself does not close. Guarded by this.
     private final Map<MetadataStore, BookieRackConfigurationSnapshot> rackSnapshots = new IdentityHashMap<>();
@@ -198,7 +200,8 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
                 || policyClass == RackawareEnsemblePlacementPolicyImpl.class
                 || policyClass == RegionAwareEnsemblePlacementPolicy.class)
                 && usesPulsarRackMapping(bkConf);
-        if (!usesRackMapping && !isolated) {
+        // Without an injected store, let BookKeeper initialize from its configured metadata URI.
+        if (store == null || (!usesRackMapping && !isolated)) {
             return CompletableFuture.completedFuture(null);
         }
         var snapshot = rackSnapshot(store, readTimeoutMillis);
@@ -207,10 +210,14 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         if (!usesRackMapping || snapshot.hasLoaded()) {
             return CompletableFuture.completedFuture(null);
         }
-        boolean enforceRacks = bkConf.getEnforceMinNumRacksPerWriteQuorum();
+        // BookKeeper only reads the minimum region count when the write regions are configured.
+        boolean requireTopology = bkConf.getEnforceMinNumRacksPerWriteQuorum()
+                || (policyClass == RegionAwareEnsemblePlacementPolicy.class
+                        && bkConf.getString(REPP_REGIONS_TO_WRITE, null) != null
+                        && bkConf.getInt(REPP_MINIMUM_REGIONS_FOR_DURABILITY, DEFAULT_MIN_REGIONS_FOR_DURABILITY) > 1);
         if (!defaultClient) {
             // A namespace may create a client on demand. Its open does not wait for background metadata work.
-            return enforceRacks ? CompletableFuture.failedFuture(new IllegalStateException(
+            return requireTopology ? CompletableFuture.failedFuture(new IllegalStateException(
                     "Bookie rack configuration at " + BOOKIE_INFO_ROOT_PATH + " is not loaded yet"))
                     : CompletableFuture.completedFuture(null);
         }
@@ -222,7 +229,7 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
                     cause = new TimeoutException("Timed out after " + readTimeoutMillis
                             + " ms waiting for bookie rack configuration at " + BOOKIE_INFO_ROOT_PATH);
                 }
-                if (enforceRacks) {
+                if (requireTopology) {
                     throw new CompletionException(cause);
                 }
                 // Retain the subscribed resolver so it can apply the recovered configuration after startup.
@@ -376,7 +383,8 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
                 );
                 bkConf.setProperty(
                         REPP_MINIMUM_REGIONS_FOR_DURABILITY,
-                        conf.getProperties().getProperty(REPP_MINIMUM_REGIONS_FOR_DURABILITY, "2")
+                        conf.getProperties().getProperty(REPP_MINIMUM_REGIONS_FOR_DURABILITY,
+                                Integer.toString(DEFAULT_MIN_REGIONS_FOR_DURABILITY))
                 );
                 bkConf.setProperty(
                         REPP_ENABLE_DURABILITY_ENFORCEMENT_IN_REPLACE,

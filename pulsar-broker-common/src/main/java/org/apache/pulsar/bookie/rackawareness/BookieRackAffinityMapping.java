@@ -27,7 +27,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
@@ -156,21 +158,22 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
         } catch (MetadataException e) {
             throw new RuntimeException(METADATA_STORE_INSTANCE + " failed to initialize", e);
         }
-        var cache = store.getMetadataCache(BookiesRackConfiguration.class);
-        next.cache = cache;
-        Runnable refresh = () -> cache.get(BOOKIE_INFO_ROOT_PATH)
-                .thenAccept(racks -> next.update(racks.orElseGet(BookiesRackConfiguration::new), null))
-                .exceptionally(ex -> {
-                    log.error().exception(ex).log("Failed to update rack info");
-                    return null;
-                });
+        next.cache = store.getMetadataCache(BookiesRackConfiguration.class);
+        Runnable refresh = () -> {
+            var read = next.readLegacy();
+            read.result().thenAccept(racks -> next.updateLegacy(read.sequence(), racks)).exceptionally(ex -> {
+                log.error().exception(ex).log("Failed to update rack info");
+                return null;
+            });
+        };
         next.unregister = store.registerCancellableListener(notification -> {
             if (BOOKIE_INFO_ROOT_PATH.equals(notification.getPath())) {
                 refresh.run();
             }
         });
         try {
-            next.update(cache.get(BOOKIE_INFO_ROOT_PATH).get().orElseGet(BookiesRackConfiguration::new), null);
+            var read = next.readLegacy();
+            next.updateLegacy(read.sequence(), read.result().get());
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new RuntimeException(e);
@@ -258,14 +261,35 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
     private record RackMapping(Map<String, String> byAddress, Set<BookieId> bookies) {
     }
 
+    private record LegacyRead(long sequence, CompletableFuture<Optional<BookiesRackConfiguration>> result) {
+    }
+
     // Each configuration owns its callbacks. Retiring it also fences reads already in flight.
     private final class ConfigurationBinding {
+        private final Object legacyReadLock = new Object();
+        private long legacyReadSequence;
+        private long appliedLegacyRead;
         private boolean shared;
         private VersionedConfiguration applied;
         private final AtomicBoolean closed = new AtomicBoolean();
         private Runnable unregister;
         private Runnable unwatch;
         private MetadataCache<BookiesRackConfiguration> cache;
+
+        private LegacyRead readLegacy() {
+            // Order read initiation without waiting for metadata or acquiring the application monitor.
+            synchronized (legacyReadLock) {
+                return new LegacyRead(++legacyReadSequence, cache.get(BOOKIE_INFO_ROOT_PATH));
+            }
+        }
+
+        private synchronized void updateLegacy(long sequence, Optional<BookiesRackConfiguration> racks) {
+            if (sequence < appliedLegacyRead) {
+                return;
+            }
+            update(racks.orElseGet(BookiesRackConfiguration::new), null);
+            appliedLegacyRead = sequence;
+        }
 
         private void updateShared(VersionedConfiguration configuration) {
             update(configuration.configuration(), configuration);
