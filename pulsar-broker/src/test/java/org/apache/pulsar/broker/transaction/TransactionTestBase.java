@@ -31,12 +31,18 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.intercept.CounterBrokerInterceptor;
+import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.api.ClientBuilder;
+import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.ConsumerImpl;
+import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -228,6 +234,31 @@ public abstract class TransactionTestBase extends TestRetrySupport {
     protected void deleteNamespaceWithRetry(String ns, boolean force, PulsarAdmin admin)
             throws Exception {
         MockedPulsarServiceBaseTest.deleteNamespaceWithRetry(ns, force, admin);
+    }
+
+    /**
+     * Asserts that the consumer receives no more messages. A message can only reach the consumer while the broker
+     * has one left to dispatch: one waiting to be redelivered, or an entry that the subscription's cursor has not read
+     * yet, up to the position the transaction buffer lets it read. This waits until the broker has none left on any
+     * topic of the consumer, so a short receive is enough to check that none is still on its way.
+     */
+    protected void assertNoMoreMessages(Consumer<?> consumer) throws Exception {
+        List<String> topics = consumer instanceof MultiTopicsConsumerImpl<?> multiTopicsConsumer
+                ? multiTopicsConsumer.getConsumers().stream().map(ConsumerImpl::getTopic).toList()
+                : List.of(consumer.getTopic());
+        Awaitility.await().untilAsserted(() -> {
+            for (String topic : topics) {
+                PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0).getBrokerService()
+                        .getTopicReference(TopicName.get(topic).toString()).orElseThrow();
+                PersistentSubscription subscription = persistentTopic.getSubscription(consumer.getSubscription());
+                if (subscription.getDispatcher() instanceof AbstractPersistentDispatcherMultipleConsumers dispatcher) {
+                    Assert.assertEquals(dispatcher.getNumberOfMessagesInReplay(), 0, topic);
+                }
+                Assert.assertTrue(subscription.getCursor().getReadPosition()
+                        .compareTo(persistentTopic.getMaxReadPosition()) > 0, topic);
+            }
+        });
+        Assert.assertNull(consumer.receive(200, TimeUnit.MILLISECONDS));
     }
 
     public void checkSnapshotPublisherCount(String namespace, int expectCount) {

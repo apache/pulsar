@@ -106,10 +106,7 @@ public record AutoScaleConfig(
     public static AutoScaleConfig resolve(ServiceConfiguration conf,
                                           AutoScalePolicyOverride namespaceOverride,
                                           AutoScalePolicyOverride topicOverride) {
-        AutoScaleConfig config = brokerDefaults(conf);
-        config = applyOverride(config, namespaceOverride);
-        config = applyOverride(config, topicOverride);
-        return config.validated();
+        return resolveUnvalidated(conf, namespaceOverride, topicOverride).validated();
     }
 
     /**
@@ -121,6 +118,35 @@ public record AutoScaleConfig(
      */
     static AutoScaleConfig disabledFallback(ServiceConfiguration conf) {
         return brokerDefaults(conf).toBuilder().enabled(false).build();
+    }
+
+    static AutoScaleConfig resolveUnvalidated(ServiceConfiguration conf,
+                                               AutoScalePolicyOverride namespaceOverride,
+                                               AutoScalePolicyOverride topicOverride) {
+        return applyOverride(applyOverride(brokerDefaults(conf), namespaceOverride), topicOverride);
+    }
+
+    /** The fully populated effective policy, using the public override representation. */
+    AutoScalePolicyOverride toPolicyOverride() {
+        return AutoScalePolicyOverride.builder()
+                .enabled(enabled)
+                .maxSegments(maxSegments)
+                .minSegments(minSegments)
+                .maxDagDepth(maxDagDepth)
+                .splitCooldownSeconds(splitCooldown.toSeconds())
+                .rebucketCooldownSeconds(rebucketCooldown.toSeconds())
+                .mergeCooldownSeconds(mergeCooldown.toSeconds())
+                .mergeWindowSeconds(mergeWindow.toSeconds())
+                .splitVsRebucketMinMsgRateInThreshold(splitVsRebucketMinMsgRateIn)
+                .splitMsgRateInThreshold(splitMsgRateIn)
+                .splitBytesRateInThreshold((long) splitBytesRateIn)
+                .splitMsgRateOutThreshold(splitMsgRateOut)
+                .splitBytesRateOutThreshold((long) splitBytesRateOut)
+                .mergeMsgRateInThreshold(mergeMsgRateIn)
+                .mergeBytesRateInThreshold((long) mergeBytesRateIn)
+                .mergeMsgRateOutThreshold(mergeMsgRateOut)
+                .mergeBytesRateOutThreshold((long) mergeBytesRateOut)
+                .build();
     }
 
     private static AutoScaleConfig brokerDefaults(ServiceConfiguration conf) {

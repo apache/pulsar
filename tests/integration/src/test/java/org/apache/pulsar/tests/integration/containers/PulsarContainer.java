@@ -20,6 +20,7 @@ package org.apache.pulsar.tests.integration.containers;
 
 import static java.time.temporal.ChronoUnit.SECONDS;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import com.github.dockerjava.api.command.InspectContainerResponse;
 import com.github.dockerjava.api.model.Capability;
 import java.io.File;
 import java.io.IOException;
@@ -32,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import lombok.CustomLog;
 import lombok.Getter;
 import lombok.Setter;
@@ -40,6 +42,8 @@ import org.apache.pulsar.tests.ExtendedNettyLeakDetector;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.profiling.JonoffcpuAgent;
 import org.apache.pulsar.tests.integration.utils.DockerUtils;
+import org.rnorth.ducttape.ratelimits.RateLimiter;
+import org.rnorth.ducttape.ratelimits.RateLimiterBuilder;
 import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.HostPortWaitStrategy;
@@ -271,6 +275,34 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
 
     protected void afterStart() {}
 
+    /**
+     * A rate limiter for an HTTP wait strategy of one container. By default, all the HTTP wait strategies of the JVM
+     * share a single poll a second, such as those of the containers that start at the same time.
+     */
+    protected static RateLimiter newHttpWaitRateLimiter() {
+        return RateLimiterBuilder.newBuilder()
+                .withRate(10, TimeUnit.SECONDS)
+                .withConstantThroughput()
+                .build();
+    }
+
+    @Override
+    protected void containerIsStarting(InspectContainerResponse containerInfo) {
+        super.containerIsStarting(containerInfo);
+        if (!serviceEntryPoint.equals("bin/pulsar")) {
+            // supervisord starts the service after its first wait for requests, which lasts 1 s unless a request
+            // comes in: send one as soon as supervisord listens. Should that fail, the service starts 1 s later
+            try {
+                execInContainer("sh", "-c",
+                        "for i in $(seq 20); do supervisorctl pid > /dev/null 2>&1 && exit; sleep 0.05; done");
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } catch (Exception e) {
+                log.debug().exception(e).log("Cannot run 'supervisorctl pid'");
+            }
+        }
+    }
+
     @Override
     public void start() {
         if (httpPort > 0 && servicePort < 0) {
@@ -278,6 +310,7 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
                 .forPort(httpPort)
                 .forStatusCode(200)
                 .forPath(httpPath)
+                .withRateLimiter(newHttpWaitRateLimiter())
                 .withStartupTimeout(Duration.of(300, SECONDS));
         } else if (httpPort > 0 || servicePort > 0) {
             this.waitStrategy = new HostPortWaitStrategy()

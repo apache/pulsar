@@ -104,7 +104,16 @@ public class PulsarTopicCompactionService implements TopicCompactionService {
 
     @Override
     public CompletableFuture<Position> getLastCompactedPosition() {
-        return CompletableFuture.completedFuture(compactedTopic.getCompactionHorizon().orElse(null));
+        CompletableFuture<CompactedTopicContext> context;
+        Position horizon;
+        synchronized (compactedTopic) {
+            context = compactedTopic.getCompactedTopicContextFuture();
+            horizon = compactedTopic.getCompactionHorizon().orElse(null);
+        }
+        // A missing compacted ledger is not the same as a topic that has never been compacted.
+        // Propagate open failures even if the reader's position is already beyond the horizon:
+        // retention may have advanced it past data that now exists only in the compacted ledger.
+        return context == null ? CompletableFuture.completedFuture(null) : context.thenApply(ignored -> horizon);
     }
 
     @Override
@@ -156,7 +165,7 @@ public class PulsarTopicCompactionService implements TopicCompactionService {
                     SingleMessageMetadata singleMessageMetadata = new SingleMessageMetadata();
                     int batchIndex = -1;
                     for (int i = 0; i < batchSize; i++){
-                        final var singleMessagePayload = Commands.deSerializeSingleMessageInBatch(payload,
+                        final var singleMessagePayload = Commands.deSerializeSingleMessageInBatch(uncompressedPayload,
                                 singleMessageMetadata, i, batchSize);
                         singleMessagePayload.release();
                         if (singleMessageMetadata.isCompactedOut()){

@@ -202,6 +202,33 @@ func (c *FunctionContext) RecordMetric(metricName string, metricValue float64) {
 	v.(prometheus.Observer).Observe(metricValue)
 }
 
+// GetMetricsRegistry returns the Prometheus registry that backs the function's
+// metrics endpoint, so a function can register additional collectors (counters,
+// gauges, histograms, ...) that are then exposed on the same endpoint alongside
+// the SDK's own metrics.
+//
+// Every metric registered through it carries the same tenant, namespace, name,
+// instance_id, cluster and fqfn labels as the SDK's metrics, so the series of
+// different function instances stay distinct when a worker aggregates their
+// endpoints. Collectors must not define labels with those names themselves.
+//
+// The registry is shared by the whole process, so register each collector once
+// (e.g. with sync.Once) rather than on every invocation: registering it again
+// returns a prometheus.AlreadyRegisteredError. Metric names prefixed with
+// "pulsar_function_" are reserved for SDK metrics. A collector whose
+// fully-qualified name collides with an already-registered metric fails to
+// register: Register returns an error, while MustRegister panics.
+func (c *FunctionContext) GetMetricsRegistry() prometheus.Registerer {
+	return prometheus.WrapRegistererWith(prometheus.Labels{
+		"tenant":      c.GetFuncTenant(),
+		"namespace":   c.GetTenantAndNamespace(),
+		"name":        c.GetFuncName(),
+		"instance_id": c.GetFuncID(),
+		"cluster":     c.GetClusterName(),
+		"fqfn":        c.GetTenantAndNamespaceAndName(),
+	}, reg)
+}
+
 // An unexported type to be used as the key for types in this package. This
 // prevents collisions with keys defined in other packages.
 type key struct{}

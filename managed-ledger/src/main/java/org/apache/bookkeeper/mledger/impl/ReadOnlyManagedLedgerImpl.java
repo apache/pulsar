@@ -19,6 +19,7 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import com.google.common.collect.Range;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import lombok.CustomLog;
@@ -83,14 +84,20 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
                             .withOrderingKey(name)
                             .execute()
                             .thenAccept(readHandle -> {
-                                readHandle.readLastAddConfirmedAsync().thenAccept(lastAddConfirmed -> {
+                                CompletableFuture<Long> lacRead;
+                                try {
+                                    lacRead = Objects.requireNonNull(readHandle.readLastAddConfirmedAsync());
+                                } catch (RuntimeException | Error error) {
+                                    closeReadHandleAsync(readHandle, log);
+                                    throw error;
+                                }
+                                lacRead.thenAccept(lastAddConfirmed -> {
                                     LedgerInfo info = new LedgerInfo().setLedgerId(lastLedgerId)
                                             .setEntries(lastAddConfirmed + 1).setSize(readHandle.getLength())
                                             .setTimestamp(clock.millis());
                                     ledgers.put(lastLedgerId, info);
-
-                                    future.complete(null);
-                                }).exceptionally(ex -> {
+                                }).whenComplete((ignored, error) -> closeReadHandleAsync(readHandle, log))
+                                        .thenRun(() -> future.complete(null)).exceptionally(ex -> {
                                     if (ex instanceof CompletionException
                                             && ex.getCause() instanceof IllegalArgumentException) {
                                         // The last ledger was empty, so we cannot read the last add confirmed.
@@ -132,10 +139,10 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
             }
         });
 
-        return future;
+        return future.thenRun(this::initializeLastConfirmedEntry);
     }
 
-    public ReadOnlyCursor createReadOnlyCursor(Position startPosition) {
+    private void initializeLastConfirmedEntry() {
         if (ledgers.isEmpty()) {
             lastConfirmedEntry = PositionFactory.EARLIEST;
         } else if (ledgers.lastEntry().getValue().getEntries() > 0) {
@@ -152,14 +159,18 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
                 lastConfirmedEntry = PositionFactory.EARLIEST;
             }
         }
+    }
 
+    public ReadOnlyCursor createReadOnlyCursor(Position startPosition) {
+        initializeLastConfirmedEntry();
         return new ReadOnlyCursorImpl(bookKeeper, this, startPosition, "read-only-cursor");
     }
 
     @Override
-    public void asyncReadEntry(Position position, AsyncCallbacks.ReadEntryCallback callback, Object ctx) {
+    void asyncReadEntry(Position position, int expectedReadCount, AsyncCallbacks.ReadEntryCallback callback,
+                        Object ctx) {
             this.getLedgerHandle(position.getLedgerId())
-                    .thenAccept((ledger) -> asyncReadEntry(ledger, position, callback, ctx))
+                    .thenAccept((ledger) -> asyncReadEntry(ledger, position, expectedReadCount, callback, ctx))
                     .exceptionally((ex) -> {
                         log.error().attr("ledgerName", this.name)
                                 .attr("position", position)

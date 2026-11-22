@@ -21,18 +21,25 @@ package org.apache.pulsar.testclient;
 import static org.apache.pulsar.testclient.PerfClientUtils.LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.RateLimiter;
 import io.github.merlimat.slog.Logger;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import org.HdrHistogram.Histogram;
 import org.HdrHistogram.HistogramLogWriter;
 import org.HdrHistogram.Recorder;
@@ -92,6 +99,16 @@ public abstract class PerformanceConsumerBase<ClientT, ConsumerT, MessageT, TxnT
     private RateLimiter limiter;
     private long testEndTime;
     private Thread mainThread;
+    private final AtomicBoolean done = new AtomicBoolean();
+
+    /**
+     * Guards the open transaction. Acknowledging under it, and the rollover that follows its last
+     * acknowledgement, hold the read lock; ending it when the run stops takes the write lock, so that
+     * the end cannot overtake an acknowledgement that is being issued under the transaction.
+     */
+    private final ReadWriteLock transactionLock = new ReentrantReadWriteLock();
+    /** Ends of the transactions ended so far that may still be in flight; see {@link #reportDone()}. */
+    private final Queue<CompletableFuture<Void>> pendingTxnEnds = new ConcurrentLinkedQueue<>();
 
     /** The parsed {@code consume} command line. */
     protected final PerformanceConsumer arguments;
@@ -226,6 +243,7 @@ public abstract class PerformanceConsumerBase<ClientT, ConsumerT, MessageT, TxnT
 
         if (arguments.isEnableTransaction) {
             this.transactionRef = new AtomicReference<>(openFirstTransaction(client));
+            totalNumTxnOpenSuccess.increment();
         } else {
             this.transactionRef = new AtomicReference<>(null);
         }
@@ -340,9 +358,7 @@ public abstract class PerformanceConsumerBase<ClientT, ConsumerT, MessageT, TxnT
 
             if (arguments.testTime > 0) {
                 if (now > testEndTime) {
-                    log.info("------------------- DONE -----------------------");
-                    PerfClientUtils.exit(0);
-                    mainThread.interrupt();
+                    reportDone();
                 }
             }
         }
@@ -354,30 +370,69 @@ public abstract class PerformanceConsumerBase<ClientT, ConsumerT, MessageT, TxnT
     }
 
     /**
-     * Termination conditions that do not depend on having just received a message. With
-     * asynchronous transaction commits the final commit can land after the last available message is
-     * consumed, so the transaction count must be re-checked on idle receives too; otherwise the
-     * consumer waits forever for a message that will never arrive.
+     * Termination conditions that do not depend on having just received a message: the test
+     * duration, which must also end a run whose topic has gone quiet, and a run that has already been
+     * reported done, possibly by another handler.
      *
      * @return whether the run is done and the caller should stop consuming
      */
     protected final boolean checkDone() {
-        if (arguments.testTime > 0 && System.nanoTime() > testEndTime) {
-            reportDone();
+        if (done.get()) {
             return true;
         }
-        if (arguments.totalNumTxn > 0
-                && totalEndTxnOpFailNum.sum() + totalEndTxnOpSuccessNum.sum() >= arguments.totalNumTxn) {
+        if (arguments.testTime > 0 && System.nanoTime() > testEndTime) {
             reportDone();
             return true;
         }
         return false;
     }
 
+    /**
+     * Report the run done, once. With transactions, the transaction the run stops in is ended first,
+     * and the ends of all of them are awaited: the exit ends the process, and where it does not (in
+     * tests), {@link #run()} then closes the clients, either of which would cut them off.
+     */
     private void reportDone() {
+        if (!done.compareAndSet(false, true)) {
+            return;
+        }
+        if (arguments.isEnableTransaction) {
+            endTransactions();
+        }
         log.info("------------------- DONE -----------------------");
         PerfClientUtils.exit(0);
         mainThread.interrupt();
+    }
+
+    /**
+     * End the transaction the run stops in, if any, and wait for the ends of all the transactions the
+     * run has ended. Taking the write lock lets the acknowledgements being issued under that
+     * transaction go first. Both waits are bounded by {@code --txn-timeout}, and an interrupt ends them.
+     */
+    private void endTransactions() {
+        Lock endLock = transactionLock.writeLock();
+        try {
+            if (endLock.tryLock(arguments.transactionTimeout, TimeUnit.SECONDS)) {
+                try {
+                    TxnT transaction = transactionRef.getAndSet(null);
+                    if (transaction != null) {
+                        pendingTxnEnds.add(endTransaction(transaction));
+                    }
+                } finally {
+                    endLock.unlock();
+                }
+            } else {
+                log.warn()
+                        .attr("timeoutSeconds", arguments.transactionTimeout)
+                        .log("Gave up ending the open transaction: acknowledgements under it are still in flight");
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        // Wake the handlers waiting for the permits of a transaction that will not be opened. Each
+        // hands the permit on when it finds the run over.
+        messageReceiveLimiter.release();
+        PerfClientUtils.awaitTransactionEnds(log, pendingTxnEnds, arguments.transactionTimeout);
     }
 
     /**
@@ -417,24 +472,54 @@ public abstract class PerformanceConsumerBase<ClientT, ConsumerT, MessageT, TxnT
         }
 
         if (arguments.isEnableTransaction) {
-            try {
-                messageReceiveLimiter.acquire();
-            } catch (InterruptedException e) {
-                log.error().exception(e).log("Got error");
-                Thread.currentThread().interrupt();
-            }
-            acknowledge(consumer, msg, transactionRef.get());
-        } else {
-            acknowledge(consumer, msg, null);
+            return acknowledgeInTransaction(consumer, msg);
         }
-
+        acknowledge(consumer, msg, null);
         releaseMessage(msg);
-
-        if (arguments.isEnableTransaction
-                && messageAckedCount.incrementAndGet() == arguments.numMessagesPerTransaction) {
-            endAndReopenTransaction();
-        }
         return false;
+    }
+
+    /**
+     * Acknowledge a message under the open transaction, and roll the transaction over once it holds
+     * {@code -nmt} acknowledgements.
+     *
+     * @return whether the run is done and the caller should stop consuming
+     */
+    private boolean acknowledgeInTransaction(ConsumerT consumer, MessageT msg) {
+        try {
+            messageReceiveLimiter.acquire();
+        } catch (InterruptedException e) {
+            // The consumers are being stopped. Without a permit the acknowledgement has no place in
+            // the transaction, so leave the message unacknowledged.
+            Thread.currentThread().interrupt();
+            releaseMessage(msg);
+            return true;
+        }
+        boolean lastTransactionEnded = false;
+        Lock ackLock = transactionLock.readLock();
+        ackLock.lock();
+        try {
+            TxnT transaction = transactionRef.get();
+            if (transaction == null) {
+                // The run is over and has ended its transactions. Hand the permit on to the next
+                // handler waiting for one.
+                messageReceiveLimiter.release();
+                releaseMessage(msg);
+                return true;
+            }
+            acknowledge(consumer, msg, transaction);
+            releaseMessage(msg);
+            if (messageAckedCount.incrementAndGet() == arguments.numMessagesPerTransaction) {
+                lastTransactionEnded = endAndReopenTransaction();
+            }
+        } finally {
+            ackLock.unlock();
+        }
+        if (lastTransactionEnded) {
+            // Only once the read lock is released: ending the run takes the write lock.
+            reportDone();
+        }
+        return lastTransactionEnded;
     }
 
     /** Count a successful acknowledgement. Called by {@link #acknowledge}. */
@@ -453,12 +538,51 @@ public abstract class PerformanceConsumerBase<ClientT, ConsumerT, MessageT, TxnT
         totalMessageAckFailed.increment();
     }
 
-    /** End the in-flight transaction according to {@code -abort} and open its replacement. */
-    private void endAndReopenTransaction() {
-        final TxnT transaction = transactionRef.get();
+    /**
+     * End the open transaction according to {@code -abort} and open its replacement, unless it was
+     * the last of {@code -ntxn}. Runs with the read lock held, once every acknowledgement under the
+     * transaction has been issued; the other handlers wait for the replacement's permits meanwhile.
+     *
+     * @return whether that was the last transaction of {@code -ntxn}, which ends the run
+     */
+    private boolean endAndReopenTransaction() {
+        // Cleared until the replacement opens, so that a run that stops meanwhile does not end this
+        // transaction a second time.
+        TxnT transaction = transactionRef.getAndSet(null);
+        pendingTxnEnds.removeIf(CompletableFuture::isDone);
+        pendingTxnEnds.add(endTransaction(transaction));
+        if (arguments.totalNumTxn > 0 && totalNumTxnOpenSuccess.sum() >= arguments.totalNumTxn) {
+            // Another transaction would never be used, and would only time out on the broker.
+            return true;
+        }
+        while (!Thread.currentThread().isInterrupted() && !done.get()) {
+            try {
+                TxnT newTransaction = newTransaction(client);
+                transactionRef.set(newTransaction);
+                totalNumTxnOpenSuccess.increment();
+                messageAckedCount.set(0);
+                messageReceiveLimiter.release(arguments.numMessagesPerTransaction);
+                break;
+            } catch (Exception e) {
+                if (PerfClientUtils.hasInterruptedException(e)) {
+                    Thread.currentThread().interrupt();
+                } else {
+                    log.error().exception(e).log("Failed to new transaction with exception");
+                    totalNumTxnOpenFail.increment();
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Commit or abort the transaction according to {@code -abort}, counting the outcome. The returned
+     * stage completes, normally, once the outcome is counted.
+     */
+    private CompletableFuture<Void> endTransaction(TxnT transaction) {
         final boolean abort = arguments.isAbortTransaction;
         CompletableFuture<Void> endFuture = abort ? abortTransaction(transaction) : commitTransaction(transaction);
-        endFuture.thenRun(() -> {
+        return endFuture.thenRun(() -> {
             log.debug().log(abort ? "Abort transaction" : "Commit transaction");
             totalEndTxnOpSuccessNum.increment();
             numTxnOpSuccess.increment();
@@ -473,24 +597,18 @@ public abstract class PerformanceConsumerBase<ClientT, ConsumerT, MessageT, TxnT
             totalEndTxnOpFailNum.increment();
             return null;
         });
+    }
 
-        while (!Thread.currentThread().isInterrupted()) {
-            try {
-                TxnT newTransaction = newTransaction(client);
-                transactionRef.compareAndSet(transaction, newTransaction);
-                totalNumTxnOpenSuccess.increment();
-                messageAckedCount.set(0);
-                messageReceiveLimiter.release(arguments.numMessagesPerTransaction);
-                break;
-            } catch (Exception e) {
-                if (PerfClientUtils.hasInterruptedException(e)) {
-                    Thread.currentThread().interrupt();
-                } else {
-                    log.error().exception(e).log("Failed to new transaction with exception");
-                    totalNumTxnOpenFail.increment();
-                }
-            }
-        }
+    /** The count the summary reports as "transaction open successfully". */
+    @VisibleForTesting
+    long getTransactionsOpenedSuccessfully() {
+        return totalNumTxnOpenSuccess.sum();
+    }
+
+    /** The count the summary reports as "transaction end successfully". */
+    @VisibleForTesting
+    long getTransactionsEndedSuccessfully() {
+        return totalEndTxnOpSuccessNum.sum();
     }
 
     private void printAggregatedThroughput(long start) {

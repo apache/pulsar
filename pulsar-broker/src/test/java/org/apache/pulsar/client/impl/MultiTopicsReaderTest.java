@@ -94,6 +94,22 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test(timeOut = 30000)
+    public void testReaderAutoUpdatePartitionsDisabled() throws Exception {
+        String topic = "persistent://my-property/my-ns/reader-no-auto-update" + UUID.randomUUID();
+        admin.topics().createPartitionedTopic(topic, 2);
+
+        @Cleanup
+        Reader<byte[]> reader = pulsarClient.newReader()
+                .topic(topic)
+                .startMessageId(MessageId.earliest)
+                .autoUpdatePartitions(false)
+                .create();
+
+        assertNull(((MultiTopicsReaderImpl<byte[]>) reader).getMultiTopicsConsumer()
+                .getPartitionsAutoUpdateTimeout());
+    }
+
+    @Test(timeOut = 30000)
     public void testReadMessageWithoutBatching() throws Exception {
         String topic = "persistent://my-property/my-ns/my-reader-topic" + UUID.randomUUID();
         admin.topics().createPartitionedTopic(topic, 3);

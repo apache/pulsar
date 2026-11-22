@@ -88,17 +88,26 @@ public class WebSocketService implements Closeable {
     }
 
     public WebSocketService(ClusterData localCluster, ServiceConfiguration config) {
+        this(localCluster, config, null);
+    }
+
+    /**
+     * @param pulsarResources resources to share, such as the broker's, so that no configuration metadata store is
+     *                        opened by this service; {@code null} to open one in {@link #start()}
+     */
+    public WebSocketService(ClusterData localCluster, ServiceConfiguration config, PulsarResources pulsarResources) {
         this.config = config;
         this.executor = Executors
                 .newScheduledThreadPool(config.getWebSocketNumServiceThreads(),
                         new DefaultThreadFactory("pulsar-websocket"));
         this.localCluster = localCluster;
+        this.pulsarResources = pulsarResources;
         this.proxyStats = new ProxyStats(this);
     }
 
     public void start() throws PulsarServerException, PulsarClientException, MalformedURLException, ServletException {
 
-        if (isNotBlank(config.getConfigurationMetadataStoreUrl())) {
+        if (pulsarResources == null && isNotBlank(config.getConfigurationMetadataStoreUrl())) {
             try {
                 configMetadataStore = createConfigMetadataStore(config.getConfigurationMetadataStoreUrl(),
                         (int) config.getMetadataStoreSessionTimeoutMillis(),

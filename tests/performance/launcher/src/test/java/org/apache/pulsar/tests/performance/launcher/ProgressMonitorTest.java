@@ -59,7 +59,7 @@ public class ProgressMonitorTest {
         assertThat(lines[0]).contains("warmup round 1/1", "Produced: 1,000 msg of 4,000 (25%)", "pending: 7",
                 "Latency: mean: 2.000 ms");
         assertThat(lines[1]).contains("Received: 1,000 msg of 8,000 (12%)",
-                "backlog: 1,500 msg (max per application: 1,000)", "finished applications: 1/2", "med: 10.0",
+                "backlog: 1,500 entries (max per application: 1,000)", "finished applications: 1/2", "med: 10.0",
                 "Max: 20.0");
     }
 
@@ -85,8 +85,8 @@ public class ProgressMonitorTest {
         assertThat(lines).hasSize(3);
         assertThat(lines[1]).contains("Received: 1,000 msg of 8,000 (12%)", "Max: 10.0").doesNotContain("duplicates");
         assertThat(lines[2]).contains("Replicated, received in the remote cluster: 600 msg of 16,000",
-                "backlog: 8,265 msg (max per application: 2,100)",
-                "replication backlog: 2,345 msg", "finished applications: 1/4", "duplicates: 3", "Max: 90.0");
+                "backlog: 8,265 entries (max per application: 2,100)",
+                "replication backlog: 2,345 entries", "finished applications: 1/4", "duplicates: 3", "Max: 90.0");
     }
 
     @Test
@@ -101,8 +101,8 @@ public class ProgressMonitorTest {
             monitor.report();
         }
         assertThat(output.toString(StandardCharsets.UTF_8))
-                .contains("backlog: 0 msg (max per application: 0, sampled 30 s ago)",
-                        "replication backlog: 400 msg (sampled 20 s ago)");
+                .contains("backlog: 0 entries (max per application: 0, sampled 30 s ago)",
+                        "replication backlog: 400 entries (sampled 20 s ago)");
     }
 
     @Test
@@ -115,7 +115,7 @@ public class ProgressMonitorTest {
             monitor.report();
         }
         assertThat(output.toString(StandardCharsets.UTF_8))
-                .contains("backlog: 1,241 msg (max per application: 73, sampled 30 s ago)");
+                .contains("backlog: 1,241 entries (max per application: 73, sampled 30 s ago)");
     }
 
     @Test

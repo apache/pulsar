@@ -24,10 +24,15 @@ import com.google.common.annotations.VisibleForTesting;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelException;
+import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.group.ChannelGroup;
+import io.netty.channel.group.DefaultChannelGroup;
+import io.netty.channel.socket.SocketChannel;
 import io.netty.resolver.AddressResolver;
 import io.netty.util.concurrent.Future;
+import io.netty.util.concurrent.GlobalEventExecutor;
 import io.netty.util.concurrent.ScheduledFuture;
 import io.opentelemetry.api.common.Attributes;
 import java.net.InetSocketAddress;
@@ -44,6 +49,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
@@ -70,6 +76,16 @@ public class ConnectionPool implements AutoCloseable {
     public static final int IDLE_DETECTION_INTERVAL_SECONDS_MIN = 15;
 
     protected final ConcurrentMap<Key, CompletableFuture<ClientCnx>> pool;
+
+    // Every channel the pool has opened, including connections still being established or in the Pulsar handshake,
+    // which the pool only holds as pending futures. Closed channels leave the group, and a channel added after close()
+    // is closed right away.
+    private final ChannelGroup channels = new DefaultChannelGroup(GlobalEventExecutor.INSTANCE, true);
+
+    // Set by close(), after which getConnection() fails. The client shuts down its event loop after closing the pool,
+    // and once that loop has terminated a new connection would never complete: the address resolver completes its
+    // future through a task on the loop, which the loop rejects, and Netty drops the notification.
+    private volatile boolean closed;
 
     private final Bootstrap bootstrap;
     private final PulsarChannelInitializer channelInitializerHandler;
@@ -149,7 +165,16 @@ public class ConnectionPool implements AutoCloseable {
         try {
             channelInitializerHandler = new PulsarChannelInitializer(conf, clientCnxSupplier,
                     scheduledExecutorService);
-            bootstrap.handler(channelInitializerHandler);
+            bootstrap.handler(new ChannelInitializer<SocketChannel>() {
+                @Override
+                protected void initChannel(SocketChannel ch) {
+                    ch.pipeline().addLast(channelInitializerHandler);
+                    // Added on the channel's event loop as it registers the channel, so that a channel added after
+                    // close() is closed while the loop still runs. The caller of bootstrap.register() can resume
+                    // after the loop has terminated, when the loop would reject the close.
+                    channels.add(ch);
+                }
+            });
         } catch (Exception e) {
             log.error("Failed to create channel initializer");
             throw new PulsarClientException(e);
@@ -269,10 +294,15 @@ public class ConnectionPool implements AutoCloseable {
      *            the address to use as the broker tag
      * @param physicalAddress
      *            the real address where the TCP connection should be made
-     * @return a future that will produce the ClientCnx object
+     * @return a future that will produce the ClientCnx object, failed with
+     *         {@link PulsarClientException.AlreadyClosedException} once the pool is closed
      */
     public CompletableFuture<ClientCnx> getConnection(InetSocketAddress logicalAddress,
             InetSocketAddress physicalAddress, final int randomKey) {
+        if (closed) {
+            return FutureUtil.failedFuture(
+                    new PulsarClientException.AlreadyClosedException("Connection pool already closed"));
+        }
         if (maxConnectionsPerHosts == 0) {
             // Disable pooling
             return createConnection(new Key(logicalAddress, physicalAddress, -1));
@@ -349,13 +379,21 @@ public class ConnectionPool implements AutoCloseable {
             });
         }).exceptionally(exception -> {
             connectionsTcpFailureCounter.increment();
-            eventLoopGroup.execute(() -> {
-                log.warn().attr("physicalAddress", key.physicalAddress)
-                        .exceptionMessage(exception)
-                        .log("Failed to open connection to");
-                pool.remove(key, cnxFuture);
+            log.warn().attr("physicalAddress", key.physicalAddress)
+                    .exceptionMessage(exception)
+                    .log("Failed to open connection to");
+            try {
+                // Not on this thread: a connect that fails right away gets here inside the pool.computeIfAbsent()
+                // that is adding the connection, where removing it would be a recursive update
+                eventLoopGroup.execute(() -> {
+                    pool.remove(key, cnxFuture);
+                    cnxFuture.completeExceptionally(new PulsarClientException(exception));
+                });
+            } catch (RejectedExecutionException e) {
+                // The event loop has terminated, as when the client shuts down. Fail the future here, but leave it
+                // in the pool for the same reason: getConnection() drops a failed future it finds there.
                 cnxFuture.completeExceptionally(new PulsarClientException(exception));
-            });
+            }
             return null;
         });
 
@@ -478,7 +516,10 @@ public class ConnectionPool implements AutoCloseable {
 
     @Override
     public void close() throws Exception {
+        closed = true;
         closeAllConnections();
+        // Also closes the connections that closeAllConnections() can only close once they are established
+        channels.close();
         if (shouldCloseDnsResolver) {
             addressResolver.close();
         }

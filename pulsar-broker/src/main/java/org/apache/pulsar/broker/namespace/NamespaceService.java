@@ -30,7 +30,7 @@ import com.google.common.hash.Hashing;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.DoubleHistogram;
-import io.prometheus.client.Counter;
+import io.prometheus.metrics.core.metrics.Counter;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -46,6 +46,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
@@ -64,11 +65,11 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
-import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.manager.RedirectManagerForLoadManagerMigration;
 import org.apache.pulsar.broker.lookup.LookupResult;
 import org.apache.pulsar.broker.resources.NamespaceResources;
+import org.apache.pulsar.broker.service.BrokerServiceException.MetadataSessionLostException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
@@ -88,6 +89,7 @@ import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.common.lookup.GetTopicsResult;
 import org.apache.pulsar.common.lookup.data.LookupData;
 import org.apache.pulsar.common.naming.BundleSplitOption;
+import org.apache.pulsar.common.naming.FlowOrQpsEquallyDivideBundleSplitAlgorithm;
 import org.apache.pulsar.common.naming.FlowOrQpsEquallyDivideBundleSplitOption;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
@@ -167,14 +169,18 @@ public class NamespaceService implements AutoCloseable {
             .put(PULSAR_LOOKUP_RESPONSE_ATTRIBUTE, "failure")
             .build();
 
+    // Nothing exports exemplars, so the counters skip the sampling that 1.x counters do by default.
     @PulsarDeprecatedMetric(newMetricName = LOOKUP_REQUEST_DURATION_METRIC_NAME)
-    private static final Counter lookupRedirects = Counter.build("pulsar_broker_lookup_redirects", "-").register();
+    private static final Counter lookupRedirects = Counter.builder()
+            .name("pulsar_broker_lookup_redirects").help("-").withoutExemplars().register();
 
     @PulsarDeprecatedMetric(newMetricName = LOOKUP_REQUEST_DURATION_METRIC_NAME)
-    private static final Counter lookupFailures = Counter.build("pulsar_broker_lookup_failures", "-").register();
+    private static final Counter lookupFailures = Counter.builder()
+            .name("pulsar_broker_lookup_failures").help("-").withoutExemplars().register();
 
     @PulsarDeprecatedMetric(newMetricName = LOOKUP_REQUEST_DURATION_METRIC_NAME)
-    private static final Counter lookupAnswers = Counter.build("pulsar_broker_lookup_answers", "-").register();
+    private static final Counter lookupAnswers = Counter.builder()
+            .name("pulsar_broker_lookup_answers").help("-").withoutExemplars().register();
 
     @PulsarDeprecatedMetric(newMetricName = LOOKUP_REQUEST_DURATION_METRIC_NAME)
     private static final Summary lookupLatency = Summary.build("pulsar_broker_lookup", "-")
@@ -284,6 +290,23 @@ public class NamespaceService implements AutoCloseable {
     public Optional<NamespaceBundle> getBundleIfPresent(TopicName topicName) {
         Optional<NamespaceBundles> bundles = bundleFactory.getBundlesIfPresent(topicName.getNamespaceObject());
         return bundles.map(b -> b.findBundle(topicName));
+    }
+
+    /**
+     * Stops serving the bundle of a topic whose ledger another broker fenced after this broker lost its metadata
+     * session, which shows that the other broker took the bundle over. See
+     * {@link OwnershipCache#handleOwnershipTakenOver(TopicName)}. The extensible load manager tracks the ownerships
+     * in its own service unit state channel, which this doesn't apply to.
+     */
+    public void handleOwnershipTakenOver(TopicName topicName) {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
+            return;
+        }
+        ownershipCache.handleOwnershipTakenOver(topicName).exceptionally(e -> {
+            log.warn().attr("topic", topicName).exception(e)
+                    .log("Failed to stop serving the bundle that another broker took over");
+            return null;
+        });
     }
 
     public NamespaceBundle getBundle(TopicName topicName) {
@@ -484,7 +507,9 @@ public class NamespaceService implements AutoCloseable {
         }
         LookupRequestKey lookupRequestKey = LookupRequestKey.from(bundle, options);
 
-        return targetMap.computeIfAbsent(lookupRequestKey, (k) -> {
+        AtomicBoolean started = new AtomicBoolean();
+        CompletableFuture<Optional<LookupResult>> lookup = targetMap.computeIfAbsent(lookupRequestKey, (k) -> {
+            started.set(true);
             CompletableFuture<Optional<LookupResult>> future = new CompletableFuture<>();
 
             // First check if we or someone else already owns the bundle
@@ -508,10 +533,16 @@ public class NamespaceService implements AutoCloseable {
                     resolveBrokerServiceLookupResult(options, nsData.get(), future);
                 }
             }).exceptionally(exception -> {
-                log.warn()
-                        .attr("bundle", bundle)
-                        .exception(exception)
-                        .log("Failed to check owner for bundle");
+                if (FutureUtil.unwrapCompletionException(exception) instanceof MetadataSessionLostException) {
+                    // the client retries the lookup
+                    log.debug().attr("bundle", bundle).exceptionMessage(exception)
+                            .log("Failed to check owner for bundle");
+                } else {
+                    log.warn()
+                            .attr("bundle", bundle)
+                            .exception(exception)
+                            .log("Failed to check owner for bundle");
+                }
                 future.completeExceptionally(exception);
                 return null;
             });
@@ -522,6 +553,15 @@ public class NamespaceService implements AutoCloseable {
 
             return future;
         });
+        if (!started.get() && !lookup.isDone() && pulsar.isMetadataSessionLost()) {
+            // Another lookup of the bundle is still in progress while the session is lost: it may be waiting for the
+            // metadata store, such as for acquiring the bundle, which this can't tell from a lookup that is only
+            // choosing a broker to redirect to. Fail rather than risk waiting behind it: the client looks the topic
+            // up again, possibly at another broker.
+            return FutureUtil.failedFuture(new MetadataSessionLostException("Namespace bundle " + bundle
+                    + " is being looked up while this broker's metadata session is lost"));
+        }
+        return lookup;
     }
 
     /**
@@ -675,13 +715,7 @@ public class NamespaceService implements AutoCloseable {
 
     // The decentralized decision is authoritative: this broker picked the owner itself.
     private CompletableFuture<Optional<CandidateBrokerSelection>> selectLeastLoadedBroker(NamespaceBundle bundle) {
-        Optional<String> availableBroker;
-        try {
-            availableBroker = getLeastLoadedFromLoadManager(bundle);
-        } catch (Exception e) {
-            return CompletableFuture.failedFuture(e);
-        }
-        return CompletableFuture.completedFuture(
+        return getLeastLoadedFromLoadManager(bundle).thenApply(availableBroker ->
                 availableBroker.map(broker -> new CandidateBrokerSelection(broker, true)));
     }
 
@@ -711,10 +745,18 @@ public class NamespaceService implements AutoCloseable {
                         resolveBrokerServiceLookupResult(options, ownerInfo, lookupFuture);
                     }
                 }).exceptionally(exception -> {
-                    log.warn()
-                            .attr("bundle", bundle)
-                            .exceptionMessage(exception)
-                            .log("Failed to acquire ownership for namespace bundle");
+                    if (FutureUtil.unwrapCompletionException(exception) instanceof MetadataSessionLostException) {
+                        // the client retries the lookup
+                        log.debug()
+                                .attr("bundle", bundle)
+                                .exceptionMessage(exception)
+                                .log("Failed to acquire ownership for namespace bundle");
+                    } else {
+                        log.warn()
+                                .attr("bundle", bundle)
+                                .exceptionMessage(exception)
+                                .log("Failed to acquire ownership for namespace bundle");
+                    }
                     lookupFuture.completeExceptionally(new PulsarServerException(
                             "Failed to acquire ownership for namespace bundle " + bundle, exception));
                     return null;
@@ -796,21 +838,21 @@ public class NamespaceService implements AutoCloseable {
      *
      * @param serviceUnit the service unit
      * @return the least loaded brokerId
-     * @throws Exception if an error occurs
      */
-    private Optional<String> getLeastLoadedFromLoadManager(ServiceUnitId serviceUnit) throws Exception {
-        Optional<ResourceUnit> leastLoadedBroker = loadManager.get().getLeastLoaded(serviceUnit);
-        if (leastLoadedBroker.isEmpty()) {
-            log.warn().attr("serviceUnit", serviceUnit).log("No broker is available");
-            return Optional.empty();
-        }
+    private CompletableFuture<Optional<String>> getLeastLoadedFromLoadManager(ServiceUnitId serviceUnit) {
+        return loadManager.get().getLeastLoadedAsync(serviceUnit).thenApply(leastLoadedBroker -> {
+            if (leastLoadedBroker.isEmpty()) {
+                log.warn().attr("serviceUnit", serviceUnit).log("No broker is available");
+                return Optional.empty();
+            }
 
-        String leastLoadedBrokerId = leastLoadedBroker.get().getResourceId();
-        log.debug()
-                .attr("brokerId", pulsar.getBrokerId())
-                .attr("leastLoadedBrokerId", leastLoadedBrokerId)
-                .log("redirecting to the least loaded broker");
-        return Optional.of(leastLoadedBrokerId);
+            String leastLoadedBrokerId = leastLoadedBroker.get().getResourceId();
+            log.debug()
+                    .attr("brokerId", pulsar.getBrokerId())
+                    .attr("leastLoadedBrokerId", leastLoadedBrokerId)
+                    .log("redirecting to the least loaded broker");
+            return Optional.of(leastLoadedBrokerId);
+        });
     }
 
     public CompletableFuture<Void> unloadNamespaceBundle(NamespaceBundle bundle) {
@@ -981,7 +1023,7 @@ public class NamespaceService implements AutoCloseable {
                                        CompletableFuture<Void> completionFuture,
                                        NamespaceBundleSplitAlgorithm splitAlgorithm,
                                        List<Long> boundaries) {
-        BundleSplitOption bundleSplitOption = getBundleSplitOption(bundle, boundaries, config);
+        BundleSplitOption bundleSplitOption = getBundleSplitOption(bundle, boundaries, config, splitAlgorithm);
 
         splitAlgorithm.getSplitBoundary(bundleSplitOption).whenComplete((splitBoundaries, ex) -> {
             CompletableFuture<List<NamespaceBundle>> updateFuture = new CompletableFuture<>();
@@ -1180,16 +1222,16 @@ public class NamespaceService implements AutoCloseable {
 
     public CompletableFuture<List<Long>> getSplitBoundary(
             NamespaceBundle bundle, List<Long> boundaries, NamespaceBundleSplitAlgorithm nsBundleSplitAlgorithm) {
-        BundleSplitOption bundleSplitOption = getBundleSplitOption(bundle, boundaries, config);
+        BundleSplitOption bundleSplitOption = getBundleSplitOption(bundle, boundaries, config, nsBundleSplitAlgorithm);
         return nsBundleSplitAlgorithm.getSplitBoundary(bundleSplitOption);
     }
 
     private BundleSplitOption getBundleSplitOption(NamespaceBundle bundle,
                                                    List<Long> boundaries,
-                                                   ServiceConfiguration config) {
+                                                   ServiceConfiguration config,
+                                                   NamespaceBundleSplitAlgorithm splitAlgorithm) {
         BundleSplitOption bundleSplitOption;
-        if (config.getDefaultNamespaceBundleSplitAlgorithm()
-                .equals(NamespaceBundleSplitAlgorithm.FLOW_OR_QPS_EQUALLY_DIVIDE)) {
+        if (splitAlgorithm instanceof FlowOrQpsEquallyDivideBundleSplitAlgorithm) {
             Map<String, TopicStatsImpl> topicStatsMap =  pulsar.getBrokerService().getTopicStats(bundle);
             bundleSplitOption = new FlowOrQpsEquallyDivideBundleSplitOption(this, bundle, boundaries,
                     topicStatsMap,
@@ -1989,5 +2031,6 @@ public class NamespaceService implements AutoCloseable {
                         .log("Error shutting down namespace client for cluster");
             }
         });
+        bundleFactory.close();
     }
 }

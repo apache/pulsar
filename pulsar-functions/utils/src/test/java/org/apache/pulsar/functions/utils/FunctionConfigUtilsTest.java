@@ -46,6 +46,7 @@ import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.CryptoConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.MemoryLimit;
 import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.functions.WindowConfig;
@@ -62,6 +63,7 @@ import org.apache.pulsar.functions.proto.RetryDetails;
 import org.apache.pulsar.functions.proto.SinkSpec;
 import org.apache.pulsar.functions.proto.SourceSpec;
 import org.apache.pulsar.functions.proto.SubscriptionType;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
@@ -137,6 +139,65 @@ public class FunctionConfigUtilsTest {
                 new Gson().toJson(functionConfig),
                 new Gson().toJson(convertedConfig)
         );
+    }
+
+    @DataProvider(name = "pulsarClientMemoryLimit")
+    public Object[][] pulsarClientMemoryLimit() {
+        return new Object[][] {
+                {new MemoryLimit().setLimitInBytes(1024L)},
+                {new MemoryLimit().setPercentOfMaxDirectMemory(25.0)},
+                {new MemoryLimit().setLimitInBytes(1024L).setPercentOfMaxDirectMemory(25.0)},
+        };
+    }
+
+    @Test(dataProvider = "pulsarClientMemoryLimit")
+    public void testConvertPulsarClientMemoryLimit(MemoryLimit memoryLimit) {
+        FunctionConfig functionConfig = createFunctionConfig();
+        functionConfig.setPulsarClientMemoryLimit(memoryLimit);
+
+        FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig);
+        assertEquals(FunctionConfigUtils.convertFromDetails(functionDetails).getPulsarClientMemoryLimit(),
+                memoryLimit);
+    }
+
+    @Test
+    public void testConvertWithoutPulsarClientMemoryLimit() {
+        FunctionDetails functionDetails = FunctionConfigUtils.convert(createFunctionConfig());
+        assertFalse(functionDetails.hasPulsarClientMemoryLimit());
+        assertNull(FunctionConfigUtils.convertFromDetails(functionDetails).getPulsarClientMemoryLimit());
+    }
+
+    @DataProvider(name = "invalidPulsarClientMemoryLimit")
+    public Object[][] invalidPulsarClientMemoryLimit() {
+        return new Object[][] {
+                {new MemoryLimit().setLimitInBytes(0L)},
+                {new MemoryLimit().setLimitInBytes(-1L)},
+                {new MemoryLimit().setPercentOfMaxDirectMemory(0.0)},
+                {new MemoryLimit().setPercentOfMaxDirectMemory(100.1)},
+        };
+    }
+
+    @Test(dataProvider = "invalidPulsarClientMemoryLimit", expectedExceptions = IllegalArgumentException.class,
+            expectedExceptionsMessageRegExp = "Pulsar client memory limit .*")
+    public void testValidateInvalidPulsarClientMemoryLimit(MemoryLimit memoryLimit) {
+        FunctionConfig functionConfig = createFunctionConfig();
+        functionConfig.setPulsarClientMemoryLimit(memoryLimit);
+        FunctionConfigUtils.doCommonChecks(functionConfig);
+    }
+
+    @Test
+    public void testMergePulsarClientMemoryLimit() {
+        FunctionConfig functionConfig = createFunctionConfig();
+        functionConfig.setPulsarClientMemoryLimit(new MemoryLimit().setLimitInBytes(1024L));
+
+        // an update without a limit keeps the existing one
+        FunctionConfig mergedConfig = FunctionConfigUtils.validateUpdate(functionConfig, createFunctionConfig());
+        assertEquals(mergedConfig.getPulsarClientMemoryLimit(), new MemoryLimit().setLimitInBytes(1024L));
+
+        FunctionConfig newFunctionConfig = createFunctionConfig();
+        newFunctionConfig.setPulsarClientMemoryLimit(new MemoryLimit().setPercentOfMaxDirectMemory(25.0));
+        mergedConfig = FunctionConfigUtils.validateUpdate(functionConfig, newFunctionConfig);
+        assertEquals(mergedConfig.getPulsarClientMemoryLimit(), new MemoryLimit().setPercentOfMaxDirectMemory(25.0));
     }
 
     @SuppressWarnings("deprecation")

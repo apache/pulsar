@@ -18,9 +18,12 @@
  */
 package org.apache.pulsar.broker.service.scalable;
 
+import io.opentelemetry.api.OpenTelemetry;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.CustomLog;
@@ -29,6 +32,7 @@ import org.apache.pulsar.broker.resources.ScalableTopicMetadata;
 import org.apache.pulsar.broker.resources.ScalableTopicResources;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.GetStatsOptions;
+import org.apache.pulsar.broker.service.TransportCnx;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.api.proto.ScalableConsumerType;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -67,6 +71,7 @@ public class ScalableTopicService {
     private final BrokerService brokerService;
     private final ScalableTopicResources resources;
     private final CoordinationService coordinationService;
+    private final ScalableTopicControllerMetrics metrics;
 
     /**
      * Active controllers for topics this broker coordinates. The value is a future so
@@ -82,15 +87,69 @@ public class ScalableTopicService {
         this.brokerService = brokerService;
         this.resources = resources;
         this.coordinationService = coordinationService;
+        this.metrics = createControllerMetrics();
     }
+
+    private ScalableTopicControllerMetrics createControllerMetrics() {
+        try {
+            var pulsar = brokerService.getPulsar();
+            var telemetry = pulsar.getOpenTelemetry();
+            var config = pulsar.getConfiguration();
+            return new ScalableTopicControllerMetrics(telemetry != null ? telemetry.getMeter()
+                    : OpenTelemetry.noop().getMeter(ScalableTopicService.class.getName()),
+                    config != null ? Objects.toString(config.getClusterName(), "") : "", this::metricCounts);
+        } catch (RuntimeException e) {
+            log.warn().exceptionMessage(e)
+                    .log("Failed to initialize scalable-topic controller metrics; continuing without them");
+            return ScalableTopicControllerMetrics.NOOP;
+        }
+    }
+
+    private ScalableTopicControllerMetrics.Counts metricCounts() {
+        long leaders = 0;
+        long active = 0;
+        long sealed = 0;
+        for (CompletableFuture<ScalableTopicController> future : controllers.values()) {
+            if (!future.isDone() || future.isCompletedExceptionally()) {
+                continue;
+            }
+            ScalableTopicControllerMetrics.Counts counts = future.join().metricCounts();
+            leaders += counts.controllers();
+            active += counts.active();
+            sealed += counts.sealed();
+        }
+        return new ScalableTopicControllerMetrics.Counts(leaders, active, sealed);
+    }
+
+    private volatile ScalableTopicConsumerMetrics consumerMetrics;
 
     // --- Lifecycle ---
 
-    public void start() {
+    public synchronized void start() {
+        if (consumerMetrics != null) {
+            return;
+        }
+        try {
+            consumerMetrics = new ScalableTopicConsumerMetrics(
+                    brokerService.getPulsar().getOpenTelemetry().getMeter(), PrometheusRegistry.defaultRegistry,
+                    brokerService.getPulsar().getConfiguration().getClusterName(), this::consumerStats);
+        } catch (RuntimeException e) {
+            log.warn().exceptionMessage(e)
+                    .log("Failed to initialize scalable-topic consumer metrics; continuing without them");
+        }
         log.info("ScalableTopicService started");
     }
 
+    /** Release only this service's instruments, without changing controller or metadata-store lifecycles. */
+    public void closeMetrics() {
+        if (consumerMetrics != null) {
+            consumerMetrics.close();
+        }
+        metrics.close();
+    }
+
     public void close() {
+        closeMetrics();
         log.info().attr("controllerCount", controllers.size())
                 .log("Closing ScalableTopicService, releasing controllers");
         List<CompletableFuture<Void>> closeFutures = controllers.values().stream()
@@ -103,6 +162,21 @@ public class ScalableTopicService {
                 .toList();
         FutureUtil.waitForAll(closeFutures).join();
         controllers.clear();
+    }
+
+    SubscriptionCoordinator.ConsumerStats consumerStats() {
+        SubscriptionCoordinator.ConsumerStats stats = SubscriptionCoordinator.ConsumerStats.EMPTY;
+        for (CompletableFuture<ScalableTopicController> future : controllers.values()) {
+            // Collection never waits for controller initialization or a failed takeover.
+            if (!future.isDone() || future.isCompletedExceptionally()) {
+                continue;
+            }
+            ScalableTopicController controller = future.getNow(null);
+            if (controller != null) {
+                stats = stats.plus(controller.consumerStats());
+            }
+        }
+        return stats;
     }
 
     // --- Controller management ---
@@ -128,6 +202,10 @@ public class ScalableTopicService {
     private CompletableFuture<ScalableTopicController> newController(String key, TopicName topic) {
         ScalableTopicController controller = new ScalableTopicController(
                 topic, resources, brokerService, coordinationService);
+        controller.setMetrics(metrics);
+        if (consumerMetrics != null) {
+            controller.setRebalanceListener(consumerMetrics::recordRebalance);
+        }
         CompletableFuture<ScalableTopicController> future = new CompletableFuture<>();
         // Released once its topic is deleted: the admin delete stops the controller on the
         // broker serving it, not the ones other brokers hold for the topic. Closed before it is
@@ -187,6 +265,20 @@ public class ScalableTopicService {
     // --- Admin operations ---
 
     /**
+     * Rejects a scalable topic name ending with {@code -partition-<index>}. {@link TopicName} parses that
+     * suffix as a partition index in every domain, so the topic's {@code segment://} topics would be resolved
+     * as partitions of a partitioned topic that does not exist, and they could never be created.
+     *
+     * @throws IllegalArgumentException if the name ends with {@code -partition-<index>}
+     */
+    public static void validateScalableTopicName(TopicName topic) {
+        if (topic.isPartitioned()) {
+            throw new IllegalArgumentException("Scalable topic name must not end with '"
+                    + TopicName.PARTITIONED_TOPIC_SUFFIX + "<index>': " + topic);
+        }
+    }
+
+    /**
      * Create a new scalable topic with the given number of initial segments.
      */
     public CompletableFuture<Void> createScalableTopic(TopicName topic, int numInitialSegments) {
@@ -202,6 +294,11 @@ public class ScalableTopicService {
         if (numInitialSegments < 1) {
             return CompletableFuture.failedFuture(
                     new IllegalArgumentException("numInitialSegments must be >= 1"));
+        }
+        try {
+            validateScalableTopicName(topic);
+        } catch (IllegalArgumentException e) {
+            return CompletableFuture.failedFuture(e);
         }
 
         ScalableTopicMetadata metadata = ScalableTopicController.createInitialMetadata(
@@ -219,8 +316,9 @@ public class ScalableTopicService {
         // (re)materialized on demand the first time a client connects to it — see the
         // active-segment reconciliation in BrokerService.isAllowAutoTopicCreationAsync — so
         // eager materialization here is a happy-path latency optimization, not a correctness
-        // requirement.
-        return resources.createScalableTopicAsync(topic, metadata)
+        // requirement. The creation lock keeps it from interleaving with a migration of the
+        // regular topic of the same name (see ScalableTopicResources#runWithCreationLock).
+        return resources.runWithCreationLock(topic, __ -> resources.createScalableTopicAsync(topic, metadata))
                 .thenCompose(__ -> {
                     List<CompletableFuture<Void>> segmentFutures =
                             metadata.getSegments().values().stream()
@@ -364,13 +462,15 @@ public class ScalableTopicService {
 
     /**
      * Called when a scalable consumer's transport connection drops. Forwards to the
-     * controller which marks the session disconnected and starts its grace timer.
+     * controller which marks the session disconnected and starts its grace timer, unless the
+     * consumer is attached to another connection than {@code cnx}, the one that dropped.
      * No-op if the controller is not held locally.
      */
-    public void onConsumerDisconnect(TopicName topic, String subscription, String consumerName) {
+    public void onConsumerDisconnect(TopicName topic, String subscription, String consumerName,
+                                     TransportCnx cnx) {
         CompletableFuture<ScalableTopicController> future = controllers.get(topic.toString());
         if (future != null) {
-            future.thenAccept(c -> c.onConsumerDisconnect(subscription, consumerName))
+            future.thenAccept(c -> c.onConsumerDisconnect(subscription, consumerName, cnx))
                     .exceptionally(ex -> null);
         }
     }

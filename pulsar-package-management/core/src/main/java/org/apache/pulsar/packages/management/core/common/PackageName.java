@@ -25,10 +25,10 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.net.UrlEscapers;
+import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 
 /**
  * A package name has five parts, type, tenant, namespace, package-name, and version.
@@ -49,7 +49,7 @@ public class PackageName {
     private static final LoadingCache<String, PackageName> cache =
         CacheBuilder.newBuilder()
             .maximumSize(100000)
-            .expireAfterAccess(30, TimeUnit.MINUTES)
+            .expireAfterAccess(Duration.ofMinutes(30))
             .build(new CacheLoader<String, PackageName>() {
                 @Override
                 public PackageName load(String name) throws Exception {

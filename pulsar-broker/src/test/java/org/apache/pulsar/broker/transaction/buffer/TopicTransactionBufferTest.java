@@ -180,6 +180,9 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
                 .newTopic(Mockito.eq(topic), Mockito.any(), Mockito.eq(brokerService),
                         Mockito.eq(PersistentTopic.class));
 
+        // createPersistentTopic0 runs after the ownership check of the topic's load, which this test skips: its
+        // check right before opening the managed ledger finds the topic's bundle owned
+        Mockito.doReturn(CompletableFuture.completedFuture(null)).when(brokerService).checkTopicNsOwnership(topic);
         brokerService.createPersistentTopic0(new TopicLoadingContext(TopicName.get(topic), true,
                 new CompletableFuture<>(), Mockito.mock(PulsarStats.class)));
 
@@ -223,7 +226,8 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
         Assert.assertTrue(buffer instanceof TopicTransactionBuffer);
         TopicTransactionBuffer ttb = (TopicTransactionBuffer) buffer;
         TopicTransactionBufferState.State expectState = TopicTransactionBufferState.State.Close;
-        Assert.assertEquals(ttb.getState(), expectState);
+        // The broker closes the topic, whose load timed out, once its initialization after newTopic completes
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(ttb.getState(), expectState));
         Assert.assertTrue(f.isCompletedExceptionally());
     }
 

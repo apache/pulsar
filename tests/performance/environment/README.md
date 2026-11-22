@@ -234,3 +234,42 @@ scripts/docker-cleanup.sh
 
 It doesn't need root when your user is in the `docker` group. Set `DOCKER_ORGANIZATION` when the images were built
 with `-Pdocker.organization`.
+
+## Disassembling the JIT's code
+
+`-XX:+PrintAssembly` and JMH's `-prof perfasm` profiler need hsdis, a disassembler plugin that JDKs don't ship, since
+it links GPL-licensed binutils. `scripts/compile-and-install-hsdis.sh` builds it for the Amazon Corretto JDK that
+`java` runs and installs it into that JDK. It assumes a Corretto JDK installed with [SDKMAN!](https://sdkman.io/),
+whose JDKs are in your home directory, so that the script can install hsdis into the JDK without root. `sdk l java`
+lists the JDKs; pick one of the Corretto JDKs, whose identifiers end in `-amzn`, such as the latest LTS release:
+
+```sh
+sdk i java 25.0.4-amzn
+scripts/compile-and-install-hsdis.sh
+```
+
+It reads the Corretto version from `java -version`, such as `25.0.4.8.1`, checks out that tag of
+`https://github.com/corretto/corretto-<major>`, builds hsdis against the binutils sources with the JDK as the boot
+JDK, installs `hsdis-<arch>.so` into the JDK's `lib/server` directory and checks that the JVM loads it. It needs
+Corretto 19 or later, about 2 GB of space, and the build tools and zlib headers, which
+`sudo apt install build-essential autoconf zip unzip curl git zlib1g-dev` installs on Debian and Ubuntu. The build
+runs in a new directory under `$TMPDIR` or `/tmp`, which it removes after a successful build. Build again after
+updating the JDK. `BINUTILS_VERSION`, `HSDIS_BUILD_DIR` and `HSDIS_INSTALL_DIR` change the binutils release, the
+build directory, which is then kept, and the install directory.
+
+JMH's `-prof perfasm` also needs Linux `perf`, which samples the JIT's code. On Ubuntu, install it for the running
+kernel; the `perf` wrapper of `linux-tools-common` runs the binary of the running kernel's package:
+
+```sh
+sudo apt install linux-tools-common linux-tools-generic "linux-tools-$(uname -r)"
+perf --version
+```
+
+On Pop!_OS, those packages have no `perf` binary; `sudo apt install linux-perf` installs it. Install the tools again
+after a kernel update. `perf` needs `kernel.perf_event_paranoid` of 1 or less to sample without root, which
+`scripts/configure-perf-test-environment.sh start` sets; Ubuntu's default, 4, denies it. Then add `-prof perfasm` to
+a benchmark of [the JMH microbenchmarks](../../../microbench/README.md):
+
+```sh
+java -jar microbench/build/libs/microbench-*-benchmarks.jar ".*BenchmarkName.*" -prof perfasm
+```

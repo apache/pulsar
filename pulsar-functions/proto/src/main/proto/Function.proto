@@ -106,6 +106,15 @@ message FunctionDetails {
     bool retainKeyOrdering = 22;
     SubscriptionPosition subscriptionPosition = 23;
     ClientApi clientApi = 24;
+    MemoryLimit pulsarClientMemoryLimit = 25;
+}
+
+// Memory limit of the Pulsar client used by a function instance. A 0 value means unset.
+message MemoryLimit {
+    // The max memory in bytes the Pulsar client can use
+    int64 limitInBytes = 1;
+    // The max memory the Pulsar client can use, as a percentage of the JVM max direct memory
+    double percentOfMaxDirectMemory = 2;
 }
 
 message ConsumerSpec {

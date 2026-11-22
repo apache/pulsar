@@ -25,6 +25,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
+import java.util.concurrent.atomic.AtomicLong;
 import org.mockito.Mockito;
 import org.testng.annotations.Test;
 
@@ -310,6 +311,48 @@ public class BackoffTest {
         }
         assertTrue(sawBelow, "expected at least one jittered value below base, min=" + min);
         assertTrue(sawAbove, "expected at least one jittered value above base, max=" + max);
+    }
+
+    @Test
+    public void jitterKeepsTheRetriesByTheMandatoryStop() {
+        // A producer's reconnection backoff: its retries must come by the mandatory stop, sendTimeout - 100 ms after
+        // the first next() call, so that one comes before the messages pending at the disconnection time out.
+        AtomicLong nowMillis = new AtomicLong();
+        Clock mockClock = Mockito.mock(Clock.class);
+        Mockito.when(mockClock.instant()).thenAnswer(invocation -> Instant.ofEpochMilli(nowMillis.get()));
+
+        Backoff backoff = Backoff.builder()
+                .initialDelay(Duration.ofMillis(100))
+                .maxBackoff(Duration.ofSeconds(60))
+                .mandatoryStop(Duration.ofMillis(29_900))
+                .clock(mockClock)
+                .build();
+
+        int atTheStop = 0;
+        for (int i = 0; i < 1000; i++) {
+            backoff.reset();
+            nowMillis.set(0);
+            for (int j = 0; j < 7; j++) {
+                backoff.next(); // 100 ms to 6.4 s
+            }
+
+            // The 12.8 s delay, 13.2 s before the stop: an upward jitter of up to 5 % could take its retry past it
+            nowMillis.set(16_700);
+            long retryMillis = nowMillis.get() + backoff.next().toMillis();
+            assertFalse(backoff.isMandatoryStopMade());
+            assertTrue(retryMillis <= 29_900, "a retry came at " + retryMillis + " ms, past the stop");
+
+            // The 25.6 s delay, truncated to the 4.4 s left to the stop
+            nowMillis.set(25_500);
+            retryMillis = nowMillis.get() + backoff.next().toMillis();
+            assertTrue(backoff.isMandatoryStopMade());
+            assertTrue(retryMillis <= 29_900, "the mandatory stop's retry came at " + retryMillis + " ms, past it");
+            if (retryMillis == 29_900) {
+                atTheStop++;
+            }
+        }
+        // The jitter still spreads the mandatory stop's retries before it, rather than piling them up at it
+        assertTrue(atTheStop < 100, atTheStop + " of 1000 mandatory stop retries came right at the stop");
     }
 
     @Test

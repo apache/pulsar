@@ -25,19 +25,16 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.CustomLog;
-import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -45,29 +42,30 @@ import org.testng.annotations.Test;
 
 @CustomLog
 @Test(groups = "broker-admin")
-public class AdminApiMaxUnackedMessagesTest extends MockedPulsarServiceBaseTest {
+public class AdminApiMaxUnackedMessagesTest extends SharedPulsarBaseTest {
+
+    private int brokerMaxUnackedMessagesPerConsumer;
+
+    @Override
+    protected boolean checkClientHandlesClosed() {
+        return true;
+    }
 
     @BeforeMethod
-    @Override
-    public void setup() throws Exception {
-        super.internalSetup();
-
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
-        TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
-        admin.tenants().createTenant("max-unacked-messages", tenantInfo);
+    public void saveConfiguration() {
+        brokerMaxUnackedMessagesPerConsumer = getConfig().getMaxUnackedMessagesPerConsumer();
     }
 
     @AfterMethod(alwaysRun = true)
-    @Override
-    public void cleanup() throws Exception {
-        super.internalCleanup();
+    public void restoreConfiguration() {
+        // the shared broker reads it when a topic loads, so it applies only to this class's topics
+        getConfig().setMaxUnackedMessagesPerConsumer(brokerMaxUnackedMessagesPerConsumer);
     }
 
     @Test(timeOut = 30000)
     public void testNamespacePolicy() throws Exception {
-        pulsar.getConfiguration().setMaxUnackedMessagesPerConsumer(3);
-        admin.namespaces().createNamespace("max-unacked-messages/policy-on-consumers");
-        final String namespace = "max-unacked-messages/policy-on-consumers";
+        getConfig().setMaxUnackedMessagesPerConsumer(3);
+        final String namespace = getNamespace();
         final String topic = "persistent://" + namespace + "/testNamespacePolicy";
 
         @Cleanup
@@ -80,7 +78,7 @@ public class AdminApiMaxUnackedMessagesTest extends MockedPulsarServiceBaseTest 
         //set namespace-level policy
         admin.namespaces().setMaxUnackedMessagesPerConsumer(namespace, 1);
         PersistentTopic persistentTopic =
-                (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topic).get().get();
+                (PersistentTopic) getTopicIfExists(topic).get().get();
         org.apache.pulsar.broker.service.Consumer serverConsumer =
                 persistentTopic.getSubscription("sub").getConsumers().get(0);
         Awaitility.await().untilAsserted(() ->
@@ -109,8 +107,7 @@ public class AdminApiMaxUnackedMessagesTest extends MockedPulsarServiceBaseTest 
 
     @Test
     public void testMaxUnackedMessagesOnConsumers() throws Exception {
-        admin.namespaces().createNamespace("max-unacked-messages/default-on-consumers");
-        String namespace = "max-unacked-messages/default-on-consumers";
+        String namespace = getNamespace();
         assertNull(admin.namespaces().getMaxUnackedMessagesPerConsumer(namespace));
         admin.namespaces().setMaxUnackedMessagesPerConsumer(namespace, 2 * 50000);
         assertEquals(2 * 50000, admin.namespaces().getMaxUnackedMessagesPerConsumer(namespace).intValue());
@@ -118,8 +115,7 @@ public class AdminApiMaxUnackedMessagesTest extends MockedPulsarServiceBaseTest 
 
     @Test
     public void testMaxUnackedMessagesOnSubscription() throws Exception {
-        admin.namespaces().createNamespace("max-unacked-messages/default-on-subscription");
-        String namespace = "max-unacked-messages/default-on-subscription";
+        String namespace = getNamespace();
         assertNull(admin.namespaces().getMaxUnackedMessagesPerSubscription(namespace));
         admin.namespaces().setMaxUnackedMessagesPerSubscription(namespace, 2 * 200000);
         Awaitility.await().untilAsserted(()
@@ -137,12 +133,10 @@ public class AdminApiMaxUnackedMessagesTest extends MockedPulsarServiceBaseTest 
         int brokerLevelPolicy = 3;
         int namespaceLevelPolicy = 2;
         int topicLevelPolicy = 1;
-        cleanup();
-        conf.setMaxUnackedMessagesPerConsumer(brokerLevelPolicy);
-        setup();
-        final String namespace = "max-unacked-messages/priority-on-consumers";
+        // the topic created below takes this broker-level value when it loads
+        getConfig().setMaxUnackedMessagesPerConsumer(brokerLevelPolicy);
+        final String namespace = getNamespace();
         final String topic = "persistent://" + namespace + "/testMaxUnackedMessagesPerConsumerPriority";
-        admin.namespaces().createNamespace(namespace);
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
         for (int i = 0; i < 50; i++) {
@@ -164,8 +158,7 @@ public class AdminApiMaxUnackedMessagesTest extends MockedPulsarServiceBaseTest 
                 .subscriptionType(SubscriptionType.Shared)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscriptionName("sub").topic(topic).receiverQueueSize(1).subscribe();
-        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
-                .getTopicIfExists(topic).get().get();
+        PersistentTopic persistentTopic = (PersistentTopic) getTopicIfExists(topic).get().get();
         org.apache.pulsar.broker.service.Consumer serverConsumer =
                 persistentTopic.getSubscription("sub").getConsumers().get(0);
         assertEquals(serverConsumer.getMaxUnackedMessages(), topicLevelPolicy);

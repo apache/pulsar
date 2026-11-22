@@ -44,6 +44,11 @@ import org.apache.pulsar.common.protocol.Commands;
 @CustomLog
 public final class EntryImpl extends AbstractCASReferenceCounted
         implements ReferenceCountedEntry, Comparable<EntryImpl> {
+    /**
+     * The expected read count of an entry that isn't cached and has no read count handler.
+     */
+    public static final int NO_EXPECTED_READ_COUNT = -1;
+
 
     private static final Recycler<EntryImpl> RECYCLER = new Recycler<EntryImpl>() {
         @Override
@@ -116,7 +121,7 @@ public final class EntryImpl extends AbstractCASReferenceCounted
 
     @VisibleForTesting
     public static EntryImpl create(long ledgerId, long entryId, byte[] data) {
-        return create(ledgerId, entryId, data, 0);
+        return create(ledgerId, entryId, data, NO_EXPECTED_READ_COUNT);
     }
 
     @VisibleForTesting
@@ -133,7 +138,7 @@ public final class EntryImpl extends AbstractCASReferenceCounted
     }
 
     public static EntryImpl create(long ledgerId, long entryId, ByteBuf data) {
-        return create(ledgerId, entryId, data, 0);
+        return create(ledgerId, entryId, data, NO_EXPECTED_READ_COUNT);
     }
 
     public static EntryImpl create(long ledgerId, long entryId, ByteBuf data, int expectedReadCount) {
@@ -344,6 +349,23 @@ public final class EntryImpl extends AbstractCASReferenceCounted
 
     public void setDecreaseReadCountOnRelease(boolean enabled) {
         decreaseReadCountOnRelease = enabled;
+    }
+
+    /**
+     * Releases an entry that is discarded without having been delivered to a reader, tolerating
+     * the null slots of a sparse batch. The discard must not count as a read on the shared
+     * expected-read count — otherwise the cached entry becomes eligible for eviction before its
+     * expected readers got to it — while the deallocation hooks still run, e.g. to return the
+     * in-flight read permits.
+     */
+    static void releaseDiscarded(Entry entry) {
+        if (entry == null) {
+            return;
+        }
+        if (entry instanceof EntryImpl entryImpl) {
+            entryImpl.setDecreaseReadCountOnRelease(false);
+        }
+        entry.release();
     }
 
     public synchronized void initializeMessageMetadataIfNeeded(String managedLedgerName) {

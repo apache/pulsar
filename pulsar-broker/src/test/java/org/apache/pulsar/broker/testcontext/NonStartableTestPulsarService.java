@@ -25,6 +25,7 @@ import io.netty.channel.EventLoopGroup;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -70,21 +71,22 @@ class NonStartableTestPulsarService extends AbstractTestPulsarService {
                                          ManagedLedgerStorage managedLedgerClientFactory,
                                          Function<BrokerService, BrokerService> brokerServiceCustomizer) {
         super(spyConfig, config, localMetadataStore, configurationMetadataStore, compactionServiceFactory,
-                brokerInterceptor, bookKeeperClientFactory, null);
+                brokerInterceptor, bookKeeperClientFactory, null, Optional.empty());
         setPulsarResources(pulsarResources);
         setManagedLedgerStorage(managedLedgerClientFactory);
         try {
-            setBrokerService(brokerServiceCustomizer.apply(
-                    spyConfig.getBrokerService().spy(TestBrokerService.class, this, getIoEventLoopGroup())));
+            setBrokerService(brokerServiceCustomizer.apply(registerCollaboratorMock(
+                    spyConfig.getBrokerService().spy(TestBrokerService.class, this, getIoEventLoopGroup()))));
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-        setSchemaRegistryService(spyWithClassAndConstructorArgs(DefaultSchemaRegistryService.class));
-        PulsarClientImpl mockClient = mock(PulsarClientImpl.class);
-        ConnectionPool connectionPool = mock(ConnectionPool.class);
+        setSchemaRegistryService(
+                registerCollaboratorMock(spyWithClassAndConstructorArgs(DefaultSchemaRegistryService.class)));
+        PulsarClientImpl mockClient = registerCollaboratorMock(mock(PulsarClientImpl.class));
+        ConnectionPool connectionPool = registerCollaboratorMock(mock(ConnectionPool.class));
         when(mockClient.getCnxPool()).thenReturn(connectionPool);
         setClient(mockClient);
-        this.namespaceService = mock(NamespaceService.class);
+        this.namespaceService = registerCollaboratorMock(mock(NamespaceService.class));
         try {
             startNamespaceService();
         } catch (PulsarServerException e) {
@@ -164,6 +166,14 @@ class NonStartableTestPulsarService extends AbstractTestPulsarService {
         @Override
         public NamespaceResources getNamespaceResources() {
             return namespaceResources;
+        }
+
+        @Override
+        public void close() {
+            super.close();
+            if (topicResources != null) {
+                topicResources.close();
+            }
         }
     }
 }

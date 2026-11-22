@@ -19,6 +19,7 @@
 package org.apache.pulsar.functions.worker;
 
 import com.google.common.annotations.VisibleForTesting;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -37,6 +38,8 @@ import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 import lombok.CustomLog;
 import lombok.Getter;
@@ -115,6 +118,17 @@ public class FunctionRuntimeManager implements AutoCloseable {
     }
 
     final FunctionRuntimeInfos functionRuntimeInfos = new FunctionRuntimeInfos();
+
+    // Deleted functions whose instances on this worker are stopped while other workers still had instances, by fully
+    // qualified function name: this worker terminates them, which deletes their subscriptions, once it reads the delete
+    // of their last instance
+    final Map<String, FunctionRuntimeInfo> stoppedDeletedFunctions = new HashMap<>();
+
+    // Deletes the subscriptions of terminated functions. The deletes retry while an instance on another worker still
+    // uses a subscription, so they run on their own thread, not on the threads that process assignments while holding
+    // this manager's lock.
+    private final ExecutorService terminatedFunctionCleanupExecutor =
+            Executors.newSingleThreadExecutor(new DefaultThreadFactory("function-terminate-cleanup", true));
 
     @Getter
     final WorkerConfig workerConfig;
@@ -844,11 +858,38 @@ public class FunctionRuntimeManager implements AutoCloseable {
                         .workerIdToAssignments);
                 if (assignments.size() > 1) {
                     this.conditionallyStopFunction(functionRuntimeInfo);
+                    // The termination deletes the function's subscriptions. The worker that reads the delete of the
+                    // last instance can't do it for all the workers: an instance that another worker still runs, or
+                    // restarts after an update, can recreate them until that worker stops it. So each worker
+                    // terminates the function once its own instances are stopped and it has read the deletes of all
+                    // the instances.
+                    Map<String, Assignment> myAssignments = workerIdToAssignments.get(workerConfig.getWorkerId());
+                    if (myAssignments == null || findFunctionAssignments(tenant, namespace, name,
+                            Collections.singletonMap(workerConfig.getWorkerId(), myAssignments)).size() <= 1) {
+                        stoppedDeletedFunctions.put(FunctionCommon.getFullyQualifiedName(tenant, namespace, name),
+                                functionRuntimeInfo);
+                    }
                 } else {
                     this.conditionallyTerminateFunction(functionRuntimeInfo);
                 }
             }
             this.functionRuntimeInfos.remove(fullyQualifiedInstanceId);
+        } else if (!stoppedDeletedFunctions.isEmpty()) {
+            FunctionInstanceId functionInstanceId = new FunctionInstanceId(fullyQualifiedInstanceId);
+            String tenant = functionInstanceId.getTenant();
+            String namespace = functionInstanceId.getNamespace();
+            String name = functionInstanceId.getName();
+            String fullyQualifiedName = FunctionCommon.getFullyQualifiedName(tenant, namespace, name);
+            FunctionRuntimeInfo stoppedFunction = stoppedDeletedFunctions.get(fullyQualifiedName);
+            if (stoppedFunction != null
+                    && findFunctionAssignments(tenant, namespace, name, workerIdToAssignments).size() <= 1) {
+                // the delete of the function's last instance
+                stoppedDeletedFunctions.remove(fullyQualifiedName);
+                // unless the function was created again since
+                if (!functionMetaDataManager.containsFunction(tenant, namespace, name)) {
+                    this.conditionallyTerminateFunction(stoppedFunction);
+                }
+            }
         }
 
         String workerId = null;
@@ -946,6 +987,8 @@ public class FunctionRuntimeManager implements AutoCloseable {
 
         stopAllOwnedFunctions();
 
+        terminatedFunctionCleanupExecutor.shutdown();
+
         if (runtimeFactory != null) {
             runtimeFactory.close();
         }
@@ -1023,6 +1066,26 @@ public class FunctionRuntimeManager implements AutoCloseable {
             workerStatsManager.startInstanceProcessTimeStart();
             this.functionActioner.terminateFunction(functionRuntimeInfo);
             workerStatsManager.startInstanceProcessTimeEnd();
+
+            FunctionActioner actioner = this.functionActioner;
+            FunctionDetails details = functionRuntimeInfo.getFunctionInstance().getFunctionMetaData()
+                    .getFunctionDetails();
+            terminatedFunctionCleanupExecutor.execute(() -> {
+                // the function's new incarnation uses the subscriptions if it was created again since
+                if (functionMetaDataManager.containsFunction(details.getTenant(), details.getNamespace(),
+                        details.getName())) {
+                    log.debug().attr("function", FunctionCommon.getFullyQualifiedName(details))
+                            .log("Skipping the cleanup of a function that was created again");
+                    return;
+                }
+                try {
+                    actioner.cleanupTerminatedFunction(details);
+                } catch (Exception e) {
+                    log.error().attr("function", FunctionCommon.getFullyQualifiedName(details))
+                            .exception(e)
+                            .log("Failed to clean up the subscriptions of a terminated function");
+                }
+            });
         }
     }
 

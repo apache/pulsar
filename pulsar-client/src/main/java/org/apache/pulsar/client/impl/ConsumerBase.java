@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.Queues;
 import io.github.merlimat.slog.Logger;
 import io.netty.util.Timeout;
@@ -41,6 +42,7 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Supplier;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.commons.lang3.RandomStringUtils;
@@ -90,7 +92,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected final ConsumerEventListener consumerEventListener;
     protected final ExecutorProvider executorProvider;
     protected final MessageListenerExecutor messageListenerExecutor;
-    protected final ExecutorService externalPinnedExecutor;
+    protected final Supplier<ExecutorService> externalPinnedExecutor;
     protected final ExecutorService internalPinnedExecutor;
     private final ListenerTaskScheduler listenerTaskScheduler;
     protected final UnAckedMessageTracker unAckedMessageTracker;
@@ -110,6 +112,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             AtomicIntegerFieldUpdater.newUpdater(ConsumerBase.class, "currentReceiverQueueSize");
     protected final Schema<T> schema;
     protected final ConsumerInterceptors<T> interceptors;
+    private final AtomicBoolean interceptorsClosed = new AtomicBoolean();
     protected final BatchReceivePolicy batchReceivePolicy;
     protected final ConcurrentLinkedQueue<OpBatchReceive<T>> pendingBatchReceives;
     @SuppressWarnings("rawtypes")
@@ -163,7 +166,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                    ? this::executeKeySharedMessageListener
                    : this::executeMessageListener)
                 : conf.getMessageListenerExecutor();
-        this.externalPinnedExecutor = executorProvider.getExecutor();
+        this.externalPinnedExecutor = Suppliers.memoize(executorProvider::getExecutor);
         this.internalPinnedExecutor = client.getInternalExecutorService();
         this.listenerTaskScheduler = listener == null
                 ? null : new ListenerTaskScheduler(internalPinnedExecutor, this::drainListener);
@@ -645,8 +648,9 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                 return FutureUtil.failedFuture(e);
             }
         }
-        messages.forEach(message -> reconsumeLaterAsync(message, delayTime, unit));
-        return CompletableFuture.completedFuture(null);
+        List<CompletableFuture<Void>> futures = new ArrayList<>(messages.size());
+        messages.forEach(message -> futures.add(reconsumeLaterAsync(message, delayTime, unit)));
+        return FutureUtil.waitForAll(futures);
     }
 
     @Override
@@ -833,6 +837,11 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     @Override
     public abstract CompletableFuture<Void> closeAsync();
 
+    /** Whether the consumer has reached a state it does not leave: closing, closed or failed. */
+    protected boolean isTerminalState() {
+        State state = getState();
+        return state == State.Closing || state == State.Closed || state == State.Failed;
+    }
 
     @Deprecated
     @Override
@@ -993,6 +1002,15 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         }
     }
 
+    /**
+     * Close the interceptors once this consumer is closed. Later calls do nothing.
+     */
+    protected void closeInterceptors() {
+        if (interceptors != null && interceptorsClosed.compareAndSet(false, true)) {
+            interceptors.close();
+        }
+    }
+
     protected boolean canEnqueueMessage(Message<T> message) {
         // Default behavior, can be overridden in subclasses
         return true;
@@ -1005,14 +1023,19 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         try {
             if (canEnqueueMessage(message)) {
                 INCOMING_MESSAGES_SIZE_UPDATER.addAndGet(this, messageSize);
+                // Reserve before the message becomes visible: a receive() takes it without incomingQueueLock and
+                // releases its size, which must not run ahead of the reservation and drop the shared usage below
+                // what the queues hold.
+                Optional<MemoryLimitController> memoryLimitController = getMemoryLimitController();
+                memoryLimitController.ifPresent(limiter -> limiter.forceReserveMemory(messageSize));
                 if (incomingMessages.offer(message)) {
                     // After we have enqueued the messages on `incomingMessages` queue, we cannot touch the message
                     // instance anymore, since for pooled messages, this instance was possibly already been released
                     // and recycled.
-                    getMemoryLimitController().ifPresent(limiter -> limiter.forceReserveMemory(messageSize));
                     updateAutoScaleReceiverQueueHint();
                 } else {
                     INCOMING_MESSAGES_SIZE_UPDATER.addAndGet(this, -messageSize);
+                    memoryLimitController.ifPresent(limiter -> limiter.releaseMemory(messageSize));
                 }
             }
         } finally {
@@ -1109,31 +1132,29 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     protected final void notifyPendingBatchReceivedCallBack(CompletableFuture<Messages<T>> batchReceiveFuture) {
         MessagesImpl<T> messages = getNewMessagesImpl();
-        Message<T> msgPeeked = incomingMessages.peek();
-        String topicName = null;
-        while (msgPeeked != null && messages.canAdd(msgPeeked)) {
-            // one batch receive request only can receive the same topic partition
-            // messages to ensure cumulative ack is not lost.
-            if (!this.batchReceivePolicy.isMessagesFromMultiTopicsEnabled()) {
-                // get the first message's `topicName` to check if
-                // the following message peeked is the same topic message.
-                if (messages.size() == 1) {
-                    topicName = messages.getMessageList().get(0).getTopicName();
-                }
-                // if the peeked message is not the same topic as the first message, return the batch receive result
-                if (topicName != null && !topicName.equals(msgPeeked.getTopicName())) {
-                    break;
-                }
-            }
-            Message<T> msg = incomingMessages.poll();
-            if (msg != null) {
-                messageProcessed(msg);
-                Message<T> interceptMsg = beforeConsume(msg);
-                messages.add(interceptMsg);
-            }
-            msgPeeked = incomingMessages.peek();
+        // The head message is checked and dequeued atomically. A message checked with peek() could be dequeued
+        // and released by a concurrent clear of the queue before poll(), and poll() could then return a different
+        // message than the one that was checked.
+        Message<T> msg;
+        while ((msg = incomingMessages.pollIf(m -> canAddToBatchReceive(messages, m))) != null) {
+            messageProcessed(msg);
+            Message<T> interceptMsg = beforeConsume(msg);
+            messages.add(interceptMsg);
         }
         completePendingBatchReceive(batchReceiveFuture, messages);
+    }
+
+    private boolean canAddToBatchReceive(MessagesImpl<T> messages, Message<T> msg) {
+        if (!messages.canAdd(msg)) {
+            return false;
+        }
+        // one batch receive request only can receive the same topic partition
+        // messages to ensure cumulative ack is not lost.
+        if (this.batchReceivePolicy.isMessagesFromMultiTopicsEnabled() || messages.size() == 0) {
+            return true;
+        }
+        String topicName = messages.getMessageList().get(0).getTopicName();
+        return topicName == null || topicName.equals(msg.getTopicName());
     }
 
     protected void completePendingBatchReceive(CompletableFuture<Messages<T>> future, Messages<T> messages) {
@@ -1359,11 +1380,6 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         }
     }
 
-    protected void resetIncomingMessageSize() {
-        long oldSize = INCOMING_MESSAGES_SIZE_UPDATER.getAndSet(this, 0);
-        getMemoryLimitController().ifPresent(limiter -> limiter.releaseMemory(oldSize));
-    }
-
     protected void decreaseIncomingMessageSize(final Message<?> message) {
         INCOMING_MESSAGES_SIZE_UPDATER.addAndGet(this, -message.size());
         getMemoryLimitController().ifPresent(limiter -> limiter.releaseMemory(message.size()));
@@ -1382,11 +1398,33 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         return incomingMessages.size();
     }
 
-    protected void clearIncomingMessages() {
-        // release messages if they are pooled messages
-        incomingMessages.forEach(Message::release);
-        incomingMessages.clear();
-        resetIncomingMessageSize();
+    /**
+     * Remove and discard all messages in the incoming queue.
+     *
+     * <p>Messages are removed one at a time, so that a message enqueued or dequeued concurrently (which is
+     * possible for Shared and Key_Shared subscriptions, where {@link #incomingQueueLock} is a no-op lock) is
+     * either discarded here or left in the queue, but never released twice, left unreleased, or left with its
+     * size unaccounted for.
+     *
+     * @return the number of discarded messages
+     */
+    protected int clearIncomingMessages() {
+        int discarded = 0;
+        Message<T> message;
+        while ((message = incomingMessages.poll()) != null) {
+            discardIncomingMessage(message);
+            discarded++;
+        }
+        return discarded;
+    }
+
+    /**
+     * Discard a message that was removed from the incoming queue without being delivered to the application:
+     * give back its size to the incoming message size and the memory limit, and release it if it is pooled.
+     */
+    protected void discardIncomingMessage(Message<?> message) {
+        decreaseIncomingMessageSize(message);
+        message.release();
     }
 
     /**
@@ -1406,8 +1444,8 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         ConsumerImpl<?> receivedConsumer = (msg instanceof TopicMessageImpl<?>)
                 ? ((TopicMessageImpl<?>) msg).receivedByconsumer : null;
         ExecutorService executor = receivedConsumer != null && receivedConsumer.externalPinnedExecutor != null
-                ? receivedConsumer.externalPinnedExecutor
-                : externalPinnedExecutor;
+                ? receivedConsumer.externalPinnedExecutor.get()
+                : externalPinnedExecutor.get();
         return executor;
     }
 

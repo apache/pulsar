@@ -31,6 +31,7 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -60,13 +61,14 @@ public final class RunReport {
     static final String LATENCY_CHART = "latency";
     static final String THROUGHPUT_CHART = "throughput";
     static final String BACKLOG_CHART = "backlog";
+    static final String REPLAY_CHART = "replay";
     static final String TEMPERATURE_CHART = "host-temperature";
     static final String FREQUENCY_CHART = "host-frequency";
     public static final String RESOLVED_CONFIG = "resolved-config.yaml";
     /** The broker's topic stats sampled during a run, one row per topic, subscription and sample. */
     public static final String TOPIC_STATS_FILE = "topic-stats.csv";
     public static final String TOPIC_STATS_HEADER =
-            "epochMillis,topic,subscription,msgBacklog,msgInCounter,msgOutCounter";
+            "epochMillis,topic,subscription,msgBacklog,msgInCounter,msgOutCounter,msgInReplay";
     /**
      * With offloading, each topic's ledgers and how many of them the brokers had offloaded, when the late applications
      * joined (phase {@code join}) and at the run's end (phase {@code end}).
@@ -339,9 +341,18 @@ public final class RunReport {
                 seconds.stream().mapToDouble(Double::doubleValue).toArray(), cut);
     }
 
-    /** The sampled topic stats of a run: one row per sample round. */
+    /**
+     * The sampled topic stats of a run: one row per sample round, by subscription summed over the topics.
+     *
+     * @param replay the entries in each subscription's replay queue, a batch counting once, empty for files sampled
+     *               before they were
+     */
     record Samples(long[] epochMillis, double[] published, Map<String, double[]> dispatched,
-                   Map<String, double[]> backlog) {
+                   Map<String, double[]> backlog, Map<String, double[]> replay) {
+        Samples(long[] epochMillis, double[] published, Map<String, double[]> dispatched,
+                Map<String, double[]> backlog) {
+            this(epochMillis, published, dispatched, backlog, Map.of());
+        }
     }
 
     private RunReport() {
@@ -373,6 +384,9 @@ public final class RunReport {
         appendProfiles(report, runDirectory, mapper);
         NetworkReport.append(report, runDirectory, mapper, measurementStart);
         appendCorrectness(report, "Correctness", run.workload(), consumers);
+        appendDeviceStates(report, run.workload(), consumers);
+        appendProcessingFailures(report, run.workload(), consumers);
+        appendScheduledDelivery(report, run.workload(), consumers);
         appendThroughput(report, producer, consumers);
         Path stats = runDirectory.resolve(TOPIC_STATS_FILE);
         Samples samples = Files.isRegularFile(stats) ? readSamples(stats) : null;
@@ -430,10 +444,15 @@ public final class RunReport {
                     + brokerEnvs.path("managedLedgerDefaultAckQuorum").asText()));
         }
         report.append(row("Gateways", workload.path("gateways").path("count").asInt() + " gateway(s) × "
-                        + workload.path("topics").path("count").asInt() + " topic(s)"))
+                        + workload.path("topics").path("count").asInt() + " topic(s)"
+                        + (workload.path("topics").path("partitions").asInt(0) > 0
+                        ? " of " + workload.path("topics").path("partitions").asInt() + " partitions" : "")))
                 .append(row("Applications", workload.path("applications").path("count").asInt() + " × "
                         + workload.path("applications").path("podsPerApplication").asInt()
-                        + " pods, " + workload.path("applications").path("subscriptionType").asText("Key_Shared")))
+                        + " pods, " + ("compactedReaders".equals(workload.path("applications").path("mode").asText())
+                        ? "compacted readers" : workload.path("applications").path("subscriptionType")
+                        .asText("Key_Shared") + ("latestState".equals(workload.path("applications").path("mode")
+                        .asText()) ? ", latest state" : ""))))
                 .append(row("Messages", String.format(Locale.ROOT, "%,d measured, %,d warmup",
                         messageCount(producer, "measurementMessages",
                                 workload.path("measurement").path("messages").asLong()),
@@ -697,6 +716,92 @@ public final class RunReport {
     }
 
     /**
+     * With processing failures: each application's failed attempts, and the messages that reached its dead letter
+     * topic, against those that fail at every attempt. Nothing without them.
+     */
+    static void appendProcessingFailures(StringBuilder report, JsonNode workload, List<JsonNode> consumers) {
+        JsonNode failures = workload.path("behaviors").path("processingFailures");
+        if (failures.path("fraction").asDouble() <= 0 && failures.path("poisonFraction").asDouble() <= 0) {
+            return;
+        }
+        report.append(String.format(Locale.ROOT, "%n## Processing failures%n%nThe applications fail the first two"
+                        + " attempts of %s of the messages, and every attempt of %s, which reach the dead letter"
+                        + " topic after %d retries, by %s with a %,d ms delay.%n%n"
+                        + "| Application | Failed attempts | Dead letters | Expected | Unexpected |%n"
+                        + "|---|---:|---:|---:|---:|%n",
+                percent(failures.path("fraction").asDouble()), percent(failures.path("poisonFraction").asDouble()),
+                failures.path("maxRedeliveries").asInt(3),
+                "retryTopic".equals(failures.path("retry").asText()) ? "the retry topic" : "negative acknowledgment",
+                failures.path("retryDelayMillis").asInt(1000)));
+        for (JsonNode consumer : consumers) {
+            report.append(String.format(Locale.ROOT, "| %s | %,d | %,d | %,d | %,d |%n",
+                    applicationName(workload, consumer.path("applicationIndex").asInt()),
+                    consumer.path("failedAttempts").asLong(), consumer.path("deadLetters").asLong(),
+                    consumer.path("expectedDeadLetters").asLong(), consumer.path("unexpectedDeadLetters").asLong()));
+        }
+    }
+
+    /**
+     * With scheduled delivery: the delays, and each application's messages that arrived earlier than their delivery
+     * time allows. Nothing without it.
+     */
+    static void appendScheduledDelivery(StringBuilder report, JsonNode workload, List<JsonNode> consumers) {
+        JsonNode scheduled = workload.path("behaviors").path("scheduledDelivery");
+        if (scheduled.path("maxDelayMillis").asInt() <= 0) {
+            return;
+        }
+        report.append(String.format(Locale.ROOT, "%n## Scheduled delivery%n%nThe gateways schedule each measured"
+                        + " message's delivery %,d to %,d ms ahead. The latency of a scheduled message is how late it"
+                        + " arrives after its delivery time. A message that arrives more than %,d ms before its time"
+                        + " counts as early.%n%n| Application | Early deliveries | Most before the time |%n"
+                        + "|---|---:|---:|%n",
+                scheduled.path("minDelayMillis").asInt(), scheduled.path("maxDelayMillis").asInt(),
+                scheduled.path("earlyToleranceMillis").asInt(1000)));
+        for (JsonNode consumer : consumers) {
+            report.append(String.format(Locale.ROOT, "| %s | %,d | %,d ms |%n",
+                    applicationName(workload, consumer.path("applicationIndex").asInt()),
+                    consumer.path("earlyDeliveries").asLong(), consumer.path("maxEarlyMillis").asLong()));
+        }
+    }
+
+    private static String percent(double fraction) {
+        return String.format(Locale.ROOT, "%.2f %%", fraction * 100);
+    }
+
+    /**
+     * For applications whose pods read the topics compacted: the devices whose last state a pod lacked at the end,
+     * and how long the restarted pods took to rebuild their state, until they received the first message published
+     * after their start. Nothing for applications that consume a subscription.
+     */
+    static void appendDeviceStates(StringBuilder report, JsonNode workload, List<JsonNode> consumers) {
+        List<JsonNode> readers = consumers.stream()
+                .filter(consumer -> "compactedReaders".equals(consumer.path("mode").asText())
+                        || "latestState".equals(consumer.path("mode").asText())).toList();
+        if (readers.isEmpty()) {
+            return;
+        }
+        report.append("\n## Device states\n\nEach application keeps each device's latest state, in each pod that"
+                + " reads the topics compacted, or over its pods that consume its subscription with mode latestState,"
+                + " where the messages that the broker expired or evicted are gaps. Unique messages counts the updates"
+                + " of the states. A restarted pod has rebuilt its state when it receives the first message published"
+                + " after its start; a pod restarted after the last one has none.\n\n"
+                + "| Application | Devices without their last state | Rebuilt pods | Start-up p50 | Start-up max |\n"
+                + "|---|---:|---:|---:|---:|\n");
+        for (JsonNode consumer : readers) {
+            List<Long> startUps = new ArrayList<>();
+            consumer.path("podStartUpMillis").forEach(millis -> startUps.add(millis.asLong()));
+            Collections.sort(startUps);
+            String median = startUps.isEmpty() ? "–"
+                    : String.format(Locale.ROOT, "%,d ms", startUps.get(startUps.size() / 2));
+            String max = startUps.isEmpty() ? "–"
+                    : String.format(Locale.ROOT, "%,d ms", startUps.get(startUps.size() - 1));
+            report.append(String.format(Locale.ROOT, "| %s | %,d | %,d | %s | %s |%n",
+                    applicationName(workload, consumer.path("applicationIndex").asInt()),
+                    consumer.path("staleDevices").asLong(), startUps.size(), median, max));
+        }
+    }
+
+    /**
      * The remote applications of a run with a remote cluster: what each received of the replicated messages, and
      * their publish-to-consume latency, which includes the replication. Nothing without them.
      */
@@ -786,7 +891,8 @@ public final class RunReport {
                 .append(" ms of its publishing; the time includes opening its pods. Its catch-up rate is the messages"
                         + " that it received until then, warmup included, per second since it joined; for an"
                         + " application that didn't catch up, it is the rate until its last message. The backlog is"
-                        + " the sampled topic stats' last sample before the application joined.");
+                        + " the sampled topic stats' last sample before the application joined, in entries, so that a"
+                        + " batch counts once.");
         boolean skipped = late.stream().anyMatch(consumer -> consumer.path("skippedMessages").asLong() > 0);
         if (skipped) {
             report.append(" Skipped are the messages that the application didn't receive: its subscription was moved"
@@ -1153,7 +1259,8 @@ public final class RunReport {
         report.append("\n## Backlog and rates\n\nSampled from the broker's topic stats once per second, or every"
                 + " topics / 100 seconds with more than 100 topics; the rates are the deltas of its message counters"
                 + " per second between samples, and a sampled maximum is not the exact peak between samples."
-                + " The rates are those of the whole seconds within the measurement (0 to ")
+                + " The backlogs are in entries, as the broker counts them: a batch counts once, however many"
+                + " messages it has. The rates are those of the whole seconds within the measurement (0 to ")
                 .append(String.format(Locale.ROOT, "%.1f", finished))
                 .append(" s), leaving out its first and last second, where the gateways start and finish. The")
                 .append(" [sampled topic stats](").append(TOPIC_STATS_FILE).append(") are a CSV file.\n\n")
@@ -1201,10 +1308,51 @@ public final class RunReport {
         List<TimeSeriesRenderer.Series> backlog = samples.backlog().entrySet().stream()
                 .map(entry -> new TimeSeriesRenderer.Series(entry.getKey(), timeline.select(entry.getValue())))
                 .toList();
-        TimeSeriesRenderer.render(runDirectory.resolve(BACKLOG_CHART), "Backlog", "Messages in the backlog",
+        TimeSeriesRenderer.render(runDirectory.resolve(BACKLOG_CHART), "Backlog", "Entries in the backlog",
                 timeline.seconds(), backlog, finished, timeline.cut(), footer);
         report.append("\n![Throughput over time](").append(THROUGHPUT_CHART).append(".svg)\n\n![Backlog over time](")
                 .append(BACKLOG_CHART).append(".svg)\n");
+        appendReplay(report, runDirectory, samples, seconds, finished, timeline, footer);
+    }
+
+    // The replay queues, of the subscriptions that had entries in replay during the measurement, such as the
+    // Key_Shared entries held back for a consumer without permits and the entries of a closed consumer. The broker
+    // counts the replay queue's positions, entries, so that a batch counts once
+    private static void appendReplay(StringBuilder report, Path runDirectory, Samples samples, double[] seconds,
+                                     double finished, ChartTimeline timeline, String footer) throws IOException {
+        StringBuilder rows = new StringBuilder();
+        List<TimeSeriesRenderer.Series> series = new ArrayList<>();
+        for (Map.Entry<String, double[]> entry : samples.replay().entrySet()) {
+            double[] window = new double[seconds.length];
+            int count = 0;
+            for (int round = 0; round < seconds.length; round++) {
+                if (seconds[round] >= 0 && seconds[round] <= finished && !Double.isNaN(entry.getValue()[round])) {
+                    window[count++] = entry.getValue()[round];
+                }
+            }
+            double[] sorted = Arrays.copyOf(window, count);
+            Arrays.sort(sorted);
+            if (count == 0 || sorted[count - 1] == 0) {
+                continue;
+            }
+            double mean = Arrays.stream(sorted).average().orElse(0);
+            rows.append(String.format(Locale.ROOT, "| `%s` | %,.0f | %,.0f | %,.0f |%n", entry.getKey(), mean,
+                    sorted[count / 2], sorted[count - 1]));
+            series.add(new TimeSeriesRenderer.Series(entry.getKey(), timeline.select(entry.getValue())));
+        }
+        if (series.isEmpty()) {
+            return;
+        }
+        TimeSeriesRenderer.render(runDirectory.resolve(REPLAY_CHART), "Replay queue", "Entries in replay",
+                timeline.seconds(), series, finished, timeline.cut(), footer);
+        report.append("\nThe entries in each subscription's replay queue, summed over its topics, sampled during the")
+                .append(" measurement: the entries that the broker holds back to dispatch again, such as a closed")
+                .append(" consumer's unacknowledged entries and, with Key_Shared, the entries of the keys whose")
+                .append(" consumer has no permits. Like the backlog, it is in entries, as is the look-ahead limit")
+                .append(" (`keySharedLookAheadMsgInReplayThresholdPerConsumer`).\n\n")
+                .append("| Subscription | Mean | Median | Sampled maximum |\n")
+                .append("|---|---:|---:|---:|\n").append(rows)
+                .append("\n![Replay queue over time](").append(REPLAY_CHART).append(".svg)\n");
     }
 
     private static void appendHost(StringBuilder report, Path runDirectory, HostSamples samples, HostSummary host,
@@ -1520,13 +1668,15 @@ public final class RunReport {
         TreeMap<Long, Map<String, Long>> inCounters = new TreeMap<>();
         TreeMap<Long, Map<List<String>, long[]>> subscriptions = new TreeMap<>();
         List<String> lines = Files.readAllLines(csv);
+        // a file sampled before the replay column existed has none
+        boolean hasReplay = !lines.isEmpty() && lines.get(0).split(",").length > 6;
         for (String line : lines.subList(1, lines.size())) {
             String[] fields = line.split(",");
             long epoch = Long.parseLong(fields[0]);
             inCounters.computeIfAbsent(epoch, e -> new LinkedHashMap<>()).put(fields[1], Long.parseLong(fields[4]));
             subscriptions.computeIfAbsent(epoch, e -> new HashMap<>())
                     .put(List.of(fields[1], fields[2]), new long[] {Long.parseLong(fields[3]),
-                            Long.parseLong(fields[5])});
+                            Long.parseLong(fields[5]), fields.length > 6 ? Long.parseLong(fields[6]) : 0});
         }
         long[] epochs = inCounters.keySet().stream().mapToLong(Long::longValue).toArray();
         int rounds = epochs.length;
@@ -1534,11 +1684,16 @@ public final class RunReport {
         Arrays.fill(published, Double.NaN);
         Map<String, double[]> dispatched = new TreeMap<>();
         Map<String, double[]> backlog = new TreeMap<>();
+        Map<String, double[]> replay = new TreeMap<>();
         for (int round = 0; round < rounds; round++) {
             Map<List<String>, long[]> current = subscriptions.get(epochs[round]);
             for (Map.Entry<List<String>, long[]> entry : current.entrySet()) {
                 double[] values = backlog.computeIfAbsent(entry.getKey().get(1), k -> nanArray(rounds));
                 values[round] = (Double.isNaN(values[round]) ? 0 : values[round]) + entry.getValue()[0];
+                if (hasReplay) {
+                    double[] inReplay = replay.computeIfAbsent(entry.getKey().get(1), k -> nanArray(rounds));
+                    inReplay[round] = (Double.isNaN(inReplay[round]) ? 0 : inReplay[round]) + entry.getValue()[2];
+                }
                 dispatched.computeIfAbsent(entry.getKey().get(1), k -> nanArray(rounds));
             }
             if (round == 0) {
@@ -1575,7 +1730,7 @@ public final class RunReport {
                 }
             }
         }
-        return new Samples(epochs, published, dispatched, backlog);
+        return new Samples(epochs, published, dispatched, backlog, replay);
     }
 
     private static double[] nanArray(int length) {

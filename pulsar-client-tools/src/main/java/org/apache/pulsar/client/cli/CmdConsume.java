@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.cli.ClientApi;
 import org.apache.pulsar.cli.ClientApiOptionGroups;
 import org.apache.pulsar.client.api.Authentication;
@@ -145,6 +146,10 @@ public class CmdConsume extends AbstractCmdConsume {
 
     /** Options that only the v4 client supports. */
     public static class V4Options implements ClientApiOptionGroups.V4ClientOptions {
+        @Option(names = "--read-compacted", description = "Read from the compacted topic. Requires a persistent topic "
+                + "and an Exclusive or Failover subscription; binary protocol only.")
+        protected boolean readCompacted = false;
+
         @Option(names = { "-stp", "--start-timestamp" }, description = "Start timestamp for consuming messages")
         protected long startTimestamp = 0L;
 
@@ -208,6 +213,17 @@ public class CmdConsume extends AbstractCmdConsume {
                     "end timestamp should be positive.");
         }
         ClientApi resolvedClientApi = resolveClientApi(commandSpec, clientApi, topic, serviceURL);
+        if (v4.readCompacted) {
+            String topicToValidate = isRegex ? topic : StringUtils.trim(topic);
+            if (isWebSocketUrl(serviceURL) || !TopicName.get(topicToValidate).isPersistent()) {
+                throw new CommandLine.ParameterException(commandSpec.commandLine(),
+                        "--read-compacted requires a persistent topic over the binary protocol.");
+            }
+            if (subscriptionType != SubscriptionType.Exclusive && subscriptionType != SubscriptionType.Failover) {
+                throw new CommandLine.ParameterException(commandSpec.commandLine(),
+                        "--read-compacted requires an Exclusive or Failover subscription.");
+            }
+        }
         if (resolvedClientApi == ClientApi.V4) {
             validateTimestampRange();
         } else {
@@ -274,7 +290,9 @@ public class CmdConsume extends AbstractCmdConsume {
                 }
             }
         } catch (Exception e) {
-            LOG.error("Authentication plugin error: " + e.getMessage());
+            if (!isInterruption(e)) {
+                LOG.error("Authentication plugin error: " + e.getMessage());
+            }
             return -1;
         }
         CompletableFuture<Void> connected = new CompletableFuture<>();
@@ -282,7 +300,9 @@ public class CmdConsume extends AbstractCmdConsume {
         try {
             consumeClient.start();
         } catch (Exception e) {
-            LOG.error("Failed to start websocket-client", e);
+            if (!isInterruption(e)) {
+                LOG.error("Failed to start websocket-client", e);
+            }
             return -1;
         }
 
@@ -291,7 +311,9 @@ public class CmdConsume extends AbstractCmdConsume {
             consumeClient.connect(consumerSocket, consumeRequest);
             connected.get();
         } catch (Exception e) {
-            LOG.error("Failed to create web-socket session", e);
+            if (!isInterruption(e)) {
+                LOG.error("Failed to create web-socket session", e);
+            }
             return -1;
         }
 
@@ -316,8 +338,10 @@ public class CmdConsume extends AbstractCmdConsume {
             }
             consumerSocket.awaitClose(2, TimeUnit.SECONDS);
         } catch (Exception e) {
-            LOG.error("Error while consuming messages");
-            LOG.error(e.getMessage(), e);
+            if (!isInterruption(e)) {
+                LOG.error("Error while consuming messages");
+                LOG.error(e.getMessage(), e);
+            }
             returnCode = -1;
         } finally {
             LOG.info("{} messages successfully consumed", numMessagesConsumed);
@@ -327,12 +351,16 @@ public class CmdConsume extends AbstractCmdConsume {
         try {
             consumeClient.stop();
         } catch (Exception e) {
-            LOG.error("Failed to stop websocket-client", e);
+            if (!isInterruption(e)) {
+                LOG.error("Failed to stop websocket-client", e);
+            }
         }
         try {
             httpClient.stop();
         } catch (Exception e) {
-            LOG.error("Failed to stop http-client", e);
+            if (!isInterruption(e)) {
+                LOG.error("Failed to stop http-client", e);
+            }
         }
         return returnCode;
     }
