@@ -262,7 +262,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private final AtomicReference<LoadManager> loadManager = new AtomicReference<>();
     private PulsarAdmin adminClient = null;
     private PulsarClient client = null;
-    private PulsarClient loadManagerClient = null;
     private final String bindAddress;
     /**
      * The host component of the broker's canonical name.
@@ -692,12 +691,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             executorServicesShutdown.shutdown(orderedExecutor);
 
             LoadManager loadManager = this.loadManager.get();
-            try {
-                if (loadManager != null) {
-                    loadManager.stop();
-                }
-            } finally {
-                closeLoadManagerClient();
+            if (loadManager != null) {
+                loadManager.stop();
             }
 
             if (schemaRegistryService != null) {
@@ -816,15 +811,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 pse = new PulsarServerException(MetadataStoreException.unwrap(e.getCause()));
             } else {
                 pse = new PulsarServerException(e);
-            }
-            // An early close hook can fail while the broker and load manager are still running.
-            // Keep their client alive, but retain cleanup for partial startup and later shutdown failures.
-            if (state != State.Started) {
-                try {
-                    closeLoadManagerClient();
-                } catch (PulsarClientException closeException) {
-                    pse.addSuppressed(closeException);
-                }
             }
             // A failed shutdown step must not leave this service registered with the metadata stores
             unregisterMetadataStoreListeners();
@@ -2069,35 +2055,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             }
         }
         return this.client;
-    }
-
-    /**
-     * Client for the load manager's internal topics. It shares the broker's client configuration and execution
-     * resources, but stays open until the load manager has stopped, independently of {@link #getClient()}.
-     */
-    public synchronized PulsarClient getLoadManagerClient() throws PulsarServerException {
-        if (state == State.Closing || state == State.Closed) {
-            throw new PulsarServerException("Cannot get the load manager client while the broker is closing or closed");
-        }
-        if (loadManagerClient == null) {
-            try {
-                loadManagerClient = createClientImpl(null, null);
-            } catch (Exception e) {
-                throw new PulsarServerException(e);
-            }
-        }
-        return loadManagerClient;
-    }
-
-    private void closeLoadManagerClient() throws PulsarClientException {
-        PulsarClient clientToClose;
-        synchronized (this) {
-            clientToClose = loadManagerClient;
-            loadManagerClient = null;
-        }
-        if (clientToClose != null) {
-            clientToClose.close();
-        }
     }
 
     protected ClientConfigurationData createClientConfigurationData()

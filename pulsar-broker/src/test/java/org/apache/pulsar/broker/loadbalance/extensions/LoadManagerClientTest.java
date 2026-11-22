@@ -20,11 +20,14 @@ package org.apache.pulsar.broker.loadbalance.extensions;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -117,10 +120,13 @@ public class LoadManagerClientTest extends SharedPulsarBaseTest {
 
     @Test(timeOut = 60_000)
     public void testBrokerClosesLoadManagerClientAfterStoppingLoadManager() throws Exception {
-        try (PulsarTestContext context = newContext(ServiceUnitStateTableViewImpl.class.getName())) {
+        try (PulsarTestContext context = newContextBuilder(ServiceUnitStateTableViewImpl.class.getName())
+                .configCustomizer(config -> config.setLoadManagerClassName(TrackingLoadManager.class.getName()))
+                .build()) {
             PulsarService broker = context.getPulsarService();
+            TrackingLoadManager loadManager = (TrackingLoadManager) ExtensibleLoadManagerImpl.get(broker);
             PulsarClientImpl generalClient = (PulsarClientImpl) broker.getClient();
-            PulsarClientImpl loadManagerClient = (PulsarClientImpl) broker.getLoadManagerClient();
+            PulsarClientImpl loadManagerClient = (PulsarClientImpl) loadManager.getClient();
             assertThat(loadManagerClient).isNotSameAs(generalClient);
             assertThat(loadManagerClient.timer()).isSameAs(generalClient.timer());
             assertThat(loadManagerClient.externalExecutorProvider()).isSameAs(generalClient.externalExecutorProvider());
@@ -129,54 +135,39 @@ public class LoadManagerClientTest extends SharedPulsarBaseTest {
             assertThat(loadManagerClient.getConfiguration().getServiceUrl())
                     .isEqualTo(generalClient.getConfiguration().getServiceUrl());
 
-            LoadManager original = broker.getLoadManager().get();
-            LoadManager loadManager = spy(original);
-            AtomicReference<Boolean> generalClientClosedAtStop = new AtomicReference<>();
-            AtomicReference<Boolean> loadManagerClientClosedAtStop = new AtomicReference<>();
-            doAnswer(invocation -> {
-                generalClientClosedAtStop.set(generalClient.isClosed());
-                loadManagerClientClosedAtStop.set(loadManagerClient.isClosed());
-                return invocation.callRealMethod();
-            }).when(loadManager).stop();
-            broker.getLoadManager().set(loadManager);
-            try {
-                broker.closeAsync().get(15, TimeUnit.SECONDS);
-                assertThat(generalClientClosedAtStop.get()).isTrue();
-                assertThat(loadManagerClientClosedAtStop.get()).isFalse();
-                assertThat(loadManagerClient.isClosed()).isTrue();
-                assertThatThrownBy(broker::getLoadManagerClient).isInstanceOf(PulsarServerException.class);
-            } finally {
-                broker.getLoadManager().set(original);
-            }
+            broker.closeAsync().get(15, TimeUnit.SECONDS);
+            assertThat(loadManager.clientClosedAtChannelClose.get()).isFalse();
+            assertThat(loadManagerClient.isClosed()).isTrue();
+            assertThat(loadManager.getClient()).isNull();
         }
     }
 
     @Test(timeOut = 60_000)
     public void testClientClosedWhenLoadManagerFailsToStart() {
-        AtomicReference<PulsarClient> client = new AtomicReference<>();
+        AtomicReference<FailingLoadManager> failedLoadManager = new AtomicReference<>();
+        AtomicReference<Boolean> clientClosedBeforeBrokerClose = new AtomicReference<>();
         assertThatThrownBy(() -> newContextBuilder(ServiceUnitStateTableViewImpl.class.getName())
                 .configCustomizer(config -> config.setLoadManagerClassName(FailingLoadManager.class.getName()))
                 .spyConfigCustomizer(config -> config.pulsarService(SpyConfig.SpyType.SPY))
                 .pulsarServiceCustomizer(broker -> {
-                    try {
-                        doAnswer(invocation -> {
-                            PulsarClient result = (PulsarClient) invocation.callRealMethod();
-                            client.set(result);
-                            return result;
-                        }).when(broker).getLoadManagerClient();
-                    } catch (PulsarServerException e) {
-                        throw new RuntimeException(e);
-                    }
+                    doAnswer(invocation -> {
+                        FailingLoadManager loadManager = (FailingLoadManager) ExtensibleLoadManagerImpl.get(broker);
+                        failedLoadManager.compareAndSet(null, loadManager);
+                        clientClosedBeforeBrokerClose.compareAndSet(null, loadManager.createdClient.isClosed());
+                        return invocation.callRealMethod();
+                    }).when(broker).closeAsync(true);
                 }).build().close()).hasRootCauseMessage("Injected load manager start failure");
-        assertThat(client.get()).isNotNull();
-        assertThat(client.get().isClosed()).isTrue();
+        FailingLoadManager loadManager = failedLoadManager.get();
+        assertThat(loadManager.createdClient).isNotNull();
+        assertThat(loadManager.createdClient.isClosed()).isTrue();
+        assertThat(clientClosedBeforeBrokerClose.get()).isTrue();
     }
 
     @Test(timeOut = 60_000)
     public void testClientClosedWhenLoadManagerFailsToStop() throws Exception {
         try (PulsarTestContext context = newContext(ServiceUnitStateTableViewImpl.class.getName())) {
             PulsarService broker = context.getPulsarService();
-            PulsarClient client = broker.getLoadManagerClient();
+            PulsarClient client = ExtensibleLoadManagerImpl.get(broker).getClient();
             LoadManager original = broker.getLoadManager().get();
             LoadManager loadManager = spy(original);
             doAnswer(invocation -> {
@@ -200,7 +191,7 @@ public class LoadManagerClientTest extends SharedPulsarBaseTest {
                 .spyConfigCustomizer(config -> config.namespaceService(SpyConfig.SpyType.SPY))
                 .build()) {
             PulsarService broker = context.getPulsarService();
-            PulsarClient client = broker.getLoadManagerClient();
+            PulsarClient client = ExtensibleLoadManagerImpl.get(broker).getClient();
             AtomicBoolean failOnce = new AtomicBoolean(true);
             doAnswer(invocation -> {
                 if (failOnce.getAndSet(false)) {
@@ -226,7 +217,7 @@ public class LoadManagerClientTest extends SharedPulsarBaseTest {
             ExtensibleLoadManagerImpl loadManager = ExtensibleLoadManagerImpl.get(broker);
             Awaitility.await().atMost(10, TimeUnit.SECONDS)
                     .until(() -> loadManager.getRole() == ExtensibleLoadManagerImpl.Role.Leader);
-            PulsarClient client = broker.getLoadManagerClient();
+            PulsarClient client = ExtensibleLoadManagerImpl.get(broker).getClient();
             LoadDataStore<BrokerLoadData> store = loadManager.getBrokerLoadDataStore();
             String key = getNamespace();
             store.pushAsync(key, new BrokerLoadData()).get(10, TimeUnit.SECONDS);
@@ -242,7 +233,7 @@ public class LoadManagerClientTest extends SharedPulsarBaseTest {
             store.pushAsync(nextKey, new BrokerLoadData()).get(10, TimeUnit.SECONDS);
             Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> store.get(nextKey).isPresent());
             assertThat(client.isClosed()).isFalse();
-            assertThat(broker.getLoadManagerClient()).isSameAs(client);
+            assertThat(loadManager.getClient()).isSameAs(client);
 
             store.init();
             String restartedKey = key + "-after-store-restart";
@@ -252,7 +243,80 @@ public class LoadManagerClientTest extends SharedPulsarBaseTest {
             broker.closeAsync().get(15, TimeUnit.SECONDS);
             assertThat(client.isClosed()).isTrue();
             assertThat(loadManager.running()).isFalse();
-            assertThatThrownBy(broker::getLoadManagerClient).isInstanceOf(PulsarServerException.class);
+            assertThat(loadManager.getClient()).isNull();
+        }
+    }
+
+    @Test(dataProvider = "stateTableViews", timeOut = 60_000)
+    public void testLoadManagerOwnsClientAcrossRestart(String stateTableViewClass) throws Exception {
+        try (PulsarTestContext context = newContext(stateTableViewClass)) {
+            PulsarService broker = context.getPulsarService();
+            ExtensibleLoadManagerImpl loadManager = ExtensibleLoadManagerImpl.get(broker);
+            Awaitility.await().atMost(10, TimeUnit.SECONDS)
+                    .until(() -> loadManager.getRole() == ExtensibleLoadManagerImpl.Role.Leader);
+            PulsarClient firstClient = loadManager.getClient();
+            PulsarClient generalClient = broker.getClient();
+
+            loadManager.close();
+            assertThat(firstClient.isClosed()).isTrue();
+            assertThat(loadManager.getClient()).isNull();
+            assertThat(generalClient.isClosed()).isFalse();
+            loadManager.close();
+
+            loadManager.start();
+            assertThat(loadManager.getClient()).isNotNull().isNotSameAs(firstClient);
+            assertThat(loadManager.getClient().isClosed()).isFalse();
+            LoadDataStore<BrokerLoadData> store = loadManager.getBrokerLoadDataStore();
+            String key = getNamespace();
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+                    store.pushAsync(key, new BrokerLoadData()).get(5, TimeUnit.SECONDS));
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> store.get(key).isPresent());
+            PulsarClient secondClient = loadManager.getClient();
+            broker.closeAsync().get(15, TimeUnit.SECONDS);
+            assertThat(secondClient.isClosed()).isTrue();
+        }
+    }
+
+    @Test(timeOut = 60_000)
+    public void testClientClosedBeforeLoadManagerReachesRunning() throws Exception {
+        List<Runnable> pendingStarts = new CopyOnWriteArrayList<>();
+        try (PulsarTestContext context = newContextBuilder(ServiceUnitStateTableViewImpl.class.getName())
+                .spyConfigCustomizer(config -> config.pulsarService(SpyConfig.SpyType.SPY))
+                .pulsarServiceCustomizer(broker -> doAnswer(invocation -> {
+                    pendingStarts.add(invocation.getArgument(0));
+                    return null;
+                }).when(broker).runWhenReadyForIncomingRequests(any(Runnable.class)))
+                .build()) {
+            ExtensibleLoadManagerImpl loadManager = ExtensibleLoadManagerImpl.get(context.getPulsarService());
+            PulsarClient client = loadManager.getClient();
+            assertThat(client).isNotNull();
+            assertThat(client.isClosed()).isFalse();
+            assertThat(loadManager.running()).isFalse();
+
+            loadManager.close();
+            assertThat(client.isClosed()).isTrue();
+            assertThat(loadManager.getClient()).isNull();
+            assertThat(pendingStarts).isNotEmpty();
+            pendingStarts.forEach(Runnable::run);
+            assertThat(loadManager.running()).isFalse();
+            assertThat(loadManager.getClient()).isNull();
+        }
+    }
+
+    @Test(timeOut = 60_000)
+    public void testClientClosedWhenChannelCloseFails() throws Exception {
+        try (PulsarTestContext context = newContextBuilder(ServiceUnitStateTableViewImpl.class.getName())
+                .configCustomizer(config -> config.setLoadManagerClassName(TrackingLoadManager.class.getName()))
+                .build()) {
+            TrackingLoadManager loadManager = (TrackingLoadManager)
+                    ExtensibleLoadManagerImpl.get(context.getPulsarService());
+            PulsarClient client = loadManager.getClient();
+            loadManager.failChannelClose = true;
+            assertThatThrownBy(loadManager::close).hasMessage("Injected channel close failure");
+            assertThat(loadManager.clientClosedAtChannelClose.get()).isFalse();
+            assertThat(client.isClosed()).isTrue();
+            assertThat(loadManager.getClient()).isNull();
+            loadManager.failChannelClose = false;
         }
     }
 
@@ -271,11 +335,37 @@ public class LoadManagerClientTest extends SharedPulsarBaseTest {
     }
 
     public static class FailingLoadManager extends ExtensibleLoadManagerImpl {
+        private PulsarClient createdClient;
+
         @Override
         protected ServiceUnitStateChannel createServiceUnitStateChannel(PulsarService pulsar) {
+            createdClient = getClient();
             ServiceUnitStateChannel channel = mock(ServiceUnitStateChannel.class);
             try {
                 doThrow(new PulsarServerException("Injected load manager start failure")).when(channel).start();
+            } catch (PulsarServerException e) {
+                throw new RuntimeException(e);
+            }
+            return channel;
+        }
+    }
+
+    public static class TrackingLoadManager extends ExtensibleLoadManagerImpl {
+        private final AtomicReference<Boolean> clientClosedAtChannelClose = new AtomicReference<>();
+        private boolean failChannelClose;
+
+        @Override
+        protected ServiceUnitStateChannel createServiceUnitStateChannel(PulsarService pulsar) {
+            ServiceUnitStateChannel channel = spy(super.createServiceUnitStateChannel(pulsar));
+            try {
+                doAnswer(invocation -> {
+                    clientClosedAtChannelClose.compareAndSet(null, getClient().isClosed());
+                    invocation.callRealMethod();
+                    if (failChannelClose) {
+                        throw new PulsarServerException("Injected channel close failure");
+                    }
+                    return null;
+                }).when(channel).close();
             } catch (PulsarServerException e) {
                 throw new RuntimeException(e);
             }
