@@ -1493,13 +1493,23 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
 
     /**
      * A dead letter producer whose creation fails synchronously (for example a builder customizer that
-     * throws) must keep being retried while the failure lasts, with backoff between the retries.
+     * throws) must keep being retried with backoff while the failure lasts, and recover once the
+     * customizer stops throwing.
      */
     @Test(timeOut = 60_000)
     public void testDeadLetterProducerCreationFailureRetriesWithBackoff() throws Exception {
         final String topic = newTopicName();
+        final String dlqTopic = topic + "-my-subscription-DLQ";
         // track retry attempt time gap
         Queue<Long> attemptNanos = new ConcurrentLinkedQueue<>();
+        AtomicInteger attempts = new AtomicInteger();
+
+        @Cleanup
+        Consumer<byte[]> deadLetterConsumer = pulsarClient.newConsumer(Schema.BYTES)
+                .topic(dlqTopic)
+                .subscriptionName("dlq-subscription")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
                 .topic(topic)
@@ -1509,9 +1519,12 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
                 .ackTimeoutTickTime(100, TimeUnit.MILLISECONDS)
                 .deadLetterPolicy(DeadLetterPolicy.builder()
                         .maxRedeliverCount(1)
+                        .deadLetterTopic(dlqTopic)
                         .deadLetterProducerBuilderCustomizer((context, builder) -> {
                             attemptNanos.add(System.nanoTime());
-                            throw new RuntimeException("Injected dead letter producer creation failure");
+                            if (attempts.incrementAndGet() <= 4) {
+                                throw new RuntimeException("Injected dead letter producer creation failure");
+                            }
                         })
                         .build())
                 .messageListener((c, msg) -> {
@@ -1542,10 +1555,19 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
                         "creation attempt " + (i + 1) + " -> " + (i + 2) + " is not backed off, gaps were "
                                 + gapsMillis + "ms");
             }
+
+            // Once the customizer stops throwing, the next backed-off retry must create the producer
+            // and deliver the parked message to the dead letter topic.
+            Message<byte[]> dlqMessage = deadLetterConsumer.receive(10, TimeUnit.SECONDS);
+            assertNotNull(dlqMessage);
+            assertEquals(new String(dlqMessage.getValue()), "m-0");
+            deadLetterConsumer.acknowledge(dlqMessage);
+
+            // After recovery, closing the consumer must succeed cleanly.
+            consumer.close();
         } finally {
-            // A consumer whose dead letter producer could not be created also fails to close cleanly;
-            // swallow that here (as testCloseDeadLetterTopicProducerOnExceptionToPreventProducerLeak does)
-            // so a close failure cannot mask this test's own failure signal.
+            // Avoid @Cleanup here: if an assertion fails before recovery, close() throws while the
+            // dead letter producer future is still failed and would mask the AssertionError.
             try {
                 consumer.close();
             } catch (PulsarClientException e) {

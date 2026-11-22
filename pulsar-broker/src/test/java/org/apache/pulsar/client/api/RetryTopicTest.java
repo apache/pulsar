@@ -35,9 +35,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
 import lombok.CustomLog;
 import lombok.Data;
@@ -1097,13 +1099,16 @@ public class RetryTopicTest extends SharedPulsarBaseTest {
 
     /**
      * A retry letter producer whose creation fails synchronously (for example a builder customizer that
-     * throws) must keep being retried while the failure lasts, with backoff between the retries.
+     * throws) must keep being retried with backoff while the failure lasts, and recover once the
+     * customizer stops throwing.
      */
     @Test(timeOut = 60_000)
     public void testRetryLetterProducerCreationFailureRetriesWithBackoff() throws Exception {
         final String topic = newTopicName();
         // track retry attempt time gap
         Queue<Long> attemptNanos = new ConcurrentLinkedQueue<>();
+        AtomicInteger attempts = new AtomicInteger();
+        CompletableFuture<Message<byte[]>> retriedMessage = new CompletableFuture<>();
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
                 .topic(topic)
@@ -1117,10 +1122,17 @@ public class RetryTopicTest extends SharedPulsarBaseTest {
                         .maxRedeliverCount(Integer.MAX_VALUE)
                         .retryLetterProducerBuilderCustomizer((context, builder) -> {
                             attemptNanos.add(System.nanoTime());
-                            throw new RuntimeException("Injected retry letter producer creation failure");
+                            if (attempts.incrementAndGet() <= 4) {
+                                throw new RuntimeException("Injected retry letter producer creation failure");
+                            }
                         })
                         .build())
                 .messageListener((c, msg) -> {
+                    if (msg.hasProperty(RetryMessageUtil.SYSTEM_PROPERTY_RECONSUMETIMES)) {
+                        c.acknowledgeAsync(msg);
+                        retriedMessage.complete(msg);
+                        return;
+                    }
                     // Every reconsumeLater triggers a creation attempt; its failure redelivers the
                     // message back here.
                     try {
@@ -1153,9 +1165,18 @@ public class RetryTopicTest extends SharedPulsarBaseTest {
                         "creation attempt " + (i + 1) + " -> " + (i + 2) + " is not backed off, gaps were "
                                 + gapsMillis + "ms");
             }
+
+            // Once the customizer stops throwing, the next backed-off retry must create the producer
+            // and deliver the message through the retry letter topic.
+            Message<byte[]> retried = retriedMessage.get(10, TimeUnit.SECONDS);
+            assertEquals(new String(retried.getValue()), "m-0");
+            assertEquals(retried.getProperty(RetryMessageUtil.SYSTEM_PROPERTY_RECONSUMETIMES), "1");
+
+            // After recovery, closing the consumer must succeed cleanly.
+            consumer.close();
         } finally {
-            // The consumer fails to close while the retry letter producer cannot be created; swallow
-            // that so it cannot mask this test's own failure.
+            // Avoid @Cleanup here: if an assertion fails before recovery, close() throws while the
+            // retry letter producer future is still failed and would mask the AssertionError.
             try {
                 consumer.close();
             } catch (PulsarClientException e) {
