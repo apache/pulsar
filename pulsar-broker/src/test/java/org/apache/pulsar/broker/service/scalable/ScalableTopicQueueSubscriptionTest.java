@@ -22,8 +22,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.IntStream;
 import lombok.Cleanup;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.v5.Message;
 import org.apache.pulsar.client.api.v5.Producer;
 import org.apache.pulsar.client.api.v5.QueueConsumer;
@@ -32,6 +34,8 @@ import org.apache.pulsar.client.api.v5.config.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.v5.schema.Schema;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.SegmentTopicStats;
+import org.apache.pulsar.common.scalable.SegmentInfo;
+import org.apache.pulsar.common.scalable.SegmentTopicName;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
@@ -114,6 +118,38 @@ public class ScalableTopicQueueSubscriptionTest extends V5ClientBaseTest {
         }
         publish(topic);
         assertReceivesWhatWasPublished(consumer);
+    }
+
+    /**
+     * The QUEUE subscription on the children of a split has the properties it had on the parent, also after its
+     * consumer comes back without them: an existing cursor keeps its properties.
+     */
+    @Test
+    public void testSplitCarriesQueueSubscriptionPropertiesToChildren() throws Exception {
+        String topic = newScalableTopic(1);
+        Map<String, String> properties = Map.of("filter", "a");
+        v5Client.newQueueConsumer(Schema.string())
+                .topic(topic)
+                .subscriptionName(SUBSCRIPTION)
+                .subscriptionProperties(properties)
+                .subscribe()
+                .close();
+        long parent = segmentIds(topic).get(0);
+
+        admin.scalableTopics().splitSegment(topic, parent);
+        @Cleanup
+        QueueConsumer<String> consumer = subscribe(topic);
+
+        List<SegmentInfo> children = List.copyOf(controller(topic).getLayout().get().getActiveSegments().values());
+        assertThat(children).hasSize(2);
+        for (SegmentInfo child : children) {
+            String childTopic = SegmentTopicName.backingTopicName(TopicName.get(topic), child);
+            PersistentTopic persistentTopic = (PersistentTopic) getPulsar().getBrokerService()
+                    .getTopicIfExists(childTopic).get().orElseThrow();
+            assertThat(persistentTopic.getSubscription(SUBSCRIPTION).getSubscriptionProperties())
+                    .as("the properties of the queue subscription on %s", childTopic)
+                    .isEqualTo(properties);
+        }
     }
 
     /** As {@link #testSplitCreatesQueueSubscriptionOnChildren()}, for the child of a merge. */

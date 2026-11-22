@@ -24,6 +24,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
@@ -61,6 +62,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.namespace.NamespaceService;
@@ -137,6 +139,12 @@ public class ScalableTopicControllerTest {
     private Map<String, Object> managedLedgers;
     private static final Object NO_MANAGED_LEDGER = Optional.empty();
     private TopicResources topicResources;
+    /**
+     * The properties of the cursors, by managed-ledger name and cursor name joined with {@code /}: a map, or the
+     * failure to read them. A cursor that isn't there has none.
+     */
+    private Map<String, Object> cursorProperties;
+    private ManagedLedgerFactory managedLedgerFactory;
 
     private TopicName topicName;
     private ScalableTopicController controller;
@@ -210,6 +218,19 @@ public class ScalableTopicControllerTest {
         PulsarResources pulsarResources = mock(PulsarResources.class);
         when(pulsar.getPulsarResources()).thenReturn(pulsarResources);
         when(pulsarResources.getTopicResources()).thenReturn(topicResources);
+        cursorProperties = new HashMap<>();
+        managedLedgerFactory = mock(ManagedLedgerFactory.class);
+        when(brokerService.getManagedLedgerFactoryForTopic(any(TopicName.class)))
+                .thenReturn(CompletableFuture.completedFuture(managedLedgerFactory));
+        when(managedLedgerFactory.getCursorPropertiesAsync(anyString(), anyString())).thenAnswer(invocation -> {
+            Object properties = cursorProperties.getOrDefault(
+                    invocation.getArgument(0) + "/" + invocation.getArgument(1), Map.of());
+            return properties instanceof Throwable failure
+                    ? CompletableFuture.failedFuture(failure)
+                    : CompletableFuture.completedFuture(properties);
+        });
+        when(scalableTopics.createSegmentSubscriptionAsync(anyString(), anyString(), anyMap()))
+                .thenReturn(CompletableFuture.completedFuture(null));
 
         metrics = mock(ScalableTopicControllerMetrics.class);
         controller = newController(topicName);
@@ -906,6 +927,59 @@ public class ScalableTopicControllerTest {
     }
 
     /**
+     * A split creates a subscription on the children with the properties of its cursor on the parent, which a
+     * consumer that comes back doesn't set again. Those without properties are created with the children's topics.
+     */
+    @Test
+    public void testSplitCarriesSubscriptionPropertiesToChildren() throws Exception {
+        controller.initialize().get();
+        managedLedgers.put(managedLedgerOf(0), List.of("queue-sub", "plain-sub"));
+        cursorProperties.put(managedLedgerOf(0) + "/queue-sub", Map.of("filter", "a"));
+        clearInvocations(scalableTopics);
+
+        controller.splitSegment(0).get();
+
+        verify(scalableTopics, times(2)).createSegmentAsync(anyString(), eq(List.of("plain-sub")));
+        verify(scalableTopics, times(2)).createSegmentSubscriptionAsync(anyString(), eq("queue-sub"),
+                eq(Map.of("filter", "a")));
+    }
+
+    /**
+     * The child of a merge gets the properties of a subscription from the parent with the lowest segment id that
+     * has any, as a whole.
+     */
+    @Test
+    public void testMergeTakesSubscriptionPropertiesOfTheLowestParentThatHasAny() throws Exception {
+        controller.initialize().get();
+        managedLedgers.put(managedLedgerOf(0), List.of("differing", "only-in-1"));
+        managedLedgers.put(managedLedgerOf(1), List.of("differing", "only-in-1"));
+        cursorProperties.put(managedLedgerOf(0) + "/differing", Map.of("a", "0"));
+        cursorProperties.put(managedLedgerOf(1) + "/differing", Map.of("a", "1", "b", "1"));
+        cursorProperties.put(managedLedgerOf(1) + "/only-in-1", Map.of("c", "1"));
+        clearInvocations(scalableTopics);
+
+        controller.mergeSegments(0, 1).get();
+
+        verify(scalableTopics).createSegmentAsync(anyString(), eq(List.of()));
+        verify(scalableTopics).createSegmentSubscriptionAsync(anyString(), eq("differing"), eq(Map.of("a", "0")));
+        verify(scalableTopics).createSegmentSubscriptionAsync(anyString(), eq("only-in-1"), eq(Map.of("c", "1")));
+    }
+
+    /** A split whose parent's subscription properties can't be read is given up before sealing the parent. */
+    @Test
+    public void testSplitChecksParentSubscriptionPropertiesFailClosed() throws Exception {
+        controller.initialize().get();
+        managedLedgers.put(managedLedgerOf(0), List.of("queue-sub"));
+        cursorProperties.put(managedLedgerOf(0) + "/queue-sub", new MetadataStoreException("session expired"));
+        clearInvocations(scalableTopics);
+
+        assertThrows(ExecutionException.class, () -> controller.splitSegment(0).get());
+        verify(scalableTopics, never()).createSegmentAsync(anyString(), any());
+        verify(scalableTopics, never()).terminateSegmentAsync(anyString());
+        assertTrue(controller.getLayout().get().getAllSegments().get(0L).isActive(), "the parent keeps serving");
+    }
+
+    /**
      * A split whose parent's subscriptions can't be read is given up before sealing it, rather than creating the
      * children without them. A parent whose managed ledger is gone has no subscription. The segment stats aren't
      * read, so an owner whose cached layout lags doesn't matter.
@@ -922,8 +996,7 @@ public class ScalableTopicControllerTest {
         assertTrue(controller.getLayout().get().getAllSegments().get(0L).isActive(),
                 "the parent keeps serving");
 
-        managedLedgers.put(managedLedgerOf(0),
-                NO_MANAGED_LEDGER);
+        managedLedgers.put(managedLedgerOf(0), NO_MANAGED_LEDGER);
         controller.splitSegment(0).get();
         verify(scalableTopics, times(2)).createSegmentAsync(anyString(), eq(List.of()));
         verify(scalableTopics, never()).getSegmentStatsAsync(anyString(), anyLong());
@@ -962,6 +1035,7 @@ public class ScalableTopicControllerTest {
         ScalableTopicMetadata after = readMetadata();
         assertThat(after.getPendingLayoutTransition()).isNull();
         assertThat(after.getEpoch()).isEqualTo(before.getEpoch() + 1);
+        verify(managedLedgerFactory, never()).getCursorPropertiesAsync(anyString(), anyString());
         for (long child : plan.replacements().keySet()) {
             if (!plan.sources().containsKey(child)) {
                 verify(scalableTopics, atLeastOnce()).createSegmentAsync(

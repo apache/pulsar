@@ -459,12 +459,21 @@ public class ScalableTopicsImpl extends BaseResource implements ScalableTopics {
     @Override
     public CompletableFuture<Void> createSegmentSubscriptionAsync(String segmentTopic,
                                                                    String subscription) {
+        return createSegmentSubscriptionAsync(segmentTopic, subscription, Map.of());
+    }
+
+    @Override
+    public CompletableFuture<Void> createSegmentSubscriptionAsync(String segmentTopic, String subscription,
+                                                                   Map<String, String> subscriptionProperties) {
         TopicName tn = TopicName.get(segmentTopic);
         WebTarget path = adminSegments
                 .path(tn.getTenant()).path(tn.getNamespacePortion())
                 .path(tn.getLocalName()).path(tn.getSegmentDescriptor())
                 .path("subscription").path(subscription);
-        return asyncPutRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
+        Entity<?> entity = (subscriptionProperties != null && !subscriptionProperties.isEmpty())
+                ? Entity.entity(subscriptionProperties, MediaType.APPLICATION_JSON)
+                : Entity.entity("", MediaType.APPLICATION_JSON);
+        return asyncPutRequest(path, entity);
     }
 
     @Override
