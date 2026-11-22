@@ -379,7 +379,7 @@ public class MessageChunkingTest extends SharedPulsarBaseTest {
      * message: an incomplete message received after it must still expire.
      */
     @Test
-    public void testExpirySkipsStaleQueueHeadFromDiscardPath() throws Exception {
+    public void testExpiryWorksAfterOutOfOrderDiscard() throws Exception {
         final String topicName = "persistent://" + getNamespace() + "/expirySkipsDiscardGhost";
         @Cleanup
         Consumer<String> consumer = client.newConsumer(Schema.STRING)
