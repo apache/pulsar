@@ -847,11 +847,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                         .attr("remaining", cursorCount.get() - 1)
                                         .attr("cost ms",  System.currentTimeMillis() - timestampStartRecoverCursor)
                                         .log("Recovery for cursor completed");
-                                if (!tryRegisterRecoveredCursor(cursor)) {
+                                ManagedLedgerException registrationFailure = tryRegisterRecoveredCursor(cursor);
+                                if (registrationFailure != null) {
                                     cursor.closeReadOnlyCursorLedger();
                                     if (cursorCount.getAndSet(-1) > 0) {
-                                        callback.initializeFailed(
-                                                new ManagedLedgerAlreadyClosedException("Managed ledger is closed"));
+                                        callback.initializeFailed(registrationFailure);
                                     }
                                     return;
                                 }
@@ -904,19 +904,19 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         .attr("position", cursor.getMarkDeletedPosition())
                         .attr("cost ms",  System.currentTimeMillis() - timestampStartRecoverCursor)
                         .log("Lazy recovery for cursor completed");
+                final ManagedLedgerException registrationFailure;
                 synchronized (ManagedLedgerImpl.this) {
                     failedLazyRecoveryCursors.remove(cursorName);
-                    if (tryRegisterRecoveredCursor(cursor)) {
+                    registrationFailure = tryRegisterRecoveredCursor(cursor);
+                    if (registrationFailure == null) {
                         uninitializedCursors.remove(cursorName).complete(cursor);
                         return;
                     }
                     uninitializedCursors.remove(cursorName);
                 }
-                // Close has already taken responsibility for the registered cursors. Only release the
-                // local read handle here, since a new owner may already be recovering this cursor.
+                // Release the local handle and leave the persisted cursor for the next owner.
                 cursor.closeReadOnlyCursorLedger();
-                cursorRecoveryFuture.completeExceptionally(
-                        new ManagedLedgerAlreadyClosedException("Managed ledger is closed"));
+                cursorRecoveryFuture.completeExceptionally(registrationFailure);
             }
 
             @Override
@@ -933,14 +933,19 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return cursorRecoveryFuture;
     }
 
-    private synchronized boolean tryRegisterRecoveredCursor(ManagedCursorImpl cursor) {
-        // Serialize registration with the transition to Closed in asyncClose.
-        if (state == State.Closed) {
-            return false;
+    private synchronized @Nullable ManagedLedgerException tryRegisterRecoveredCursor(ManagedCursorImpl cursor) {
+        // Serialize registration with close and fencing. FencedForDeletion still needs the recovered
+        // cursors to find and delete their BookKeeper ledgers.
+        State currentState = state;
+        if (currentState == State.Closed) {
+            return new ManagedLedgerAlreadyClosedException("Managed ledger is closed");
+        }
+        if (currentState == State.Fenced) {
+            return new ManagedLedgerFencedException();
         }
         cursor.setActive();
         addCursor(cursor);
-        return true;
+        return null;
     }
 
     private void addCursor(ManagedCursorImpl cursor) {
@@ -2071,6 +2076,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             cancelScheduledTasks();
             factory.close(this);
             invalidateAllReadHandles();
+            closeReadOnlyCursorLedgers();
             callback.closeFailed(new ManagedLedgerFencedException(), ctx);
             return;
         } else if (state == State.Closed) {
@@ -2104,13 +2110,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             // Release the read handles even if the current ledger failed to close, as nothing would release them later
             invalidateAllReadHandles();
             if (rc != BKException.Code.OK) {
-                // Graceful cursor close is skipped on this path. Release local recovered handles without
-                // writing cursor metadata or deleting ledgers.
-                for (ManagedCursor cursor : cursors) {
-                    if (cursor instanceof ManagedCursorImpl managedCursor) {
-                        managedCursor.closeReadOnlyCursorLedger();
-                    }
-                }
+                closeReadOnlyCursorLedgers();
                 callback.closeFailed(createManagedLedgerException(rc), ctx);
                 return;
             }
@@ -2119,6 +2119,15 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }, null);
 
 
+    }
+
+    private void closeReadOnlyCursorLedgers() {
+        // These close paths skip graceful cursor close and only release local recovery handles.
+        for (ManagedCursor cursor : cursors) {
+            if (cursor instanceof ManagedCursorImpl managedCursor) {
+                managedCursor.closeReadOnlyCursorLedger();
+            }
+        }
     }
 
     private void closeAllCursors(CloseCallback callback, final Object ctx) {

@@ -53,12 +53,14 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerFencedException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.MetaStore;
 import org.apache.bookkeeper.mledger.util.Futures;
+import org.apache.bookkeeper.mledger.util.ManagedLedgerUtils;
 import org.apache.bookkeeper.proto.BookkeeperInternalCallbacks.LedgerMetadataListener;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.bookkeeper.versioning.LongVersion;
@@ -137,12 +139,12 @@ public class TemporaryReadHandleLifecycleTest extends MockedBookKeeperTestCase {
         return trackedBuilder;
     }
 
-    @DataProvider(name = "terminatedLedgers")
-    public Object[][] terminatedLedgers() {
+    @DataProvider(name = "booleans")
+    public Object[][] booleans() {
         return new Object[][] {{false}, {true}};
     }
 
-    @Test(dataProvider = "terminatedLedgers")
+    @Test(dataProvider = "booleans")
     public void testInitializationReleasesListenerAtHandleOwnershipEnd(boolean terminated) throws Exception {
         ManagedLedgerConfig config = defaultConfig().setRetentionTime(1, TimeUnit.DAYS).setRetentionSizeInMB(-1);
         ManagedLedger ledger = factory.open("initialization-listener", config);
@@ -549,6 +551,70 @@ public class TemporaryReadHandleLifecycleTest extends MockedBookKeeperTestCase {
             } finally {
                 previousHandle.close();
             }
+        }
+    }
+
+    @Test(dataProvider = "booleans")
+    public void testFencedUnloadReleasesRecoveredCursorListener(boolean recoverBeforeFencing) throws Exception {
+        ManagedLedgerConfig config = defaultConfig().setRetentionTime(1, TimeUnit.DAYS).setRetentionSizeInMB(-1)
+                .setMaxUnackedRangesToPersistInMetadataStore(0);
+        ManagedLedger ledger = factory.open("fenced-unload-listener", config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("cursor");
+        Position first = ledger.addEntry(new byte[] {1});
+        Position second = ledger.addEntry(new byte[] {2});
+        cursor.delete(second);
+        long cursorLedgerId = cursor.getCursorLedger();
+        assertThat(cursorLedgerId).isNotEqualTo(-1);
+        ledger.close();
+
+        delayedReadLedgerId = cursorLedgerId;
+        ManagedLedgerImpl previousOwner = (ManagedLedgerImpl) factory.open(ledger.getName(),
+                config.setLazyCursorRecovery(true));
+        CompletableFuture<Void> resumeRead = new CompletableFuture<>();
+        resumeRead.thenRun(delayedRead.get(5, TimeUnit.SECONDS));
+        LedgerHandle handle = openedHandles.stream().filter(h -> h.getId() == cursorLedgerId).findFirst().orElseThrow();
+        LedgerMetadataListener listener = (LedgerMetadataListener) handle;
+        try {
+            CompletableFuture<ManagedCursor> opening = ManagedLedgerUtils.openCursor(previousOwner, "cursor");
+            assertThat(opening).isNotDone();
+            if (recoverBeforeFencing) {
+                resumeRead.complete(null);
+                assertThat(opening.get(5, TimeUnit.SECONDS).isMessageDeleted(second)).isTrue();
+            }
+            assertThat(activeListeners).containsExactly(listener);
+            String ledgerPath = "/managed-ledgers/" + ledger.getName();
+            String cursorPath = ledgerPath + "/cursor";
+            GetResult cursorMetadata = metadataStore.get(cursorPath).get(5, TimeUnit.SECONDS).orElseThrow();
+
+            // Advance the managed ledger's metadata version so the old owner's next update fences it.
+            GetResult ledgerMetadata = metadataStore.get(ledgerPath).get(5, TimeUnit.SECONDS).orElseThrow();
+            metadataStore.put(ledgerPath, ledgerMetadata.getValue(), Optional.of(ledgerMetadata.getStat().getVersion()))
+                    .get(5, TimeUnit.SECONDS);
+            assertThatThrownBy(() -> previousOwner.asyncAddLedgerProperty(first.getLedgerId(), "key", "value")
+                    .get(5, TimeUnit.SECONDS)).hasRootCauseInstanceOf(MetadataStoreException.BadVersionException.class);
+            assertThat(previousOwner.getState()).isEqualTo(ManagedLedgerImpl.State.Fenced);
+            assertThatThrownBy(previousOwner::close).isInstanceOf(ManagedLedgerFencedException.class);
+
+            if (!recoverBeforeFencing) {
+                resumeRead.complete(null);
+                assertThatThrownBy(() -> opening.get(5, TimeUnit.SECONDS))
+                        .hasCauseInstanceOf(ManagedLedgerFencedException.class);
+                assertThat(previousOwner.getCursors()).isEmpty();
+                assertThat(previousOwner.getActiveCursors()).isEmpty();
+            }
+            assertListenerReleased(handle, listener);
+            assertCursorMetadataUnchanged(cursorPath, cursorMetadata, cursorLedgerId);
+            ManagedLedger nextOwner = factory.open(ledger.getName(), config);
+            try {
+                ManagedCursor nextCursor = nextOwner.openCursor("cursor");
+                assertThat(nextCursor.isMessageDeleted(second)).isTrue();
+                assertThat(nextCursor.getNumberOfEntriesInBacklog(true)).isEqualTo(1);
+            } finally {
+                nextOwner.close();
+            }
+        } finally {
+            resumeRead.complete(null);
+            handle.close();
         }
     }
 
