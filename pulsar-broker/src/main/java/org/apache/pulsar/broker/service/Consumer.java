@@ -187,6 +187,9 @@ public class Consumer {
     private static final AtomicReferenceFieldUpdater<Consumer, Attributes> OPEN_TELEMETRY_ATTRIBUTES_FIELD_UPDATER =
             AtomicReferenceFieldUpdater.newUpdater(Consumer.class, Attributes.class, "openTelemetryAttributes");
 
+    /** Set when {@code BrokerInterceptor#consumerCreated} was fired for this consumer on the connection. */
+    private volatile boolean brokerInterceptorConsumerCreatedNotified;
+
     @Getter
     @Setter
     private volatile PendingAcksMap.PendingAcksAddHandler pendingAcksAddHandler;
@@ -516,6 +519,15 @@ public class Consumer {
     public void close(boolean isResetCursor) throws BrokerServiceException {
         subscription.removeConsumer(this, isResetCursor);
         cnx.removedConsumer(this);
+        cnx.notifyConsumerClosed(this);
+    }
+
+    public void markBrokerInterceptorConsumerCreatedNotified() {
+        brokerInterceptorConsumerCreatedNotified = true;
+    }
+
+    public boolean isBrokerInterceptorConsumerCreatedNotified() {
+        return brokerInterceptorConsumerCreatedNotified;
     }
 
     public void disconnect() {

@@ -116,6 +116,9 @@ public class Producer {
     private final String clientAddress; // IP address only, no port number included
     private final AtomicBoolean isDisconnecting = new AtomicBoolean(false);
 
+    /** Set when {@code BrokerInterceptor#producerCreated} was fired for this producer on the connection. */
+    private volatile boolean brokerInterceptorProducerCreatedNotified;
+
     public Producer(Topic topic, TransportCnx cnx, long producerId, String producerName, String appId,
             boolean isEncrypted, Map<String, String> metadata, SchemaVersion schemaVersion, long epoch,
             boolean userProvidedProducerName,
@@ -837,8 +840,17 @@ public class Producer {
         cnx.removedProducer(this);
 
         log.debug("Removed producer");
+        cnx.notifyProducerClosed(this);
         closeFuture.complete(null);
         isDisconnecting.set(false);
+    }
+
+    public void markBrokerInterceptorProducerCreatedNotified() {
+        brokerInterceptorProducerCreatedNotified = true;
+    }
+
+    public boolean isBrokerInterceptorProducerCreatedNotified() {
+        return brokerInterceptorProducerCreatedNotified;
     }
 
     public CompletableFuture<Void> disconnect() {

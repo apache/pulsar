@@ -60,12 +60,16 @@ public interface TransportCnx {
 
     void removedProducer(Producer producer);
 
+    void notifyProducerClosed(Producer producer);
+
     void closeProducer(Producer producer);
     void closeProducer(Producer producer, Optional<BrokerLookupData> assignedBrokerLookupData);
 
     void execute(Runnable runnable);
 
     void removedConsumer(Consumer consumer);
+
+    void notifyConsumerClosed(Consumer consumer);
 
     void closeConsumer(Consumer consumer, Optional<BrokerLookupData> assignedBrokerLookupData);
 

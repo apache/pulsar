@@ -479,11 +479,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 return;
             }
             if (producerFuture.isDone() && !producerFuture.isCompletedExceptionally()) {
-                Producer producer = producerFuture.getNow(null);
-                producer.closeNow(true);
-                if (brokerInterceptor != null) {
-                    brokerInterceptor.producerClosed(this, producer, producer.getMetadata());
-                }
+                producerFuture.getNow(null).closeNow(true);
             }
         });
 
@@ -497,9 +493,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 Consumer consumer = consumerFuture.getNow(null);
                 try {
                     consumer.close();
-                    if (brokerInterceptor != null) {
-                        brokerInterceptor.consumerClosed(this, consumer, consumer.getMetadata());
-                    }
                 } catch (BrokerServiceException e) {
                     log.warn().attr("consumer", consumer).exceptionMessage(e)
                             .log("Consumer was already closed");
@@ -2351,9 +2344,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                 .log("Consumer with the same id is already created, closing it");
                         try {
                             consumer.close();
-                            if (brokerInterceptor != null) {
-                                brokerInterceptor.consumerClosed(this, consumer, consumer.getMetadata());
-                            }
                         } catch (BrokerServiceException e) {
                             log.warn()
                                     .attr("consumer", consumer)
@@ -2461,6 +2451,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                 commandSender.sendSuccessResponse(requestId);
                                 if (brokerInterceptor != null) {
                                     try {
+                                        consumer.markBrokerInterceptorConsumerCreatedNotified();
                                         brokerInterceptor.consumerCreated(this, consumer, metadata);
                                     } catch (Throwable t) {
                                         log.error()
@@ -3024,6 +3015,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             newTopicEpoch, true /* producer is ready now */);
                     if (brokerInterceptor != null) {
                         try {
+                            producer.markBrokerInterceptorProducerCreatedNotified();
                             brokerInterceptor.producerCreated(this, producer, metadata);
                         } catch (Throwable t) {
                             log.error().exception(t).log("Exception occur when intercept producer created.");
@@ -3105,8 +3097,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         producer.getLastSequenceId(), producer.getSchemaVersion(),
                         Optional.empty(), false/* producer is not ready now */);
                 if (brokerInterceptor != null) {
-                    brokerInterceptor.
-                            producerCreated(this, producer, metadata);
+                    producer.markBrokerInterceptorProducerCreatedNotified();
+                    brokerInterceptor.producerCreated(this, producer, metadata);
                 }
             }
         }, ctx.executor());
@@ -3475,9 +3467,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     .log("Closed producer on cnx. producerId");
             commandSender.sendSuccessResponse(requestId);
             producers.remove(producerId, producerFuture);
-            if (brokerInterceptor != null) {
-                brokerInterceptor.producerClosed(this, producer, producer.getMetadata());
-            }
         }, ctx.executor());
     }
 
@@ -3529,9 +3518,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             log.info()
                     .attr("consumerId", consumerId)
                     .log("Closed consumer, consumerId");
-            if (brokerInterceptor != null) {
-                brokerInterceptor.consumerClosed(this, consumer, consumer.getMetadata());
-            }
         } catch (BrokerServiceException e) {
             log.warn()
                     .attr("consumer", consumer)
@@ -4972,8 +4958,30 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     }
 
     @Override
+    public void notifyConsumerClosed(Consumer consumer) {
+        if (brokerInterceptor != null && consumer.isBrokerInterceptorConsumerCreatedNotified()) {
+            try {
+                brokerInterceptor.consumerClosed(this, consumer, consumer.getMetadata());
+            } catch (Throwable t) {
+                log.error().exception(t).log("Exception occur when intercept consumer closed.");
+            }
+        }
+    }
+
+    @Override
     public void removedProducer(Producer producer) {
         safelyRemoveProducer(producer);
+    }
+
+    @Override
+    public void notifyProducerClosed(Producer producer) {
+        if (brokerInterceptor != null && producer.isBrokerInterceptorProducerCreatedNotified()) {
+            try {
+                brokerInterceptor.producerClosed(this, producer, producer.getMetadata());
+            } catch (Throwable t) {
+                log.error().exception(t).log("Exception occur when intercept producer closed.");
+            }
+        }
     }
 
     private void safelyRemoveProducer(Producer producer) {
