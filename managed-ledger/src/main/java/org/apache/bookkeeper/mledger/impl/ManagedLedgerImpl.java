@@ -241,6 +241,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     // since their mark-delete position is unknown
     final Set<String> failedLazyRecoveryCursors;
 
+    // Guarded by this. Retain recovered cursor state for deletion if this fenced instance is still in use.
+    private List<ManagedCursorImpl> cursorsRecoveredWhileFenced;
+
     final EntryCache entryCache;
 
     private ScheduledFuture<?> timeoutTask;
@@ -941,6 +944,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return new ManagedLedgerAlreadyClosedException("Managed ledger is closed");
         }
         if (currentState == State.Fenced) {
+            if (cursorsRecoveredWhileFenced == null) {
+                cursorsRecoveredWhileFenced = new ArrayList<>();
+            }
+            cursorsRecoveredWhileFenced.add(cursor);
             return new ManagedLedgerFencedException();
         }
         cursor.setActive();
@@ -5704,6 +5711,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     synchronized void setFencedForDeletion() {
         log.info().log("Moving to FencedForDeletion state");
         State prev = STATE_UPDATER.getAndSet(this, State.FencedForDeletion);
+        if (cursorsRecoveredWhileFenced != null) {
+            // Truncation and cursor deletion both need these cursors in the container.
+            cursorsRecoveredWhileFenced.forEach(this::addCursor);
+            cursorsRecoveredWhileFenced = null;
+        }
         if (prev != State.FencedForDeletion) {
             clearPendingAddEntries(new ManagedLedgerFencedException("ManagedLedger "
                 + name + " is fenced"));
