@@ -994,6 +994,42 @@ public class RangeEntryCacheImplTest {
     }
 
     @Test(timeOut = 30_000)
+    public void testSurplusWholeRangeRetryAnswerIsTrimmedToTheRange() {
+        // The whole-range re-read can answer with surplus entries beyond the range: an
+        // offloaded-ledger grouped read starts at its segment's start entry (#26708). The range it
+        // was asked for is covered, so the read must not fail — it must deliver exactly the
+        // requested range and release each surplus entry, without counting its drop as a read.
+        rangeEntryCache.insert(EntryImpl.create(1, 50, Unpooled.EMPTY_BUFFER));
+        List<EntryImpl> shortLegEntries = new ArrayList<>();
+        stubLegAnswer(51, 99, entriesForRange(51, 90, shortLegEntries));
+        List<EntryImpl> retryEntries = new ArrayList<>();
+        List<Entry> retryAnswer = new ArrayList<>(entriesForRange(0, 99, retryEntries));
+        EntryImpl surplus = EntryImpl.create(1, 100, Unpooled.EMPTY_BUFFER, 1);
+        retryEntries.add(surplus);
+        retryAnswer.add(surplus);
+        EntryReadCountHandler surplusReadCountHandler = surplus.getReadCountHandler();
+        stubLegAnswer(0, 99, retryAnswer);
+
+        CompletableFuture<List<Entry>> future = readEntriesAsync();
+
+        assertThat(future).isCompleted();
+        List<Entry> delivered = future.getNow(null);
+        try {
+            assertThat(delivered).hasSize(100);
+            assertThat(delivered).doesNotContainNull();
+            assertThat(delivered.get(0).getEntryId()).isZero();
+            assertThat(delivered.get(99).getEntryId()).isEqualTo(99L);
+            assertThat(delivered).doesNotContain(surplus);
+        } finally {
+            delivered.forEach(Entry::release);
+        }
+        verify(pendingReadsManager, times(1)).readEntries(any(), eq(0L), eq(99L), anyLong(), any(), any(), any());
+        // the surplus entry was dropped at the delivery, and its drop was not counted as a read
+        assertThat(surplus.refCnt()).isZero();
+        assertThat(surplusReadCountHandler.getExpectedReadCount()).isEqualTo(1);
+    }
+
+    @Test(timeOut = 30_000)
     public void testNullSlotInDeliveredBatchReturnsItsPermitShareImmediately() {
         // The limiter wrapper's null branch is defense in depth now that the mixed read validates
         // its answers before delivering, but it must keep working: a null slot has no entry that
