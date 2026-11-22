@@ -3742,10 +3742,11 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ManagedLedgerImpl reopened = (ManagedLedgerImpl) factory2.open(ledger.getName(),
                 config.setLazyCursorRecovery(true));
         DeleteLedgerCallback deletion = mock(DeleteLedgerCallback.class);
+        CompletableFuture<ManagedCursor> opening;
         try {
+            opening = ManagedLedgerUtils.openCursor(reopened, "cursor");
+            assertThat(opening).isNotDone();
             if (recoveryCompletesBeforeDelete) {
-                CompletableFuture<ManagedCursor> opening = ManagedLedgerUtils.openCursor(reopened, "cursor");
-                assertThat(opening).isNotDone();
                 reopened.setFenced();
                 resumeRecovery.complete(null);
                 assertThatThrownBy(() -> opening.get(5, TimeUnit.SECONDS))
@@ -3758,6 +3759,9 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         } finally {
             resumeRecovery.complete(null);
         }
+        assertThatThrownBy(() -> opening.get(5, TimeUnit.SECONDS))
+                .hasCauseInstanceOf(ManagedLedgerFencedException.class);
+        assertThat(reopened.getActiveCursors()).isEmpty();
         verify(deletion, timeout(5000)).deleteLedgerComplete(null);
         assertThat(metadataStore.exists(cursorPath).get(5, TimeUnit.SECONDS)).isFalse();
         Awaitility.await().atMost(5, TimeUnit.SECONDS)

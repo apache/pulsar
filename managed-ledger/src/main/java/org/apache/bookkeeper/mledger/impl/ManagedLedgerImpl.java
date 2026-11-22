@@ -244,6 +244,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     // Guarded by this. Retain recovered cursor state for deletion if this fenced instance is still in use.
     private List<ManagedCursorImpl> cursorsRecoveredWhileFenced;
 
+    // Guarded by this. Closing stops cursor admission before the asynchronous writer close completes.
+    private boolean closeStarted;
+
     final EntryCache entryCache;
 
     private ScheduledFuture<?> timeoutTask;
@@ -937,11 +940,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     private synchronized @Nullable ManagedLedgerException tryRegisterRecoveredCursor(ManagedCursorImpl cursor) {
-        // Serialize registration with close and fencing. FencedForDeletion still needs the recovered
-        // cursors to find and delete their BookKeeper ledgers.
         State currentState = state;
-        if (currentState == State.Closed) {
-            return new ManagedLedgerAlreadyClosedException("Managed ledger is closed");
+        if (currentState == State.FencedForDeletion) {
+            // Make the cursor visible to deletion before dropping its pending recovery record.
+            addCursor(cursor);
+            return new ManagedLedgerFencedException();
         }
         if (currentState == State.Fenced) {
             if (cursorsRecoveredWhileFenced == null) {
@@ -949,6 +952,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }
             cursorsRecoveredWhileFenced.add(cursor);
             return new ManagedLedgerFencedException();
+        }
+        if (closeStarted || currentState == State.Closed) {
+            return new ManagedLedgerAlreadyClosedException("Managed ledger is closed");
         }
         cursor.setActive();
         addCursor(cursor);
@@ -1284,6 +1290,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             checkFenced();
         } catch (ManagedLedgerException e) {
             callback.openCursorFailed(e, ctx);
+            return;
+        }
+        if (closeStarted) {
+            callback.openCursorFailed(new ManagedLedgerAlreadyClosedException("Managed ledger is closed"), ctx);
             return;
         }
 
@@ -2078,6 +2088,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     @Override
     public synchronized void asyncClose(final CloseCallback callback, final Object ctx) {
+        closeStarted = true;
         State state = STATE_UPDATER.get(this);
         if (state.isFenced()) {
             cancelScheduledTasks();
@@ -2205,12 +2216,15 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
 
         if (rc != BKException.Code.OK) {
-            log.error().attr("rc", rc).attr("message", BKException.getMessage(rc)).log("Error creating ledger");
-            ManagedLedgerException status = createManagedLedgerException(rc);
             // The creation is over: if it was failed by force, its ledger may still be created later, and must not be
             // used then
             ledgerCreationGeneration++;
+            if (state.isFenced()) {
+                return;
+            }
 
+            log.error().attr("rc", rc).attr("message", BKException.getMessage(rc)).log("Error creating ledger");
+            ManagedLedgerException status = createManagedLedgerException(rc);
             // no pending entries means that creating this new ledger is NOT caused by write failure
             if (pendingAddEntries.isEmpty()) {
                 STATE_UPDATER.set(this, State.ClosedLedger);
@@ -2305,7 +2319,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                             // Failed by force already: the state and the pending adds belong to a newer creation
                             return;
                         }
-                        if (STATE_UPDATER.get(ManagedLedgerImpl.this) == State.Terminated) {
+                        State currentState = state;
+                        if (currentState == State.Closed || currentState.isFenced()) {
+                            return;
+                        }
+                        if (currentState == State.Terminated) {
                             // Terminated while the ledgers list was being updated. The new ledger is deleted above
                             abortRolloverAfterTerminate(null);
                         } else {
