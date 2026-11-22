@@ -36,6 +36,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.SkipEntriesCallback;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorResetInProgressException;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 
 /**
@@ -532,6 +533,15 @@ public interface ManagedCursor {
      *            opaque context
      */
     void asyncDelete(Iterable<Position> position, DeleteCallback callback, Object ctx);
+
+    /**
+     * Retry an individual ACK rejected by a failed reset on this cursor. A subsequent successful reset
+     * rejects the retry before it changes acknowledgment state.
+     */
+    default void retryDeleteAfterFailedReset(Iterable<Position> positions, CursorResetInProgressException conflict,
+            DeleteCallback callback, Object ctx) {
+        callback.deleteFailed(new ManagedLedgerException("Retry after a failed reset is unsupported"), ctx);
+    }
 
     /**
      * Get the read position. This points to the next message to be read from the cursor.

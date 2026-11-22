@@ -29,8 +29,6 @@ import io.netty.util.Timer;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.BitSet;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -47,6 +45,7 @@ import lombok.Getter;
 import org.apache.bookkeeper.client.api.BKException;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorResetInProgressException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.AckSetState;
 import org.apache.bookkeeper.mledger.impl.AckSetStateUtil;
@@ -94,12 +93,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
      * <p>
      *     Not thread safe: it is only modified on {@link #internalPinnedExecutor} while holding the handle's monitor.
      */
-    private LinkedMap<TxnID, Map<Position, IndividualAck>> individualAckOfTransaction;
-
-    // Keep the full commit position and the part reserved in the current aggregate entry independently.
-    private record IndividualAck(Position position, Position reservedPosition,
-                                 MutablePair<Position, Integer> reservation) {
-    }
+    private LinkedMap<TxnID, HashMap<Position, Position>> individualAckOfTransaction;
 
     /**
      * The map is for individual ack of positions for transaction.
@@ -514,7 +508,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                     pendingAckStore.appendCommitMark(txnID, AckType.Individual).thenAcceptAsync(v -> {
                         synchronized (PendingAckHandleImpl.this) {
                             if (individualAckOfTransaction != null && individualAckOfTransaction.containsKey(txnID)) {
-                                Map<Position, IndividualAck> pendingAckMessageForCurrentTxn =
+                                HashMap<Position, Position> pendingAckMessageForCurrentTxn =
                                         individualAckOfTransaction.get(txnID);
                                     log.debug()
                                             .attr("txnId", txnID)
@@ -614,7 +608,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
             pendingAckStoreFuture.thenAccept(pendingAckStore ->
                     pendingAckStore.appendAbortMark(txnId, AckType.Individual).thenAcceptAsync(v -> {
                         synchronized (PendingAckHandleImpl.this) {
-                            Map<Position, IndividualAck> pendingAckMessageForCurrentTxn =
+                            HashMap<Position, Position> pendingAckMessageForCurrentTxn =
                                     individualAckOfTransaction.get(txnId);
                             if (pendingAckMessageForCurrentTxn != null) {
                                     log.debug()
@@ -623,7 +617,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                                                                 individualAckAbortCommon(txnId,
                                                                         pendingAckMessageForCurrentTxn);
                                 persistentSubscription.redeliverUnacknowledgedMessages(consumer,
-                                        positionsOfIndividualAcks(pendingAckMessageForCurrentTxn.values()));
+                                        new ArrayList<>(pendingAckMessageForCurrentTxn.values()));
                                 abortFuture.complete(null);
                                 handleLowWaterMark(txnId, lowWaterMark);
                             } else {
@@ -755,7 +749,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
             this.cumulativeAckOfTransaction = null;
         } else {
             if (this.individualAckOfTransaction != null) {
-                Map<Position, IndividualAck> pendingAckMessageForCurrentTxn =
+                HashMap<Position, Position> pendingAckMessageForCurrentTxn =
                         individualAckOfTransaction.get(txnID);
                 if (pendingAckMessageForCurrentTxn != null) {
                     individualAckAbortCommon(txnID, pendingAckMessageForCurrentTxn);
@@ -764,30 +758,30 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         }
     }
 
-    private void individualAckAbortCommon(TxnID txnID, Map<Position, IndividualAck> currentTxn) {
-        for (IndividualAck ack : currentTxn.values()) {
-            Position position = ack.position();
-            long[] entryValueAckSet = getAckSetArrayOrNull(position);
+    private void individualAckAbortCommon(TxnID txnID, HashMap<Position, Position> currentTxn) {
+        for (Map.Entry<Position, Position> entry :
+                currentTxn.entrySet()) {
+            long[] entryValueAckSet = getAckSetArrayOrNull(entry.getValue());
             if (entryValueAckSet != null
-                    && individualAckPositions.containsKey(position)) {
+                    && individualAckPositions.containsKey(entry.getValue())) {
                 BitSetRecyclable thisBitSet =
                         BitSetRecyclable.valueOf(entryValueAckSet);
-                int batchSize = individualAckPositions.get(position).right;
+                int batchSize = individualAckPositions.get(entry.getValue()).right;
                 thisBitSet.flip(0, batchSize);
                 AckSetState individualAckPositionAckSetState =
-                        AckSetStateUtil.getAckSetState(individualAckPositions.get(position).left);
+                        AckSetStateUtil.getAckSetState(individualAckPositions.get(entry.getValue()).left);
                 BitSetRecyclable otherBitSet =
                         BitSetRecyclable.valueOf(individualAckPositionAckSetState.getAckSet());
                 otherBitSet.or(thisBitSet);
                 if (otherBitSet.cardinality() == batchSize) {
-                    individualAckPositions.remove(position);
+                    individualAckPositions.remove(entry.getValue());
                 } else {
                     individualAckPositionAckSetState.setAckSet(otherBitSet.toLongArray());
                 }
                 otherBitSet.recycle();
                 thisBitSet.recycle();
             } else {
-                individualAckPositions.remove(position);
+                individualAckPositions.remove(entry.getValue());
             }
         }
         individualAckOfTransaction.remove(txnID);
@@ -803,7 +797,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
             this.cumulativeAckOfTransaction = null;
         } else {
             if (this.individualAckOfTransaction != null) {
-                Map<Position, IndividualAck> pendingAckMessageForCurrentTxn =
+                HashMap<Position, Position> pendingAckMessageForCurrentTxn =
                         individualAckOfTransaction.get(txnID);
                 if (pendingAckMessageForCurrentTxn != null) {
                     individualAckCommitCommon(txnID, pendingAckMessageForCurrentTxn, null);
@@ -813,116 +807,96 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     }
 
     private CompletableFuture<Void> individualAckCommitCommon(TxnID txnID,
-                                                              Map<Position, IndividualAck> currentTxn,
+                                                              HashMap<Position, Position> currentTxn,
                                                               Map<String, Long> properties) {
-        if (currentTxn != null) {
-            List<IndividualAck> acknowledgments = new ArrayList<>(currentTxn.values());
-            // The cursor completes the ack on its own thread, while other transactions may be updating
-            // individualAckOfTransaction, so the removal must go back to the pinned executor and the lock.
-            return persistentSubscription.applyIndividualTxnAck(positionsOfIndividualAcks(acknowledgments), properties)
-                    .thenRunAsync(() -> {
-                        synchronized (PendingAckHandleImpl.this) {
-                            if (individualAckOfTransaction.get(txnID) == currentTxn) {
-                                acknowledgments.forEach(this::releaseCommittedIndividualAck);
-                                individualAckOfTransaction.remove(txnID);
-                            }
-                        }
-                    }, internalPinnedExecutor);
-        } else {
+        if (currentTxn == null) {
             return CompletableFuture.completedFuture(null);
         }
-    }
-
-    private static List<Position> positionsOfIndividualAcks(Collection<IndividualAck> acknowledgments) {
-        List<Position> positions = new ArrayList<>(acknowledgments.size());
-        for (IndividualAck ack : acknowledgments) {
-            positions.add(ack.position());
-        }
-        return positions;
-    }
-
-    private void releaseCommittedIndividualAck(IndividualAck ack) {
-        Position position = ack.reservedPosition();
-        MutablePair<Position, Integer> reservation = ack.reservation();
-        if (reservation == null || individualAckPositions.get(position) != reservation) {
-            return;
-        }
-        long[] committedAckSet = getAckSetArrayOrNull(position);
-        if (committedAckSet == null || committedAckSet.length == 0) {
-            individualAckPositions.remove(position);
-            return;
-        }
-        if (!persistentSubscription.getCursor().getManagedLedger().getConfig().isDeletionAtBatchIndexLevelEnabled()) {
-            // The cursor did not record a partial batch ACK. Keep its existing pending-ACK mask.
-            return;
-        }
-        long[] pendingAckSet = getAckSetArrayOrNull(reservation.getLeft());
-        if (pendingAckSet == null) {
-            return;
-        }
-        int batchSize = reservation.getRight();
-        if (batchSize <= 0) {
-            return;
-        }
-        BitSet released = BitSet.valueOf(committedAckSet).get(0, batchSize);
-        released.flip(0, batchSize);
-        BitSet pending = BitSet.valueOf(pendingAckSet);
-        pending.or(released);
-        if (pending.nextClearBit(0) >= batchSize) {
-            individualAckPositions.remove(position);
-        } else {
-            AckSetStateUtil.getAckSetState(reservation.getLeft()).setAckSet(pending.toLongArray());
-        }
+        // The cursor completes the ack on its own thread, while other transactions may be updating
+        // individualAckOfTransaction, so the removal must go back to the pinned executor and the lock.
+        return persistentSubscription.acknowledgeMessageAsync(new ArrayList<>(currentTxn.values()),
+                AckType.Individual, properties).thenRunAsync(() -> {
+                    synchronized (PendingAckHandleImpl.this) {
+                        if (individualAckOfTransaction.get(txnID) == currentTxn) {
+                            individualAckOfTransaction.remove(txnID);
+                        }
+                    }
+                }, internalPinnedExecutor).exceptionallyCompose(error -> {
+                    Throwable cause = FutureUtil.unwrapCompletionException(error);
+                    if (!(cause instanceof CursorResetInProgressException reset)) {
+                        return CompletableFuture.failedFuture(error);
+                    }
+                    // Keep the original commit operation and retry only the cursor ACK after this reset.
+                    return reset.getResetCompletion().thenComposeAsync(ignored -> {
+                        synchronized (PendingAckHandleImpl.this) {
+                            if (state == State.Close) {
+                                return CompletableFuture.failedFuture(new ServiceUnitNotReadyException(
+                                        "Pending ack handle is closed"));
+                            }
+                            if (individualAckOfTransaction.get(txnID) != currentTxn) {
+                                return CompletableFuture.completedFuture(null);
+                            }
+                            return individualAckCommitCommon(txnID, currentTxn, properties);
+                        }
+                    }, internalPinnedExecutor);
+                });
     }
 
     private void handleIndividualAck(TxnID txnID, List<MutablePair<Position, Integer>> positions) {
-        if (positions.isEmpty()) {
-            return;
-        }
-        log.debug().attr("txnId", txnID.toString()).attr("positions", positions).log("Individual acks");
-        if (individualAckOfTransaction == null) {
-            individualAckOfTransaction = new LinkedMap<>();
-        }
-        if (individualAckPositions == null) {
-            individualAckPositions = new ConcurrentSkipListMap<>();
-        }
-        Map<Position, IndividualAck> currentTxn = individualAckOfTransaction.computeIfAbsent(txnID,
-                ignored -> new HashMap<>());
-        for (MutablePair<Position, Integer> positionPair : positions) {
-            Position position = positionPair.getLeft();
-            long[] ackSet = getAckSetArrayOrNull(position);
-            if (ackSet == null) {
-                var existing = individualAckPositions.putIfAbsent(position, positionPair);
-                IndividualAck previous = currentTxn.get(position);
-                if (existing == null || existing == positionPair) {
-                    currentTxn.put(position, new IndividualAck(position, position, positionPair));
-                } else if (previous == null || previous.reservation() != existing) {
-                    currentTxn.put(position, new IndividualAck(position, position, null));
-                }
-                continue;
+        for (int i = 0; i < positions.size(); i++) {
+                log.debug()
+                        .attr("txnId", txnID.toString())
+                        .attr("positions", positions)
+                        .log("Individual acks");
+                        if (individualAckOfTransaction == null) {
+                individualAckOfTransaction = new LinkedMap<>();
             }
 
-            MutablePair<Position, Integer> reservation = individualAckPositions.get(position);
-            if (reservation == null) {
-                // Other transactions can update the aggregate mask. Keep it separate from this transaction's mask.
-                reservation = MutablePair.of(createPositionWithAckSet(position.getLedgerId(), position.getEntryId(),
-                        Arrays.copyOf(ackSet, ackSet.length)), positionPair.getRight());
-                individualAckPositions.put(position, reservation);
-            } else {
-                reservation.setRight(positionPair.getRight());
-                andAckSet(reservation.getLeft(), position);
+            if (individualAckPositions == null) {
+                individualAckPositions = new ConcurrentSkipListMap<>();
             }
 
-            IndividualAck previous = currentTxn.get(position);
-            if (previous == null) {
-                currentTxn.put(position, new IndividualAck(position, position, reservation));
-            } else {
-                andAckSet(previous.position(), position);
-                if (previous.reservation() != reservation) {
-                    currentTxn.put(position, new IndividualAck(previous.position(), position, reservation));
-                } else if (previous.position() != previous.reservedPosition()) {
-                    andAckSet(previous.reservedPosition(), position);
+            Position position = positions.get(i).left;
+            long[] positionAckSet = getAckSetArrayOrNull(position);
+            if (positionAckSet != null) {
+
+                HashMap<Position, Position> pendingAckMessageForCurrentTxn =
+                        individualAckOfTransaction.computeIfAbsent(txnID, txn -> new HashMap<>());
+
+                if (pendingAckMessageForCurrentTxn.containsKey(position)) {
+                    andAckSet(pendingAckMessageForCurrentTxn.get(position), position);
+                } else {
+                    pendingAckMessageForCurrentTxn.put(position, position);
                 }
+
+                if (!individualAckPositions.containsKey(position)) {
+                    /**
+                     *  if the position does not exist in individualAckPositions {@link individualAckPositions},
+                     *  should new the same position and put the new position into
+                     *  the individualAckPositions {@link individualAckPositions}
+                     *  because when another ack the same batch message will change the ackSet with the new transaction
+                     *  when the tc commits the first txn will ack all of the ackSet which has in pending ack status
+                     *  individualAckPositions{@link individualAckPositions} can't include the same position
+                     *  object on individualAckOfTransaction {@link individualAckOfTransaction}
+                     */
+                    MutablePair<Position, Integer> positionPair = positions.get(i);
+                    long[] positionPairLeftAckSet = getAckSetArrayOrNull(positionPair.left);
+                    positionPair.left = createPositionWithAckSet(positionPair.left.getLedgerId(),
+                            positionPair.left.getEntryId(),
+                            Arrays.copyOf(positionPairLeftAckSet, positionPairLeftAckSet.length));
+                    this.individualAckPositions.put(position, positionPair);
+                } else {
+                    MutablePair<Position, Integer> positionPair =
+                            this.individualAckPositions.get(position);
+                    positionPair.setRight(positions.get(i).right);
+                    andAckSet(positionPair.getLeft(), position);
+                }
+
+            } else {
+                HashMap<Position, Position> pendingAckMessageForCurrentTxn =
+                        individualAckOfTransaction.computeIfAbsent(txnID, txn -> new HashMap<>());
+                pendingAckMessageForCurrentTxn.put(position, position);
+                this.individualAckPositions.putIfAbsent(position, positions.get(i));
             }
         }
     }

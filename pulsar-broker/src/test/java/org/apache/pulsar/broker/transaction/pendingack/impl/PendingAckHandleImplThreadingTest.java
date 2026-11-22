@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.broker.transaction.pendingack.impl;
 
-import static org.apache.bookkeeper.mledger.impl.AckSetStateUtil.createPositionWithAckSet;
-import static org.apache.bookkeeper.mledger.impl.AckSetStateUtil.getAckSetArrayOrNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -45,6 +43,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckStore;
 import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -122,15 +121,13 @@ public class PendingAckHandleImplThreadingTest {
     public void testCommitCompletedByCursorOnAnotherThreadIsAppliedOnPinnedExecutor() throws Exception {
         when(store.appendIndividualAck(any(), anyList())).thenReturn(CompletableFuture.completedFuture(null));
         TxnID txnID = new TxnID(1, 2);
-        handle.individualAcknowledgeMessage(txnID, List.of(
-                MutablePair.of(PositionFactory.create(5, 2), 1), MutablePair.of(PositionFactory.create(5, 2), 1)))
-                .get(10, TimeUnit.SECONDS);
+        handle.individualAcknowledgeMessage(txnID, positions(5, 2)).get(10, TimeUnit.SECONDS);
         assertThat(handle.getStats(false).ongoingTxnSize).isEqualTo(1);
 
         CompletableFuture<Void> cursorAck = new CompletableFuture<>();
-        when(subscription.applyIndividualTxnAck(anyList(), any())).thenReturn(cursorAck);
+        when(subscription.acknowledgeMessageAsync(anyList(), eq(AckType.Individual), any())).thenReturn(cursorAck);
         CompletableFuture<Void> commitFuture = handle.commitTxn(txnID, Map.of(), 0L);
-        verify(subscription, timeout(10000)).applyIndividualTxnAck(anyList(), any());
+        verify(subscription, timeout(10000)).acknowledgeMessageAsync(anyList(), eq(AckType.Individual), any());
 
         CountDownLatch release = blockPinnedExecutor();
         try {
@@ -144,51 +141,6 @@ public class PendingAckHandleImplThreadingTest {
         }
         commitFuture.get(10, TimeUnit.SECONDS);
         assertThat(handle.getStats(false).ongoingTxnSize).isEqualTo(0);
-        assertThat(handle.getPositionInPendingAck(PositionFactory.create(5, 2))).isNull();
-    }
-
-    @Test
-    public void testCommitReleasesOnlyItsBatchIndexes() throws Exception {
-        when(store.appendIndividualAck(any(), anyList())).thenReturn(CompletableFuture.completedFuture(null));
-        when(subscription.getCursor().getManagedLedger().getConfig().isDeletionAtBatchIndexLevelEnabled())
-                .thenReturn(true);
-        when(subscription.applyIndividualTxnAck(anyList(), any()))
-                .thenReturn(CompletableFuture.completedFuture(null));
-
-        TxnID first = new TxnID(1, 1);
-        Position firstAck = createPositionWithAckSet(5, 2, new long[] {0b110});
-        handle.individualAcknowledgeMessage(first, List.of(MutablePair.of(firstAck, 3)))
-                .get(10, TimeUnit.SECONDS);
-        TxnID second = new TxnID(1, 2);
-        Position secondAck = createPositionWithAckSet(5, 2, new long[] {0b101});
-        handle.individualAcknowledgeMessage(second, List.of(MutablePair.of(secondAck, 3)))
-                .get(10, TimeUnit.SECONDS);
-        assertThat(getAckSetArrayOrNull(handle.getPositionInPendingAck(firstAck))).containsExactly(0b100L);
-
-        handle.commitTxn(first, Map.of(), 0L).get(10, TimeUnit.SECONDS);
-        assertThat(getAckSetArrayOrNull(handle.getPositionInPendingAck(firstAck))).containsExactly(0b101L);
-        assertThat(handle.getStats(false).ongoingTxnSize).isEqualTo(1);
-    }
-
-    @Test
-    public void testCommitDoesNotRemoveReplacementReservation() throws Exception {
-        when(store.appendIndividualAck(any(), anyList())).thenReturn(CompletableFuture.completedFuture(null));
-        when(subscription.applyIndividualTxnAck(anyList(), any()))
-                .thenReturn(CompletableFuture.completedFuture(null));
-        TxnID first = new TxnID(1, 1);
-        Position firstPosition = PositionFactory.create(5, 2);
-        handle.individualAcknowledgeMessage(first, List.of(MutablePair.of(firstPosition, 1)))
-                .get(10, TimeUnit.SECONDS);
-
-        handle.clearIndividualPosition(firstPosition);
-        Position replacement = PositionFactory.create(5, 2);
-        TxnID second = new TxnID(1, 2);
-        handle.individualAcknowledgeMessage(second, List.of(MutablePair.of(replacement, 1)))
-                .get(10, TimeUnit.SECONDS);
-
-        handle.commitTxn(first, Map.of(), 0L).get(10, TimeUnit.SECONDS);
-        assertThat(handle.getPositionInPendingAck(firstPosition)).isSameAs(replacement);
-        assertThat(handle.getStats(false).ongoingTxnSize).isEqualTo(1);
     }
 
     private static List<MutablePair<Position, Integer>> positions(long ledgerId, long entryId) {

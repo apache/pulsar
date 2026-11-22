@@ -18,10 +18,12 @@
  */
 package org.apache.pulsar.broker.transaction.pendingack;
 
+import static org.apache.bookkeeper.mledger.impl.AckSetStateUtil.getAckSetArrayOrNull;
 import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricLongSumValue;
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.Metric;
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.parseMetrics;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -49,14 +51,13 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.bookkeeper.client.api.BKException;
-import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorResetInProgressException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.util.ManagedLedgerUtils;
 import org.apache.commons.collections4.map.LinkedMap;
 import org.apache.pulsar.PrometheusMetricsTestUtil;
 import org.apache.pulsar.broker.BrokerTestUtil;
@@ -84,6 +85,7 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
+import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -92,6 +94,8 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
+import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.MockZooKeeper;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -120,32 +124,27 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         super.internalCleanup();
     }
 
-    @DataProvider
-    public Object[][] additionalCursorReset() {
-        return new Object[][] {{false}, {true}};
-    }
-
-    @Test(timeOut = 60_000, dataProvider = "additionalCursorReset")
-    public void testIndividualTransactionCommitWaitsForCursorReset(boolean additionalReset) throws Exception {
-        String subName = "txn-cursor-reset";
+    @Test(timeOut = 60_000)
+    public void testIndividualTransactionCommitWaitsForCursorReset() throws Exception {
+        String subscriptionName = "txn-cursor-reset";
         Transaction transaction = pulsarClient.newTransaction()
                 .withTransactionTimeout(45, TimeUnit.SECONDS).build().get(10, TimeUnit.SECONDS);
         List<Position> positions = new ArrayList<>();
         try (Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
-                .topic(PENDING_ACK_REPLAY_TOPIC).subscriptionName(subName)
+                .topic(PENDING_ACK_REPLAY_TOPIC).subscriptionName(subscriptionName)
                 .subscriptionType(SubscriptionType.Shared).subscribe();
              Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
                      .topic(PENDING_ACK_REPLAY_TOPIC).enableBatching(false).create()) {
-            int numMessages = 5;
-            for (int i = 0; i < numMessages; i++) {
+            int messageCount = 5;
+            for (int i = 0; i < messageCount; i++) {
                 producer.send("message-" + i);
             }
-            for (int i = 0; i < numMessages; i++) {
+            for (int i = 0; i < messageCount; i++) {
                 Message<String> message = consumer.receive(5, TimeUnit.SECONDS);
                 assertThat(message).isNotNull();
                 MessageIdAdv id = (MessageIdAdv) message.getMessageId();
                 positions.add(PositionFactory.create(id.getLedgerId(), id.getEntryId()));
-                if (i == numMessages - 1) {
+                if (i == messageCount - 1) {
                     consumer.acknowledgeAsync(id, transaction).get(10, TimeUnit.SECONDS);
                 }
             }
@@ -154,30 +153,19 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         PersistentTopic topic = (PersistentTopic) pulsarServiceList.get(0).getBrokerService()
                 .getTopic(TopicName.get(PENDING_ACK_REPLAY_TOPIC).toString(), false).get(10, TimeUnit.SECONDS)
                 .orElseThrow();
-        PersistentSubscription subscription = topic.getSubscription(subName);
+        PersistentSubscription subscription = topic.getSubscription(subscriptionName);
         ManagedCursorImpl cursor = (ManagedCursorImpl) subscription.getCursor();
-        ManagedLedgerImpl topicLedger = (ManagedLedgerImpl) topic.getManagedLedger();
         PendingAckHandleImpl pendingAckHandle = (PendingAckHandleImpl) subscription.getPendingAckHandle();
         ManagedLedgerImpl pendingAckLedger = (ManagedLedgerImpl) subscription.getPendingAckManageLedger()
                 .get(10, TimeUnit.SECONDS);
-        Position ackPosition = positions.get(4);
+        Position ackPosition = positions.getLast();
         assertThat(subscription.getPositionInPendingAck(ackPosition)).isNotNull();
         cursor.setThrottleMarkDelete(0);
         cursor.markDelete(positions.get(2));
         long lastCursorLedgerEntry = cursor.getCursorLedgerLastEntry();
+        long pendingAckEntries = pendingAckLedger.getEntriesAddedCounter();
 
-        if (additionalReset) {
-            // Leave an unread entry after the consumer closes so an explicit read can hold the cursor's ACK queue.
-            cursor.setInactive();
-            try (Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                    .topic(PENDING_ACK_REPLAY_TOPIC).enableBatching(false).create()) {
-                producer.send("pending-read-entry");
-            }
-        }
-
-        var bookKeeper = pulsarTestContexts.get(0).getMockBookKeeper();
-        CompletableFuture<Void> releaseReset = bookKeeper.addEntryResponseGate();
-        CompletableFuture<Void> releaseRead = new CompletableFuture<>();
+        CompletableFuture<Void> releaseReset = pulsarTestContexts.get(0).getMockBookKeeper().addEntryResponseGate();
         try {
             CompletableFuture<Void> reset = subscription.resetCursor(positions.get(1));
             Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() ->
@@ -185,25 +173,10 @@ public class PendingAckPersistentTest extends TransactionTestBase {
                             && releaseReset.getNumberOfDependents() > 0);
             assertThat(reset).isNotDone();
 
-            CompletableFuture<Void> read = CompletableFuture.completedFuture(null);
-            if (additionalReset) {
-                CompletableFuture<Void> readStarted = new CompletableFuture<>();
-                bookKeeper.setReadHandleInterceptor((ledgerId, firstEntry, lastEntry, entries) -> {
-                    readStarted.complete(null);
-                    return releaseRead.thenApply(__ -> entries);
-                });
-                topicLedger.getFactory().getEntryCacheManager().getEntryCache(topicLedger).clear();
-                read = ManagedLedgerUtils.readEntries(cursor, 1, PositionFactory.LATEST)
-                        .thenAccept(entries -> entries.forEach(Entry::release));
-                readStarted.get(10, TimeUnit.SECONDS);
-                assertThat(cursor.getPendingReadOpsCount()).isEqualTo(1);
-            }
-
-            Position lastPendingAckEntry = pendingAckLedger.getLastConfirmedEntry();
             CompletableFuture<Void> commit = transaction.commit();
-            // The commit marker's write callback enqueues the individual ACK on the pending-ACK executor.
-            Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() ->
-                    pendingAckLedger.getLastConfirmedEntry().compareTo(lastPendingAckEntry) > 0);
+            Awaitility.await().atMost(10, TimeUnit.SECONDS)
+                    .until(() -> pendingAckLedger.getEntriesAddedCounter() > pendingAckEntries);
+            // The commit marker's completion hands off the cursor ACK to the pinned executor.
             pendingAckLedger.getExecutor().submit(() -> { }).get(10, TimeUnit.SECONDS);
             pendingAckHandle.getInternalPinnedExecutor().submit(() -> { }).get(10, TimeUnit.SECONDS);
             assertThat(commit).isNotDone();
@@ -211,30 +184,154 @@ public class PendingAckPersistentTest extends TransactionTestBase {
 
             releaseReset.complete(null);
             reset.get(10, TimeUnit.SECONDS);
-            if (additionalReset) {
-                Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> cursor.isMessageDeleted(ackPosition));
-                assertThat(commit).isNotDone();
-                assertThat(cursor.getPersistentMarkDeletedPosition()).isEqualTo(positions.getFirst());
-
-                CompletableFuture<Void> secondReset = subscription.resetCursor(positions.get(1));
-                // Wait for the second reset to submit on the ledger executor before releasing the read.
-                Awaitility.await().atMost(10, TimeUnit.SECONDS)
-                        .until(() -> cursor.getPersistentMarkDeletedPosition() == null);
-                topicLedger.getExecutor().submit(() -> { }).get(10, TimeUnit.SECONDS);
-                assertThat(secondReset).isNotDone();
-                releaseRead.complete(null);
-                secondReset.get(10, TimeUnit.SECONDS);
-                read.get(10, TimeUnit.SECONDS);
-            }
             commit.get(10, TimeUnit.SECONDS);
             assertThat(cursor.getMarkDeletedPosition()).isEqualTo(positions.getFirst());
-            assertThat(cursor.isMessageDeleted(ackPosition)).isEqualTo(!additionalReset);
+            assertThat(cursor.isMessageDeleted(ackPosition)).isTrue();
             assertThat(subscription.getPositionInPendingAck(ackPosition)).isNull();
+            assertThat(pendingAckLedger.getEntriesAddedCounter()).isEqualTo(pendingAckEntries + 1);
         } finally {
             releaseReset.complete(null);
-            releaseRead.complete(null);
-            bookKeeper.setReadHandleInterceptor(null);
         }
+    }
+
+    @DataProvider
+    public Object[][] ordinaryBatchAckBeforeReset() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    @Test(timeOut = 60_000, dataProvider = "ordinaryBatchAckBeforeReset")
+    public void testRejectedOrdinaryBatchAckDoesNotHideMessagesAfterReset(boolean previouslyAcknowledged)
+            throws Exception {
+        verifyOrdinaryBatchAckDuringReset(previouslyAcknowledged, true);
+    }
+
+    @Test(timeOut = 60_000)
+    public void testOrdinaryBatchAckResumesAfterFailedReset() throws Exception {
+        verifyOrdinaryBatchAckDuringReset(false, false);
+    }
+
+    private void verifyOrdinaryBatchAckDuringReset(boolean previouslyAcknowledged, boolean resetSucceeds)
+            throws Exception {
+        String subscriptionName = "ordinary-batch-ack-cursor-reset";
+        PersistentSubscription subscription;
+        ManagedCursorImpl cursor;
+        Position beforeBatch;
+        Position batchPosition;
+        org.apache.pulsar.broker.service.Consumer brokerConsumer;
+        CommandAck ack;
+        try (Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                    .topic(PENDING_ACK_REPLAY_TOPIC).subscriptionName(subscriptionName)
+                    .subscriptionType(SubscriptionType.Shared).enableBatchIndexAcknowledgment(true).subscribe();
+             Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                    .topic(PENDING_ACK_REPLAY_TOPIC).enableBatching(true).batchingMaxMessages(2)
+                    .batchingMaxPublishDelay(10, TimeUnit.SECONDS).create()) {
+            CompletableFuture<MessageId> leading = producer.sendAsync("before batch");
+            producer.flush();
+            MessageIdAdv leadingId = (MessageIdAdv) leading.get(10, TimeUnit.SECONDS);
+            beforeBatch = PositionFactory.create(leadingId.getLedgerId(), leadingId.getEntryId());
+            CompletableFuture<MessageId> first = producer.sendAsync("first");
+            CompletableFuture<MessageId> second = producer.sendAsync("second");
+            MessageIdAdv firstId = (MessageIdAdv) first.get(10, TimeUnit.SECONDS);
+            MessageIdAdv secondId = (MessageIdAdv) second.get(10, TimeUnit.SECONDS);
+            assertThat(firstId.getLedgerId()).isEqualTo(secondId.getLedgerId());
+            assertThat(firstId.getEntryId()).isEqualTo(secondId.getEntryId());
+            assertThat(firstId.getBatchIndex()).isZero();
+            assertThat(secondId.getBatchIndex()).isEqualTo(1);
+            assertThat(consumer.receive(5, TimeUnit.SECONDS)).isNotNull();
+            assertThat(consumer.receive(5, TimeUnit.SECONDS)).isNotNull();
+            assertThat(consumer.receive(5, TimeUnit.SECONDS)).isNotNull();
+            batchPosition = PositionFactory.create(firstId.getLedgerId(), firstId.getEntryId());
+
+            PersistentTopic topic = (PersistentTopic) pulsarServiceList.get(0).getBrokerService()
+                    .getTopic(TopicName.get(PENDING_ACK_REPLAY_TOPIC).toString(), false).get(10, TimeUnit.SECONDS)
+                    .orElseThrow();
+            subscription = topic.getSubscription(subscriptionName);
+            cursor = (ManagedCursorImpl) subscription.getCursor();
+            cursor.setThrottleMarkDelete(0);
+            brokerConsumer = subscription.getConsumers().getFirst();
+            ack = new CommandAck().setConsumerId(brokerConsumer.consumerId()).setAckType(CommandAck.AckType.Individual);
+            ack.addMessageId().setLedgerId(batchPosition.getLedgerId()).setEntryId(batchPosition.getEntryId());
+            if (previouslyAcknowledged) {
+                brokerConsumer.messageAcked(ack, true).get(10, TimeUnit.SECONDS);
+            } else {
+                cursor.markDelete(beforeBatch);
+            }
+            ack.getMessageIdAt(0).addAckSet(0b10L);
+        }
+        assertThat(cursor.isMessageDeleted(batchPosition)).isEqualTo(previouslyAcknowledged);
+
+        long lastCursorLedgerEntry = cursor.getCursorLedgerLastEntry();
+        var testContext = pulsarTestContexts.get(0);
+        var bookKeeper = testContext.getMockBookKeeper();
+        CompletableFuture<Void> resetWrite;
+        Runnable releaseResetWrite;
+        if (resetSucceeds) {
+            resetWrite = bookKeeper.addEntryResponseGate();
+            releaseResetWrite = () -> resetWrite.complete(null);
+        } else {
+            // A failed BookKeeper write falls back to the existing cursor's metadata node.
+            String cursorPath = "/managed-ledgers/" + cursor.getManagedLedger().getName() + "/" + cursor.getName();
+            testContext.getMockZooKeeper().failConditional(KeeperException.Code.SYSTEMERROR,
+                    (operation, path) -> operation == MockZooKeeper.Op.SET && path.equals(cursorPath));
+            resetWrite = bookKeeper.promiseAfter(0);
+            var failure = org.apache.bookkeeper.client.BKException.create(BKException.Code.WriteException);
+            releaseResetWrite = () -> resetWrite.completeExceptionally(failure);
+        }
+        try {
+            CompletableFuture<Void> reset = subscription.resetCursor(resetSucceeds ? batchPosition : beforeBatch);
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() ->
+                    resetWrite.getNumberOfDependents() > 0 && (resetSucceeds
+                            ? cursor.getCursorLedgerLastEntry() > lastCursorLedgerEntry
+                            : cursor.getPersistentMarkDeletedPosition() == null));
+            assertThat(reset).isNotDone();
+
+            // Model an ACK already routed to the old consumer before disconnect, with cursor admission now racing seek.
+            CompletableFuture<Void> receipt = brokerConsumer.messageAcked(ack, true);
+            assertThat(receipt).isNotDone();
+            assertThat(subscription.getPositionInPendingAck(batchPosition)).isNull();
+            assertThat(cursor.getBatchPositionAckSet(batchPosition)).isNull();
+
+            releaseResetWrite.run();
+            if (!resetSucceeds) {
+                assertThatThrownBy(() -> reset.get(10, TimeUnit.SECONDS))
+                        .hasCauseInstanceOf(BrokerServiceException.SubscriptionInvalidCursorPosition.class);
+                receipt.get(10, TimeUnit.SECONDS);
+                assertThat(cursor.getMarkDeletedPosition()).isEqualTo(beforeBatch);
+                assertOrdinaryBatchAckState(subscription, batchPosition);
+                return;
+            }
+            reset.get(10, TimeUnit.SECONDS);
+            assertThatThrownBy(() -> receipt.get(5, TimeUnit.SECONDS))
+                    .hasCauseInstanceOf(CursorResetInProgressException.class);
+        } finally {
+            releaseResetWrite.run();
+        }
+        assertThat(cursor.isMessageDeleted(batchPosition)).isFalse();
+        assertThat(cursor.getBatchPositionAckSet(batchPosition)).isNull();
+        assertThat(subscription.getPositionInPendingAck(batchPosition)).isNull();
+
+        try (Consumer<String> replay = pulsarClient.newConsumer(Schema.STRING)
+                .topic(PENDING_ACK_REPLAY_TOPIC).subscriptionName(subscriptionName)
+                .subscriptionType(SubscriptionType.Shared).enableBatchIndexAcknowledgment(true).subscribe()) {
+            Message<String> first = replay.receive(5, TimeUnit.SECONDS);
+            assertThat(first).isNotNull();
+            assertThat(first.getValue()).isEqualTo("first");
+            Message<String> second = replay.receive(5, TimeUnit.SECONDS);
+            assertThat(second).isNotNull();
+            assertThat(second.getValue()).isEqualTo("second");
+
+            var replayConsumer = subscription.getConsumers().getFirst();
+            ack.setConsumerId(replayConsumer.consumerId());
+            replayConsumer.messageAcked(ack, true).get(10, TimeUnit.SECONDS);
+            assertOrdinaryBatchAckState(subscription, batchPosition);
+        }
+    }
+
+    private static void assertOrdinaryBatchAckState(PersistentSubscription subscription, Position batchPosition) {
+        assertThat(subscription.getCursor().getBatchPositionAckSet(batchPosition)).containsExactly(0b10L);
+        Position pending = subscription.getPositionInPendingAck(batchPosition);
+        assertThat(pending).isNotNull();
+        assertThat(getAckSetArrayOrNull(pending)).containsExactly(0b10L);
     }
 
     @DataProvider(name = "retryableErrors")

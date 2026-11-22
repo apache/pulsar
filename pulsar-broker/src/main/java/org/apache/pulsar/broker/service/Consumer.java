@@ -44,6 +44,7 @@ import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorResetInProgressException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.AckSetStateUtil;
@@ -634,6 +635,7 @@ public class Consumer {
         // Deferred completions for non-txn (applied after persistence).
         PendingAckCompletions pendingAckCompletions =
                 hasTxn ? null : new PendingAckCompletions(ack.getMessageIdsCount());
+        boolean hasOrdinaryBatchAck = false;
         long totalAckCount = 0;
 
         for (int i = 0; i < ack.getMessageIdsCount(); i++) {
@@ -689,12 +691,13 @@ public class Consumer {
                 totalAckCount += ackedCount;
             } else {
                 // Non-transactional: build position and compute acked count, defer state updates.
-                Position position = buildPosition(msgId);
+                Position position = getAckPosition(false, msgId);
                 int batchSize = ackOwnerConsumerAndBatchSize != null
                         ? ackOwnerConsumerAndBatchSize.rightInt() : ownRemainingUnacked;
                 long ackedCount = computeAckedCount(msgId, position, ackOwnerConsumer, batchSize);
 
                 nonTxnPositions.add(position);
+                hasOrdinaryBatchAck |= hasAckSet;
                 pendingAckCompletions.add(ackOwnerConsumer, position, hasAckSet, ackedCount);
                 totalAckCount += ackedCount;
             }
@@ -727,8 +730,9 @@ public class Consumer {
         }
 
         // Non-transactional
-        CompletableFuture<Void> ackFuture = subscription.acknowledgeMessageAsync(
-                nonTxnPositions, AckType.Individual, properties);
+        boolean syncBatchState = hasOrdinaryBatchAck && isTransactionEnabled()
+                && Subscription.isIndividualAckMode(subType);
+        CompletableFuture<Void> ackFuture = acknowledgeOrdinaryMessages(nonTxnPositions, properties, syncBatchState);
         if (requirePersistedAck) {
             return ackFuture.thenApply(unused -> {
                 applyPendingAckCompletions(pendingAckCompletions);
@@ -737,6 +741,36 @@ public class Consumer {
         }
         ackFuture.thenRun(() -> applyPendingAckCompletions(pendingAckCompletions));
         return CompletableFuture.completedFuture(finalTotalAckCount);
+    }
+
+    private CompletableFuture<Void> acknowledgeOrdinaryMessages(List<Position> positions, Map<String, Long> properties,
+            boolean syncBatchState) {
+        CompletableFuture<Void> ack = syncBatchState
+                ? ((PersistentSubscription) subscription)
+                        .acknowledgeIndividualMessagesWithBatchState(positions, properties)
+                : subscription.acknowledgeMessageAsync(positions, AckType.Individual, properties);
+        return retryOrdinaryMessagesAfterFailedReset(positions, properties, syncBatchState, ack);
+    }
+
+    private CompletableFuture<Void> retryOrdinaryMessagesAfterFailedReset(List<Position> positions,
+            Map<String, Long> properties, boolean syncBatchState, CompletableFuture<Void> ack) {
+        if (!ack.isCompletedExceptionally() || ack.isCancelled()
+                || !(subscription instanceof PersistentSubscription persistent)) {
+            return ack;
+        }
+        Throwable error = FutureUtil.unwrapCompletionException(ack.exceptionNow());
+        if (!(error instanceof CursorResetInProgressException reset)) {
+            return ack;
+        }
+        // The conflicting ACK belongs to the old delivery. Resume it only if that delivery survives a failed seek.
+        return reset.getResetCompletion().thenComposeAsync(applied -> {
+            if (applied) {
+                return ack;
+            }
+            CompletableFuture<Void> retried = persistent.retryIndividualMessagesAfterFailedReset(
+                    positions, properties, syncBatchState, reset);
+            return retryOrdinaryMessagesAfterFailedReset(positions, properties, syncBatchState, retried);
+        }, subscription.getTopic().getBrokerService().getPulsar().getExecutor()).toCompletableFuture();
     }
 
     /**
@@ -854,26 +888,6 @@ public class Consumer {
                 }
             }
         }
-    }
-
-    /**
-     * Build the position from the message id, syncing batch index ack state if needed.
-     */
-    private Position buildPosition(MessageIdData msgId) {
-        if (msgId.getAckSetsCount() > 0) {
-            long[] ackSets = new long[msgId.getAckSetsCount()];
-            for (int j = 0; j < msgId.getAckSetsCount(); j++) {
-                ackSets[j] = msgId.getAckSetAt(j);
-            }
-            Position position =
-                    AckSetStateUtil.createPositionWithAckSet(msgId.getLedgerId(), msgId.getEntryId(), ackSets);
-            if (isTransactionEnabled() && Subscription.isIndividualAckMode(subType)) {
-                ((PersistentSubscription) subscription)
-                        .syncBatchPositionBitSetForPendingAck(position);
-            }
-            return position;
-        }
-        return PositionFactory.create(msgId.getLedgerId(), msgId.getEntryId());
     }
 
     /**

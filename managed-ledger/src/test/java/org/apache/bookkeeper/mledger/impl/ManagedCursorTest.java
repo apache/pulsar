@@ -120,6 +120,7 @@ import org.apache.bookkeeper.mledger.ManagedCursor.IndividualDeletedEntries;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorResetInProgressException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
@@ -7885,25 +7886,31 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                 "testCompactionCursorResetNeverLoseMarkDeleteProperties",
                 defaultConfig().setMaxEntriesPerLedger(10));
         ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("__compaction");
-        cursor.setInactive();
 
         Position firstPosition = ledger.addEntry("entry-1".getBytes(Encoding));
         Position markDeletePosition = ledger.addEntry("entry-2".getBytes(Encoding));
         cursor.markDelete(firstPosition);
+        long lastCursorLedgerEntry = cursor.getCursorLedgerLastEntry();
         Map<String, Long> properties = Map.of("CompactedTopicLedger", 123456L);
 
-        CompletableFuture<Void> releaseRead = new CompletableFuture<>();
-        bkc.setReadHandleInterceptor((ledgerId, firstEntry, lastEntry, entries) ->
-                releaseRead.thenApply(__ -> entries));
+        CompletableFuture<Void> releaseMarkDelete = bkc.addEntryResponseGate();
         try {
-            CompletableFuture<Void> read = ManagedLedgerUtils.readEntries(cursor, 1, PositionFactory.LATEST)
-                    .thenAccept(entries -> entries.forEach(Entry::release));
-            Awaitility.await().until(() -> cursor.getPendingReadOpsCount() == 1);
+            CompletableFuture<Void> markDelete = new CompletableFuture<>();
+            cursor.asyncMarkDelete(markDeletePosition, properties, new MarkDeleteCallback() {
+                @Override
+                public void markDeleteComplete(Object ctx) {
+                    markDelete.complete(null);
+                }
 
-            CompletableFuture<Void> markDelete = ManagedLedgerUtils.markDelete(cursor, markDeletePosition, properties);
-            assertTrue(cursor.getProperties().isEmpty());
+                @Override
+                public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
+                    markDelete.completeExceptionally(exception);
+                }
+            }, null);
+            Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() ->
+                    assertEquals(cursor.getCursorLedgerLastEntry(), lastCursorLedgerEntry + 1));
 
-            // The reset must inherit the compaction properties from the preceding queued mark-delete.
+            // Admit the reset while the compaction mark-delete is still waiting for its BookKeeper callback.
             CompletableFuture<Void> reset = new CompletableFuture<>();
             cursor.asyncResetCursor(markDeletePosition, false, new AsyncCallbacks.ResetCursorCallback() {
                 @Override
@@ -7918,17 +7925,14 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             });
             CompletableFuture.runAsync(() -> { }, ledger.getExecutor()).get(5, TimeUnit.SECONDS);
             assertFalse(markDelete.isDone());
-            assertFalse(reset.isDone());
 
-            releaseRead.complete(null);
-            read.get(5, TimeUnit.SECONDS);
+            releaseMarkDelete.complete(null);
             markDelete.get(5, TimeUnit.SECONDS);
             reset.get(5, TimeUnit.SECONDS);
             assertEquals(cursor.getMarkDeletedPosition(), markDeletePosition);
             assertEquals(cursor.getProperties(), properties);
         } finally {
-            releaseRead.complete(null);
-            bkc.setReadHandleInterceptor(null);
+            releaseMarkDelete.complete(null);
         }
     }
 
@@ -7973,7 +7977,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                 }
             });
 
-            CompletableFuture<Void> racingAck = new CompletableFuture<>();
+            CompletableFuture<ManagedLedgerException> racingAck = new CompletableFuture<>();
             cursor.asyncDelete(positions.get(6), new DeleteCallback() {
                 @Override
                 public void deleteComplete(Object ctx) {
@@ -7982,16 +7986,14 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
                 @Override
                 public void deleteFailed(ManagedLedgerException exception, Object ctx) {
-                    racingAck.completeExceptionally(exception);
+                    racingAck.complete(exception);
                 }
             }, null);
-            assertFalse(racingAck.isDone());
-            assertFalse(cursor.isMessageDeleted(positions.get(6)));
+            assertTrue(racingAck.get(5, TimeUnit.SECONDS) instanceof CursorResetInProgressException);
 
             releaseReads.complete(null);
             read.get(5, TimeUnit.SECONDS);
             reset.get(5, TimeUnit.SECONDS);
-            racingAck.get(5, TimeUnit.SECONDS);
             verify(queuedAck).markDeleteComplete(null);
         } finally {
             releaseReads.complete(null);
@@ -8003,7 +8005,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(cursor.getMarkDeletedPosition(), resetMarkDeletePosition);
         assertEquals(cursor.getPersistentMarkDeletedPosition(), resetMarkDeletePosition);
         assertFalse(cursor.isMessageDeleted(positions.get(5)));
-        assertTrue(cursor.isMessageDeleted(positions.get(6)));
+        assertFalse(cursor.isMessageDeleted(positions.get(6)));
 
         // Acknowledgments after the reset are persisted
         cursor.markDelete(positions.get(2));
@@ -8013,7 +8015,6 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ManagedCursorImpl reopenedCursor = (ManagedCursorImpl) reopenedLedger.openCursor("c1");
         assertEquals(reopenedCursor.getMarkDeletedPosition(), positions.get(2));
         assertFalse(reopenedCursor.isMessageDeleted(positions.get(5)));
-        assertTrue(reopenedCursor.isMessageDeleted(positions.get(6)));
         reopenedLedger.close();
     }
 

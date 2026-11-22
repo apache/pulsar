@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static org.apache.bookkeeper.mledger.impl.AckSetStateUtil.hasAckSet;
 import static org.apache.pulsar.broker.service.AbstractBaseDispatcher.checkAndApplyReachedEndOfTopicOrTopicMigration;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isEventSystemTopic;
 import com.google.common.annotations.VisibleForTesting;
@@ -48,6 +49,8 @@ import org.apache.bookkeeper.mledger.ManagedCursor.IndividualDeletedEntries;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ConcurrentFindCursorPositionException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorResetInProgressException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorResetSupersededException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.InvalidCursorPositionException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.ScanOutcome;
@@ -514,16 +517,21 @@ public class PersistentSubscription extends AbstractSubscription {
 
     public CompletableFuture<Void> acknowledgeMessageAsync(List<Position> positions, AckType ackType,
                                                            Map<String, Long> properties) {
-        return acknowledgeMessageAsync(positions, ackType, properties, true);
+        return acknowledgeMessageAsync(positions, ackType, properties, false, null);
     }
 
-    public CompletableFuture<Void> applyIndividualTxnAck(List<Position> positions, Map<String, Long> properties) {
-        // PendingAckHandle settles the committing transaction's reservations after the cursor ACK succeeds.
-        return acknowledgeMessageAsync(positions, AckType.Individual, properties, false);
+    public CompletableFuture<Void> acknowledgeIndividualMessagesWithBatchState(List<Position> positions,
+            Map<String, Long> properties) {
+        return acknowledgeMessageAsync(positions, AckType.Individual, properties, true, null);
+    }
+
+    public CompletableFuture<Void> retryIndividualMessagesAfterFailedReset(List<Position> positions,
+            Map<String, Long> properties, boolean syncBatchState, CursorResetInProgressException conflict) {
+        return acknowledgeMessageAsync(positions, AckType.Individual, properties, syncBatchState, conflict);
     }
 
     private CompletableFuture<Void> acknowledgeMessageAsync(List<Position> positions, AckType ackType,
-            Map<String, Long> properties, boolean clearPendingAckPositions) {
+            Map<String, Long> properties, boolean syncBatchState, CursorResetInProgressException conflict) {
         CompletableFuture<Void> future = new CompletableFuture<>();
         cursor.updateLastActive();
         Position previousMarkDeletePosition = cursor.getMarkDeletedPosition();
@@ -567,45 +575,55 @@ public class PersistentSubscription extends AbstractSubscription {
             log.debug()
                     .attr("positions", positions)
                     .log("Individual acks on");
-            AckCallback callback = new AckCallback(previousMarkDeletePosition, future);
-            CompletableFuture<Void> lastReset = lastCursorResetFuture;
-            boolean resetInProgress = lastReset != null && !lastReset.isDone();
-            cursor.asyncDelete(positions, callback, callback);
-            if (resetInProgress || lastReset != lastCursorResetFuture) {
-                // The cursor can defer applying an individual ACK until the reset settles.
-                return future.whenComplete((__, error) -> {
-                    completeIndividualAck(positions, clearPendingAckPositions);
-                    notifyEndOfTopicIfNoBacklog();
+            CompletableFuture<Void> batchStateReady = syncBatchState ? new CompletableFuture<>() : null;
+            AckCallback callback = new AckCallback(previousMarkDeletePosition, future, batchStateReady);
+            if (conflict == null) {
+                cursor.asyncDelete(positions, callback, callback);
+            } else {
+                cursor.retryDeleteAfterFailedReset(positions, conflict, callback, callback);
+            }
+            // Reset rejection is reported inline, before the cursor applies any part of the ACK.
+            if (callback.rejectedBeforeApplying) {
+                return future;
+            }
+            if (batchStateReady != null) {
+                // An inline delete callback can resume dispatch. Publish the batch mask first.
+                try {
+                    if (!cursor.isClosed()) {
+                        for (Position position : positions) {
+                            if (hasAckSet(position)) {
+                                syncBatchPositionBitSetForPendingAck(position);
+                            }
+                        }
+                    }
+                    batchStateReady.complete(null);
+                } catch (RuntimeException error) {
+                    batchStateReady.completeExceptionally(error);
+                    future.completeExceptionally(error);
+                    return future;
+                }
+            }
+            if (config.isTransactionCoordinatorEnabled()) {
+                positions.forEach(position -> {
+                    if ((cursor.isMessageDeleted(position))) {
+                        pendingAckHandle.clearIndividualPosition(position);
+                    }
                 });
             }
-            completeIndividualAck(positions, clearPendingAckPositions);
+
+            if (dispatcher != null) {
+                dispatcher.getRedeliveryTracker().removeBatch(positions);
+            }
         }
 
-        notifyEndOfTopicIfNoBacklog();
-        return future;
-    }
-
-    private void completeIndividualAck(List<Position> positions, boolean clearPendingAckPositions) {
-        if (clearPendingAckPositions && config.isTransactionCoordinatorEnabled()) {
-            positions.forEach(position -> {
-                if (cursor.isMessageDeleted(position)) {
-                    pendingAckHandle.clearIndividualPosition(position);
-                }
-            });
-        }
-        Dispatcher currentDispatcher = dispatcher;
-        if (currentDispatcher != null) {
-            currentDispatcher.getRedeliveryTracker().removeBatch(positions);
-        }
-    }
-
-    private void notifyEndOfTopicIfNoBacklog() {
         if (topic.getManagedLedger().isTerminated() && !cursor.hasBacklog(false)) {
             // Notify all consumer that the end of topic was reached
             if (dispatcher != null) {
                 checkAndApplyReachedEndOfTopicOrTopicMigration(topic, dispatcher.getConsumers());
             }
         }
+
+        return future;
     }
 
     public CompletableFuture<Void> transactionIndividualAcknowledge(
@@ -621,10 +639,18 @@ public class PersistentSubscription extends AbstractSubscription {
     private final class AckCallback implements MarkDeleteCallback, DeleteCallback {
         private final Position previousMarkDeletePosition;
         private final CompletableFuture<Void> completionFuture;
+        private final CompletableFuture<Void> batchStateReady;
+        private boolean rejectedBeforeApplying;
 
         private AckCallback(Position previousMarkDeletePosition, CompletableFuture<Void> completionFuture) {
+            this(previousMarkDeletePosition, completionFuture, null);
+        }
+
+        private AckCallback(Position previousMarkDeletePosition, CompletableFuture<Void> completionFuture,
+                CompletableFuture<Void> batchStateReady) {
             this.previousMarkDeletePosition = previousMarkDeletePosition;
             this.completionFuture = completionFuture;
+            this.batchStateReady = batchStateReady;
         }
 
         @Override
@@ -652,16 +678,33 @@ public class PersistentSubscription extends AbstractSubscription {
             log.debug()
                     .attr("oldMD", previousMarkDeletePosition)
                     .log("Deleted message");
-            completeAck();
+            afterBatchStateReady(this::completeAck);
         }
 
         @Override
         public void deleteFailed(ManagedLedgerException exception, Object ctx) {
+            if (exception instanceof CursorResetInProgressException
+                    || exception instanceof CursorResetSupersededException) {
+                rejectedBeforeApplying = true;
+                completionFuture.completeExceptionally(exception);
+                return;
+            }
             log.warn()
                     .attr("odMD", previousMarkDeletePosition)
                     .exceptionMessage(exception)
                     .log("Failed to delete message");
-            failAck(exception);
+            afterBatchStateReady(() -> failAck(exception));
+        }
+
+        private void afterBatchStateReady(Runnable completion) {
+            if (batchStateReady == null) {
+                completion.run();
+            } else {
+                batchStateReady.thenRun(completion).exceptionally(error -> {
+                    completionFuture.completeExceptionally(error);
+                    return null;
+                });
+            }
         }
 
         private void completeAck() {
