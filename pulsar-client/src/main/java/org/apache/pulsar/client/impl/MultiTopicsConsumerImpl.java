@@ -881,14 +881,17 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         }
         // A consumer seeks only if the function gives a position for its topic, see ConsumerImpl#seekAsync(Function).
         // Apply the function here, once per topic, to know which consumers seek.
-        Map<ConsumerImpl<T>, Object> positions = new HashMap<>();
-        consumers.values().forEach(consumer -> {
-            Object position = function.apply(consumer.getTopic());
-            if (position != null) {
-                positions.put(consumer, position);
-            }
+        return FutureUtil.supplySafely(() -> {
+            Map<ConsumerImpl<T>, Object> positions = new HashMap<>();
+            consumers.values().forEach(consumer -> {
+                Object position = function.apply(consumer.getTopic());
+                if (position != null) {
+                    positions.put(consumer, position);
+                }
+            });
+            return seekAsyncInternal(positions.keySet(),
+                    consumer -> consumer.seekAsync(topic -> positions.get(consumer)));
         });
-        return seekAsyncInternal(positions.keySet(), consumer -> consumer.seekAsync(topic -> positions.get(consumer)));
     }
 
     @Override
@@ -927,12 +930,20 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         return seekAllAsync(consumer -> consumer.seekAsync(timestamp));
     }
 
-    private CompletableFuture<Void> seekAsyncInternal(Set<ConsumerImpl<T>> consumers,
+    private CompletableFuture<Void> seekAsyncInternal(Set<ConsumerImpl<T>> soughtConsumers,
                                                       Function<ConsumerImpl<T>, CompletableFuture<Void>> seekFunc) {
-        beforeSeek(consumers);
+        beforeSeek(soughtConsumers);
         final CompletableFuture<Void> future = new CompletableFuture<>();
-        FutureUtil.waitForAll(consumers.stream().map(seekFunc).collect(Collectors.toList()))
-                .whenComplete((__, e) -> afterSeek(consumers, future, e));
+        List<CompletableFuture<Void>> seeks = new ArrayList<>(soughtConsumers.size());
+        for (ConsumerImpl<T> consumer : soughtConsumers) {
+            if (consumers.get(consumer.getTopic()) == consumer) {
+                seeks.add(FutureUtil.supplySafely(() -> seekFunc.apply(consumer)));
+            } else {
+                seeks.add(FutureUtil.failedFuture(new PulsarClientException.AlreadyClosedException(
+                        "Consumer for topic " + consumer.getTopic() + " was replaced before seek")));
+            }
+        }
+        FutureUtil.waitForAll(seeks).whenComplete((__, e) -> afterSeek(soughtConsumers, future, e));
         return future;
     }
 
@@ -944,8 +955,13 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     // connection, so the broker would not deliver their messages again if they were dropped here.
     private void beforeSeek(Set<ConsumerImpl<T>> soughtConsumers) {
         seekingConsumers.addAll(soughtConsumers);
-        Set<String> soughtTopics = soughtConsumers.stream().map(ConsumerImpl::getTopic).collect(Collectors.toSet());
-        Predicate<TopicMessageId> sought = messageId -> soughtTopics.contains(messageId.getOwnerTopic());
+        // Both remove operations evaluate this predicate under their respective locks. A replacement can only
+        // deliver after it is in the map, so its messages survive even if it appeared after seek selection.
+        Predicate<TopicMessageId> sought = messageId -> {
+            String ownerTopic = messageId.getOwnerTopic();
+            ConsumerImpl<T> current = ownerTopic == null ? null : consumers.get(ownerTopic);
+            return current != null && soughtConsumers.contains(current);
+        };
         removeTopicMessagesFromUnackedTracker(sought);
         List<Message<T>> discarded = new ArrayList<>();
         incomingMessages.removeIf(message -> {

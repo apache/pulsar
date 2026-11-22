@@ -552,6 +552,36 @@ public class MultiTopicsConsumerImplTest {
     }
 
     @Test(timeOut = 10000)
+    @SuppressWarnings("unchecked")
+    public void testSeekPreservesMessagesFromConsumerReplacedDuringSelection() throws Exception {
+        String topic = "persistent://public/default/topic-partition-0";
+        ConsumerConfigurationData<byte[]> conf = new ConsumerConfigurationData<>();
+        conf.setSubscriptionName("subscription");
+        conf.setAckTimeoutMillis(60_000);
+        MultiTopicsConsumerImpl<byte[]> parent = createMultiTopicsConsumer(conf);
+        ConsumerImpl<byte[]> original = addPartitionConsumer(parent, topic, null, 10);
+        TopicMessageIdImpl unacked = new TopicMessageIdImpl(topic, new MessageIdImpl(1, 0, 0));
+        MessageImpl<byte[]> queued = newMessage(topic, 1, 1, 0);
+        try {
+            CompletableFuture<Void> seek = parent.seekAsync(selectedTopic -> {
+                // Replace the selected child before the caller supplies its seek position.
+                ConsumerImpl<byte[]> replacement = addPartitionConsumer(parent, selectedTopic, null, 10);
+                parent.getUnAckedMessageTracker().add(unacked);
+                parent.enqueueMessageAndCheckBatchReceive(new TopicMessageImpl<>(selectedTopic, queued, replacement));
+                return MessageId.earliest;
+            });
+
+            CompletionException failure = expectThrows(CompletionException.class, seek::join);
+            assertTrue(failure.getCause() instanceof PulsarClientException.AlreadyClosedException);
+            verify(original, never()).seekAsync(any(Function.class));
+            assertTrue(parent.getUnAckedMessageTracker().remove(unacked));
+            assertEquals(parent.receive(1, TimeUnit.SECONDS).getMessageId(), queued.getMessageId());
+        } finally {
+            parent.getUnAckedMessageTracker().close();
+        }
+    }
+
+    @Test(timeOut = 10000)
     public void testSeekLeavesConsumerReplacedDuringSeekToItsReplacement() throws Exception {
         String replacedTopic = "persistent://public/default/topic-partition-0";
         String slowTopic = "persistent://public/default/topic-partition-1";
