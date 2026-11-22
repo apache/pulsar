@@ -49,6 +49,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
@@ -240,6 +241,45 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
     }
 
     @Test
+    public void testProducerClosedOnTopicUnload() throws Exception {
+        String topicName = "persistent://public/default/broker-interceptor-producer-unload-" + UUID.randomUUID();
+        CounterBrokerInterceptor counterBrokerInterceptor = getCounterBrokerInterceptor();
+        try (Producer<Boolean> clientProducer = pulsarClient.newProducer(Schema.BOOL).topic(topicName).create()) {
+            Awaitility.await().until(() -> counterBrokerInterceptor.getProducerCount() == 1);
+            admin.topics().unload(topicName);
+            Awaitility.await().until(() -> counterBrokerInterceptor.getProducerCount() == 0);
+        }
+    }
+
+    @Test
+    public void testConsumerClosedOnTopicUnload() throws Exception {
+        String topicName = "persistent://public/default/broker-interceptor-consumer-unload-" + UUID.randomUUID();
+        String subName = "broker-interceptor-unload-sub";
+        CounterBrokerInterceptor counterBrokerInterceptor = getCounterBrokerInterceptor();
+        try (Consumer<String> clientConsumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName).subscriptionName(subName).subscribe()) {
+            Awaitility.await().until(() -> counterBrokerInterceptor.getConsumerCount() == 1);
+            admin.topics().unload(topicName);
+            Awaitility.await().until(() -> counterBrokerInterceptor.getConsumerCount() == 0);
+        }
+    }
+
+    @Test
+    public void testConsumerClosedOnUnsubscribe() throws Exception {
+        String topicName = "persistent://public/default/broker-interceptor-unsubscribe-" + UUID.randomUUID();
+        String subName = "broker-interceptor-exclusive-sub";
+        CounterBrokerInterceptor counterBrokerInterceptor = getCounterBrokerInterceptor();
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscribe();
+        Awaitility.await().until(() -> counterBrokerInterceptor.getConsumerCount() == 1);
+        consumer.unsubscribe();
+        Awaitility.await().until(() -> counterBrokerInterceptor.getConsumerCount() == 0);
+    }
+
+    @Test
     public void testConsumerClosedOnBrokerDisconnect() throws Exception {
         String topicName = "persistent://public/default/broker-interceptor-consumer-disconnect-" + UUID.randomUUID();
         String subName = "broker-interceptor-sub";
@@ -250,7 +290,7 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
             PersistentTopic brokerTopic = (PersistentTopic) pulsar.getBrokerService()
                     .getTopic(topicName, false).get().orElseThrow();
             PersistentSubscription subscription =
-                    (PersistentSubscription) brokerTopic.getSubscription(subName).get();
+                    (PersistentSubscription) brokerTopic.getSubscription(subName);
             org.apache.pulsar.broker.service.Consumer brokerConsumer = subscription.getConsumers().get(0);
             brokerConsumer.disconnect();
             Awaitility.await().until(() -> counterBrokerInterceptor.getConsumerCount() == 0);

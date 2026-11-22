@@ -37,6 +37,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
@@ -187,8 +188,12 @@ public class Consumer {
     private static final AtomicReferenceFieldUpdater<Consumer, Attributes> OPEN_TELEMETRY_ATTRIBUTES_FIELD_UPDATER =
             AtomicReferenceFieldUpdater.newUpdater(Consumer.class, Attributes.class, "openTelemetryAttributes");
 
-    /** Set when {@code BrokerInterceptor#consumerCreated} was fired for this consumer on the connection. */
+    /** Set after {@code BrokerInterceptor#consumerCreated} returns successfully on the connection. */
     private volatile boolean brokerInterceptorConsumerCreatedNotified;
+
+    private boolean cleanupStarted;
+
+    private final AtomicBoolean brokerInterceptorClosedNotified = new AtomicBoolean(false);
 
     @Getter
     @Setter
@@ -517,6 +522,12 @@ public class Consumer {
     }
 
     public void close(boolean isResetCursor) throws BrokerServiceException {
+        synchronized (this) {
+            if (cleanupStarted) {
+                return;
+            }
+            cleanupStarted = true;
+        }
         subscription.removeConsumer(this, isResetCursor);
         cnx.removedConsumer(this);
         cnx.notifyConsumerClosed(this);
@@ -528,6 +539,10 @@ public class Consumer {
 
     public boolean isBrokerInterceptorConsumerCreatedNotified() {
         return brokerInterceptorConsumerCreatedNotified;
+    }
+
+    public boolean markBrokerInterceptorClosedNotified() {
+        return brokerInterceptorClosedNotified.compareAndSet(false, true);
     }
 
     public void disconnect() {
@@ -552,6 +567,7 @@ public class Consumer {
         subscription.doUnsubscribe(this, force).thenAccept(v -> {
             log.info("Unsubscribed successfully");
             cnx.removedConsumer(this);
+            cnx.notifyConsumerClosed(this);
             cnx.getCommandSender().sendSuccessResponse(requestId);
         }).exceptionally(exception -> {
             log.warn().exception(exception).log("Unsubscribe failed");
