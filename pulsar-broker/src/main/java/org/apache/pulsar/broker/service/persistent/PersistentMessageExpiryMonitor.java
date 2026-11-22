@@ -109,6 +109,9 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
 
     @Override
     public boolean expireMessages(int messageTTLInSeconds) {
+        if (topic.isClosingOrDeleting()) {
+            return false;
+        }
         if (!expirationCheckInProgressUpdater.compareAndSet(this, FALSE, TRUE)) {
             log.debug()
                     .log("Ignore expire-message scheduled task, last check is still running");
@@ -154,6 +157,9 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
 
     @Override
     public boolean expireMessages(Position messagePosition) {
+        if (topic.isClosingOrDeleting()) {
+            return false;
+        }
         // If it's beyond last position of this topic, do nothing.
         Position topicLastPosition = this.topic.getLastPosition();
         ManagedLedger managedLedger = cursor.getManagedLedger();
@@ -250,9 +256,6 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
                 expirationCheckInProgress = FALSE;
                 return;
             }
-            log.info()
-                    .attr("position", position)
-                    .log("Expiring all messages until position");
             beforeCursorMarkDelete(position);
             if (topic.isClosingOrDeleting()) {
                 log.debug()
@@ -262,6 +265,9 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
                 updateRates();
                 return;
             }
+            log.info()
+                    .attr("position", position)
+                    .log("Expiring all messages until position");
             Position prevMarkDeletePos = cursor.getMarkDeletedPosition();
             cursor.asyncMarkDelete(position, null, markDeleteCallback, cursor.getNumberOfEntriesInBacklog(false));
             if (!Objects.equals(cursor.getMarkDeletedPosition(), prevMarkDeletePos) && subscription != null) {

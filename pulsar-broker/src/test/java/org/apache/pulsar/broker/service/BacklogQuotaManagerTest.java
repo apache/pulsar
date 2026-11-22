@@ -2434,6 +2434,8 @@ public class BacklogQuotaManagerTest {
                         || !sub.getCursor().getMarkDeletedPosition().equals(markDeleteBeforeEviction));
                 assertEquals(sub.getCursor().getMarkDeletedPosition(), markDeleteBeforeEviction);
                 evictionFuture.get(30, SECONDS);
+                assertEquals(topic.getPersistentTopicMetrics().getBacklogQuotaMetrics()
+                        .getSizeBasedBacklogQuotaExceededEvictionCount(), 0L);
             }
             closeFuture.get(30, SECONDS);
         } finally {
@@ -2496,6 +2498,8 @@ public class BacklogQuotaManagerTest {
                         || !sub.getCursor().getMarkDeletedPosition().equals(markDeleteBeforeEviction));
                 assertEquals(sub.getCursor().getMarkDeletedPosition(), markDeleteBeforeEviction);
                 evictionFuture.get(30, SECONDS);
+                assertEquals(topic.getPersistentTopicMetrics().getBacklogQuotaMetrics()
+                        .getTimeBasedBacklogQuotaExceededEvictionCount(), 0L);
             }
             closeFuture.get(30, SECONDS);
         } finally {
@@ -2508,14 +2512,15 @@ public class BacklogQuotaManagerTest {
         CountDownLatch resume = new CountDownLatch(1);
         Future<?> task = pulsar.getBrokerService().getBacklogQuotaChecker().submit(() -> {
             paused.countDown();
-            try {
-                assertTrue(resume.await(30, SECONDS));
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new RuntimeException(e);
-            }
+            resume.await();
+            return null;
         });
-        assertTrue(paused.await(30, SECONDS));
+        try {
+            assertTrue(paused.await(30, SECONDS));
+        } catch (InterruptedException | AssertionError e) {
+            resume.countDown();
+            throw e;
+        }
         return () -> {
             resume.countDown();
             task.get(30, SECONDS);

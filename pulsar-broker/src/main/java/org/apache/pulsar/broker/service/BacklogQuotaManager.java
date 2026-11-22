@@ -115,12 +115,14 @@ public class BacklogQuotaManager {
             case consumer_backlog_eviction:
                 switch (backlogQuotaType) {
                     case destination_storage:
-                        dropBacklogForSizeLimit(persistentTopic, quota);
-                        topicBacklogQuotaMetrics.recordSizeBasedBacklogEviction();
+                        if (dropBacklogForSizeLimit(persistentTopic, quota)) {
+                            topicBacklogQuotaMetrics.recordSizeBasedBacklogEviction();
+                        }
                         break;
                     case message_age:
-                        dropBacklogForTimeLimit(persistentTopic, quota, preciseTimeBasedBacklogQuotaCheck);
-                        topicBacklogQuotaMetrics.recordTimeBasedBacklogEviction();
+                        if (dropBacklogForTimeLimit(persistentTopic, quota, preciseTimeBasedBacklogQuotaCheck)) {
+                            topicBacklogQuotaMetrics.recordTimeBasedBacklogEviction();
+                        }
                         break;
                     default:
                         break;
@@ -145,8 +147,9 @@ public class BacklogQuotaManager {
      *            The topic from which backlog should be dropped
      * @param quota
      *            Backlog quota set for the topic
+     * @return false if teardown stopped eviction before the first cursor mutation attempt
      */
-    private void dropBacklogForSizeLimit(PersistentTopic persistentTopic, BacklogQuota quota) {
+    private boolean dropBacklogForSizeLimit(PersistentTopic persistentTopic, BacklogQuota quota) {
         long targetSize = computeEvictionTarget(quota.getLimitSize());
 
         // Get estimated unconsumed size for the managed ledger associated with this topic. Estimated size is more
@@ -195,16 +198,15 @@ public class BacklogQuotaManager {
                     break;
                 }
                 beforeBacklogQuotaCursorMutation(persistentTopic);
-                // Skip messages on the slowest consumer
+                if (shouldStopEvictionOnTopicClose(persistentTopic)) {
+                    return previousSlowestConsumer != null;
+                }
                 log.debug()
                         .attr("topic", persistentTopic.getName())
                         .attr("messagesToSkip", messagesToSkip)
                         .attr("consumer", slowestConsumer.getName())
                         .attr("entriesInBacklog", entriesInBacklog)
                         .log("Skipping messages on slowest consumer having backlog entries");
-                if (shouldStopEvictionOnTopicClose(persistentTopic)) {
-                    break;
-                }
                 slowestConsumer.skipEntries(messagesToSkip, IndividualDeletedEntries.Include);
                 markDeletePositionMoveForward(persistentTopic, slowestConsumer);
             } catch (Exception e) {
@@ -224,6 +226,7 @@ public class BacklogQuotaManager {
                     .attr("backlogSize", backlogSize)
                     .log("Updated unconsumed size");
         }
+        return true;
     }
 
     /**
@@ -233,9 +236,10 @@ public class BacklogQuotaManager {
      *            The topic from which backlog should be dropped
      * @param quota
      *            Backlog quota set for the topic
+     * @return false if teardown stopped eviction before the first cursor mutation attempt
      */
-    private void dropBacklogForTimeLimit(PersistentTopic persistentTopic, BacklogQuota quota,
-                                         boolean preciseTimeBasedBacklogQuotaCheck) {
+    private boolean dropBacklogForTimeLimit(PersistentTopic persistentTopic, BacklogQuota quota,
+                                            boolean preciseTimeBasedBacklogQuotaCheck) {
         // If enabled precise time based backlog quota check, will expire message based on the timeBaseQuota
         if (preciseTimeBasedBacklogQuotaCheck) {
             int target = (int) computeEvictionTarget(quota.getLimitTime());
@@ -252,6 +256,7 @@ public class BacklogQuotaManager {
             // If disabled precise time based backlog quota check, will try to remove whole ledger from cursor's backlog
             long currentMillis = persistentTopic.getManagedLedger().getConfig().getClock().millis();
             ManagedLedger mLedger = persistentTopic.getManagedLedger();
+            boolean cursorAdvanced = false;
             try {
                 for (; ; ) {
                     ManagedCursor slowestConsumer = mLedger.getSlowestConsumer();
@@ -271,9 +276,10 @@ public class BacklogQuotaManager {
                         Position nextPosition = PositionFactory.create(ledgerId, -1);
                         beforeBacklogQuotaCursorMutation(persistentTopic);
                         if (shouldStopEvictionOnTopicClose(persistentTopic)) {
-                            break;
+                            return cursorAdvanced;
                         }
                         slowestConsumer.markDelete(nextPosition);
+                        cursorAdvanced = true;
                         markDeletePositionMoveForward(persistentTopic, slowestConsumer);
                         continue;
                     }
@@ -286,9 +292,10 @@ public class BacklogQuotaManager {
                         if (!nextPosition.equals(oldestPosition)) {
                             beforeBacklogQuotaCursorMutation(persistentTopic);
                             if (shouldStopEvictionOnTopicClose(persistentTopic)) {
-                                break;
+                                return cursorAdvanced;
                             }
                             slowestConsumer.markDelete(nextPosition);
+                            cursorAdvanced = true;
                             markDeletePositionMoveForward(persistentTopic, slowestConsumer);
                             continue;
                         }
@@ -303,6 +310,7 @@ public class BacklogQuotaManager {
                         .log("Error resetting cursor for slowest consumer");
             }
         }
+        return true;
     }
 
     /**

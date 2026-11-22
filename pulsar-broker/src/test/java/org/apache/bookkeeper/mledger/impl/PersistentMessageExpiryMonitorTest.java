@@ -239,6 +239,8 @@ public class PersistentMessageExpiryMonitorTest extends ProducerConsumerBase {
                         || !cursor.getMarkDeletedPosition().equals(markDeleteBeforeExpiry));
                 assertEquals(cursor.getMarkDeletedPosition(), markDeleteBeforeExpiry);
                 Assert.assertFalse(monitor.isExpirationCheckInProgress());
+                Assert.assertFalse(monitor.expireMessages(0));
+                Assert.assertFalse(monitor.expireMessages(topic.getLastPosition()));
             }
             closeFuture.get(30, TimeUnit.SECONDS);
         } finally {
