@@ -61,19 +61,17 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import org.apache.bookkeeper.mledger.AsyncCallbacks.ManagedLedgerInfoCallback;
-import org.apache.bookkeeper.mledger.ManagedLedgerException;
-import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
-import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.ConsumerRegistration;
+import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.resources.ScalableTopicMetadata;
 import org.apache.pulsar.broker.resources.ScalableTopicMetadata.PendingLayoutTransition;
 import org.apache.pulsar.broker.resources.ScalableTopicResources;
 import org.apache.pulsar.broker.resources.SubscriptionMetadata;
 import org.apache.pulsar.broker.resources.SubscriptionType;
+import org.apache.pulsar.broker.resources.TopicResources;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.GetStatsOptions;
 import org.apache.pulsar.broker.service.Topic;
@@ -97,7 +95,10 @@ import org.apache.pulsar.common.scalable.SegmentLoadStats;
 import org.apache.pulsar.common.scalable.SegmentTopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.compaction.Compactor;
+import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.coordination.CoordinationService;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.coordination.impl.CoordinationServiceImpl;
@@ -129,8 +130,13 @@ public class ScalableTopicControllerTest {
     private PulsarAdmin admin;
     private Topics topics;
     private ScalableTopics scalableTopics;
-    /** The cursors of each segment topic's managed ledger by its name, or the failure to read them. */
+    /**
+     * The cursors of each segment topic's managed ledger by its name: a list of cursor names,
+     * {@link #NO_MANAGED_LEDGER} if it doesn't exist, or the failure to read them.
+     */
     private Map<String, Object> managedLedgers;
+    private static final Object NO_MANAGED_LEDGER = Optional.empty();
+    private TopicResources topicResources;
 
     private TopicName topicName;
     private ScalableTopicController controller;
@@ -190,24 +196,20 @@ public class ScalableTopicControllerTest {
 
         // Managed-ledger metadata: every segment's topic exists, with no cursors unless a test sets some.
         managedLedgers = new HashMap<>();
-        ManagedLedgerFactory managedLedgerFactory = mock(ManagedLedgerFactory.class);
-        when(brokerService.getManagedLedgerFactoryForTopic(any(TopicName.class)))
-                .thenReturn(CompletableFuture.completedFuture(managedLedgerFactory));
-        doAnswer(invocation -> {
-            ManagedLedgerInfoCallback callback = invocation.getArgument(1);
-            Object cursors = managedLedgers.getOrDefault(invocation.<String>getArgument(0), List.of());
-            if (cursors instanceof ManagedLedgerException e) {
-                callback.getInfoFailed(e, null);
-            } else {
-                ManagedLedgerInfo info = new ManagedLedgerInfo();
-                info.cursors = new HashMap<>();
-                for (Object cursor : (List<?>) cursors) {
-                    info.cursors.put((String) cursor, new ManagedLedgerInfo.CursorInfo());
-                }
-                callback.getInfoComplete(info, null);
+        topicResources = mock(TopicResources.class);
+        when(topicResources.getManagedLedgerCursorsFromStoreAsync(any(TopicName.class))).thenAnswer(invocation -> {
+            Object cursors = managedLedgers.getOrDefault(
+                    invocation.<TopicName>getArgument(0).getPersistenceNamingEncoding(), List.of());
+            if (cursors instanceof Throwable failure) {
+                return CompletableFuture.failedFuture(failure);
             }
-            return null;
-        }).when(managedLedgerFactory).asyncGetManagedLedgerInfo(anyString(), any(), any());
+            return CompletableFuture.completedFuture(cursors instanceof List<?> names
+                    ? Optional.of(names.stream().map(String.class::cast).toList())
+                    : Optional.empty());
+        });
+        PulsarResources pulsarResources = mock(PulsarResources.class);
+        when(pulsar.getPulsarResources()).thenReturn(pulsarResources);
+        when(pulsarResources.getTopicResources()).thenReturn(topicResources);
 
         metrics = mock(ScalableTopicControllerMetrics.class);
         controller = newController(topicName);
@@ -1537,7 +1539,7 @@ public class ScalableTopicControllerTest {
 
         when(scalableTopics.getSegmentStatsAsync(topicName.toString(), 0L))
                 .thenAnswer(inv -> CompletableFuture.completedFuture(segmentTopicStats()));
-        managedLedgers.put(managedLedgerOf(0), new ManagedLedgerException.MetaStoreException("session expired"));
+        managedLedgers.put(managedLedgerOf(0), new MetadataStoreException("session expired"));
         controller.runGcTickAsync().get();
         assertTrue(controller.getLayout().get().getAllSegments().containsKey(0L),
                 "a segment whose managed-ledger metadata can't be read must be kept");
@@ -1546,11 +1548,48 @@ public class ScalableTopicControllerTest {
         when(scalableTopics.getSegmentStatsAsync(topicName.toString(), 0L))
                 .thenReturn(FutureUtil.failedFuture(new PulsarAdminException.NotFoundException(
                         new RuntimeException("gone"), "Segment topic not found", 404)));
-        managedLedgers.put(managedLedgerOf(0),
-                new ManagedLedgerException.MetadataNotFoundException("Managed ledger not found"));
+        managedLedgers.put(managedLedgerOf(0), NO_MANAGED_LEDGER);
         controller.runGcTickAsync().get();
         assertFalse(controller.getLayout().get().getAllSegments().containsKey(0L),
                 "a segment whose topic is gone has nothing left to drain");
+    }
+
+    /**
+     * The GC reads a segment's cursors from the metadata store, not from the local cache: a QUEUE subscription
+     * created on the segment's owner after the cache was filled keeps the segment while the stats show its backlog,
+     * even before the controller's broker processes the notification of its cursor.
+     */
+    @Test
+    public void testGcTickReadsSegmentCursorsPastALaggingCache() throws Exception {
+        installGcMocks(0);
+        MetadataStoreExtended managedLedgerStore = mock(MetadataStoreExtended.class);
+        TopicResources managedLedgerResources = new TopicResources(managedLedgerStore);
+        when(pulsar.getPulsarResources().getTopicResources()).thenReturn(managedLedgerResources);
+        controller.initialize().get();
+        controller.splitSegment(0).get();
+        String path = "/managed-ledgers/" + managedLedgerOf(0);
+        when(managedLedgerStore.sync(path)).thenReturn(CompletableFuture.completedFuture(null));
+        when(managedLedgerStore.get(path)).thenReturn(CompletableFuture.completedFuture(Optional.of(
+                new GetResult(new byte[0], new Stat(path, 0, 0, 0, false, false)))));
+        // The cache still has the cursor list of an earlier read, without sub-b.
+        when(managedLedgerStore.getChildren(path)).thenReturn(CompletableFuture.completedFuture(List.of("sub-a")));
+        when(managedLedgerStore.getChildrenFromStore(path))
+                .thenReturn(CompletableFuture.completedFuture(List.of("sub-a", "sub-b")));
+        SegmentTopicStats stats = segmentTopicStats();
+        stats.getSubscriptions().put("sub-a", subscriptionStats(0));
+        stats.getSubscriptions().put("sub-b", subscriptionStats(10));
+        when(scalableTopics.getSegmentStatsAsync(topicName.toString(), 0L))
+                .thenReturn(CompletableFuture.completedFuture(stats));
+
+        controller.runGcTickAsync().get();
+        assertTrue(controller.getLayout().get().getAllSegments().containsKey(0L),
+                "a subscription missing from the cached cursor list must still keep the segment");
+        verify(scalableTopics, never()).deleteSegmentAsync(anyString(), anyBoolean());
+
+        stats.getSubscriptions().get("sub-b").setMsgBacklog(0);
+        controller.runGcTickAsync().get();
+        assertFalse(controller.getLayout().get().getAllSegments().containsKey(0L),
+                "once every subscription drained the sealed segment, the GC prunes it");
     }
 
     private static SegmentTopicStats.SubscriptionStats subscriptionStats(long backlog) {
@@ -1680,6 +1719,7 @@ public class ScalableTopicControllerTest {
         var pulsarResources = mock(org.apache.pulsar.broker.resources.PulsarResources.class);
         var namespaceResources = mock(org.apache.pulsar.broker.resources.NamespaceResources.class);
         when(pulsar.getPulsarResources()).thenReturn(pulsarResources);
+        when(pulsarResources.getTopicResources()).thenReturn(topicResources);
         when(pulsarResources.getNamespaceResources()).thenReturn(namespaceResources);
         org.apache.pulsar.common.policies.data.Policies nsPolicies =
                 new org.apache.pulsar.common.policies.data.Policies();

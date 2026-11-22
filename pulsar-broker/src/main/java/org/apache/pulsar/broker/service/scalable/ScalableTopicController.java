@@ -46,10 +46,8 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 import lombok.Getter;
-import org.apache.bookkeeper.mledger.AsyncCallbacks.ManagedLedgerInfoCallback;
-import org.apache.bookkeeper.mledger.ManagedLedgerException;
-import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
 import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.resources.ScalableTopicMetadata;
 import org.apache.pulsar.broker.resources.ScalableTopicMetadata.PendingLayoutTransition;
@@ -1238,44 +1236,32 @@ public class ScalableTopicController {
      * The durable subscriptions of the topic backing a segment: the cursors in its managed-ledger metadata, other
      * than the compaction, deduplication and replicator cursors. They include the subscriptions that the scalable
      * topic doesn't know, such as a QUEUE consumer's, which subscribes to each segment's topic directly, and those
-     * whose cursor the topic hasn't loaded, as with {@code lazyCursorRecovery}. Empty if the segment's topic doesn't
-     * exist.
+     * whose cursor the topic hasn't loaded, as with {@code lazyCursorRecovery}. Empty if the segment's managed ledger
+     * doesn't exist.
+     *
+     * <p>Only the cursor names are read, from the metadata store rather than its local cache, so the list has every
+     * cursor created before the call, also on another broker, and a cursor deleted meanwhile can't fail the read.
      */
     private CompletableFuture<Optional<Set<String>>> segmentDurableSubscriptions(SegmentInfo segment) {
         TopicName backingTopic = TopicName.get(SegmentTopicName.backingTopicName(topicName, segment));
-        return brokerService.getManagedLedgerFactoryForTopic(backingTopic).thenCompose(factory -> {
-            CompletableFuture<Optional<Set<String>>> future = new CompletableFuture<>();
-            factory.asyncGetManagedLedgerInfo(backingTopic.getPersistenceNamingEncoding(),
-                    new ManagedLedgerInfoCallback() {
-                        @Override
-                        public void getInfoComplete(ManagedLedgerInfo info, Object ctx) {
-                            ServiceConfiguration config = brokerService.getPulsar().getConfig();
-                            Set<String> subscriptions = new HashSet<>();
-                            for (String cursor : info.cursors.keySet()) {
-                                // The cursors that aren't subscriptions, as in PersistentTopic.
-                                if (cursor.equals(PersistentTopic.DEDUPLICATION_CURSOR_NAME)
-                                        || (config != null && cursor.startsWith(config.getReplicatorPrefix()))) {
-                                    continue;
-                                }
-                                String subscription = Codec.decode(cursor);
-                                if (!Compactor.COMPACTION_SUBSCRIPTION.equals(subscription)) {
-                                    subscriptions.add(subscription);
-                                }
-                            }
-                            future.complete(Optional.of(subscriptions));
+        PulsarService pulsar = brokerService.getPulsar();
+        return pulsar.getPulsarResources().getTopicResources().getManagedLedgerCursorsFromStoreAsync(backingTopic)
+                .thenApply(cursors -> cursors.map(names -> {
+                    ServiceConfiguration config = pulsar.getConfig();
+                    Set<String> subscriptions = new HashSet<>();
+                    for (String cursor : names) {
+                        // The cursors that aren't subscriptions, as in PersistentTopic.
+                        if (cursor.equals(PersistentTopic.DEDUPLICATION_CURSOR_NAME)
+                                || (config != null && cursor.startsWith(config.getReplicatorPrefix()))) {
+                            continue;
                         }
-
-                        @Override
-                        public void getInfoFailed(ManagedLedgerException exception, Object ctx) {
-                            if (exception instanceof ManagedLedgerException.MetadataNotFoundException) {
-                                future.complete(Optional.empty());
-                            } else {
-                                future.completeExceptionally(exception);
-                            }
+                        String subscription = Codec.decode(cursor);
+                        if (!Compactor.COMPACTION_SUBSCRIPTION.equals(subscription)) {
+                            subscriptions.add(subscription);
                         }
-                    }, null);
-            return future;
-        });
+                    }
+                    return subscriptions;
+                }));
     }
 
     private CompletableFuture<Void> electLeader() {
@@ -2530,14 +2516,15 @@ public class ScalableTopicController {
                     // The topic is gone, and its data with it.
                     .orElse(true));
         }
-        // The stats first: a subscription created between the two reads is then among the durable ones but not in
-        // the stats, which keeps the segment.
+        // The stats first: the cursors read after them from the metadata store include every durable subscription
+        // in the stats, and a subscription created between the two reads is among the durable ones but not in the
+        // stats, which keeps the segment.
         CompletableFuture<SegmentTopicStats> stats = fetchSegmentStats(seg);
         return stats.handle((__, ex) -> null)
                 .thenCompose(__ -> segmentDurableSubscriptions(seg))
                 .thenApply(durable -> {
                     if (durable.isEmpty()) {
-                        // The topic is gone, and its data with it.
+                        // The managed ledger is gone, and its data with it.
                         return true;
                     }
                     // The topic exists, so a failed stats read, such as a 404 from an owner whose cached layout

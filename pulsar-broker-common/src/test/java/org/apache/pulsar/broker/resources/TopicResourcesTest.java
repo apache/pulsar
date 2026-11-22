@@ -22,12 +22,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -39,11 +41,15 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
+import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -61,6 +67,41 @@ public class TopicResourcesTest {
     @Test
     public void testConstructorRegistersAsListener() {
         verify(metadataStore).registerCancellableListener(any());
+    }
+
+    /**
+     * The cursors of a managed ledger come from the metadata store after a sync, not from the local cache, which
+     * may not have a cursor that another broker just created yet.
+     */
+    @Test
+    public void testGetManagedLedgerCursorsFromStoreBypassesTheCache() throws Exception {
+        TopicName topic = TopicName.get("persistent://tenant/ns/topic");
+        String path = "/managed-ledgers/" + topic.getPersistenceNamingEncoding();
+        when(metadataStore.sync(path)).thenReturn(CompletableFuture.completedFuture(null));
+        when(metadataStore.get(path)).thenReturn(CompletableFuture.completedFuture(Optional.of(
+                new GetResult(new byte[0], new Stat(path, 0, 0, 0, false, false)))));
+        when(metadataStore.getChildren(path)).thenReturn(CompletableFuture.completedFuture(List.of("a")));
+        when(metadataStore.getChildrenFromStore(path))
+                .thenReturn(CompletableFuture.completedFuture(List.of("a", "b")));
+
+        assertThat(topicResources.getManagedLedgerCursorsFromStoreAsync(topic).get()).contains(List.of("a", "b"));
+        InOrder order = inOrder(metadataStore);
+        order.verify(metadataStore).sync(path);
+        order.verify(metadataStore).get(path);
+        order.verify(metadataStore).getChildrenFromStore(path);
+        verify(metadataStore, never()).getChildren(path);
+    }
+
+    /** Only a missing managed-ledger node reports the managed ledger as gone. */
+    @Test
+    public void testGetManagedLedgerCursorsFromStoreOfMissingManagedLedger() throws Exception {
+        TopicName topic = TopicName.get("persistent://tenant/ns/topic");
+        String path = "/managed-ledgers/" + topic.getPersistenceNamingEncoding();
+        when(metadataStore.sync(path)).thenReturn(CompletableFuture.completedFuture(null));
+        when(metadataStore.get(path)).thenReturn(CompletableFuture.completedFuture(Optional.empty()));
+
+        assertThat(topicResources.getManagedLedgerCursorsFromStoreAsync(topic).get()).isEmpty();
+        verify(metadataStore, never()).getChildrenFromStore(path);
     }
 
     @Test
