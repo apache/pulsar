@@ -44,14 +44,22 @@ public class ChunkedMessageDeduplicationRecoveryTest extends SharedPulsarBaseTes
 
     @DataProvider
     public Object[][] reloadBetweenChunks() {
-        return new Object[][] {{false}, {true}};
+        return new Object[][] {
+                // Control case for the live publish path; no reload is performed.
+                {false, -1, new String[] {"hello-", "world"}},
+                {true, 0, new String[] {"hello-", "world"}},
+                {true, 1, new String[] {"hello-", "middle-", "world"}}
+        };
     }
 
     @Test(dataProvider = "reloadBetweenChunks", timeOut = 30000)
-    public void testIncompleteChunkedMessageSurvivesDeduplicationRecovery(boolean reload) throws Exception {
+    public void testIncompleteChunkedMessageSurvivesDeduplicationRecovery(
+            boolean reload, int reloadAfterChunk, String[] chunkValues) throws Exception {
         String topic = newTopicName();
         String producerName = "chunked-producer";
         long sequenceId = 41;
+        int numChunks = chunkValues.length;
+        String completeMessage = String.join("", chunkValues);
         admin.namespaces().setDeduplicationStatus(getNamespace(), true);
         admin.topics().createNonPartitionedTopic(topic);
         admin.topics().createSubscription(topic, "test-sub", MessageId.earliest);
@@ -59,26 +67,26 @@ public class ChunkedMessageDeduplicationRecoveryTest extends SharedPulsarBaseTes
                 .orElseThrow();
         assertThat(persistentTopic.getMessageDeduplication().isEnabled()).isTrue();
 
-        // Publish through the broker's real persistence path, pausing between the two protocol chunks.
-        Position firstChunk = publishChunk(persistentTopic, producerName, sequenceId, 0, "hello-");
-        assertThat(firstChunk.getLedgerId()).isGreaterThanOrEqualTo(0);
-        assertThat(persistentTopic.getLastPublishedSequenceId(producerName))
-                .as("A persisted prefix does not complete the logical message")
-                .isEqualTo(-1);
-
-        if (reload) {
-            admin.topics().unload(topic);
-            persistentTopic = (PersistentTopic) getTopic(topic, false).get(10, TimeUnit.SECONDS).orElseThrow();
-        }
-
         SoftAssertions softly = new SoftAssertions();
-        softly.assertThat(persistentTopic.getLastPublishedSequenceId(producerName))
-                .as("Recovery must not advance the watermark past an incomplete chunked message")
-                .isEqualTo(-1);
-        Position lastChunk = publishChunk(persistentTopic, producerName, sequenceId, 1, "world");
-        softly.assertThat(lastChunk.getLedgerId())
-                .as("The final chunk must be persisted, rather than acknowledged as a duplicate")
-                .isGreaterThanOrEqualTo(0);
+        // Publish through the broker's real persistence path, pausing between protocol chunks.
+        for (int chunkId = 0; chunkId < numChunks; chunkId++) {
+            if (reload && chunkId == reloadAfterChunk + 1) {
+                admin.topics().unload(topic);
+                persistentTopic = (PersistentTopic) getTopic(topic, false).get(10, TimeUnit.SECONDS).orElseThrow();
+                softly.assertThat(persistentTopic.getLastPublishedSequenceId(producerName))
+                        .as("Recovery must not advance the watermark past an incomplete chunked message")
+                        .isEqualTo(-1);
+            }
+
+            Position chunk = publishChunk(persistentTopic, producerName, sequenceId, chunkId, numChunks,
+                    chunkValues[chunkId], completeMessage);
+            softly.assertThat(chunk.getLedgerId()).isGreaterThanOrEqualTo(0);
+            if (chunkId < numChunks - 1) {
+                softly.assertThat(persistentTopic.getLastPublishedSequenceId(producerName))
+                        .as("A persisted prefix does not complete the logical message")
+                        .isEqualTo(-1);
+            }
+        }
 
         try (Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic)
                      .enableBatching(false).create();
@@ -95,21 +103,21 @@ public class ChunkedMessageDeduplicationRecoveryTest extends SharedPulsarBaseTes
             }
             softly.assertThat(received)
                     .as("The chunked message must remain deliverable when later normal messages are delivered")
-                    .containsExactly("hello-world", "probe");
+                    .containsExactly(completeMessage, "probe");
         }
         softly.assertAll();
     }
 
     private Position publishChunk(PersistentTopic topic, String producerName, long sequenceId,
-                                  int chunkId, String value) throws Exception {
+                                  int chunkId, int numChunks, String value, String completeMessage) throws Exception {
         MessageMetadata metadata = new MessageMetadata()
                 .setProducerName(producerName)
                 .setSequenceId(sequenceId)
                 .setPublishTime(System.currentTimeMillis())
                 .setUuid(producerName + "-" + sequenceId)
                 .setChunkId(chunkId)
-                .setNumChunksFromMsg(2)
-                .setTotalChunkMsgSize("hello-world".getBytes(UTF_8).length);
+                .setNumChunksFromMsg(numChunks)
+                .setTotalChunkMsgSize(completeMessage.getBytes(UTF_8).length);
         ByteBuf payload = Unpooled.copiedBuffer(value, UTF_8);
         ByteBuf data;
         try {
