@@ -514,6 +514,16 @@ public class PersistentSubscription extends AbstractSubscription {
 
     public CompletableFuture<Void> acknowledgeMessageAsync(List<Position> positions, AckType ackType,
                                                            Map<String, Long> properties) {
+        return acknowledgeMessageAsync(positions, ackType, properties, true);
+    }
+
+    public CompletableFuture<Void> applyIndividualTxnAck(List<Position> positions, Map<String, Long> properties) {
+        // PendingAckHandle settles the committing transaction's reservations after the cursor ACK succeeds.
+        return acknowledgeMessageAsync(positions, AckType.Individual, properties, false);
+    }
+
+    private CompletableFuture<Void> acknowledgeMessageAsync(List<Position> positions, AckType ackType,
+            Map<String, Long> properties, boolean clearPendingAckPositions) {
         CompletableFuture<Void> future = new CompletableFuture<>();
         cursor.updateLastActive();
         Position previousMarkDeletePosition = cursor.getMarkDeletedPosition();
@@ -558,28 +568,44 @@ public class PersistentSubscription extends AbstractSubscription {
                     .attr("positions", positions)
                     .log("Individual acks on");
             AckCallback callback = new AckCallback(previousMarkDeletePosition, future);
+            CompletableFuture<Void> lastReset = lastCursorResetFuture;
+            boolean resetInProgress = lastReset != null && !lastReset.isDone();
             cursor.asyncDelete(positions, callback, callback);
-            if (config.isTransactionCoordinatorEnabled()) {
-                positions.forEach(position -> {
-                    if ((cursor.isMessageDeleted(position))) {
-                        pendingAckHandle.clearIndividualPosition(position);
-                    }
+            if (resetInProgress || lastReset != lastCursorResetFuture) {
+                // The cursor can defer applying an individual ACK until the reset settles.
+                return future.whenComplete((__, error) -> {
+                    completeIndividualAck(positions, clearPendingAckPositions);
+                    notifyEndOfTopicIfNoBacklog();
                 });
             }
-
-            if (dispatcher != null) {
-                dispatcher.getRedeliveryTracker().removeBatch(positions);
-            }
+            completeIndividualAck(positions, clearPendingAckPositions);
         }
 
+        notifyEndOfTopicIfNoBacklog();
+        return future;
+    }
+
+    private void completeIndividualAck(List<Position> positions, boolean clearPendingAckPositions) {
+        if (clearPendingAckPositions && config.isTransactionCoordinatorEnabled()) {
+            positions.forEach(position -> {
+                if (cursor.isMessageDeleted(position)) {
+                    pendingAckHandle.clearIndividualPosition(position);
+                }
+            });
+        }
+        Dispatcher currentDispatcher = dispatcher;
+        if (currentDispatcher != null) {
+            currentDispatcher.getRedeliveryTracker().removeBatch(positions);
+        }
+    }
+
+    private void notifyEndOfTopicIfNoBacklog() {
         if (topic.getManagedLedger().isTerminated() && !cursor.hasBacklog(false)) {
             // Notify all consumer that the end of topic was reached
             if (dispatcher != null) {
                 checkAndApplyReachedEndOfTopicOrTopicMigration(topic, dispatcher.getConsumers());
             }
         }
-
-        return future;
     }
 
     public CompletableFuture<Void> transactionIndividualAcknowledge(
