@@ -913,7 +913,7 @@ public class ScalableTopicControllerTest {
     @Test
     public void testSplitChecksParentSubscriptionsFailClosed() throws Exception {
         controller.initialize().get();
-        managedLedgers.put(managedLedgerOf(0), new ManagedLedgerException.MetaStoreException("session expired"));
+        managedLedgers.put(managedLedgerOf(0), new MetadataStoreException("session expired"));
         clearInvocations(scalableTopics);
 
         assertThrows(ExecutionException.class, () -> controller.splitSegment(0).get());
@@ -923,7 +923,7 @@ public class ScalableTopicControllerTest {
                 "the parent keeps serving");
 
         managedLedgers.put(managedLedgerOf(0),
-                new ManagedLedgerException.MetadataNotFoundException("Managed ledger not found"));
+                NO_MANAGED_LEDGER);
         controller.splitSegment(0).get();
         verify(scalableTopics, times(2)).createSegmentAsync(anyString(), eq(List.of()));
         verify(scalableTopics, never()).getSegmentStatsAsync(anyString(), anyLong());
@@ -955,7 +955,7 @@ public class ScalableTopicControllerTest {
         PendingLayoutTransition plan = reserveSplit(before, 0);
         resources.markLayoutTransitionSealingAsync(topicName, plan, () -> true).get(10, TimeUnit.SECONDS);
         managedLedgers.put(managedLedgerOf(before.getSegments().get(0L)),
-                new ManagedLedgerException.MetaStoreException("session expired"));
+                new MetadataStoreException("session expired"));
 
         controller.initialize().get(10, TimeUnit.SECONDS);
 
@@ -1566,7 +1566,6 @@ public class ScalableTopicControllerTest {
         TopicResources managedLedgerResources = new TopicResources(managedLedgerStore);
         when(pulsar.getPulsarResources().getTopicResources()).thenReturn(managedLedgerResources);
         controller.initialize().get();
-        controller.splitSegment(0).get();
         String path = "/managed-ledgers/" + managedLedgerOf(0);
         when(managedLedgerStore.sync(path)).thenReturn(CompletableFuture.completedFuture(null));
         when(managedLedgerStore.get(path)).thenReturn(CompletableFuture.completedFuture(Optional.of(
@@ -1575,6 +1574,7 @@ public class ScalableTopicControllerTest {
         when(managedLedgerStore.getChildren(path)).thenReturn(CompletableFuture.completedFuture(List.of("sub-a")));
         when(managedLedgerStore.getChildrenFromStore(path))
                 .thenReturn(CompletableFuture.completedFuture(List.of("sub-a", "sub-b")));
+        controller.splitSegment(0).get();
         SegmentTopicStats stats = segmentTopicStats();
         stats.getSubscriptions().put("sub-a", subscriptionStats(0));
         stats.getSubscriptions().put("sub-b", subscriptionStats(10));

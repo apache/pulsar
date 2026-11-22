@@ -52,15 +52,14 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import org.apache.bookkeeper.mledger.AsyncCallbacks.ManagedLedgerInfoCallback;
-import org.apache.bookkeeper.mledger.ManagedLedgerException;
-import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.resources.ScalableTopicMetadata;
 import org.apache.pulsar.broker.resources.ScalableTopicResources;
 import org.apache.pulsar.broker.resources.SubscriptionType;
+import org.apache.pulsar.broker.resources.TopicResources;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.TransportCnx;
 import org.apache.pulsar.broker.stats.PulsarBrokerOpenTelemetry;
@@ -141,14 +140,12 @@ public class ScalableTopicServiceTest {
         when(brokerService.deleteSchema(any(TopicName.class)))
                 .thenReturn(CompletableFuture.completedFuture(null));
         // Segment topics are mocked out, and so are their managed ledgers.
-        ManagedLedgerFactory managedLedgerFactory = mock(ManagedLedgerFactory.class);
-        when(brokerService.getManagedLedgerFactoryForTopic(any(TopicName.class)))
-                .thenReturn(CompletableFuture.completedFuture(managedLedgerFactory));
-        doAnswer(invocation -> {
-            invocation.<ManagedLedgerInfoCallback>getArgument(1).getInfoFailed(
-                    new ManagedLedgerException.MetadataNotFoundException("Managed ledger not found"), null);
-            return null;
-        }).when(managedLedgerFactory).asyncGetManagedLedgerInfo(anyString(), any(), any());
+        PulsarResources pulsarResources = mock(PulsarResources.class);
+        TopicResources topicResources = mock(TopicResources.class);
+        when(pulsar.getPulsarResources()).thenReturn(pulsarResources);
+        when(pulsarResources.getTopicResources()).thenReturn(topicResources);
+        when(topicResources.getManagedLedgerCursorsFromStoreAsync(any(TopicName.class)))
+                .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
         when(pulsar.getBrokerId()).thenReturn(BROKER_ID);
         when(pulsar.getExecutor()).thenReturn(scheduler);
         when(pulsar.getAdminClient()).thenReturn(admin);

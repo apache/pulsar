@@ -1592,7 +1592,8 @@ public class ScalableTopicController {
 
     /**
      * The subscriptions to create on the successors of {@code pending}: those registered on the scalable topic,
-     * and every durable subscription of the sources' topics, read from their managed-ledger metadata. The latter
+     * and every durable subscription of the sources' topics: the cursor names in their managed-ledger metadata,
+     * read from the metadata store (see {@link #segmentDurableSubscriptions}). The latter
      * include those that the scalable topic doesn't know, such as a QUEUE consumer's, which subscribes to each
      * segment's topic directly: created on the successors before they can take a message, they hold every message
      * the successors store, also while no consumer is connected. Only the names are carried over: the successors'
