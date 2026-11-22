@@ -2863,14 +2863,16 @@ public class ManagedCursorImpl implements ManagedCursor {
         // ledger is postponed to when the counter goes to 0.
         PENDING_MARK_DELETED_SUBMITTED_COUNT_UPDATER.incrementAndGet(this);
 
-        LAST_MARK_DELETE_ENTRY_UPDATER.updateAndGet(this, last -> {
-            if (last != null && last.newPosition.compareTo(mdEntry.newPosition) > 0) {
-                // keep the current value since it's later then the mdEntry.newPosition
-                return last;
-            } else {
-                return mdEntry;
-            }
-        });
+        if (!mdEntry.resetsCursor) {
+            LAST_MARK_DELETE_ENTRY_UPDATER.updateAndGet(this, last -> {
+                if (last != null && last.newPosition.compareTo(mdEntry.newPosition) > 0) {
+                    // keep the current value since it's later then the mdEntry.newPosition
+                    return last;
+                } else {
+                    return mdEntry;
+                }
+            });
+        }
 
         VoidCallback cb = new VoidCallback() {
             @Override
@@ -3774,13 +3776,16 @@ public class ManagedCursorImpl implements ManagedCursor {
                 CompletableFuture<Void> completedSwitch = null;
                 // We now have a new ledger where we can write
                 synchronized (pendingMarkDeleteOps) {
+                    CompletableFuture<Void> switchFuture = ledgerSwitchFuture;
                     flushPendingMarkDeletes();
 
-                    // Resume normal mark-delete operations
-                    changeStateIfNotClosed(State.Open);
-                    ledgerSwitchFinished = true;
-                    if (PENDING_MARK_DELETED_SUBMITTED_COUNT_UPDATER.get(ManagedCursorImpl.this) == 0) {
-                        completedSwitch = ledgerSwitchFuture;
+                    if (ledgerSwitchFuture == switchFuture) {
+                        // Resume normal mark-delete operations
+                        changeStateIfNotClosed(State.Open);
+                        ledgerSwitchFinished = true;
+                        if (PENDING_MARK_DELETED_SUBMITTED_COUNT_UPDATER.get(ManagedCursorImpl.this) == 0) {
+                            completedSwitch = switchFuture;
+                        }
                     }
                 }
                 completeLedgerSwitch(completedSwitch);
@@ -3792,6 +3797,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 CompletableFuture<Void> completedSwitch = null;
                 List<MarkDeleteEntry> failedMarkDeletes = Collections.emptyList();
                 synchronized (pendingMarkDeleteOps) {
+                    CompletableFuture<Void> switchFuture = ledgerSwitchFuture;
                     // At this point we don't have a ledger ready
                     changeStateIfNotClosed(State.NoLedger);
                     // There are two case may cause switch ledger fails.
@@ -3805,9 +3811,11 @@ public class ManagedCursorImpl implements ManagedCursor {
                         failedMarkDeletes = new ArrayList<>(pendingMarkDeleteOps);
                         pendingMarkDeleteOps.clear();
                     }
-                    ledgerSwitchFinished = true;
-                    if (PENDING_MARK_DELETED_SUBMITTED_COUNT_UPDATER.get(ManagedCursorImpl.this) == 0) {
-                        completedSwitch = ledgerSwitchFuture;
+                    if (ledgerSwitchFuture == switchFuture) {
+                        ledgerSwitchFinished = true;
+                        if (PENDING_MARK_DELETED_SUBMITTED_COUNT_UPDATER.get(ManagedCursorImpl.this) == 0) {
+                            completedSwitch = switchFuture;
+                        }
                     }
                 }
                 for (MarkDeleteEntry entry : failedMarkDeletes) {

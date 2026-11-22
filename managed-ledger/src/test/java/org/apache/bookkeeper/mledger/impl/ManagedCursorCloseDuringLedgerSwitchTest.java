@@ -97,7 +97,7 @@ public class ManagedCursorCloseDuringLedgerSwitchTest extends MockedBookKeeperTe
     @Test(timeOut = 30000)
     public void testClosePersistsCompletedThrottledAckAfterLedgerCreationFailure() throws Exception {
         String ledgerName = "close-after-cursor-ledger-create-failure";
-        ManagedLedgerConfig config = defaultConfig().setThrottleMarkDelete(1);
+        ManagedLedgerConfig config = defaultConfig().setThrottleMarkDelete(0.001);
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(ledgerName, config);
         ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("cursor");
         Position first = ledger.addEntry("first".getBytes());
@@ -186,6 +186,94 @@ public class ManagedCursorCloseDuringLedgerSwitchTest extends MockedBookKeeperTe
     }
 
     @Test(timeOut = 30000)
+    public void testCloseWaitsForReplacementSwitchStartedByFailureCallback() throws Exception {
+        String ledgerName = "close-during-reentrant-cursor-ledger-switch";
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(ledgerName, defaultConfig());
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("cursor");
+        Position first = ledger.addEntry("first".getBytes());
+        Position acknowledged = ledger.addEntry("acknowledged".getBytes());
+
+        CompletableFuture<Void> firstCreateGate = bkc.promiseAfter(0);
+        CompletableFuture<Void> secondCreateGate = bkc.promiseAfter(1);
+        CompletableFuture<Void> firstMarkDelete = new CompletableFuture<>();
+        CompletableFuture<Void> retriedMarkDelete = new CompletableFuture<>();
+        CompletableFuture<Void> retrySubmitted = new CompletableFuture<>();
+        cursor.asyncMarkDelete(first, new MarkDeleteCallback() {
+            @Override
+            public void markDeleteComplete(Object ctx) {
+                firstMarkDelete.complete(null);
+            }
+
+            @Override
+            public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
+                firstMarkDelete.completeExceptionally(exception);
+                cursor.asyncMarkDelete(acknowledged, new MarkDeleteCallback() {
+                    @Override
+                    public void markDeleteComplete(Object ctx) {
+                        retriedMarkDelete.complete(null);
+                    }
+
+                    @Override
+                    public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
+                        retriedMarkDelete.completeExceptionally(exception);
+                    }
+                }, null);
+                retrySubmitted.complete(null);
+            }
+        }, null);
+        Awaitility.await().until(() -> cursor.state == ManagedCursorImpl.State.SwitchingLedger);
+
+        firstCreateGate.completeExceptionally(BKException.create(BKException.Code.NoBookieAvailableException));
+        retrySubmitted.get(10, TimeUnit.SECONDS);
+        CompletableFuture<Void> closeFuture = close(cursor);
+
+        boolean closeCompletedBeforeReplacementSwitch;
+        try {
+            closeCompletedBeforeReplacementSwitch = completesWithinOneSecond(closeFuture);
+        } finally {
+            secondCreateGate.complete(null);
+        }
+
+        assertThat(closeCompletedBeforeReplacementSwitch)
+                .as("close must wait for the replacement cursor-ledger switch")
+                .isFalse();
+        assertThat(firstMarkDelete.handle((ignored, error) -> error).get(10, TimeUnit.SECONDS)).isNotNull();
+        retriedMarkDelete.get(10, TimeUnit.SECONDS);
+        closeFuture.get(10, TimeUnit.SECONDS);
+        assertCursorInfoPosition(readCursorInfo(ledger, cursor), acknowledged);
+        ledger.close();
+    }
+
+    @Test(timeOut = 30000)
+    public void testCloseDoesNotPersistFailedForwardReset() throws Exception {
+        String ledgerName = "close-after-failed-forward-reset";
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(ledgerName, defaultConfig());
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("cursor");
+        Position acknowledged = ledger.addEntry("acknowledged".getBytes());
+        ledger.addEntry("between".getBytes());
+        Position resetReadPosition = ledger.addEntry("reset-read-position".getBytes());
+        markDelete(cursor, acknowledged).get(10, TimeUnit.SECONDS);
+
+        CompletableFuture<Void> releaseLedgerSwitch = bkc.addEntryResponseGate();
+        cursor.startCreatingNewMetadataLedger();
+        Awaitility.await().until(() -> cursor.state == ManagedCursorImpl.State.SwitchingLedger);
+        CompletableFuture<Void> resetFuture = resetCursor(cursor, resetReadPosition);
+        Awaitility.await().until(() -> cursor.pendingMarkDeleteOps.size() == 1);
+        bkc.addEntryFailAfter(0, BKException.Code.WriteException);
+        CompletableFuture<Void> closeFuture = close(cursor);
+        releaseLedgerSwitch.complete(null);
+
+        assertThat(resetFuture.handle((ignored, error) -> error).get(10, TimeUnit.SECONDS)).isNotNull();
+        closeFuture.get(10, TimeUnit.SECONDS);
+        ledger.close();
+
+        ManagedLedgerImpl reopenedLedger = (ManagedLedgerImpl) factory.open(ledgerName, defaultConfig());
+        ManagedCursorImpl reopenedCursor = (ManagedCursorImpl) reopenedLedger.openCursor("cursor");
+        assertThat(reopenedCursor.getMarkDeletedPosition()).isEqualTo(acknowledged);
+        reopenedLedger.close();
+    }
+
+    @Test(timeOut = 30000)
     public void testCloseSettlesWhenCursorLedgerCreationTimesOutAndCompletesLate() throws Exception {
         String ledgerName = "close-after-cursor-ledger-create-timeout";
         ManagedLedgerConfig config = defaultConfig().setMetadataOperationsTimeoutSeconds(1);
@@ -201,7 +289,13 @@ public class ManagedCursorCloseDuringLedgerSwitchTest extends MockedBookKeeperTe
 
         closeFuture.get(10, TimeUnit.SECONDS);
         assertThat(markDeleteFuture.handle((ignored, error) -> error).get(10, TimeUnit.SECONDS)).isNotNull();
+        CompletableFuture<Void> deleteGate = bkc.promiseAfter(0);
         createGate.complete(null);
+        try {
+            Awaitility.await().until(() -> bkc.getLedgers().size() > ledgersBeforeCreate.size());
+        } finally {
+            deleteGate.complete(null);
+        }
         Awaitility.await().untilAsserted(() -> assertThat(bkc.getLedgers()).containsExactlyInAnyOrderElementsOf(
                 ledgersBeforeCreate));
         assertThat(readCursorInfo(ledger, cursor).getCursorsLedgerId()).isEqualTo(-1);
@@ -261,6 +355,22 @@ public class ManagedCursorCloseDuringLedgerSwitchTest extends MockedBookKeeperTe
                 future.completeExceptionally(exception);
             }
         }, null);
+        return future;
+    }
+
+    private CompletableFuture<Void> resetCursor(ManagedCursorImpl cursor, Position position) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        cursor.asyncResetCursor(position, false, new AsyncCallbacks.ResetCursorCallback() {
+            @Override
+            public void resetComplete(Object ctx) {
+                future.complete(null);
+            }
+
+            @Override
+            public void resetFailed(ManagedLedgerException exception, Object ctx) {
+                future.completeExceptionally(exception);
+            }
+        });
         return future;
     }
 
