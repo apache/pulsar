@@ -763,16 +763,16 @@ public class MessageChunkingTest extends SharedPulsarBaseTest {
      */
     @Test
     public void testEvictionOrderFollowsReplacedFirstChunk() throws Exception {
-        final String topicName = "persistent://my-property/my-ns/evictionOrderAfterReplacement";
+        final String topicName = "persistent://" + getNamespace() + "/evictionOrderAfterReplacement";
         @Cleanup
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+        Consumer<String> consumer = client.newConsumer(Schema.STRING)
                 .topic(topicName)
                 .subscriptionName("my-sub")
                 .maxPendingChunkedMessage(2)
                 .autoAckOldestChunkedMessageOnQueueFull(true)
                 .subscribe();
         @Cleanup
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+        Producer<String> producer = client.newProducer(Schema.STRING)
                 .topic(topicName)
                 .chunkMaxMessageSize(100)
                 .enableChunking(true)
@@ -818,16 +818,16 @@ public class MessageChunkingTest extends SharedPulsarBaseTest {
      */
     @Test
     public void testRefreshedFirstChunkDoesNotBlockExpiryOfLaterEntries() throws Exception {
-        final String topicName = "persistent://my-property/my-ns/refreshedHeadExpiry";
+        final String topicName = "persistent://" + getNamespace() + "/refreshedHeadExpiry";
         @Cleanup
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+        Consumer<String> consumer = client.newConsumer(Schema.STRING)
                 .topic(topicName)
                 .subscriptionName("my-sub")
                 .maxPendingChunkedMessage(100)
                 .expireTimeOfIncompleteChunkedMessage(1, TimeUnit.HOURS)
                 .subscribe();
         @Cleanup
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+        Producer<String> producer = client.newProducer(Schema.STRING)
                 .topic(topicName)
                 .chunkMaxMessageSize(100)
                 .enableChunking(true)
