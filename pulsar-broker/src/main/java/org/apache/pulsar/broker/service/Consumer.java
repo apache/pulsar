@@ -528,9 +528,16 @@ public class Consumer {
             }
             cleanupStarted = true;
         }
-        subscription.removeConsumer(this, isResetCursor);
-        cnx.removedConsumer(this);
-        cnx.notifyConsumerClosed(this);
+        try {
+            subscription.removeConsumer(this, isResetCursor);
+            cnx.removedConsumer(this);
+            cnx.notifyConsumerClosed(this);
+        } catch (BrokerServiceException e) {
+            synchronized (this) {
+                cleanupStarted = false;
+            }
+            throw e;
+        }
     }
 
     public void markBrokerInterceptorConsumerCreatedNotified() {
@@ -567,6 +574,7 @@ public class Consumer {
         subscription.doUnsubscribe(this, force).thenAccept(v -> {
             log.info("Unsubscribed successfully");
             cnx.removedConsumer(this);
+            // Idempotent: subscription doUnsubscribe already calls close() on the success path.
             cnx.notifyConsumerClosed(this);
             cnx.getCommandSender().sendSuccessResponse(requestId);
         }).exceptionally(exception -> {

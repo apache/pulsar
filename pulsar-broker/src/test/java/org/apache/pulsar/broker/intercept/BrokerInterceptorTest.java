@@ -269,6 +269,7 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
         String topicName = "persistent://public/default/broker-interceptor-unsubscribe-" + UUID.randomUUID();
         String subName = "broker-interceptor-exclusive-sub";
         CounterBrokerInterceptor counterBrokerInterceptor = getCounterBrokerInterceptor();
+        @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topicName)
                 .subscriptionName(subName)
