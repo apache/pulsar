@@ -118,6 +118,7 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
 
         final int sendMessages = 100;
 
+        @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
                 .topic(topic)
                 .subscriptionName("my-subscription")
@@ -152,7 +153,9 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
 
         int totalReceived = 0;
         do {
-            Message<byte[]> message = consumer.receive();
+            Message<byte[]> message = consumer.receive(10, TimeUnit.SECONDS);
+            assertNotNull(message, "the consumer stopped receiving before "
+                    + sendMessages * (maxRedeliveryCount + 1) + " deliveries");
             log.info().attr("receivedMessage", message.getMessageId()).attr("value", new String(message.getData()))
                     .log("consumer received message");
             totalReceived++;
@@ -160,7 +163,9 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
 
         int totalInDeadLetter = 0;
         do {
-            Message message = deadLetterConsumer.receive();
+            Message message = deadLetterConsumer.receive(10, TimeUnit.SECONDS);
+            assertNotNull(message, "the dead letter consumer stopped receiving before " + sendMessages
+                    + " messages");
             assertEquals(message.getKey(), "test-key");
             log.info().attr("receivedMessage", message.getMessageId()).attr("value", new String(message.getData()))
                     .log("dead letter consumer received message");
@@ -169,7 +174,6 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
         } while (totalInDeadLetter < sendMessages);
 
         deadLetterConsumer.close();
-        consumer.close();
     }
 
     @Test
@@ -180,6 +184,7 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
 
         final int sendMessages = 100;
 
+        @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
                 .topic(topic)
                 .subscriptionName("my-subscription")
@@ -215,7 +220,9 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
 
         int totalReceived = 0;
         do {
-            Message<byte[]> message = consumer.receive();
+            Message<byte[]> message = consumer.receive(10, TimeUnit.SECONDS);
+            assertNotNull(message, "the consumer stopped receiving before "
+                    + sendMessages * (maxRedeliveryCount + 1) + " deliveries");
             log.info().attr("receivedMessage", message.getMessageId()).attr("value", new String(message.getData()))
                     .log("consumer received message");
             totalReceived++;
@@ -223,7 +230,9 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
 
         int totalInDeadLetter = 0;
         do {
-            Message message = deadLetterConsumer.receive();
+            Message message = deadLetterConsumer.receive(10, TimeUnit.SECONDS);
+            assertNotNull(message, "the dead letter consumer stopped receiving before " + sendMessages
+                    + " messages");
             assertEquals(message.getKeyBytes(), key);
             log.info().attr("receivedMessage", message.getMessageId()).attr("value", new String(message.getData()))
                     .log("dead letter consumer received message");
@@ -232,7 +241,6 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
         } while (totalInDeadLetter < sendMessages);
 
         deadLetterConsumer.close();
-        consumer.close();
     }
 
     @Test
@@ -243,6 +251,7 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
 
         final int sendMessages = 100;
 
+        @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
                 .topic(topic)
                 .subscriptionName("my-subscription")
@@ -278,7 +287,9 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
 
         int totalReceived = 0;
         do {
-            Message<byte[]> message = consumer.receive();
+            Message<byte[]> message = consumer.receive(10, TimeUnit.SECONDS);
+            assertNotNull(message, "the consumer stopped receiving before "
+                    + sendMessages * (maxRedeliveryCount + 1) + " deliveries");
             log.info().attr("receivedMessage", message.getMessageId()).attr("value", new String(message.getData()))
                     .log("consumer received message");
             totalReceived++;
@@ -286,7 +297,9 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
 
         int totalInDeadLetter = 0;
         do {
-            Message message = deadLetterConsumer.receive();
+            Message message = deadLetterConsumer.receive(10, TimeUnit.SECONDS);
+            assertNotNull(message, "the dead letter consumer stopped receiving before " + sendMessages
+                    + " messages");
             assertEquals(message.getOrderingKey(), key);
             log.info().attr("receivedMessage", message.getMessageId()).attr("value", new String(message.getData()))
                     .log("dead letter consumer received message");
@@ -295,7 +308,6 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
         } while (totalInDeadLetter < sendMessages);
 
         deadLetterConsumer.close();
-        consumer.close();
     }
 
     @Test

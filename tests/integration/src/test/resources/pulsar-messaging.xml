@@ -33,6 +33,13 @@
             <class name="org.apache.pulsar.tests.integration.topics.TestScalableTopicMigration" />
 
             <class name="org.apache.pulsar.tests.integration.messaging.GeoReplicationTest" />
+            <class name="org.apache.pulsar.tests.integration.messaging.GeoReplicationDiagnosticsTest" />
+            <class name="org.apache.pulsar.tests.integration.auth.token.TokenAuthWithSymmetricKeys">
+                <methods>
+                    <include name="testReplicationStatsUseTopicStatsPermission" />
+                    <include name="testDiagnoseTargetReplicationFailure" />
+                </methods>
+            </class>
             <class name="org.apache.pulsar.tests.integration.messaging.MessagingSmokeTest" />
 
             <class name="org.apache.pulsar.tests.integration.oxia.OxiaSmokeTest" />

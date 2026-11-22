@@ -35,6 +35,28 @@ import java.util.List;
 public sealed interface Option {
 
     /**
+     * Confirm a conditional write using a unique publication ID included in the serialized value.
+     *
+     * <p>Callers must assign a new publication ID to each logical write and include it in the serialized bytes,
+     * even when the other fields are unchanged. Retries of the same write, including caller-initiated retries,
+     * must preserve the publication ID, serialized bytes and expected version.
+     *
+     * <p>On a version conflict or a lost write response, a backend can confirm this write by matching the original
+     * bytes at the expected version plus one (version zero for a create). Since the publication ID is part of the
+     * bytes, comparing them directly avoids deserializing the stored record to read its ID. Different record types
+     * and serialization formats can share this verification path through this option.
+     *
+     * <p>ZooKeeper applies this verification to fixed, persistent paths with an explicit expected version and
+     * retries transient verification read failures with backoff.
+     *
+     * <p><strong>Chain dependent operations explicitly.</strong> If a caller submits {@code get(A)}, {@code put(B)}
+     * and {@code get(C)} without chaining their futures, C can complete while B is being retried or read back for
+     * verification, even if B has already committed. If C depends on B succeeding, submit C from B's success
+     * callback, for example {@code putB.thenCompose(ignored -> store.get(c))}.
+     */
+    enum VerifyPublication implements Option { INSTANCE }
+
+    /**
      * Mark a record as ephemeral — it disappears when the session that created it ends.
      * Only consulted by {@code put}. Equivalent to the legacy
      * {@link org.apache.pulsar.metadata.api.extended.CreateOption#Ephemeral}.
