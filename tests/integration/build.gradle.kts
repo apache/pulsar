@@ -17,6 +17,8 @@
  * under the License.
  */
 
+import org.gradle.api.tasks.testing.logging.TestExceptionFormat
+
 plugins {
     id("pulsar.java-conventions")
 }
@@ -28,7 +30,7 @@ dependencies {
     testImplementation(project(":pulsar-functions:pulsar-functions-api-examples"))
     testImplementation(project(":pulsar-broker"))
     testImplementation(project(":pulsar-broker-common"))
-    testImplementation(project(path = ":pulsar-broker-common", configuration = "testJar"))
+    testImplementation(testJar(":pulsar-broker-common"))
     testImplementation(project(":pulsar-common"))
     testImplementation(project(":pulsar-client-original"))
     testImplementation(project(":pulsar-client-api-v5"))
@@ -73,14 +75,11 @@ dependencies {
     }
 }
 
-// Copy certificate-authority resources to test output
-val copyCertificateAuthority = tasks.register<Copy>("copyCertificateAuthority") {
-    from("${rootDir}/tests/certificate-authority")
-    into(layout.buildDirectory.dir("resources/test/certificate-authority"))
-}
-
-tasks.named("processTestResources") {
-    dependsOn(copyCertificateAuthority)
+// Add the certificate-authority resources to the test resources
+tasks.named<ProcessResources>("processTestResources") {
+    from(layout.projectDirectory.dir("../certificate-authority")) {
+        into("certificate-authority")
+    }
 }
 
 // Tests are skipped by default — only run when explicitly invoked via the integration test runner
@@ -114,15 +113,18 @@ val gitCommitIdAbbrev = providers.gradleProperty("git.commit.id.abbrev")
 val dockerOrganization = providers.gradleProperty("docker.organization").getOrElse("apachepulsar")
 val dockerTag = providers.gradleProperty("docker.tag").getOrElse("latest")
 // The image that integrationTest runs against: PULSAR_TEST_IMAGE_NAME, or else the image that
-// :tests:latest-version-image:dockerBuild builds. integrationTest depends on the task that builds the
-// image, which Gradle skips when nothing that goes into the image has changed, so that the tests don't
-// run against a stale image. -Pinttest.skipDockerBuild skips building it, for CI jobs that load an image
-// that an earlier job built.
+// :tests:latest-version-image:dockerBuild builds. The ID of the image is an input of integrationTest,
+// which builds the image first, and Gradle skips the build when nothing that goes into the image has
+// changed, so that the tests don't run against a stale image. -Pinttest.skipDockerBuild skips building
+// it, for CI jobs that load an image that an earlier job built.
 val integrationTestImage = providers.environmentVariable("PULSAR_TEST_IMAGE_NAME")
     .getOrElse("${dockerOrganization}/pulsar-test-latest-version:${dockerTag}")
+// The project and shared build artifact (see SharedBuildArtifacts.kt) of each image this repository builds
 val integrationTestImageBuild = mapOf(
-    "${dockerOrganization}/pulsar-test-latest-version:${dockerTag}" to ":tests:latest-version-image:dockerBuild",
-    "${dockerOrganization}/java-test-image:${dockerTag}" to ":tests:java-test-image:dockerBuild",
+    "${dockerOrganization}/pulsar-test-latest-version:${dockerTag}" to
+        (":tests:latest-version-image" to "docker-image:pulsar-test-latest-version"),
+    "${dockerOrganization}/java-test-image:${dockerTag}" to
+        (":tests:java-test-image" to "docker-image:java-test-image"),
 )[integrationTestImage]
 val skipDockerBuild = providers.gradleProperty("inttest.skipDockerBuild")
     .map { it.isEmpty() || it.toBoolean() }
@@ -185,16 +187,21 @@ fun Test.configureIntegrationTestDefaults(defaultProfiledComponents: String = ""
         events("passed", "skipped", "failed")
         showExceptions = true
         showStackTraces = true
-        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+        exceptionFormat = TestExceptionFormat.FULL
     }
 }
 
 val integrationTest = tasks.register<Test>("integrationTest") {
+    group = "verification"
+    description = "Runs the integration tests against Pulsar clusters in Docker containers"
     configureIntegrationTestDefaults()
 
     environment("PULSAR_TEST_IMAGE_NAME", integrationTestImage)
     if (integrationTestImageBuild != null && !skipDockerBuild) {
-        dependsOn(integrationTestImageBuild)
+        val (imageProject, imageArtifact) = integrationTestImageBuild
+        inputs.files(sharedBuildArtifact(imageProject, imageArtifact))
+            .withPropertyName("testImageId")
+            .withPathSensitivity(PathSensitivity.NONE)
     }
 
     if (!ideaActive && (!hasCliTestsFilter || integrationTestSuiteFileExplicit)) {
@@ -289,8 +296,12 @@ tasks.register<Test>("profilingIntegrationTest") {
     environment(providers.environmentVariablesPrefixedBy("PULSAR_PROFILING_").get() +
         providers.environmentVariablesPrefixedBy("pulsar_profiling_").get())
 
-    // Build the test image that carries the profiler, and prepare the kernel for it.
-    dependsOn(":tests:java-test-image:dockerBuildWithAsyncProfiler", tuneKernelPerfEvents)
+    // Build the test image that carries the profiler, and prepare the kernel for it. The tuning only
+    // changes the kernel's settings and has no outputs to wire in, so it stays a task dependency.
+    inputs.files(sharedBuildArtifact(":tests:java-test-image", "docker-image:java-test-image-asyncprofiler"))
+        .withPropertyName("testImageId")
+        .withPathSensitivity(PathSensitivity.NONE)
+    dependsOn(tuneKernelPerfEvents)
 
     // Target the test directly rather than through a suite XML, so that --tests can point this at
     // any other integration test without a suite file having to exist for it.

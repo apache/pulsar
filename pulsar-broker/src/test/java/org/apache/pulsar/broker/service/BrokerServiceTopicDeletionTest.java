@@ -22,6 +22,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.AdditionalAnswers.delegatesTo;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -54,11 +55,13 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.broker.testinterceptor.BrokerTestInterceptor;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
 import org.awaitility.Awaitility;
@@ -276,6 +279,45 @@ public class BrokerServiceTopicDeletionTest {
             assertThat(realBroker.getTopicReference(name)).contains(replacement);
         } finally {
             initialization.complete(null);
+            BrokerTestInterceptor.INSTANCE.reset();
+        }
+    }
+
+    @Test(dataProvider = "forceDelete", timeOut = 60000)
+    @SuppressWarnings("unchecked")
+    public void testDeleteWaitsForTopicClose(boolean forceDelete) throws Exception {
+        context.close();
+        context = null;
+        String name = "persistent://prop/ns-abc/delete-while-closing-" + UUID.randomUUID();
+        CompletableFuture<Void> subscriptionClose = new CompletableFuture<>();
+        // Holds the topic close after it fenced the topic, which stays in the cache until the close finishes.
+        BrokerTestInterceptor.INSTANCE.setPersistentSubscriptionDecorator(subscription -> {
+            PersistentSubscription decorated = spy(subscription);
+            doAnswer(invocation -> {
+                CompletableFuture<Void> closed = (CompletableFuture<Void>) invocation.callRealMethod();
+                return subscriptionClose.thenCompose(ignored -> closed);
+            }).when(decorated).close(anyBoolean(), any());
+            return decorated;
+        });
+        // Closing the fixture releases the held close before the broker shutdown waits for it.
+        try (InitializingTopicFixture fixture = new InitializingTopicFixture(subscriptionClose)) {
+            fixture.setup();
+            BrokerService realBroker = fixture.service().getBrokerService();
+            PersistentTopic topic = (PersistentTopic) realBroker.getTopic(name, true)
+                    .get(10, TimeUnit.SECONDS).orElseThrow();
+            topic.createSubscription("sub", InitialPosition.Earliest, false, Map.of()).get(10, TimeUnit.SECONDS);
+            CompletableFuture<Void> closing = topic.close();
+
+            CompletableFuture<Void> deletion = realBroker.deleteTopic(name, forceDelete);
+
+            assertThat(deletion).as("a delete must wait for the close in progress, not fail as fenced").isNotDone();
+            subscriptionClose.complete(null);
+            closing.get(10, TimeUnit.SECONDS);
+            deletion.get(10, TimeUnit.SECONDS);
+            assertThat(realBroker.getTopics()).doesNotContainKey(name);
+            assertThat(fixture.service().getPulsarResources().getTopicResources()
+                    .persistentTopicExists(TopicName.get(name)).get(10, TimeUnit.SECONDS)).isFalse();
+        } finally {
             BrokerTestInterceptor.INSTANCE.reset();
         }
     }

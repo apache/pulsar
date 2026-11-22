@@ -36,7 +36,7 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
@@ -91,6 +91,7 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.awaitility.Awaitility;
 import org.jspecify.annotations.NonNull;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.MockedStatic;
 import org.testng.Assert;
@@ -265,7 +266,8 @@ public class TopicListServiceTest {
                     topicsPatternImplementation, null, lookupSemaphore, retry);
             verify(namespaceService).getListOfUserTopics(any(), eq(CommandGetTopicsOfNamespace.Mode.PERSISTENT));
             assertThat(topicListFuture).isNotDone();
-            verify(topicResources, never()).registerPersistentTopicListener(any());
+            // the watcher is registered before the listing, so that it receives the topic changes the listing misses
+            verify(topicResources).registerPersistentTopicListener(any());
 
             TopicListService.WatchTopicListRequest duplicate = topicListService.beginWatchTopicListRequest(13);
             topicListService.handleWatchTopicList(NamespaceName.get("tenant/ns"), 13, 9, "tenant/ns/topic.*",
@@ -275,7 +277,7 @@ public class TopicListServiceTest {
 
             // Once initialization starts, further authorized requests must share the ongoing listing.
             verify(namespaceService).getListOfUserTopics(any(), eq(CommandGetTopicsOfNamespace.Mode.PERSISTENT));
-            verify(topicResources, never()).registerPersistentTopicListener(any());
+            verify(topicResources).registerPersistentTopicListener(any());
             verify(pulsarCommandSender, never())
                     .sendWatchTopicListSuccess(anyLong(), anyLong(), anyString(), any(), any(), any());
             assertThat(topicListService.getWatcherFuture(13)).isSameAs(retry.watcherFuture()).isNotDone();
@@ -285,7 +287,7 @@ public class TopicListServiceTest {
                 topicListFuture.completeExceptionally(new IllegalStateException("Topic listing failed"));
 
                 assertThat(retry.watcherFuture()).isCompletedExceptionally();
-                verify(topicResources, never()).registerPersistentTopicListener(any());
+                verify(topicResources).deregisterPersistentTopicListener(any(TopicListener.class));
                 verify(pulsarCommandSender).sendErrorResponse(eq(8L), any(), anyString());
                 verify(pulsarCommandSender).sendErrorResponse(eq(9L), any(), anyString());
                 verify(pulsarCommandSender, never())
@@ -296,6 +298,7 @@ public class TopicListServiceTest {
 
                 assertThat(retry.watcherFuture()).succeedsWithin(Duration.ofSeconds(2));
                 verify(topicResources).registerPersistentTopicListener(any());
+                verify(topicResources, never()).deregisterPersistentTopicListener(any(TopicListener.class));
                 verify(pulsarCommandSender).sendWatchTopicListSuccess(eq(8L), eq(13L),
                         eq(TopicList.calculateHash(matchingTopics)), eq(matchingTopics), any(), any());
                 verify(pulsarCommandSender).sendWatchTopicListSuccess(eq(9L), eq(13L),
@@ -710,7 +713,11 @@ public class TopicListServiceTest {
                 lookupSemaphore);
         topicListFuture.completeExceptionally(new PulsarServerException("Error"));
         Awaitility.await().untilAsserted(() -> Assert.assertEquals(1, lookupSemaphore.availablePermits()));
-        verifyNoInteractions(topicResources);
+        // the watcher registered before the listing is deregistered
+        ArgumentCaptor<TopicListener> watcher = ArgumentCaptor.forClass(TopicListener.class);
+        verify(topicResources).registerPersistentTopicListener(watcher.capture());
+        verify(topicResources).deregisterPersistentTopicListener(watcher.getValue());
+        verifyNoMoreInteractions(topicResources);
         verify(connection.getCommandSender()).sendErrorResponse(eq(7L), any(ServerError.class),
                 eq(PulsarServerException.class.getCanonicalName() + ": Error"));
     }
@@ -904,6 +911,35 @@ public class TopicListServiceTest {
         Collection<String> expectedTopics = topics;
         verify(connection.getCommandSender(), timeout(2000L).times(1))
                 .sendWatchTopicListSuccess(eq(7L), eq(13L), eq(hash), eq(expectedTopics), any(), any());
+    }
+
+    @Test
+    public void testTopicChangesWhileListingTheInitialTopicsAreNotLost() {
+        // The client watches with the hash of the topics it subscribed to. While the broker lists the namespace,
+        // topic2 is created and topic3 deleted, after the listing read the namespace.
+        List<String> listedTopics = List.of("persistent://tenant/ns/topic1", "persistent://tenant/ns/topic3");
+        topicListService.handleWatchTopicList(
+                NamespaceName.get("tenant/ns"),
+                13,
+                7,
+                "persistent://tenant/ns/topic\\d",
+                topicsPatternImplementation, TopicList.calculateHash(listedTopics),
+                lookupSemaphore);
+        notificationConsumer.accept(
+                new Notification(NotificationType.Created, "/managed-ledgers/tenant/ns/persistent/topic2"));
+        notificationConsumer.accept(
+                new Notification(NotificationType.Deleted, "/managed-ledgers/tenant/ns/persistent/topic3"));
+        topicListFuture.complete(listedTopics);
+
+        // The success response has the topics after the changes. With the listed topics, its hash would match the
+        // client's, and the client would miss both changes until it reconciles, after patternAutoDiscoveryPeriod.
+        List<String> expectedTopics = List.of("persistent://tenant/ns/topic1", "persistent://tenant/ns/topic2");
+        assertThat(topicListService.getWatcherFuture(13)).succeedsWithin(Duration.ofSeconds(2));
+        verify(pulsarCommandSender, timeout(2000L)).sendWatchTopicListSuccess(eq(7L), eq(13L),
+                eq(TopicList.calculateHash(expectedTopics)),
+                argThat(topics -> topics.size() == 2 && topics.containsAll(expectedTopics)), any(), any());
+        verify(pulsarCommandSender, never())
+                .sendWatchTopicListUpdate(anyLong(), any(), any(), anyString(), any(), any());
     }
 
     @Test

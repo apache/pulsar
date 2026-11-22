@@ -751,8 +751,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                                                long timeout,
                                                TimeUnit timeoutUnit) {
         Unload unload = unloadDecision.getUnload();
-        CompletableFuture<Void> future = serviceUnitStateChannel.publishUnloadEventAsync(unload);
-        return unloadManager.waitAsync(future, unload.serviceUnit(), unloadDecision, timeout, timeoutUnit)
+        return unloadManager.waitAsync(() -> serviceUnitStateChannel.publishUnloadEventAsync(unload),
+                        unload.serviceUnit(), unloadDecision, timeout, timeoutUnit)
                 .thenRun(() -> unloadCounter.updateUnloadBrokerCount(1));
     }
 
@@ -819,8 +819,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                                                long timeout,
                                                TimeUnit timeoutUnit) {
         Split split = decision.getSplit();
-        CompletableFuture<Void> future = serviceUnitStateChannel.publishSplitEventAsync(split);
-        return splitManager.waitAsync(future, decision.getSplit().serviceUnit(), decision, timeout, timeoutUnit);
+        return splitManager.waitAsync(() -> serviceUnitStateChannel.publishSplitEventAsync(split),
+                split.serviceUnit(), decision, timeout, timeoutUnit);
     }
 
     @Override

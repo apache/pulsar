@@ -34,6 +34,8 @@ public class AdminShell extends PulsarAdminTool implements ShellCommandsProvider
     public AdminShell(Properties properties) throws Exception {
         super(properties);
         setCommandName(getName());
+        // The environment variables are read once when the JVM starts, they cannot be changed from the shell
+        getCommander().getCommandSpec().usageMessage().footerHeading("").footer(new String[0]);
     }
 
     @Override

@@ -25,6 +25,7 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadLocalRandom;
@@ -351,7 +352,11 @@ public class SchemaCompatibilityCheckTest extends SharedPulsarBaseTest {
                 .subscriptionName("test")
                 .topic(fqtn);
 
-        Producer<Schemas.PersonTwo> producer = producerThreeBuilder.create();
+        // The admin call returns once the policy is stored; the broker applies it to the topic, which the
+        // first producer already loaded, asynchronously. Until then the topic still rejects the new schema.
+        Producer<Schemas.PersonTwo> producer = Awaitility.await()
+                .ignoreExceptionsInstanceOf(PulsarClientException.IncompatibleSchemaException.class)
+                .until(producerThreeBuilder::create, Objects::nonNull);
         Consumer<Schemas.PersonTwo> consumerTwo = comsumerBuilder.subscribe();
 
         producer.send(new Schemas.PersonTwo(2, "Lucy"));

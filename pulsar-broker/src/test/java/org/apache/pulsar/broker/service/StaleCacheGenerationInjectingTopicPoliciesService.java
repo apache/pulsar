@@ -239,10 +239,10 @@ class StaleCacheGenerationInjectingTopicPoliciesService extends SystemTopicBased
         if (window == null) {
             return readerFuture;
         }
-        // The replacement generation is in policyCacheInitMap by now -- it is put there before its reader is created
-        // -- and that reader is gated below, so the reads this window holds can be let go. This method runs inside
-        // readerCaches.computeIfAbsent, i.e. under a ConcurrentHashMap bin lock, and the dependents of `installed`
-        // are those reads: hand the completion to the broker executor so that none of them runs under that lock.
+        // The replacement generation is in policyCacheInitMap by now -- it is put there, with its reader slot, before
+        // its reader is created -- and that reader is gated below, so the reads this window holds can be let go.
+        // The dependents of `installed` are those reads: hand the completion to the broker executor so that none of
+        // them runs on this thread, in the middle of the replacement's own initialization.
         try {
             window.installed.completeAsync(() -> null, pulsar.getExecutor());
         } catch (RejectedExecutionException e) {
