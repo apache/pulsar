@@ -177,6 +177,24 @@ public class FunctionCommon {
         throw new RuntimeException("Unrecognized runtime: " + runtime.name());
     }
 
+    public static FunctionDetails.ClientApi convertClientApi(FunctionConfig.ClientApi clientApi) {
+        if (clientApi == null) {
+            return FunctionDetails.ClientApi.AUTO;
+        }
+        return switch (clientApi) {
+            case V4 -> FunctionDetails.ClientApi.V4;
+            case V5 -> FunctionDetails.ClientApi.V5;
+        };
+    }
+
+    public static FunctionConfig.ClientApi convertClientApi(FunctionDetails.ClientApi clientApi) {
+        return switch (clientApi) {
+            case AUTO, UNRECOGNIZED -> null;
+            case V4 -> FunctionConfig.ClientApi.V4;
+            case V5 -> FunctionConfig.ClientApi.V5;
+        };
+    }
+
     public static ProcessingGuarantees convertProcessingGuarantee(
             FunctionConfig.ProcessingGuarantees processingGuarantees) {
         for (ProcessingGuarantees type :
@@ -230,6 +248,8 @@ public class FunctionCommon {
     }
 
     public static void downloadFromHttpUrl(String destPkgUrl, File targetFile) throws IOException {
+        // Package URLs may not be strict URIs; keep URL(String)'s lenient parsing.
+        @SuppressWarnings("deprecation")
         final URL url = new URL(destPkgUrl);
         final URLConnection connection = url.openConnection();
         if (StringUtils.isNotEmpty(url.getUserInfo())) {
@@ -253,6 +273,8 @@ public class FunctionCommon {
 
     public static File extractFileFromPkgURL(String destPkgUrl) throws IOException, URISyntaxException {
         if (destPkgUrl.startsWith(Utils.FILE)) {
+            // Package URLs may not be strict URIs; keep URL(String)'s lenient parsing.
+            @SuppressWarnings("deprecation")
             URL url = new URL(destPkgUrl);
             File file = new File(url.toURI());
             if (!file.exists()) {

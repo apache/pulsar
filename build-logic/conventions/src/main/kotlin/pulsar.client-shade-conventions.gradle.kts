@@ -18,13 +18,14 @@
  */
 
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import java.util.zip.ZipFile
 import org.gradle.api.attributes.Bundling
 import org.gradle.api.attributes.Category
 import org.gradle.api.attributes.LibraryElements
 import org.gradle.api.attributes.Usage
+import org.gradle.api.attributes.java.TargetJvmVersion
 import org.gradle.api.component.AdhocComponentWithVariants
 import org.gradle.api.tasks.PathSensitivity
-import java.util.zip.ZipFile
 
 // Convention plugin for Pulsar client shaded modules (pulsar-client-shaded,
 // pulsar-client-admin-shaded, pulsar-client-all, pulsar-client-v5-shaded). Configures the shadow jar
@@ -37,6 +38,7 @@ plugins {
 
 val shadePrefix = "org.apache.pulsar.shade"
 extra["shadePrefix"] = shadePrefix
+val targetJavaVersion = extensions.getByType<JavaPluginExtension>().targetCompatibility.majorVersion.toInt()
 
 // ---- Published dependency scopes for non-bundled dependencies ----
 // The Shadow plugin publishes the `shadow` configuration's dependencies as the dependency-reduced
@@ -66,6 +68,7 @@ val shadowApiElements = configurations.consumable("shadowApiElements") {
         attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category.LIBRARY))
         attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, objects.named(LibraryElements.JAR))
         attribute(Bundling.BUNDLING_ATTRIBUTE, objects.named(Bundling.SHADOWED))
+        attribute(TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, targetJavaVersion)
     }
     // Carry the shaded jar so this variant is a complete API variant (like apiElements does for the
     // standard java-library component).
@@ -76,7 +79,7 @@ val shadowApiElements = configurations.consumable("shadowApiElements") {
 (components["shadow"] as AdhocComponentWithVariants)
     .addVariantsFromConfiguration(shadowApiElements.get()) { mapToMavenScope("compile") }
 
-tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar") {
+tasks.named<ShadowJar>("shadowJar") {
 
     // ---- Dependency includes ----
     dependencies {
@@ -230,7 +233,7 @@ tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJ
         "pulsar-client-api", "pulsar-client-admin-api", "pulsar-client-api-v5",
         "pulsar-tls-factory-api", "pulsar-http-client-api",
     ).forEach { module ->
-        val sourceRoot = rootProject.file("$module/src/main/java")
+        val sourceRoot = rootDir.resolve("$module/src/main/java")
         publicPulsarTypes.addAll(fileTree(sourceRoot) { include("**/*.java") }.elements.map { sources ->
             sources.map { source ->
                 source.asFile.relativeTo(sourceRoot).invariantSeparatorsPath.removeSuffix(".java")

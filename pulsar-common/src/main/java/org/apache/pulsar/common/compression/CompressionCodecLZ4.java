@@ -18,11 +18,13 @@
  */
 package org.apache.pulsar.common.compression;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.airlift.compress.lz4.Lz4Compressor;
 import io.airlift.compress.lz4.Lz4Decompressor;
 import io.airlift.compress.lz4.Lz4RawCompressor;
 import io.airlift.compress.lz4.Lz4RawDecompressor;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -32,6 +34,17 @@ import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
  * LZ4 Compression.
  */
 public class CompressionCodecLZ4 implements CompressionCodec {
+
+    private final ByteBufAllocator allocator;
+
+    public CompressionCodecLZ4() {
+        this(PulsarByteBufAllocator.DEFAULT);
+    }
+
+    @VisibleForTesting
+    CompressionCodecLZ4(ByteBufAllocator allocator) {
+        this.allocator = allocator;
+    }
 
     private static final FastThreadLocal<Lz4Compressor> LZ4_COMPRESSOR = new FastThreadLocal<Lz4Compressor>() {
         @Override
@@ -59,47 +72,61 @@ public class CompressionCodecLZ4 implements CompressionCodec {
         int uncompressedLength = source.readableBytes();
         int maxLength = Lz4RawCompressor.maxCompressedLength(uncompressedLength);
 
-        ByteBuf target = PulsarByteBufAllocator.DEFAULT.buffer(maxLength, maxLength);
+        ByteBuf target = allocator.buffer(maxLength, maxLength);
 
-        int compressedLength;
-        if (source.hasMemoryAddress() && target.hasMemoryAddress()) {
-            compressedLength = Lz4RawCompressor.compress(
-                    null,
-                    source.memoryAddress() + source.readerIndex(),
-                    source.readableBytes(),
-                    null,
-                    target.memoryAddress(),
-                    maxLength,
-                    LZ4_TABLE.get());
-        } else {
-            ByteBuffer sourceNio = source.nioBuffer(source.readerIndex(), source.readableBytes());
-            ByteBuffer targetNio = target.nioBuffer(0, maxLength);
-
-            LZ4_COMPRESSOR.get().compress(sourceNio, targetNio);
-            compressedLength = targetNio.position();
-        }
-
+        int compressedLength = compress(source, target, uncompressedLength, maxLength);
         target.writerIndex(compressedLength);
         return target;
     }
 
-    @Override
-    public ByteBuf decode(ByteBuf encoded, int uncompressedLength) throws IOException {
-        ByteBuf uncompressed = PulsarByteBufAllocator.DEFAULT.buffer(uncompressedLength, uncompressedLength);
-
-        if (encoded.hasMemoryAddress() && uncompressed.hasMemoryAddress()) {
-            Lz4RawDecompressor.decompress(null, encoded.memoryAddress() + encoded.readerIndex(),
-                    encoded.memoryAddress() + encoded.writerIndex(), null, uncompressed.memoryAddress(),
-                    uncompressed.memoryAddress() + uncompressedLength);
-        } else {
-            ByteBuffer uncompressedNio = uncompressed.nioBuffer(0, uncompressedLength);
-            ByteBuffer encodedNio = encoded.nioBuffer(encoded.readerIndex(), encoded.readableBytes());
-            encodedNio = AirliftUtils.ensureAirliftSupported(encodedNio);
-            LZ4_DECOMPRESSOR.get().decompress(encodedNio, uncompressedNio);
+    private static int compress(ByteBuf source, ByteBuf target, int uncompressedLength, int maxLength) {
+        if (source.hasMemoryAddress() && target.hasMemoryAddress()) {
+            return compressRaw(null, source.memoryAddress() + source.readerIndex(), uncompressedLength,
+                    target, maxLength);
         }
 
-        uncompressed.writerIndex(uncompressedLength);
-        return uncompressed;
+        long arrayBaseOffset = AirliftUtils.heapArrayBaseOffset();
+        if (arrayBaseOffset >= 0 && source.hasArray() && target.hasMemoryAddress()) {
+            long inputOffset = arrayBaseOffset + source.arrayOffset() + source.readerIndex();
+            return compressRaw(source.array(), inputOffset, uncompressedLength, target, maxLength);
+        }
+
+        ByteBuffer sourceNio = source.nioBuffer(source.readerIndex(), uncompressedLength);
+        ByteBuffer targetNio = target.nioBuffer(0, maxLength);
+        LZ4_COMPRESSOR.get().compress(sourceNio, targetNio);
+        return targetNio.position();
+    }
+
+    private static int compressRaw(Object inputBase, long inputOffset, int inputLength, ByteBuf target,
+                                   int maxLength) {
+        return Lz4RawCompressor.compress(inputBase, inputOffset, inputLength, null, target.memoryAddress(),
+                maxLength, LZ4_TABLE.get());
+    }
+
+    @Override
+    public ByteBuf decode(ByteBuf encoded, int uncompressedLength) throws IOException {
+        ByteBuf uncompressed = allocator.buffer(uncompressedLength, uncompressedLength);
+        try {
+
+            if (encoded.hasMemoryAddress() && uncompressed.hasMemoryAddress()) {
+                Lz4RawDecompressor.decompress(null, encoded.memoryAddress() + encoded.readerIndex(),
+                        encoded.memoryAddress() + encoded.writerIndex(), null, uncompressed.memoryAddress(),
+                        uncompressed.memoryAddress() + uncompressedLength);
+            } else {
+                ByteBuffer uncompressedNio = uncompressed.nioBuffer(0, uncompressedLength);
+                ByteBuffer encodedNio = encoded.nioBuffer(encoded.readerIndex(), encoded.readableBytes());
+                encodedNio = AirliftUtils.ensureAirliftSupported(encodedNio);
+                LZ4_DECOMPRESSOR.get().decompress(encodedNio, uncompressedNio);
+            }
+
+            uncompressed.writerIndex(uncompressedLength);
+            return uncompressed;
+        } catch (Throwable t) {
+            // The output buffer is only ever handed to the caller on success: release it when the decompressor
+            // rejects the input, whether as malformed or as not fitting the advertised uncompressed size.
+            uncompressed.release();
+            throw t;
+        }
     }
 
 }

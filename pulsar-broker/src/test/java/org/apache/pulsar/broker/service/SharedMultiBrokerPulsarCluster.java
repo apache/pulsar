@@ -24,6 +24,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 import lombok.CustomLog;
 import org.apache.bookkeeper.common.allocator.PoolingPolicy;
 import org.apache.bookkeeper.conf.ServerConfiguration;
@@ -33,6 +34,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.metadata.OxiaTestServer;
 import org.apache.pulsar.metadata.bookkeeper.BKCluster;
 import org.apache.pulsar.tests.ThreadLeakDetectorListener;
 
@@ -76,6 +78,7 @@ public class SharedMultiBrokerPulsarCluster {
     private final List<PulsarService> brokers = new ArrayList<>(NUM_BROKERS);
     private final List<PulsarAdmin> admins = new ArrayList<>(NUM_BROKERS);
     private final List<PulsarClient> clients = new ArrayList<>(NUM_BROKERS);
+    private int extraBrokers;
 
     /** Returns the singleton instance, starting the cluster on first invocation. */
     public static SharedMultiBrokerPulsarCluster get() throws Exception {
@@ -123,6 +126,20 @@ public class SharedMultiBrokerPulsarCluster {
         return clients.get(0);
     }
 
+    /**
+     * Start one more broker in the cluster, for a test that shuts a broker down, e.g. to fail over
+     * what it leads. It is not one of {@link #getBrokers()}: the caller closes it.
+     */
+    public synchronized PulsarService startExtraBroker() throws Exception {
+        return startBroker(NUM_BROKERS + extraBrokers++);
+    }
+
+    /** Start an extra broker with a test-specific service, for faults installed before startup. */
+    public synchronized PulsarService startExtraBroker(
+            Function<ServiceConfiguration, PulsarService> brokerFactory) throws Exception {
+        return startBroker(NUM_BROKERS + extraBrokers++, brokerFactory);
+    }
+
     @SuppressWarnings("deprecation")
     private void start() throws Exception {
         log.info().attr("brokers", NUM_BROKERS).log("Starting SharedMultiBrokerPulsarCluster");
@@ -134,8 +151,7 @@ public class SharedMultiBrokerPulsarCluster {
         // broker its own session and the proper ephemeral / CAS semantics. Container-based
         // because oxia ships no in-process server; tests skip cleanly when Docker isn't
         // available.
-        oxiaServer = new OxiaContainer(OxiaContainer.DEFAULT_IMAGE_NAME);
-        oxiaServer.start();
+        oxiaServer = OxiaTestServer.start(1);
         metadataStoreUrl = "oxia://" + oxiaServer.getServiceAddress();
 
         // Single shared bookie. Same minimal config as SharedPulsarCluster — write quorum stays
@@ -210,6 +226,11 @@ public class SharedMultiBrokerPulsarCluster {
     }
 
     private PulsarService startBroker(int index) throws Exception {
+        return startBroker(index, PulsarService::new);
+    }
+
+    private PulsarService startBroker(int index, Function<ServiceConfiguration, PulsarService> brokerFactory)
+            throws Exception {
         ServiceConfiguration config = new ServiceConfiguration();
         config.setMetadataStoreUrl(metadataStoreUrl);
         config.setConfigurationMetadataStoreUrl(metadataStoreUrl);
@@ -244,7 +265,6 @@ public class SharedMultiBrokerPulsarCluster {
         config.setNumHttpServerThreads(4);
         config.setBookkeeperClientNumWorkerThreads(2);
         config.setBookkeeperClientNumIoThreads(2);
-        config.setNumCacheExecutorThreadPoolSize(1);
         config.setManagedLedgerNumSchedulerThreads(2);
         config.setTopicOrderedExecutorThreadNum(4);
 
@@ -254,7 +274,7 @@ public class SharedMultiBrokerPulsarCluster {
         config.setLoadBalancerSheddingEnabled(false);
 
         log.info().attr("index", index).log("Starting broker");
-        PulsarService broker = new PulsarService(config);
+        PulsarService broker = brokerFactory.apply(config);
         broker.start();
         log.info().attr("index", index)
                 .attr("broker", broker.getBrokerServiceUrl())

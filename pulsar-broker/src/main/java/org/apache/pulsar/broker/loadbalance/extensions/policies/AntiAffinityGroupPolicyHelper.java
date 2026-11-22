@@ -33,6 +33,7 @@ public class AntiAffinityGroupPolicyHelper {
     PulsarService pulsar;
     Map<String, String> brokerToFailureDomainMap;
     ServiceUnitStateChannel channel;
+    private volatile Runnable cancelFailureDomainListener;
 
     public AntiAffinityGroupPolicyHelper(PulsarService pulsar,
                                   ServiceUnitStateChannel channel){
@@ -63,10 +64,19 @@ public class AntiAffinityGroupPolicyHelper {
     public void listenFailureDomainUpdate() {
         LoadManagerShared.refreshBrokerToFailureDomainMap(pulsar, brokerToFailureDomainMap);
         // register listeners for domain changes
-        pulsar.getPulsarResources().getClusterResources().getFailureDomainResources()
-                .registerListener(__ -> {
+        cancelFailureDomainListener = pulsar.getPulsarResources().getClusterResources().getFailureDomainResources()
+                .registerCancellableListener(__ -> {
                     pulsar.getLoadManagerExecutor().execute(() ->
                             LoadManagerShared.refreshBrokerToFailureDomainMap(pulsar, brokerToFailureDomainMap));
                 });
+    }
+
+    /**
+     * Stop following the changes of the failure domains.
+     */
+    public void close() {
+        if (cancelFailureDomainListener != null) {
+            cancelFailureDomainListener.run();
+        }
     }
 }

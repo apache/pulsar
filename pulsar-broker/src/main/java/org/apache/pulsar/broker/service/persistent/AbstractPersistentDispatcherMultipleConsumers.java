@@ -108,6 +108,12 @@ public abstract class AbstractPersistentDispatcherMultipleConsumers extends Abst
 
     public abstract long getNumberOfMessagesInReplay();
 
+    /**
+     * Whether reads are paused because the delayed delivery tracker detected that all messages have a fixed delay,
+     * so that the entries not read yet are delayed messages too.
+     */
+    public abstract boolean isReadPausedByDelayTracker();
+
     public abstract boolean isHavePendingRead();
 
     public abstract boolean isHavePendingReplayRead();

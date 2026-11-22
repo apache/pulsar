@@ -59,7 +59,7 @@ public interface TypedMessageBuilder<T> extends Serializable {
     MessageId send() throws PulsarClientException;
 
     /**
-     * Send a message asynchronously
+     * Send a message asynchronously.
      *
      * <p>This method returns a future that can be used to track the completion of the send operation and yields the
      * {@link MessageId} assigned by the broker to the published message.

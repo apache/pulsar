@@ -1,5 +1,14 @@
 [
   {
+    "name": "org.apache.pulsar.client.impl.PulsarClientImplementationBindingImpl",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
     "name": "org.apache.pulsar.client.impl.conf.ClientConfigurationData",
     "allDeclaredFields": true,
     "allDeclaredMethods": true,

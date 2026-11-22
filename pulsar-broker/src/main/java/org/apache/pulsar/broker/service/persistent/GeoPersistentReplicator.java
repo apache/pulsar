@@ -103,12 +103,9 @@ public class GeoPersistentReplicator extends PersistentReplicator {
         // Remote topic doesn't exist - create it
         if (remotePartitions == -1) {
             if (!brokerService.getPulsar().getConfig().isCreateTopicToRemoteClusterForReplication()) {
-                String errorMsg = String.format("Can not start replicator because there is no topic on"
-                                + " the remote cluster. Please create a %s on the remote cluster",
-                        localPartitions == 0 ? "non-partitioned topic"
-                                : "partitioned topic with " + localPartitions + " partitions");
-                log.error(errorMsg);
-                return CompletableFuture.failedFuture(new PulsarServerException(errorMsg));
+                TargetMetadataFailure failure = TargetMetadataFailure.missingTopic(localPartitions);
+                log.error(failure.action);
+                return CompletableFuture.failedFuture(failure);
             }
 
             CompletableFuture<Void> createFuture = localPartitions == 0
@@ -131,11 +128,9 @@ public class GeoPersistentReplicator extends PersistentReplicator {
         }
 
         // Incompatible partitions
-        String errorMsg = String.format("Can not start replicator because the partitions between"
-                        + " local and remote cluster are different. local: %s, remote: %s",
-                localPartitions, remotePartitions);
-        log.error(errorMsg);
-        return CompletableFuture.failedFuture(new PulsarServerException(errorMsg));
+        TargetMetadataFailure failure = TargetMetadataFailure.partitionMismatch(localPartitions, remotePartitions);
+        log.error(failure.action);
+        return CompletableFuture.failedFuture(failure);
     }
 
     private CompletableFuture<Void> createRemoteTopicIfDoesNotExist(String partitionedTopic) {
@@ -264,8 +259,10 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                             log.warn()
                                     .exception(e)
                                     .log("Failed to get schema from local cluster, will try in the next loop");
+                            log.debug("Retrying the data replication after a failed schema fetch");
+                        } else {
+                            log.info("Resume the data replication after the schema fetching done");
                         }
-                        log.info("Resume the data replication after the schema fetching done");
                         doRewindCursor(e == null);
                     });
                 } else {
@@ -287,7 +284,13 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                     headersAndPayload.retain();
                     // sendAsync can complete its callback before returning.
                     handedToProducer = true;
-                    producer.sendAsync(msg, callback);
+                    recordSendStarted();
+                    try {
+                        producer.sendAsync(msg, callback);
+                    } catch (Throwable error) {
+                        recordPublishFailure(error);
+                        throw error;
+                    }
                     atLeastOneMessageSentForReplication = true;
                 }
             } catch (Throwable e) {

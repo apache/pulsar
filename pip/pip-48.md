@@ -2,9 +2,7 @@
 
 - Status: Draft
 - Author: [Florentin Dubois](https://github.com/FlorentinDUBOIS) ([@FlorentinDUBOIS](https://twitter.com/FlorentinDUBOIS)), [Steven Le Roux](https://github.com/StevenLeRoux) ([@GwinizDu](https://twitter.com/GwinizDu))
-- Pull request:
-- Mailing list discussion:
-- Release:
+- Mailing list discussion: https://lists.apache.org/thread/xxf5scy0zggc70pobdmc03gxx5q75y87
 
 ## Motivation
 

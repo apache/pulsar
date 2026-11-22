@@ -42,22 +42,10 @@
 # PULSAR_GLOBAL_ZK_CONF=
 
 # Extra options to be passed to the jvm
-# Discard parameter "-Xms" of $PULSAR_MEM, which tends to be the Broker's minimum memory, to avoid using too much
-# memory by tools.
-if [ -n "$PULSAR_MEM" ]; then
-  PULSAR_MEM_ARR=("${PULSAR_MEM}")
-  PULSAR_MEM_REWRITE=""
-  for i in ${PULSAR_MEM_ARR}
-  do
-    if [ "${i:0:4}" != "-Xms" ]; then
-       PULSAR_MEM_REWRITE="$PULSAR_MEM_REWRITE $i";
-    fi
-  done
-  PULSAR_MEM=${PULSAR_MEM_REWRITE}
-fi
 PULSAR_MEM=${PULSAR_MEM:-"-Xmx128m -XX:MaxDirectMemorySize=128m"}
 
-PULSAR_EXTRA_OPTS="${PULSAR_MEM} ${PULSAR_GC} ${PULSAR_GC_LOG} ${PULSAR_EXTRA_OPTS}"
+# Override any broker-sized initial heap setting inherited through PULSAR_MEM.
+PULSAR_EXTRA_OPTS="${PULSAR_MEM} ${PULSAR_GC} ${PULSAR_GC_LOG} ${PULSAR_EXTRA_OPTS} -Xms128m"
 
 # Add extra paths to the bookkeeper classpath
 # PULSAR_EXTRA_CLASSPATH=

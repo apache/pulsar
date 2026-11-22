@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.websocket.service;
 
+import com.google.common.annotations.VisibleForTesting;
 import jakarta.servlet.Servlet;
 import jakarta.servlet.ServletException;
 import java.net.MalformedURLException;
@@ -41,6 +42,7 @@ import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.tls.impl.FileBasedTlsFactory;
 import org.apache.pulsar.common.tls.impl.FileBasedTlsFactorySettings;
 import org.apache.pulsar.jetty.tls.JettyTlsFactory;
+import org.apache.pulsar.jetty.tls.PulsarSslConnectionFactory;
 import org.apache.pulsar.tls.PulsarTlsFactory;
 import org.apache.pulsar.tls.TlsFactoryInitContext;
 import org.apache.pulsar.tls.TlsPolicy;
@@ -58,7 +60,6 @@ import org.eclipse.jetty.server.ProxyConnectionFactory;
 import org.eclipse.jetty.server.SecureRequestCustomizer;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
-import org.eclipse.jetty.server.SslConnectionFactory;
 import org.eclipse.jetty.server.handler.ContextHandlerCollection;
 import org.eclipse.jetty.server.handler.QoSHandler;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
@@ -111,6 +112,7 @@ public class ProxyServer {
         }
         // TLS enabled connector
         if (config.getWebServicePortTls().isPresent()) {
+            config.logTlsClientAuthMode("websocket");
             try {
                 // PIP-478: the websocket proxy web listener uses the PulsarTlsFactory SPI (the built-in
                 // file-based factory by default, or a custom tlsFactoryClassName). It owns the refresh
@@ -120,7 +122,8 @@ public class ProxyServer {
                 if (config.isWebServiceHaProxyProtocolEnabled()) {
                     connectionFactories.add(new ProxyConnectionFactory());
                 }
-                connectionFactories.add(new SslConnectionFactory(sslCtxFactory, httpConnectionFactory.getProtocol()));
+                connectionFactories.add(
+                        new PulsarSslConnectionFactory(sslCtxFactory, httpConnectionFactory.getProtocol()));
                 connectionFactories.add(httpConnectionFactory);
                 // org.eclipse.jetty.server.AbstractConnectionFactory.getFactories contains similar logic
                 // this is needed for TLS authentication
@@ -245,7 +248,7 @@ public class ProxyServer {
             TlsFactorySupport.initializeBlocking(this.tlsFactory, initContext);
             this.reloadableServerTls = JettyTlsFactory.createReloadingServerFactory(this.tlsFactory, TlsPurpose.WEB,
                     scheduledExecutorService,
-                    config.getTlsProvider(), config.isTlsRequireTrustedClientCertOnConnect(),
+                    config.getTlsProvider(), config.resolveTlsClientAuthMode(),
                     config.isTlsAllowInsecureConnection(), config.getWebServiceTlsCiphers(),
                     config.getWebServiceTlsProtocols());
             return this.reloadableServerTls.sslContextFactory();
@@ -281,7 +284,8 @@ public class ProxyServer {
         }
     }
 
-    private static PulsarTlsFactory buildDefaultWebTlsFactory(WebSocketProxyConfiguration config) {
+    @VisibleForTesting
+    static PulsarTlsFactory buildDefaultWebTlsFactory(WebSocketProxyConfiguration config) {
         TlsPolicy.Builder policyBuilder = TlsPolicy.builder()
                 .allowInsecureConnection(config.isTlsAllowInsecureConnection())
                 .protocols(toList(config.getWebServiceTlsProtocols()))
@@ -312,7 +316,7 @@ public class ProxyServer {
         // FileBasedTlsFactorySettings default (JDK engine) applies and keeps netty-handler off this module's
         // compile classpath.
         FileBasedTlsFactorySettings settings = FileBasedTlsFactorySettings.builder()
-                .requireTrustedClientCert(config.isTlsRequireTrustedClientCertOnConnect())
+                .clientAuthMode(config.resolveTlsClientAuthMode())
                 .refreshIntervalSeconds(FileBasedTlsFactorySettings.refreshIntervalSecondsFromConfig(
                         config.getTlsCertRefreshCheckDurationSec()))
                 .build();

@@ -23,7 +23,10 @@ import static org.apache.pulsar.functions.instance.stats.FunctionStatsManager.US
 import com.google.common.annotations.VisibleForTesting;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-import io.prometheus.client.Summary;
+import io.prometheus.metrics.core.metrics.Summary;
+import io.prometheus.metrics.model.snapshots.Labels;
+import io.prometheus.metrics.model.snapshots.Quantile;
+import io.prometheus.metrics.model.snapshots.SummarySnapshot;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -69,6 +72,8 @@ import org.apache.pulsar.functions.instance.stats.FunctionCollectorRegistry;
 import org.apache.pulsar.functions.instance.stats.FunctionStatsManager;
 import org.apache.pulsar.functions.instance.stats.SinkStatsManager;
 import org.apache.pulsar.functions.instance.stats.SourceStatsManager;
+import org.apache.pulsar.functions.instance.v5.LazyPulsarClientV5;
+import org.apache.pulsar.functions.instance.v5.V5ProducerFactory;
 import org.apache.pulsar.functions.proto.FunctionDetails;
 import org.apache.pulsar.functions.proto.ProducerSpec;
 import org.apache.pulsar.functions.proto.SinkSpec;
@@ -76,6 +81,7 @@ import org.apache.pulsar.functions.proto.SourceSpec;
 import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
 import org.apache.pulsar.functions.source.PulsarFunctionRecord;
 import org.apache.pulsar.functions.source.TopicSchema;
+import org.apache.pulsar.functions.utils.ClientApiResolver;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.utils.SinkConfigUtils;
@@ -91,6 +97,13 @@ import org.slf4j.Logger;
 @ToString(exclude = {"pulsarAdmin"})
 class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable {
     private final ProducerBuilderFactory producerBuilderFactory;
+    // creates the output producers of a component whose own topics use the V5 client; null otherwise
+    private final V5ProducerFactory v5ProducerFactory;
+    // creates the producers for topic:// topics in a component whose own topics use the v4 client; created on
+    // first use
+    private volatile V5ProducerFactory scalableTopicProducerFactory;
+    private final LazyPulsarClientV5 clientV5;
+    private final ProducerConfig producerConfig;
     private final Map<String, String> producerProperties;
     private InstanceConfig config;
     private Logger logger;
@@ -124,6 +137,9 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
 
     private static final String[] userMetricsLabelNames;
 
+    /** The simpleclient default; the 1.x default is 5 minutes. */
+    private static final long QUANTILE_WINDOW_SECONDS = TimeUnit.MINUTES.toSeconds(10);
+
     private boolean exposePulsarAdminClientEnabled;
 
     private List<Consumer<?>> inputConsumers;
@@ -144,6 +160,22 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
     private final boolean useThreadLocalProducers;
 
     public ContextImpl(InstanceConfig config, Logger logger, PulsarClient client,
+                       SecretsProvider secretsProvider, FunctionCollectorRegistry collectorRegistry,
+                       String[] metricsLabels,
+                       FunctionDetails.ComponentType componentType, ComponentStatsManager statsManager,
+                       StateManager stateManager, PulsarAdmin pulsarAdmin, ClientBuilder clientBuilder,
+                       java.util.function.Consumer<Throwable> fatalHandler, ProducerCache producerCache) {
+        this(config, logger, client, null, false, secretsProvider, collectorRegistry, metricsLabels, componentType,
+                statsManager, stateManager, pulsarAdmin, clientBuilder, fatalHandler, producerCache);
+    }
+
+    /**
+     * @param clientV5 the runtime's V5 client, created on first use, or {@code null} if the runtime has none
+     * @param publishWithClientV5 whether the component's own topics use the V5 client, so that its output
+     *                            messages are published with it
+     */
+    public ContextImpl(InstanceConfig config, Logger logger, PulsarClient client,
+                       LazyPulsarClientV5 clientV5, boolean publishWithClientV5,
                        SecretsProvider secretsProvider, FunctionCollectorRegistry collectorRegistry,
                        String[] metricsLabels,
                        FunctionDetails.ComponentType componentType, ComponentStatsManager statsManager,
@@ -170,6 +202,15 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
                 // the default and made it configurable for the producers created in PulsarSink, but not in ContextImpl.
                 // This is to keep the default unchanged for the producers created in ContextImpl.
                 producerBuilder -> producerBuilder.compressionType(CompressionType.LZ4));
+        this.clientV5 = clientV5;
+        this.producerConfig = producerConfig;
+        if (publishWithClientV5) {
+            checkState(clientV5 != null, "The component uses the V5 client, but the runtime has none");
+            v5ProducerFactory = new V5ProducerFactory(clientV5, producerConfig,
+                    org.apache.pulsar.client.api.v5.config.CompressionType.LZ4);
+        } else {
+            v5ProducerFactory = null;
+        }
         producerProperties = Collections.unmodifiableMap(InstanceUtils.getProperties(componentType,
                 FunctionCommon.getFullyQualifiedName(
                         this.config.getFunctionDetails().getTenant(),
@@ -210,7 +251,7 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
         }
         this.userMetricsSummary = collectorRegistry.registerIfNotExist(
                 prefix + ComponentStatsManager.USER_METRIC_PREFIX,
-                Summary.build()
+                Summary.builder()
                         .name(prefix + ComponentStatsManager.USER_METRIC_PREFIX)
                         .help("User defined metric.")
                         .labelNames(userMetricsLabelNames)
@@ -218,7 +259,8 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
                         .quantile(0.9, 0.01)
                         .quantile(0.99, 0.01)
                         .quantile(0.999, 0.01)
-                        .create());
+                        .maxAgeSeconds(QUANTILE_WINDOW_SECONDS)
+                        .build());
         this.componentType = componentType;
         this.stateManager = stateManager;
         this.defaultStateStore = (DefaultStateStore) stateManager.getStore(
@@ -520,10 +562,10 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
             userMetricLabels[userMetricLabels.length - 1] = metricName;
             // set label for metrics before putting into userMetricsLabels map to
             // prevent race condition with getMetrics calls
-            userMetricsSummary.labels(userMetricLabels).observe(value);
+            userMetricsSummary.labelValues(userMetricLabels).observe(value);
             userMetricsLabels.put(metricName, userMetricLabels);
         } else {
-            userMetricsSummary.labels(userMetricLabels).observe(value);
+            userMetricsSummary.labelValues(userMetricLabels).observe(value);
         }
     }
 
@@ -538,18 +580,63 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
     }
 
     @Override
+    public org.apache.pulsar.client.api.v5.PulsarClient getPulsarClientV5() {
+        return requireClientV5().get();
+    }
+
+    private LazyPulsarClientV5 requireClientV5() {
+        if (clientV5 == null) {
+            throw new UnsupportedOperationException("The function runtime has no V5 client");
+        }
+        return clientV5;
+    }
+
+    @Override
     public void fatal(Throwable t) {
         fatalHandler.accept(t);
     }
 
+    /**
+     * The factory for the V5 producers of a context message: the component's own when its topics use the V5 client,
+     * otherwise one created on first use for the topic:// topics that a v4 component publishes to.
+     */
+    private V5ProducerFactory v5ProducerFactoryFor(String topicName) throws PulsarClientException {
+        if (v5ProducerFactory != null) {
+            return v5ProducerFactory;
+        }
+        if (!ClientApiResolver.isScalableTopic(topicName)) {
+            // the common v4 path, which publishing threads take for every message, needs no lock
+            return null;
+        }
+        V5ProducerFactory factory = scalableTopicProducerFactory;
+        return factory != null ? factory : createScalableTopicProducerFactory(topicName);
+    }
+
+    private synchronized V5ProducerFactory createScalableTopicProducerFactory(String topicName)
+            throws PulsarClientException {
+        if (clientV5 == null) {
+            throw new PulsarClientException("Topic " + topicName + " is a topic:// (scalable) topic, which only "
+                    + "the V5 client can publish to, and the function runtime has no V5 client");
+        }
+        if (scalableTopicProducerFactory == null) {
+            scalableTopicProducerFactory = new V5ProducerFactory(clientV5, producerConfig,
+                    org.apache.pulsar.client.api.v5.config.CompressionType.LZ4);
+        }
+        return scalableTopicProducerFactory;
+    }
+
     private <T> Producer<T> getProducer(String topicName, Schema<T> schema) throws PulsarClientException {
-        Long additionalCacheKey = useThreadLocalProducers ? Thread.currentThread().getId() : null;
+        V5ProducerFactory v5Factory = v5ProducerFactoryFor(topicName);
+        Long additionalCacheKey = useThreadLocalProducers ? Thread.currentThread().threadId() : null;
         return producerCache.getOrCreateProducer(ProducerCache.CacheArea.CONTEXT_CACHE,
                 topicName, additionalCacheKey, () -> {
                     log.info()
                             .attr("topic", topicName)
                             .attr("schema", schema)
                             .log("Initializing producer");
+                    if (v5Factory != null) {
+                        return v5Factory.createProducer(topicName, schema, null, producerProperties);
+                    }
                     return producerBuilderFactory
                             .createProducerBuilder(topicName, schema, null)
                             .properties(producerProperties)
@@ -568,18 +655,30 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
     }
 
     public Map<String, Double> getMetrics() {
+        for (String[] labels : userMetricsLabels.values()) {
+            // a metric cleared by resetMetrics still reports zero counts, as it always did
+            userMetricsSummary.labelValues(labels);
+        }
+        // The registry can be shared with other instances (LocalRunner), so pick this instance's data points
+        // by their full label set; quantiles are only available from a snapshot.
+        Map<Labels, SummarySnapshot.SummaryDataPointSnapshot> dataPoints = new HashMap<>();
+        for (SummarySnapshot.SummaryDataPointSnapshot dataPoint : userMetricsSummary.collect().getDataPoints()) {
+            dataPoints.put(dataPoint.getLabels(), dataPoint);
+        }
         Map<String, Double> metricsMap = new HashMap<>();
         for (Map.Entry<String, String[]> userMetricsLabelsEntry : userMetricsLabels.entrySet()) {
             String metricName = userMetricsLabelsEntry.getKey();
-            String[] labels = userMetricsLabelsEntry.getValue();
-            Summary.Child.Value summary = userMetricsSummary.labels(labels).get();
+            SummarySnapshot.SummaryDataPointSnapshot summary =
+                    dataPoints.get(Labels.of(userMetricsLabelNames, userMetricsLabelsEntry.getValue()));
+            if (summary == null) {
+                // cleared by a concurrent resetMetrics
+                continue;
+            }
             String prefix = USER_METRIC_PREFIX + metricName + "_";
-            metricsMap.put(prefix + "sum", summary.sum);
-            metricsMap.put(prefix + "count", summary.count);
-            for (Map.Entry<Double, Double> entry : summary.quantiles.entrySet()) {
-                Double quantile = entry.getKey();
-                Double value = entry.getValue();
-                metricsMap.put(prefix + quantile, value);
+            metricsMap.put(prefix + "sum", summary.getSum());
+            metricsMap.put(prefix + "count", (double) summary.getCount());
+            for (Quantile quantile : summary.getQuantiles()) {
+                metricsMap.put(prefix + quantile.getQuantile(), quantile.getValue());
             }
         }
         return metricsMap;
@@ -702,18 +801,28 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
 
     @Override
     public void seek(String topic, int partition, MessageId messageId) throws PulsarClientException {
+        checkInputConsumerControl("seek");
         Consumer<?> consumer = getConsumer(topic, partition);
         consumer.seek(messageId);
     }
 
     @Override
     public void pause(String topic, int partition) throws PulsarClientException {
+        checkInputConsumerControl("pause");
         getConsumer(topic, partition).pause();
     }
 
     @Override
     public void resume(String topic, int partition) throws PulsarClientException {
+        checkInputConsumerControl("resume");
         getConsumer(topic, partition).resume();
+    }
+
+    private void checkInputConsumerControl(String operation) {
+        if (v5ProducerFactory != null) {
+            throw new UnsupportedOperationException(
+                    "The V5 client does not support " + operation + " on the input consumers");
+        }
     }
 
     public void setInputConsumers(List<Consumer<?>> inputConsumers) {

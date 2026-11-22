@@ -165,6 +165,9 @@ public class BatchMessageTest extends SharedPulsarBaseTest {
             byte[] message = ("my-message-" + i).getBytes();
             sendFutureList.add(producer.sendAsync(message));
         }
+        // The messages after the first full batch don't fill a second one: send it now instead of after the 5 s
+        // publish delay
+        producer.flush();
         FutureUtil.waitForAll(sendFutureList).get();
 
         // we expect 2 entries in the backlog since we sent 50 messages with the batch size set to 25.
@@ -941,6 +944,8 @@ public class BatchMessageTest extends SharedPulsarBaseTest {
                 .newConsumer(Schema.BYTES)
                 .topic(topicName)
                 .isAckReceiptEnabled(true)
+                // Each ack is sent at once: a grouped ack with a receipt only completes at the next 100 ms flush
+                .acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS)
                 .subscriptionName(subscriptionName)
                 .subscriptionType(subType)
                 .subscribe();

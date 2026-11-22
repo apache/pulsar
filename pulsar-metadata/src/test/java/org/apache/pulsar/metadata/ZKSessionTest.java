@@ -58,7 +58,7 @@ public class ZKSessionTest extends BaseMetadataStoreTest {
                         .build());
 
         BlockingQueue<SessionEvent> sessionEvents = new LinkedBlockingQueue<>();
-        store.registerSessionListener(sessionEvents::add);
+        store.registerCancellableSessionListener(sessionEvents::add);
 
         zks.stop();
 
@@ -82,7 +82,7 @@ public class ZKSessionTest extends BaseMetadataStoreTest {
                         .build());
 
         BlockingQueue<SessionEvent> sessionEvents = new LinkedBlockingQueue<>();
-        store.registerSessionListener(sessionEvents::add);
+        store.registerCancellableSessionListener(sessionEvents::add);
 
         zks.stop();
 
@@ -113,10 +113,10 @@ public class ZKSessionTest extends BaseMetadataStoreTest {
                         .build());
 
         BlockingQueue<SessionEvent> sessionEvents = new LinkedBlockingQueue<>();
-        store.registerSessionListener(sessionEvents::add);
+        store.registerCancellableSessionListener(sessionEvents::add);
 
         BlockingQueue<Notification> notifications = new LinkedBlockingQueue<>();
-        store.registerListener(notifications::add);
+        store.registerCancellableListener(notifications::add);
 
         zks.stop();
 
@@ -158,7 +158,7 @@ public class ZKSessionTest extends BaseMetadataStoreTest {
                         .build());
 
         BlockingQueue<SessionEvent> sessionEvents = new LinkedBlockingQueue<>();
-        store.registerSessionListener(sessionEvents::add);
+        store.registerCancellableSessionListener(sessionEvents::add);
 
         @Cleanup
         CoordinationService coordinationService = new CoordinationServiceImpl(store);
@@ -197,7 +197,7 @@ public class ZKSessionTest extends BaseMetadataStoreTest {
                         .build());
 
         BlockingQueue<SessionEvent> sessionEvents = new LinkedBlockingQueue<>();
-        store.registerSessionListener(sessionEvents::add);
+        store.registerCancellableSessionListener(sessionEvents::add);
         BlockingQueue<LeaderElectionState> leaderElectionEvents = new LinkedBlockingQueue<>();
         String path = newKey();
 
@@ -245,7 +245,7 @@ public class ZKSessionTest extends BaseMetadataStoreTest {
 
 
         BlockingQueue<SessionEvent> sessionEvents = new LinkedBlockingQueue<>();
-        store.registerSessionListener(sessionEvents::add);
+        store.registerCancellableSessionListener(sessionEvents::add);
         BlockingQueue<LeaderElectionState> leaderElectionEvents = new LinkedBlockingQueue<>();
         String path = newKey();
 

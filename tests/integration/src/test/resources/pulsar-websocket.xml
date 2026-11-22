@@ -23,6 +23,7 @@
     <test name="messaging-test-suite" preserve-order="true">
         <classes>
             <class name="org.apache.pulsar.tests.integration.websocket.TestWebSocket" />
+            <class name="org.apache.pulsar.tests.integration.websocket.WebSocketTlsConfigurationStoreTest" />
         </classes>
     </test>
 </suite>

@@ -1,0 +1,36 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+
+# The cluster of the medium-memory configuration, iot-telemetry-medium-mem.yaml, which the IoT telemetry scenarios use
+# by default: two bookies. The broker's heap holds the Key_Shared subscriptions of the full topology,
+# iot-telemetry.yaml: 20 applications with 100 pods on 30 topics are 60,000 consumers, and each consumer has 100 points
+# on its subscription's consistent hash ring, which leaves about 2 GB of live objects. With a 2 GB heap the broker spent
+# its CPU in garbage collection, and even at 1,000 messages per second the publish latency reached seconds.
+extends: cluster-base.yaml
+cluster:
+  brokers:
+    env:
+      PULSAR_MEM: -Xms4g -Xmx4g -XX:MaxDirectMemorySize=1g -XX:+UseTransparentHugePages -XX:+AlwaysPreTouch
+  bookies:
+    replicas: 2
+    env:
+      PULSAR_MEM: -Xms512m -Xmx512m -XX:MaxDirectMemorySize=512m -XX:+UseTransparentHugePages -XX:+AlwaysPreTouch
+      # The test image's run-bookie.sh sets both DbLedgerStorage caches to 16 MB unless they are set, which throttles
+      # adds of large entries during its flushes; use BookKeeper's defaults, a quarter of the direct memory each.
+      dbStorage_writeCacheMaxSizeMb: "128"
+      dbStorage_readAheadCacheMaxSizeMb: "128"

@@ -1,5 +1,14 @@
 [
   {
+    "name": "org.apache.pulsar.client.admin.internal.PulsarAdminBuilderImpl",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
     "name": "org.apache.pulsar.client.admin.internal.http.AsyncHttpConnector",
     "allDeclaredFields": true,
     "allDeclaredMethods": true,
@@ -766,5 +775,570 @@
     "allDeclaredFields": true,
     "allDeclaredMethods": true,
     "allDeclaredConstructors": true
+  },
+  {
+    "name": "jakarta.inject.Named",
+    "methods": [
+      {
+        "name": "value",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "jakarta.inject.Singleton"
+  },
+  {
+    "name": "org.glassfish.hk2.internal.PerThreadContext"
+  },
+  {
+    "name": "org.glassfish.jersey.client.ChunkedInputReader",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "jakarta.inject.Provider",
+          "jakarta.inject.Provider"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "org.glassfish.jersey.client.ClientAsyncExecutor"
+  },
+  {
+    "name": "org.glassfish.jersey.client.ClientBackgroundScheduler"
+  },
+  {
+    "name": "org.glassfish.jersey.client.DefaultClientAsyncExecutorProvider"
+  },
+  {
+    "name": "org.glassfish.jersey.client.DefaultClientBackgroundSchedulerProvider"
+  },
+  {
+    "name": "org.glassfish.jersey.client.JerseyClientBuilder"
+  },
+  {
+    "name": "org.glassfish.jersey.inject.hk2.ContextInjectionResolverImpl",
+    "fields": [
+      {
+        "name": "serviceLocator"
+      }
+    ],
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "org.glassfish.jersey.inject.hk2.Hk2InjectionManagerFactory",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "org.glassfish.jersey.inject.hk2.Hk2Registrables",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "org.glassfish.jersey.inject.hk2.Hk2RequestScope",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "org.glassfish.jersey.inject.hk2.InstanceSupplierFactoryBridge"
+  },
+  {
+    "name": "org.glassfish.jersey.inject.hk2.JerseyClassAnalyzer",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "org.glassfish.hk2.api.ServiceLocator"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "org.glassfish.jersey.inject.hk2.JerseyErrorService",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "org.glassfish.jersey.inject.hk2.RequestContext",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "org.glassfish.jersey.process.internal.RequestScope"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "org.glassfish.jersey.internal.JaxrsProviders",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "jakarta.inject.Provider",
+          "jakarta.inject.Provider",
+          "jakarta.inject.Provider"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "org.glassfish.jersey.internal.RuntimeDelegateImpl"
+  },
+  {
+    "name": "org.glassfish.jersey.internal.inject.Custom"
+  },
+  {
+    "name": "org.glassfish.jersey.jackson.JacksonFeature",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "org.glassfish.jersey.jackson.internal.DefaultJacksonJaxbJsonProvider",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "jakarta.ws.rs.ext.Providers",
+          "jakarta.ws.rs.core.Configuration"
+        ]
+      },
+      {
+        "name": "findAndRegisterModules",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "org.glassfish.jersey.jackson.internal.JacksonAutoDiscoverable",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "org.glassfish.jersey.jackson.internal.JaxrsFeatureBag"
+  },
+  {
+    "name": "org.glassfish.jersey.jackson.internal.jackson.jaxrs.base.ProviderBase"
+  },
+  {
+    "name": "org.glassfish.jersey.jackson.internal.jackson.jaxrs.json.JacksonJaxbJsonProvider"
+  },
+  {
+    "name": "org.glassfish.jersey.jackson.internal.jackson.jaxrs.json.JacksonJsonProvider",
+    "fields": [
+      {
+        "name": "_providers"
+      }
+    ]
+  },
+  {
+    "name": "org.glassfish.jersey.logging.LoggingFeatureAutoDiscoverable",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "org.glassfish.jersey.media.multipart.MultiPartFeature",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "org.glassfish.jersey.media.multipart.MultiPartFeatureAutodiscoverable",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "org.glassfish.jersey.media.multipart.internal.EntityPartReader",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "jakarta.ws.rs.ext.Providers"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "org.glassfish.jersey.media.multipart.internal.EntityPartWriter",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "jakarta.ws.rs.ext.Providers"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "org.glassfish.jersey.media.multipart.internal.MultiPartReaderClientSide",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "jakarta.ws.rs.ext.Providers",
+          "jakarta.inject.Provider"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "org.glassfish.jersey.media.multipart.internal.MultiPartWriter",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "jakarta.ws.rs.ext.Providers"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "org.glassfish.jersey.media.multipart.internal.SingleEntityPartReader",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "jakarta.ws.rs.ext.Providers"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "org.glassfish.jersey.media.multipart.internal.SingleEntityPartWriter",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "jakarta.ws.rs.ext.Providers"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "org.glassfish.jersey.message.internal.AbstractFormProvider"
+  },
+  {
+    "name": "org.glassfish.jersey.message.internal.AbstractMessageReaderWriterProvider"
+  },
+  {
+    "name": "org.glassfish.jersey.message.internal.BasicTypesMessageProvider",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "org.glassfish.jersey.message.internal.ByteArrayProvider",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "org.glassfish.jersey.message.internal.DataSourceProvider",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "org.glassfish.jersey.message.internal.EnumMessageProvider",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "org.glassfish.jersey.message.internal.FileProvider",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "org.glassfish.jersey.message.internal.FormMultivaluedMapProvider",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "org.glassfish.jersey.message.internal.FormProvider",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "org.glassfish.jersey.message.internal.InputStreamProvider",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "org.glassfish.jersey.message.internal.PathProvider",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "org.glassfish.jersey.message.internal.ReaderProvider",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "org.glassfish.jersey.message.internal.RenderedImageProvider",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "org.glassfish.jersey.message.internal.SourceProvider$DomSourceReader",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "jakarta.inject.Provider"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "org.glassfish.jersey.message.internal.SourceProvider$SaxSourceReader",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "jakarta.inject.Provider"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "org.glassfish.jersey.message.internal.SourceProvider$SourceWriter",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "jakarta.inject.Provider",
+          "jakarta.inject.Provider"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "org.glassfish.jersey.message.internal.SourceProvider$StreamSourceReader",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "org.glassfish.jersey.message.internal.StreamingOutputProvider",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "org.glassfish.jersey.message.internal.StringMessageProvider",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "org.glassfish.jersey.process.internal.RequestScope"
+  },
+  {
+    "name": "org.glassfish.jersey.spi.AbstractThreadPoolProvider"
+  },
+  {
+    "name": "org.glassfish.jersey.spi.ScheduledThreadPoolExecutorProvider",
+    "methods": [
+      {
+        "name": "preDestroy",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "org.glassfish.jersey.spi.ThreadPoolExecutorProvider",
+    "methods": [
+      {
+        "name": "preDestroy",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "org.jvnet.hk2.external.generator.ServiceLocatorGeneratorImpl"
+  },
+  {
+    "name": "org.jvnet.hk2.internal.DynamicConfigurationServiceImpl",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "org.glassfish.hk2.api.ServiceLocator"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "org.jvnet.hk2.internal.ServiceLocatorRuntimeImpl",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": [
+          "org.glassfish.hk2.api.ServiceLocator"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "com.fasterxml.jackson.databind.AbstractTypeResolver[]"
+  },
+  {
+    "name": "com.fasterxml.jackson.databind.deser.BeanDeserializerModifier[]"
+  },
+  {
+    "name": "com.fasterxml.jackson.databind.deser.Deserializers[]"
+  },
+  {
+    "name": "com.fasterxml.jackson.databind.deser.KeyDeserializers[]"
+  },
+  {
+    "name": "com.fasterxml.jackson.databind.deser.ValueInstantiators[]"
+  },
+  {
+    "name": "com.fasterxml.jackson.databind.ext.Java7SupportImpl",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "com.fasterxml.jackson.databind.ser.BeanSerializerModifier[]"
+  },
+  {
+    "name": "com.fasterxml.jackson.databind.ser.Serializers[]"
+  },
+  {
+    "name": "com.fasterxml.jackson.datatype.jdk8.Jdk8Module"
+  },
+  {
+    "name": "com.fasterxml.jackson.datatype.jsr310.JavaTimeModule"
+  },
+  {
+    "name": "com.fasterxml.jackson.module.jakarta.xmlbind.JakartaXmlBindAnnotationIntrospector",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "com.fasterxml.jackson.module.jakarta.xmlbind.JakartaXmlBindAnnotationModule"
+  },
+  {
+    "name": "com.fasterxml.jackson.module.jakarta.xmlbind.deser.DataHandlerDeserializer",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "com.fasterxml.jackson.module.jakarta.xmlbind.ser.DataHandlerSerializer",
+    "methods": [
+      {
+        "name": "<init>",
+        "parameterTypes": []
+      }
+    ]
+  },
+  {
+    "name": "com.fasterxml.jackson.module.paramnames.ParameterNamesModule"
   }
 ]

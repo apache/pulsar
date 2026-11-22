@@ -38,6 +38,11 @@ import org.testng.annotations.Test;
 @CustomLog
 public class AdminTest extends MessagingBase {
 
+    @Override
+    protected boolean isClusterShared() {
+        return true;
+    }
+
     @Test(dataProvider = "ServiceAndAdminUrls")
     public void testUnderReplicatedState(Supplier<String> serviceUrl, Supplier<String> adminUrl) throws Exception {
 
@@ -65,7 +70,7 @@ public class AdminTest extends MessagingBase {
         }
 
         log.info().attr("to", topicName).log("Successfully to publish 10 messages to");
-        PersistentTopicInternalStats stats = admin.topics().getInternalStats(topicName);
+        PersistentTopicInternalStats stats = admin.topics().getInternalStats(topicName, true);
         Assert.assertTrue(stats.ledgers.size() > 0);
         for (PersistentTopicInternalStats.LedgerInfo ledger : stats.ledgers) {
             Assert.assertFalse(ledger.underReplicated);

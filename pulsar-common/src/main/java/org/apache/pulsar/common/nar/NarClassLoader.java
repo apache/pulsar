@@ -217,7 +217,7 @@ public class NarClassLoader extends URLClassLoader {
     }
 
     /**
-     * Adds URLs for the resources unpacked from this NAR:
+     * Adds URLs for the resources unpacked from this NAR.
      * <ul>
      * <li>the root: for classes, <tt>META-INF</tt>, etc.</li>
      * <li><tt>META-INF/dependencies</tt>: for config files, <tt>.so</tt>s, etc.</li>

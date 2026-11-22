@@ -22,8 +22,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.DoubleSupplier;
 import org.apache.pulsar.broker.resources.ScalableTopicResources;
+import org.apache.pulsar.broker.service.scalable.SegmentOwnerMetrics.LoadReportResult;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.scalable.SegmentLoadStats;
+import org.apache.pulsar.common.util.FutureUtil;
 
 /**
  * Writes per-segment {@link SegmentLoadStats} to the metadata store on behalf of the broker
@@ -53,13 +55,20 @@ public class SegmentLoadReporter {
     private final ScalableTopicResources resources;
     /** Re-read on every sample so the broker config knob is honored dynamically. */
     private final DoubleSupplier rateChangeThreshold;
+    private final SegmentOwnerMetrics metrics;
 
     /** Last value written per load-record path, so we can skip immaterial updates. */
     private final ConcurrentHashMap<String, SegmentLoadStats> lastWritten = new ConcurrentHashMap<>();
 
     public SegmentLoadReporter(ScalableTopicResources resources, DoubleSupplier rateChangeThreshold) {
+        this(resources, rateChangeThreshold, null);
+    }
+
+    public SegmentLoadReporter(ScalableTopicResources resources, DoubleSupplier rateChangeThreshold,
+                               SegmentOwnerMetrics metrics) {
         this.resources = resources;
         this.rateChangeThreshold = rateChangeThreshold;
+        this.metrics = metrics;
     }
 
     public SegmentLoadReporter(ScalableTopicResources resources, double rateChangeThreshold) {
@@ -76,11 +85,22 @@ public class SegmentLoadReporter {
      * write unconditionally and reset the record's modification time — which the controller
      * uses as "cold since" for the merge window — starving merges under frequent rebalancing.
      *
+     * <p>Nothing is written for a topic that is marked deleted or has no record.
+     *
      * @return a future completing with {@code true} if a write happened, {@code false} if the
-     *         sample was immaterial and skipped
+     *         sample was immaterial and skipped, or the topic is deleted
      */
     public CompletableFuture<Boolean> reportIfChanged(TopicName topic, long segmentId,
                                                       SegmentLoadStats current) {
+        return FutureUtil.supplySafely(() -> report(topic, segmentId, current)).whenComplete((written, error) -> {
+            if (metrics != null) {
+                metrics.recordLoadReport(error != null ? LoadReportResult.FAILED
+                        : written ? LoadReportResult.WRITTEN : LoadReportResult.UNCHANGED);
+            }
+        });
+    }
+
+    private CompletableFuture<Boolean> report(TopicName topic, long segmentId, SegmentLoadStats current) {
         String path = resources.segmentLoadPath(topic, segmentId);
         double threshold = rateChangeThreshold.getAsDouble();
         SegmentLoadStats last = lastWritten.get(path);
@@ -102,11 +122,23 @@ public class SegmentLoadReporter {
 
     private CompletableFuture<Boolean> write(TopicName topic, long segmentId, String path,
                                              SegmentLoadStats current) {
-        return resources.reportSegmentLoadAsync(topic, segmentId, current)
-                .thenApply(__ -> {
-                    lastWritten.put(path, current);
-                    return true;
-                });
+        // The store creates the missing parents of a record it writes: Oxia as empty records, ZooKeeper as empty
+        // container nodes. So a write under a deleted topic brings the topic's node back with no record, which the
+        // namespace lists as a topic that can't be read, deleted or created again. The segment topics stay loaded
+        // until the topic's delete gets to them, after it marks the topic deleted and deletes the record. So read the
+        // record from the store right before the write, and skip the write once the topic is marked deleted or gone.
+        // A delete between this read and the write still brings the node back: the store has no write that requires
+        // the parent to exist.
+        return resources.getScalableTopicMetadataAsync(topic, true).thenCompose(metadata -> {
+            if (metadata.isEmpty() || metadata.get().isDeleted()) {
+                return CompletableFuture.completedFuture(false);
+            }
+            return resources.reportSegmentLoadAsync(topic, segmentId, current)
+                    .thenApply(__ -> {
+                        lastWritten.put(path, current);
+                        return true;
+                    });
+        });
     }
 
     /**

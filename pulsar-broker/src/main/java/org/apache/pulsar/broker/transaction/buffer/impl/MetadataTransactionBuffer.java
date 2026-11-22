@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.transaction.buffer.impl;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -65,6 +66,7 @@ import org.apache.pulsar.common.util.Runnables;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.ScanConsumer;
+import org.apache.pulsar.metadata.api.Stat;
 
 /**
  * {@link TransactionBuffer} for {@code segment://} topics that reads truth from the
@@ -76,6 +78,11 @@ import org.apache.pulsar.metadata.api.ScanConsumer;
  * (TC times out → ABORTED → cleanup). There's never a ledger entry with no op record. The invariant
  * <i>every transactional entry in the segment has a corresponding {@code /txn/op} record at the
  * time of append</i> lets recovery scan {@code /txn/op} authoritatively without segment-replay.
+ * The op records of concurrent appends can be written in any order, but their entries go to the
+ * ledger in publish order, so that publishes are acknowledged in the order they were made: a
+ * producer acknowledged out of order drops its connection and re-sends its pending messages. For
+ * the same reason, a non-transactional publish made while appends are pending goes to the ledger
+ * after their entries (see {@link #addEntryInPublishOrder}).
  *
  * <p><b>Durable visibility state.</b> The TB persists a per-segment
  * {@code /txn/segment-state/<segment>/watermark} record (the resolved-below mark) plus one
@@ -109,6 +116,11 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
     private final CompletableFuture<Void> recoveryFuture = new CompletableFuture<>();
     private volatile AutoCloseable subscription;
     private volatile boolean closed;
+    /**
+     * Set once the segment topic is being deleted: its durable state is deleted after the topic, so the
+     * buffer stops updating it (see {@link #clearSnapshotAndClose()}).
+     */
+    private volatile boolean deleted;
 
     /** Guards mutable state below. */
     private final Object lock = new Object();
@@ -135,6 +147,27 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
      * tail so we never have two in-flight watermark CASes racing.
      */
     private CompletableFuture<Void> stateTail = CompletableFuture.completedFuture(null);
+
+    /**
+     * Publishes waiting to be handed to the managed ledger, in publish order: the entry of an
+     * {@link #appendBufferToTxn} goes once its op record is written and the publishes before it were
+     * handed over, unless its txn was resolved meanwhile (see {@link #appendToLedgerIfOpen}).
+     * Non-transactional entries published while it's not empty join it (see
+     * {@link #addEntryInPublishOrder}). A publish is queued under {@link #lock} before any metadata
+     * call, which may complete or reenter inline, and handed over outside it by
+     * {@link #handOverPendingPublishes}. Guarded by {@link #lock}.
+     */
+    private final ArrayDeque<PendingPublish> pendingPublishes = new ArrayDeque<>();
+
+    /**
+     * Whether a thread is in {@link #handOverPendingPublishes}. The publishes queued or made ready
+     * meanwhile are left to it, so a burst is handed over in a loop rather than with one nested call
+     * per publish. Guarded by {@link #lock}.
+     */
+    private boolean handingOver;
+
+    /** A retryable pre-ledger failure retires this topic generation before a higher sequence can land. */
+    private Throwable publishFailure;
 
     private final LongAdder committedCount = new LongAdder();
     private final LongAdder abortedCount = new LongAdder();
@@ -334,16 +367,189 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
     @Override
     public CompletableFuture<Position> appendBufferToTxn(TxnID txnId, long sequenceId, ByteBuf buffer) {
         buffer.retain();
-        return recoveryFuture.thenCompose(__ -> internalAppend(txnId, buffer))
+        String txnIdKey = TxnIds.toKey(txnId);
+        TxnAppend append = new TxnAppend(txnId, txnIdKey, buffer);
+        synchronized (lock) {
+            pendingPublishes.add(append);
+        }
+        // Queue the append before invoking metadata code, which may complete or reenter inline.
+        recoveryFuture.thenCompose(__ -> writeOpRecord(txnId, txnIdKey))
+                .whenComplete((__, opWriteFailure) -> append.opWriteCompleted(opWriteFailure));
+        return append.result.thenApply(position -> {
+                    trackPosition(txnIdKey, position);
+                    return position;
+                })
                 .whenComplete((p, ex) -> buffer.release());
     }
 
-    private CompletableFuture<Position> internalAppend(TxnID txnId, ByteBuf buffer) {
+    /**
+     * Hand the queued publishes over in publish order, as long as the one at the head is ready or the
+     * publish generation failed. Only one thread does so at a time, in a loop, outside {@link #lock}:
+     * the publishes queued or made ready meanwhile, including by the callbacks it runs, are left to
+     * it, so the stack doesn't grow with the queue.
+     */
+    private void handOverPendingPublishes() {
+        synchronized (lock) {
+            if (handingOver) {
+                return;
+            }
+            handingOver = true;
+        }
+        while (true) {
+            PendingPublish next;
+            Throwable failure;
+            synchronized (lock) {
+                next = pendingPublishes.peek();
+                failure = next == null ? null : currentPublishFailure();
+                if (next == null || (failure == null && !next.isReady())) {
+                    handingOver = false;
+                    return;
+                }
+                pendingPublishes.poll();
+            }
+            try {
+                next.handOver(failure);
+            } catch (Throwable t) {
+                // Only this publish fails: the ones behind it still go to the ledger.
+                log.warn().attr("segment", segmentName).exception(t).log("Failed to hand a publish over");
+            }
+        }
+    }
+
+    /** A publish queued in {@link #pendingPublishes}. */
+    private interface PendingPublish {
+
+        /** Whether it can go once the publishes before it went. Called under {@link #lock}. */
+        boolean isReady();
+
+        /** Hand it to the ledger, or fail it with {@code failure} when set. Called outside {@link #lock}. */
+        void handOver(Throwable failure);
+    }
+
+    /** The entry of an {@link #appendBufferToTxn}: it's ready once its op record write completed. */
+    private final class TxnAppend implements PendingPublish {
+        private final TxnID txnId;
+        private final String txnIdKey;
+        private final ByteBuf buffer;
+        private final CompletableFuture<Position> result = new CompletableFuture<>();
+        /** Set under {@link #lock} before it's ready, and not changed after. */
+        private boolean opWriteDone;
+        private Throwable opWriteFailure;
+
+        TxnAppend(TxnID txnId, String txnIdKey, ByteBuf buffer) {
+            this.txnId = txnId;
+            this.txnIdKey = txnIdKey;
+            this.buffer = buffer;
+        }
+
+        void opWriteCompleted(Throwable failure) {
+            synchronized (lock) {
+                opWriteDone = true;
+                opWriteFailure = failure;
+            }
+            handOverPendingPublishes();
+        }
+
+        @Override
+        public boolean isReady() {
+            return opWriteDone;
+        }
+
+        @Override
+        public void handOver(Throwable failure) {
+            if (failure != null) {
+                result.completeExceptionally(failure);
+            } else if (opWriteFailure != null) {
+                Throwable cause = FutureUtil.unwrapCompletionException(opWriteFailure);
+                try {
+                    if (!(cause instanceof BrokerServiceException.NotAllowedException)) {
+                        retirePublishGeneration(cause);
+                    }
+                } finally {
+                    result.completeExceptionally(cause);
+                }
+            } else {
+                // A failed earlier append must not leave a sequence hole below a later
+                // dedup high watermark, even when this op record was already written.
+                appendToLedgerIfOpen(txnId, txnIdKey, buffer, result);
+            }
+        }
+    }
+
+    /** A non-transactional entry published while {@link #pendingPublishes} wasn't empty. */
+    private static final class PlainPublish implements PendingPublish {
+        private final ManagedLedger ledger;
+        private final ByteBuf headersAndPayload;
+        private final int numberOfMessages;
+        private final AsyncCallbacks.AddEntryCallback callback;
+        private final Object ctx;
+
+        PlainPublish(ManagedLedger ledger, ByteBuf headersAndPayload, int numberOfMessages,
+                     AsyncCallbacks.AddEntryCallback callback, Object ctx) {
+            this.ledger = ledger;
+            this.headersAndPayload = headersAndPayload;
+            this.numberOfMessages = numberOfMessages;
+            this.callback = callback;
+            this.ctx = ctx;
+        }
+
+        @Override
+        public boolean isReady() {
+            return true;
+        }
+
+        @Override
+        public void handOver(Throwable failure) {
+            try {
+                if (failure != null) {
+                    callback.addFailed(ManagedLedgerException.getManagedLedgerException(failure), ctx);
+                    return;
+                }
+                try {
+                    ledger.asyncAddEntry(headersAndPayload, numberOfMessages, callback, ctx);
+                } catch (RuntimeException e) {
+                    // Only this publish fails: the ones behind it still go to the ledger.
+                    callback.addFailed(ManagedLedgerException.getManagedLedgerException(e), ctx);
+                }
+            } finally {
+                headersAndPayload.release();
+            }
+        }
+    }
+
+    private Throwable currentPublishFailure() {
+        synchronized (lock) {
+            if (publishFailure != null) {
+                return publishFailure;
+            }
+            return closed ? new BrokerServiceException.ServiceUnitNotReadyException("Transaction buffer is closed")
+                    : null;
+        }
+    }
+
+    private void retirePublishGeneration(Throwable cause) {
+        synchronized (lock) {
+            if (publishFailure != null) {
+                return;
+            }
+            publishFailure = cause;
+        }
+        // Install this topic's close admission barrier before reporting any failed publish.
+        // close(true) fences synchronously and completes asynchronously. Calling it outside the
+        // buffer lock also permits closeAsync to reenter this buffer without a lock cycle.
+        FutureUtil.supplySafely(() -> topic.close(true)).whenComplete((__, error) -> {
+            if (error != null) {
+                log.debug().attr("segment", segmentName).exception(error)
+                        .log("Failed to close the failed publish generation");
+            }
+        });
+    }
+
+    private CompletableFuture<Stat> writeOpRecord(TxnID txnId, String txnIdKey) {
         if (closed) {
             return FutureUtil.failedFuture(new BrokerServiceException.ServiceUnitNotReadyException(
                     "Transaction buffer is closed"));
         }
-        String txnIdKey = TxnIds.toKey(txnId);
         return readStateCacheFirst(txnIdKey)
                 .thenCompose(state -> {
                     if (state.isTerminal()) {
@@ -353,13 +559,7 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
                     // 1. Write /txn/op first. Positions are unknown at this point; the WRITE-kind
                     // record uses sentinel 0/0 (positions live in the TB's in-memory tracking).
                     TxnOp op = new TxnOp(TxnOpKind.WRITE, segmentName, null, 0L, 0L, null);
-                    return txnStore.appendOp(txnIdKey, op).thenCompose(opStat ->
-                            // 2. ML append. By the invariant above, /txn/op is durable before any
-                            // ledger entry exists for this op.
-                            appendToLedger(buffer).thenApply(position -> {
-                                trackPosition(txnIdKey, position);
-                                return position;
-                            }));
+                    return txnStore.appendOp(txnIdKey, op);
                 });
     }
 
@@ -379,8 +579,42 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
         });
     }
 
-    private CompletableFuture<Position> appendToLedger(ByteBuf buffer) {
-        CompletableFuture<Position> result = new CompletableFuture<>();
+    /**
+     * Hand an append's entry to the ledger, unless its txn was resolved while the append waited for
+     * the ones before it. The outcome is applied with the positions known by then, so an entry
+     * appended afterwards would escape it: an aborted txn's would sit above its aborted record, and be
+     * read as committed once the record is pruned because the ledger trimmed past it. The txn is
+     * checked, and the entry handed over, under the lock {@link #applyTerminalNow} reads the positions
+     * under, so no outcome is applied in between.
+     */
+    private void appendToLedgerIfOpen(TxnID txnId, String txnIdKey, ByteBuf buffer,
+                                      CompletableFuture<Position> result) {
+        Throwable failure = null;
+        synchronized (lock) {
+            TxnEntry entry = txns.get(txnIdKey);
+            if (publishFailure != null) {
+                failure = publishFailure;
+            } else if (closed) {
+                failure = new BrokerServiceException.ServiceUnitNotReadyException("Transaction buffer is closed");
+            } else if (entry == null || entry.state != TxnState.OPEN) {
+                failure = new BrokerServiceException.NotAllowedException("Transaction " + txnId + " is already "
+                        + (entry == null ? "resolved" : entry.state.toString()) + " — TxnConflict");
+            } else {
+                try {
+                    // Only queues the add: it completes on the ledger's thread.
+                    appendToLedger(buffer, result);
+                } catch (RuntimeException e) {
+                    failure = e;
+                }
+            }
+        }
+        if (failure != null) {
+            // Only this append fails: the ones behind it still go to the ledger.
+            result.completeExceptionally(failure);
+        }
+    }
+
+    private void appendToLedger(ByteBuf buffer, CompletableFuture<Position> result) {
         ledger.asyncAddEntry(buffer, new AsyncCallbacks.AddEntryCallback() {
             @Override
             public void addComplete(Position position, ByteBuf entryData, Object ctx) {
@@ -392,7 +626,23 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
                 result.completeExceptionally(exception);
             }
         }, null);
-        return result;
+    }
+
+    @Override
+    public void addEntryInPublishOrder(ManagedLedger ledger, ByteBuf headersAndPayload, int numberOfMessages,
+                                       AsyncCallbacks.AddEntryCallback callback, Object ctx) {
+        synchronized (lock) {
+            // A publish being handed over outside the lock has already left the queue.
+            if (pendingPublishes.isEmpty() && !handingOver && publishFailure == null && !closed) {
+                // Keep the healthy path allocation-free. Hand it over under the same lock the
+                // publishes are queued under, so a newer publish cannot pass it.
+                ledger.asyncAddEntry(headersAndPayload, numberOfMessages, callback, ctx);
+                return;
+            }
+            headersAndPayload.retain();
+            pendingPublishes.add(new PlainPublish(ledger, headersAndPayload, numberOfMessages, callback, ctx));
+        }
+        handOverPendingPublishes();
     }
 
     private void trackPosition(String txnIdKey, Position position) {
@@ -503,6 +753,12 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
             // positions needed for the durable side-effects below were already captured above.
             txns.remove(txnIdKey);
         }
+        if (deleted) {
+            // The segment is being deleted along with its state: skip the durable side effects. Should the topic
+            // delete fail, the topic keeps serving with the outcome applied in memory, and the op records left in
+            // place let the transaction be recovered when the topic is loaded again.
+            return CompletableFuture.completedFuture(null);
+        }
 
         // Persist aborted record if this is an abort.
         CompletableFuture<Void> persistAborted = (newState == TxnState.ABORTED)
@@ -549,7 +805,7 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
         long expectedVersion;
         synchronized (lock) {
             Position desired = maxReadPosition;
-            if (desired == null) {
+            if (deleted || desired == null) {
                 return CompletableFuture.completedFuture(null);
             }
             if (watermark != null
@@ -583,10 +839,14 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
                         // instead of looping on the stale one. Still propagate this failure so the
                         // caller logs+retries; the retry now has a fresh version to work with.
                         return txnStore.getSegmentWatermark(segmentName).thenAccept(opt -> {
-                            if (opt.isPresent()) {
-                                synchronized (lock) {
+                            synchronized (lock) {
+                                if (opt.isPresent()) {
                                     watermark = opt.get().value();
                                     watermarkVersion = opt.get().version();
+                                } else {
+                                    // The record was deleted (a versioned write of a missing record fails
+                                    // with BadVersion too): the next CAS creates it again.
+                                    watermarkVersion = -1L;
                                 }
                             }
                         }).thenCompose(__ -> FutureUtil.failedFuture(cause));
@@ -806,9 +1066,20 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
         return CompletableFuture.completedFuture(null);
     }
 
+    /**
+     * Called when the segment topic is deleted. The durable state of the segment is not deleted here but once the
+     * segment's data is gone (see {@code Segments#deleteSegment}): the aborted-txn records are what hides the data
+     * of aborted transactions, and the topic delete can still fail. Stop updating the state and wait for the update
+     * in progress, so that none lands after the state is deleted.
+     */
     @Override
     public CompletableFuture<Void> clearSnapshotAndClose() {
-        return closeAsync();
+        CompletableFuture<Void> updateInProgress;
+        synchronized (lock) {
+            deleted = true;
+            updateInProgress = stateTail;
+        }
+        return closeAsync().thenCompose(__ -> updateInProgress);
     }
 
     @Override

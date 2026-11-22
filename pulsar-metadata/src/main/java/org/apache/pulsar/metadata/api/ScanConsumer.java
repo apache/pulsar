@@ -22,10 +22,11 @@ package org.apache.pulsar.metadata.api;
  * Streaming consumer for {@link MetadataStore#scanChildren} and {@link MetadataStore#scanByIndex}
  * results.
  *
- * <p>The store invokes {@link #onNext} for each record (in key order), and then either
- * {@link #onCompleted} (success) or {@link #onError} (failure) exactly once. Implementations must
- * be safe to invoke from a metadata-store internal thread; back-pressure is the consumer's
- * responsibility (long blocking work in {@code onNext} can stall the scan).
+ * <p>The store invokes {@link #onNext} for each record, and then either {@link #onCompleted}
+ * (success) or {@link #onError} (failure) exactly once. The records come in no particular order: a
+ * store with several shards, like Oxia, passes on the records of each shard as they arrive.
+ * Implementations must be safe to invoke from a metadata-store internal thread; back-pressure is the
+ * consumer's responsibility (long blocking work in {@code onNext} can stall the scan).
  */
 public interface ScanConsumer {
 

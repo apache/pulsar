@@ -22,8 +22,26 @@ package org.apache.pulsar.broker.authentication;
  * Authentication data for a forwarded principal without authenticated original credentials.
  */
 public final class AuthenticationDataForwarded implements AuthenticationDataSource {
-    public static final AuthenticationDataForwarded INSTANCE = new AuthenticationDataForwarded();
+    public static final AuthenticationDataForwarded INSTANCE = new AuthenticationDataForwarded(null);
 
-    private AuthenticationDataForwarded() {
+    private final AuthenticationDataSource proxiedRequestData;
+
+    private AuthenticationDataForwarded(AuthenticationDataSource proxiedRequestData) {
+        this.proxiedRequestData = proxiedRequestData;
+    }
+
+    /**
+     * Returns forwarded data for the original principal of a proxied HTTP request, keeping the request data.
+     */
+    public static AuthenticationDataForwarded ofProxiedRequest(AuthenticationDataSource requestData) {
+        return requestData == null ? INSTANCE : new AuthenticationDataForwarded(requestData);
+    }
+
+    /**
+     * The authentication data of the proxied request, which may carry the original principal's own token, or null.
+     * It is not authenticated as the original principal.
+     */
+    public AuthenticationDataSource getProxiedRequestData() {
+        return proxiedRequestData;
     }
 }

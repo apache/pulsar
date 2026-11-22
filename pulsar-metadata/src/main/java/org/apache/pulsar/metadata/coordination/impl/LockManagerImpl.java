@@ -53,6 +53,8 @@ class LockManagerImpl<T> implements LockManager<T> {
     private final MetadataSerde<T> serde;
     private final FutureUtil.Sequencer<Void> sequencer;
     private final ScheduledExecutorService executor;
+    private final Runnable cancelSessionListener;
+    private final Runnable cancelListener;
 
     private enum State {
         Ready, Closed
@@ -72,8 +74,8 @@ class LockManagerImpl<T> implements LockManager<T> {
         this.serde = serde;
         this.executor = executor;
         this.sequencer = FutureUtil.Sequencer.create();
-        store.registerSessionListener(this::handleSessionEvent);
-        store.registerListener(this::handleDataNotification);
+        cancelSessionListener = store.registerCancellableSessionListener(this::handleSessionEvent);
+        cancelListener = store.registerCancellableListener(this::handleDataNotification);
     }
 
     @Override
@@ -103,12 +105,17 @@ class LockManagerImpl<T> implements LockManager<T> {
             }
             result.complete(lock);
         }).exceptionally(ex -> {
-            if (ex.getCause() instanceof BadVersionException) {
-                result.completeExceptionally(
-                        new LockBusyException("Resource at " + path + " is already locked"));
-            } else {
-                result.completeExceptionally(ex.getCause());
+            Throwable cause = FutureUtil.unwrapCompletionException(ex);
+            if (cause instanceof BadVersionException) {
+                cause = new LockBusyException("Resource at " + path + " is already locked");
             }
+            if (cause instanceof LockBusyException) {
+                // The acquisition checked the store, whereas readLock may still contain an old
+                // owner if its notification was delayed. Invalidate before exposing the conflict
+                // so a caller resolving the actual owner cannot keep rereading that old value.
+                cache.invalidate(path);
+            }
+            result.completeExceptionally(cause);
             return null;
         });
 
@@ -174,6 +181,8 @@ class LockManagerImpl<T> implements LockManager<T> {
             locks = new HashMap<>(this.locks);
             this.state = State.Closed;
         }
+        cancelSessionListener.run();
+        cancelListener.run();
 
         return FutureUtil.waitForAll(locks.values().stream()
                 .map(ResourceLock::release)

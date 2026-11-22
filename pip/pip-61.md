@@ -2,8 +2,6 @@
 
 * Current State: Under Discussion
 * Author: Shunli Gao, Penghui Li, Sijie Guo, Jia Zhai
-* Pull request:
-* Mailing List discussion:
 * Release: 2.6.0
 
 ### Motivation

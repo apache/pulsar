@@ -22,6 +22,7 @@ import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyLong;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -32,7 +33,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 import java.util.function.LongSupplier;
+import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class RescheduleReadHandlerTest {
@@ -59,14 +63,55 @@ public class RescheduleReadHandlerTest {
                 readOpCounterSupplier, hasEntriesInReplayQueue);
     }
 
-    @Test
-    public void rescheduleReadImmediately() {
-        when(readIntervalMsSupplier.getAsLong()).thenReturn(0L);
+    @DataProvider
+    public Object[][] readIntervalsWithoutDelay() {
+        return new Object[][] {{0L}, {-1L}};
+    }
+
+    @Test(dataProvider = "readIntervalsWithoutDelay")
+    public void rescheduleReadWithoutDelay(long readIntervalMs) {
+        when(readIntervalMsSupplier.getAsLong()).thenReturn(readIntervalMs);
+        when(hasPendingReadRequestThatMightWait.getAsBoolean()).thenReturn(true);
+        when(readOpCounterSupplier.getAsLong()).thenReturn(5L);
+        when(hasEntriesInReplayQueue.getAsBoolean()).thenReturn(true);
 
         rescheduleReadHandler.rescheduleRead();
 
-        verify(rescheduleReadImmediately).run();
+        // ACK processing can hold the pending-acks lock here. Neither callback may run inline and
+        // acquire the dispatcher monitor, which consumer registration holds while reading pending acks.
+        verify(cancelPendingRead, never()).run();
+        verify(rescheduleReadImmediately, never()).run();
+        ArgumentCaptor<Runnable> task = ArgumentCaptor.forClass(Runnable.class);
+        verify(executor).execute(task.capture());
         verify(executor, never()).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+
+        task.getValue().run();
+
+        InOrder callbacks = inOrder(cancelPendingRead, rescheduleReadImmediately);
+        callbacks.verify(cancelPendingRead).run();
+        callbacks.verify(rescheduleReadImmediately).run();
+    }
+
+    @Test(dataProvider = "readIntervalsWithoutDelay")
+    public void rescheduleReadBatchingWithoutDelay(long readIntervalMs) {
+        when(readIntervalMsSupplier.getAsLong()).thenReturn(readIntervalMs);
+
+        rescheduleReadHandler.rescheduleRead();
+        rescheduleReadHandler.rescheduleRead();
+        rescheduleReadHandler.rescheduleRead();
+
+        ArgumentCaptor<Runnable> task = ArgumentCaptor.forClass(Runnable.class);
+        verify(executor).execute(task.capture());
+        verify(rescheduleReadImmediately, never()).run();
+        task.getValue().run();
+        verify(rescheduleReadImmediately).run();
+
+        // Completing a batch must allow a later unblocking event to schedule another read.
+        rescheduleReadHandler.rescheduleRead();
+        verify(executor, times(2)).execute(task.capture());
+        verify(rescheduleReadImmediately).run();
+        task.getValue().run();
+        verify(rescheduleReadImmediately, times(2)).run();
     }
 
     @Test

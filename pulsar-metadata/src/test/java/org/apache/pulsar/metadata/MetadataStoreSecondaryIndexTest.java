@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.Cleanup;
@@ -243,5 +244,88 @@ public class MetadataStoreSecondaryIndexTest extends BaseMetadataStoreTest {
                 .map(r -> new String(r.getValue(), StandardCharsets.UTF_8))
                 .collect(Collectors.toSet());
         assertEquals(values, Set.of("v-100", "v-200"));
+    }
+
+    @Test(dataProvider = "impl")
+    public void scanByIndexUnboundedToKey(String provider, Supplier<String> urlSupplier) throws Exception {
+        @Cleanup
+        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().build());
+
+        String basePath = newKey();
+        for (long t : new long[]{100L, 200L, 300L}) {
+            String key = String.format("%020d", t);
+            store.put(basePath + "/r-" + t, ("v-" + t).getBytes(StandardCharsets.UTF_8),
+                    Optional.of(-1L), EnumSet.noneOf(CreateOption.class),
+                    Map.of("by-time", key)).join();
+        }
+
+        Predicate<GetResult> from200 = r -> {
+            String v = new String(r.getValue(), StandardCharsets.UTF_8);
+            return Long.parseLong(v.substring(2)) >= 200L;
+        };
+
+        List<GetResult> results = new ArrayList<>();
+        store.scanByIndex(basePath, "by-time", String.format("%020d", 200L), null,
+                from200, ScanConsumer.collectInto(results)).join();
+        assertEquals(values(results), Set.of("v-200", "v-300"));
+
+        results.clear();
+        store.scanByIndex(basePath, "by-time", null, null, r -> true, ScanConsumer.collectInto(results)).join();
+        assertEquals(values(results), Set.of("v-100", "v-200", "v-300"));
+    }
+
+    @Test(dataProvider = "impl")
+    public void scanByIndexPointLookupSkipsKeysExtendingTheKey(String provider, Supplier<String> urlSupplier)
+            throws Exception {
+        @Cleanup
+        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().build());
+
+        String basePath = newKey();
+        // "broker-1" is a prefix of the other owners.
+        List<String> owners = List.of("broker-1", "broker-12", "broker-1:a", "broker-1_b", "broker-1~c");
+        for (int i = 0; i < owners.size(); i++) {
+            store.put(basePath + "/r-" + i, owners.get(i).getBytes(StandardCharsets.UTF_8),
+                    Optional.of(-1L), EnumSet.noneOf(CreateOption.class),
+                    Map.of("by-owner", owners.get(i))).join();
+        }
+
+        List<GetResult> results = findByIndex(store, basePath, "by-owner", "broker-1",
+                r -> new String(r.getValue(), StandardCharsets.UTF_8).equals("broker-1"));
+
+        assertEquals(values(results), Set.of("broker-1"));
+    }
+
+    @Test(dataProvider = "impl")
+    public void scanByIndexInclusiveRangeSkipsKeysExtendingTheUpperBound(String provider,
+                                                                        Supplier<String> urlSupplier)
+            throws Exception {
+        @Cleanup
+        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().build());
+
+        String basePath = newKey();
+        for (String key : List.of("k-0", "k-1", "k-12", "k-2")) {
+            store.put(basePath + "/r-" + key, key.getBytes(StandardCharsets.UTF_8),
+                    Optional.of(-1L), EnumSet.noneOf(CreateOption.class),
+                    Map.of("by-key", key)).join();
+        }
+
+        Predicate<GetResult> inRange = r -> {
+            String v = new String(r.getValue(), StandardCharsets.UTF_8);
+            return v.compareTo("k-0") >= 0 && v.compareTo("k-1") <= 0;
+        };
+
+        List<GetResult> results = new ArrayList<>();
+        store.scanByIndex(basePath, "by-key", "k-0", "k-1", inRange, ScanConsumer.collectInto(results)).join();
+
+        assertEquals(values(results), Set.of("k-0", "k-1"));
+    }
+
+    private static Set<String> values(List<GetResult> results) {
+        return results.stream()
+                .map(r -> new String(r.getValue(), StandardCharsets.UTF_8))
+                .collect(Collectors.toSet());
     }
 }

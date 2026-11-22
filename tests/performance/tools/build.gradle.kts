@@ -27,6 +27,9 @@ dependencies {
     implementation(project(":pulsar-client-original"))
     implementation(libs.hdrHistogram)
     implementation(libs.picocli)
+    // The Pulsar client's warnings, such as its reconnections, into a file in the workload's output directory
+    runtimeOnly(libs.log4j.core)
+    runtimeOnly(libs.log4j.slf4j2.impl)
 
     testImplementation(libs.assertj.core)
     testImplementation(libs.testng)
@@ -36,3 +39,7 @@ application {
     applicationName = "pulsar-performance-tools"
     mainClass.set("org.apache.pulsar.tests.performance.tools.PerformanceTool")
 }
+
+// The installed tools, which the launcher mounts into the workload containers: see SharedBuildArtifacts.kt
+val installDist = tasks.named<Sync>("installDist")
+shareBuildArtifact("performance-tools-install", installDist.map { it.destinationDir }, installDist)

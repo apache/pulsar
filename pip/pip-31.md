@@ -3,7 +3,6 @@
 * **Status**: Implemented
 * **Author**: Sijie Guo
 * **Pull Request**: https://github.com/apache/pulsar/pull/2664
-* **Mailing List discussion**:
 * **Release**: 2.8.0
 
 # Motivation <a id="motivation"></a>

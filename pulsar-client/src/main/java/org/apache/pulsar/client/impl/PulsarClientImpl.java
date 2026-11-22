@@ -207,7 +207,7 @@ public class PulsarClientImpl implements PulsarClient {
 
     private final LoadingCache<String, SchemaInfoProvider> schemaProviderLoadingCache =
             CacheBuilder.newBuilder().maximumSize(100000)
-                    .expireAfterAccess(30, TimeUnit.MINUTES)
+                    .expireAfterAccess(Duration.ofMinutes(30))
                     .build(new CacheLoader<String, SchemaInfoProvider>() {
 
                         @Override
@@ -1013,6 +1013,12 @@ public class PulsarClientImpl implements PulsarClient {
                         Optional.empty());
             }
             producers.add(producer);
+            // The creation can fail before this line runs, from another thread or from a connection that fails at
+            // once, in which case the producer has already closed or failed and removed itself from the client. Do
+            // not keep it then.
+            if (producer.isTerminalState()) {
+                cleanupProducer(producer);
+            }
         }).exceptionally(ex -> {
             log.warn().attr("topic", topic).exceptionMessage(ex).log("Failed to get partitioned topic metadata");
             producerCreatedFuture.completeExceptionally(ex);
@@ -1165,7 +1171,7 @@ public class PulsarClientImpl implements PulsarClient {
                         partitionIndex, false, consumerSubscribedFuture, null, schema, interceptors,
                         true /* createTopicIfDoesNotExist */);
             }
-            consumers.add(consumer);
+            addConsumer(consumer);
         }).exceptionally(ex -> {
             log.warn().attr("topic", topic).exception(ex).log("Failed to get partitioned topic metadata");
             consumerSubscribedFuture.completeExceptionally(ex);
@@ -1184,7 +1190,7 @@ public class PulsarClientImpl implements PulsarClient {
                 externalExecutorProvider, consumerSubscribedFuture, schema, interceptors,
                 true /* createTopicIfDoesNotExist */);
 
-        consumers.add(consumer);
+        addConsumer(consumer);
 
         return consumerSubscribedFuture;
     }
@@ -1241,7 +1247,7 @@ public class PulsarClientImpl implements PulsarClient {
                         consumerSubscribedFuture,
                         schema, subscriptionMode, interceptors);
 
-                consumers.add(consumer);
+                addConsumer(consumer);
             })
             .exceptionally(ex -> {
                 log.warn().attr("namespaceName", namespaceName).log("Failed to get topics under namespace");
@@ -1296,7 +1302,7 @@ public class PulsarClientImpl implements PulsarClient {
         MultiTopicsReaderImpl<T> reader = new MultiTopicsReaderImpl<>(this,
                 conf, externalExecutorProvider, consumerSubscribedFuture, schema);
         ConsumerBase<T> consumer = reader.getMultiTopicsConsumer();
-        consumers.add(consumer);
+        addConsumer(consumer);
         consumerSubscribedFuture.thenRun(() -> readerFuture.complete(reader))
                 .exceptionally(ex -> {
                     log.warn().exception(ex).log("Failed to create multiTopicReader");
@@ -1335,7 +1341,7 @@ public class PulsarClientImpl implements PulsarClient {
                 consumer = ((ReaderImpl<T>) reader).getConsumer();
             }
 
-            consumers.add(consumer);
+            addConsumer(consumer);
 
             consumerSubscribedFuture.thenRun(() -> readerFuture.complete(reader)).exceptionally(ex -> {
                 log.warn().attr("topic", topic).exception(ex).log("Failed to get create topic reader");
@@ -1458,6 +1464,9 @@ public class PulsarClientImpl implements PulsarClient {
 
     @Override
     public void shutdown() throws PulsarClientException {
+        // Fail the producers, consumers and readers created from now on, as closeAsync() does before it gets here:
+        // they would wait for ever on the resources released below.
+        state.compareAndSet(State.Open, State.Closing);
         try {
             // We will throw the last thrown exception only, though logging all of them.
             Throwable throwable = null;
@@ -1496,7 +1505,9 @@ public class PulsarClientImpl implements PulsarClient {
                 conf.getServiceUrlProvider().close();
             }
 
-            if (addressResolver != null) {
+            // A DnsResolverGroupImpl hands the same resolver to every client on an event loop, so a resolver from a
+            // shared group is left to the group: closing it would break DNS for the clients that still use it.
+            if (addressResolver != null && dnsResolverGroupLocalInstance != null) {
                 try {
                     addressResolver.close();
                 } catch (Throwable t) {
@@ -1514,18 +1525,19 @@ public class PulsarClientImpl implements PulsarClient {
                 }
             }
 
+            // Close the connections before shutting down the event loop, which runs those closes before it terminates
+            try {
+                closeCnxPool(cnxPool);
+            } catch (PulsarClientException e) {
+                log.warn().exception(e).log("Failed to shutdown cnxPool");
+                throwable = e;
+            }
             try {
                 // Shutting down eventLoopGroup separately because in some cases, cnxPool might be using different
                 // eventLoopGroup.
                 shutdownEventLoopGroup(eventLoopGroup);
             } catch (PulsarClientException e) {
                 log.warn().exception(e).log("Failed to shutdown eventLoopGroup");
-                throwable = e;
-            }
-            try {
-                closeCnxPool(cnxPool);
-            } catch (PulsarClientException e) {
-                log.warn().exception(e).log("Failed to shutdown cnxPool");
                 throwable = e;
             }
             if (timer != null && needStopTimer) {
@@ -1633,6 +1645,8 @@ public class PulsarClientImpl implements PulsarClient {
         } catch (Throwable t) {
             log.warn().exception(t).log("Failed to shutdown Pulsar client");
             throw PulsarClientException.unwrap(t);
+        } finally {
+            state.set(State.Closed);
         }
     }
 
@@ -1649,7 +1663,12 @@ public class PulsarClientImpl implements PulsarClient {
     private void shutdownEventLoopGroup(EventLoopGroup eventLoopGroup) throws PulsarClientException {
         if (createdEventLoopGroup && eventLoopGroup != null && !eventLoopGroup.isShutdown()) {
             try {
-                eventLoopGroup.shutdownGracefully().get(CLOSE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+                // No quiet period: Netty's default of 2 s would hold every close for at least 2 s. The loop runs every
+                // task queued before the shutdown request before it terminates, including the connection closes that
+                // closeCnxPool() queued. Those closes are needed: when the request arrives while the loop is running
+                // tasks, Netty 4.2 ends a loop with no quiet period without closing its channels itself.
+                eventLoopGroup.shutdownGracefully(0, CLOSE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                        .get(CLOSE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
             } catch (Throwable t) {
                 throw PulsarClientException.unwrap(t);
             }
@@ -1894,7 +1913,8 @@ public class PulsarClientImpl implements PulsarClient {
                     blockingAuthExecutor());
         } else {
             lookupService = new BinaryProtoLookupService(this, url, conf.getListenerName(), conf.isUseTls(),
-                    this.scheduledExecutorProvider.getExecutor(), this.lookupExecutorProvider.getExecutor());
+                    (ScheduledExecutorService) this.scheduledExecutorProvider.getExecutor(),
+                    this.lookupExecutorProvider.getExecutor());
         }
         return new InProgressDeduplicationDecoratorLookupService(lookupService,
                 () -> getConfiguration().getLookupProperties());
@@ -1996,6 +2016,17 @@ public class PulsarClientImpl implements PulsarClient {
 
     void cleanupConsumer(ConsumerBase<?> consumer) {
         consumers.remove(consumer);
+    }
+
+    private void addConsumer(ConsumerBase<?> consumer) {
+        consumers.add(consumer);
+        // The subscription can fail before the consumer is added, from another thread or inside its constructor (a
+        // connection that fails at once, or a broker's error that arrives before the subscribe callbacks are
+        // attached), in which case the consumer has already failed or closed and removed itself from the client. Do
+        // not keep it then.
+        if (consumer.isTerminalState()) {
+            cleanupConsumer(consumer);
+        }
     }
 
     @VisibleForTesting

@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl.v5;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -147,7 +148,12 @@ public class V5ProducerSegmentGoneTest extends V5ClientBaseTest {
         PulsarClient client = newClient();
         String topic = newScalableTopic(1);
         long segmentId = singleActiveSegmentId(topic);
-        ScalableTopicProducer<byte[]> producer = newProducer(client, topic);
+        ScalableTopicProducer<byte[]> producer = (ScalableTopicProducer<byte[]>) track(
+                client.newProducer(Schema.bytes())
+                        .topic(topic)
+                        .batchingPolicy(BatchingPolicy.ofDisabled())
+                        .sendTimeout(Duration.ofSeconds(5))
+                        .create());
 
         Sends sends = new Sends();
         Thread sender = startSender(producer, sends);
@@ -155,7 +161,7 @@ public class V5ProducerSegmentGoneTest extends V5ClientBaseTest {
             Awaitility.await().until(() -> sends.segmentsAcked.contains(segmentId));
             // Terminate the segment topic underneath the layout: the state a split leaves the
             // producer in until the DAG watch delivers the new layout, held here until the sends'
-            // retry budget runs out. Terminated while quiet, so that no write fails on the closing
+            // retry budget or deadline expires. Terminated while quiet, so no write fails on the closing
             // ledger and fences the topic instead; then the sends flow again, and on past the first
             // failure.
             sends.pause.set(true);
@@ -170,8 +176,43 @@ public class V5ProducerSegmentGoneTest extends V5ClientBaseTest {
         }
         allSettled(sends).get(60, TimeUnit.SECONDS);
 
-        // Every send that found the segment gone failed fast on its one producer: none created another.
+        // Sends that found the segment gone failed on their one producer: none created another.
         assertEquals(producer.segmentProducersCreated.get(), 1);
+    }
+
+    @Test
+    public void closingTheClientFailsTheSendsWaitingForTheLayout() throws Exception {
+        PulsarClient client = newClient();
+        String topic = newScalableTopic(1);
+        long segmentId = singleActiveSegmentId(topic);
+        ScalableTopicProducer<byte[]> producer = newProducer(client, topic);
+
+        Sends sends = new Sends();
+        Thread sender = startSender(producer, sends);
+        try {
+            Awaitility.await().until(() -> sends.segmentsAcked.contains(segmentId));
+            // Terminate the segment topic underneath the layout, while quiet (see above). The sends
+            // that fail on it wait for a layout that never comes, and the ones after them are held
+            // behind them: none of them is in flight on a v4 producer that closing the client would
+            // fail.
+            sends.pause.set(true);
+            Awaitility.await().until(sends::drained);
+            admin.scalableTopics().terminateSegment(segmentTopic(topic, segmentId));
+            sends.pause.set(false);
+            Awaitility.await().until(() -> producer.waitingSendCount() > 0);
+            sends.pause.set(true);
+            Awaitility.await().until(() -> producer.inFlightSendCount() == 0);
+            assertEquals(sends.failed.get(), 0, "the sends must still be waiting for the layout");
+            client.close();
+        } finally {
+            stopSender(sender, sends);
+        }
+
+        // Closing the client fails them right away, well before their retry budget would run out.
+        allSettled(sends).get(2, TimeUnit.SECONDS);
+        assertTrue(sends.failed.get() > 0, "expected the waiting sends to fail");
+        assertEquals(((PulsarClientV5) client).v4Client().getMemoryLimitController().currentUsage(), 0,
+                "the failed sends must give their memory back");
     }
 
     @Test

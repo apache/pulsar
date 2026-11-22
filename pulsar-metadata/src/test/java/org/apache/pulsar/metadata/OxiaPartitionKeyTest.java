@@ -23,14 +23,20 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import io.oxia.testcontainers.OxiaContainer;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.Cleanup;
+import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.apache.pulsar.metadata.api.Option;
+import org.apache.pulsar.metadata.api.ScanConsumer;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -50,8 +56,7 @@ public class OxiaPartitionKeyTest {
 
     @BeforeClass
     public void start() {
-        oxiaServer = new OxiaContainer(OxiaContainer.DEFAULT_IMAGE_NAME).withShards(SHARDS);
-        oxiaServer.start();
+        oxiaServer = OxiaTestServer.start(SHARDS);
     }
 
     @AfterClass(alwaysRun = true)
@@ -113,5 +118,58 @@ public class OxiaPartitionKeyTest {
         List<String> children = store.getChildren(parent, opts).get();
         assertTrue(children.containsAll(List.of("a", "b")),
                 "expected children a and b, got: " + children);
+    }
+
+    @Test
+    public void scanByIndexFindsRecordsWithDifferentPartitionKeys() throws Exception {
+        @Cleanup
+        MetadataStore store = newStore();
+
+        // Each record has its own partition key, so the records are spread over the shards: each
+        // one lives on the shard of its partition key, not on the shard its path hashes to.
+        String prefix = "/partition-key-index-scan-" + System.nanoTime();
+        Map<String, String> expected = new HashMap<>();
+        for (int i = 0; i < 30; i++) {
+            String path = prefix + "/r-" + i;
+            String value = "v-" + i;
+            store.put(path, value.getBytes(StandardCharsets.UTF_8), Optional.of(-1L),
+                    Set.of(new Option.PartitionKey("group-" + i),
+                            new Option.SecondaryIndex("by-tag", "tag"))).get();
+            expected.put(path, value);
+        }
+
+        List<GetResult> results = new ArrayList<>();
+        store.scanByIndex(prefix, "by-tag", "tag", "tag", r -> true,
+                ScanConsumer.collectInto(results)).get();
+
+        assertEquals(toPathToValue(results), expected);
+    }
+
+    @Test
+    public void scanByIndexWithPartitionKeyFindsRecordsOfThatPartition() throws Exception {
+        @Cleanup
+        MetadataStore store = newStore();
+
+        String prefix = "/partition-key-index-scan-scoped-" + System.nanoTime();
+        Map<String, String> expected = new HashMap<>();
+        for (int i = 0; i < 10; i++) {
+            String path = prefix + "/r-" + i;
+            String value = "v-" + i;
+            store.put(path, value.getBytes(StandardCharsets.UTF_8), Optional.of(-1L),
+                    Set.of(new Option.PartitionKey("group-Z"),
+                            new Option.SecondaryIndex("by-tag", "tag"))).get();
+            expected.put(path, value);
+        }
+
+        List<GetResult> results = new ArrayList<>();
+        store.scanByIndex(prefix, "by-tag", "tag", "tag", r -> true,
+                ScanConsumer.collectInto(results), Set.of(new Option.PartitionKey("group-Z"))).get();
+
+        assertEquals(toPathToValue(results), expected);
+    }
+
+    private static Map<String, String> toPathToValue(List<GetResult> results) {
+        return results.stream().collect(Collectors.toMap(r -> r.getStat().getPath(),
+                r -> new String(r.getValue(), StandardCharsets.UTF_8)));
     }
 }

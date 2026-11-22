@@ -18,11 +18,24 @@
  */
 package org.apache.pulsar.broker.service.scalable;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
+import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.resources.ScalableTopicResources;
+import org.apache.pulsar.broker.service.scalable.SegmentOwnerMetrics.LoadReportResult;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.scalable.SegmentLoadStats;
 import org.apache.pulsar.metadata.api.CacheGetResult;
@@ -47,6 +60,9 @@ public class SegmentLoadReporterTest {
         store = new LocalMemoryMetadataStore("memory:local", MetadataStoreConfig.builder().build());
         resources = new ScalableTopicResources(store, 30);
         reporter = new SegmentLoadReporter(resources, THRESHOLD);
+        // The reporter writes nothing for a topic with no record.
+        resources.createScalableTopicAsync(TOPIC, ScalableTopicController.createInitialMetadata(1, 4, Map.of()))
+                .get();
     }
 
     @AfterMethod(alwaysRun = true)
@@ -58,6 +74,56 @@ public class SegmentLoadReporterTest {
 
     private static SegmentLoadStats stats(double msgIn) {
         return new SegmentLoadStats(msgIn, 0, 0, 0);
+    }
+
+    @Test
+    public void testReportOutcomeMetrics() throws Exception {
+        SegmentOwnerMetrics metrics = mock(SegmentOwnerMetrics.class);
+        var measured = new SegmentLoadReporter(resources, () -> THRESHOLD, metrics);
+        assertThat(measured.reportIfChanged(TOPIC, 0, stats(1000)).get()).isTrue();
+        assertThat(measured.reportIfChanged(TOPIC, 0, stats(1100)).get()).isFalse();
+        measured.forget(TOPIC, 0);
+        // An unchanged first sample on a new owner must also be counted as unchanged.
+        assertThat(measured.reportIfChanged(TOPIC, 0, stats(1100)).get()).isFalse();
+        assertThat(measured.reportIfChanged(TOPIC, 0, stats(2000)).get()).isTrue();
+        verify(metrics, times(2)).recordLoadReport(LoadReportResult.WRITTEN);
+        verify(metrics, times(2)).recordLoadReport(LoadReportResult.UNCHANGED);
+        verifyNoMoreInteractions(metrics);
+    }
+
+    @Test
+    public void testFailedReadAndWriteCountOnceAndAllowRetry() throws Exception {
+        SegmentOwnerMetrics metrics = mock(SegmentOwnerMetrics.class);
+        ScalableTopicResources failing = spy(resources);
+        var measured = new SegmentLoadReporter(failing, () -> THRESHOLD, metrics);
+        doReturn(CompletableFuture.failedFuture(new IllegalStateException("read failed")),
+                CompletableFuture.completedFuture(Optional.empty()))
+                .when(failing).getSegmentLoadAsync(TOPIC, 0);
+        assertThatThrownBy(() -> measured.reportIfChanged(TOPIC, 0, stats(1000)).join())
+                .hasRootCauseMessage("read failed");
+        doReturn(CompletableFuture.failedFuture(new IllegalStateException("write failed")),
+                CompletableFuture.completedFuture(null))
+                .when(failing).reportSegmentLoadAsync(any(), anyLong(), any());
+        assertThatThrownBy(() -> measured.reportIfChanged(TOPIC, 0, stats(1000)).join())
+                .hasRootCauseMessage("write failed");
+        assertThat(measured.reportIfChanged(TOPIC, 0, stats(1000)).get()).isTrue();
+        assertThat(measured.reportIfChanged(TOPIC, 0, stats(1000)).get()).isFalse();
+        verify(metrics, times(2)).recordLoadReport(LoadReportResult.FAILED);
+        verify(metrics).recordLoadReport(LoadReportResult.WRITTEN);
+        verify(metrics).recordLoadReport(LoadReportResult.UNCHANGED);
+        verifyNoMoreInteractions(metrics);
+    }
+
+    @Test
+    public void testSynchronousSamplingFailureIsReturnedAndCounted() {
+        SegmentOwnerMetrics metrics = mock(SegmentOwnerMetrics.class);
+        var measured = new SegmentLoadReporter(resources, () -> {
+            throw new IllegalStateException("threshold failed");
+        }, metrics);
+        CompletableFuture<Boolean> report = measured.reportIfChanged(TOPIC, 0, stats(1));
+        assertThatThrownBy(report::join).hasRootCauseMessage("threshold failed");
+        verify(metrics).recordLoadReport(LoadReportResult.FAILED);
+        verifyNoMoreInteractions(metrics);
     }
 
     // --- isMaterialChange (pure) ---
@@ -172,5 +238,41 @@ public class SegmentLoadReporterTest {
         reporter.reportIfChanged(TOPIC, 7, stats(100)).get();
         resources.deleteSegmentLoadAsync(TOPIC, 7).get();
         assertFalse(resources.getSegmentLoadAsync(TOPIC, 7).get().isPresent());
+    }
+
+    // --- deleted topic ---
+
+    @Test
+    public void testNoReportAfterTopicRecordDeleted() throws Exception {
+        assertTrue(reporter.reportIfChanged(TOPIC, 0, stats(1000)).get());
+        // The topic delete deletes the record before the segment topics, which stay loaded until then.
+        resources.deleteScalableTopicAsync(TOPIC).get();
+
+        // Neither the broker that reported before nor one whose segment topic just loaded writes.
+        boolean written = reporter.reportIfChanged(TOPIC, 0, stats(2000)).get();
+        boolean writtenByNewOwner =
+                new SegmentLoadReporter(resources, THRESHOLD).reportIfChanged(TOPIC, 1, stats(0)).get();
+
+        // A write would have brought the topic back, with no record.
+        assertThat(resources.listScalableTopicsAsync(TOPIC.getNamespaceObject()).get()).isEmpty();
+        assertFalse(written);
+        assertFalse(writtenByNewOwner);
+    }
+
+    @Test
+    public void testNoReportForTopicMarkedDeleted() throws Exception {
+        assertTrue(reporter.reportIfChanged(TOPIC, 0, stats(1000)).get());
+        // The topic delete marks the topic deleted before it deletes the record.
+        resources.markScalableTopicDeletedAsync(TOPIC).get();
+
+        boolean written = reporter.reportIfChanged(TOPIC, 0, stats(2000)).get();
+        boolean writtenByNewOwner =
+                new SegmentLoadReporter(resources, THRESHOLD).reportIfChanged(TOPIC, 1, stats(0)).get();
+
+        assertThat(resources.getSegmentLoadAsync(TOPIC, 0).get()).hasValueSatisfying(
+                stored -> assertThat(stored.getValue()).isEqualTo(stats(1000)));
+        assertThat(resources.getSegmentLoadAsync(TOPIC, 1).get()).isEmpty();
+        assertFalse(written);
+        assertFalse(writtenByNewOwner);
     }
 }

@@ -27,7 +27,7 @@ import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.EncryptionKeyInfo;
 
 /**
- * Example function that provide a constructor with map<string, object> argument
+ * Example function that provide a constructor with {@code map<string, object>} argument
  * to initialize the CryptoKeyReader class used by pulsar function.
  */
 @Data

@@ -24,6 +24,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.Collections;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.regex.Pattern;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.DeadLetterPolicy;
@@ -53,6 +55,30 @@ public class ConsumerConfigurationDataTest {
                 consumerConfigurationData.getMatchingTopicConfiguration(topicName);
 
         assertThat(topicConsumerConfigurationData.getPriorityLevel()).isEqualTo(expectedPriority);
+    }
+
+    @Test
+    public void testCloneForTopicKeepsOnlyThatTopic() {
+        ConsumerConfigurationData<String> conf = new ConsumerConfigurationData<>();
+        conf.setSubscriptionName("my-sub");
+        conf.setSubscriptionType(SubscriptionType.Shared);
+        conf.setTopicNames(new TreeSet<>(Set.of("topic-a", "topic-b", "topic-c")));
+        conf.getProperties().put("key", "value");
+
+        ConsumerConfigurationData<String> clone = conf.cloneForTopic("topic-b");
+
+        assertThat(clone.getTopicNames()).containsExactly("topic-b");
+        assertThat(clone.getSingleTopic()).isEqualTo("topic-b");
+        assertThat(clone.getSubscriptionName()).isEqualTo("my-sub");
+        assertThat(clone.getSubscriptionType()).isEqualTo(SubscriptionType.Shared);
+        assertThat(clone.getProperties()).containsEntry("key", "value");
+        // the clone's topic names and properties are its own
+        clone.getTopicNames().add("topic-d");
+        clone.getProperties().put("other", "value");
+        assertThat(conf.getTopicNames()).containsExactly("topic-a", "topic-b", "topic-c");
+        assertThat(conf.getProperties()).doesNotContainKey("other");
+        // as with clone()
+        assertThat(conf.clone().getTopicNames()).containsExactly("topic-a", "topic-b", "topic-c");
     }
 
     @Test

@@ -22,14 +22,16 @@ import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.commons.lang3.StringUtils.isNotEmpty;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.prometheus.client.hotspot.BufferPoolsExports;
-import io.prometheus.client.hotspot.ClassLoadingExports;
-import io.prometheus.client.hotspot.GarbageCollectorExports;
-import io.prometheus.client.hotspot.MemoryPoolsExports;
-import io.prometheus.client.hotspot.StandardExports;
-import io.prometheus.client.hotspot.ThreadExports;
-import io.prometheus.client.hotspot.VersionInfoExports;
 import io.prometheus.jmx.JmxCollector;
+import io.prometheus.metrics.instrumentation.jvm.JvmBufferPoolMetrics;
+import io.prometheus.metrics.instrumentation.jvm.JvmClassLoadingMetrics;
+import io.prometheus.metrics.instrumentation.jvm.JvmCompilationMetrics;
+import io.prometheus.metrics.instrumentation.jvm.JvmGarbageCollectorMetrics;
+import io.prometheus.metrics.instrumentation.jvm.JvmMemoryMetrics;
+import io.prometheus.metrics.instrumentation.jvm.JvmNativeMemoryMetrics;
+import io.prometheus.metrics.instrumentation.jvm.JvmRuntimeInfoMetric;
+import io.prometheus.metrics.instrumentation.jvm.JvmThreadsMetrics;
+import io.prometheus.metrics.instrumentation.jvm.ProcessMetrics;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -47,6 +49,7 @@ import lombok.CustomLog;
 import org.apache.commons.lang3.JavaVersion;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.SystemUtils;
+import org.apache.pulsar.common.functions.MemoryLimit;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
@@ -368,6 +371,10 @@ public class RuntimeUtils {
             // miss log events from the SLF4J logger (resolved via the root classloader).
             args.add("-Dlog4j2.contextSelector="
                     + "org.apache.logging.log4j.core.selector.BasicContextSelector");
+            // Log4j2 is shut down explicitly by JavaInstanceStarter after the instance has been closed.
+            // Otherwise Log4j2's own JVM shutdown hook can stop the appenders before Sink.close() and
+            // Function.close() have run, which drops the logs written by them.
+            args.add("-Dlog4j.shutdownHookEnabled=false");
             args.add("-Dpulsar.function.log.dir=" + genFunctionLogFolder(logDirectory, instanceConfig));
             args.add("-Dpulsar.function.log.file=" + String.format(
                     "%s-%s",
@@ -378,7 +385,6 @@ public class RuntimeUtils {
             args.add("-Dio.netty.tryReflectionSetAccessible=true");
             // Handle possible shaded Netty versions
             args.add("-Dorg.apache.pulsar.shade.io.netty.tryReflectionSetAccessible=true");
-            args.add("-Dio.grpc.netty.shaded.io.netty.tryReflectionSetAccessible=true");
 
             if (SystemUtils.isJavaVersionAtLeast(JavaVersion.JAVA_11)) {
                 // Needed for optimized Netty direct byte buffer support
@@ -507,6 +513,16 @@ public class RuntimeUtils {
             if (instanceConfig.isIgnoreUnknownConfigFields()) {
                 args.add("--ignore_unknown_config_fields");
             }
+
+            MemoryLimit clientMemoryLimit = instanceConfig.getPulsarClientMemoryLimit();
+            if (clientMemoryLimit != null && clientMemoryLimit.getLimitInBytes() != null) {
+                args.add("--pulsar_client_memory_limit_bytes");
+                args.add(String.valueOf(clientMemoryLimit.getLimitInBytes()));
+            }
+            if (clientMemoryLimit != null && clientMemoryLimit.getPercentOfMaxDirectMemory() != null) {
+                args.add("--pulsar_client_memory_limit_percent");
+                args.add(String.valueOf(clientMemoryLimit.getPercentOfMaxDirectMemory()));
+            }
         }
 
         // state storage configs
@@ -546,7 +562,10 @@ public class RuntimeUtils {
     }
 
     public static String getPrometheusMetrics(int metricsPort) throws IOException {
-        URL url = new URL(String.format("http://%s:%s", InetAddress.getLocalHost().getHostAddress(), metricsPort));
+        // An IPv6 host address is not bracketed here, which URI parsing would reject.
+        @SuppressWarnings("deprecation")
+        URL url = new URL(String.format("http://%s:%s/metrics", InetAddress.getLocalHost().getHostAddress(),
+                metricsPort));
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod("GET");
         try (BufferedReader rd = new BufferedReader(new InputStreamReader(conn.getInputStream()))) {
@@ -577,14 +596,19 @@ public class RuntimeUtils {
         } catch (MalformedObjectNameException ex) {
             System.err.println(ex);
         }
-        // Add the default exports from io.prometheus.client.hotspot.DefaultExports
-        new StandardExports().register(registry);
-        new MemoryPoolsExports().register(registry);
-        new BufferPoolsExports().register(registry);
-        new GarbageCollectorExports().register(registry);
-        new ThreadExports().register(registry);
-        new ClassLoadingExports().register(registry);
-        new VersionInfoExports().register(registry);
+        // The same set as JvmMetrics.builder().register(registry), registered one by one: JvmMetrics keeps every
+        // registry it has seen in a static set, which would retain each LocalRunner registry for the JVM's lifetime.
+        // JvmMemoryPoolAllocationMetrics is left out for the same reason: every registration adds a listener to
+        // the JVM's garbage collector beans that is never removed. simpleclient's set had no such family either.
+        JvmThreadsMetrics.builder().register(registry);
+        JvmBufferPoolMetrics.builder().register(registry);
+        JvmClassLoadingMetrics.builder().register(registry);
+        JvmCompilationMetrics.builder().register(registry);
+        JvmGarbageCollectorMetrics.builder().register(registry);
+        JvmMemoryMetrics.builder().register(registry);
+        JvmNativeMemoryMetrics.builder().register(registry);
+        JvmRuntimeInfoMetric.builder().register(registry);
+        ProcessMetrics.builder().register(registry);
     }
 
     public static String sanitizeFileName(String fileName) {

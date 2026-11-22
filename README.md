@@ -199,6 +199,12 @@ bin/pulsar standalone                                                    # run a
 ./gradlew sanityCheck                                                    # quickCheck + compile main/test (pre-PR)
 ```
 
+Standalone bookies use kernel-assigned ports by default. To use fixed ports, run
+`bin/pulsar standalone --bookkeeper-port 3181`; bookie 0 uses port 3181, bookie 1 uses 3182, and so on.
+For existing standalone data with legacy `host:port` bookie IDs, each bookie recovers its port from its cookie,
+which takes precedence over `--bookkeeper-port`. Existing bookie IDs are preserved because ledger metadata
+references them; new metadata-store-backed standalone bookies use `bk-0`, `bk-1`, and so on.
+
 For the full build, lint, test, and PR workflow — test groups, integration tests, Personal CI, and PR
 conventions — see [`CONTRIBUTING.md`](CONTRIBUTING.md). For the module map and the Gradle build
 infrastructure see [`ARCHITECTURE.md`](ARCHITECTURE.md), and for coding conventions see
@@ -263,7 +269,7 @@ Read https://pulsar.apache.org/contribute/setup-ide for setting up IntelliJ IDEA
 
 Pulsar slack channel at https://apache-pulsar.slack.com/
 
-You can self-register at https://communityinviter.com/apps/apache-pulsar/apache-pulsar
+You can self-register at https://pulsar.apache.org/slack-invite
 
 ## Security Policy
 

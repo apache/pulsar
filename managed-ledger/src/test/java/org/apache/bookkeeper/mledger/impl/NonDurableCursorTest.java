@@ -669,7 +669,13 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
         /* Position p3 = */ ledger.addEntry("entry-3".getBytes());
         /* Position p4 = */ ledger.addEntry("entry-4".getBytes());
         /* Position p5 = */ ledger.addEntry("entry-5".getBytes());
-        /* Position p6 = */ ledger.addEntry("entry-6".getBytes());
+        Position p6 = ledger.addEntry("entry-6".getBytes());
+
+        // The ledger holding p6 is full and rolls over asynchronously. Wait for the new ledger to be in place,
+        // since completing the rollover moves a cursor whose mark-delete position is at the last entry of
+        // a ledger to the start of the next ledger, for example from p1 to 4:-1.
+        ManagedLedgerImpl ledgerImpl = (ManagedLedgerImpl) ledger;
+        Awaitility.await().until(() -> ledgerImpl.getCurrentLedger().getId() > p6.getLedgerId());
 
         ManagedCursor c1 = ledger.newNonDurableCursor(PositionFactory.EARLIEST);
         assertEquals(c1.getReadPosition(), p1);

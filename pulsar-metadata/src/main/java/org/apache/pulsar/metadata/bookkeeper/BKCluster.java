@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.metadata.bookkeeper;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.commons.io.FileUtils.cleanDirectory;
 import java.io.File;
 import java.io.IOException;
@@ -31,20 +32,23 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import lombok.CustomLog;
 import lombok.Getter;
 import org.apache.bookkeeper.bookie.BookieImpl;
+import org.apache.bookkeeper.bookie.Cookie;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.common.allocator.PoolingPolicy;
 import org.apache.bookkeeper.common.component.Lifecycle;
-import org.apache.bookkeeper.common.component.LifecycleComponent;
 import org.apache.bookkeeper.common.component.LifecycleComponentStack;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.net.BookieId;
+import org.apache.bookkeeper.net.BookieSocketAddress;
 import org.apache.bookkeeper.proto.BookieServer;
 import org.apache.bookkeeper.replication.AutoRecoveryMain;
-import org.apache.bookkeeper.server.conf.BookieConfiguration;
+import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.bookkeeper.util.IOUtils;
 import org.apache.commons.io.FileUtils;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
@@ -63,7 +67,7 @@ public class BKCluster implements AutoCloseable {
 
     // BookKeeper related variables
     private final List<File> tmpDirs = new ArrayList<>();
-    private final List<LifecycleComponentStack> bookieComponents = new ArrayList<>();
+    private final List<Bookie> bookies = new ArrayList<>();
     @Getter
     private final List<ServerConfiguration> bsConfs = new ArrayList<>();
 
@@ -78,6 +82,8 @@ public class BKCluster implements AutoCloseable {
         private String metadataServiceUri;
         private int numBookies = 1;
         private String dataDir;
+        private String bookieIdPrefix;
+        private int bkPort;
 
         private boolean clearOldData;
 
@@ -98,6 +104,26 @@ public class BKCluster implements AutoCloseable {
 
         public BKClusterConf dataDir(String dataDir) {
             this.dataDir = dataDir;
+            return this;
+        }
+
+        /**
+         * Use {@code prefix-index} IDs for new bookies. The prefix must be unique among
+         * clusters sharing a metadata store. Existing cookies always retain their IDs.
+         * When unset, new bookie IDs include a hash of the data-directory path.
+         */
+        public BKClusterConf bookieIdPrefix(String bookieIdPrefix) {
+            this.bookieIdPrefix = bookieIdPrefix;
+            return this;
+        }
+
+        /**
+         * Set the base listening port for bookies, or zero for kernel-assigned ports.
+         * Legacy host:port cookies take precedence over this setting.
+         */
+        public BKClusterConf bkPort(int bkPort) {
+            checkArgument(bkPort >= 0 && bkPort <= 65535, "Invalid bookie base port: %s", bkPort);
+            this.bkPort = bkPort;
             return this;
         }
 
@@ -135,7 +161,17 @@ public class BKCluster implements AutoCloseable {
         PulsarMetadataClientDriver.init();
         System.setProperty("bookkeeper.metadata.bookie.drivers", PulsarMetadataBookieDriver.class.getName());
         System.setProperty("bookkeeper.metadata.client.drivers", PulsarMetadataClientDriver.class.getName());
-        startBKCluster(bkClusterConf.numBookies);
+        try {
+            startBKCluster(bkClusterConf.numBookies);
+        } catch (Exception e) {
+            // Bookies and providers that did come up would otherwise outlive the failed cluster.
+            try {
+                stopBKCluster();
+            } catch (Exception stopException) {
+                e.addSuppressed(stopException);
+            }
+            throw e;
+        }
     }
 
     private final Map<BookieServer, AutoRecoveryMain> autoRecoveryProcesses = new HashMap<>();
@@ -199,8 +235,23 @@ public class BKCluster implements AutoCloseable {
      * @throws Exception
      */
     protected void stopBKCluster() throws Exception {
-        bookieComponents.forEach(LifecycleComponentStack::close);
-        bookieComponents.clear();
+        bookies.forEach(Bookie::close);
+        bookies.clear();
+    }
+
+    /**
+     * A running bookie and the stats provider it was built around. {@code EmbeddedServer} does not start or
+     * stop an injected provider, so the provider is stopped here once the server is closed.
+     */
+    private record Bookie(LifecycleComponentStack server, StatsProvider statsProvider) implements AutoCloseable {
+        @Override
+        public void close() {
+            try {
+                server.close();
+            } finally {
+                statsProvider.stop();
+            }
+        }
     }
 
     protected void cleanupTempDirs() throws Exception {
@@ -227,12 +278,42 @@ public class BKCluster implements AutoCloseable {
             cleanDirectory(dataDir);
         }
 
-        // Bookies bind to a kernel-assigned port. Identity is established via a `bookieId`
-        // derived from the data dir path: bookies with the same dir (e.g. on cluster restart)
-        // get the same id so cookies match, while bookies with different dirs (e.g. separate
-        // test runs sharing the same metadata store) get different ids and don't collide.
-        String bookieId = "bk-" + index + "-" + Integer.toHexString(dataDir.getAbsolutePath().hashCode());
-        return newServerConfiguration(0, bookieId, dataDir, new File[]{dataDir});
+        // The cookie's identity is also referenced by ledger ensembles, so preserve it
+        // regardless of how IDs are configured for new bookies.
+        String bookieId = null;
+        File cookieDir = new File(dataDir, "current");
+        if (new File(cookieDir, "VERSION").exists()) {
+            bookieId = parseBookieAddressFromCookie(cookieDir);
+            if (bookieId.contains(":")) {
+                // Legacy standalone bookies must also retain their listening address.
+                BookieSocketAddress bookieAddress = new BookieSocketAddress(bookieId);
+                ServerConfiguration conf = newServerConfiguration(bookieAddress.getPort(), bookieId,
+                        dataDir, new File[]{dataDir});
+                conf.setAdvertisedAddress(bookieAddress.getHostName());
+                return conf;
+            }
+        }
+
+        // Standalone uses an explicit identity prefix;
+        // the default isolates test clusters with different directories sharing a metadata store.
+        if (bookieId == null) {
+            bookieId = clusterConf.bookieIdPrefix != null ? clusterConf.bookieIdPrefix + "-" + index
+                    : "bk-" + index + "-" + Integer.toHexString(dataDir.getAbsolutePath().hashCode());
+        }
+        int port = clusterConf.bkPort == 0 ? 0 : clusterConf.bkPort + index;
+        checkArgument(port <= 65535, "Bookie port out of range: %s", port);
+        return newServerConfiguration(port, bookieId, dataDir, new File[]{dataDir});
+    }
+
+    private String parseBookieAddressFromCookie(File dir) throws IOException {
+        Cookie cookie = Cookie.readFromDirectory(dir);
+        // Cookie has no public accessor for its bookie ID. The bookieHost field contains
+        // either a legacy host:port address or an ID independent of the network address.
+        Matcher matcher = Pattern.compile("bookieHost: \"([^\"]+)\"").matcher(cookie.toString());
+        if (!matcher.find()) {
+            throw new IOException("Missing bookie identity in cookie in " + dir);
+        }
+        return matcher.group(1);
     }
 
     private ClientConfiguration newClientConfiguration() {
@@ -260,14 +341,14 @@ public class BKCluster implements AutoCloseable {
     }
 
     protected void stopAllBookies(boolean shutdownClient) throws Exception {
-        bookieComponents.forEach(LifecycleComponent::close);
-        bookieComponents.clear();
+        bookies.forEach(Bookie::close);
+        bookies.clear();
         bsConfs.clear();
     }
 
     protected void startAllBookies() throws Exception {
         for (ServerConfiguration conf : bsConfs) {
-            bookieComponents.add(startBookie(conf));
+            bookies.add(startBookie(conf));
         }
     }
 
@@ -283,8 +364,7 @@ public class BKCluster implements AutoCloseable {
         ServerConfiguration conf = newServerConfiguration(index);
         bsConfs.add(conf);
         log.info().attr("port", conf.getBookiePort()).log("Starting new bookie");
-        LifecycleComponentStack server = startBookie(conf);
-        bookieComponents.add(server);
+        bookies.add(startBookie(conf));
         return conf.getBookiePort();
     }
 
@@ -292,37 +372,48 @@ public class BKCluster implements AutoCloseable {
      * Helper method to startup a bookie server using a configuration object.
      * Also, starts the auto recovery process if isAutoRecoveryEnabled is true.
      *
+     * <p>The bookie gets a stats provider of its own, with a private Prometheus registry where the provider
+     * supports one, so that it stays out of the registry the broker's /metrics reads when the bookie runs in
+     * the broker's JVM (standalone).
+     *
      * @param conf
      *            Server Configuration Object
      *
      */
-    protected LifecycleComponentStack startBookie(ServerConfiguration conf)
+    private Bookie startBookie(ServerConfiguration conf)
             throws Exception {
-        LifecycleComponentStack server =
-                org.apache.bookkeeper.server.Main.buildBookieServer(new BookieConfiguration(conf));
+        StatsProvider statsProvider = BookieStatsProviders.create(conf);
+        try {
+            // Inside the try: a provider whose start fails part way may already have bound its endpoint.
+            statsProvider.start(conf);
+            LifecycleComponentStack server = BookieStatsProviders.buildBookieServer(conf, statsProvider);
 
-        BookieId address = BookieImpl.getBookieId(conf);
-        // Start the bookie directly instead of using ComponentStarter.startComponent()
-        // which registers JVM shutdown hooks that are never cleaned up and can cause
-        // System.exit() during test cleanup, killing the test JVM.
-        server.start();
+            BookieId address = BookieImpl.getBookieId(conf);
+            // Start the bookie directly instead of using ComponentStarter.startComponent()
+            // which registers JVM shutdown hooks that are never cleaned up and can cause
+            // System.exit() during test cleanup, killing the test JVM.
+            server.start();
 
-        // Wait for up to 30 seconds for the bookie to start
-        for (int i = 0; i < 3000; i++) {
-            if (server.lifecycleState() == Lifecycle.State.STARTED) {
-                break;
+            // Wait for up to 30 seconds for the bookie to start
+            for (int i = 0; i < 3000; i++) {
+                if (server.lifecycleState() == Lifecycle.State.STARTED) {
+                    break;
+                }
+
+                Thread.sleep(10);
             }
 
-            Thread.sleep(10);
+            if (server.lifecycleState() != Lifecycle.State.STARTED) {
+                throw new RuntimeException("Bookie failed to start within timeout period");
+            }
+
+            log.info().attr("address", address).log("New bookie has been created");
+
+            return new Bookie(server, statsProvider);
+        } catch (Exception e) {
+            statsProvider.stop();
+            throw e;
         }
-
-        if (server.lifecycleState() != Lifecycle.State.STARTED) {
-            throw new RuntimeException("Bookie failed to start within timeout period");
-        }
-
-        log.info().attr("address", address).log("New bookie has been created");
-
-        return server;
     }
 
     private void startAutoRecovery(BookieServer bserver,

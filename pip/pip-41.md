@@ -2,9 +2,8 @@
 
 * **Status**: Accepted
 * **Author**: Jia Zhai, Sijie Guo
-* **Pull Request**:
-* **Mailing List discussion**:
 * **Release**: 2.5.0
+* **Mailing List discussion**: https://lists.apache.org/thread/85r7k4qw34zwhjw655nfl4z3o8fqvczq
 
 Design Proposal:
 

@@ -117,6 +117,83 @@ public class PackageNameTest {
         Assert.assertEquals("function://public/default/test@latest", name.toString());
     }
 
+    @DataProvider(name = "invalidPackageNameComponents")
+    public static Object[][] invalidPackageNameComponentsProvider() {
+        return new Object[][]{
+            {"..", "ns", "name", "v1"},
+            {".", "ns", "name", "v1"},
+            {"tenant", "..", "name", "v1"},
+            {"tenant", "ns", "..", "v1"},
+            {"tenant", "ns", ".", "v1"},
+            {"tenant", "ns", "name", ".."},
+            {"tenant", "ns", "name", "."},
+            {"tenant", "ns", "name", "../../../../function/other/ns/name/v1"},
+            {"tenant", "ns", "name", "v1/../v2"},
+            {"tenant", "ns", "name", "..\\..\\v1"},
+            {"tenant", "ns", "name\\..", "v1"},
+            {"tenant", "", "name", "v1"},
+            {"", "ns", "name", "v1"},
+            {"tenant", "ns", "", "v1"},
+            {"ten\0ant", "ns", "name", "v1"},
+            {"tenant", "n\0s", "name", "v1"},
+            {"tenant", "ns", "na\0me", "v1"},
+            {"tenant", "ns", "name", "v1\0"},
+        };
+    }
+
+    @Test(dataProvider = "invalidPackageNameComponents")
+    public void testInvalidPackageNameComponents(String tenant, String ns, String name, String version) {
+        try {
+            PackageName.get("function", tenant, ns, name, version);
+            Assert.fail("Package name components should have been rejected");
+        } catch (RuntimeException e) {
+            Assert.assertTrue(e.getCause() instanceof IllegalArgumentException, "Unexpected exception " + e);
+        }
+    }
+
+    @Test
+    public void testEmptyVersionDefaultsToLatest() {
+        PackageName packageName = PackageName.get("function", "tenant", "ns", "name", "");
+        Assert.assertEquals(packageName.getVersion(), "latest");
+        Assert.assertEquals(packageName.toString(), "function://tenant/ns/name@latest");
+        Assert.assertEquals(PackageName.get("function://tenant/ns/name").getVersion(), "latest");
+    }
+
+    @DataProvider(name = "invalidNamespaces")
+    public static Object[][] invalidNamespacesProvider() {
+        return new Object[][]{
+            {"tenant", ".."},
+            {"tenant", "."},
+            {"tenant", ""},
+            {"tenant", "a/b"},
+            {"tenant", "a\\b"},
+            {"tenant", "n\0s"},
+            {"..", "ns"},
+            {"", "ns"},
+            {null, "ns"},
+            {"tenant", null},
+        };
+    }
+
+    @Test(dataProvider = "invalidNamespaces")
+    public void testValidateNamespaceRejectsInvalidComponents(String tenant, String namespace) {
+        Assert.assertThrows(IllegalArgumentException.class, () -> PackageName.validateNamespace(tenant, namespace));
+    }
+
+    @Test
+    public void testValidateNamespaceAcceptsValidComponents() {
+        PackageName.validateNamespace("public", "default");
+        PackageName.validateNamespace("my.tenant", "my..ns");
+    }
+
+    @Test
+    public void testValidPackageNameComponentsWithDots() {
+        PackageName packageName = PackageName.get("function", "tenant", "ns", "my.name", "1.0..1");
+        Assert.assertEquals(packageName.getName(), "my.name");
+        Assert.assertEquals(packageName.getVersion(), "1.0..1");
+        Assert.assertEquals(packageName.toRestPath(), "function/tenant/ns/my.name/1.0..1");
+    }
+
     @Test
     public void testPathTraversalBypassConstructor() throws Exception {
         // Use the package-private constructor annotated with @VisibleForTesting

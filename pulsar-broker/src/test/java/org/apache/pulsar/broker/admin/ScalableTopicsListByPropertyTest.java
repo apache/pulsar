@@ -143,7 +143,7 @@ public class ScalableTopicsListByPropertyTest extends SharedPulsarBaseTest {
     @Test
     public void testTransactionInternalSuffixIsNotRejectedForNonPersistentOrScalableTopics() throws Exception {
         String ns = namespace();
-        admin.nonPersistentTopics().createPartitionedTopic(
+        admin.topics().createPartitionedTopic(
                 "non-persistent://" + ns + "/foo__transaction_pending_ack", 1);
         admin.scalableTopics().createScalableTopic(
                 "topic://" + ns + "/foo__transaction_pending_ack", 1, Map.of("owner", "test"));

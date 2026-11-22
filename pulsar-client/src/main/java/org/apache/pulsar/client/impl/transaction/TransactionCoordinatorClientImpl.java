@@ -79,7 +79,8 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
                                 .log("Transaction coordinator discovery selected");
                         return selected.start();
                     })
-                    .thenRun(() -> STATE_UPDATER.set(this, State.READY));
+                    // Don't undo a close that happened while starting.
+                    .thenRun(() -> STATE_UPDATER.compareAndSet(this, State.STARTING, State.READY));
         } else {
             return FutureUtil.failedFuture(
                     new CoordinatorClientStateException("Can not start while current state is " + state));
@@ -120,18 +121,22 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
     @Override
     public CompletableFuture<Void> closeAsync() {
         CompletableFuture<Void> result = new CompletableFuture<>();
-        if (getState() == State.CLOSING || getState() == State.CLOSED) {
+        State previousState = STATE_UPDATER.getAndUpdate(this,
+                current -> current == State.CLOSED ? State.CLOSED : State.CLOSING);
+        if (previousState == State.CLOSING || previousState == State.CLOSED) {
             log.warn("The transaction meta store is closing or closed, doing nothing.");
             result.complete(null);
         } else {
+            // The discovery is kept, not cleared: a request that read the READY state just before the close
+            // reaches the closed discovery, which fails it.
             if (discovery != null) {
                 try {
                     discovery.close();
                 } catch (Exception e) {
                     log.warn().exception(e).log("Close transaction coordinator discovery error");
                 }
-                discovery = null;
             }
+            STATE_UPDATER.set(this, State.CLOSED);
             result.complete(null);
         }
         return result;
@@ -162,6 +167,9 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
 
     @Override
     public CompletableFuture<TxnID> newTransactionAsync(long timeout, TimeUnit unit) {
+        if (state != State.READY) {
+            return notReadyFailure();
+        }
         TransactionMetaStoreHandler handler = discovery.nextHandler();
         if (handler == null) {
             return FutureUtil.failedFuture(new TransactionCoordinatorClientException(
@@ -182,6 +190,9 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
 
     @Override
     public CompletableFuture<Void> addPublishPartitionToTxnAsync(TxnID txnID, List<String> partitions) {
+        if (state != State.READY) {
+            return notReadyFailure();
+        }
         TransactionMetaStoreHandler handler = discovery.handlerForCoordinator(txnID.getMostSigBits());
         if (handler == null) {
             return FutureUtil.failedFuture(
@@ -203,6 +214,9 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
 
     @Override
     public CompletableFuture<Void> addSubscriptionToTxnAsync(TxnID txnID, String topic, String subscription) {
+        if (state != State.READY) {
+            return notReadyFailure();
+        }
         TransactionMetaStoreHandler handler = discovery.handlerForCoordinator(txnID.getMostSigBits());
         if (handler == null) {
             return FutureUtil.failedFuture(
@@ -226,6 +240,9 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
 
     @Override
     public CompletableFuture<Void> commitAsync(TxnID txnID) {
+        if (state != State.READY) {
+            return notReadyFailure();
+        }
         TransactionMetaStoreHandler handler = discovery.handlerForCoordinator(txnID.getMostSigBits());
         if (handler == null) {
             return FutureUtil.failedFuture(
@@ -246,6 +263,9 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
 
     @Override
     public CompletableFuture<Void> abortAsync(TxnID txnID) {
+        if (state != State.READY) {
+            return notReadyFailure();
+        }
         TransactionMetaStoreHandler handler = discovery.handlerForCoordinator(txnID.getMostSigBits());
         if (handler == null) {
             return FutureUtil.failedFuture(
@@ -258,6 +278,15 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
     @Override
     public State getState() {
         return state;
+    }
+
+    /**
+     * Fails a request made before the client started or after it closed: the request methods return a future, so
+     * they must not throw.
+     */
+    private <T> CompletableFuture<T> notReadyFailure() {
+        return FutureUtil.failedFuture(
+                new CoordinatorClientStateException("Can not send a request while current state is " + state));
     }
 
     /** @return the current coordinator handlers. Visible for testing. */

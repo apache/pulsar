@@ -6,7 +6,7 @@
    - [#1103](https://github.com/apache/incubator-pulsar/pull/1103)
    - [#1165](https://github.com/apache/incubator-pulsar/pull/1165)
    - [#1175](https://github.com/apache/incubator-pulsar/pull/1175)
- * **Mailing List discussion**:
+ * **Mailing List discussion**: https://lists.apache.org/thread/47c286jnws2xq5nk35gvv91qmp8jyyr3
 
 
 ## Motivation

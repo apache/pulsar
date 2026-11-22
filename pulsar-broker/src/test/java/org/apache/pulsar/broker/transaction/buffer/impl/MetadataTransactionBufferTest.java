@@ -21,23 +21,45 @@ package org.apache.pulsar.broker.transaction.buffer.impl;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.metadata.AbortedTxnRecord;
+import org.apache.pulsar.broker.transaction.metadata.SegmentWatermark;
 import org.apache.pulsar.broker.transaction.metadata.TxnEvent;
 import org.apache.pulsar.broker.transaction.metadata.TxnHeader;
 import org.apache.pulsar.broker.transaction.metadata.TxnIds;
@@ -47,9 +69,12 @@ import org.apache.pulsar.broker.transaction.metadata.TxnOpKind;
 import org.apache.pulsar.broker.transaction.metadata.TxnPaths;
 import org.apache.pulsar.broker.transaction.metadata.TxnState;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
+import org.apache.pulsar.metadata.api.ScanConsumer;
 import org.apache.pulsar.metadata.api.Stat;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
@@ -310,6 +335,126 @@ public class MetadataTransactionBufferTest {
     }
 
     @Test
+    public void clearSnapshotAndClose_waitsForStateUpdateInProgress_thenStopsUpdates() throws Exception {
+        // The segment delete deletes the durable state after the topic: deleting the topic must wait for the
+        // state update in progress, and no update may start afterwards, or it would re-create the state.
+        TxnMetadataStore spyStore = spy(txnStore);
+        CompletableFuture<Stat> watermarkWrite = new CompletableFuture<>();
+        doReturn(watermarkWrite).when(spyStore).casSegmentWatermark(eq(SEGMENT), any(), any());
+        MetadataTransactionBuffer tb = new MetadataTransactionBuffer(topic, spyStore);
+        tb.checkIfTBRecoverCompletely().get();
+
+        when(ledger.getLastConfirmedEntry()).thenReturn(PositionFactory.create(10, 1));
+        tb.syncMaxReadPositionForNormalPublish(PositionFactory.create(10, 1), false);
+        verify(spyStore).casSegmentWatermark(eq(SEGMENT), any(), any());
+
+        CompletableFuture<Void> deleted = tb.clearSnapshotAndClose();
+        assertThat(deleted).as("topic delete with a watermark write in progress").isNotDone();
+        watermarkWrite.complete(new Stat(TxnPaths.segmentWatermarkPath(SEGMENT), 0, 0, 0, false, true));
+        deleted.get();
+
+        // No update starts once the topic delete has started
+        when(ledger.getLastConfirmedEntry()).thenReturn(PositionFactory.create(10, 2));
+        tb.syncMaxReadPositionForNormalPublish(PositionFactory.create(10, 2), false);
+        verify(spyStore, times(1)).casSegmentWatermark(eq(SEGMENT), any(), any());
+    }
+
+    @Test
+    public void clearSnapshotAndClose_leavesStateOfTxnRecoveredAfterwards() throws Exception {
+        // A terminal txn that recovery finds only once the topic delete has started: its outcome is neither
+        // persisted nor are its op records deleted, so that it is recovered when the topic is loaded again, should
+        // the delete fail.
+        TxnID txnId = new TxnID(1, 1);
+        createOpenHeader(txnId);
+        Stat opRecord = txnStore.appendOp(TxnIds.toKey(txnId),
+                new TxnOp(TxnOpKind.WRITE, SEGMENT, null, 0L, 0L, null)).get();
+        abortTxn(txnId);
+        TxnMetadataStore spyStore = spy(txnStore);
+        CompletableFuture<Void> opScanReleased = new CompletableFuture<>();
+        doAnswer(inv -> opScanReleased.thenCompose(__ ->
+                txnStore.listWritesBySegment(SEGMENT, inv.getArgument(1))))
+                .when(spyStore).listWritesBySegment(eq(SEGMENT), any());
+        MetadataTransactionBuffer tb = new MetadataTransactionBuffer(topic, spyStore);
+
+        tb.clearSnapshotAndClose().get();
+        opScanReleased.complete(null);
+        // Recovery applies the terminal txns it finds before it completes: stateTail was complete
+        tb.checkIfTBRecoverCompletely().get();
+
+        verify(spyStore, never()).putAbortedTxn(any(), any(), anyLong(), anyLong());
+        assertThat(store.exists(opRecord.getPath()).get()).as("op record of the recovered txn").isTrue();
+    }
+
+    @Test
+    public void clearSnapshotAndClose_stillAppliesQueuedOutcomeInMemory() throws Exception {
+        // An outcome queued behind the state update in progress when the topic delete starts. Should the delete
+        // fail, the topic keeps serving with this buffer: the outcome must still apply in memory, or the txn stays
+        // open and keeps pinning maxReadPosition. Only its durable side effects are skipped.
+        TxnID txnId = new TxnID(1, 1);
+        createOpenHeader(txnId);
+        TxnMetadataStore spyStore = spy(txnStore);
+        CompletableFuture<Stat> watermarkWrite = new CompletableFuture<>();
+        doReturn(watermarkWrite).when(spyStore).casSegmentWatermark(eq(SEGMENT), any(), any());
+        MetadataTransactionBuffer tb = new MetadataTransactionBuffer(topic, spyStore);
+        tb.checkIfTBRecoverCompletely().get();
+        Position txnPos = tb.appendBufferToTxn(txnId, 0, payload("a")).get();
+        when(ledger.getLastConfirmedEntry()).thenReturn(PositionFactory.create(10, 2));
+        tb.syncMaxReadPositionForNormalPublish(PositionFactory.create(10, 2), false);
+        verify(spyStore).casSegmentWatermark(eq(SEGMENT), any(), any());
+
+        abortTxn(txnId);
+        txnStore.publishSegmentEvent(SEGMENT, new TxnEvent(TxnIds.toKey(txnId), TxnState.ABORTED)).get();
+        // The reconcile triggered by the event reads the header (the first read is the append's) and queues the
+        // outcome behind the watermark write
+        verify(spyStore, timeout(10_000).atLeast(2)).getHeader(TxnIds.toKey(txnId));
+        CompletableFuture<Void> deleted = tb.clearSnapshotAndClose();
+        watermarkWrite.complete(new Stat(TxnPaths.segmentWatermarkPath(SEGMENT), 0, 0, 0, false, true));
+        deleted.get();
+
+        Awaitility.await().untilAsserted(() -> {
+            assertThat(tb.getOngoingTxnCount()).as("open txns once the abort is applied").isZero();
+            assertThat(tb.isTxnAborted(txnId, txnPos)).isTrue();
+        });
+        assertThat(tb.getMaxReadPosition()).isEqualTo(PositionFactory.create(10, 2));
+        verify(spyStore, never()).putAbortedTxn(any(), any(), anyLong(), anyLong());
+        List<String> writeRecords = new ArrayList<>();
+        txnStore.listWritesBySegment(SEGMENT, new ScanConsumer() {
+            @Override
+            public void onNext(GetResult r) {
+                writeRecords.add(r.getStat().getPath());
+            }
+
+            @Override
+            public void onError(Throwable throwable) {
+            }
+
+            @Override
+            public void onCompleted() {
+            }
+        }).get();
+        assertThat(writeRecords).as("op records of the aborted txn").hasSize(1);
+    }
+
+    @Test
+    public void watermarkRecordDeletedUnderLiveBuffer_isCreatedAgain() throws Exception {
+        // A versioned write of a record that is gone fails with BadVersion, like one against a newer version: the
+        // buffer must then create the record again rather than keep writing against the version of the deleted one.
+        MetadataTransactionBuffer tb = new MetadataTransactionBuffer(topic, txnStore);
+        tb.checkIfTBRecoverCompletely().get();
+        publish(tb, 1);
+        Awaitility.await().untilAsserted(() -> assertThat(txnStore.getSegmentWatermark(SEGMENT).get()).isPresent());
+        txnStore.deleteSegmentWatermark(SEGMENT).get();
+
+        // The write after the delete finds the record gone, the next one creates it again
+        publish(tb, 2);
+        publish(tb, 3);
+
+        Awaitility.await().untilAsserted(() -> assertThat(txnStore.getSegmentWatermark(SEGMENT).get())
+                .as("watermark record after it was deleted under the live buffer")
+                .hasValueSatisfying(v -> assertThat(v.value()).isEqualTo(new SegmentWatermark(10, 3))));
+    }
+
+    @Test
     public void recoveryDiscoveredOpenTxn_pinsAtWatermark() throws Exception {
         // /txn/op records exist for an open txn (broker was processing publishes for txn T;
         // T's resolution hadn't yet completed; watermark was persisted at 5:0 before the crash).
@@ -456,10 +601,486 @@ public class MetadataTransactionBufferTest {
         assertThat(hits.get(0).getEntryId()).isZero();
     }
 
+    @Test
+    public void publishOrdering_entriesLandInPublishOrderWhenOpRecordsAreWrittenOutOfOrder() throws Exception {
+        // The op records of concurrent appends can be written in any order: on a store without native
+        // sequence keys, two appends to a txn race on its sequence counter and the loser retries. The
+        // entries must still land, and the publishes be acknowledged, in publish order: a producer
+        // acknowledged out of order drops its connection and re-sends its pending messages.
+        TxnID txnId = new TxnID(1, 1);
+        createOpenHeader(txnId);
+        CompletableFuture<Void> firstOpRecordHeld = new CompletableFuture<>();
+        TxnMetadataStore store = holdingFirstOpRecordWrite(firstOpRecordHeld);
+        MetadataTransactionBuffer tb = new MetadataTransactionBuffer(topic, store);
+        tb.checkIfTBRecoverCompletely().get();
+
+        CompletableFuture<Position> first = tb.appendBufferToTxn(txnId, 0, payload("a"));
+        CompletableFuture<Position> second = tb.appendBufferToTxn(txnId, 1, payload("b"));
+
+        // The in-memory store has written the second op record, while the first one is held back.
+        verify(store, times(2)).appendOp(any(), any());
+        assertThat(second).as("the append whose op record is written first").isNotDone();
+        verify(ledger, never()).asyncAddEntry(any(ByteBuf.class), any(), any());
+
+        firstOpRecordHeld.complete(null);
+        assertThat(first.get()).isLessThan(second.get());
+    }
+
+    @Test
+    public void publishOrdering_metadataFailureRejectsTheQueuedPublishGeneration() throws Exception {
+        TxnID txnId = new TxnID(1, 1);
+        createOpenHeader(txnId);
+        CompletableFuture<Stat> firstOpRecordWrite = new CompletableFuture<>();
+        TxnMetadataStore store = spy(txnStore);
+        doReturn(firstOpRecordWrite).doCallRealMethod().when(store).appendOp(any(), any());
+        List<CompletableFuture<Void>> closes = captureTopicCloses();
+        MetadataTransactionBuffer tb = new MetadataTransactionBuffer(topic, store);
+        tb.checkIfTBRecoverCompletely().get();
+        ByteBuf firstBytes = payload("a");
+        ByteBuf secondBytes = payload("b");
+        ByteBuf plainBytes = payload("plain");
+        try {
+            CompletableFuture<Position> first = tb.appendBufferToTxn(txnId, 120, firstBytes);
+            CompletableFuture<Position> second = tb.appendBufferToTxn(txnId, 121, secondBytes);
+            AtomicInteger plainCallbacks = new AtomicInteger();
+            CompletableFuture<Position> plain = addPlainEntry(tb, plainBytes, plainCallbacks);
+            assertThat(second).isNotDone();
+            MetadataStoreException injected = new MetadataStoreException("injected pre-ledger failure");
+            firstOpRecordWrite.completeExceptionally(injected);
+            assertThatThrownBy(first::get).hasCause(injected);
+            assertThatThrownBy(second::get).hasCause(injected);
+            assertThatThrownBy(plain::get).hasRootCauseInstanceOf(MetadataStoreException.class);
+            verify(ledger, never()).asyncAddEntry(any(ByteBuf.class), any(), any());
+            verify(ledger, never()).asyncAddEntry(any(ByteBuf.class), anyInt(), any(), any());
+            assertThat(firstBytes.refCnt()).isOne();
+            assertThat(secondBytes.refCnt()).isOne();
+            assertThat(plainBytes.refCnt()).isOne();
+            assertThat(plainCallbacks).hasValue(1);
+            assertThat(closes).hasSize(1);
+            verify(topic, times(1)).close(true);
+            closes.get(0).complete(null);
+            verify(topic, times(1)).close(true);
+            assertThat(plainCallbacks).hasValue(1);
+
+            // A loaded replacement buffer has a new ordering generation. No permanent poisoned
+            // tail or persisted format change prevents its lower sequence from reaching the ledger.
+            MetadataTransactionBuffer replacement = new MetadataTransactionBuffer(topic, store);
+            replacement.checkIfTBRecoverCompletely().get();
+            ByteBuf retry = payload("a");
+            try {
+                assertThat(replacement.appendBufferToTxn(txnId, 120, retry).get())
+                        .isEqualTo(PositionFactory.create(10, 1));
+            } finally {
+                retry.release();
+                replacement.closeAsync().get();
+            }
+        } finally {
+            firstBytes.release();
+            secondBytes.release();
+            plainBytes.release();
+            tb.closeAsync().get();
+        }
+    }
+
+    @Test
+    public void publishOrdering_queuedFailureDoesNotWaitForAnotherMetadataWriteOrClose() throws Exception {
+        TxnID txnId = new TxnID(1, 1);
+        createOpenHeader(txnId);
+        CompletableFuture<Stat> firstWrite = new CompletableFuture<>();
+        CompletableFuture<Stat> laterWrite = new CompletableFuture<>();
+        TxnMetadataStore store = spy(txnStore);
+        doReturn(firstWrite, laterWrite).when(store).appendOp(any(), any());
+        List<CompletableFuture<Void>> closes = captureTopicCloses();
+        MetadataTransactionBuffer tb = new MetadataTransactionBuffer(topic, store);
+        tb.checkIfTBRecoverCompletely().get();
+        ByteBuf firstBytes = payload("first");
+        ByteBuf laterBytes = payload("later");
+        try {
+            CompletableFuture<Position> first = tb.appendBufferToTxn(txnId, 120, firstBytes);
+            CompletableFuture<Position> later = tb.appendBufferToTxn(txnId, 121, laterBytes);
+            AtomicInteger laterCompletions = new AtomicInteger();
+            later.whenComplete((__, error) -> laterCompletions.incrementAndGet());
+            MetadataStoreException injected = new MetadataStoreException("metadata unavailable");
+            firstWrite.completeExceptionally(injected);
+            assertThatThrownBy(first::get).hasCause(injected);
+            assertThat(later).isCompletedExceptionally();
+            assertThatThrownBy(later::get).hasCause(injected);
+            assertThat(laterWrite).isNotDone();
+            laterWrite.completeExceptionally(new MetadataStoreException("late metadata failure"));
+            assertThat(laterCompletions).hasValue(1);
+            assertThat(closes).hasSize(1);
+            verify(topic, times(1)).close(true);
+            assertThat(firstBytes.refCnt()).isOne();
+            assertThat(laterBytes.refCnt()).isOne();
+        } finally {
+            laterWrite.completeExceptionally(new MetadataStoreException("late metadata failure"));
+            firstBytes.release();
+            laterBytes.release();
+            tb.closeAsync().get();
+        }
+    }
+
+    @Test
+    public void publishOrdering_metadataStoreReentryCannotPassTheFailedFirstPublish() throws Exception {
+        TxnID txnId = new TxnID(1, 1);
+        createOpenHeader(txnId);
+        CompletableFuture<Stat> firstWrite = new CompletableFuture<>();
+        TxnMetadataStore store = spy(txnStore);
+        AtomicReference<MetadataTransactionBuffer> buffer = new AtomicReference<>();
+        AtomicReference<CompletableFuture<Position>> reentered = new AtomicReference<>();
+        AtomicInteger writes = new AtomicInteger();
+        List<CompletableFuture<Void>> closes = captureTopicCloses();
+        ByteBuf firstBytes = payload("first");
+        ByteBuf laterBytes = payload("reentered");
+        doAnswer(invocation -> {
+            if (writes.getAndIncrement() == 0) {
+                reentered.set(buffer.get().appendBufferToTxn(txnId, 121, laterBytes));
+                return firstWrite;
+            }
+            return invocation.callRealMethod();
+        }).when(store).appendOp(any(), any());
+        MetadataTransactionBuffer tb = new MetadataTransactionBuffer(topic, store);
+        buffer.set(tb);
+        tb.checkIfTBRecoverCompletely().get();
+        try {
+            CompletableFuture<Position> first = tb.appendBufferToTxn(txnId, 120, firstBytes);
+            assertThat(reentered.get()).isNotDone();
+            verify(ledger, never()).asyncAddEntry(any(ByteBuf.class), any(), any());
+            MetadataStoreException injected = new MetadataStoreException("reentered metadata failure");
+            firstWrite.completeExceptionally(injected);
+            assertThatThrownBy(first::get).hasCause(injected);
+            assertThatThrownBy(() -> reentered.get().get()).hasCause(injected);
+            assertThat(closes).hasSize(1);
+            assertThat(firstBytes.refCnt()).isOne();
+            assertThat(laterBytes.refCnt()).isOne();
+            verify(ledger, never()).asyncAddEntry(any(ByteBuf.class), any(), any());
+        } finally {
+            firstBytes.release();
+            laterBytes.release();
+            tb.closeAsync().get();
+        }
+    }
+
+    @Test
+    public void publishOrdering_closeAdmissionPrecedesFailureCallbacks() throws Exception {
+        TxnID txnId = new TxnID(1, 1);
+        createOpenHeader(txnId);
+        captureTopicCloses();
+        AtomicBoolean closeStarted = new AtomicBoolean();
+        CompletableFuture<Void> close = new CompletableFuture<>();
+        when(topic.close(true)).thenAnswer(invocation -> {
+            closeStarted.set(true);
+            return close;
+        });
+        TxnMetadataStore store = spy(txnStore);
+        CompletableFuture<Stat> nativeWrite = new CompletableFuture<>();
+        doReturn(nativeWrite).when(store).appendOp(any(), any());
+        MetadataTransactionBuffer tb = new MetadataTransactionBuffer(topic, store);
+        tb.checkIfTBRecoverCompletely().get();
+        ByteBuf bytes = payload("first");
+        AtomicReference<Boolean> closeAtFailure = new AtomicReference<>();
+        try {
+            CompletableFuture<Position> append = tb.appendBufferToTxn(txnId, 120, bytes);
+            append.whenComplete((__, error) -> closeAtFailure.set(closeStarted.get()));
+            MetadataStoreException injected = new MetadataStoreException("metadata unavailable");
+            nativeWrite.completeExceptionally(injected);
+            assertThatThrownBy(append::get).hasCause(injected);
+            assertThat(closeAtFailure.get()).as("topic admission must close before the failed send callback").isTrue();
+            assertThat(close).as("the send failure need not await asynchronous close completion").isNotDone();
+            assertThat(bytes.refCnt()).isOne();
+            verify(topic, times(1)).close(true);
+        } finally {
+            close.complete(null);
+            bytes.release();
+            tb.closeAsync().get();
+        }
+    }
+
+    @Test
+    public void publishOrdering_synchronousCloseFailurePreservesTheOriginalMetadataFailure() throws Exception {
+        TxnID txnId = new TxnID(1, 1);
+        createOpenHeader(txnId);
+        captureTopicCloses();
+        doThrow(new RejectedExecutionException("close rejected")).when(topic).close(true);
+        TxnMetadataStore store = spy(txnStore);
+        MetadataStoreException injected = new MetadataStoreException("metadata unavailable");
+        doReturn(CompletableFuture.failedFuture(injected)).when(store).appendOp(any(), any());
+        MetadataTransactionBuffer tb = new MetadataTransactionBuffer(topic, store);
+        tb.checkIfTBRecoverCompletely().get();
+        ByteBuf bytes = payload("first");
+        try {
+            assertThatThrownBy(() -> tb.appendBufferToTxn(txnId, 120, bytes).get()).hasCause(injected);
+            assertThat(bytes.refCnt()).isOne();
+            verify(ledger, never()).asyncAddEntry(any(ByteBuf.class), any(), any());
+        } finally {
+            bytes.release();
+            tb.closeAsync().get();
+        }
+    }
+
+    @Test
+    public void publishOrdering_appendQueuedPastTheAbortOfItsTxnIsRejected() throws Exception {
+        // An append whose op record is written waits for the appends before it. An abort of its txn
+        // applied meanwhile records the positions known then (none here, so the LAC): an entry
+        // appended afterwards would sit above the aborted record, and be read as committed once the
+        // record is pruned because the ledger trimmed past it.
+        TxnID heldTxn = new TxnID(1, 1);
+        TxnID abortedTxn = new TxnID(1, 2);
+        createOpenHeader(heldTxn);
+        createOpenHeader(abortedTxn);
+        CompletableFuture<Void> firstOpRecordHeld = new CompletableFuture<>();
+        MetadataTransactionBuffer tb = new MetadataTransactionBuffer(topic,
+                holdingFirstOpRecordWrite(firstOpRecordHeld));
+        tb.checkIfTBRecoverCompletely().get();
+
+        CompletableFuture<Position> first = tb.appendBufferToTxn(heldTxn, 0, payload("a"));
+        CompletableFuture<Position> second = tb.appendBufferToTxn(abortedTxn, 0, payload("b"));
+        abortTxn(abortedTxn);
+        txnStore.publishSegmentEvent(SEGMENT, new TxnEvent(TxnIds.toKey(abortedTxn), TxnState.ABORTED)).get();
+        Awaitility.await().untilAsserted(() -> assertThat(tb.getAbortedTxnCount()).isOne());
+
+        firstOpRecordHeld.complete(null);
+        assertThat(first.get()).isEqualTo(PositionFactory.create(10, 1));
+        assertThatThrownBy(second::get).hasCauseInstanceOf(BrokerServiceException.NotAllowedException.class);
+        verify(ledger, times(1)).asyncAddEntry(any(ByteBuf.class), any(), any());
+    }
+
+    @Test
+    public void publishOrdering_plainEntriesLandAfterTheTransactionalAppendsPublishedBeforeThem() throws Exception {
+        // A transactional append writes its op record before its entry goes to the ledger, while a non-transactional
+        // entry would go right away. One published after a pending append must still land, and its publish be
+        // acknowledged, after it: a producer acknowledged out of order drops its connection and re-sends.
+        TxnID txnId = new TxnID(1, 1);
+        createOpenHeader(txnId);
+        CompletableFuture<Void> opRecordHeld = new CompletableFuture<>();
+        MetadataTransactionBuffer tb = new MetadataTransactionBuffer(topic, holdingFirstOpRecordWrite(opRecordHeld));
+        tb.checkIfTBRecoverCompletely().get();
+
+        CompletableFuture<Position> txnAppend = tb.appendBufferToTxn(txnId, 0, payload("a"));
+        ByteBuf plain = payload("b");
+        CompletableFuture<Position> plainAdd = addPlainEntry(tb, plain);
+        CompletableFuture<Position> laterPlainAdd = addPlainEntry(tb, payload("c"));
+        // The publisher releases the entry once the publish call returns: the buffer holds it until it adds it.
+        plain.release();
+        assertThat(plain.refCnt()).isOne();
+        assertThat(plainAdd).isNotDone();
+        verify(ledger, never()).asyncAddEntry(any(ByteBuf.class), anyInt(), any(), any());
+
+        opRecordHeld.complete(null);
+        assertThat(txnAppend.get()).isEqualTo(PositionFactory.create(10, 1));
+        assertThat(plainAdd).isCompletedWithValue(PositionFactory.create(10, 2));
+        assertThat(laterPlainAdd).isCompletedWithValue(PositionFactory.create(10, 3));
+        assertThat(plain.refCnt()).isZero();
+    }
+
+    @Test
+    public void publishOrdering_plainEntryGoesStraightToTheLedgerWhenNoAppendIsPending() throws Exception {
+        TxnID txnId = new TxnID(1, 1);
+        createOpenHeader(txnId);
+        MetadataTransactionBuffer tb = new MetadataTransactionBuffer(topic, txnStore);
+        tb.checkIfTBRecoverCompletely().get();
+
+        ByteBuf plain = payload("a");
+        assertThat(addPlainEntry(tb, plain)).isCompletedWithValue(PositionFactory.create(10, 1));
+        assertThat(plain.refCnt()).as("not retained by the buffer").isOne();
+        // The in-memory store writes the op record right away, so the append's entry is already in the ledger.
+        assertThat(tb.appendBufferToTxn(txnId, 0, payload("b"))).isCompletedWithValue(PositionFactory.create(10, 2));
+        assertThat(addPlainEntry(tb, payload("c"))).isCompletedWithValue(PositionFactory.create(10, 3));
+    }
+
+    @Test
+    public void publishOrdering_permanentTxnRejectionDoesNotHoldUpThePlainEntriesBehindIt() throws Exception {
+        TxnID txnId = new TxnID(1, 1);
+        createOpenHeader(txnId);
+        CompletableFuture<Stat> opRecordWrite = new CompletableFuture<>();
+        TxnMetadataStore store = spy(txnStore);
+        doReturn(opRecordWrite).when(store).appendOp(any(), any());
+        MetadataTransactionBuffer tb = new MetadataTransactionBuffer(topic, store);
+        tb.checkIfTBRecoverCompletely().get();
+        ByteBuf txnBytes = payload("a");
+        ByteBuf firstPlain = payload("b");
+        ByteBuf secondPlain = payload("c");
+        try {
+            CompletableFuture<Position> txnAppend = tb.appendBufferToTxn(txnId, 0, txnBytes);
+            CompletableFuture<Position> firstAdd = addPlainEntry(tb, firstPlain);
+            CompletableFuture<Position> secondAdd = addPlainEntry(tb, secondPlain);
+            assertThat(firstAdd).isNotDone();
+            assertThat(secondAdd).isNotDone();
+
+            // A typed terminal rejection is a permanent SDK failure, not a retryable sequence gap.
+            opRecordWrite.completeExceptionally(new BrokerServiceException.NotAllowedException("TxnConflict"));
+            assertThatThrownBy(txnAppend::get).hasCauseInstanceOf(BrokerServiceException.NotAllowedException.class);
+            assertThat(firstAdd).isCompletedWithValue(PositionFactory.create(10, 1));
+            assertThat(secondAdd).isCompletedWithValue(PositionFactory.create(10, 2));
+            verify(topic, never()).close(true);
+            assertThat(txnBytes.refCnt()).isOne();
+            assertThat(firstPlain.refCnt()).isOne();
+            assertThat(secondPlain.refCnt()).isOne();
+        } finally {
+            txnBytes.release();
+            firstPlain.release();
+            secondPlain.release();
+            tb.closeAsync().get();
+        }
+    }
+
+    @Test
+    public void publishOrdering_burstQueuedBehindAWrittenOpRecordIsHandedOverWithoutGrowingTheStack()
+            throws Exception {
+        // The publishes queued behind a pending op-record write all go once it completes, on the thread
+        // completing it: handing each one over from the callback of the one before overflows the stack.
+        TxnID txnId = new TxnID(1, 1);
+        createOpenHeader(txnId);
+        CompletableFuture<Void> opRecordHeld = new CompletableFuture<>();
+        MetadataTransactionBuffer tb = new MetadataTransactionBuffer(topic, holdingFirstOpRecordWrite(opRecordHeld));
+        tb.checkIfTBRecoverCompletely().get();
+        ByteBuf txnBytes = payload("txn");
+        List<ByteBuf> plainBytes = new ArrayList<>();
+        try {
+            CompletableFuture<Position> txnAppend = tb.appendBufferToTxn(txnId, 0, txnBytes);
+            AtomicInteger plainCallbacks = new AtomicInteger();
+            List<CompletableFuture<Position>> plainAdds = addPlainEntryBurst(tb, plainBytes, plainCallbacks);
+            assertThat(plainAdds).noneMatch(CompletableFuture::isDone);
+
+            opRecordHeld.complete(null);
+
+            assertThat(txnAppend.get()).isEqualTo(PositionFactory.create(10, 1));
+            assertThat(plainCallbacks).hasValue(PUBLISH_BURST);
+            for (int i = 0; i < PUBLISH_BURST; i++) {
+                assertThat(plainAdds.get(i)).isCompletedWithValue(PositionFactory.create(10, i + 2));
+                assertThat(plainBytes.get(i).refCnt()).as("released by the buffer").isOne();
+            }
+            assertThat(txnBytes.refCnt()).isOne();
+        } finally {
+            txnBytes.release();
+            plainBytes.forEach(ByteBuf::release);
+            tb.closeAsync().get();
+        }
+    }
+
+    @Test
+    public void publishOrdering_burstQueuedBehindAFailedOpRecordIsRejectedWithoutGrowingTheStack()
+            throws Exception {
+        TxnID txnId = new TxnID(1, 1);
+        createOpenHeader(txnId);
+        CompletableFuture<Stat> opRecordWrite = new CompletableFuture<>();
+        TxnMetadataStore store = spy(txnStore);
+        doReturn(opRecordWrite).when(store).appendOp(any(), any());
+        captureTopicCloses();
+        MetadataTransactionBuffer tb = new MetadataTransactionBuffer(topic, store);
+        tb.checkIfTBRecoverCompletely().get();
+        ByteBuf txnBytes = payload("txn");
+        List<ByteBuf> plainBytes = new ArrayList<>();
+        try {
+            CompletableFuture<Position> txnAppend = tb.appendBufferToTxn(txnId, 0, txnBytes);
+            AtomicInteger plainCallbacks = new AtomicInteger();
+            List<CompletableFuture<Position>> plainAdds = addPlainEntryBurst(tb, plainBytes, plainCallbacks);
+            assertThat(plainAdds).noneMatch(CompletableFuture::isDone);
+
+            MetadataStoreException injected = new MetadataStoreException("injected pre-ledger failure");
+            opRecordWrite.completeExceptionally(injected);
+
+            assertThatThrownBy(txnAppend::get).hasCause(injected);
+            assertThat(plainCallbacks).hasValue(PUBLISH_BURST);
+            for (int i = 0; i < PUBLISH_BURST; i++) {
+                assertThat(plainAdds.get(i)).isCompletedExceptionally();
+                assertThat(plainBytes.get(i).refCnt()).as("released by the buffer").isOne();
+            }
+            assertThatThrownBy(plainAdds.get(PUBLISH_BURST - 1)::get)
+                    .hasRootCauseInstanceOf(MetadataStoreException.class);
+            verify(ledger, never()).asyncAddEntry(any(ByteBuf.class), anyInt(), any(), any());
+            verify(topic, times(1)).close(true);
+            assertThat(txnBytes.refCnt()).isOne();
+        } finally {
+            txnBytes.release();
+            plainBytes.forEach(ByteBuf::release);
+            tb.closeAsync().get();
+        }
+    }
+
     // ---- helpers -----------------------------------------------------------
+
+    /** Enough publishes queued at once to overflow the stack if each is handed over by the one before. */
+    private static final int PUBLISH_BURST = 4096;
+
+    /** Queue {@link #PUBLISH_BURST} non-transactional entries, adding each one's bytes to {@code entries}. */
+    private List<CompletableFuture<Position>> addPlainEntryBurst(MetadataTransactionBuffer tb, List<ByteBuf> entries,
+                                                                 AtomicInteger callbacks) {
+        List<CompletableFuture<Position>> adds = new ArrayList<>(PUBLISH_BURST);
+        for (int i = 0; i < PUBLISH_BURST; i++) {
+            ByteBuf entry = payload("plain-" + i);
+            entries.add(entry);
+            adds.add(addPlainEntry(tb, entry, callbacks));
+        }
+        return adds;
+    }
+
+    private List<CompletableFuture<Void>> captureTopicCloses() {
+        ScheduledExecutorService executor = mock(ScheduledExecutorService.class);
+        PulsarService pulsar = mock(PulsarService.class);
+        when(pulsar.getExecutor()).thenReturn(executor);
+        when(pulsar.getConfiguration()).thenReturn(new ServiceConfiguration());
+        BrokerService broker = mock(BrokerService.class);
+        when(broker.getPulsar()).thenReturn(pulsar);
+        when(topic.getBrokerService()).thenReturn(broker);
+        List<CompletableFuture<Void>> closes = new ArrayList<>();
+        when(topic.close(true)).thenAnswer(invocation -> {
+            CompletableFuture<Void> closing = new CompletableFuture<>();
+            closes.add(closing);
+            return closing;
+        });
+        return closes;
+    }
 
     private static ByteBuf payload(String s) {
         return Unpooled.copiedBuffer(s.getBytes());
+    }
+
+    /** {@link #txnStore}, with the first op-record write completing only once {@code release} does. */
+    private TxnMetadataStore holdingFirstOpRecordWrite(CompletableFuture<Void> release) {
+        AtomicInteger opRecordWrites = new AtomicInteger();
+        TxnMetadataStore store = spy(txnStore);
+        doAnswer(inv -> {
+            CompletableFuture<?> written = (CompletableFuture<?>) inv.callRealMethod();
+            return opRecordWrites.getAndIncrement() == 0
+                    ? written.thenCombine(release, (stat, __) -> stat) : written;
+        }).when(store).appendOp(any(), any());
+        return store;
+    }
+
+    /** Add a non-transactional entry through the buffer, as a publish on the topic does. */
+    private CompletableFuture<Position> addPlainEntry(MetadataTransactionBuffer tb, ByteBuf entry) {
+        return addPlainEntry(tb, entry, null);
+    }
+
+    private CompletableFuture<Position> addPlainEntry(MetadataTransactionBuffer tb, ByteBuf entry,
+                                                     AtomicInteger callbacks) {
+        CompletableFuture<Position> added = new CompletableFuture<>();
+        tb.addEntryInPublishOrder(ledger, entry, 1, new AsyncCallbacks.AddEntryCallback() {
+            @Override
+            public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                if (callbacks != null) {
+                    callbacks.incrementAndGet();
+                }
+                added.complete(position);
+            }
+
+            @Override
+            public void addFailed(ManagedLedgerException exception, Object ctx) {
+                if (callbacks != null) {
+                    callbacks.incrementAndGet();
+                }
+                added.completeExceptionally(exception);
+            }
+        }, null);
+        return added;
+    }
+
+    /** A non-transactional publish at {@code 10:entryId}, the last entry of the segment from then on. */
+    private void publish(MetadataTransactionBuffer tb, long entryId) {
+        Position position = PositionFactory.create(10, entryId);
+        when(ledger.getLastConfirmedEntry()).thenReturn(position);
+        tb.syncMaxReadPositionForNormalPublish(position, false);
     }
 
     private void createOpenHeader(TxnID txnId) throws Exception {
@@ -494,6 +1115,12 @@ public class MetadataTransactionBufferTest {
             cb.addComplete(p, inv.getArgument(0), inv.getArgument(2));
             return null;
         }).when(ml).asyncAddEntry(any(ByteBuf.class), any(), any());
+        doAnswer(inv -> {
+            AsyncCallbacks.AddEntryCallback cb = inv.getArgument(2);
+            Position p = PositionFactory.create(10, nextEntryId.getAndIncrement());
+            cb.addComplete(p, inv.getArgument(0), inv.getArgument(3));
+            return null;
+        }).when(ml).asyncAddEntry(any(ByteBuf.class), anyInt(), any(), any());
         when(ml.getPreviousPosition(any())).thenAnswer(inv -> {
             Position p = inv.getArgument(0);
             return PositionFactory.create(p.getLedgerId(), p.getEntryId() - 1);

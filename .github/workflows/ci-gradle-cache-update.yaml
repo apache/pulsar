@@ -46,23 +46,30 @@ env:
   JDK_DISTRIBUTION: corretto
 
 jobs:
-  update-gradle-cache:
+  # Pulsar CI's build job restores a master Gradle User Home when its pull request has none of its
+  # own. One of setup-gradle's restore keys is the job id, so this job takes the build job's id and
+  # repeats its Gradle steps that fill the build cache, with the same JDKs. Gradle caches compile
+  # task outputs per JDK, so the JDK that runs Gradle must stay Pulsar CI's default
+  # (CI_JDK_MAJOR_VERSION in pulsar-ci.yaml).
+  build-and-license-check:
     name: Update Gradle cache
     runs-on: ubuntu-24.04
     timeout-minutes: 45
 
     steps:
       - name: checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
 
-      - name: Set up JDK 21
+      - name: Set up JDK 25
         uses: actions/setup-java@v5
         with:
           distribution: ${{ env.JDK_DISTRIBUTION }}
-          java-version: 21
+          java-version: |
+            17
+            25
 
       - name: Setup Gradle
         uses: ./.github/actions/setup-gradle
@@ -70,6 +77,15 @@ jobs:
           develocity-access-key: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
           cache-read-only: false
 
-      - name: Run Gradle build
-        run: |
-          ./gradlew assemble
+      - name: Build, check licenses and code style
+        run: >-
+          ./gradlew assemble rat spotlessCheck checkstyleMain checkstyleTest
+          --no-configuration-cache
+
+      - name: Check that project's public libraries can be published to a Maven repository
+        run: ./gradlew publishAllPublicationsToLocalDeployRepository
+
+      - name: Check API/SPI publication dependency closure with a custom group
+        run: >-
+          ./gradlew validateApiSpiPublication
+          -PpublishApiAndSpiOnly=true -Pgroup=myorg.pulsar

@@ -2,9 +2,7 @@
 
 - Status: Adopted
 - Author: Xiaolong Ran
-- Pull request:
-- Mailing list discussion:
-- Release:
+- Mailing list discussion: https://lists.apache.org/thread/xt4wtsy313qztt0n7h6tvd8hfqbq3bzj
 
 This proposal is to adopt Kafka's [Time Based Release Plan](https://cwiki.apache.org/confluence/display/KAFKA/Time+Based+Release+Plan).
 
@@ -89,3 +87,7 @@ The proposed schedule for Apache Pulsar is shown below.
 - March 2020 - June 2020
 - June 2020 - September 2020
 - September 2020 - December 2020
+
+# Links
+
+* Mailing List voting thread: https://lists.apache.org/thread/8970t1714ttz15h4rtgylctdpt1l0c5x

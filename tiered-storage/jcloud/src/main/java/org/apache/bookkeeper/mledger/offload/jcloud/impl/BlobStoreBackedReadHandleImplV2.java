@@ -43,6 +43,7 @@ import org.apache.bookkeeper.client.impl.LedgerEntriesImpl;
 import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
 import org.apache.bookkeeper.mledger.LedgerOffloaderStats;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.OffloadedLedgerHandle;
 import org.apache.bookkeeper.mledger.offload.jcloud.BackedInputStream;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockV2;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockV2Builder;
@@ -54,10 +55,13 @@ import org.jclouds.blobstore.KeyNotFoundException;
 import org.jclouds.blobstore.domain.Blob;
 
 @CustomLog
-public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
+public class BlobStoreBackedReadHandleImplV2 implements ReadHandle, OffloadedLedgerHandle {
 
     private final long ledgerId;
     private final List<OffloadIndexBlockV2> indices;
+    // Copied at open time since the indices are recycled on close, while the managed ledger may still use the handle,
+    // which it closes when it no longer reads the ledger
+    private final LedgerMetadata ledgerMetadata;
     private final List<BackedInputStream> inputStreams;
     private final List<DataInputStream> dataStreams;
     private final ExecutorService executor;
@@ -103,6 +107,8 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
                                             ExecutorService executor) {
         this.ledgerId = ledgerId;
         this.indices = indices;
+        // the most complete one
+        this.ledgerMetadata = indices.get(indices.size() - 1).getLedgerMetadata(ledgerId);
         this.inputStreams = inputStreams;
         this.dataStreams = new LinkedList<>();
         for (BackedInputStream inputStream : inputStreams) {
@@ -119,8 +125,7 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
 
     @Override
     public LedgerMetadata getLedgerMetadata() {
-        //get the most complete one
-        return indices.get(indices.size() - 1).getLedgerMetadata(ledgerId);
+        return ledgerMetadata;
     }
 
     @Override

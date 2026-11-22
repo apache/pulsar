@@ -464,7 +464,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     @Override
     public CompletableFuture<String> getNamespaceAntiAffinityGroupAsync(String namespace) {
         return asyncGetNamespaceParts(new FutureCallback<String>() {
-        }, namespace, "antiAffinity");
+        }, namespace, "antiAffinity")
+                .thenApply(value -> StringUtils.isEmpty(value) ? null : value);
     }
 
     @Override
@@ -902,7 +903,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     @Override
     public CompletableFuture<String> getReplicationConfigVersionAsync(String namespace) {
         return asyncGetNamespaceParts(new FutureCallback<String>() {
-        }, namespace, "configversion");
+        }, namespace, "configversion")
+                .thenApply(value -> StringUtils.isEmpty(value) ? null : value);
     }
 
     @Override
@@ -1206,6 +1208,20 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
             String subscription) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, bundle, "clearBacklog", subscription);
+        return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
+    }
+
+    /**
+     * Used by the broker when dispatching to namespace bundles; not part of the public
+     * {@link org.apache.pulsar.client.admin.Namespaces} API.
+     * The subscription-only route is deliberately distinct so that older owners reject it rather than ignore
+     * an unknown query parameter and resolve the name as a replicator cursor.
+     */
+    public CompletableFuture<Void> clearNamespaceBundleBacklogForSubscriptionAsync(String namespace, String bundle,
+            String subscription, boolean subscriptionOnly) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, bundle,
+                subscriptionOnly ? "clearSubscriptionBacklog" : "clearBacklog", subscription);
         return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
     }
 
@@ -1963,7 +1979,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     @Override
     public CompletableFuture<String> getNamespaceResourceGroupAsync(String namespace) {
         return asyncGetNamespaceParts(new FutureCallback<String>() {
-        }, namespace, "resourcegroup");
+        }, namespace, "resourcegroup")
+                .thenApply(value -> StringUtils.isEmpty(value) ? null : value);
     }
 
     @Override
@@ -1989,7 +2006,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
             @Override
             public void failed(Throwable throwable) {
-                future.completeExceptionally(getApiException(throwable.getCause()));
+                future.completeExceptionally(mapInvocationFailure(throwable));
             }
         });
         return future;

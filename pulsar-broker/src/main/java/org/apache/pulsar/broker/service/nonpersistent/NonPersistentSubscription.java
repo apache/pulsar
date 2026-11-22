@@ -189,6 +189,9 @@ public class NonPersistentSubscription extends AbstractSubscription {
         msgOutFromRemovedConsumer.add(stats.msgOutCounter);
         // Unsubscribe when all the consumers disconnected.
         if (dispatcher != null && CollectionUtils.isEmpty(dispatcher.getConsumers())) {
+            // Fence under the same lock as addConsumer before queuing removal, so a reconnect cannot
+            // attach to this subscription while it is being removed from the topic.
+            IS_FENCED_UPDATER.set(this, TRUE);
             topic.unsubscribe(subName);
         }
 

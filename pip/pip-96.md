@@ -6,8 +6,7 @@
 
 **Pull Request**: https://github.com/apache/pulsar/pull/12088
 
-**Mailing List discussion**:
-https://lists.apache.org/thread.html/rb4df052fdea1d6791ecdebdd09bb4cbc27ffec307ad678afb1157c6c%40%3Cdev.pulsar.apache.org%3E
+**Mailing List discussion**: https://lists.apache.org/thread/pnfx8fsfwpkvk7ctpv1skhdjkscv26ng
 
 **Release**: 2.9.0
 
@@ -258,3 +257,7 @@ Therefore, we should do it at the client side. It could bring overhead for Pulsa
 Also, this proposal tried to load converter before, but it will be hard to maintain the compatibility.
 
 This proposal has used the payload converter that converts a payload to `Iterable<Message<T>>` before, but the implementation is complex and has some flaws.
+
+# Links
+
+* Mailing List voting thread: https://lists.apache.org/thread/pnfx8fsfwpkvk7ctpv1skhdjkscv26ng

@@ -135,10 +135,10 @@ public class PersistentTopics extends PersistentTopicsBase {
             @Parameter(description = "properties for customized topic listing plugin, format: k1=v1,k2=v2")
             @QueryParam("properties") String propertiesStr) {
         validateNamespaceName(tenant, namespace);
-        internalGetListAsync(Optional.ofNullable(bundle), parseProperties(propertiesStr))
+        internalGetListAsync(asyncResponse, Optional.ofNullable(bundle), parseProperties(propertiesStr))
             .thenAccept(topicList -> asyncResponse.resume(filterSystemTopic(topicList, includeSystemTopic)))
             .exceptionally(ex -> {
-                if (isNot307And404Exception(ex)) {
+                if (isNot307And404Exception(ex) && !isTopicListLimitRejection(ex)) {
                     log.error()
                             .attr("namespace", namespaceName)
                             .exception(ex)
@@ -172,11 +172,11 @@ public class PersistentTopics extends PersistentTopicsBase {
             @Parameter(description = "Include system topic")
             @QueryParam("includeSystemTopic") boolean includeSystemTopic) {
         validateNamespaceName(tenant, namespace);
-        internalGetPartitionedTopicListAsync()
+        internalGetPartitionedTopicListAsync(asyncResponse)
                 .thenAccept(partitionedTopicList -> asyncResponse.resume(
                         filterSystemTopic(partitionedTopicList, includeSystemTopic)))
                 .exceptionally(ex -> {
-                    if (isNot307And404Exception(ex)) {
+                    if (isNot307And404Exception(ex) && !isTopicListLimitRejection(ex)) {
                         log.error()
                                 .attr("namespace", namespaceName)
                                 .exception(ex)
@@ -1151,6 +1151,8 @@ public class PersistentTopics extends PersistentTopicsBase {
         @ApiResponse(responseCode = "403", description = "Don't have admin permission"),
         @ApiResponse(responseCode = "404", description = "Namespace or topic or subscription does not exist"),
         @ApiResponse(responseCode = "405", description = "Method Not Allowed"),
+        @ApiResponse(responseCode = "412",
+                description = "Invalid shadow source or attempt to change the source after topic creation"),
         @ApiResponse(responseCode = "500", description = "Internal server error"),
         @ApiResponse(responseCode = "503", description = "Failed to validate global cluster configuration")
     })
@@ -2839,7 +2841,6 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(responseCode = "404", description = "Namespace or topic doesn't exist"),
             @ApiResponse(responseCode = "405", description =
                     "Topic level policy is disabled, enable the topic level policy and retry")})
-    @SuppressWarnings("deprecation")
     public void getMessageTTL(@Suspended final AsyncResponse asyncResponse,
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
@@ -2851,17 +2852,8 @@ public class PersistentTopics extends PersistentTopicsBase {
         validateTopicName(tenant, namespace, encodedTopic);
         validateTopicPolicyOperationAsync(topicName, PolicyName.TTL, PolicyOperation.READ)
             .thenCompose(__ -> preValidation(authoritative))
-            .thenCompose(__ -> getTopicPoliciesAsyncWithRetry(topicName, isGlobal))
-            .thenAccept(op -> asyncResponse.resume(op
-                .map(TopicPolicies::getMessageTTLInSeconds)
-                .orElseGet(() -> {
-                    if (applied) {
-                        Integer otherLevelTTL = getNamespacePolicies(namespaceName).message_ttl_in_seconds;
-                        return otherLevelTTL == null ? pulsar().getConfiguration().getTtlDurationDefaultInSeconds()
-                                : otherLevelTTL;
-                    }
-                    return null;
-                })))
+            .thenCompose(__ -> internalGetMessageTTL(applied, isGlobal))
+            .thenAccept(asyncResponse::resume)
             .exceptionally(ex -> {
                 handleTopicPolicyException("getMessageTTL", ex, asyncResponse);
                 return null;

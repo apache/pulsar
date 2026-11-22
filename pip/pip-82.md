@@ -2,9 +2,7 @@
 
 * **Status**: Proposal
 * **Authors**: Bharani Chadalavada, Kaushik Ghosh, Ravi Vaidyanathan, Matteo Merli
-* **Pull Request**:
-* **Mailing List discussion**:
-* **Release**:
+* **Mailing List discussion**: https://lists.apache.org/thread/3lwnp6x849w3s7t14xk2wt8g17r77f38
 
 ## Motivation
 

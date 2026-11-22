@@ -19,7 +19,7 @@
 extends: iot-telemetry.yaml
 workloads:
   iotTelemetry:
-    clientRestartIntervalSeconds: 30
-    clientRestartFraction: 0.1
-output:
-  directory: build/performance/iot-telemetry-restarts
+    behaviors:
+      podRestarts:
+        intervalSeconds: 30
+        fraction: 0.1

@@ -81,3 +81,7 @@ When we use the new marker method, the written entry will be recorded with a spe
 3.When `maxIndividualAckCacheBytesPerCursor` is less than the acknowledgement data of a ledger, can it be saved and restored correctly?
 4.Normal LRU switching
 5.When the LRU is switched, the data to be swapped in requires at least 2 ledgers to be swapped out
+
+# Links
+
+* Mailing List discussion thread: https://lists.apache.org/thread/y0r9kk0968ydpxtf16x6ql3x6kwy7dc1
