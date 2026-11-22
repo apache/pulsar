@@ -63,6 +63,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -74,6 +75,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Function;
+import java.util.function.LongFunction;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.AccessLevel;
@@ -3006,25 +3008,27 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (function == null) {
             return FutureUtil.failedFuture(new PulsarClientException("Function must be set"));
         }
-        Object seekPosition = function.apply(topic);
+        return seekAsyncAtPosition(function.apply(topic));
+    }
+
+    CompletableFuture<Void> seekAsyncAtPosition(Object seekPosition) {
         if (seekPosition == null) {
             return CompletableFuture.completedFuture(null);
         }
-        if (seekPosition instanceof MessageId) {
-            return seekAsync((MessageId) seekPosition);
-        } else if (seekPosition.getClass().getTypeName()
-                .equals(Long.class.getTypeName())) {
-            return seekAsync((long) seekPosition);
+        if (seekPosition instanceof MessageId messageId) {
+            return seekAsync(messageId);
+        } else if (seekPosition instanceof Long timestamp) {
+            return seekAsync(timestamp.longValue());
         }
         return FutureUtil.failedFuture(
                 new PulsarClientException("Only support seek by messageId or timestamp"));
     }
 
-    private CompletableFuture<Void> seekAsyncInternal(long requestId, ByteBuf seek, MessageId seekId,
-                                                      Long seekTimestamp, String seekBy) {
-        AtomicLong opTimeoutMs = new AtomicLong(client.getConfiguration().getOperationTimeoutMs());
+    private CompletableFuture<Void> startSeek(MessageIdAdv seekId, boolean byTimestamp, String seekBy,
+                                              LongFunction<ByteBuf> encodeCommand) {
+        long opTimeoutMs = client.getConfiguration().getOperationTimeoutMs();
         Backoff backoff = Backoff.builder()
-                .maxBackoff(Duration.ofMillis(opTimeoutMs.get() * 2))
+                .maxBackoff(Duration.ofMillis(opTimeoutMs * 2))
                 .build();
 
         if (!seekStatus.compareAndSet(SeekStatus.NOT_STARTED, SeekStatus.IN_PROGRESS)) {
@@ -3035,22 +3039,38 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     .log("Attempting to seek operation that is already in progress, cancelling");
             return FutureUtil.failedFuture(new IllegalStateException(message));
         }
-        seekFuture = new CompletableFuture<>();
-        seekAsyncInternal(requestId, seek, seekId, seekTimestamp, seekBy, backoff, opTimeoutMs);
-        return seekFuture;
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        seekFuture = future;
+        attemptSeek(seekId, byTimestamp, seekBy, encodeCommand, backoff, opTimeoutMs);
+        return future;
     }
 
-    private void seekAsyncInternal(long requestId, ByteBuf seek, MessageId seekId, Long seekTimestamp, String seekBy,
-                                   final Backoff backoff, final AtomicLong remainingTime) {
+    private void attemptSeek(MessageIdAdv seekId, boolean byTimestamp, String seekBy,
+                             LongFunction<ByteBuf> encodeCommand, Backoff backoff, long remainingTime) {
         ClientCnx cnx = cnx();
-        if (isConnected() && cnx != null) {
+        State state = getState();
+        if (state == State.Closing || state == State.Closed) {
+            failSeek(new PulsarClientException.AlreadyClosedException("Consumer was already closed"));
+            return;
+        }
+        if (cnx != null && state == State.Ready) {
+            // The retry task holds only the seek position. Allocate the buffer at the point of sending it.
+            final long requestId;
+            final ByteBuf seek;
+            try {
+                requestId = client.newRequestId();
+                seek = encodeCommand.apply(requestId);
+            } catch (Throwable t) {
+                failSeek(t);
+                return;
+            }
             MessageIdAdv originSeekMessageId = seekMessageId;
-            seekMessageId = (MessageIdAdv) seekId;
+            seekMessageId = seekId;
             log.info().attr("seekBy", seekBy)
                     .log("Seeking subscription to");
 
             final boolean originalHasSoughtByTimestamp = hasSoughtByTimestamp;
-            hasSoughtByTimestamp = (seekTimestamp != null);
+            hasSoughtByTimestamp = byTimestamp;
             cnx.sendRequestWithId(seek, requestId).thenRun(() -> {
                 log.info().attr("seekBy", seekBy)
                         .log("Successfully reset subscription to");
@@ -3086,23 +3106,25 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                         subscription, topicName.toString(), seekBy)));
                 return null;
             });
-        } else {
-            long nextDelay = Math.min(backoff.next().toMillis(), remainingTime.get());
-            if (nextDelay <= 0) {
-                failSeek(
-                        new PulsarClientException.TimeoutException(
-                                String.format("The subscription %s of the topic %s could not seek "
-                                        + "withing configured timeout", subscription, topicName.toString())));
-                return;
-            }
+            return;
+        }
 
+        long nextDelay = Math.min(backoff.next().toMillis(), remainingTime);
+        if (nextDelay <= 0) {
+            failSeek(new PulsarClientException.TimeoutException(
+                    String.format("The subscription %s of the topic %s could not seek "
+                            + "withing configured timeout", subscription, topicName.toString())));
+            return;
+        }
+        try {
             ((ScheduledExecutorService) client.getScheduledExecutorProvider().getExecutor()).schedule(() -> {
                 log.warn().attr("handler", getHandlerName())
                         .attr("nextDelay", nextDelay)
                         .log("Could not get connection while seek -- Will try again in ms");
-                remainingTime.addAndGet(-nextDelay);
-                seekAsyncInternal(requestId, seek, seekId, seekTimestamp, seekBy, backoff, remainingTime);
+                attemptSeek(seekId, byTimestamp, seekBy, encodeCommand, backoff, remainingTime - nextDelay);
             }, nextDelay, TimeUnit.MILLISECONDS);
+        } catch (RejectedExecutionException e) {
+            failSeek(e);
         }
     }
 
@@ -3120,35 +3142,33 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     @Override
     public CompletableFuture<Void> seekAsync(long timestamp) {
         String seekBy = String.format("the timestamp %d", timestamp);
-        long requestId = client.newRequestId();
-        return seekAsyncInternal(requestId, Commands.newSeek(consumerId, requestId, timestamp),
-                MessageId.earliest, timestamp, seekBy);
+        return startSeek((MessageIdAdv) MessageId.earliest, true, seekBy,
+                requestId -> Commands.newSeek(consumerId, requestId, timestamp));
     }
 
     @Override
     public CompletableFuture<Void> seekAsync(MessageId messageId) {
         String seekBy = String.format("the message %s", messageId.toString());
-        long requestId = client.newRequestId();
-        final MessageIdAdv msgId = (MessageIdAdv) messageId;
-        final MessageIdAdv firstChunkMsgId = msgId.getFirstChunkMessageId();
-        final ByteBuf seek;
-        if (msgId.getFirstChunkMessageId() != null) {
-            seek = Commands.newSeek(consumerId, requestId, firstChunkMsgId.getLedgerId(),
-                    firstChunkMsgId.getEntryId(), EMPTY_ACK_SET);
-        } else {
-            final long[] ackSetArr;
-            if (MessageIdAdvUtils.isBatch(msgId)) {
-                final BitSetRecyclable ackSet = BitSetRecyclable.create();
-                ackSet.set(0, msgId.getBatchSize());
-                ackSet.clear(0, Math.max(msgId.getBatchIndex(), 0));
+        MessageIdAdv seekId = (MessageIdAdv) messageId;
+        MessageIdAdv firstChunkMsgId = seekId.getFirstChunkMessageId();
+        MessageIdAdv commandMessageId = firstChunkMsgId != null ? firstChunkMsgId : seekId;
+        long ledgerId = commandMessageId.getLedgerId();
+        long entryId = commandMessageId.getEntryId();
+        final long[] ackSetArr;
+        if (firstChunkMsgId == null && MessageIdAdvUtils.isBatch(seekId)) {
+            BitSetRecyclable ackSet = BitSetRecyclable.create();
+            try {
+                ackSet.set(0, seekId.getBatchSize());
+                ackSet.clear(0, Math.max(seekId.getBatchIndex(), 0));
                 ackSetArr = ackSet.toLongArray();
+            } finally {
                 ackSet.recycle();
-            } else {
-                ackSetArr = EMPTY_ACK_SET;
             }
-            seek = Commands.newSeek(consumerId, requestId, msgId.getLedgerId(), msgId.getEntryId(), ackSetArr);
+        } else {
+            ackSetArr = EMPTY_ACK_SET;
         }
-        return seekAsyncInternal(requestId, seek, messageId, null, seekBy);
+        return startSeek(seekId, false, seekBy,
+                requestId -> Commands.newSeek(consumerId, requestId, ledgerId, entryId, ackSetArr));
     }
 
     public boolean hasMessageAvailable() throws PulsarClientException {

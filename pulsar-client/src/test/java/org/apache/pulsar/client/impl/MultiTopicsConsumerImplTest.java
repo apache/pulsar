@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl;
 import static org.apache.pulsar.client.impl.ClientTestFixtures.createDelayedCompletedFuture;
 import static org.apache.pulsar.client.impl.ClientTestFixtures.createExceptionFuture;
 import static org.apache.pulsar.client.impl.ClientTestFixtures.createPulsarClientMockWithMockedClientCnx;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -41,6 +42,7 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
@@ -314,7 +316,7 @@ public class MultiTopicsConsumerImplTest {
         ConsumerImpl<byte[]> skippedConsumer = addPartitionConsumer(impl, skippedTopic, cnx, receiverQueueSize);
         // Seeking a message of one partition skips the other, whose consumer neither seeks nor reconnects
         TopicMessageIdImpl seekMessageId = new TopicMessageIdImpl(soughtTopic, new MessageIdImpl(1, 0, 0));
-        when(soughtConsumer.seekAsync(seekMessageId)).thenReturn(CompletableFuture.completedFuture(null));
+        when(soughtConsumer.seekAsyncAtPosition(seekMessageId)).thenReturn(CompletableFuture.completedFuture(null));
 
         impl.internalPinnedExecutor.submit(() -> {
             // Queue a message of each partition for the listener, as receiving them from their consumers does
@@ -444,11 +446,14 @@ public class MultiTopicsConsumerImplTest {
         conf.setSubscriptionName("subscriptionName");
         conf.setAckTimeoutMillis(1000);
         MultiTopicsConsumerImpl<byte[]> impl = createMultiTopicsConsumer(conf);
+        // The parent can still hold a message from the previous consumer when the current one seeks.
+        ConsumerImpl<byte[]> previous = addPartitionConsumer(impl, soughtTopic, null, 10);
+        impl.enqueueMessageAndCheckBatchReceive(
+                new TopicMessageImpl<>(soughtTopic, newMessage(soughtTopic, 0, 1, 0), previous));
         ConsumerImpl<byte[]> soughtConsumer = addPartitionConsumer(impl, soughtTopic, null, 10);
         ConsumerImpl<byte[]> skippedConsumer = addPartitionConsumer(impl, skippedTopic, null, 10);
         CompletableFuture<Void> soughtSeek = new CompletableFuture<>();
-        when(soughtConsumer.seekAsync(any(MessageId.class))).thenReturn(soughtSeek);
-        when(soughtConsumer.seekAsync(any(Function.class))).thenReturn(soughtSeek);
+        when(soughtConsumer.seekAsyncAtPosition(any(MessageId.class))).thenReturn(soughtSeek);
         CompletableFuture<Messages<byte[]>> handedOver = new CompletableFuture<>();
         when(skippedConsumer.batchReceiveAsync()).thenReturn(handedOver, new CompletableFuture<>());
 
@@ -483,7 +488,6 @@ public class MultiTopicsConsumerImplTest {
     }
 
     @Test(timeOut = 10000, dataProvider = "seekByFunction")
-    @SuppressWarnings("unchecked")
     public void testSelectiveSeekRefillsOnlySoughtPartition(boolean seekByFunction) throws Exception {
         String soughtTopic = "persistent://public/default/topic-partition-0";
         String skippedTopic = "persistent://public/default/topic-partition-1";
@@ -494,8 +498,8 @@ public class MultiTopicsConsumerImplTest {
         ClientCnx cnx = mock(ClientCnx.class);
         ConsumerImpl<byte[]> soughtConsumer = addPartitionConsumer(impl, soughtTopic, cnx, receiverQueueSize);
         ConsumerImpl<byte[]> skippedConsumer = addPartitionConsumer(impl, skippedTopic, cnx, receiverQueueSize);
-        when(soughtConsumer.seekAsync(any(MessageId.class))).thenReturn(CompletableFuture.completedFuture(null));
-        when(soughtConsumer.seekAsync(any(Function.class))).thenReturn(CompletableFuture.completedFuture(null));
+        when(soughtConsumer.seekAsyncAtPosition(any(MessageId.class)))
+                .thenReturn(CompletableFuture.completedFuture(null));
 
         seekPartition(impl, seekByFunction, soughtTopic, new MessageIdImpl(1, 0, 0)).get();
         // The receive tasks that the seek started run on the pinned executor before this task
@@ -504,6 +508,7 @@ public class MultiTopicsConsumerImplTest {
         // The consumer that sought gets a full receiver queue of permits. The consumer that the seek skipped kept its
         // permits and its connection, and kept receiving: the seek gives it nothing.
         verify(soughtConsumer).increaseAvailablePermits(cnx, receiverQueueSize);
+        verify(skippedConsumer, never()).seekAsyncAtPosition(any());
         verify(skippedConsumer, never()).increaseAvailablePermits(any(ClientCnx.class), anyInt());
         verify(skippedConsumer, never()).batchReceiveAsync();
     }
@@ -518,8 +523,8 @@ public class MultiTopicsConsumerImplTest {
         List<CompletableFuture<?>> stoppedReceives = recordReceives(stoppedConsumer);
         List<CompletableFuture<?>> waitingReceives = recordReceives(waitingConsumer);
         CompletableFuture<Void> partitionSeeks = new CompletableFuture<>();
-        when(stoppedConsumer.seekAsync(any(MessageId.class))).thenReturn(partitionSeeks);
-        when(waitingConsumer.seekAsync(any(MessageId.class))).thenReturn(partitionSeeks);
+        when(stoppedConsumer.seekAsyncAtPosition(MessageId.earliest)).thenReturn(partitionSeeks);
+        when(waitingConsumer.seekAsyncAtPosition(MessageId.earliest)).thenReturn(partitionSeeks);
 
         // Both receive loops wait for the next message of their consumer
         impl.internalPinnedExecutor.submit(() -> {
@@ -552,7 +557,28 @@ public class MultiTopicsConsumerImplTest {
     }
 
     @Test(timeOut = 10000)
-    @SuppressWarnings("unchecked")
+    public void testCancelSeekFutureStillResumesReceiving() throws Exception {
+        String topic = "persistent://public/default/topic-partition-0";
+        MultiTopicsConsumerImpl<byte[]> parent = createMultiTopicsConsumer();
+        ConsumerImpl<byte[]> child = addPartitionConsumer(parent, topic, null, 10);
+        List<CompletableFuture<?>> receives = recordReceives(child);
+        CompletableFuture<Void> childSeek = new CompletableFuture<>();
+        when(child.seekAsyncAtPosition(MessageId.earliest)).thenReturn(childSeek);
+
+        parent.internalPinnedExecutor.submit(() -> parent.receiveMessageFromConsumer(child, false)).get();
+        CompletableFuture<Void> seek = parent.seekAsync(MessageId.earliest);
+        completeReceive(receives.get(0), newMessage(topic, 1, 0, 0));
+        parent.internalPinnedExecutor.submit(() -> { }).get();
+        assertThat(receives).hasSize(1);
+
+        assertThat(seek.cancel(false)).isTrue();
+        assertThat(childSeek).isNotDone();
+        childSeek.complete(null);
+        parent.internalPinnedExecutor.submit(() -> { }).get();
+        assertThat(receives).hasSize(2);
+    }
+
+    @Test(timeOut = 10000)
     public void testSeekPreservesMessagesFromConsumerReplacedDuringSelection() throws Exception {
         String topic = "persistent://public/default/topic-partition-0";
         ConsumerConfigurationData<byte[]> conf = new ConsumerConfigurationData<>();
@@ -562,6 +588,8 @@ public class MultiTopicsConsumerImplTest {
         ConsumerImpl<byte[]> original = addPartitionConsumer(parent, topic, null, 10);
         TopicMessageIdImpl unacked = new TopicMessageIdImpl(topic, new MessageIdImpl(1, 0, 0));
         MessageImpl<byte[]> queued = newMessage(topic, 1, 1, 0);
+        parent.enqueueMessageAndCheckBatchReceive(
+                new TopicMessageImpl<>(topic, newMessage(topic, 0, 1, 0), original));
         try {
             CompletableFuture<Void> seek = parent.seekAsync(selectedTopic -> {
                 // Replace the selected child before the caller supplies its seek position.
@@ -573,12 +601,55 @@ public class MultiTopicsConsumerImplTest {
 
             CompletionException failure = expectThrows(CompletionException.class, seek::join);
             assertTrue(failure.getCause() instanceof PulsarClientException.AlreadyClosedException);
-            verify(original, never()).seekAsync(any(Function.class));
+            verify(original, never()).seekAsyncAtPosition(any());
             assertTrue(parent.getUnAckedMessageTracker().remove(unacked));
+            assertEquals(parent.getTotalIncomingMessages(), 1);
             assertEquals(parent.receive(1, TimeUnit.SECONDS).getMessageId(), queued.getMessageId());
         } finally {
             parent.getUnAckedMessageTracker().close();
         }
+    }
+
+    @Test(timeOut = 10000)
+    public void testSeekVisitsReinsertedPartitionOnlyOnce() {
+        // These names hash to the same bucket. A live map traversal can visit the first topic again
+        // if it is removed and reinserted while the callback visits the second topic.
+        String replacedTopic = "persistent://public/default/Aa-partition-0";
+        String otherTopic = "persistent://public/default/BB-partition-0";
+        MultiTopicsConsumerImpl<byte[]> parent = createMultiTopicsConsumer();
+        ConsumerImpl<byte[]> original = addPartitionConsumer(parent, replacedTopic, null, 10);
+        when(original.unsubscribeAsync()).thenReturn(CompletableFuture.completedFuture(null));
+        addPartitionConsumer(parent, otherTopic, null, 10);
+        List<String> visited = new ArrayList<>();
+
+        CompletableFuture<Void> seek = parent.seekAsync(topic -> {
+            visited.add(topic);
+            if (topic.equals(otherTopic)) {
+                parent.unsubscribeAsync(replacedTopic).join();
+                addPartitionConsumer(parent, replacedTopic, null, 10);
+                return null;
+            }
+            return MessageId.earliest;
+        });
+
+        assertThat(expectThrows(CompletionException.class, seek::join).getCause())
+                .isInstanceOf(PulsarClientException.AlreadyClosedException.class);
+        assertThat(visited).containsExactlyInAnyOrder(replacedTopic, otherTopic);
+        verify(parent.consumers.get(replacedTopic), never()).seekAsyncAtPosition(any());
+    }
+
+    @Test(timeOut = 10000)
+    public void testSeekPropagatesPositionFunctionFailure() {
+        MultiTopicsConsumerImpl<byte[]> parent = createMultiTopicsConsumer();
+        addPartitionConsumer(parent, "persistent://public/default/topic-partition-0", null, 10);
+        IllegalArgumentException failure = new IllegalArgumentException("invalid seek position");
+        Function<String, Object> position = topic -> {
+            throw failure;
+        };
+
+        assertThat(expectThrows(IllegalArgumentException.class, () -> parent.seek(position))).isSameAs(failure);
+        CompletableFuture<Void> seek = parent.seekAsync(position);
+        assertThat(expectThrows(CompletionException.class, seek::join).getCause()).isSameAs(failure);
     }
 
     @Test(timeOut = 10000)
@@ -591,9 +662,10 @@ public class MultiTopicsConsumerImplTest {
         ConsumerImpl<byte[]> replacedConsumer = addPartitionConsumer(impl, replacedTopic, cnx, receiverQueueSize);
         ConsumerImpl<byte[]> slowConsumer = addPartitionConsumer(impl, slowTopic, cnx, receiverQueueSize);
         List<CompletableFuture<?>> replacedReceives = recordReceives(replacedConsumer);
-        when(replacedConsumer.seekAsync(any(MessageId.class))).thenReturn(CompletableFuture.completedFuture(null));
+        when(replacedConsumer.seekAsyncAtPosition(MessageId.earliest))
+                .thenReturn(CompletableFuture.completedFuture(null));
         CompletableFuture<Void> slowSeek = new CompletableFuture<>();
-        when(slowConsumer.seekAsync(any(MessageId.class))).thenReturn(slowSeek);
+        when(slowConsumer.seekAsyncAtPosition(MessageId.earliest)).thenReturn(slowSeek);
 
         impl.internalPinnedExecutor.submit(() -> impl.receiveMessageFromConsumer(replacedConsumer, false)).get();
         CompletableFuture<Void> seek = impl.seekAsync(MessageId.earliest);
@@ -647,8 +719,6 @@ public class MultiTopicsConsumerImplTest {
         when(consumer.getCurrentReceiverQueueSize()).thenReturn(receiverQueueSize);
         when(consumer.batchReceiveAsync()).thenReturn(new CompletableFuture<>());
         when(consumer.receiveAsync()).thenReturn(new CompletableFuture<>());
-        // What ConsumerImpl#seekAsync(Function) does for a topic that the function gives no position for
-        when(consumer.seekAsync(any(Function.class))).thenReturn(CompletableFuture.completedFuture(null));
         impl.consumers.put(topic, consumer);
         return consumer;
     }
