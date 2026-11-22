@@ -556,9 +556,11 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             // It only tells the Pulsar clients that this service is not ready to serve for the lookup requests
             state = State.Closing;
 
-            if (healthChecker != null) {
-                healthChecker.close();
-                healthChecker = null;
+            synchronized (this) {
+                if (healthChecker != null) {
+                    healthChecker.close();
+                    healthChecker = null;
+                }
             }
 
             // close the service in reverse order v.s. in which they are started

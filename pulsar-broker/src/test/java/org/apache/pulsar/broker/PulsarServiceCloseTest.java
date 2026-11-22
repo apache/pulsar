@@ -20,14 +20,19 @@ package org.apache.pulsar.broker;
 
 import static org.testng.Assert.fail;
 import static org.testng.AssertJUnit.assertFalse;
+import static org.testng.AssertJUnit.assertNotNull;
+import static org.testng.AssertJUnit.assertNull;
 import static org.testng.AssertJUnit.assertTrue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.CustomLog;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.loadbalance.LoadSheddingTask;
+import org.apache.pulsar.broker.service.HealthChecker;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -100,5 +105,41 @@ public class PulsarServiceCloseTest extends MockedPulsarServiceBaseTest {
             fail("Should not throw exception");
         }
         log.info("waitUntilClosed() returned successfully while closeAsync() was in progress");
+    }
+
+    @Test(timeOut = 30_000)
+    public void testHealthCheckerClosedWhenCloseAsyncRuns() throws Exception {
+        restartBroker();
+        HealthChecker checker = pulsar.getHealthChecker();
+        assertNotNull(checker);
+
+        pulsar.closeAsync().get(30, TimeUnit.SECONDS);
+        assertNull(pulsar.getHealthChecker());
+    }
+
+    @Test(timeOut = 30_000)
+    public void testHealthCheckerCreationPreventedDuringCloseAsync() throws Exception {
+        restartBroker();
+
+        CountDownLatch closeStarted = new CountDownLatch(1);
+        CompletableFuture<HealthChecker> checkerFuture = new CompletableFuture<>();
+
+        CompletableFuture<Void> closeFuture;
+        synchronized (pulsar) {
+            closeFuture = CompletableFuture.runAsync(() -> {
+                closeStarted.countDown();
+                pulsar.closeAsync();
+            });
+            assertTrue(closeStarted.await(5, TimeUnit.SECONDS));
+            Awaitility.await().until(() -> !pulsar.isRunning());
+
+            // While closeAsync is blocked waiting for the monitor, calling getHealthChecker()
+            // must see !isRunning() and return null rather than leaking a new HealthChecker
+            checkerFuture.complete(pulsar.getHealthChecker());
+        }
+
+        closeFuture.get(30, TimeUnit.SECONDS);
+        assertNull(checkerFuture.get());
+        assertNull(pulsar.getHealthChecker());
     }
 }
