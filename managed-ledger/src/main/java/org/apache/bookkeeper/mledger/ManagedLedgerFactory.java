@@ -265,6 +265,18 @@ public interface ManagedLedgerFactory {
      */
     CompletableFuture<Map<String, String>> getManagedLedgerPropertiesAsync(String name);
 
+    /**
+     * The properties of a cursor of a managed ledger, read from its metadata: those that
+     * {@link ManagedCursor#getCursorProperties()} returns once the cursor is recovered. Empty if the cursor has none
+     * or doesn't exist. The default implementation, for a factory that doesn't read them, returns none.
+     *
+     * @param ledgerName the name of the managed ledger
+     * @param cursorName the name of the cursor
+     */
+    default CompletableFuture<Map<String, String>> getCursorPropertiesAsync(String ledgerName, String cursorName) {
+        return CompletableFuture.completedFuture(Map.of());
+    }
+
     Map<String, ManagedLedger> getManagedLedgers();
 
     ManagedLedgerFactoryMXBean getCacheStats();
