@@ -1212,11 +1212,20 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 // initialization was dropped: the answer to a check for more events that the reader sent before it
                 // was closed still arrives. That pass would find the request of its own drop and the cache cleared
                 // with it, and tell the listeners of every topic that its policies are gone.
+                //
+                // What the listeners are told is read from the caches in that step too. The initialization can be
+                // dropped right after it, by its timeout for one, and the caches cleared with it: read then, they
+                // would make every topic of the request look as if its policies were gone.
+                boolean replayEnabled = pulsarService.getConfiguration().isTopicPolicyListenerReplayEnabled();
                 AtomicBoolean superseded = new AtomicBoolean();
-                MutableObject<TopicsWithPoliciesBeforeReplacement> replayRequest = new MutableObject<>();
+                MutableObject<ListenerReplay> listenerReplay = new MutableObject<>();
                 policyCacheInitMap.compute(namespaceObject, (__, currentInitFuture) -> {
                     if (currentInitFuture == initFuture) {
-                        replayRequest.setValue(listenerReplayPending.remove(namespaceObject));
+                        TopicsWithPoliciesBeforeReplacement beforeReplacement =
+                                listenerReplayPending.remove(namespaceObject);
+                        if (beforeReplacement != null || replayEnabled) {
+                            listenerReplay.setValue(listenerReplayOf(namespaceObject, beforeReplacement));
+                        }
                     } else {
                         superseded.set(true);
                     }
@@ -1226,11 +1235,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                     stageFuture.completeExceptionally(supersededWhileReading(reader));
                     return;
                 }
-                TopicsWithPoliciesBeforeReplacement beforeReplacement = replayRequest.getValue();
-                if (beforeReplacement != null) {
-                    replayAfterReaderReplacement(namespaceObject, beforeReplacement);
-                } else if (pulsarService.getConfiguration().isTopicPolicyListenerReplayEnabled()) {
-                    replayTopicPolicyListeners(namespaceObject);
+                if (listenerReplay.getValue() != null) {
+                    queueListenerReplay(listenerReplay.getValue());
                 }
                 stageFuture.complete(null);
             }
@@ -1254,40 +1260,80 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
      */
     @VisibleForTesting
     CompletableFuture<Void> replayTopicPolicyListeners(NamespaceName namespace) {
-        List<CompletableFuture<Void>> notifyFutures = new ArrayList<>();
-        addNamespacePolicyNotifications(policiesCache, namespace, notifyFutures);
-        addNamespacePolicyNotifications(globalPoliciesCache, namespace, notifyFutures);
-        return FutureUtil.waitForAll(notifyFutures);
+        return notifyOfCachedPolicies(cachedPoliciesOf(namespace));
     }
 
     /**
-     * The replay after a reader was closed with its initialization and replaced. The listeners of a topic that had
-     * policies before and has none now get the {@code null} update that a delivered deletion gives them; then every
-     * topic gets its cached policies, as in {@link #replayTopicPolicyListeners(NamespaceName)}. The notifications
-     * are queued in that order before this method returns.
+     * What the first pass of an initialization re-notifies the listeners of, as the caches had it while that
+     * initialization was current.
+     *
+     * @param topicsWithoutPolicies the topics that had policies before the reader was replaced and have none now;
+     *                              a topic that lost its local and its global policies is in it twice
+     * @param cachedPolicies        the cached policies of the namespace, local and global
      */
-    private void replayAfterReaderReplacement(
-            NamespaceName namespace, TopicsWithPoliciesBeforeReplacement beforeReplacement) {
-        notifyOfDeletedPolicies(beforeReplacement.localTopics(), policiesCache);
-        notifyOfDeletedPolicies(beforeReplacement.globalTopics(), globalPoliciesCache);
-        replayTopicPolicyListeners(namespace);
+    record ListenerReplay(List<TopicName> topicsWithoutPolicies,
+                          List<Map.Entry<TopicName, TopicPolicies>> cachedPolicies) {
     }
 
-    private void notifyOfDeletedPolicies(Set<TopicName> topicsBeforeReplacement, Map<TopicName, TopicPolicies> cache) {
+    /**
+     * @param beforeReplacement the topics that had policies before a reader was closed with its initialization and
+     *                          replaced, or {@code null} for the replay of {@code topicPolicyListenerReplayEnabled}
+     */
+    private ListenerReplay listenerReplayOf(NamespaceName namespace,
+                                            @Nullable TopicsWithPoliciesBeforeReplacement beforeReplacement) {
+        List<TopicName> topicsWithoutPolicies = new ArrayList<>();
+        if (beforeReplacement != null) {
+            addTopicsWithoutPolicies(beforeReplacement.localTopics(), policiesCache, topicsWithoutPolicies);
+            addTopicsWithoutPolicies(beforeReplacement.globalTopics(), globalPoliciesCache, topicsWithoutPolicies);
+        }
+        return new ListenerReplay(topicsWithoutPolicies, cachedPoliciesOf(namespace));
+    }
+
+    private static void addTopicsWithoutPolicies(Set<TopicName> topicsBeforeReplacement,
+                                                 Map<TopicName, TopicPolicies> cache,
+                                                 List<TopicName> topicsWithoutPolicies) {
         for (TopicName topicName : topicsBeforeReplacement) {
             if (!cache.containsKey(topicName)) {
-                notifyListenersForTopic(topicName, null);
+                topicsWithoutPolicies.add(topicName);
             }
         }
     }
 
-    private void addNamespacePolicyNotifications(Map<TopicName, TopicPolicies> cache, NamespaceName namespace,
-                                                 List<CompletableFuture<Void>> notifyFutures) {
+    private List<Map.Entry<TopicName, TopicPolicies>> cachedPoliciesOf(NamespaceName namespace) {
+        List<Map.Entry<TopicName, TopicPolicies>> cachedPolicies = new ArrayList<>();
+        addNamespacePolicies(policiesCache, namespace, cachedPolicies);
+        addNamespacePolicies(globalPoliciesCache, namespace, cachedPolicies);
+        return cachedPolicies;
+    }
+
+    private static void addNamespacePolicies(Map<TopicName, TopicPolicies> cache, NamespaceName namespace,
+                                             List<Map.Entry<TopicName, TopicPolicies>> cachedPolicies) {
         for (Map.Entry<TopicName, TopicPolicies> entry : cache.entrySet()) {
             if (Objects.equals(entry.getKey().getNamespaceObject(), namespace)) {
-                notifyFutures.add(notifyListenersForTopicAsync(entry.getKey(), entry.getValue()));
+                cachedPolicies.add(Map.entry(entry.getKey(), entry.getValue()));
             }
         }
+    }
+
+    /**
+     * Queues the notifications of {@code replay}, each on the executor of its topic, and returns without waiting
+     * for the listeners. The listeners of a topic whose policies are gone get the {@code null} update that a
+     * delivered deletion gives them; then every topic gets its cached policies.
+     */
+    @VisibleForTesting
+    void queueListenerReplay(ListenerReplay replay) {
+        for (TopicName topicName : replay.topicsWithoutPolicies()) {
+            notifyListenersForTopic(topicName, null);
+        }
+        notifyOfCachedPolicies(replay.cachedPolicies());
+    }
+
+    private CompletableFuture<Void> notifyOfCachedPolicies(List<Map.Entry<TopicName, TopicPolicies>> cachedPolicies) {
+        List<CompletableFuture<Void>> notifyFutures = new ArrayList<>();
+        for (Map.Entry<TopicName, TopicPolicies> entry : cachedPolicies) {
+            notifyFutures.add(notifyListenersForTopicAsync(entry.getKey(), entry.getValue()));
+        }
+        return FutureUtil.waitForAll(notifyFutures);
     }
 
     // Full teardown of a namespace's topic-policies state: removes and closes the reader, the message-handler
@@ -1390,7 +1436,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                         } finally {
                             // The listeners still get this event's policies when a replacement lands between the
                             // write above and here. The replay the replacement triggers
-                            // (replayAfterReaderReplacement) goes to the same per-topic executor and, dispatched
+                            // (queueListenerReplay) goes to the same per-topic executor and, dispatched
                             // after this in practice, brings them up to date.
                             notifyListener(msg.getKey(), value);
                         }

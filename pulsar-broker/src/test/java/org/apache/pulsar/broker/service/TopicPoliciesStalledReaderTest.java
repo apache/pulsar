@@ -650,6 +650,61 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
     }
 
     @Test(timeOut = 90_000)
+    public void testListenerIsNotToldPolicyIsGoneWhenInitializationTimesOutBeforeItsReplayIsQueued()
+            throws Exception {
+        final TopicName topicName = newTopicNeverLoaded();
+        final NamespaceName namespace = NamespaceName.get(NAMESPACE);
+        final List<Optional<TopicPolicies>> updates = new CopyOnWriteArrayList<>();
+        final TopicPolicyListener listener = policies -> updates.add(Optional.ofNullable(policies));
+        service.registerListenerAsync(topicName, listener).get(30, TimeUnit.SECONDS);
+        try {
+            setMaxConsumers(topicName, 5).get(30, TimeUnit.SECONDS);
+            Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> assertThat(updates)
+                    .describedAs("the listener must hold a policy before the reader is closed")
+                    .last().matches(update -> update.map(TopicPolicies::getMaxConsumerPerTopic).orElse(0) == 5));
+            updates.clear();
+
+            closeReadersUnderTheService();
+            assertNoInitializationRanSince("the reader was closed");
+
+            // The first pass of the next initialization reaches the end of the topic with the policy read again.
+            // Before the pass has queued what it re-notifies the listeners of, the initialization is dropped and
+            // the policy cache cleared with it. The callback does what the task of the initialization timeout
+            // does, so that the test does not depend on how long a first pass takes.
+            final AtomicBoolean droppedBeforeReplayWasQueued = new AtomicBoolean();
+            service.beforeNextListenerReplayIsQueued(() -> {
+                final CompletableFuture<Void> initialization = service.getPoliciesCacheInit(namespace);
+                if (initialization != null && initialization.completeExceptionally(
+                        new TimeoutException("Timed out initializing the topic policies cache"))) {
+                    service.cleanupFailedPolicyCacheInit(namespace, initialization);
+                    droppedBeforeReplayWasQueued.set(true);
+                }
+            });
+            final CompletableFuture<Optional<TopicPolicies>> readThatStartsTheInitialization =
+                    service.getTopicPoliciesAsync(topicName, TopicPoliciesService.GetType.LOCAL_ONLY);
+
+            Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
+                assertThat(droppedBeforeReplayWasQueued)
+                        .describedAs("the initialization was not dropped between the end of its first pass and the"
+                                + " listener replay; this is not the scenario under test")
+                        .isTrue();
+                assertThat(updates).describedAs("the first pass must re-notify the listener").isNotEmpty();
+            });
+            assertThat(updates)
+                    .describedAs("the topic has its policy; the first pass read it before the cache was cleared, so"
+                            + " it must not tell the listener that the policy is gone")
+                    .doesNotContain(Optional.empty());
+
+            readThatStartsTheInitialization.exceptionally(timedOut -> Optional.empty()).get(30, TimeUnit.SECONDS);
+            assertThat(TopicPolicyTestUtils.getLocalTopicPolicies(service, topicName).getMaxConsumerPerTopic())
+                    .describedAs("the next initialization must read the policy again")
+                    .isEqualTo(5);
+        } finally {
+            service.unregisterListener(topicName, listener);
+        }
+    }
+
+    @Test(timeOut = 90_000)
     public void testPolicyReadDoesNotWaitForListenersToldOfDeletionAfterReaderWasClosed() throws Exception {
         final TopicName topicName = newTopicNeverLoaded();
         final List<Optional<TopicPolicies>> updates = new CopyOnWriteArrayList<>();
@@ -707,8 +762,11 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
         final CountDownLatch replayReachedListener = new CountDownLatch(1);
         final CountDownLatch listenerMayReturn = new CountDownLatch(1);
         final TopicPolicyListener listener = policies -> {
+            // Read before the update is recorded. The test arms the hold when it has seen the first update, so a
+            // callback that read the flag afterwards could find it set, hold itself and pass for the replay.
+            final boolean hold = holdListener.get();
             updates.add(Optional.ofNullable(policies));
-            if (holdListener.get()) {
+            if (hold) {
                 replayReachedListener.countDown();
                 Uninterruptibles.awaitUninterruptibly(listenerMayReturn);
             }
@@ -766,19 +824,24 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
                 admin.namespaces().unload(NAMESPACE);
                 final CountDownLatch release = new CountDownLatch(1);
                 final CountDownLatch queueHeld = new CountDownLatch(1);
-                bundleLoadMayBeHandled.set(release);
                 pulsar.getOrderedExecutor().executeOrdered(namespace, () -> {
                     queueHeld.countDown();
                     Uninterruptibles.awaitUninterruptibly(release);
                 });
-                assertThat(queueHeld.await(30, TimeUnit.SECONDS)).describedAs("the queue must be held").isTrue();
+                // An attempt that fails releases its own hold, whatever made it fail: the next attempt queues a
+                // new one, and a hold that nothing releases would block the queue for the rest of the class.
+                boolean heldWithNoBundleOwned = false;
                 try {
+                    assertThat(queueHeld.await(30, TimeUnit.SECONDS)).describedAs("the queue must be held").isTrue();
                     assertThat(pulsar.getNamespaceService().getOwnedServiceUnits())
                             .describedAs("the broker must own no bundle of the namespace when the queue is held")
                             .noneMatch(bundle -> namespace.equals(bundle.getNamespaceObject()));
-                } catch (AssertionError bundleTakenBack) {
-                    release.countDown();
-                    throw bundleTakenBack;
+                    bundleLoadMayBeHandled.set(release);
+                    heldWithNoBundleOwned = true;
+                } finally {
+                    if (!heldWithNoBundleOwned) {
+                        release.countDown();
+                    }
                 }
             });
 
@@ -990,6 +1053,7 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
         private final AtomicReference<NamespaceName> unloadBeforeNextReader = new AtomicReference<>();
         private final AtomicReference<Runnable> afterNextPolicyDeletion = new AtomicReference<>();
         private final AtomicReference<StallableReader> nextReader = new AtomicReference<>();
+        private final AtomicReference<Runnable> beforeNextListenerReplay = new AtomicReference<>();
         /** The factory the service takes its writers from; its writers consult {@link #nextWriteHold}. */
         private final NamespaceEventsSystemTopicFactory systemTopicFactory;
 
@@ -1063,6 +1127,24 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
          */
         void afterNextPolicyDeletion(Runnable callback) {
             assertThat(afterNextPolicyDeletion.compareAndSet(null, callback))
+                    .describedAs("a callback is already armed").isTrue();
+        }
+
+        @Override
+        void queueListenerReplay(ListenerReplay replay) {
+            final Runnable callback = beforeNextListenerReplay.getAndSet(null);
+            if (callback != null) {
+                callback.run();
+            }
+            super.queueListenerReplay(replay);
+        }
+
+        /**
+         * Runs {@code callback} on the thread of the next first pass that re-notifies the listeners, when the pass
+         * has reached the end of the topic and before it queues the notifications.
+         */
+        void beforeNextListenerReplayIsQueued(Runnable callback) {
+            assertThat(beforeNextListenerReplay.compareAndSet(null, callback))
                     .describedAs("a callback is already armed").isTrue();
         }
 
