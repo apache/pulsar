@@ -329,13 +329,6 @@ public class PersistentSubscription extends AbstractSubscription {
                 break;
             case Failover:
                 int partitionIndex = TopicName.getPartitionIndex(topicName);
-                if (partitionIndex < 0) {
-                    // For non partition topics, use a negative index so
-                    // dispatcher won't sort consumers before picking
-                    // an active consumer for the topic.
-                    partitionIndex = -1;
-                }
-
                 if (dispatcher == null || dispatcher.getType() != SubType.Failover) {
                     previousDispatcher = dispatcher;
                     dispatcher = new PersistentDispatcherSingleActiveConsumer(cursor, SubType.Failover,
