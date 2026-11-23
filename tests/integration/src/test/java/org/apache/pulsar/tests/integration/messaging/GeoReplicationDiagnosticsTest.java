@@ -41,10 +41,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -428,11 +429,21 @@ public class GeoReplicationDiagnosticsTest extends PulsarGeoClusterTestBase {
         void run() throws Exception;
     }
 
+    private static CompletableFuture<Void> runAsync(Scenario scenario, Executor executor) {
+        return CompletableFuture.runAsync(() -> {
+            try {
+                scenario.run();
+            } catch (Exception e) {
+                throw new CompletionException(e);
+            }
+        }, executor);
+    }
+
     /**
      * Each of these scenarios waits out the broker's one-minute health window on topics of its own, and none pauses a
-     * container or changes a broker setting, so they run concurrently and their windows elapse together. They run in
-     * one test method rather than from a parallel data provider so that a retry after a failure sets the clusters up
-     * again once, instead of under the scenarios that are still running.
+     * container or changes a broker setting while the others run, so they run concurrently and their windows elapse
+     * together. They run in one test method rather than from a parallel data provider so that a retry after a failure
+     * sets the clusters up again once, instead of under the scenarios that are still running.
      */
     @Test(timeOut = 390_000)
     public void testDiagnoseAfterHealthWindow() throws Exception {
@@ -443,13 +454,14 @@ public class GeoReplicationDiagnosticsTest extends PulsarGeoClusterTestBase {
         scenarios.put("read failure without message", this::diagnoseReadFailureWithoutMessage);
         scenarios.put("transaction visibility", this::diagnoseTransactionVisibility);
         scenarios.put("schema conflict and batched entries", this::diagnoseSchemaConflictAndCountBatchedEntries);
-        ExecutorService executor = Executors.newFixedThreadPool(scenarios.size());
+        ExecutorService executor = Executors.newFixedThreadPool(scenarios.size() + 1);
         try {
-            Map<String, Future<?>> running = new LinkedHashMap<>();
-            scenarios.forEach((name, scenario) -> running.put(name, executor.submit(() -> {
-                scenario.run();
-                return null;
-            })));
+            Map<String, CompletableFuture<Void>> running = new LinkedHashMap<>();
+            scenarios.forEach((name, scenario) -> running.put(name, runAsync(scenario, executor)));
+            CompletableFuture<Void> othersDone = CompletableFuture.allOf(running.values()
+                    .toArray(new CompletableFuture<?>[0])).exceptionally(e -> null);
+            running.put("pending schema registration",
+                    runAsync(() -> diagnosePendingSchemaRegistration(othersDone), executor));
             List<String> failed = new ArrayList<>();
             List<Throwable> causes = new ArrayList<>();
             for (var entry : running.entrySet()) {
@@ -461,8 +473,9 @@ public class GeoReplicationDiagnosticsTest extends PulsarGeoClusterTestBase {
                 }
             }
             if (!failed.isEmpty()) {
-                AssertionError error = new AssertionError("Failed scenarios: " + failed);
-                causes.forEach(error::addSuppressed);
+                // Gradle's console output prints the cause but not suppressed exceptions.
+                AssertionError error = new AssertionError("Failed scenarios: " + failed, causes.get(0));
+                causes.subList(1, causes.size()).forEach(error::addSuppressed);
                 throw error;
             }
         } finally {
@@ -646,8 +659,7 @@ public class GeoReplicationDiagnosticsTest extends PulsarGeoClusterTestBase {
         }
     }
 
-    @Test(timeOut = 240_000)
-    public void testDiagnosePendingSchemaRegistration() throws Exception {
+    private void diagnosePendingSchemaRegistration(CompletableFuture<Void> othersDone) throws Exception {
         var newSchema = recordSchema("newId");
         // Age the backlog behind the transaction read limit while the target remains available.
         String pending = createTopic(newNamespace());
@@ -662,6 +674,8 @@ public class GeoReplicationDiagnosticsTest extends PulsarGeoClusterTestBase {
                 producer.newMessage(txn).value(newSchema.newRecordBuilder().set("newId", 42L).build()).send();
                 await().atMost(HEALTH_WINDOW.plus(SETTLE)).untilAsserted(() ->
                         assertUnhealthy(outbound(source, pending, targetName), "transaction-buffer-stats"));
+                // Pausing the target bookies would change what the concurrent scenarios observe.
+                othersDone.get();
                 // Hold the first schema write just long enough to observe registration before the target replies.
                 pauseBookies(getGeoCluster().getClusters()[1], paused);
                 txn.commit().get(10, TimeUnit.SECONDS);
