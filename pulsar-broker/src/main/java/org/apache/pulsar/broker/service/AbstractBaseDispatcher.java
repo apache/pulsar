@@ -643,8 +643,7 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                         .attr("notification", notification)
                         .attr("consumerId", consumer.consumerId())
                         .attr("consumerName", consumer.consumerName())
-                        .attr("exceptionType", cause.getClass().getSimpleName())
-                        .exceptionMessage(cause)
+                        .exception(cause)
                         .log("Failed to notify consumer");
             }
         });
