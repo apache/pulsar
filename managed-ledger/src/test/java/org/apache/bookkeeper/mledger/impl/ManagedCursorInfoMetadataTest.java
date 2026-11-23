@@ -103,6 +103,8 @@ public class ManagedCursorInfoMetadataTest {
             return;
         }
         ManagedCursorInfo managedCursorInfo = generateManagedCursorInfo(10000, 1000);
+        String id = "66cf3ff5-9329-49e3-a920-ed935feb44e0";
+        managedCursorInfo.setPublication(id);
         for (int i = 0; i < 100; i++) {
             managedCursorInfo.addProperty().setName("property-" + i).setValue(i);
             managedCursorInfo.addCursorProperty().setName("cursor-property-" + i).setValue("value-" + i);
@@ -112,6 +114,7 @@ public class ManagedCursorInfoMetadataTest {
 
         // String fields must still be readable after the decompressed buffer has been released.
         ManagedCursorInfo info = metaStore.parseManagedCursorInfo(metaStore.compressCursorInfo(managedCursorInfo));
+        assertEquals(info.getPublication(), id);
         assertEquals(info.getPropertiesCount(), 100);
         assertEquals(info.getCursorPropertiesCount(), 100);
         for (int i = 0; i < 100; i++) {
