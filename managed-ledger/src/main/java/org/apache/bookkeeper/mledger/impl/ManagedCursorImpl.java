@@ -339,8 +339,13 @@ public class ManagedCursorImpl implements ManagedCursor {
     // Guarded by pendingMarkDeleteOps. A close that overlaps a cursor-ledger switch waits for the new ledger and
     // for the mark-deletes queued behind the switch before it persists the final cursor position.
     private CompletableFuture<Void> ledgerSwitchFuture = CompletableFuture.completedFuture(null);
-    private boolean ledgerSwitchCreationStarted;
-    private boolean ledgerSwitchFinished;
+    private enum LedgerSwitchPhase {
+        WAITING_FOR_PENDING_WRITES,
+        CREATING_LEDGER,
+        DRAINING_QUEUED_WRITES
+    }
+    // Guarded by pendingMarkDeleteOps and only meaningful while ledgerSwitchFuture is incomplete.
+    private LedgerSwitchPhase ledgerSwitchPhase = LedgerSwitchPhase.DRAINING_QUEUED_WRITES;
     private static final AtomicIntegerFieldUpdater<ManagedCursorImpl> PENDING_MARK_DELETED_SUBMITTED_COUNT_UPDATER =
         AtomicIntegerFieldUpdater.newUpdater(ManagedCursorImpl.class, "pendingMarkDeletedSubmittedCount");
     @SuppressWarnings("unused")
@@ -2863,7 +2868,11 @@ public class ManagedCursorImpl implements ManagedCursor {
         // ledger is postponed to when the counter goes to 0.
         PENDING_MARK_DELETED_SUBMITTED_COUNT_UPDATER.incrementAndGet(this);
 
-        if (!mdEntry.resetsCursor) {
+        final MarkDeleteEntry previousLastMarkDeleteEntry;
+        if (mdEntry.resetsCursor) {
+            previousLastMarkDeleteEntry = LAST_MARK_DELETE_ENTRY_UPDATER.getAndSet(this, mdEntry);
+        } else {
+            previousLastMarkDeleteEntry = null;
             LAST_MARK_DELETE_ENTRY_UPDATER.updateAndGet(this, last -> {
                 if (last != null && last.newPosition.compareTo(mdEntry.newPosition) > 0) {
                     // keep the current value since it's later then the mdEntry.newPosition
@@ -2902,6 +2911,10 @@ public class ManagedCursorImpl implements ManagedCursor {
             public void operationFailed(ManagedLedgerException exception) {
                 INPROGRESS_MARKDELETE_PERSIST_POSITION_UPDATER.compareAndSet(ManagedCursorImpl.this,
                         mdEntry.newPosition, null);
+                if (mdEntry.resetsCursor) {
+                    LAST_MARK_DELETE_ENTRY_UPDATER.compareAndSet(ManagedCursorImpl.this, mdEntry,
+                            previousLastMarkDeleteEntry);
+                }
                 isDirty = true;
                 log.warn()
                         .attr("position", mdEntry.newPosition)
@@ -3755,12 +3768,11 @@ public class ManagedCursorImpl implements ManagedCursor {
                 return;
             }
             ledgerSwitchFuture = new CompletableFuture<>();
-            ledgerSwitchCreationStarted = false;
-            ledgerSwitchFinished = false;
+            ledgerSwitchPhase = LedgerSwitchPhase.WAITING_FOR_PENDING_WRITES;
 
             // Check if we can immediately switch to a new metadata ledger
             if (PENDING_MARK_DELETED_SUBMITTED_COUNT_UPDATER.get(this) == 0) {
-                ledgerSwitchCreationStarted = true;
+                ledgerSwitchPhase = LedgerSwitchPhase.CREATING_LEDGER;
                 createLedger = true;
             }
         }
@@ -3782,7 +3794,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     if (ledgerSwitchFuture == switchFuture) {
                         // Resume normal mark-delete operations
                         changeStateIfNotClosed(State.Open);
-                        ledgerSwitchFinished = true;
+                        ledgerSwitchPhase = LedgerSwitchPhase.DRAINING_QUEUED_WRITES;
                         if (PENDING_MARK_DELETED_SUBMITTED_COUNT_UPDATER.get(ManagedCursorImpl.this) == 0) {
                             completedSwitch = switchFuture;
                         }
@@ -3812,7 +3824,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                         pendingMarkDeleteOps.clear();
                     }
                     if (ledgerSwitchFuture == switchFuture) {
-                        ledgerSwitchFinished = true;
+                        ledgerSwitchPhase = LedgerSwitchPhase.DRAINING_QUEUED_WRITES;
                         if (PENDING_MARK_DELETED_SUBMITTED_COUNT_UPDATER.get(ManagedCursorImpl.this) == 0) {
                             completedSwitch = switchFuture;
                         }
@@ -4340,18 +4352,26 @@ public class ManagedCursorImpl implements ManagedCursor {
         synchronized (pendingMarkDeleteOps) {
             int remaining = PENDING_MARK_DELETED_SUBMITTED_COUNT_UPDATER.decrementAndGet(this);
             if (remaining == 0 && !ledgerSwitchFuture.isDone()) {
-                if (!ledgerSwitchCreationStarted) {
+                switch (ledgerSwitchPhase) {
+                case WAITING_FOR_PENDING_WRITES:
                     if (state == State.SwitchingLedger || state == State.Closing) {
                         // A metadata ledger switch was pending and can start now that all writes to the old ledger
                         // have completed. Closing owns the switch it started waiting for.
-                        ledgerSwitchCreationStarted = true;
+                        ledgerSwitchPhase = LedgerSwitchPhase.CREATING_LEDGER;
                         createLedger = true;
                     } else {
                         failedMarkDeletes = drainPendingMarkDeletes();
                         completedSwitch = ledgerSwitchFuture;
                     }
-                } else if (ledgerSwitchFinished) {
+                    break;
+                case CREATING_LEDGER:
+                    // The creation callback will advance the phase and complete the switch when it is safe.
+                    break;
+                case DRAINING_QUEUED_WRITES:
                     completedSwitch = ledgerSwitchFuture;
+                    break;
+                default:
+                    throw new IllegalStateException("Unknown ledger switch phase " + ledgerSwitchPhase);
                 }
             }
         }
