@@ -19,6 +19,7 @@
 package org.apache.bookkeeper.mledger.impl.cache;
 
 import static org.apache.bookkeeper.mledger.util.ManagedLedgerUtils.NO_MAX_SIZE_LIMIT;
+import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -407,6 +408,63 @@ public class PendingReadsManagerTest  {
         verifyRange(callback.entries, firstEntry, endEntry);
         verifyRange(callback2.entries, firstEntrySecondRead, endEntrySecondRead);
 
+    }
+
+    @Test
+    public void concurrentReadMissingLeftWithSparseLeftLegReleasesAllEntriesOnFailure() throws Exception {
+        // The left leg of an overlapped read is a nested read through the cache, which can
+        // deliver a sparse list still carrying null slots. When a sibling leg fails, the
+        // fallback release of the collected legs must skip the null slots and still release
+        // the entries after them — a plain release loop would stop at the null slot and leak
+        // every entry behind it.
+        long firstEntry = 100;
+        long endEntry = 199;
+        long firstEntrySecondRead = firstEntry - 10;
+
+        IntSupplier expectedReadCount = () -> 0;
+
+        PreparedReadFromStorage read1 =
+                prepareReadFromStorage(lh, rangeEntryCache, firstEntry, endEntry, expectedReadCount);
+
+        List<EntryImpl> leftEntries = new ArrayList<>();
+        List<Entry> sparseLeftAnswer = new ArrayList<>();
+        for (long entryId = firstEntrySecondRead; entryId < firstEntry; entryId++) {
+            if (entryId == firstEntrySecondRead + 1) {
+                // the slot the nested read left unfilled carries no entry at all
+                sparseLeftAnswer.add(null);
+            } else {
+                EntryImpl entry = EntryImpl.create(LEDGER_ID, entryId, "data".getBytes(StandardCharsets.UTF_8));
+                leftEntries.add(entry);
+                sparseLeftAnswer.add(entry);
+            }
+        }
+        doAnswer(invocation -> {
+            AsyncCallbacks.ReadEntriesCallback callback = invocation.getArgument(5);
+            Object ctx = invocation.getArgument(6);
+            callback.readEntriesComplete(sparseLeftAnswer, ctx);
+            return null;
+        }).when(rangeEntryCache).asyncReadEntry0(any(), eq(firstEntrySecondRead), eq(firstEntry - 1),
+                anyLong(), any(), any(), any(), anyBoolean());
+
+        CapturingReadEntriesCallback callback = new CapturingReadEntriesCallback();
+        pendingReadsManager.readEntries(lh, firstEntry, endEntry, NO_MAX_SIZE_LIMIT,
+                expectedReadCount, callback, CTX);
+
+        CapturingReadEntriesCallback callback2 = new CapturingReadEntriesCallback();
+        pendingReadsManager.readEntries(lh, firstEntrySecondRead, endEntry, NO_MAX_SIZE_LIMIT,
+                expectedReadCount, callback2, CTX2);
+
+        // the storage read of the overlapped pending read fails: the second read fails and
+        // releases the legs it collected
+        read1.completeExceptionally(new ManagedLedgerException("Injected test failure"));
+
+        await().untilAsserted(() -> assertTrue(callback2.isCompletedExceptionally(),
+                "the overlapped read must fail"));
+        await().untilAsserted(() -> {
+            for (EntryImpl entry : leftEntries) {
+                assertEquals(entry.refCnt(), 0, "the sparse left leg's entries must all be released");
+            }
+        });
     }
 
     @Test
