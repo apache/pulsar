@@ -25,6 +25,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -64,6 +65,16 @@ public class LoadManagerClientTest extends SharedPulsarBaseTest {
         return new Object[][]{
                 {ServiceUnitStateTableViewImpl.class.getName()},
                 {ServiceUnitStateMetadataStoreTableViewImpl.class.getName()}
+        };
+    }
+
+    @DataProvider
+    public Object[][] shutdownFailureCases() {
+        return new Object[][]{
+                {ServiceUnitStateTableViewImpl.class.getName(), false},
+                {ServiceUnitStateTableViewImpl.class.getName(), true},
+                {ServiceUnitStateMetadataStoreTableViewImpl.class.getName(), false},
+                {ServiceUnitStateMetadataStoreTableViewImpl.class.getName(), true}
         };
     }
 
@@ -179,30 +190,67 @@ public class LoadManagerClientTest extends SharedPulsarBaseTest {
                 assertThatThrownBy(() -> broker.closeAsync().get(15, TimeUnit.SECONDS))
                         .hasRootCauseMessage("Injected load manager stop failure");
                 assertThat(client.isClosed()).isTrue();
+                verify(loadManager).stop();
             } finally {
                 broker.getLoadManager().set(original);
             }
         }
     }
 
-    @Test(timeOut = 60_000)
-    public void testClientClosedWhenShutdownFailsBeforeLoadManagerStop() throws Exception {
-        try (PulsarTestContext context = newContextBuilder(ServiceUnitStateTableViewImpl.class.getName())
+    @Test(dataProvider = "shutdownFailureCases", timeOut = 60_000)
+    public void testClientClosedWhenShutdownFailsBeforeLoadManagerStop(String stateTableViewClass,
+                                                                     boolean failLoadManagerStop) throws Exception {
+        try (PulsarTestContext peerContext = newContext(stateTableViewClass);
+             PulsarTestContext context = newContextBuilder(stateTableViewClass)
+                .reuseMockBookkeeperAndMetadataStores(peerContext)
                 .spyConfigCustomizer(config -> config.namespaceService(SpyConfig.SpyType.SPY))
                 .build()) {
             PulsarService broker = context.getPulsarService();
-            PulsarClient client = ExtensibleLoadManagerImpl.get(broker).getClient();
+            ExtensibleLoadManagerImpl loadManager = ExtensibleLoadManagerImpl.get(broker);
+            PulsarClient client = loadManager.getClient();
+            // A live peer prevents disableBroker() from closing the load manager during unloading.
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+                    assertThat(loadManager.getBrokerRegistry().getAvailableBrokersAsync().get(5, TimeUnit.SECONDS))
+                            .contains(peerContext.getPulsarService().getBrokerId()));
+            IllegalStateException shutdownFailure =
+                    new IllegalStateException("Injected namespace service close failure");
             AtomicBoolean failOnce = new AtomicBoolean(true);
             doAnswer(invocation -> {
                 if (failOnce.getAndSet(false)) {
-                    throw new IllegalStateException("Injected namespace service close failure");
+                    throw shutdownFailure;
                 }
                 return invocation.callRealMethod();
             }).when(broker.getNamespaceService()).close();
 
-            assertThatThrownBy(() -> broker.closeAsync().get(15, TimeUnit.SECONDS))
-                    .hasRootCauseMessage("Injected namespace service close failure");
-            assertThat(client.isClosed()).isTrue();
+            LoadManager original = broker.getLoadManager().get();
+            LoadManager loadManagerWrapper = spy(original);
+            PulsarServerException stopFailure = new PulsarServerException("Injected load manager stop failure");
+            doAnswer(invocation -> {
+                assertThat(client.isClosed()).isFalse();
+                assertThat(broker.getIoEventLoopGroup().isShuttingDown()).isFalse();
+                invocation.callRealMethod();
+                if (failLoadManagerStop) {
+                    throw stopFailure;
+                }
+                return null;
+            }).when(loadManagerWrapper).stop();
+            broker.getLoadManager().set(loadManagerWrapper);
+            try {
+                assertThatThrownBy(() -> broker.closeAsync().get(15, TimeUnit.SECONDS))
+                        .cause().hasCause(shutdownFailure).satisfies(failure -> {
+                            if (failLoadManagerStop) {
+                                assertThat(failure.getSuppressed()).containsExactly(stopFailure);
+                            } else {
+                                assertThat(failure.getSuppressed()).isEmpty();
+                            }
+                        });
+                verify(loadManagerWrapper).stop();
+                assertThat(client.isClosed()).isTrue();
+                assertThat(loadManager.getClient()).isNull();
+                assertThat(peerContext.getPulsarService().isRunning()).isTrue();
+            } finally {
+                broker.getLoadManager().set(original);
+            }
         }
     }
 
