@@ -127,10 +127,12 @@ public class ScalableTopicQueueSubscriptionTest extends V5ClientBaseTest {
     @Test
     public void testSplitCarriesQueueSubscriptionPropertiesToChildren() throws Exception {
         String topic = newScalableTopic(1);
+        // A '/' in the name must reach the segment's subscription endpoint as part of one path segment
+        String subscription = "orders/eu";
         Map<String, String> properties = Map.of("filter", "a");
         v5Client.newQueueConsumer(Schema.string())
                 .topic(topic)
-                .subscriptionName(SUBSCRIPTION)
+                .subscriptionName(subscription)
                 .subscriptionProperties(properties)
                 .subscribe()
                 .close();
@@ -138,7 +140,10 @@ public class ScalableTopicQueueSubscriptionTest extends V5ClientBaseTest {
 
         admin.scalableTopics().splitSegment(topic, parent);
         @Cleanup
-        QueueConsumer<String> consumer = subscribe(topic);
+        QueueConsumer<String> consumer = v5Client.newQueueConsumer(Schema.string())
+                .topic(topic)
+                .subscriptionName(subscription)
+                .subscribe();
 
         List<SegmentInfo> children = List.copyOf(controller(topic).getLayout().get().getActiveSegments().values());
         assertThat(children).hasSize(2);
@@ -146,7 +151,7 @@ public class ScalableTopicQueueSubscriptionTest extends V5ClientBaseTest {
             String childTopic = SegmentTopicName.backingTopicName(TopicName.get(topic), child);
             PersistentTopic persistentTopic = (PersistentTopic) getPulsar().getBrokerService()
                     .getTopicIfExists(childTopic).get().orElseThrow();
-            assertThat(persistentTopic.getSubscription(SUBSCRIPTION).getSubscriptionProperties())
+            assertThat(persistentTopic.getSubscription(subscription).getSubscriptionProperties())
                     .as("the properties of the queue subscription on %s", childTopic)
                     .isEqualTo(properties);
         }
