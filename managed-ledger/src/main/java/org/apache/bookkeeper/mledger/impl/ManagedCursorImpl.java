@@ -336,6 +336,16 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     protected final ArrayDeque<MarkDeleteEntry> pendingMarkDeleteOps = new ArrayDeque<>();
+    // Guarded by pendingMarkDeleteOps. A close that overlaps a cursor-ledger switch waits for the new ledger and
+    // for the mark-deletes queued behind the switch before it persists the final cursor position.
+    private CompletableFuture<Void> ledgerSwitchFuture = CompletableFuture.completedFuture(null);
+    private enum LedgerSwitchPhase {
+        WAITING_FOR_PENDING_WRITES,
+        CREATING_LEDGER,
+        DRAINING_QUEUED_WRITES
+    }
+    // Guarded by pendingMarkDeleteOps and only meaningful while ledgerSwitchFuture is incomplete.
+    private LedgerSwitchPhase ledgerSwitchPhase = LedgerSwitchPhase.DRAINING_QUEUED_WRITES;
     private static final AtomicIntegerFieldUpdater<ManagedCursorImpl> PENDING_MARK_DELETED_SUBMITTED_COUNT_UPDATER =
         AtomicIntegerFieldUpdater.newUpdater(ManagedCursorImpl.class, "pendingMarkDeletedSubmittedCount");
     @SuppressWarnings("unused")
@@ -2879,14 +2889,20 @@ public class ManagedCursorImpl implements ManagedCursor {
         // ledger is postponed to when the counter goes to 0.
         PENDING_MARK_DELETED_SUBMITTED_COUNT_UPDATER.incrementAndGet(this);
 
-        LAST_MARK_DELETE_ENTRY_UPDATER.updateAndGet(this, last -> {
-            if (last != null && last.newPosition.compareTo(mdEntry.newPosition) > 0) {
-                // keep the current value since it's later then the mdEntry.newPosition
-                return last;
-            } else {
-                return mdEntry;
-            }
-        });
+        final MarkDeleteEntry previousLastMarkDeleteEntry;
+        if (mdEntry.resetsCursor) {
+            previousLastMarkDeleteEntry = LAST_MARK_DELETE_ENTRY_UPDATER.getAndSet(this, mdEntry);
+        } else {
+            previousLastMarkDeleteEntry = null;
+            LAST_MARK_DELETE_ENTRY_UPDATER.updateAndGet(this, last -> {
+                if (last != null && last.newPosition.compareTo(mdEntry.newPosition) > 0) {
+                    // keep the current value since it's later then the mdEntry.newPosition
+                    return last;
+                } else {
+                    return mdEntry;
+                }
+            });
+        }
 
         VoidCallback cb = new VoidCallback() {
             @Override
@@ -2916,6 +2932,10 @@ public class ManagedCursorImpl implements ManagedCursor {
             public void operationFailed(ManagedLedgerException exception) {
                 INPROGRESS_MARKDELETE_PERSIST_POSITION_UPDATER.compareAndSet(ManagedCursorImpl.this,
                         mdEntry.newPosition, null);
+                if (mdEntry.resetsCursor) {
+                    LAST_MARK_DELETE_ENTRY_UPDATER.compareAndSet(ManagedCursorImpl.this, mdEntry,
+                            previousLastMarkDeleteEntry);
+                }
                 isDirty = true;
                 log.warn()
                         .attr("position", mdEntry.newPosition)
@@ -3598,7 +3618,16 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public void asyncClose(final AsyncCallbacks.CloseCallback callback, final Object ctx) {
-        boolean alreadyClosing = !trySetStateToClosing();
+        CompletableFuture<Void> switchFuture;
+        boolean alreadyClosing;
+        synchronized (pendingMarkDeleteOps) {
+            State previousState = changeStateIfNotClosed(State.Closing);
+            alreadyClosing = previousState.isClosed();
+            // The state can already be Open after the new ledger is installed while mark-deletes queued during
+            // the switch are still being persisted. Keep waiting until the entire switch barrier is complete.
+            switchFuture = ledgerSwitchFuture.isDone()
+                    ? CompletableFuture.completedFuture(null) : ledgerSwitchFuture;
+        }
         if (alreadyClosing) {
             log.info("State is already closed");
             callback.closeComplete(ctx);
@@ -3606,7 +3635,12 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
         closeWaitingCursor();
         setInactive();
-        persistPositionWhenClosing(lastMarkDeleteEntry.newPosition, lastMarkDeleteEntry.properties,
+        switchFuture.thenRun(() -> persistPositionAndCompleteClose(callback, ctx));
+    }
+
+    private void persistPositionAndCompleteClose(AsyncCallbacks.CloseCallback callback, Object ctx) {
+        MarkDeleteEntry entry = lastMarkDeleteEntry;
+        persistPositionWhenClosing(entry.newPosition, entry.properties,
                 new AsyncCallbacks.CloseCallback(){
 
                     @Override
@@ -3746,15 +3780,24 @@ public class ManagedCursorImpl implements ManagedCursor {
     // //////////////////////////////////////////////////
 
     void startCreatingNewMetadataLedger() {
-        // Change the state so that new mark-delete ops will be queued and not immediately submitted
-        State oldState = changeStateIfNotClosed(State.SwitchingLedger);
-        if (oldState == State.SwitchingLedger || oldState.isClosed()) {
-            // Ignore double request
-            return;
-        }
+        boolean createLedger = false;
+        synchronized (pendingMarkDeleteOps) {
+            // Change the state so that new mark-delete ops will be queued and not immediately submitted
+            State oldState = changeStateIfNotClosed(State.SwitchingLedger);
+            if (oldState == State.SwitchingLedger || oldState.isClosed()) {
+                // Ignore double request
+                return;
+            }
+            ledgerSwitchFuture = new CompletableFuture<>();
+            ledgerSwitchPhase = LedgerSwitchPhase.WAITING_FOR_PENDING_WRITES;
 
-        // Check if we can immediately switch to a new metadata ledger
-        if (PENDING_MARK_DELETED_SUBMITTED_COUNT_UPDATER.get(this) == 0) {
+            // Check if we can immediately switch to a new metadata ledger
+            if (PENDING_MARK_DELETED_SUBMITTED_COUNT_UPDATER.get(this) == 0) {
+                ledgerSwitchPhase = LedgerSwitchPhase.CREATING_LEDGER;
+                createLedger = true;
+            }
+        }
+        if (createLedger) {
             createNewMetadataLedger();
         }
     }
@@ -3763,19 +3806,31 @@ public class ManagedCursorImpl implements ManagedCursor {
         createNewMetadataLedger(new VoidCallback() {
             @Override
             public void operationComplete() {
+                CompletableFuture<Void> completedSwitch = null;
                 // We now have a new ledger where we can write
                 synchronized (pendingMarkDeleteOps) {
+                    CompletableFuture<Void> switchFuture = ledgerSwitchFuture;
                     flushPendingMarkDeletes();
 
-                    // Resume normal mark-delete operations
-                    changeStateIfNotClosed(State.Open);
+                    if (ledgerSwitchFuture == switchFuture) {
+                        // Resume normal mark-delete operations
+                        changeStateIfNotClosed(State.Open);
+                        ledgerSwitchPhase = LedgerSwitchPhase.DRAINING_QUEUED_WRITES;
+                        if (PENDING_MARK_DELETED_SUBMITTED_COUNT_UPDATER.get(ManagedCursorImpl.this) == 0) {
+                            completedSwitch = switchFuture;
+                        }
+                    }
                 }
+                completeLedgerSwitch(completedSwitch);
             }
 
             @Override
             public void operationFailed(ManagedLedgerException exception) {
                 log.error().attr("error", exception).log("Metadata ledger creation failed");
+                CompletableFuture<Void> completedSwitch = null;
+                List<MarkDeleteEntry> failedMarkDeletes = Collections.emptyList();
                 synchronized (pendingMarkDeleteOps) {
+                    CompletableFuture<Void> switchFuture = ledgerSwitchFuture;
                     // At this point we don't have a ledger ready
                     changeStateIfNotClosed(State.NoLedger);
                     // There are two case may cause switch ledger fails.
@@ -3783,26 +3838,37 @@ public class ManagedCursorImpl implements ManagedCursor {
                     // 2. Write ZK fails.
                     // Regarding the case "No enough BKs", try to persist the position in the metadata store before
                     // giving up.
-                    if (!(exception instanceof MetaStoreException)) {
+                    if (!(exception instanceof MetaStoreException) && !state.isClosed()) {
                         flushPendingMarkDeletes();
                     } else {
-                        while (!pendingMarkDeleteOps.isEmpty()) {
-                            MarkDeleteEntry entry = pendingMarkDeleteOps.poll();
-                            entry.callback.markDeleteFailed(exception, entry.ctx);
+                        failedMarkDeletes = new ArrayList<>(pendingMarkDeleteOps);
+                        pendingMarkDeleteOps.clear();
+                    }
+                    if (ledgerSwitchFuture == switchFuture) {
+                        ledgerSwitchPhase = LedgerSwitchPhase.DRAINING_QUEUED_WRITES;
+                        if (PENDING_MARK_DELETED_SUBMITTED_COUNT_UPDATER.get(ManagedCursorImpl.this) == 0) {
+                            completedSwitch = switchFuture;
                         }
                     }
                 }
+                for (MarkDeleteEntry entry : failedMarkDeletes) {
+                    entry.callback.markDeleteFailed(exception, entry.ctx);
+                }
+                completeLedgerSwitch(completedSwitch);
             }
         });
     }
 
-    /**
-     * Try set {@link #state} to {@link State#Closing}.
-     * @return false if the {@link #state} already is {@link State#Closing} or {@link State#Closed}.
-     */
-    private boolean trySetStateToClosing() {
-        State previousState = changeStateIfNotClosed(State.Closing);
-        return !previousState.isClosed();
+    private List<MarkDeleteEntry> drainPendingMarkDeletes() {
+        List<MarkDeleteEntry> entries = new ArrayList<>(pendingMarkDeleteOps);
+        pendingMarkDeleteOps.clear();
+        return entries;
+    }
+
+    private void failMarkDeletes(List<MarkDeleteEntry> entries, ManagedLedgerException exception) {
+        for (MarkDeleteEntry entry : entries) {
+            entry.callback.markDeleteFailed(exception, entry.ctx);
+        }
     }
 
     private void flushPendingMarkDeletes() {
@@ -3828,8 +3894,15 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     void createNewMetadataLedger(final VoidCallback callback) {
         ledger.mbean.startCursorLedgerCreateOp();
-        doCreateNewMetadataLedger().thenAccept(newLedgerHandle -> {
+        doCreateNewMetadataLedger().whenComplete((newLedgerHandle, error) -> {
+            ledger.mbean.endCursorLedgerCreateOp();
+            if (error != null) {
+                callback.operationFailed(createManagedLedgerException(error));
+                return;
+            }
             if (newLedgerHandle == null) {
+                callback.operationFailed(
+                        new ManagedLedgerException("Cursor ledger creation completed without a handle"));
                 return;
             }
             MarkDeleteEntry mdEntry = lastMarkDeleteEntry;
@@ -3849,11 +3922,6 @@ public class ManagedCursorImpl implements ManagedCursor {
                     callback.operationFailed(exception);
                 }
             }, false);
-        }).whenComplete((result, e) -> {
-            ledger.mbean.endCursorLedgerCreateOp();
-            if (e != null) {
-                callback.operationFailed(createManagedLedgerException(e));
-            }
         });
     }
 
@@ -3862,12 +3930,12 @@ public class ManagedCursorImpl implements ManagedCursor {
         ledger.asyncCreateLedger(bookkeeper, getConfig(), digestType, (rc, lh, ctx) -> {
 
             if (ledger.checkAndCompleteLedgerOpTask(rc, lh, ctx)) {
-                future.complete(null);
+                future.completeExceptionally(new ManagedLedgerException(
+                        "Cursor ledger creation completed after the operation had already failed"));
                 return;
             }
 
             ledger.getExecutor().execute(() -> {
-                ledger.mbean.endCursorLedgerCreateOp();
                 if (rc != BKException.Code.OK) {
                     log.warn().attr("errorMessage", BKException.getMessage(rc)).log("Error creating cursor ledger");
                     future.completeExceptionally(new ManagedLedgerException(BKException.getMessage(rc)));
@@ -4299,12 +4367,46 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     void decrementPendingMarkDeleteCount() {
-        if (PENDING_MARK_DELETED_SUBMITTED_COUNT_UPDATER.decrementAndGet(this) == 0) {
-            if (state == State.SwitchingLedger) {
-                // A metadata ledger switch was pending and now we can do it since we don't have any more
-                // outstanding mark-delete requests
-                createNewMetadataLedger();
+        boolean createLedger = false;
+        CompletableFuture<Void> completedSwitch = null;
+        List<MarkDeleteEntry> failedMarkDeletes = Collections.emptyList();
+        synchronized (pendingMarkDeleteOps) {
+            int remaining = PENDING_MARK_DELETED_SUBMITTED_COUNT_UPDATER.decrementAndGet(this);
+            if (remaining == 0 && !ledgerSwitchFuture.isDone()) {
+                switch (ledgerSwitchPhase) {
+                case WAITING_FOR_PENDING_WRITES:
+                    if (state == State.SwitchingLedger || state == State.Closing) {
+                        // A metadata ledger switch was pending and can start now that all writes to the old ledger
+                        // have completed. Closing owns the switch it started waiting for.
+                        ledgerSwitchPhase = LedgerSwitchPhase.CREATING_LEDGER;
+                        createLedger = true;
+                    } else {
+                        failedMarkDeletes = drainPendingMarkDeletes();
+                        completedSwitch = ledgerSwitchFuture;
+                    }
+                    break;
+                case CREATING_LEDGER:
+                    // The creation callback will advance the phase and complete the switch when it is safe.
+                    break;
+                case DRAINING_QUEUED_WRITES:
+                    completedSwitch = ledgerSwitchFuture;
+                    break;
+                default:
+                    throw new IllegalStateException("Unknown ledger switch phase " + ledgerSwitchPhase);
+                }
             }
+        }
+        failMarkDeletes(failedMarkDeletes, new ManagedLedgerException.CursorAlreadyClosedException(
+                "Cursor closed before the metadata ledger switch started"));
+        if (createLedger) {
+            createNewMetadataLedger();
+        }
+        completeLedgerSwitch(completedSwitch);
+    }
+
+    private void completeLedgerSwitch(CompletableFuture<Void> completedSwitch) {
+        if (completedSwitch != null) {
+            completedSwitch.complete(null);
         }
     }
 
