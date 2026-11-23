@@ -1922,19 +1922,22 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
                 ts.tracker.addMessage(i, i, i * 10);
             }
 
+            ImmutableBucket gatedBucket;
             synchronized (ts.tracker) {
                 assertEquals(storage.blockedBucketKeys.size(), 1,
                         "The first bucket snapshot creation should have been blocked");
                 assertTrue(ts.tracker.getImmutableBuckets().asMapOfRanges().keySet().stream()
                                 .anyMatch(range -> range.lowerEndpoint() == 1L && range.upperEndpoint() == 5L),
                         "The first bucket should still be present while its snapshot creation is pending");
+                // Capture the gated bucket under the lock: the trim callback removes other
+                // buckets from this live range map under the same monitor.
+                gatedBucket = ts.tracker.getImmutableBuckets().asMapOfRanges().values().stream()
+                        .filter(b -> storage.blockedBucketKeys.contains(b.bucketKey()))
+                        .findFirst().orElseThrow();
             }
 
             // Fail the first bucket's snapshot creation only once a trim delete has claimed that
             // bucket, so the exercised path is a trim delete blocked on the pending create.
-            ImmutableBucket gatedBucket = ts.tracker.getImmutableBuckets().asMapOfRanges().values().stream()
-                    .filter(b -> storage.blockedBucketKeys.contains(b.bucketKey()))
-                    .findFirst().orElseThrow();
             Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
                     assertThat(gatedBucket.isDeleteStarted()).isTrue());
             storage.gate.completeExceptionally(new BucketSnapshotPersistenceException("Create failed"));
@@ -1965,9 +1968,12 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
             Awaitility.await().untilAsserted(() ->
                     assertEquals(storage.blockedBucketKeys.size(), 1));
 
-            ImmutableBucket bucket = ts.tracker.getImmutableBuckets().asMapOfRanges().values().stream()
-                    .filter(b -> b.getSnapshotCreateFuture().map(future -> !future.isDone()).orElse(false))
-                    .findFirst().orElseThrow();
+            ImmutableBucket bucket;
+            synchronized (ts.tracker) {
+                bucket = ts.tracker.getImmutableBuckets().asMapOfRanges().values().stream()
+                        .filter(b -> b.getSnapshotCreateFuture().map(future -> !future.isDone()).orElse(false))
+                        .findFirst().orElseThrow();
+            }
 
             // A delete claims the bucket and waits on the pending create.
             CompletableFuture<Void> delete = bucket.asyncDeleteBucketSnapshot(new BucketDelayedMessageIndexStats());
