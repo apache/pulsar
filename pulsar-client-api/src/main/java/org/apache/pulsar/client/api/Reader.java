@@ -57,7 +57,8 @@ public interface Reader<T> extends Closeable {
      * messages from multiple topics or partitions.
      *
      * @return the next messages, possibly empty
-     * @throws PulsarClientException if the reader is closed, has a listener, or has a zero receiver queue size
+     * @throws PulsarClientException.AlreadyClosedException if the reader is closed before or during the read
+     * @throws PulsarClientException if the reader has a listener or has a zero receiver queue size
      * @throws UnsupportedOperationException if the reader implementation does not support batch reads
      */
     default Messages<T> readNextBatch() throws PulsarClientException {
@@ -98,6 +99,8 @@ public interface Reader<T> extends Closeable {
      * {@link ReaderBuilder#batchReceivePolicy(BatchReceivePolicy)}, and may be empty if no messages are available
      * when the timeout expires. It can contain messages from multiple topics or partitions.
      * Batch reads cannot be used with a reader listener or a zero receiver queue size.
+     * If the reader is closed before or during the read, the future fails with
+     * {@link PulsarClientException.AlreadyClosedException}.
      *
      * <p>{@code readNextBatchAsync()} should be called subsequently once the returned {@code CompletableFuture}
      * completes with received messages. Otherwise, it creates a backlog of receive requests in the application.

@@ -37,6 +37,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.Messages;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TopicMessageId;
@@ -96,9 +97,13 @@ public class ReaderBatchAcknowledgmentTest {
         checkBatch(multiTopic, async, new MessagesImpl<>(0, 0), List.of());
     }
 
-    @Test(dataProvider = "readerKindsAndReadModes")
-    public void testNullBatchDoesNotAcknowledge(boolean multiTopic, boolean async) throws Exception {
-        checkBatch(multiTopic, async, null, List.of());
+    @Test(dataProvider = "readModes")
+    public void testMultiTopicBatchReturnsMessagesWithoutOwnerTopic(boolean async) throws Exception {
+        MessagesImpl<byte[]> batch = new MessagesImpl<>(0, 0);
+        batch.add(message(TOPIC_A, -1, 1, false));
+        batch.add(message(TOPIC_B, 0, 2, true));
+
+        checkBatch(true, async, batch, List.of(new Ack(TOPIC_B + "-partition-0", 1, 2, 0, -1)));
     }
 
     private void checkBatch(boolean multiTopic, boolean async, Messages<byte[]> batch, List<Ack> expected)
@@ -135,7 +140,12 @@ public class ReaderBatchAcknowledgmentTest {
         when(consumer.acknowledgeAsync(any(Messages.class))).thenReturn(CompletableFuture.completedFuture(null));
         doAnswer(invocation -> {
             Message<?> message = invocation.getArgument(0);
-            acknowledgments.add(ack(message.getMessageId(), multiTopic));
+            MessageId id = message.getMessageId();
+            if (multiTopic && !(id instanceof TopicMessageId)) {
+                return CompletableFuture.failedFuture(new PulsarClientException.NotAllowedException(
+                        "Missing owner topic"));
+            }
+            acknowledgments.add(ack(id, multiTopic));
             return CompletableFuture.completedFuture(null);
         }).when(consumer).acknowledgeCumulativeAsync(any(Message.class));
         doAnswer(invocation -> {

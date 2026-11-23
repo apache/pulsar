@@ -261,15 +261,8 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
                 .create();
 
         while (reader.hasMessageAvailable()) {
-            if (enableBatch) {
-                Messages<byte[]> messages = reader.readNextBatch();
-                for (Message<byte[]> message : messages) {
-                    Assert.assertTrue(keys.remove(message.getKey()));
-                }
-            } else {
-                Message<byte[]> message = reader.readNext();
-                Assert.assertTrue(keys.remove(message.getKey()));
-            }
+            Message<byte[]> message = reader.readNext();
+            Assert.assertTrue(keys.remove(message.getKey()));
         }
         Assert.assertTrue(keys.isEmpty());
 
@@ -440,6 +433,28 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         }
     }
 
+    @Test(dataProvider = "batchReaderCases", timeOut = 30000)
+    public void testCloseWhileBatchReadIsPending(BatchReaderTopology topology, boolean async) throws Exception {
+        BatchReaderTopics topics = createBatchReaderTopics(topology);
+        BatchReceivePolicy policy = BatchReceivePolicy.builder().maxNumMessages(1).build();
+        try (ExecutorService executor = Executors.newSingleThreadExecutor();
+             Reader<String> reader = pulsarClient.newReader(Schema.STRING).topics(topics.readerTopics())
+                     .startMessageId(MessageId.earliest).batchReceivePolicy(policy).create()) {
+            ConsumerBase<?> consumer = reader instanceof ReaderImpl<?> singleReader
+                    ? singleReader.getConsumer() : ((MultiTopicsReaderImpl<?>) reader).getMultiTopicsConsumer();
+            Future<Messages<String>> pending = async ? reader.readNextBatchAsync()
+                    : executor.submit(reader::readNextBatch);
+            try {
+                Awaitility.await().atMost(5, TimeUnit.SECONDS).until(consumer::hasPendingBatchReceive);
+                reader.close();
+                assertThatThrownBy(() -> pending.get(5, TimeUnit.SECONDS))
+                        .hasCauseInstanceOf(PulsarClientException.AlreadyClosedException.class);
+            } finally {
+                pending.cancel(true);
+            }
+        }
+    }
+
     @Test(timeOut = 30000)
     public void testBatchReadNextWithZeroQueueSize() throws Exception {
         BatchReaderTopics topics = createBatchReaderTopics(BatchReaderTopology.SINGLE_TOPIC);
@@ -524,8 +539,8 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
                 .create();
 
         while (reader.hasMessageAvailable()) {
-            Messages<byte[]> messages = reader.readNextBatch();
-            messages.forEach((message -> Assert.assertTrue(keys.remove(message.getKey()))));
+            Message<byte[]> message = reader.readNext();
+            Assert.assertTrue(keys.remove(message.getKey()));
         }
         Assert.assertTrue(keys.isEmpty());
     }

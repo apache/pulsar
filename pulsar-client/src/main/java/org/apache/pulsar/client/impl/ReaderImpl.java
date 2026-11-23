@@ -205,6 +205,9 @@ public class ReaderImpl<T> implements Reader<T> {
     @Override
     public Messages<T> readNextBatch() throws PulsarClientException {
         Messages<T> messages = consumer.batchReceive();
+        if (messages == null) {
+            throw new PulsarClientException.AlreadyClosedException("Reader already closed");
+        }
         acknowledgeBatch(messages);
         return messages;
     }

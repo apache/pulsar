@@ -190,6 +190,9 @@ public class MultiTopicsReaderImpl<T> implements Reader<T> {
     @Override
     public Messages<T> readNextBatch() throws PulsarClientException {
         Messages<T> messages = multiTopicsConsumer.batchReceive();
+        if (messages == null) {
+            throw new PulsarClientException.AlreadyClosedException("Reader already closed");
+        }
         acknowledgeBatch(messages);
         return messages;
     }
@@ -241,8 +244,11 @@ public class MultiTopicsReaderImpl<T> implements Reader<T> {
         }
         Map<String, Message<T>> lastMessages = new HashMap<>();
         for (Message<T> message : messages) {
-            TopicMessageId messageId = (TopicMessageId) message.getMessageId();
-            lastMessages.put(messageId.getOwnerTopic(), message);
+            if (message.getMessageId() instanceof TopicMessageId messageId) {
+                lastMessages.put(messageId.getOwnerTopic(), message);
+            } else {
+                multiTopicsConsumer.tryAcknowledgeMessage(message);
+            }
         }
         lastMessages.values().forEach(multiTopicsConsumer::tryAcknowledgeMessage);
     }
