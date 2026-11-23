@@ -959,6 +959,8 @@ public class BrokerService implements Closeable {
                                 pulsarStats.close();
                                 pendingTopicLoadOperationsCounter.close();
                                 pendingLookupOperationsCounter.close();
+                                pendingTopicLoadOperationsLimitCounter.close();
+                                pendingLookupOperationsLimitCounter.close();
                                 try {
                                     delayedDeliveryTrackerFactory.close();
                                     if (fallbackDelayedDeliveryTrackerFactory != null) {
