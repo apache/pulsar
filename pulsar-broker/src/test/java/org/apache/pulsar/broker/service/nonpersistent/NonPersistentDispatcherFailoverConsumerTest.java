@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service.nonpersistent;
 
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
@@ -45,6 +46,7 @@ import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.PulsarCommandSenderImpl;
 import org.apache.pulsar.broker.service.ServerCnx;
+import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.api.proto.BaseCommand;
@@ -169,6 +171,39 @@ public class NonPersistentDispatcherFailoverConsumerTest {
     private void assertNoActiveConsumerChanges() {
         assertTrue(consumerChanges.isEmpty(),
                 "unexpected ActiveConsumerChange notifications: " + consumerChanges);
+    }
+
+    @Test(timeOut = 10000)
+    public void testFailoverSubscriptionMatchesNonPartitionedDispatcherElection() throws Exception {
+        var nonPersistentTopic = new NonPersistentTopic(TOPIC_NAME, pulsarTestContext.getBrokerService());
+        Subscription referenceSubscription =
+                new NonPersistentSubscription(nonPersistentTopic, "reference", Collections.emptyMap());
+        var referenceDispatcher = new NonPersistentDispatcherSingleActiveConsumer(
+                SubType.Failover, -1, nonPersistentTopic, referenceSubscription);
+        Subscription subscription = new NonPersistentSubscription(nonPersistentTopic, "sub-1", Collections.emptyMap());
+        long consumerId = 1;
+        List<String> consumerNames = List.of("Cons1", "Cons2");
+        for (String consumerName : consumerNames) {
+            referenceDispatcher.addConsumer(newFailoverConsumer(referenceSubscription, consumerId++, consumerName))
+                    .get();
+            subscription.addConsumer(newFailoverConsumer(subscription, consumerId++, consumerName)).get();
+        }
+
+        var subscriptionDispatcher = (NonPersistentDispatcherSingleActiveConsumer) subscription.getDispatcher();
+        String expectedActiveConsumerName = referenceDispatcher.getActiveConsumer().consumerName();
+        assertThat(expectedActiveConsumerName)
+                .as("The test inputs must distinguish consistent hashing from the old partition-0 election")
+                .isNotEqualTo(Collections.min(consumerNames));
+        assertThat(subscriptionDispatcher.getActiveConsumer().consumerName())
+                .as("Failover subscription on %s should elect the same consumer as the non-partitioned dispatcher",
+                        TOPIC_NAME)
+                .isEqualTo(expectedActiveConsumerName);
+    }
+
+    private Consumer newFailoverConsumer(Subscription subscription, long consumerId, String consumerName) {
+        return new Consumer(subscription, SubType.Failover, subscription.getTopicName(), consumerId, 0, consumerName,
+                true, serverCnx, "myrole-1", Collections.emptyMap(), false, null, MessageId.latest,
+                DEFAULT_CONSUMER_EPOCH);
     }
 
     @Test(timeOut = 10000)
