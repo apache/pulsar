@@ -20,6 +20,7 @@ package org.apache.bookkeeper.mledger.impl;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.awaitility.Awaitility.await;
 import static org.mockito.AdditionalAnswers.delegatesTo;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -32,15 +33,21 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.apache.bookkeeper.common.util.OrderedExecutor;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
 import org.apache.bookkeeper.mledger.MetadataCompressionConfig;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.StringProperty;
+import org.apache.bookkeeper.mledger.util.Futures.CloseFuture;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.bookkeeper.test.ZooKeeperUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
@@ -261,6 +268,88 @@ public class MetaStoreImplCursorPublicationTest extends MockedBookKeeperTestCase
                     } catch (ManagedLedgerException.ManagedLedgerFactoryClosedException alreadyClosed) {
                         // The test shuts down the factory before checking its pending callback.
                     }
+                }
+            }
+        }
+    }
+
+    @Test(timeOut = 30_000)
+    public void shutdownDeliversQueuedVerificationCallbackOnce() throws Exception {
+        try (var server = MockZooKeeper.newInstance(); var zkStore = new ZKMetadataStore(server)) {
+            var info = publication(1);
+            write(new MetaStoreImpl(zkStore, executor), info, null).get(5, TimeUnit.SECONDS);
+            var tasks = new LinkedBlockingQueue<Runnable>();
+            var scheduler = mock(OrderedExecutor.class);
+            doAnswer(inv -> tasks.add(inv.getArgument(1))).when(scheduler)
+                    .executeOrdered(eq("ledger"), any(Runnable.class));
+            var store = new MetaStoreImpl(zkStore, scheduler);
+            var result = new CompletableFuture<Stat>();
+            var deliveries = new AtomicInteger();
+            store.asyncUpdateCursorInfo("ledger", "cursor", info, null, new MetaStoreCallback<>() {
+                @Override
+                public void operationComplete(Void ignored, Stat stat) {
+                    deliveries.incrementAndGet();
+                    result.complete(stat);
+                }
+
+                @Override
+                public void operationFailed(MetaStoreException error) {
+                    deliveries.incrementAndGet();
+                    result.completeExceptionally(error);
+                }
+            });
+            Runnable verify = tasks.poll(5, TimeUnit.SECONDS);
+            assertThat(verify).isNotNull();
+            verify.run();
+            // The ordered executor has accepted the verified result but has not delivered it yet.
+            Runnable deliver = tasks.poll(5, TimeUnit.SECONDS);
+            assertThat(deliver).isNotNull();
+            store.close();
+            assertThat(result.get(2, TimeUnit.SECONDS).getVersion()).isZero();
+            deliver.run();
+            assertThat(deliveries.get()).isOne();
+        }
+    }
+
+    @DataProvider
+    public Object[][] verificationReadStalls() {
+        return new Object[][]{{false}, {true}};
+    }
+
+    @Test(dataProvider = "verificationReadStalls", timeOut = 30_000)
+    public void ledgerCloseBoundsCursorVerification(boolean withholdReply) throws Exception {
+        try (var server = MockZooKeeper.newInstance()) {
+            ZooKeeper client = mock(ZooKeeper.class, delegatesTo(server));
+            try (var zkStore = new ZKMetadataStore(client)) {
+                var zkFactory = new ManagedLedgerFactoryImpl(zkStore, bkc);
+                try {
+                    var config = new ManagedLedgerConfig().setMetadataOperationsTimeoutSeconds(1);
+                    var ledger = zkFactory.open("ledger", config);
+                    ledger.openCursor("cursor");
+                    int version = server.exists(PATH, false).getVersion();
+                    var reads = new AtomicInteger();
+                    doAnswer(inv -> {
+                        reads.incrementAndGet();
+                        if (!withholdReply) {
+                            DataCallback callback = inv.getArgument(2);
+                            callback.processResult(Code.OPERATIONTIMEOUT.intValue(), PATH, null, null, null);
+                        }
+                        return null;
+                    }).when(client).getData(eq(PATH), eq(false), any(DataCallback.class), any());
+                    loseNextMultiResponse(client, server);
+                    var closed = new CloseFuture();
+                    ledger.asyncClose(closed, null);
+                    assertThatThrownBy(() -> closed.get(5, TimeUnit.SECONDS))
+                            .isInstanceOf(ExecutionException.class).rootCause()
+                            .isInstanceOf(TimeoutException.class).hasMessageContaining("outcome is unknown");
+                    assertThat(server.exists(PATH, false).getVersion()).isEqualTo(version + 1);
+                    int atTimeout = reads.get();
+                    assertThat(atTimeout).isGreaterThanOrEqualTo(withholdReply ? 1 : 2);
+                    // Even a retry scheduled just before the deadline must not start another read.
+                    await().during(1200, TimeUnit.MILLISECONDS).atMost(3, TimeUnit.SECONDS)
+                            .until(() -> reads.get() == atTimeout);
+                } finally {
+                    zkFactory.shutdown();
                 }
             }
         }
