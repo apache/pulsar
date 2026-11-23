@@ -879,9 +879,10 @@ public class PersistentSubscription extends AbstractSubscription {
         CompletableFuture<Void> future = new CompletableFuture<>();
         synchronized (this) {
             if (inProgressBacklogClearFuture != null) {
-                // The cursor converges overlapping backlog clears, so chain onto the in-flight
-                // clear instead of rejecting the caller.
-                return inProgressBacklogClearFuture;
+                // The cursor samples the backlog tail per invocation, so the in-flight clear can
+                // miss entries published after it started. Queue a fresh clear behind it instead
+                // of reporting the caller's backlog as cleared.
+                return inProgressBacklogClearFuture.thenCompose(__ -> clearBacklog());
             }
             inProgressBacklogClearFuture = future;
         }
@@ -890,9 +891,11 @@ public class PersistentSubscription extends AbstractSubscription {
                 .attr("entriesInBacklog", cursor.getNumberOfEntriesInBacklog(false))
                 .log("Backlog size before clearing");
 
+        final Dispatcher clearStartedOn;
         if (dispatcher instanceof PersistentDispatcherMultipleConsumers persistentDispatcher) {
             persistentDispatcher.startBufferingDelayedMessagesForBacklogClear();
         }
+        clearStartedOn = dispatcher;
         try {
             cursor.asyncClearBacklog(new ClearBacklogCallback() {
                 @Override
@@ -906,13 +909,22 @@ public class PersistentSubscription extends AbstractSubscription {
                                 .log("Backlog size after clearing");
                         if (dispatcher != null) {
                             CompletableFuture<Void> cleanup;
-                            try {
-                                // clearDelayedMessagesAfterBacklogClear() releases the buffered
-                                // entries when the delayed-state cleanup settles, including on
-                                // cleanup failure.
-                                cleanup = dispatcher.clearDelayedMessagesAfterBacklogClear();
-                            } catch (RuntimeException e) {
-                                cleanup = FutureUtil.failedFuture(e);
+                            if (dispatcher != clearStartedOn) {
+                                // A replacement dispatcher enrolled during the clear only needs
+                                // its buffer released; its tracker holds post-tail entries only.
+                                if (dispatcher instanceof PersistentDispatcherMultipleConsumers d) {
+                                    d.releaseBufferedDelayedMessagesAfterBacklogClear();
+                                }
+                                cleanup = CompletableFuture.completedFuture(null);
+                            } else {
+                                try {
+                                    // clearDelayedMessagesAfterBacklogClear() releases the
+                                    // buffered entries when the delayed-state cleanup settles,
+                                    // including on cleanup failure.
+                                    cleanup = dispatcher.clearDelayedMessagesAfterBacklogClear();
+                                } catch (RuntimeException e) {
+                                    cleanup = FutureUtil.failedFuture(e);
+                                }
                             }
                             cleanup.whenComplete((__, ex) -> {
                                 synchronized (PersistentSubscription.this) {

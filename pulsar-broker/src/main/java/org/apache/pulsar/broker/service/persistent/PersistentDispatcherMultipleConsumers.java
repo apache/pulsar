@@ -1807,12 +1807,20 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             CompletableFuture<Void> clearFuture;
             if (!topic.isDelayedDeliveryEnabled()) {
                 clearFuture = CompletableFuture.completedFuture(null);
-            } else if (delayedDeliveryTrackerCreateFuture == null) {
-                clearFuture = clearDelayedMessages();
             } else {
-                clearFuture = delayedDeliveryTrackerCreateFuture
-                        .applyToEither(delayedDeliveryTrackerCreateFailureFuture, result -> result)
-                        .thenCompose(__ -> clearDelayedMessages());
+                try {
+                    if (delayedDeliveryTrackerCreateFuture == null) {
+                        clearFuture = clearDelayedMessages();
+                    } else {
+                        clearFuture = delayedDeliveryTrackerCreateFuture
+                                .applyToEither(delayedDeliveryTrackerCreateFailureFuture, result -> result)
+                                .thenCompose(__ -> clearDelayedMessages());
+                    }
+                } catch (RuntimeException e) {
+                    // A synchronous tracker failure must still release the buffered entries, so
+                    // normalize it into the failed future the release handler is attached to.
+                    clearFuture = FutureUtil.failedFuture(e);
+                }
             }
             CompletableFuture<Void> skipRecovery = delayedDeliveryTrackerRecoverySkipFuture;
             CompletableFuture<Void> tracked =
