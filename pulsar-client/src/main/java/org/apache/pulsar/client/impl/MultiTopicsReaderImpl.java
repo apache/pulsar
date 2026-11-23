@@ -187,7 +187,7 @@ public class MultiTopicsReaderImpl<T> implements Reader<T> {
     }
 
     @Override
-    public Messages<T> batchReadNext() throws PulsarClientException {
+    public Messages<T> readNextBatch() throws PulsarClientException {
         Messages<T> messages = multiTopicsConsumer.batchReceive();
         acknowledgeBatch(messages);
         return messages;
@@ -222,7 +222,7 @@ public class MultiTopicsReaderImpl<T> implements Reader<T> {
     }
 
     @Override
-    public CompletableFuture<Messages<T>> batchReadNextAsync() {
+    public CompletableFuture<Messages<T>> readNextBatchAsync() {
         CompletableFuture<Messages<T>> originalFuture = multiTopicsConsumer.batchReceiveAsync();
         CompletableFuture<Messages<T>> result = originalFuture.thenApply(messages -> {
             acknowledgeBatch(messages);

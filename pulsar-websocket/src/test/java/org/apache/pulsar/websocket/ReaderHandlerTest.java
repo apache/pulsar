@@ -225,9 +225,9 @@ public class ReaderHandlerTest {
     @Test
     public void testLegacyReaderBatchMethods() {
         Reader<byte[]> reader = new IllegalReader();
-        Assert.expectThrows(UnsupportedOperationException.class, reader::batchReadNext);
+        Assert.expectThrows(UnsupportedOperationException.class, reader::readNextBatch);
         CompletionException error = Assert.expectThrows(CompletionException.class,
-                () -> reader.batchReadNextAsync().join());
+                () -> reader.readNextBatchAsync().join());
         Assert.assertTrue(error.getCause() instanceof UnsupportedOperationException);
     }
 

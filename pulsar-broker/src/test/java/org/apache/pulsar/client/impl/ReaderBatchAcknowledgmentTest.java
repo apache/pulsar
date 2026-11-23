@@ -145,8 +145,8 @@ public class ReaderBatchAcknowledgmentTest {
         }).when(consumer).acknowledgeCumulativeAsync(any(MessageId.class));
         clearInvocations(consumer);
 
-        Messages<byte[]> result = async ? reader.batchReadNextAsync().get(5, TimeUnit.SECONDS)
-                : reader.batchReadNext();
+        Messages<byte[]> result = async ? reader.readNextBatchAsync().get(5, TimeUnit.SECONDS)
+                : reader.readNextBatch();
 
         assertThat(result).as("returned batch").isSameAs(batch);
         assertThat(acknowledgments).as("cumulative acknowledgments per topic partition")

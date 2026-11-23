@@ -261,7 +261,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
 
         while (reader.hasMessageAvailable()) {
             if (enableBatch) {
-                Messages<byte[]> messages = reader.batchReadNext();
+                Messages<byte[]> messages = reader.readNextBatch();
                 for (Message<byte[]> message : messages) {
                     Assert.assertTrue(keys.remove(message.getKey()));
                 }
@@ -319,9 +319,9 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
 
     private Messages<String> batchRead(Reader<String> reader, boolean async) throws Exception {
         if (!async) {
-            return reader.batchReadNext();
+            return reader.readNextBatch();
         }
-        CompletableFuture<Messages<String>> future = reader.batchReadNextAsync();
+        CompletableFuture<Messages<String>> future = reader.readNextBatchAsync();
         try {
             return future.get(5, TimeUnit.SECONDS);
         } finally {
@@ -418,7 +418,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         BatchReaderTopics topics = createBatchReaderTopics(BatchReaderTopology.SINGLE_TOPIC);
         try (Reader<String> reader = pulsarClient.newReader(Schema.STRING).topics(topics.readerTopics())
                 .startMessageId(MessageId.earliest).receiverQueueSize(0).create()) {
-            assertThatThrownBy(reader::batchReadNext)
+            assertThatThrownBy(reader::readNextBatch)
                     .isInstanceOf(PulsarClientException.InvalidConfigurationException.class);
             assertThatThrownBy(() -> batchRead(reader, true))
                     .hasCauseInstanceOf(PulsarClientException.InvalidConfigurationException.class);
@@ -433,7 +433,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
                 .startMessageId(MessageId.earliest).create();
              Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
                      .topic(topics.sourceTopics().get(0)).enableBatching(false).create()) {
-            CompletableFuture<Messages<String>> cancelled = reader.batchReadNextAsync();
+            CompletableFuture<Messages<String>> cancelled = reader.readNextBatchAsync();
             assertTrue(cancelled.cancel(false));
             producer.send("after-cancellation");
             Messages<String> messages = batchRead(reader, async);
@@ -497,7 +497,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
                 .create();
 
         while (reader.hasMessageAvailable()) {
-            Messages<byte[]> messages = reader.batchReadNext();
+            Messages<byte[]> messages = reader.readNextBatch();
             messages.forEach((message -> Assert.assertTrue(keys.remove(message.getKey()))));
         }
         Assert.assertTrue(keys.isEmpty());

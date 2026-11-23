@@ -202,7 +202,7 @@ public class ReaderImpl<T> implements Reader<T> {
     }
 
     @Override
-    public Messages<T> batchReadNext() throws PulsarClientException {
+    public Messages<T> readNextBatch() throws PulsarClientException {
         Messages<T> messages = consumer.batchReceive();
         acknowledgeBatch(messages);
         return messages;
@@ -245,7 +245,7 @@ public class ReaderImpl<T> implements Reader<T> {
     }
 
     @Override
-    public CompletableFuture<Messages<T>> batchReadNextAsync() {
+    public CompletableFuture<Messages<T>> readNextBatchAsync() {
         CompletableFuture<Messages<T>> originalFuture = consumer.batchReceiveAsync();
         CompletableFuture<Messages<T>> result = originalFuture.thenApply(messages -> {
             acknowledgeBatch(messages);

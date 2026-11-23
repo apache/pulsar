@@ -59,7 +59,7 @@ public interface Reader<T> extends Closeable {
      * @throws PulsarClientException if the reader is closed, has a listener, or has a zero receiver queue size
      * @throws UnsupportedOperationException if the reader implementation does not support batch reads
      */
-    default Messages<T> batchReadNext() throws PulsarClientException {
+    default Messages<T> readNextBatch() throws PulsarClientException {
         throw new UnsupportedOperationException("Batch reads are not supported by this reader");
     }
 
@@ -109,7 +109,7 @@ public interface Reader<T> extends Closeable {
      * @return a future that yields the messages or fails if the read cannot be performed; implementations that do
      *         not support batch reads fail with {@link UnsupportedOperationException}
      */
-    default CompletableFuture<Messages<T>> batchReadNextAsync() {
+    default CompletableFuture<Messages<T>> readNextBatchAsync() {
         return CompletableFuture.failedFuture(
                 new UnsupportedOperationException("Batch reads are not supported by this reader"));
     }

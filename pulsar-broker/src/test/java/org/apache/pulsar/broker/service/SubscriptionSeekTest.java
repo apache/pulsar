@@ -657,7 +657,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         Reader<String> reader =
             pulsarClient.newReader(Schema.STRING).topic(topicName).startMessageId(MessageId.earliest).create();
         while (reader.hasMessageAvailable()) {
-            Messages<String> messages = reader.batchReadNext();
+            Messages<String> messages = reader.readNextBatch();
             for (Message<String> message : messages) {
                 log.info().attr("message", message.getMessageId()).attr("publishTime", message.getPublishTime())
                         .log("message:");
