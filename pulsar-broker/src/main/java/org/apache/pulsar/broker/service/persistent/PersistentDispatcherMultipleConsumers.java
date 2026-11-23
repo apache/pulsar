@@ -52,6 +52,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsExcep
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.commons.lang3.mutable.MutableBoolean;
+import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.delayed.BucketDelayedDeliveryTrackerFactory;
@@ -262,27 +263,43 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     public synchronized void removeConsumer(Consumer consumer) throws BrokerServiceException {
         // Drop this consumer's chunk uuid mappings, otherwise its pending chunks stay unassignable forever.
         assignor.removeConsumer(consumer);
+        // Only the removal that actually unregisters the consumer may debit it, otherwise removing an
+        // already-removed consumer debits the same messages again and drives the subscription counter
+        // negative.
         if (removeConsumerInstance(consumer)) {
-            // decrement unack-message count for removed consumer. Only the removal that actually
-            // unregisters the consumer may debit it, otherwise removing an already-removed consumer
-            // debits the same messages again and drives the subscription counter negative.
-            addUnAckedMessages(-consumer.getUnackedMessages());
+            // Debit exactly the unacked messages drained from the removed consumer's pending acks, instead
+            // of reading consumer.getUnackedMessages(). The aggregate count is racy: an ack that completes
+            // after the read still finds its entry in the pending acks map and debits it a second time
+            // through the subscription (Consumer.applyPendingAckCompletions), driving the dispatcher's
+            // total below zero. Draining the map under its write lock makes each message debited exactly
+            // once: either the ack path removed the entry and debits it, or the drain removes it and this
+            // debit covers it. The drain also closes the map, so a late ack finds no entry to debit
+            // again. See #27556.
+            MutableInt drainedUnackedMessages = new MutableInt(0);
             removeConsumerInstanceFromList(consumer);
             log.info()
                     .attr("consumer", consumer)
                     .attr("pendingAcks", consumer.getPendingAcks().size())
                     .log("Removed consumer with pending acks");
             if (consumerList.isEmpty()) {
+                // No consumers remain to redeliver to, but the pending acks map must still be drained and
+                // closed. Leaving it in place lets any ack that is still being persisted when the last
+                // consumer closes debit the same messages a second time.
+                consumer.getPendingAcks().forEachAndClose(
+                        (ledgerId, entryId, batchSize, stickyKeyHash) -> drainedUnackedMessages.add(batchSize));
+                addUnAckedMessages(-drainedUnackedMessages.intValue());
                 clearComponentsAfterRemovedAllConsumers();
             } else {
                 log.debug("Consumers are left, reading more entries");
                 MutableBoolean notifyAddedToReplay = new MutableBoolean(false);
                 consumer.getPendingAcks().forEachAndClose((ledgerId, entryId, batchSize, stickyKeyHash) -> {
+                    drainedUnackedMessages.add(batchSize);
                     boolean addedToReplay = addMessageToReplay(ledgerId, entryId, stickyKeyHash);
                     if (addedToReplay) {
                         notifyAddedToReplay.setTrue();
                     }
                 });
+                addUnAckedMessages(-drainedUnackedMessages.intValue());
                 // Restore the invariant that the dispatcher total equals the sum of the removal balances of the
                 // remaining consumers. Exclude Flow permits that have not updated the dispatcher total yet.
                 int availablePermits = consumer.getAvailablePermitsForDispatcherRemoval();
