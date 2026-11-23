@@ -30,6 +30,7 @@ import static org.mockito.Mockito.when;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -427,8 +428,9 @@ public class TransactionCoordinatorV5Test {
             String path = TxnPaths.tcLeaderPath(0);
             TcLeader current = new TcLeader("new-leader:8080", "pulsar://new-leader:6650", null,
                     "http://new-leader:8080");
-            // A value update produces Modified, not a local Following -> Leading transition.
-            // The mocked election deliberately continues returning its old cached leader value.
+            // The leader changes while the follower keeps its role, so its election notifies nothing,
+            // and the mocked election keeps reporting the previous leader, like a real one that hasn't
+            // caught up yet. The store refreshes the follower's cached leader before its listeners run.
             store.put(path, TxnMetadataStore.toJson(current), Optional.empty()).get(10, TimeUnit.SECONDS);
             if (notifications.get() != null) {
                 notifications.get().accept(new Notification(NotificationType.Modified, path));
@@ -447,8 +449,14 @@ public class TransactionCoordinatorV5Test {
             notifications.get().accept(new Notification(NotificationType.Modified, path + "/child"));
             notifications.get().accept(new Notification(NotificationType.ChildrenChanged, path));
             assertThat(changes.get()).isEqualTo(before);
+            // A leader change missed while disconnected is published on the reconnection.
+            TcLeader next = new TcLeader("next-leader:8080", "pulsar://next-leader:6650", null,
+                    "http://next-leader:8080");
+            store.put(path, TxnMetadataStore.toJson(next), Optional.empty()).get(10, TimeUnit.SECONDS);
             sessions.get().accept(SessionEvent.Reconnected);
             assertThat(changes.get()).isEqualTo(before + 1);
+            assertThat(follower.buildAssignmentsSnapshot().get(10, TimeUnit.SECONDS).assignments().get(0))
+                    .isEqualTo(next);
         } finally {
             follower.close();
         }
@@ -486,27 +494,61 @@ public class TransactionCoordinatorV5Test {
         }
     }
 
-    @SuppressWarnings("unchecked")
+    @Test
+    public void assignmentSnapshotWaitsForElectionsInProgress() throws Exception {
+        // At startup no leader node exists yet. A client is ready once it gets its first snapshot, so
+        // the snapshot waits for the elections in progress rather than report no coordinator.
+        try (MetadataStoreExtended startingStore = MetadataStoreExtended.create("memory:" + UUID.randomUUID(),
+                MetadataStoreConfig.builder().fsyncEnable(false).build())) {
+            CompletableFuture<Optional<TcLeader>> electedLeader = new CompletableFuture<>();
+            TransactionCoordinatorV5 starting = coordinatorWithElection(startingStore,
+                    mockElection(LeaderElectionState.NoLeader, electedLeader));
+            try {
+                var snapshot = starting.buildAssignmentsSnapshot();
+                assertThat(snapshot).as("a snapshot taken while every election is in progress").isNotDone();
+                TcLeader elected = new TcLeader("elected:8080", "pulsar://elected:6650", null,
+                        "http://elected:8080");
+                electedLeader.complete(Optional.of(elected));
+                assertThat(snapshot.get(10, TimeUnit.SECONDS).assignments()).hasSize(4).containsEntry(0, elected);
+            } finally {
+                starting.close();
+            }
+        }
+    }
+
     private TransactionCoordinatorV5 followingCoordinator(MetadataStoreExtended observingStore,
                                                          TcLeader cachedLeader) {
+        return coordinatorWithElection(observingStore, mockElection(LeaderElectionState.Following,
+                CompletableFuture.completedFuture(Optional.of(cachedLeader))));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static LeaderElection<TcLeader> mockElection(LeaderElectionState state,
+                                                         CompletableFuture<Optional<TcLeader>> leaderValue) {
         LeaderElection<TcLeader> election = mock(LeaderElection.class);
-        when(election.getState()).thenReturn(LeaderElectionState.Following);
-        when(election.elect(any())).thenReturn(CompletableFuture.completedFuture(LeaderElectionState.Following));
-        when(election.getLeaderValue()).thenReturn(CompletableFuture.completedFuture(Optional.of(cachedLeader)));
+        when(election.getState()).thenReturn(state);
+        when(election.elect(any())).thenReturn(CompletableFuture.completedFuture(state));
+        when(election.getLeaderValue()).thenReturn(leaderValue);
         when(election.asyncClose()).thenReturn(CompletableFuture.completedFuture(null));
+        return election;
+    }
+
+    /** Start a coordinator on another broker whose every partition's election is {@code election}. */
+    private TransactionCoordinatorV5 coordinatorWithElection(MetadataStoreExtended metadataStore,
+                                                            LeaderElection<TcLeader> election) {
         CoordinationService coordination = mock(CoordinationService.class);
         when(coordination.getLeaderElection(eq(TcLeader.class), anyString(), any())).thenReturn(election);
         PulsarService other = mock(PulsarService.class);
-        when(other.getLocalMetadataStore()).thenReturn(observingStore);
+        when(other.getLocalMetadataStore()).thenReturn(metadataStore);
         when(other.getCoordinationService()).thenReturn(coordination);
         var configuration = pulsar.getConfiguration();
         when(other.getConfiguration()).thenReturn(configuration);
         when(other.getBrokerId()).thenReturn("follower:8080");
         when(other.getBrokerServiceUrl()).thenReturn("pulsar://follower:6650");
         when(other.getSafeWebServiceAddress()).thenReturn("http://follower:8080");
-        TransactionCoordinatorV5 follower = new TransactionCoordinatorV5(other);
-        follower.start();
-        return follower;
+        TransactionCoordinatorV5 coordinator = new TransactionCoordinatorV5(other);
+        coordinator.start();
+        return coordinator;
     }
 
     @Test

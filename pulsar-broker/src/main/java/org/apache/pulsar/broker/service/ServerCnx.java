@@ -119,6 +119,7 @@ import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataExcep
 import org.apache.pulsar.broker.topiclistlimit.TopicListMemoryLimiter;
 import org.apache.pulsar.broker.topiclistlimit.TopicListSizeResultCache;
 import org.apache.pulsar.broker.transaction.coordinator.v5.TransactionCoordinatorV5;
+import org.apache.pulsar.broker.transaction.coordinator.v5.TransactionCoordinatorV5.TcAssignmentsSnapshot;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -1012,14 +1013,23 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     // or that failed to build, so the client converges without waiting for an external trigger.
     private static final long TC_ASSIGNMENTS_REPUSH_DELAY_MS = 1000L;
 
+    private enum TcAssignmentWatchState {
+        /** No snapshot is being built. A repush may be scheduled. */
+        IDLE,
+        /** A snapshot is being built, and no change was notified since it started. */
+        BUILDING,
+        /** A change was notified while a snapshot was being built: build again rather than send it. */
+        REBUILD_PENDING,
+        /** The watch was closed or replaced: nothing is built or sent anymore. */
+        CLOSED
+    }
+
     /** Build and repush state is confined to this connection's event loop. */
     private final class TcAssignmentWatchSession implements AutoCloseable {
         private final long watchId;
         private final TransactionCoordinatorV5 coordinator;
         private AutoCloseable listener;
-        private boolean inFlight;
-        private boolean pending;
-        private boolean closed;
+        private TcAssignmentWatchState state = TcAssignmentWatchState.IDLE;
         private ScheduledFuture<?> repush;
 
         private TcAssignmentWatchSession(long watchId, TransactionCoordinatorV5 coordinator) {
@@ -1029,7 +1039,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         @Override
         public void close() {
-            closed = true;
+            state = TcAssignmentWatchState.CLOSED;
             if (repush != null) {
                 repush.cancel(false);
                 repush = null;
@@ -1196,48 +1206,56 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     }
 
     private void sendTcAssignmentsSnapshot(TcAssignmentWatchSession session) {
-        if (session.closed || tcAssignmentWatchers.get(session.watchId) != session) {
-            return;
+        switch (session.state) {
+            case IDLE -> buildTcAssignmentsSnapshot(session);
+            // The build in progress may have read the assignments before this change: build again once it completes
+            case BUILDING -> session.state = TcAssignmentWatchState.REBUILD_PENDING;
+            case REBUILD_PENDING, CLOSED -> { }
         }
-        session.pending = true;
-        if (session.inFlight) {
-            return;
-        }
+    }
+
+    private void buildTcAssignmentsSnapshot(TcAssignmentWatchSession session) {
         if (session.repush != null) {
             session.repush.cancel(false);
             session.repush = null;
         }
-        session.inFlight = true;
-        session.pending = false;
-        session.coordinator.buildAssignmentsSnapshot().whenComplete((snapshot, error) -> ctx.executor().execute(() -> {
-            if (session.closed || tcAssignmentWatchers.get(session.watchId) != session) {
+        session.state = TcAssignmentWatchState.BUILDING;
+        // A synchronous failure completes the build like an asynchronous one: it can't leave the watch BUILDING
+        FutureUtil.supplySafely(session.coordinator::buildAssignmentsSnapshot).whenComplete((snapshot, error) ->
+                ctx.executor().execute(() -> tcAssignmentsSnapshotBuilt(session, snapshot, error)));
+    }
+
+    private void tcAssignmentsSnapshotBuilt(TcAssignmentWatchSession session, TcAssignmentsSnapshot snapshot,
+                                            Throwable error) {
+        switch (session.state) {
+            case CLOSED -> {
                 return;
             }
-            session.inFlight = false;
-            if (session.pending) {
-                // A leadership change invalidated this in-flight read. Coalesce notifications
-                // into one fresh build instead of publishing an old full routing map last.
-                sendTcAssignmentsSnapshot(session);
+            case REBUILD_PENDING -> {
+                // A leadership change invalidated this build. Coalesce the notifications into one fresh build
+                // instead of publishing an older full routing map.
+                buildTcAssignmentsSnapshot(session);
                 return;
             }
-            if (error != null) {
-                log.warn().attr("watchId", session.watchId).exception(error)
-                        .log("Failed to build TC-assignments snapshot; retrying shortly");
-                scheduleTcAssignmentsRepush(session);
-                return;
-            }
-            Map<Integer, String[]> leaders = new HashMap<>();
-            snapshot.assignments().forEach((partition, leader) -> leaders.put(partition,
-                    new String[] {leader.brokerServiceUrl(), leader.brokerServiceUrlTls()}));
-            ctx.writeAndFlush(Commands.newWatchTcAssignmentsSnapshot(
-                    session.watchId, snapshot.partitionCount(), leaders));
-            // If some partition is still mid-election, the snapshot is incomplete. Schedule a single
-            // delayed re-push so the client doesn't stay parked on a missing partition waiting for a
-            // leadership change that may never come (the cache repopulating fires no TC listener).
-            if (!snapshot.isComplete()) {
-                scheduleTcAssignmentsRepush(session);
-            }
-        }));
+            default -> session.state = TcAssignmentWatchState.IDLE;
+        }
+        if (error != null) {
+            log.warn().attr("watchId", session.watchId).exception(error)
+                    .log("Failed to build TC-assignments snapshot; retrying shortly");
+            scheduleTcAssignmentsRepush(session);
+            return;
+        }
+        Map<Integer, String[]> leaders = new HashMap<>();
+        snapshot.assignments().forEach((partition, leader) -> leaders.put(partition,
+                new String[] {leader.brokerServiceUrl(), leader.brokerServiceUrlTls()}));
+        ctx.writeAndFlush(Commands.newWatchTcAssignmentsSnapshot(
+                session.watchId, snapshot.partitionCount(), leaders));
+        // If some partition is still mid-election, the snapshot is incomplete. Schedule a single
+        // delayed re-push so the client doesn't stay parked on a missing partition waiting for a
+        // leadership change that may never come (the cache repopulating fires no TC listener).
+        if (!snapshot.isComplete()) {
+            scheduleTcAssignmentsRepush(session);
+        }
     }
 
     private void scheduleTcAssignmentsRepush(TcAssignmentWatchSession session) {

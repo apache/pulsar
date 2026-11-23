@@ -124,7 +124,7 @@ public class TransactionCoordinatorV5 {
 
     /** Per-partition leader-election controllers, keyed by partition (0..partitionCount-1). */
     private final Map<Integer, LeaderElection<TcLeader>> elections = new ConcurrentHashMap<>();
-    /** Shared loads for assignment watches, independent of each election's cached leader value. */
+    /** The persisted leader values for assignment watches, shared by their snapshots. */
     private final MetadataCache<TcLeader> assignmentLeaders;
     private Runnable cancelAssignmentMetadataListener;
     private Runnable cancelAssignmentSessionListener;
@@ -296,9 +296,10 @@ public class TransactionCoordinatorV5 {
         if (partition < 0 || partition >= partitionCount || !path.equals(TxnPaths.tcLeaderPath(partition))) {
             return;
         }
-        // A leader value can change while a follower's own election state stays Following.
-        // Invalidate before waking watchers: their concurrent snapshots then share one fresh load.
-        assignmentLeaders.invalidate(path);
+        // The leader can change without a change of this broker's role, which the election doesn't
+        // notify: e.g. a deletion notified while an election cycle is in progress makes the cycle
+        // read the lock again and keep following. The metadata store refreshes or invalidates its
+        // caches, including assignmentLeaders, before it calls this listener.
         notifyAssignmentChange();
     }
 
@@ -306,9 +307,9 @@ public class TransactionCoordinatorV5 {
         if (closed || event != SessionEvent.Reconnected && event != SessionEvent.SessionReestablished) {
             return;
         }
-        for (int partition = 0; partition < partitionCount; partition++) {
-            assignmentLeaders.invalidate(TxnPaths.tcLeaderPath(partition));
-        }
+        // The leader can change while disconnected, and an election that revalidates without a
+        // change of role notifies nothing. The metadata store invalidates its caches, including
+        // assignmentLeaders, before it calls this listener.
         notifyAssignmentChange();
     }
 
@@ -383,22 +384,36 @@ public class TransactionCoordinatorV5 {
     // ---- Assignment discovery (client watch) ------------------------------
 
     /**
-     * Build the current full {@code partition → leader} snapshot from persisted election values.
-     * A follower's local election can retain an older leader value without changing its own state.
-     * The coordinator-owned cache is invalidated before notifying assignment watches and coalesces
-     * concurrent watches' loads, so snapshots do not depend on that local election image.
+     * Build the current full {@code partition → leader} snapshot.
      *
-     * <p>A partition still genuinely without a leader (no broker elected yet) is omitted; the caller
-     * ({@code ServerCnx}) re-pushes shortly after so the client isn't stranded. Always the complete
-     * map — the watch protocol sends full snapshots, never diffs.
+     * <p>Once a partition's local election has settled, the snapshot takes the persisted leader,
+     * not the election's view of it. The election notifies role changes, not leader changes, so the
+     * leader-node and reconnection listeners also wake the watches, and they can run before the
+     * election catches up: after a reconnection, for example, it revalidates asynchronously and
+     * reports the previous leader until then. The metadata store has already refreshed or
+     * invalidated {@link #assignmentLeaders} by then, and concurrent watches share its loads.
+     *
+     * <p>While a partition's election reports no leader (at startup, or after its leader's node was
+     * deleted), the snapshot waits for the election through {@link LeaderElection#getLeaderValue()}:
+     * a client is ready once it gets its first snapshot, which must not miss the coordinators being
+     * elected.
+     *
+     * <p>A partition still without a leader is omitted; the caller ({@code ServerCnx}) re-pushes
+     * shortly after so the client isn't stranded. Always the complete map — the watch protocol sends
+     * full snapshots, never diffs.
      *
      * @return a future of the snapshot plus whether it is complete (every partition has a leader)
      */
     public CompletableFuture<TcAssignmentsSnapshot> buildAssignmentsSnapshot() {
         Map<Integer, TcLeader> assignments = new ConcurrentSkipListMap<>();
         List<CompletableFuture<Void>> loads = new ArrayList<>(elections.size());
-        for (int partition : elections.keySet()) {
-            loads.add(assignmentLeaders.get(TxnPaths.tcLeaderPath(partition))
+        for (Map.Entry<Integer, LeaderElection<TcLeader>> e : elections.entrySet()) {
+            int partition = e.getKey();
+            LeaderElection<TcLeader> election = e.getValue();
+            var leaderLoad = election.getState() == LeaderElectionState.NoLeader
+                    ? election.getLeaderValue()
+                    : assignmentLeaders.get(TxnPaths.tcLeaderPath(partition));
+            loads.add(leaderLoad
                     .thenAccept(opt -> opt.ifPresent(leader -> assignments.put(partition, leader)))
                     .exceptionally(ex -> {
                         // Treat a load error as "leader unknown for now"; the re-push will retry.

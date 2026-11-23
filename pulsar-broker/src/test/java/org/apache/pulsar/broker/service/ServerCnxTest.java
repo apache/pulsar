@@ -374,6 +374,8 @@ public class ServerCnxTest {
         CompletableFuture<TcAssignmentsSnapshot> newSnapshot = new CompletableFuture<>();
         when(coordinator.buildAssignmentsSnapshot()).thenReturn(oldSnapshot, newSnapshot);
 
+        // The Java client doesn't reuse a watch ID on a connection, but the protocol doesn't prevent a
+        // client from doing it, and the broker then replaces the previous watch.
         channel.writeInbound(Commands.newWatchTcAssignments(41));
         channel.writeInbound(Commands.newWatchTcAssignmentsClose(41));
         channel.writeInbound(Commands.newWatchTcAssignments(41));
@@ -418,13 +420,35 @@ public class ServerCnxTest {
         verify(registrations.get(0)).close();
     }
 
+    @Test(timeOut = 30000)
+    public void testTcAssignmentsWatchRetriesAfterSynchronousBuildFailure() throws Exception {
+        List<Runnable> listeners = new ArrayList<>();
+        List<AutoCloseable> registrations = new ArrayList<>();
+        TransactionCoordinatorV5 coordinator = connectTcAssignmentsWatch(listeners, registrations);
+        when(coordinator.buildAssignmentsSnapshot())
+                .thenThrow(new IllegalStateException("injected synchronous failure"))
+                .thenReturn(CompletableFuture.completedFuture(tcAssignmentsSnapshot("broker-new")));
+
+        channel.writeInbound(Commands.newWatchTcAssignments(41));
+        assertThat(readTcAssignmentsUpdates()).isEmpty();
+        // Like a failed build, the throw schedules a repush rather than leaving the watch building forever.
+        channel.advanceTimeBy(1, TimeUnit.SECONDS);
+        channel.runScheduledPendingTasks();
+        List<CommandWatchTcAssignmentsUpdate> updates = readTcAssignmentsUpdates();
+        assertThat(updates).hasSize(1);
+        assertThat(updates.get(0).getSnapshot().getAssignmentAt(0).getBrokerServiceUrl())
+                .isEqualTo("pulsar://broker-new:6650");
+        verify(coordinator, times(2)).buildAssignmentsSnapshot();
+    }
+
     private TransactionCoordinatorV5 connectTcAssignmentsWatch(List<Runnable> listeners,
                                                                List<AutoCloseable> registrations) throws Exception {
         svcConfig.setScalableTopicsEnabled(true);
         svcConfig.setTransactionCoordinatorEnabled(true);
         svcConfig.setTransactionCoordinatorScalableTopicsEnabled(true);
         svcConfig.setKeepAliveIntervalSeconds(60);
-        TransactionCoordinatorV5 coordinator = mock(TransactionCoordinatorV5.class);
+        // Its invocations record the listeners, which reference the connection and so the broker
+        TransactionCoordinatorV5 coordinator = ownMock(mock(TransactionCoordinatorV5.class));
         doReturn(coordinator).when(pulsar).getTransactionCoordinatorV5();
         when(coordinator.registerAssignmentChangeListener(any())).thenAnswer(invocation -> {
             listeners.add(invocation.getArgument(0));
