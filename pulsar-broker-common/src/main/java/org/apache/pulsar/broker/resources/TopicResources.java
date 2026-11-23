@@ -110,6 +110,20 @@ public class TopicResources {
         return store.exists(path);
     }
 
+    /**
+     * The names of the cursors in the managed-ledger metadata of a persistent topic, or empty if the topic's
+     * managed ledger doesn't exist. They are read from the metadata store after syncing with it, not from the local
+     * cache, so they include every cursor created before the call.
+     */
+    public CompletableFuture<Optional<List<String>>> getManagedLedgerCursorsFromStoreAsync(TopicName topic) {
+        String path = MANAGED_LEDGER_PATH + "/" + topic.getPersistenceNamingEncoding();
+        return store.sync(path)
+                .thenCompose(__ -> store.get(path))
+                .thenCompose(managedLedger -> managedLedger.isEmpty()
+                        ? CompletableFuture.completedFuture(Optional.<List<String>>empty())
+                        : store.getChildrenFromStore(path).thenApply(Optional::of));
+    }
+
     public CompletableFuture<Void> clearNamespacePersistence(NamespaceName ns) {
         String path = MANAGED_LEDGER_PATH + "/" + ns;
         log.info().attr("namespace", ns).attr("path", path).log("Clearing namespace persistence for namespace: , path");

@@ -37,7 +37,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.transaction.metadata.TcLeader;
 import org.apache.pulsar.broker.transaction.metadata.TxnEvent;
 import org.apache.pulsar.broker.transaction.metadata.TxnHeader;
@@ -51,6 +50,7 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.coordination.CoordinationService;
@@ -67,9 +67,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 /**
- * Unit tests for {@link TransactionCoordinatorV5} against the in-memory metadata store. The
- * {@link PulsarService} / {@link BrokerService} dependencies are mocked just enough for the TC
- * to construct and to satisfy {@code handleClientConnect}'s ownership check.
+ * Unit tests for {@link TransactionCoordinatorV5} against the in-memory metadata store.
  */
 public class TransactionCoordinatorV5Test {
 
@@ -78,7 +76,6 @@ public class TransactionCoordinatorV5Test {
     private MetadataStoreExtended store;
     private TxnMetadataStore txnStore;
     private PulsarService pulsar;
-    private BrokerService brokerService;
     private CoordinationService coordinationService;
     private TransactionCoordinatorV5 tc;
 
@@ -101,11 +98,6 @@ public class TransactionCoordinatorV5Test {
         // Keep the election small so start() converges quickly in unit tests.
         cfg.setTransactionCoordinatorScalableTopicsParallelism(4);
         when(pulsar.getConfiguration()).thenReturn(cfg);
-        brokerService = mock(BrokerService.class);
-        when(pulsar.getBrokerService()).thenReturn(brokerService);
-        // Default: owned (assign-topic fallback path in handleClientConnect). Tests that want to
-        // assert the not-owned path can override.
-        when(brokerService.checkTopicNsOwnership(any())).thenReturn(CompletableFuture.completedFuture(null));
         tc = new TransactionCoordinatorV5(pulsar);
         tc.start();
         // As the only broker, we win every partition's election; wait until partition 0 is led so
@@ -528,8 +520,56 @@ public class TransactionCoordinatorV5Test {
 
     @Test
     public void handleClientConnect_acceptsWhenLeader() throws Exception {
-        // We lead partition 0, so connect is accepted without consulting assign-topic ownership.
         tc.handleClientConnect(TC_ID).get();
+    }
+
+    @Test
+    public void handleClientConnect_rejectsMissingLockOrReadFailure() {
+        var handshakeStore = mock(MetadataStoreExtended.class);
+        when(pulsar.getLocalMetadataStore()).thenReturn(handshakeStore);
+        when(handshakeStore.get(TxnPaths.tcLeaderPath(0)))
+                .thenReturn(CompletableFuture.completedFuture(Optional.empty()))
+                .thenReturn(CompletableFuture.failedFuture(new MetadataStoreException("read failed")));
+        assertThatThrownBy(() -> tc.handleClientConnect(TC_ID).get())
+                .as("missing election node")
+                .hasCauseInstanceOf(CoordinatorException.CoordinatorNotFoundException.class);
+        assertThatThrownBy(() -> tc.handleClientConnect(TC_ID).get())
+                .as("failed ownership read")
+                .hasCauseInstanceOf(CoordinatorException.CoordinatorNotFoundException.class);
+    }
+
+    @Test
+    public void handleClientConnect_rejectsIfClosedDuringRead() throws Exception {
+        String path = TxnPaths.tcLeaderPath(0);
+        var ownedLock = store.get(path).get();
+        assertThat(ownedLock.orElseThrow().getStat().isCreatedBySelf()).isTrue();
+        var pendingRead = new CompletableFuture<Optional<GetResult>>();
+        var handshakeStore = mock(MetadataStoreExtended.class);
+        when(handshakeStore.get(path)).thenReturn(pendingRead);
+        when(pulsar.getLocalMetadataStore()).thenReturn(handshakeStore);
+        var handshake = tc.handleClientConnect(TC_ID);
+        tc.close();
+        pendingRead.complete(ownedLock);
+        assertThatThrownBy(handshake::get).hasCauseInstanceOf(CoordinatorException.CoordinatorNotFoundException.class);
+    }
+
+    @Test
+    public void handleClientConnect_rejectsLeaderWithLostMetadataSession() {
+        // The election can still report Leading while the broker is disconnected from the store.
+        when(pulsar.isMetadataSessionLost()).thenReturn(true);
+        assertThat(tc.isLeaderFor(0)).isTrue();
+        assertThatThrownBy(() -> tc.handleClientConnect(TC_ID).get())
+                .hasCauseInstanceOf(CoordinatorException.CoordinatorNotFoundException.class);
+    }
+
+    @Test
+    public void handleClientConnect_rejectsOutOfRangeIds() {
+        // TC ids on the wire are 64-bit. Even an id whose low 32 bits identify a leader is out of range.
+        for (long id : new long[] {-1, 4, 1L << 32, -(1L << 32)}) {
+            assertThatThrownBy(() -> tc.handleClientConnect(TransactionCoordinatorID.get(id)).get())
+                    .as("TC id %s", id)
+                    .hasCauseInstanceOf(CoordinatorException.CoordinatorNotFoundException.class);
+        }
     }
 
     @Test
@@ -546,7 +586,6 @@ public class TransactionCoordinatorV5Test {
         when(other.getBrokerId()).thenReturn("broker-other:8080");
         when(other.getBrokerServiceUrl()).thenReturn("pulsar://broker-other:6650");
         when(other.getSafeWebServiceAddress()).thenReturn("http://broker-other:8080");
-        when(other.getBrokerService()).thenReturn(brokerService);
 
         TransactionCoordinatorV5 mismatched = new TransactionCoordinatorV5(other);
         try {

@@ -20,6 +20,8 @@ package org.apache.pulsar.broker.service;
 
 import static java.lang.Thread.sleep;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
@@ -32,6 +34,8 @@ import java.net.URL;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.CustomLog;
@@ -40,6 +44,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
+import org.apache.pulsar.broker.service.BrokerServiceException.TopicMigratedException;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.ClientBuilder;
@@ -286,6 +291,45 @@ public class ClusterMigrationTest extends TestRetrySupport {
         methodName = m.getName();
     }
 
+    @Test
+    public void testPersistentTopicReloadHonorsClusterMigration() throws Exception {
+        String sourceNamespaceName = BrokerTestUtil.newUniqueName("pulsar/reload");
+        admin1.namespaces().createNamespace(sourceNamespaceName, Set.of("r1"));
+        String topicName = "persistent://" + sourceNamespaceName + "/topic";
+        admin1.topics().createNonPartitionedTopic(topicName);
+        admin1.topics().unload(topicName);
+        BrokerService sourceBrokerService = pulsar1.getBrokerService();
+        assertThat(sourceBrokerService.getTopic(topicName, false).get(10, TimeUnit.SECONDS))
+                .as("topic %s should reload before cluster migration", topicName)
+                .isPresent();
+
+        admin1.topics().unload(topicName);
+        ClusterUrl destinationClusterUrl = new ClusterUrl(url2.toString(), null, pulsar2.getBrokerServiceUrl(), null);
+        admin1.clusters().updateClusterMigration("r1", true, destinationClusterUrl);
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> admin1.clusters().getClusterMigration("r1")
+                .isMigrated());
+        assertThatThrownBy(
+                () -> sourceBrokerService.getTopic(topicName, false).get(10, TimeUnit.SECONDS),
+                "reload of topic %s should be rejected after cluster migration", topicName)
+                .isInstanceOf(ExecutionException.class)
+                .hasCauseInstanceOf(TopicMigratedException.class);
+    }
+
+    /**
+     * Applies the migration to the topics the way the broker's periodic check does, which is disabled in these tests.
+     * A check that finds a replication backlog only terminates the topic and holds its producers back until a later
+     * check finds the replicator caught up.
+     */
+    private static void awaitProducerMigration(AbstractTopic... topics) {
+        Awaitility.await().atMost(30, TimeUnit.SECONDS).ignoreExceptions().untilAsserted(() -> {
+            for (AbstractTopic topic : topics) {
+                topic.checkClusterMigration().get();
+                assertTrue(topic.shouldProducerMigrate(),
+                        "The migration still holds back the producers of " + topic.getName());
+            }
+        });
+    }
+
     /**
      * Test producer/consumer migration: using persistent/non-persistent topic and all types of subscriptions.
      * (1) Producer1 and consumer1 connect to cluster-1
@@ -347,17 +391,7 @@ public class ClusterMigrationTest extends TestRetrySupport {
         admin1.clusters().updateClusterMigration("r1", true, migratedUrl);
         assertEquals(admin1.clusters().getClusterMigration("r1").getMigratedClusterUrl(), migratedUrl);
 
-        retryStrategically((test) -> {
-            try {
-                topic1.checkClusterMigration().get();
-                return true;
-            } catch (Exception e) {
-                // ok
-            }
-            return false;
-        }, 10, 500);
-
-        topic1.checkClusterMigration().get();
+        awaitProducerMigration(topic1);
 
         log.info("before sending message");
         sleep(1000);
@@ -692,15 +726,7 @@ public class ClusterMigrationTest extends TestRetrySupport {
 
         PersistentTopic topic1 = (PersistentTopic) pulsar1.getBrokerService().getTopic(topicName, false).getNow(null)
                 .get();
-        retryStrategically((test) -> {
-            try {
-                topic1.checkClusterMigration().get();
-                return true;
-            } catch (Exception e) {
-                // ok
-            }
-            return false;
-        }, 10, 500);
+        awaitProducerMigration(topic1);
 
         assertNotNull(admin2.tenants().getTenantInfo(tenant));
         assertNotNull(admin2.namespaces().getPolicies(namespace));
@@ -831,23 +857,10 @@ public class ClusterMigrationTest extends TestRetrySupport {
         admin1.clusters().updateClusterMigration("r1", isClusterMigrate, migratedUrl);
         admin1.namespaces().updateMigrationState(namespace, isNamespaceMigrate);
 
-        retryStrategically((test) -> {
-            try {
-                blueTopicNs11.checkClusterMigration().get();
-                if (isClusterMigrate) {
-                    blueTopicNs21.checkClusterMigration().get();
-                }
-                return true;
-            } catch (Exception e) {
-                // ok
-            }
-            return false;
-        }, 10, 500);
-
-
-        blueTopicNs11.checkClusterMigration().get();
         if (isClusterMigrate) {
-            blueTopicNs21.checkClusterMigration().get();
+            awaitProducerMigration(blueTopicNs11, blueTopicNs21);
+        } else {
+            awaitProducerMigration(blueTopicNs11);
         }
 
         log.info("before sending message");
@@ -1102,16 +1115,7 @@ public class ClusterMigrationTest extends TestRetrySupport {
                 pulsar2.getBrokerServiceUrl(), null);
         admin1.clusters().updateClusterMigration("r1", true, migratedUrl);
         assertEquals(admin1.clusters().getClusterMigration("r1").getMigratedClusterUrl(), migratedUrl);
-        retryStrategically((test) -> {
-            try {
-                topic1.checkClusterMigration().get();
-                return true;
-            } catch (Exception e) {
-                // ok
-            }
-            return false;
-        }, 10, 500);
-        topic1.checkClusterMigration().get();
+        awaitProducerMigration(topic1);
 
         sleep(1000);
         producer1.sendAsync("test1".getBytes());

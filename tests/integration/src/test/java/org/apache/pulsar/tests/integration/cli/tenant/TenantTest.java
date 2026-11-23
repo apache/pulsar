@@ -27,6 +27,7 @@ import static org.testng.Assert.expectThrows;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.tests.integration.docker.ContainerExecException;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
@@ -106,15 +107,11 @@ public class TenantTest extends PulsarTestSuite {
     @Test
     public void testUpdateTenantCmdWithAdminRolesAndAllowedClustersFlags() throws Exception {
         String tenantName = randomName();
-        List<String> adminRoles = Arrays.asList("role1", "role2");
-        pulsarCluster.runAdminCommandOnAnyBroker("tenants", "create", tenantName, "--admin-roles",
-                String.join(",", adminRoles));
-
-        TenantInfo tenantInfo = pulsarAdmin.tenants().getTenantInfo(tenantName);
-        assertNotNull(tenantInfo);
-        assertNotNull(tenantInfo.getAdminRoles());
-        assertEquals(tenantInfo.getAdminRoles().stream().sorted().toArray(), adminRoles.stream().sorted().toArray());
-        assertFalse(tenantInfo.getAllowedClusters().isEmpty());
+        // The tenant to update is created with the admin client: the tests above check "tenants create"
+        pulsarAdmin.tenants().createTenant(tenantName, TenantInfo.builder()
+                .adminRoles(Set.of("role1", "role2"))
+                .allowedClusters(Set.of(pulsarCluster.getClusterName()))
+                .build());
 
         List<String> updatedAdminRoles = Arrays.asList("role3", "role4");
         List<String> allowedClusters = Collections.singletonList(pulsarCluster.getClusterName());

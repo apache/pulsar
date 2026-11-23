@@ -28,6 +28,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Multimap;
@@ -46,6 +47,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.commons.lang3.tuple.Pair;
@@ -57,6 +59,7 @@ import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferClientImpl;
+import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferClientStatsImpl;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferHandlerImpl;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -70,6 +73,7 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.client.impl.transaction.TransactionBufferHandler;
 import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -278,6 +282,32 @@ public class TransactionBufferClientTest extends TransactionTestBase {
             tbClient.abortTxnOnSubscription(topic, "test", 1L, i, -1L).get();
         }
 
+        // A topic whose transaction buffer times out fails the request, so both failure counters record it once.
+        String failingTopic = BrokerTestUtil.newUniqueName("persistent://" + namespace + "/tb-client-failing");
+        admin.topics().createNonPartitionedTopic(failingTopic);
+        String ownerUrl = admin.lookups().lookupTopic(failingTopic);
+        PulsarService topicOwner = pulsarServiceList.stream()
+                .filter(pulsarService -> pulsarService.getBrokerServiceUrl().equals(ownerUrl))
+                .findFirst()
+                .orElseThrow();
+        Topic timingOutTopic = mock(Topic.class);
+        when(timingOutTopic.endTxn(any(TxnID.class), anyInt(), anyLong()))
+                .thenReturn(new CompletableFuture<Void>().orTimeout(100, TimeUnit.MILLISECONDS));
+        CompletableFuture<Optional<Topic>> originalTopicFuture = topicOwner.getBrokerService().getTopics()
+                .put(failingTopic, CompletableFuture.completedFuture(Optional.of(timingOutTopic)));
+        try {
+            assertThat(tbClient.commitTxnOnTopic(failingTopic, 1L, 1L, -1L))
+                    .failsWithin(10, TimeUnit.SECONDS)
+                    .withThrowableOfType(ExecutionException.class)
+                    .withCauseInstanceOf(PulsarClientException.ServiceNotReadyException.class);
+            assertThat(tbClient.abortTxnOnTopic(failingTopic, 1L, 1L, -1L))
+                    .failsWithin(10, TimeUnit.SECONDS)
+                    .withThrowableOfType(ExecutionException.class)
+                    .withCauseInstanceOf(PulsarClientException.ServiceNotReadyException.class);
+        } finally {
+            topicOwner.getBrokerService().getTopics().put(failingTopic, originalTopicFuture);
+        }
+
         @Cleanup
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
         PrometheusMetricsTestUtil.generate(pulsarServiceList.get(0), true, false, false, statsOut);
@@ -292,8 +322,17 @@ public class TransactionBufferClientTest extends TransactionTestBase {
                 metricsMap.get("pulsar_txn_tb_client_commit_latency_count");
         Collection<Metric> pending = metricsMap.get("pulsar_txn_tb_client_pending_requests");
 
-        assertEquals(abortFailed.stream().mapToDouble(metric -> metric.value).sum(), 0);
-        assertEquals(commitFailed.stream().mapToDouble(metric -> metric.value).sum(), 0);
+        for (Collection<Metric> failed : List.of(abortFailed, commitFailed)) {
+            List<Metric> series = failed.stream()
+                    .filter(metric -> failingTopic.equals(metric.tags.get("topic")))
+                    .toList();
+            assertEquals(series.size(), 1);
+            assertEquals(series.get(0).value, 1D);
+            assertEquals(failed.stream().mapToDouble(metric -> metric.value).sum(), 1D);
+        }
+        // The partition topics only ever succeeded, so no latency series exists for the failed topic.
+        assertFalse(abortLatencyCount.stream().anyMatch(m -> failingTopic.equals(m.tags.get("topic"))));
+        assertFalse(commitLatencyCount.stream().anyMatch(m -> failingTopic.equals(m.tags.get("topic"))));
 
         for (int i = 0; i < partitions; i++) {
             String topic = partitionedTopicName.getPartition(i).toString();
@@ -476,7 +515,36 @@ public class TransactionBufferClientTest extends TransactionTestBase {
 
     @Test
     public void testTransactionBufferPendingRequests() throws Exception {
+        // The pending requests gauge asks the handler on every scrape. The Prometheus collectors are shared by
+        // every client in the process and bound to the first client's handler, so close the live ones and create
+        // a client bound to a handler the test controls, then check that the scraped value follows it. The live
+        // clients keep the collectors that were closed, so the brokers are started again at the end.
+        PulsarService pulsar = pulsarServiceList.get(0);
+        TransactionBufferHandler handler = mock(TransactionBufferHandler.class);
+        AtomicInteger pendingCount = new AtomicInteger(3);
+        when(handler.getPendingRequestsCount()).thenAnswer(invocation -> pendingCount.get());
+        new TransactionBufferClientStatsImpl(pulsar, true, handler).close();
+        TransactionBufferClientStats stats = new TransactionBufferClientStatsImpl(pulsar, true, handler);
+        try {
+            assertEquals(scrapePendingRequests(pulsar), 3D);
+            pendingCount.set(0);
+            assertEquals(scrapePendingRequests(pulsar), 0D);
+        } finally {
+            stats.close();
+        }
+        // If this test fails, TestRetrySupport starts the brokers again before the next test.
+        this.cleanup();
+        this.setup();
+    }
 
+    private static double scrapePendingRequests(PulsarService pulsar) throws Exception {
+        @Cleanup
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsTestUtil.generate(pulsar, true, false, false, statsOut);
+        List<Metric> pending =
+                new ArrayList<>(parseMetrics(statsOut.toString()).get("pulsar_txn_tb_client_pending_requests"));
+        assertEquals(pending.size(), 1);
+        return pending.get(0).value;
     }
 
     @Test

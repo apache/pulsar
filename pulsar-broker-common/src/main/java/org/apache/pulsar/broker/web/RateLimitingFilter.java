@@ -23,7 +23,7 @@ import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.LongCounter;
 import io.opentelemetry.api.metrics.Meter;
-import io.prometheus.client.Counter;
+import io.prometheus.metrics.core.metrics.Counter;
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.FilterConfig;
@@ -50,7 +50,7 @@ public class RateLimitingFilter implements Filter {
     }
 
     @Deprecated
-    private static final Counter httpRejectedRequests = Counter.build()
+    private static final Counter httpRejectedRequests = Counter.builder()
             .name("pulsar_broker_http_rejected_requests")
             .help("Counter of HTTP requests rejected by rate limiting")
             .register();

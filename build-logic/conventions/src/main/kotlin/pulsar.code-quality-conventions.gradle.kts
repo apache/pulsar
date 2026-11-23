@@ -28,9 +28,9 @@ val catalog = the<VersionCatalogsExtension>().named("libs")
 
 configure<CheckstyleExtension> {
     toolVersion = catalog.findVersion("checkstyle").get().requiredVersion
-    configFile = rootProject.file("buildtools/src/main/resources/pulsar/checkstyle.xml")
+    configFile = rootDir.resolve("buildtools/src/main/resources/pulsar/checkstyle.xml")
     configProperties["checkstyle.suppressions.file"] =
-        rootProject.file("buildtools/src/main/resources/pulsar/suppressions.xml").absolutePath
+        rootDir.resolve("buildtools/src/main/resources/pulsar/suppressions.xml").absolutePath
 }
 
 dependencies {
@@ -85,12 +85,12 @@ plugins.withType<JavaBasePlugin>().configureEach {
 }
 
 // ── License header check (Spotless) ────────────────────────────────────────
-val asfLicenseHeader = rootProject.file("src/license-header.txt").readText()
+val asfLicenseHeader = rootDir.resolve("src/license-header.txt").readText()
 val asfLicenseHeaderJava = "/*\n" + asfLicenseHeader.lines()
     .map { " * $it".trimEnd() }
     .joinToString("\n") + "/\n"
 val asfLicenseHeaderJavadoc = asfLicenseHeaderJava.replaceFirst("/*", "/**")
-configure<com.diffplug.gradle.spotless.SpotlessExtension> {
+spotless {
     java {
         // Only the hand-written main and test sources. Spotless's default Java target is every source
         // set's `allJava`, which includes the generated-proto roots (protobuf/lightproto/avro) and so
@@ -107,4 +107,15 @@ configure<com.diffplug.gradle.spotless.SpotlessExtension> {
         target("src/*/proto/**/*.proto")
         licenseHeader(asfLicenseHeaderJavadoc, "\\n|syntax")
     }
+}
+
+// ── quickCheck ──────────────────────────────────────────────────────────────
+// Fast, source-only conformance check of this module: checkstyle + spotless. Compiles nothing and never
+// builds shadow jars. `./gradlew quickCheck` runs it in every module, together with the root project's
+// quickCheck, which runs Apache RAT.
+tasks.register("quickCheck") {
+    group = "verification"
+    description = "Fast source-code conformance check (checkstyle + spotless). Compiles nothing."
+    dependsOn(tasks.withType<Checkstyle>().matching { it.name == "checkstyleMain" || it.name == "checkstyleTest" })
+    dependsOn(tasks.named("spotlessCheck"))
 }

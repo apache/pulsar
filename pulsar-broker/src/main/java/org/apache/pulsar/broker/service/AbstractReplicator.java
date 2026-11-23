@@ -189,6 +189,10 @@ public abstract class AbstractReplicator implements Replicator {
         return CompletableFuture.completedFuture(null);
     }
 
+    protected void producerStartFailed(Throwable error, boolean preparingTopic) {
+        // Subclasses may retain startup diagnostics across attempts.
+    }
+
     protected void startProducer() {
         // Guarantee only one task call "producerBuilder.createAsync()".
         Pair<Boolean, State> setStartingRes = compareSetAndGetState(State.Disconnected, State.Starting);
@@ -212,7 +216,9 @@ public abstract class AbstractReplicator implements Replicator {
 
         // Force only replicate messages to a non-partitioned topic, to avoid auto-create a partitioned topic on
         // the remote cluster.
-        prepareCreateProducer().thenCompose(ignore -> {
+        // Capture synchronous preparation errors in the same retry path as asynchronous failures.
+        var preparation = FutureUtil.supplySafely(this::prepareCreateProducer);
+        preparation.thenCompose(ignore -> {
             ProducerBuilderImpl builderImpl = (ProducerBuilderImpl) producerBuilder;
             builderImpl.getConf().setNonPartitionedTopicExpected(true);
             builderImpl.getConf().setReplProducer(true);
@@ -221,6 +227,7 @@ public abstract class AbstractReplicator implements Replicator {
                 setProducerAndTriggerReadEntries(producer);
             });
         }).exceptionally(ex -> {
+            producerStartFailed(ex, preparation.isCompletedExceptionally());
             Pair<Boolean, State> setDisconnectedRes = compareSetAndGetState(State.Starting, State.Disconnected);
             if (setDisconnectedRes.getLeft()) {
                 long waitTimeMs = backOff.next().toMillis();
@@ -499,6 +506,19 @@ public abstract class AbstractReplicator implements Replicator {
 
     public static String getReplicatorName(String replicatorPrefix, String cluster) {
         return StringInterner.intern(replicatorPrefix + "." + cluster);
+    }
+
+    /**
+     * Returns whether a subscription/cursor name is a replicator cursor for the given prefix.
+     * <p>
+     * A replicator cursor is the configured prefix followed by a separator: {@code '.'} for a regular
+     * replicator ({@code <prefix>.<remoteCluster>}, see {@link #getReplicatorName(String, String)}) or
+     * {@code '-'} for a shadow replicator (see
+     * {@code ShadowReplicator#getShadowReplicatorName(String, String)}). Without the separator an ordinary
+     * subscription such as {@code pulsar.replication-state} is not a replicator cursor and must not be reserved.
+     */
+    public static boolean isReplicatorCursor(String replicatorPrefix, String name) {
+        return name.startsWith(replicatorPrefix + ".") || name.startsWith(replicatorPrefix + "-");
     }
 
     /**

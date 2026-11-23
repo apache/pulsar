@@ -173,6 +173,7 @@ public class MessageChecksumTest extends SharedPulsarBaseTest {
     @Test
     public void testTamperingMessageIsDetected() throws Exception {
         // GIVEN
+        @Cleanup
         ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
                 .topic(newTopicName())
                 .enableBatching(false)

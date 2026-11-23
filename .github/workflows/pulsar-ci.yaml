@@ -98,7 +98,7 @@ jobs:
     steps:
       - name: Cancel scheduled jobs in forks by default
         if: ${{ github.repository != 'apache/pulsar' && github.event_name == 'schedule' }}
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             await github.rest.actions.cancelWorkflowRun({owner: context.repo.owner, repo: context.repo.repo, run_id: context.runId});
@@ -116,7 +116,7 @@ jobs:
           echo "jdk_major_version=${{ github.event_name == 'workflow_dispatch' && github.event.inputs.jdk_major_version || '25'}}" >> $GITHUB_OUTPUT
 
       - name: checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Check ASF action allowlist
         if: ${{ (github.event.pull_request.base.repo.owner.login || github.repository_owner) == 'apache' }}
@@ -164,7 +164,7 @@ jobs:
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
     steps:
       - name: checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -212,7 +212,7 @@ jobs:
           -PpublishApiAndSpiOnly=true -Pgroup=myorg.pulsar
 
       - name: Upload Gradle reports
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ !success() }}
         with:
           name: gradle-reports-build-and-license-check
@@ -220,22 +220,6 @@ jobs:
             **/build/reports/
           retention-days: 7
           if-no-files-found: ignore
-
-      - name: Save build outputs for test jobs
-        run: |
-          # Tar up compiled classes, resources, and distribution archives so test jobs
-          # don't need to recompile. Distribution tarballs are needed for Docker image builds.
-          find . \( -path '*/build/classes/*' -o -path '*/build/generated/*' -o -path '*/build/resources/*' \
-            -o -path '*/build/libs/*' -o -path '*/build/tmp/jar/*' -o -path '*/build/distributions/*' \) -print \
-            | tar cf /tmp/gradle-build-outputs.tar --files-from=-
-
-      - name: Upload build outputs
-        uses: actions/upload-artifact@v7
-        with:
-          name: gradle-build-outputs
-          path: /tmp/gradle-build-outputs.tar
-          retention-days: ${{ env.ARTIFACT_RETENTION_DAYS }}
-          compression-level: 1
 
       - name: Wait for ssh connection when build fails
         # ssh access is enabled for builds in own forks
@@ -247,6 +231,9 @@ jobs:
 
 
   unit-tests:
+    permissions:
+      contents: read
+      actions: read # Download the test class durations that master's runs uploaded.
     name: CI - Unit - ${{ matrix.name }}
     env:
       JOB_NAME: CI - Unit - ${{ matrix.name }}
@@ -298,7 +285,7 @@ jobs:
 
     steps:
       - name: checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -326,24 +313,12 @@ jobs:
         with:
           develocity-access-key: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
 
-      - name: Restore build outputs from build job
-        uses: actions/download-artifact@v8
-        with:
-          name: gradle-build-outputs
-
-      - name: Extract build outputs
-        run: |
-          tar xf gradle-build-outputs.tar
-          rm -f -- gradle-build-outputs.tar
-
-      # the test class durations of the latest earlier run of this group, which
-      # run_unit_group_gradle.sh uses to balance the group's test shards
-      - name: Restore test class durations
-        uses: actions/cache/restore@v6
-        with:
-          path: build/test-durations
-          key: unit-test-durations-${{ matrix.group }}-${{ github.run_id }}-${{ github.run_attempt }}
-          restore-keys: unit-test-durations-${{ matrix.group }}-
+      # the test class durations of the latest successful run of this group on master,
+      # which run_unit_group_gradle.sh uses to balance the group's test shards
+      - name: Download test class durations
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./pulsar-build/pulsar_ci_tool.sh download_test_durations ${{ matrix.group }}
 
       - name: Run setup commands
         if: ${{ matrix.setup }}
@@ -354,13 +329,16 @@ jobs:
         run: |
           ./pulsar-build/run_unit_group_gradle.sh ${{ matrix.group }}
 
-      - name: Save test class durations
-        if: ${{ success() && hashFiles(format('build/test-durations/{0}.txt', matrix.group)) != '' }}
+      # master's runs keep the durations for later runs as an artifact, which, unlike a
+      # cache entry, isn't evicted when the repository's cache is full
+      - name: Upload test class durations
+        if: ${{ success() && github.ref == 'refs/heads/master' && hashFiles(format('build/test-durations/{0}.txt', matrix.group)) != '' }}
         continue-on-error: true
-        uses: actions/cache/save@v6
+        uses: actions/upload-artifact@v7
         with:
-          path: build/test-durations
-          key: unit-test-durations-${{ matrix.group }}-${{ github.run_id }}-${{ github.run_attempt }}
+          name: unit-test-durations-${{ matrix.group }}
+          path: build/test-durations/${{ matrix.group }}.txt
+          retention-days: 7
 
       - name: print JVM thread dumps when cancelled
         if: cancelled()
@@ -427,7 +405,7 @@ jobs:
       CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
     steps:
       - name: checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -456,7 +434,7 @@ jobs:
       CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
     steps:
       - name: checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -478,16 +456,6 @@ jobs:
         uses: ./.github/actions/setup-gradle
         with:
           develocity-access-key: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
-
-      - name: Restore build outputs from build job
-        uses: actions/download-artifact@v8
-        with:
-          name: gradle-build-outputs
-
-      - name: Extract build outputs
-        run: |
-          tar xf gradle-build-outputs.tar
-          rm -f -- gradle-build-outputs.tar
 
       - name: Setup Docker
         uses: gradle/develocity-actions/setup-docker@9d8792ab22712b19790c2abce53e9ebb2694c312 # v2.5
@@ -585,7 +553,7 @@ jobs:
 
     steps:
       - name: checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -626,16 +594,6 @@ jobs:
         uses: ./.github/actions/setup-gradle
         with:
           develocity-access-key: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
-
-      - name: Restore build outputs from build job
-        uses: actions/download-artifact@v8
-        with:
-          name: gradle-build-outputs
-
-      - name: Extract build outputs
-        run: |
-          tar xf gradle-build-outputs.tar
-          rm -f -- gradle-build-outputs.tar
 
       - name: Download docker image
         uses: actions/download-artifact@v8
@@ -723,7 +681,7 @@ jobs:
       CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
     steps:
       - name: checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -745,16 +703,6 @@ jobs:
         uses: ./.github/actions/setup-gradle
         with:
           develocity-access-key: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
-
-      - name: Restore build outputs from build job
-        uses: actions/download-artifact@v8
-        with:
-          name: gradle-build-outputs
-
-      - name: Extract build outputs
-        run: |
-          tar xf gradle-build-outputs.tar
-          rm -f -- gradle-build-outputs.tar
 
       - name: Setup Docker
         uses: gradle/develocity-actions/setup-docker@9d8792ab22712b19790c2abce53e9ebb2694c312 # v2.5
@@ -845,7 +793,7 @@ jobs:
 
     steps:
       - name: checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -867,16 +815,6 @@ jobs:
         uses: ./.github/actions/setup-gradle
         with:
           develocity-access-key: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
-
-      - name: Restore build outputs from build job
-        uses: actions/download-artifact@v8
-        with:
-          name: gradle-build-outputs
-
-      - name: Extract build outputs
-        run: |
-          tar xf gradle-build-outputs.tar
-          rm -f -- gradle-build-outputs.tar
 
       - name: Download docker image
         uses: actions/download-artifact@v8
@@ -963,7 +901,7 @@ jobs:
       CODEQL_LANGUAGE: java-kotlin
     steps:
       - name: checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -1053,5 +991,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh api repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts \
-            --jq '.artifacts[] | select(.name == "gradle-build-outputs" or .name == "java-test-image" or .name == "pulsar-test-latest-version-image") | .id' \
+            --jq '.artifacts[] | select(.name == "java-test-image" or .name == "pulsar-test-latest-version-image") | .id' \
             | xargs -I{} gh api -X DELETE repos/${{ github.repository }}/actions/artifacts/{} || true

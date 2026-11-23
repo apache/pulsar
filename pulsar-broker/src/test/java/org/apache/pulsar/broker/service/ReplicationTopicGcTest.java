@@ -76,10 +76,12 @@ public class ReplicationTopicGcTest extends OneWayReplicatorTestBase {
         config.setBrokerDeleteInactiveTopicsMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
         config.setBrokerDeleteInactiveTopicsEnabled(true);
         config.setBrokerDeleteInactivePartitionedTopicMetadataEnabled(true);
-        config.setBrokerDeleteInactiveTopicsFrequencySeconds(5);
-        config.setBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(5);
+        // The GC runs every second. A topic and its replicator count as inactive after 2 s: the tests wait for both
+        // in turn, and a topic is used within milliseconds of its creation.
+        config.setBrokerDeleteInactiveTopicsFrequencySeconds(1);
+        config.setBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(2);
         config.setReplicationPolicyCheckDurationSeconds(1);
-        config.setBrokerReplicationInactiveThresholdSeconds(5);
+        config.setBrokerReplicationInactiveThresholdSeconds(2);
     }
 
     @Test(dataProvider = "topicTypes")

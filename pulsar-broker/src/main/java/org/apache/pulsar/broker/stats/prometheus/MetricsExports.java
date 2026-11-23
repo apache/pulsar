@@ -21,7 +21,7 @@ package org.apache.pulsar.broker.stats.prometheus;
 import static org.apache.pulsar.common.stats.JvmMetrics.getJvmDirectMemoryUsed;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Gauge;
-import io.prometheus.client.hotspot.DefaultExports;
+import io.prometheus.metrics.instrumentation.jvm.JvmMetrics;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.common.util.DirectMemoryUtils;
 
@@ -33,7 +33,7 @@ public class MetricsExports {
 
     public static synchronized void initialize() {
         if (!initialized) {
-            DefaultExports.initialize();
+            JvmMetrics.builder().register();
             register(CollectorRegistry.defaultRegistry);
             initialized = true;
         }
