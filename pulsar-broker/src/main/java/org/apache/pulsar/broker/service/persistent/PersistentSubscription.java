@@ -887,7 +887,6 @@ public class PersistentSubscription extends AbstractSubscription {
     @Override
     public CompletableFuture<Void> clearBacklog() {
         CompletableFuture<Void> future = new CompletableFuture<>();
-        final Dispatcher clearStartedOn;
         synchronized (this) {
             if (inProgressBacklogClearFuture != null) {
                 // The cursor samples the backlog tail per invocation, so the in-flight clear can
@@ -899,8 +898,7 @@ public class PersistentSubscription extends AbstractSubscription {
             }
             inProgressBacklogClearFuture = future;
             inProgressBacklogClearBufferingDispatchers = new ArrayList<>();
-            clearStartedOn = dispatcher;
-            if (clearStartedOn instanceof PersistentDispatcherMultipleConsumers persistentDispatcher) {
+            if (dispatcher instanceof PersistentDispatcherMultipleConsumers persistentDispatcher) {
                 persistentDispatcher.startBufferingDelayedMessagesForBacklogClear();
                 inProgressBacklogClearBufferingDispatchers.add(persistentDispatcher);
             }
@@ -920,23 +918,20 @@ public class PersistentSubscription extends AbstractSubscription {
                         log.debug()
                                 .attr("entriesInBacklog", cursor.getNumberOfEntriesInBacklog(false))
                                 .log("Backlog size after clearing");
-                        if (dispatcher != null) {
+                        Dispatcher currentDispatcher = dispatcher;
+                        if (currentDispatcher != null) {
                             CompletableFuture<Void> cleanup;
-                            if (dispatcher != clearStartedOn) {
-                                // A replacement dispatcher enrolled during the cursor clear holds
-                                // post-tail entries only: it needs its buffer released when the
-                                // clear settles, not a tracker clear. Every armed dispatcher is
-                                // released by settleInProgressBacklogClear().
-                                cleanup = CompletableFuture.completedFuture(null);
-                            } else {
-                                try {
-                                    // clearDelayedMessagesAfterBacklogClear() releases the
-                                    // buffered entries when the delayed-state cleanup settles,
-                                    // including on cleanup failure.
-                                    cleanup = dispatcher.clearDelayedMessagesAfterBacklogClear();
-                                } catch (RuntimeException e) {
-                                    cleanup = FutureUtil.failedFuture(e);
-                                }
+                            try {
+                                // The cleanup runs on the dispatcher enrolled at completion time.
+                                // A replacement enrolled during the cursor clear was armed from
+                                // its creation, so its tracker holds no positions it read, while
+                                // the cleanup removes the replaced dispatcher's snapshots, which
+                                // its close does not. clearDelayedMessagesAfterBacklogClear()
+                                // releases the buffered entries when the delayed-state cleanup
+                                // settles, including on cleanup failure.
+                                cleanup = currentDispatcher.clearDelayedMessagesAfterBacklogClear();
+                            } catch (RuntimeException e) {
+                                cleanup = FutureUtil.failedFuture(e);
                             }
                             cleanup.whenComplete((__, ex) -> {
                                 settleInProgressBacklogClear();
@@ -946,8 +941,8 @@ public class PersistentSubscription extends AbstractSubscription {
                                     future.complete(null);
                                 }
                             });
-                            dispatcher.markDeletePositionMoveForward();
-                            dispatcher.afterAckMessages(null, ctx);
+                            currentDispatcher.markDeletePositionMoveForward();
+                            currentDispatcher.afterAckMessages(null, ctx);
                         } else {
                             settleInProgressBacklogClear();
                             future.complete(null);
@@ -981,19 +976,26 @@ public class PersistentSubscription extends AbstractSubscription {
      * Settle the in-flight backlog clear: release every dispatcher armed for it and clear the
      * fence. A dispatcher can attach and arm after the cleanup already started, so the release
      * cannot rely on the dispatcher observed at completion time; it goes through the armed
-     * registration instead. A release failure must not keep the clear's future open: the
-     * backlog itself was already cleared, so the failure is logged and the other releases
-     * proceed.
+     * registration instead. The releases finish before the fence drops: a clear that starts in
+     * a gap after the fence drop would have its gate reset by the previous clear's release. A
+     * release failure must not keep the clear's future open: the backlog itself was already
+     * cleared, so the failure is logged and the other releases proceed.
      */
     private void settleInProgressBacklogClear() {
-        List<PersistentDispatcherMultipleConsumers> bufferingDispatchers;
-        synchronized (this) {
-            bufferingDispatchers = inProgressBacklogClearBufferingDispatchers;
-            inProgressBacklogClearBufferingDispatchers = null;
-            inProgressBacklogClearFuture = null;
-        }
-        if (bufferingDispatchers != null) {
-            // Release outside the monitor: the install takes the dispatcher monitor.
+        while (true) {
+            List<PersistentDispatcherMultipleConsumers> bufferingDispatchers;
+            synchronized (this) {
+                bufferingDispatchers = inProgressBacklogClearBufferingDispatchers;
+                if (bufferingDispatchers == null || bufferingDispatchers.isEmpty()) {
+                    // No dispatcher armed meanwhile: the releases are done and the fence can drop.
+                    inProgressBacklogClearBufferingDispatchers = null;
+                    inProgressBacklogClearFuture = null;
+                    return;
+                }
+                inProgressBacklogClearBufferingDispatchers = new ArrayList<>();
+            }
+            // Release outside the monitor: the install takes the dispatcher monitor. Dispatchers
+            // that arm while these releases run land in the fresh registration above.
             for (PersistentDispatcherMultipleConsumers dispatcher : bufferingDispatchers) {
                 try {
                     dispatcher.releaseBufferedDelayedMessagesAfterBacklogClear();

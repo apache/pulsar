@@ -28,6 +28,7 @@ import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
@@ -293,18 +294,100 @@ public class PersistentSubscriptionTest {
             lateDispatcher = sharedDispatchers.get(1);
 
             // The late dispatcher buffers delayed entries while the clear is settling...
+            long lateDeliverAt = System.currentTimeMillis() + 10_000;
             assertThat(lateDispatcher.trackDelayedDelivery(2, 0,
-                    new MessageMetadata().setDeliverAtTime(System.currentTimeMillis() + 10_000))).isTrue();
+                    new MessageMetadata().setDeliverAtTime(lateDeliverAt))).isTrue();
             assertThat(lateDispatcher.getDelayedDeliveryTrackerCreatePendingMessages()).isEqualTo(1);
 
             gatedCleanup.complete(null);
             assertThat(clearFuture).succeedsWithin(5, TimeUnit.SECONDS);
 
-            // ...and the settle releases it: the buffered entry is installed into a tracker
-            // instead of staying buffered forever. A dispatcher left in buffering mode keeps the
-            // entry pending.
-            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                    assertThat(lateDispatcher.getDelayedDeliveryTrackerCreatePendingMessages()).isZero());
+            // ...and the settle releases it: the buffered entry reaches the tracker instead of
+            // being dropped. A dispatcher left in buffering mode keeps the entry pending.
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+                assertThat(lateDispatcher.getDelayedDeliveryTrackerCreatePendingMessages()).isZero();
+                verify(tracker).addMessage(2L, 0L, lateDeliverAt);
+            });
+        } finally {
+            for (PersistentDispatcherMultipleConsumers dispatcher : sharedDispatchers) {
+                dispatcher.close(false, Optional.empty()).get(1, TimeUnit.MINUTES);
+            }
+        }
+    }
+
+    @Test
+    public void testDispatcherReplacedBeforeCompletionStillRunsDelayedStateCleanup() throws Exception {
+        // When the dispatcher is replaced during the cursor clear, the completion must still run
+        // the delayed-state cleanup on the enrolled dispatcher: the replaced dispatcher's close
+        // leaves the cursor's snapshot properties in place, so skipping the cleanup leaks them.
+        BrokerService dispatcherBrokerService = pulsarTestContext.getBrokerService();
+        DelayedDeliveryTrackerFactory trackerFactory = mock(DelayedDeliveryTrackerFactory.class);
+        doReturn(trackerFactory).when(dispatcherBrokerService).getDelayedDeliveryTrackerFactory();
+        PersistentTopic dispatcherTopic = mock(PersistentTopic.class);
+        doReturn(dispatcherBrokerService).when(dispatcherTopic).getBrokerService();
+        doReturn("persistent://public/default/dispatcher-under-replacement").when(dispatcherTopic).getName();
+        doReturn(true).when(dispatcherTopic).isDelayedDeliveryEnabled();
+        doReturn(1000L).when(dispatcherTopic).getDelayedDeliveryTickTimeMillis();
+        HierarchyTopicPolicies hierarchyTopicPolicies = mock(HierarchyTopicPolicies.class);
+        doReturn(new PolicyHierarchyValue<Integer>()).when(hierarchyTopicPolicies).getMaxConsumersPerSubscription();
+        doReturn(hierarchyTopicPolicies).when(dispatcherTopic).getHierarchyTopicPolicies();
+
+        List<PersistentDispatcherMultipleConsumers> sharedDispatchers = new ArrayList<>();
+        boolean transactionCoordinatorEnabled = pulsarTestContext.getConfig().isTransactionCoordinatorEnabled();
+        try {
+            pulsarTestContext.getConfig().setTransactionCoordinatorEnabled(false);
+            persistentSubscription = new PersistentSubscription(topic, subName, cursorMock, false) {
+                @Override
+                protected Dispatcher reuseOrCreateDispatcher(Dispatcher currentDispatcher, Consumer consumer) {
+                    if (consumer.subType() == CommandSubscribe.SubType.Shared) {
+                        PersistentDispatcherMultipleConsumers dispatcher = spy(
+                                new PersistentDispatcherMultipleConsumers(dispatcherTopic, cursorMock, this));
+                        sharedDispatchers.add(dispatcher);
+                        return dispatcher;
+                    }
+                    Dispatcher otherTypeDispatcher = mock(Dispatcher.class);
+                    doReturn(consumer.subType()).when(otherTypeDispatcher).getType();
+                    doReturn(CompletableFuture.completedFuture(null)).when(otherTypeDispatcher).addConsumer(any());
+                    doReturn(CompletableFuture.completedFuture(null)).when(otherTypeDispatcher).close();
+                    return otherTypeDispatcher;
+                }
+            };
+        } finally {
+            pulsarTestContext.getConfig().setTransactionCoordinatorEnabled(transactionCoordinatorEnabled);
+        }
+
+        try {
+            Consumer firstConsumer = mock(Consumer.class);
+            doReturn(CommandSubscribe.SubType.Shared).when(firstConsumer).subType();
+            doReturn(mock(PendingAcksMap.class)).when(firstConsumer).getPendingAcks();
+            assertThat(persistentSubscription.addConsumer(firstConsumer)).succeedsWithin(5, TimeUnit.SECONDS);
+            PersistentDispatcherMultipleConsumers initialDispatcher = sharedDispatchers.get(0);
+
+            List<AsyncCallbacks.ClearBacklogCallback> callbacks = new ArrayList<>();
+            doAnswer(invocation -> {
+                callbacks.add(invocation.getArgument(0));
+                return null;
+            }).when(cursorMock).asyncClearBacklog(any(AsyncCallbacks.ClearBacklogCallback.class), any());
+
+            CompletableFuture<Void> clearFuture = persistentSubscription.clearBacklog();
+            Awaitility.await().untilAsserted(() -> assertThat(callbacks).hasSize(1));
+
+            // Replace the dispatcher the clear started on before the cursor callback runs.
+            initialDispatcher.removeConsumer(firstConsumer);
+            Consumer exclusiveConsumer = mock(Consumer.class);
+            doReturn(CommandSubscribe.SubType.Exclusive).when(exclusiveConsumer).subType();
+            assertThat(persistentSubscription.addConsumer(exclusiveConsumer)).succeedsWithin(5, TimeUnit.SECONDS);
+            Consumer replacementConsumer = mock(Consumer.class);
+            doReturn(CommandSubscribe.SubType.Shared).when(replacementConsumer).subType();
+            doReturn(mock(PendingAcksMap.class)).when(replacementConsumer).getPendingAcks();
+            assertThat(persistentSubscription.addConsumer(replacementConsumer)).succeedsWithin(5, TimeUnit.SECONDS);
+            PersistentDispatcherMultipleConsumers replacementDispatcher = sharedDispatchers.get(1);
+
+            callbacks.get(0).clearBacklogComplete(null);
+            assertThat(clearFuture).succeedsWithin(5, TimeUnit.SECONDS);
+
+            // The cleanup ran on the enrolled replacement, not just a buffer release.
+            verify(replacementDispatcher).clearDelayedMessagesAfterBacklogClear();
         } finally {
             for (PersistentDispatcherMultipleConsumers dispatcher : sharedDispatchers) {
                 dispatcher.close(false, Optional.empty()).get(1, TimeUnit.MINUTES);
