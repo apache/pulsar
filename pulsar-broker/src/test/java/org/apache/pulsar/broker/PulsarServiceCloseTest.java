@@ -28,6 +28,7 @@ import lombok.CustomLog;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.loadbalance.LoadSheddingTask;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -100,5 +101,44 @@ public class PulsarServiceCloseTest extends MockedPulsarServiceBaseTest {
             fail("Should not throw exception");
         }
         log.info("waitUntilClosed() returned successfully while closeAsync() was in progress");
+    }
+
+    @Test(timeOut = 60_000)
+    public void testGetClientAfterCloseThrows() throws Exception {
+        pulsar.close();
+        try {
+            pulsar.getClient();
+            fail("getClient() should throw PulsarServerException after close");
+        } catch (PulsarServerException e) {
+            assertTrue(e.getMessage().contains("Broker is not running"));
+        }
+    }
+
+    @Test(timeOut = 30_000)
+    public void testClientCreationPreventedDuringCloseAsync() throws Exception {
+        restartBroker();
+
+        CompletableFuture<Void> closeFuture;
+        synchronized (pulsar) {
+            closeFuture = CompletableFuture.runAsync(() -> pulsar.closeAsync());
+            Awaitility.await().until(() -> !pulsar.isRunning());
+
+            // While closeAsync() is blocked waiting for the monitor, getClient() must see
+            // !isRunning() and refuse to create a client rather than leaking one
+            try {
+                pulsar.getClient();
+                fail("getClient() should throw PulsarServerException while closing");
+            } catch (PulsarServerException expected) {
+                // expected
+            }
+        }
+
+        closeFuture.get(30, TimeUnit.SECONDS);
+        try {
+            pulsar.getClient();
+            fail("getClient() should throw PulsarServerException after close");
+        } catch (PulsarServerException expected) {
+            // expected
+        }
     }
 }
