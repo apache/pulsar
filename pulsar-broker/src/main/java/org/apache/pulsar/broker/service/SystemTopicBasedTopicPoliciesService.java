@@ -1192,12 +1192,12 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 // with its initialization replays regardless: the topics that are already loaded missed the events
                 // that no reader delivered.
                 //
-                // The notifications of that replay are queued here, each on the executor of its topic, and the pass
-                // ends without waiting for the listeners. The caches are complete, so the policy reads and topic
-                // loads that wait for the initialization get their answer, and a slow listener cannot run the
-                // initialization into its timeout, which would drop it and request the replay again. The events
-                // that the reader delivers from here on are queued behind (readMorePoliciesAsync starts when this
-                // pass has ended), so each listener still gets the replay before them.
+                // The notifications are queued here, each on the executor of its topic, and the pass ends without
+                // waiting for the listeners. The caches are complete, so the policy reads and topic loads that wait
+                // for the initialization get their answer, and a slow listener cannot run the initialization into
+                // its timeout, which would drop it and request the replay again. The events that the reader
+                // delivers from here on are queued behind (readMorePoliciesAsync starts when this pass has ended),
+                // so each listener still gets the replay before them.
                 //
                 // Only the first pass of the namespace's current initialization takes the request, in a compute()
                 // step like the one that records it (dropInitializationIfCurrent). A pass can get here after its
@@ -1221,12 +1221,10 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 TopicsWithPoliciesBeforeReplacement beforeReplacement = replayRequest.getValue();
                 if (beforeReplacement != null) {
                     replayAfterReaderReplacement(namespaceObject, beforeReplacement);
-                    stageFuture.complete(null);
                 } else if (pulsarService.getConfiguration().isTopicPolicyListenerReplayEnabled()) {
-                    FutureUtil.completeAfter(stageFuture, replayTopicPolicyListeners(namespaceObject));
-                } else {
-                    stageFuture.complete(null);
+                    replayTopicPolicyListeners(namespaceObject);
                 }
+                stageFuture.complete(null);
             }
         });
     }

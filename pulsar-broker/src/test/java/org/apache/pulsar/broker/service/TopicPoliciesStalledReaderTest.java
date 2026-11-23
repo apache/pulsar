@@ -704,6 +704,42 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
     }
 
     @Test(timeOut = 90_000)
+    public void testPolicyReadDoesNotWaitForListenerReplayOfAnInitialization() throws Exception {
+        final TopicName topicName = newTopicNeverLoaded();
+        final AtomicBoolean holdListener = new AtomicBoolean();
+        final CountDownLatch replayReachedListener = new CountDownLatch(1);
+        final CountDownLatch listenerMayReturn = new CountDownLatch(1);
+        final TopicPolicyListener listener = policies -> {
+            if (holdListener.get()) {
+                replayReachedListener.countDown();
+                Uninterruptibles.awaitUninterruptibly(listenerMayReturn);
+            }
+        };
+        service.registerListenerAsync(topicName, listener).get(30, TimeUnit.SECONDS);
+        pulsar.getConfiguration().setTopicPolicyListenerReplayEnabled(true);
+        try {
+            setMaxConsumers(topicName, 5).get(30, TimeUnit.SECONDS);
+
+            holdListener.set(true);
+            reloadNamespaceBundle(topicName);
+
+            assertThat(service.getTopicPoliciesAsync(topicName, TopicPoliciesService.GetType.LOCAL_ONLY))
+                    .describedAs("the initialization has read the topic to its end, so a policy read must get its"
+                            + " answer without waiting for a listener to handle the replay")
+                    .succeedsWithin(Duration.ofSeconds(10))
+                    .matches(policies -> policies.map(TopicPolicies::getMaxConsumerPerTopic).orElse(0) == 5);
+            assertThat(replayReachedListener.await(30, TimeUnit.SECONDS))
+                    .describedAs("topicPolicyListenerReplayEnabled is on, so the initialization must re-notify the"
+                            + " listener")
+                    .isTrue();
+        } finally {
+            listenerMayReturn.countDown();
+            pulsar.getConfiguration().setTopicPolicyListenerReplayEnabled(false);
+            service.unregisterListener(topicName, listener);
+        }
+    }
+
+    @Test(timeOut = 90_000)
     public void testListenerLearnsOfPolicyDeletedAfterReaderWasClosedBeforeTheBundleLoadWasHandled()
             throws Exception {
         final TopicName topicName = newTopicNeverLoaded();
