@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -143,6 +144,15 @@ public interface MetaStore {
      */
     void asyncUpdateCursorInfo(String ledgerName, String cursorName, ManagedCursorInfo info, Stat stat,
             MetaStoreCallback<Void> callback);
+
+    /**
+     * Bound verification of an ambiguous cursor write during close, including an outstanding read.
+     * A timeout leaves the write outcome unknown. Stores without verification use their normal write path.
+     */
+    default void asyncUpdateCursorInfo(String ledgerName, String cursorName, ManagedCursorInfo info, Stat stat,
+                                       Duration verificationTimeout, MetaStoreCallback<Void> callback) {
+        asyncUpdateCursorInfo(ledgerName, cursorName, info, stat, callback);
+    }
 
     /**
      * Drop the persistent state of a consumer from the metadata store.

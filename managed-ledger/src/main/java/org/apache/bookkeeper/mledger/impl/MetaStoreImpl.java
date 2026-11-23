@@ -35,6 +35,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import lombok.extern.slf4j.Slf4j;
@@ -74,6 +75,7 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
     private final OrderedExecutor executor;
     private final AtomicBoolean closed = new AtomicBoolean();
     private final Set<CompletableFuture<Optional<GetResult>>> publicationReads = ConcurrentHashMap.newKeySet();
+    private final Set<Runnable> pendingCursorCallbacks = ConcurrentHashMap.newKeySet();
 
     private static final int MAGIC_MANAGED_INFO_METADATA = 0x4778; // 0100 0111 0111 1000
     private final MetadataCompressionConfig ledgerInfoCompressionConfig;
@@ -272,6 +274,12 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
     @Override
     public void asyncUpdateCursorInfo(String ledgerName, String cursorName, ManagedCursorInfo info, Stat stat,
             MetaStoreCallback<Void> callback) {
+        asyncUpdateCursorInfo(ledgerName, cursorName, info, stat, null, callback);
+    }
+
+    @Override
+    public void asyncUpdateCursorInfo(String ledgerName, String cursorName, ManagedCursorInfo info, Stat stat,
+            Duration verificationTimeout, MetaStoreCallback<Void> callback) {
         if (log.isDebugEnabled()) {
             log.debug("[{}] [{}] Updating cursor info ledgerId={} mark-delete={}:{} lastActive={}",
                     ledgerName, cursorName, info.getCursorsLedgerId(), info.getMarkDeleteLedgerId(),
@@ -299,31 +307,44 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
             if (info.getPublication().isEmpty()) {
                 info.setPublication(UUID.randomUUID().toString());
             }
-            return putCursorInfo(ledgerName, path, compressCursorInfo(info), expectedVersion);
+            return putCursorInfo(ledgerName, path, compressCursorInfo(info), expectedVersion, verificationTimeout);
         })
-                .whenComplete((written, error) -> {
-                    Runnable complete = () -> {
-                        if (error == null) {
-                            callback.operationComplete(null, written);
-                        } else {
-                            callback.operationFailed(getException(error));
-                        }
-                    };
-                    // Shutdown must not leave callbacks queued on an executor that is about to discard them.
-                    if (closed.get() || executor.isShutdown()) {
-                        complete.run();
+                .whenComplete((written, error) -> dispatchCursorCallback(ledgerName, () -> {
+                    if (error == null) {
+                        callback.operationComplete(null, written);
                     } else {
-                        try {
-                            executor.executeOrdered(ledgerName, complete);
-                        } catch (RejectedExecutionException e) {
-                            callback.operationFailed(getException(e));
-                        }
+                        callback.operationFailed(getException(error));
                     }
-                });
+                }));
+    }
+
+    private void dispatchCursorCallback(String ledgerName, Runnable callback) {
+        // Register before checking closed: shutdown may discard even an accepted executor task.
+        pendingCursorCallbacks.add(callback);
+        if (!closed.get() && !executor.isShutdown()) {
+            try {
+                executor.executeOrdered(ledgerName, () -> deliverCursorCallback(callback));
+                return;
+            } catch (RejectedExecutionException ignored) {
+                // The write already has a result. Deliver it on this thread if the executor stopped.
+            }
+        }
+        deliverCursorCallback(callback);
+    }
+
+    private void deliverCursorCallback(Runnable callback) {
+        // Only the ordered task or the closing thread can claim this result.
+        if (pendingCursorCallbacks.remove(callback)) {
+            try {
+                callback.run();
+            } catch (RuntimeException e) {
+                log.error("Cursor metadata callback failed", e);
+            }
+        }
     }
 
     private CompletableFuture<Stat> putCursorInfo(String ledgerName, String path, byte[] content,
-                                                   long expectedVersion) {
+                                                   long expectedVersion, Duration verificationTimeout) {
         if (closed.get() || executor.isShutdown()) {
             return CompletableFuture.failedFuture(new MetadataStoreException.AlreadyClosedException());
         }
@@ -336,7 +357,8 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
                             || cause.getCause() instanceof KeeperException ke && isUncertainResult(ke.code()))) {
                         return CompletableFuture.failedFuture(cause);
                     }
-                    return readCursorPublication(ledgerName, path, zkStore.getZkClient()).thenApply(value -> {
+                    var read = readCursorPublication(ledgerName, path, zkStore.getZkClient(), verificationTimeout);
+                    return read.thenApply(value -> {
                         GetResult stored = value.orElse(null);
                         long nextVersion = expectedVersion + 1;
                         if (stored != null && !stored.getStat().isEphemeral()
@@ -362,14 +384,27 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
                 || code == Code.SESSIONEXPIRED || code == Code.REQUESTTIMEOUT;
     }
 
-    private CompletableFuture<Optional<GetResult>> readCursorPublication(String ledgerName, String path, ZooKeeper zk) {
+    private CompletableFuture<Optional<GetResult>> readCursorPublication(
+            String ledgerName, String path, ZooKeeper zk, Duration verificationTimeout) {
         var result = new CompletableFuture<Optional<GetResult>>();
         publicationReads.add(result);
         result.whenComplete((__, error) -> publicationReads.remove(result));
         Backoff backoff = Backoff.builder().initialDelay(Duration.ofMillis(100))
                 .maxBackoff(Duration.ofSeconds(1)).build();
+        // Expire the same future that guards every retry, including when getData never replies.
+        var verified = result;
+        if (verificationTimeout != null) {
+            verified = result.orTimeout(TimeUnit.MILLISECONDS.convert(verificationTimeout), TimeUnit.MILLISECONDS)
+                    .exceptionally(error -> {
+                        if (error instanceof TimeoutException) {
+                            throw new CompletionException(new TimeoutException(
+                                    "Verification timed out for " + path + ": cursor publication outcome is unknown"));
+                        }
+                        throw new CompletionException(error);
+                    });
+        }
         readCursorPublication(ledgerName, path, zk, result, backoff);
-        return result;
+        return verified;
     }
 
     private void readCursorPublication(String ledgerName, String path, ZooKeeper zk,
@@ -421,6 +456,7 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
         if (closed.compareAndSet(false, true)) {
             var error = new MetadataStoreException.AlreadyClosedException();
             publicationReads.forEach(read -> read.completeExceptionally(error));
+            pendingCursorCallbacks.forEach(this::deliverCursorCallback);
         }
     }
 

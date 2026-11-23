@@ -34,6 +34,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import com.google.common.util.concurrent.RateLimiter;
 import java.time.Clock;
+import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.BitSet;
@@ -3041,7 +3042,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                             e.getMessage());
                     callback.closeFailed(e, ctx);
                 }
-            }, true);
+            }, true, Duration.ofSeconds(getConfig().getMetadataOperationsTimeoutSeconds()));
         }
     }
 
@@ -3059,6 +3060,13 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     private void persistPositionMetaStore(long cursorsLedgerId, Position position, Map<String, Long> properties,
             MetaStoreCallback<Void> callback, boolean persistIndividualDeletedMessageRanges) {
+        persistPositionMetaStore(cursorsLedgerId, position, properties, callback, persistIndividualDeletedMessageRanges,
+                null);
+    }
+
+    private void persistPositionMetaStore(long cursorsLedgerId, Position position, Map<String, Long> properties,
+            MetaStoreCallback<Void> callback, boolean persistIndividualDeletedMessageRanges,
+            Duration verificationTimeout) {
         if (state == State.Closed) {
             ledger.getExecutor().execute(() -> callback.operationFailed(new MetaStoreException(
                     new CursorAlreadyClosedException(name + " cursor already closed"))));
@@ -3094,7 +3102,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         ManagedCursorInfo cursorInfo = info;
         ledger.getStore().asyncUpdateCursorInfo(ledger.getName(), name, cursorInfo, lastCursorLedgerStat,
-                new MetaStoreCallback<Void>() {
+                verificationTimeout, new MetaStoreCallback<Void>() {
                     @Override
                     public void operationComplete(Void result, Stat stat) {
                         updateCursorLedgerStat(cursorInfo, stat);
