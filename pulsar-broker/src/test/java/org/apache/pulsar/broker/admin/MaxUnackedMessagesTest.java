@@ -131,7 +131,7 @@ public class MaxUnackedMessagesTest extends ProducerConsumerBase {
 
         // client must receive number of messages = unAckedMessagesBufferSize rather all produced messages: check
         // delta as 3 consumers with receiverQueueSize = 10
-        assertEquals(unackMsgAllowed, messages.size(), receiverQueueSize * 3);
+        assertEquals(messages.size(), unackMsgAllowed, receiverQueueSize * 3);
 
         // start acknowledging messages
         messages.forEach((m, c) -> {
