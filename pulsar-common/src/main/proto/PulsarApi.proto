@@ -577,6 +577,9 @@ message CommandSendError {
     required uint64 sequence_id = 2;
     required ServerError error  = 3;
     required string message     = 4;
+    // Optional evidence from the target of a replicated publish.
+    optional MessageIdData source_position = 5;
+    optional bool deduplication_undecided = 6 [default = false];
 }
 
 message CommandMessage {

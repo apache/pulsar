@@ -827,7 +827,7 @@ public class ZeroQueueSizeTest extends SharedPulsarBaseTest {
 
     private static void awaitListenerTasks(ConsumerImpl<?> consumer) throws Exception {
         CompletableFuture<Void> done = new CompletableFuture<>();
-        consumer.externalPinnedExecutor.execute(() -> done.complete(null));
+        consumer.externalPinnedExecutor.get().execute(() -> done.complete(null));
         done.get(10, TimeUnit.SECONDS);
     }
 

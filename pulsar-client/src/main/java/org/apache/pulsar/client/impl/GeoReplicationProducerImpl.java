@@ -22,11 +22,14 @@ import io.github.merlimat.slog.Logger;
 import io.netty.channel.Channel;
 import io.netty.util.ReferenceCountUtil;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.BiConsumer;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
+import org.apache.pulsar.common.api.proto.CommandSendError;
 import org.apache.pulsar.common.api.proto.KeyValue;
 import org.apache.pulsar.common.api.proto.MarkerType;
 import org.apache.pulsar.common.naming.TopicName;
@@ -40,6 +43,8 @@ public class GeoReplicationProducerImpl extends ProducerImpl{
 
     public static final String MSG_PROP_REPL_SOURCE_POSITION = "__MSG_PROP_REPL_SOURCE_POSITION";
     public static final String MSG_PROP_IS_REPL_MARKER = "__MSG_PROP_IS_REPL_MARKER";
+    public static final String DEDUPLICATION_UNDECIDED = "DEDUPLICATION_UNDECIDED";
+    private volatile BiConsumer<String, String> retryListener;
 
     private long lastPersistedSourceLedgerId;
     private long lastPersistedSourceEntryId;
@@ -57,6 +62,62 @@ public class GeoReplicationProducerImpl extends ProducerImpl{
                 .attr("producerName", () -> producerName)
                 .build();
         isPersistentTopic = TopicName.get(topic).isPersistent();
+    }
+
+    public String getReplicationProducerState() {
+        var state = getState();
+        return switch (state) {
+            case RegisteringSchema -> "REGISTERING_SCHEMA";
+            case ProducerFenced -> "PRODUCER_FENCED";
+            default -> state.name().toUpperCase(Locale.ROOT);
+        };
+    }
+
+    /** A replicated source entry occupies one send operation, even when it contains a batch. */
+    public synchronized int getPendingEntryCount() {
+        return pendingMessages.size();
+    }
+
+    public void setRetryListener(BiConsumer<String, String> listener) {
+        retryListener = listener;
+    }
+
+    void recordReconnectRetry(ClientCnx cnx, CommandSendError error) {
+        String position = error.hasSourcePosition() ? error.getSourcePosition().getLedgerId() + ":"
+                + error.getSourcePosition().getEntryId() : null;
+        recordSendRetry(cnx, error.isDeduplicationUndecided() ? DEDUPLICATION_UNDECIDED : error.getError().name(),
+                position);
+    }
+
+    synchronized void recordSendRetry(ClientCnx cnx, String reason, String sourcePosition) {
+        var listener = retryListener;
+        if (listener != null && cnx == cnx() && pendingMessages.peek() != null) {
+            listener.accept(reason, sourcePosition);
+        }
+    }
+
+    public synchronized boolean isQueueHeadAt(String position) {
+        OpSendMsg head = pendingMessages.peek();
+        if (position != null && head != null && head.msg != null) {
+            for (KeyValue property : head.msg.getMessageBuilder().getPropertiesList()) {
+                if (MSG_PROP_REPL_SOURCE_POSITION.equals(property.getKey())) {
+                    return position.equals(property.getValue());
+                }
+            }
+        }
+        return false;
+    }
+
+    public synchronized Boolean getSendingMessageSchemaCompatible() {
+        OpSendMsg head = pendingMessages.peek();
+        if (head == null || head.msg == null) {
+            return null;
+        }
+        return switch (head.msg.getSchemaState()) {
+            case Ready -> true;
+            case Broken -> false;
+            case None -> null;
+        };
     }
 
     private boolean isBrokerSupportsReplDedupByLidAndEid(ClientCnx cnx) {

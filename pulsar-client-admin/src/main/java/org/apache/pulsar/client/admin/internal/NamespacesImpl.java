@@ -464,7 +464,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     @Override
     public CompletableFuture<String> getNamespaceAntiAffinityGroupAsync(String namespace) {
         return asyncGetNamespaceParts(new FutureCallback<String>() {
-        }, namespace, "antiAffinity");
+        }, namespace, "antiAffinity")
+                .thenApply(value -> StringUtils.isEmpty(value) ? null : value);
     }
 
     @Override
@@ -902,7 +903,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     @Override
     public CompletableFuture<String> getReplicationConfigVersionAsync(String namespace) {
         return asyncGetNamespaceParts(new FutureCallback<String>() {
-        }, namespace, "configversion");
+        }, namespace, "configversion")
+                .thenApply(value -> StringUtils.isEmpty(value) ? null : value);
     }
 
     @Override
@@ -1977,7 +1979,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     @Override
     public CompletableFuture<String> getNamespaceResourceGroupAsync(String namespace) {
         return asyncGetNamespaceParts(new FutureCallback<String>() {
-        }, namespace, "resourcegroup");
+        }, namespace, "resourcegroup")
+                .thenApply(value -> StringUtils.isEmpty(value) ? null : value);
     }
 
     @Override
