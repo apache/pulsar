@@ -251,6 +251,11 @@ public class MessageDeduplication {
                 managedCursor.getNumberOfEntries());
         return replayTask.replay(cursor, (__, buffer) -> {
             final var metadata = Commands.parseMessageMetadata(buffer);
+            // Only the last chunk advances the deduplication sequence ID.
+            if (metadata.hasNumChunksFromMsg() && metadata.getNumChunksFromMsg() > 1
+                    && metadata.hasChunkId() && metadata.getChunkId() != metadata.getNumChunksFromMsg() - 1) {
+                return;
+            }
             final var producerName = metadata.getProducerName();
             final var sequenceId = Math.max(metadata.getHighestSequenceId(), metadata.getSequenceId());
             highestSequencedPushed.put(producerName, sequenceId);
