@@ -34,12 +34,14 @@ import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.MultiBrokerBaseTest;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.service.BrokerServiceException.TopicFencedException;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.testinterceptor.BrokerTestInterceptor;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.assertj.core.api.SoftAssertions;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
@@ -194,9 +196,9 @@ public class BrokerServiceDeleteAfterUnloadTest extends MultiBrokerBaseTest {
                     .log("State after the former owner's delete finished");
 
             SoftAssertions softly = new SoftAssertions();
-            softly.assertThat(deletionError)
+            softly.assertThat(FutureUtil.unwrapCompletionException(deletionError))
                     .as("the delete on %s, which no longer owns the bundle, must fail", formerOwner.getBrokerId())
-                    .isNotNull();
+                    .isInstanceOf(TopicFencedException.class);
             softly.assertThat(managedLedgerExists)
                     .as("the managed ledger of the topic that %s serves must still exist", newOwner.getBrokerId())
                     .isTrue();

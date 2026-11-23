@@ -59,7 +59,9 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
+import org.apache.pulsar.broker.service.BrokerServiceException.TopicFencedException;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
@@ -71,6 +73,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.assertj.core.api.SoftAssertions;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
@@ -384,11 +387,11 @@ public class BrokerServiceTopicDeletionTest {
             boolean schemaExists = service.getLocalMetadataStore().exists(schemaPath).get(10, TimeUnit.SECONDS);
 
             SoftAssertions softly = new SoftAssertions();
-            softly.assertThat(deletionError)
+            softly.assertThat(FutureUtil.unwrapCompletionException(deletionError))
                     .as("the delete must fail; when it completed, this broker owned the bundle: %s, any broker owned"
                             + " it: %s, managed ledger exists: %s, schema exists: %s",
                             ownedWhenDeletionCompleted.get(), ownedByAnyBroker, managedLedgerExists, schemaExists)
-                    .isNotNull();
+                    .isInstanceOf(TopicFencedException.class);
             softly.assertThat(managedLedgerExists).as("the managed ledger must still exist").isTrue();
             softly.assertThat(schemaExists).as("the schema must still exist").isTrue();
             softly.assertAll();
@@ -452,13 +455,13 @@ public class BrokerServiceTopicDeletionTest {
                     .log("State after a delete that waited for an unload close within the unload timeout");
 
             SoftAssertions softly = new SoftAssertions();
-            softly.assertThat(deletionError)
+            softly.assertThat(FutureUtil.unwrapCompletionException(deletionError))
                     .as("the delete must fail, the broker is giving up the bundle; bundle ownership when the delete"
                                     + " completed: %s, after the unload: %s, managed ledger exists: %s,"
                                     + " schema exists: %s",
                             ownershipWhenDeletionCompleted.get(), ownershipAfterUnload, managedLedgerExists,
                             schemaExists)
-                    .isNotNull();
+                    .isInstanceOf(TopicFencedException.class);
             softly.assertThat(managedLedgerExists).as("the managed ledger must still exist").isTrue();
             softly.assertThat(schemaExists).as("the schema must still exist").isTrue();
             softly.assertAll();
@@ -532,6 +535,88 @@ public class BrokerServiceTopicDeletionTest {
                     .isTrue();
             softly.assertThat(schemaExists).as("the schema must still exist").isTrue();
             softly.assertAll();
+        } finally {
+            BrokerTestInterceptor.INSTANCE.reset();
+        }
+    }
+
+    // The ownership check of a delete that waited for a close can overlap a bundle unload: the check sees the broker
+    // own the bundle, and the unload starts before the delete goes on.
+    @Test(timeOut = 60000)
+    @SuppressWarnings("unchecked")
+    public void testBundleUnloadWaitsForDeleteThatCheckedOwnershipAfterClose() throws Exception {
+        context.close();
+        context = null;
+        String name = "persistent://prop/ns-abc/unload-during-delete-check-" + UUID.randomUUID();
+        TopicName topicName = TopicName.get(name);
+        String schemaPath = "/schemas/" + topicName.getSchemaName();
+        AtomicBoolean holdNextClose = new AtomicBoolean();
+        CompletableFuture<Void> closeHeld = new CompletableFuture<>();
+        CompletableFuture<Void> releaseClose = new CompletableFuture<>();
+        holdManagedLedgerClose(topicName, holdNextClose, closeHeld, releaseClose);
+        CompletableFuture<Void> ownershipChecked = new CompletableFuture<>();
+        CompletableFuture<Void> releaseOwnershipCheck = new CompletableFuture<>();
+        // Resources close in reverse order, so a failing test lets the held check through before the broker stops.
+        try (InitializingTopicFixture fixture = new InitializingTopicFixture(releaseClose);
+             AutoCloseable letOwnershipCheckThrough = () -> releaseOwnershipCheck.complete(null)) {
+            fixture.configure(conf -> {
+                BrokerTestInterceptor.INSTANCE.configure(conf);
+                conf.setTopicLevelPoliciesEnabled(false);
+                conf.setSystemTopicEnabled(false);
+            });
+            fixture.setup();
+            PulsarService service = fixture.service();
+            try (PulsarClient client = PulsarClient.builder().serviceUrl(service.getBrokerServiceUrl()).build();
+                 Producer<String> producer = client.newProducer(Schema.STRING).topic(name).create()) {
+                producer.send("stored with a schema");
+            }
+            PersistentTopic topic =
+                    (PersistentTopic) service.getBrokerService().getTopicReference(name).orElseThrow();
+            NamespaceService namespaceService = service.getNamespaceService();
+            NamespaceBundle bundle = namespaceService.getBundle(topicName);
+            // The check answers at once, but the delete gets the answer only when the test lets it through.
+            doAnswer(invocation -> ((CompletableFuture<Boolean>) invocation.callRealMethod())
+                    .thenCompose(owned -> {
+                        ownershipChecked.complete(null);
+                        return releaseOwnershipCheck.thenApply(ignored -> owned);
+                    })).when(namespaceService).checkTopicOwnership(topicName);
+
+            // A close of the topic alone, so the broker keeps the bundle.
+            holdNextClose.set(true);
+            CompletableFuture<Void> closing = topic.close();
+            closeHeld.get(10, TimeUnit.SECONDS);
+            CompletableFuture<Void> deletion = service.getBrokerService().deleteTopic(name, false);
+            assertThat(deletion).as("the delete waits for the close").isNotDone();
+            releaseClose.complete(null);
+            closing.get(10, TimeUnit.SECONDS);
+            ownershipChecked.get(10, TimeUnit.SECONDS);
+
+            // The delete has seen the broker own the bundle, and has not gone on yet. A bundle unload that starts
+            // now waits for what the topic cache holds for the bundle.
+            CompletableFuture<Optional<Topic>> reservation = service.getBrokerService().getTopics().get(name);
+            assertThat(reservation)
+                    .as("the topic's cache entry while the delete checks the bundle's ownership; a pending entry"
+                            + " makes a bundle unload that starts meanwhile wait for the delete")
+                    .isNotNull()
+                    .isNotDone();
+            CompletableFuture<Void> unload = namespaceService.unloadNamespaceBundle(bundle);
+            assertThat(unload).as("the bundle unload waits for the delete").isNotDone();
+            String ownershipBeforeDeleteGoesOn = describeOwnership(service, bundle);
+            releaseOwnershipCheck.complete(null);
+            Throwable deletionError = deletion.handle((ignored, error) -> error).get(10, TimeUnit.SECONDS);
+            unload.get(10, TimeUnit.SECONDS);
+            boolean managedLedgerExists = service.getPulsarResources().getTopicResources()
+                    .persistentTopicExists(topicName).get(10, TimeUnit.SECONDS);
+            boolean schemaExists = service.getLocalMetadataStore().exists(schemaPath).get(10, TimeUnit.SECONDS);
+            log.info()
+                    .attr("ownershipBeforeDeleteGoesOn", ownershipBeforeDeleteGoesOn)
+                    .attr("deletionError", deletionError)
+                    .attr("managedLedgerExists", managedLedgerExists)
+                    .attr("schemaExists", schemaExists)
+                    .log("State after a bundle unload that started during a delete's ownership check");
+
+            assertThat(deletionError).as("the delete, which the unload waited for").isNull();
+            assertThat(managedLedgerExists).as("the managed ledger of the deleted topic exists").isFalse();
         } finally {
             BrokerTestInterceptor.INSTANCE.reset();
         }
