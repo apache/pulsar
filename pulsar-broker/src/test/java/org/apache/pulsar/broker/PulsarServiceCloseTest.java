@@ -23,16 +23,20 @@ import static org.testng.AssertJUnit.assertFalse;
 import static org.testng.AssertJUnit.assertNotNull;
 import static org.testng.AssertJUnit.assertNull;
 import static org.testng.AssertJUnit.assertTrue;
+import java.lang.reflect.Field;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.CustomLog;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.loadbalance.LoadSheddingTask;
 import org.apache.pulsar.broker.service.HealthChecker;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.awaitility.Awaitility;
+import org.mockito.Mockito;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -113,7 +117,21 @@ public class PulsarServiceCloseTest extends MockedPulsarServiceBaseTest {
         HealthChecker checker = pulsar.getHealthChecker();
         assertNotNull(checker);
 
+        Field clientField = HealthChecker.class.getDeclaredField("client");
+        clientField.setAccessible(true);
+        PulsarClient realClient = (PulsarClient) clientField.get(checker);
+        PulsarClient spyClient = Mockito.spy(realClient);
+        AtomicBoolean monitorHeldOnClose = new AtomicBoolean(false);
+        Mockito.doAnswer(inv -> {
+            if (Thread.holdsLock(pulsar)) {
+                monitorHeldOnClose.set(true);
+            }
+            return inv.callRealMethod();
+        }).when(spyClient).close();
+        clientField.set(checker, spyClient);
+
         pulsar.closeAsync().get(30, TimeUnit.SECONDS);
+        assertFalse(monitorHeldOnClose.get());
         assertNull(pulsar.getHealthChecker());
     }
 
