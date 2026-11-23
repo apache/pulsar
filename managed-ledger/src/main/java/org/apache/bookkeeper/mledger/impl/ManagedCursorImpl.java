@@ -2687,6 +2687,8 @@ public class ManagedCursorImpl implements ManagedCursor {
                 // pair the open ledger's info with the next ledger of a concurrent rollover and skip its entries.
                 Long nextValidLedger = ledger.getNextValidLedger(newPosition.getLedgerId());
                 LedgerInfo curMarkDeleteLedgerInfo = ledger.getLedgerInfo(newPosition.getLedgerId()).get();
+                // Intentionally accept an entryId past the end of a closed ledger, though the entry does not exist.
+                // Moving to nextValidLedger:-1 has the same effect as mark-deleting the last real entry in that ledger.
                 shouldCursorMoveForward = (nextValidLedger != null)
                         && (curMarkDeleteLedgerInfo != null
                         && newPosition.getEntryId() + 1 >= curMarkDeleteLedgerInfo.getEntries());

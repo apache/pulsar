@@ -7939,11 +7939,10 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         cursor.markDelete(p1);
         assertThat(cursor.getMarkDeletedPosition()).isEqualTo(PositionFactory.create(p2.getLedgerId(), -1));
 
-        // If requestMarkDeleteLedgerId == lacLedgerId, and current ledger is all consumed, and next ledger exists,
-        // we move markDeletePosition to nextLedgerId:-1. This is reasonable since we can also mark delete
-        // nextLedgerId:-1, which is also larger than lac.
-        Position lacPlusOnePos = PositionFactory.create(p2.getLedgerId(), 1);
-        cursor.markDelete(lacPlusOnePos);
+        // If requestMarkDeleteLedgerId < lacLedgerId and the requested entryId is one past the last entry,
+        // we move markDeletePosition to nextLedgerId:-1.
+        Position lastEntryPlusOnePos = PositionFactory.create(p2.getLedgerId(), p2.getEntryId() + 1);
+        cursor.markDelete(lastEntryPlusOnePos);
         assertThat(cursor.getMarkDeletedPosition()).isEqualTo(PositionFactory.create(p3.getLedgerId(), -1));
 
         // But we can not mark delete emptyLedgerId:1, since it is a valid entry position.
@@ -7952,6 +7951,26 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             cursor.markDelete(invalidMarkDeletePos);
         });
         assertThat(thrown.getMessage()).contains("Invalid mark deleted position");
+    }
+
+    @Test(timeOut = 20000)
+    public void testMarkDeleteOnePastEndWithEmptyNextLedger() throws Exception {
+        ManagedLedgerConfig config = defaultConfig().setMaxEntriesPerLedger(2);
+        @Cleanup ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("onePastEndWithEmptyNextLedger", config);
+        ManagedCursor cursor = ledger.openCursor("c1");
+
+        ledger.addEntry("entry-0".getBytes(Encoding));
+        Position lastInA = ledger.addEntry("entry-1".getBytes(Encoding));
+        Awaitility.await().untilAsserted(() -> {
+            assertThat(ledger.getLedgersInfo()).hasSize(2);
+            assertThat(ledger.getCurrentLedgerEntries()).isZero();
+        });
+        assertThat(lastInA.getEntryId()).isEqualTo(1L);
+        assertThat(ledger.getLastConfirmedEntry()).isEqualTo(lastInA);
+        long nextLedgerId = ledger.getLedgersInfo().lastKey();
+
+        cursor.markDelete(PositionFactory.create(lastInA.getLedgerId(), 2));
+        assertThat(cursor.getMarkDeletedPosition()).isEqualTo(PositionFactory.create(nextLedgerId, -1));
     }
 
     @Test(timeOut = 20000)
