@@ -1722,8 +1722,9 @@ public class BrokerService implements Closeable {
 
     /**
      * @param errorUnlessOwner the error of a delete that retries after the topic's close, see
-     *                         {@link #deleteAfterClose}, and null for any other delete. A retry deletes an unloaded
-     *                         topic only while the broker owns the topic's bundle, and fails with this error otherwise.
+     *                         {@link #deleteAfterClose}, and null for any other delete. A delete of an unloaded
+     *                         topic that {@link #deleteUnloadedTopicMetadataIfOwner} does not allow fails with this
+     *                         error, or with a {@link ServiceUnitNotReadyException} if it is null.
      */
     private CompletableFuture<Void> deleteTopicInternal(String topic, boolean forceDelete,
                                                         Throwable errorUnlessOwner) {
@@ -1795,9 +1796,8 @@ public class BrokerService implements Closeable {
         if (topics.putIfAbsent(topic, deletionFuture) != null) {
             return deleteTopicInternal(topic, forceDelete, errorUnlessOwner);
         }
-        FutureUtil.supplySafely(() -> errorUnlessOwner == null
-                ? deleteUnloadedTopicMetadata(topic)
-                : deleteUnloadedTopicMetadataIfOwner(topic, errorUnlessOwner)).whenComplete((ignored, error) -> {
+        FutureUtil.supplySafely(() -> deleteUnloadedTopicMetadataIfOwner(topic, errorUnlessOwner))
+                .whenComplete((ignored, error) -> {
             topics.remove(topic, deletionFuture);
             // A concurrent create must retry rather than treat an empty Optional as successful creation.
             deletionFuture.completeExceptionally(new ServiceUnitNotReadyException(
@@ -1837,17 +1837,34 @@ public class BrokerService implements Closeable {
     }
 
     /**
-     * Deletes an unloaded topic for a delete that retries after the topic's close. The close of a bundle unload, and
-     * the last close of a transfer, give the topic's bundle up, and another broker may serve the topic by then, so
-     * the delete fails unless this broker owns the bundle. The caller holds the topic's reservation in the cache,
-     * which a bundle unload that starts from now on waits for. A bundle unload that started earlier made the
-     * ownership check fail before it looked at the cache.
+     * Deletes an unloaded topic's metadata if this broker owns the topic's bundle. The broker may have given the
+     * bundle up since the delete was accepted, and another broker may serve the topic by then. The caller holds the
+     * topic's reservation in the cache, which a bundle unload that starts from now on waits for. A bundle unload that
+     * started earlier made the ownership check fail before it looked at the cache.
+     *
+     * <p>The broker's own heartbeat namespace counts as owned. Lookups assign a heartbeat namespace to the broker that
+     * it is named after, so no other broker serves it, and the broker deletes its heartbeat topic at shutdown, after
+     * it released its bundles.
+     *
+     * @param errorUnlessOwner the error of a delete that retries after the topic's close, see
+     *                         {@link #deleteAfterClose}, and null for any other delete
      */
     private CompletableFuture<Void> deleteUnloadedTopicMetadataIfOwner(String topic, Throwable errorUnlessOwner) {
-        return pulsar.getNamespaceService().checkTopicOwnership(TopicName.get(topic))
-                .thenCompose(owned -> owned
-                        ? deleteUnloadedTopicMetadata(topic)
-                        : CompletableFuture.<Void>failedFuture(errorUnlessOwner));
+        TopicName topicName = TopicName.get(topic);
+        // The same test as the lookups use, not the namespace's name: only a namespace that they assign to this
+        // broker alone is safe to delete from without owning the bundle.
+        String heartbeatBroker = NamespaceService.checkHeartbeatNamespace(topicName);
+        CompletableFuture<Boolean> ownsBundle = heartbeatBroker != null && heartbeatBroker.equals(pulsar.getBrokerId())
+                ? CompletableFuture.completedFuture(true)
+                : pulsar.getNamespaceService().checkTopicOwnership(topicName);
+        return ownsBundle.thenCompose(owned -> {
+            if (owned) {
+                return deleteUnloadedTopicMetadata(topic);
+            }
+            return CompletableFuture.failedFuture(errorUnlessOwner != null ? errorUnlessOwner
+                    : new ServiceUnitNotReadyException(
+                            "This broker does not own the topic " + topic + ". Please redo the lookup."));
+        });
     }
 
     private CompletableFuture<Void> deleteUnloadedTopicMetadata(String topic) {

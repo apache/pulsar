@@ -128,6 +128,10 @@ public class BrokerServiceTopicDeletionTest {
             });
             return null;
         }).when(factory).asyncDelete(anyString(), any(), any(), any());
+        // The context is not started and owns no bundle. These tests are about the order of loads, deletes and
+        // unloads in the topic cache of the broker that owns the bundle.
+        NamespaceService namespaceService = context.getPulsarService().getNamespaceService();
+        doReturn(CompletableFuture.completedFuture(true)).when(namespaceService).checkTopicOwnership(any());
     }
 
     @AfterMethod(alwaysRun = true)
@@ -329,6 +333,34 @@ public class BrokerServiceTopicDeletionTest {
             assertThat(realBroker.getTopics()).doesNotContainKey(name);
             assertThat(fixture.service().getPulsarResources().getTopicResources()
                     .persistentTopicExists(TopicName.get(name)).get(10, TimeUnit.SECONDS)).isFalse();
+        } finally {
+            BrokerTestInterceptor.INSTANCE.reset();
+        }
+    }
+
+    // The health checker deletes the broker's heartbeat topic at shutdown, after the broker released its bundles.
+    @Test(timeOut = 60000)
+    public void testHeartbeatTopicIsDeletedAfterItsBundleWasReleased() throws Exception {
+        context.close();
+        context = null;
+        try (InitializingTopicFixture fixture = new InitializingTopicFixture(new CompletableFuture<>())) {
+            fixture.setup();
+            PulsarService service = fixture.service();
+            fixture.admin().brokers().healthcheck();
+            TopicName heartbeatTopic = TopicName.get("persistent",
+                    NamespaceService.getHeartbeatNamespace(service.getBrokerId(), service.getConfiguration()),
+                    HealthChecker.HEALTH_CHECK_TOPIC_SUFFIX);
+            assertThat(service.getPulsarResources().getTopicResources().persistentTopicExists(heartbeatTopic)
+                    .get(10, TimeUnit.SECONDS)).as("the health check created the heartbeat topic").isTrue();
+            NamespaceBundle bundle = service.getNamespaceService().getBundle(heartbeatTopic);
+            service.getNamespaceService().unloadNamespaceBundle(bundle).get(10, TimeUnit.SECONDS);
+            assertThat(service.getNamespaceService().getOwnershipCache().getOwnedBundle(bundle))
+                    .as("the bundle of the heartbeat topic in the ownership cache after the unload").isNull();
+
+            service.getBrokerService().deleteTopic(heartbeatTopic.toString(), true).get(10, TimeUnit.SECONDS);
+
+            assertThat(service.getPulsarResources().getTopicResources().persistentTopicExists(heartbeatTopic)
+                    .get(10, TimeUnit.SECONDS)).as("the managed ledger of the heartbeat topic exists").isFalse();
         } finally {
             BrokerTestInterceptor.INSTANCE.reset();
         }
@@ -986,6 +1018,29 @@ public class BrokerServiceTopicDeletionTest {
         assertThatThrownBy(() -> deletion.get(5, TimeUnit.SECONDS))
                 .hasRootCauseMessage("Authorization cleanup failed synchronously");
         assertThat(broker.getTopics()).doesNotContainKey(name);
+    }
+
+    @Test
+    public void testOnlyOwnHeartbeatTopicIsDeletedWithoutBundleOwnership() throws Exception {
+        doReturn("broker-a:8080").when(context.getPulsarService()).getBrokerId();
+        NamespaceService namespaceService = context.getPulsarService().getNamespaceService();
+        doReturn(CompletableFuture.completedFuture(false)).when(namespaceService).checkTopicOwnership(any());
+        String ownHeartbeatTopic = "persistent://pulsar/broker-a:8080/" + HealthChecker.HEALTH_CHECK_TOPIC_SUFFIX;
+        String otherHeartbeatTopic = "persistent://pulsar/broker-b:8080/" + HealthChecker.HEALTH_CHECK_TOPIC_SUFFIX;
+
+        CompletableFuture<Void> otherDeletion = broker.deleteTopic(otherHeartbeatTopic, true);
+
+        assertThatThrownBy(() -> otherDeletion.get(5, TimeUnit.SECONDS),
+                "the delete of another broker's heartbeat topic")
+                .hasCauseInstanceOf(ServiceUnitNotReadyException.class);
+        assertThat(metadataDeletes.get()).as("metadata deletes of another broker's heartbeat topic").isZero();
+        assertThat(broker.getTopics()).as("the topic cache after the refused delete")
+                .doesNotContainKey(otherHeartbeatTopic);
+
+        broker.deleteTopic(ownHeartbeatTopic, true).get(5, TimeUnit.SECONDS);
+
+        assertThat(metadataDeletes.get()).as("metadata deletes of the broker's own heartbeat topic").isEqualTo(1);
+        assertThat(broker.getTopics()).as("the topic cache after the delete").doesNotContainKey(ownHeartbeatTopic);
     }
 
     @Test
