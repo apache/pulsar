@@ -578,7 +578,8 @@ class PythonInstance(object):
         "message_listener": partial(self.message_listener, self.input_serdes[topic], self.input_schema[topic]),
         "unacked_messages_timeout_ms": int(self.timeout_ms) if self.timeout_ms else None,
         "initial_position": position,
-        "properties": properties,
+        # The runtime's own properties win over user-supplied consumerProperties with the same key.
+        "properties": {**consumer_conf.consumerProperties, **properties},
         "crypto_key_reader": crypto_key_reader,
         "dead_letter_policy": dead_letter_policy
       }
