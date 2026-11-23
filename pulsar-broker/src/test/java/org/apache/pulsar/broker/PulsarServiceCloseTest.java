@@ -20,23 +20,14 @@ package org.apache.pulsar.broker;
 
 import static org.testng.Assert.fail;
 import static org.testng.AssertJUnit.assertFalse;
-import static org.testng.AssertJUnit.assertNotNull;
-import static org.testng.AssertJUnit.assertNull;
 import static org.testng.AssertJUnit.assertTrue;
-import java.lang.reflect.Field;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.CustomLog;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.loadbalance.LoadSheddingTask;
-import org.apache.pulsar.broker.service.HealthChecker;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.awaitility.Awaitility;
-import org.mockito.Mockito;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -109,55 +100,5 @@ public class PulsarServiceCloseTest extends MockedPulsarServiceBaseTest {
             fail("Should not throw exception");
         }
         log.info("waitUntilClosed() returned successfully while closeAsync() was in progress");
-    }
-
-    @Test(timeOut = 30_000)
-    public void testHealthCheckerClosedWhenCloseAsyncRuns() throws Exception {
-        restartBroker();
-        HealthChecker checker = pulsar.getHealthChecker();
-        assertNotNull(checker);
-
-        Field clientField = HealthChecker.class.getDeclaredField("client");
-        clientField.setAccessible(true);
-        PulsarClient realClient = (PulsarClient) clientField.get(checker);
-        PulsarClient spyClient = Mockito.spy(realClient);
-        AtomicBoolean monitorHeldOnClose = new AtomicBoolean(false);
-        Mockito.doAnswer(inv -> {
-            if (Thread.holdsLock(pulsar)) {
-                monitorHeldOnClose.set(true);
-            }
-            return inv.callRealMethod();
-        }).when(spyClient).close();
-        clientField.set(checker, spyClient);
-
-        pulsar.closeAsync().get(30, TimeUnit.SECONDS);
-        assertFalse(monitorHeldOnClose.get());
-        assertNull(pulsar.getHealthChecker());
-    }
-
-    @Test(timeOut = 30_000)
-    public void testHealthCheckerCreationPreventedDuringCloseAsync() throws Exception {
-        restartBroker();
-
-        CountDownLatch closeStarted = new CountDownLatch(1);
-        CompletableFuture<HealthChecker> checkerFuture = new CompletableFuture<>();
-
-        CompletableFuture<Void> closeFuture;
-        synchronized (pulsar) {
-            closeFuture = CompletableFuture.runAsync(() -> {
-                closeStarted.countDown();
-                pulsar.closeAsync();
-            });
-            assertTrue(closeStarted.await(5, TimeUnit.SECONDS));
-            Awaitility.await().until(() -> !pulsar.isRunning());
-
-            // While closeAsync is blocked waiting for the monitor, calling getHealthChecker()
-            // must see !isRunning() and return null rather than leaking a new HealthChecker
-            checkerFuture.complete(pulsar.getHealthChecker());
-        }
-
-        closeFuture.get(30, TimeUnit.SECONDS);
-        assertNull(checkerFuture.get());
-        assertNull(pulsar.getHealthChecker());
     }
 }

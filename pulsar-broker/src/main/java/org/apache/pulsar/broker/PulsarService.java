@@ -557,6 +557,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             state = State.Closing;
 
             HealthChecker healthCheckerToClose;
+            // Under the lock of getHealthChecker(), to also close a checker that is still being created
             synchronized (this) {
                 healthCheckerToClose = this.healthChecker;
                 this.healthChecker = null;
