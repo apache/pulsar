@@ -71,6 +71,11 @@ public class SystemTopic extends PersistentTopic {
     }
 
     @Override
+    protected boolean supportsGeoReplication() {
+        return SystemTopicNames.isTopicPoliciesSystemTopic(topic) && super.supportsGeoReplication();
+    }
+
+    @Override
     public CompletableFuture<Void> checkReplication() {
         if (SystemTopicNames.isTopicPoliciesSystemTopic(topic)) {
             return super.checkReplication();

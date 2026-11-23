@@ -181,7 +181,10 @@ public class NonPersistentTopicE2ETest extends BrokerTestBase {
         consumer.close();
 
         runGC();
-        assertFalse(getTopic(topicName3).isPresent());
+        // the GC deletes the topic asynchronously, and the schema before the topic leaves the topics map
+        Awaitility.await().untilAsserted(() -> {
+            assertFalse(getTopic(topicName3).isPresent());
+        });
         assertFalse(topicHasSchema(topicName3));
 
     }
@@ -248,7 +251,9 @@ public class NonPersistentTopicE2ETest extends BrokerTestBase {
         assertThrows(() -> admin.topics().deleteSubscription(topicName, subName));
 
         runGC();
-        assertFalse(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
+        Awaitility.await().untilAsserted(() ->
+                assertFalse(pulsar.getBrokerService().getTopicReference(topicName).isPresent())
+        );
         //4. Get the topic and make sure it doesn't come back
         admin.lookups().lookupTopic(topicName);
         Optional<Topic> topic = pulsar.getBrokerService().getTopicIfExists(topicName).join();
@@ -299,6 +304,8 @@ public class NonPersistentTopicE2ETest extends BrokerTestBase {
         consumer.close();
 
         runGC();
-        assertFalse(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
+        Awaitility.await().untilAsserted(() ->
+                assertFalse(pulsar.getBrokerService().getTopicReference(topicName).isPresent())
+        );
     }
 }

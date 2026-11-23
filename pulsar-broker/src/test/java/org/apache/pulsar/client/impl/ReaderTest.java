@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -832,7 +833,6 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
                 .create();
 
         Awaitility.await()
-                .pollDelay(3, TimeUnit.SECONDS)
                 .until(() -> {
                     TopicStats topicStats = admin.topics().getStats(topic);
                     System.out.println("subscriptions size: " + topicStats.getSubscriptions().size());
@@ -855,7 +855,6 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         consumer.close();
 
         Awaitility.await()
-                .pollDelay(3, TimeUnit.SECONDS)
                 .until(() -> {
             TopicStats topicStats = admin.topics().getStats(topic);
             System.out.println("subscriptions size: " + topicStats.getSubscriptions().size());
@@ -1113,8 +1112,12 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
 
             reader.seek(System.currentTimeMillis());
             assertFalse(reader.hasMessageAvailable());
+            // A reader gets the messages of a topic in order: if the seek let it read anything before the marker
+            // published now, that would come first.
+            producer.send("marker");
             Message<String> message = reader.readNext(10, TimeUnit.SECONDS);
-            assertNull(message);
+            assertNotNull(message);
+            assertEquals(message.getValue(), "marker");
         }
 
         for (MessageId messageId : messageIds) {
@@ -1144,7 +1147,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
                 TimeUnit.SECONDS);
         for (int i = 0; i < 3; i++) {
             try {
-                readerBuilder.createAsync().get(1, TimeUnit.SECONDS);
+                readerBuilder.createAsync().get(100, TimeUnit.MILLISECONDS);
             } catch (TimeoutException e) {
                 log.info("It should time out due to invalid url");
             } catch (IllegalArgumentException e) {

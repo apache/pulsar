@@ -1938,14 +1938,10 @@ public class Commands {
      *
      * @param watchId         client-assigned watch identifier
      * @param namespace       tenant/namespace to scope the watch to
-     * @param consumerName    optional caller identity (carried for a future namespace
-     *                        coordinator); pass {@code null} if not yet assigned
      * @param propertyFilters AND filters; empty / null = match all topics in the namespace
-     */
-    /**
-     * @param currentHash optional hash of the client's currently-known topic set.
-     *                    Pass on reconnect to let the broker skip the snapshot when
-     *                    state hasn't changed; pass {@code null} on first subscribe.
+     * @param currentHash     optional hash of the client's currently-known topic set.
+     *                        Pass on reconnect to let the broker skip the snapshot when
+     *                        state hasn't changed; pass {@code null} on first subscribe.
      */
     public static ByteBuf newWatchScalableTopics(long watchId, String namespace,
                                                   java.util.Map<String, String> propertyFilters,

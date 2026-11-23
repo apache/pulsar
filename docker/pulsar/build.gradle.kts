@@ -25,22 +25,9 @@ val dockerPlatforms = providers.gradleProperty("docker.platforms").getOrElse("")
 val dockerPush = providers.gradleProperty("docker.push").isPresent
 val useWolfi = providers.gradleProperty("docker.wolfi").isPresent
 
-// Resolvable configurations for cross-project artifact dependencies.
-// Using configurations instead of direct task references (project().tasks.named())
-// ensures compatibility with Gradle's configure-on-demand feature.
-val serverDist = configurations.create("serverDist") {
-    isCanBeResolved = true
-    isCanBeConsumed = false
-}
-val offloaderDist = configurations.create("offloaderDist") {
-    isCanBeResolved = true
-    isCanBeConsumed = false
-}
-
-dependencies {
-    serverDist(project(path = ":distribution:pulsar-server-distribution", configuration = "serverDistElements"))
-    offloaderDist(project(path = ":distribution:pulsar-offloader-distribution", configuration = "offloaderDistElements"))
-}
+// The distribution tarballs that go into the image, see SharedBuildArtifacts.kt
+val serverDist = sharedBuildArtifact(":distribution:pulsar-server-distribution", "server-distribution")
+val offloaderDist = sharedBuildArtifact(":distribution:pulsar-offloader-distribution", "offloader-distribution")
 
 // Copy the server tarball into target/ (Docker build context)
 val copyTarball = tasks.register<Copy>("copyTarball") {
@@ -56,8 +43,6 @@ val copyOffloaderTarball = tasks.register<Copy>("copyOffloaderTarball") {
 
 fun registerDockerBuild(taskName: String, dockerfile: String, imageTag: String) = tasks.register<Exec>(taskName) {
     group = "docker"
-
-    dependsOn(copyTarball, copyOffloaderTarball)
 
     val imageName = "${dockerOrganization}/${dockerImage}:${imageTag}"
     val imageIdFile = layout.buildDirectory.file("docker/${taskName}.iid").get().asFile
@@ -113,6 +98,8 @@ dockerBuild.configure {
     description = "Build the Pulsar Docker image. Use -Pdocker.push to push the image to registry and " +
         "-Pdocker.wolfi to build it from Wolfi instead of Alpine."
 }
+// The image ID, for the images built on this one: see SharedBuildArtifacts.kt
+shareBuildArtifact("docker-image:pulsar", layout.buildDirectory.file("docker/dockerBuild.iid"), dockerBuild)
 
 // A glibc-based image under its own tag, for tooling whose native libraries do not load on musl (the
 // jonoffcpu profiler agent), without replacing the Alpine image everything else uses.
@@ -120,3 +107,5 @@ val dockerBuildWolfi = registerDockerBuild("dockerBuildWolfi", "Dockerfile.wolfi
 dockerBuildWolfi.configure {
     description = "Build the Pulsar Docker image from Wolfi under the <tag>-wolfi tag"
 }
+shareBuildArtifact("docker-image:pulsar-wolfi", layout.buildDirectory.file("docker/dockerBuildWolfi.iid"),
+    dockerBuildWolfi)

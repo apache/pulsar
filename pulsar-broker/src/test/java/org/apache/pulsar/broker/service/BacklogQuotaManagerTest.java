@@ -1613,14 +1613,13 @@ public class BacklogQuotaManagerTest {
 
         rolloverStats();
 
-        // A quota check evicts the message once it is older than the limit
+        // A quota check evicts the message once it is older than the limit.
         Awaitility.await().pollInterval(100, MILLISECONDS).untilAsserted(() -> {
             admin.brokers().backlogQuotaCheck();
-            // Cause the last ledger is empty, it is not possible to skip first ledger,
-            // so the number of ledgers will keep unchanged, and backlog is clear
+            // Moving the cursor to nextLedgerId:-1 allows the consumed ledger to be trimmed.
             PersistentTopicInternalStats latestInternalStats = admin.topics().getInternalStats(topic);
-            assertEquals(latestInternalStats.ledgers.size(), 2);
-            assertEquals(latestInternalStats.ledgers.get(1).entries, 0);
+            assertEquals(latestInternalStats.ledgers.size(), 1);
+            assertEquals(latestInternalStats.ledgers.get(0).entries, 0);
             TopicStats latestStats = getTopicStats(topic);
             assertEquals(latestStats.getSubscriptions().get(subName).getMsgBacklog(), 0);
         });

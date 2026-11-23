@@ -1,0 +1,73 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+# Patch updates only for the Gradle build: minor and major upgrades of the versions in
+# gradle/libs.versions.toml are made deliberately, because they can affect compatibility
+# and the release notes of Pulsar.
+#
+# A Gradle update usually changes the jars that the binary distributions bundle, which fails
+# checkBinaryLicense in CI. A committer updates the pull request with:
+#   ./gradlew updateBinaryLicense && ./gradlew checkBinaryLicense
+# and pushes the LICENSE/NOTICE changes to the Dependabot branch.
+#
+# The commit message prefixes end with a space, so that Dependabot does not add a colon
+# after them and the pull request titles match the [type][scope] format that
+# .github/workflows/ci-semantic-pull-request.yml checks.
+#
+# An update of gradle/actions can only run after its commit is in
+# https://github.com/apache/infrastructure-actions/blob/main/approved_patterns.yml
+
+version: 2
+updates:
+  - package-ecosystem: gradle
+    directory: "/"
+    schedule:
+      interval: daily
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "[improve][build] "
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - version-update:semver-major
+          - version-update:semver-minor
+    groups:
+      # OpenTelemetry releases each *-alpha artifact together with its stable line, at the same
+      # version plus "-alpha" (opentelemetry and opentelemetry-alpha, and
+      # opentelemetry-instrumentation and opentelemetry-instrumentation-alpha in
+      # gradle/libs.versions.toml). Updating them in one pull request keeps the versions in sync;
+      # the root build.gradle.kts fails when they differ.
+      opentelemetry:
+        patterns:
+          - "io.opentelemetry:*"
+          - "io.opentelemetry.instrumentation:*"
+
+  # The composite actions in .github/actions also reference actions
+  - package-ecosystem: github-actions
+    directories:
+      - "/"
+      - "/.github/actions/*"
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: "[improve][ci] "

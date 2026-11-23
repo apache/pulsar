@@ -547,6 +547,11 @@ public interface ManagedCursor {
      */
     Position getMarkDeletedPosition();
 
+    /** Local Unix time in milliseconds of the latest forward mark-delete movement, or zero if unobserved. */
+    default long getLastMarkDeleteAdvancedAt() {
+        return 0;
+    }
+
     /**
      * Get the persistent newest mark deleted position on this cursor.
      *
