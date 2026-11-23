@@ -82,6 +82,11 @@ public class ConnectionPool implements AutoCloseable {
     // is closed right away.
     private final ChannelGroup channels = new DefaultChannelGroup(GlobalEventExecutor.INSTANCE, true);
 
+    // Set by close(), after which getConnection() fails. The client shuts down its event loop after closing the pool,
+    // and once that loop has terminated a new connection would never complete: the address resolver completes its
+    // future through a task on the loop, which the loop rejects, and Netty drops the notification.
+    private volatile boolean closed;
+
     private final Bootstrap bootstrap;
     private final PulsarChannelInitializer channelInitializerHandler;
     private final ClientConfigurationData clientConfig;
@@ -289,10 +294,15 @@ public class ConnectionPool implements AutoCloseable {
      *            the address to use as the broker tag
      * @param physicalAddress
      *            the real address where the TCP connection should be made
-     * @return a future that will produce the ClientCnx object
+     * @return a future that will produce the ClientCnx object, failed with
+     *         {@link PulsarClientException.AlreadyClosedException} once the pool is closed
      */
     public CompletableFuture<ClientCnx> getConnection(InetSocketAddress logicalAddress,
             InetSocketAddress physicalAddress, final int randomKey) {
+        if (closed) {
+            return FutureUtil.failedFuture(
+                    new PulsarClientException.AlreadyClosedException("Connection pool already closed"));
+        }
         if (maxConnectionsPerHosts == 0) {
             // Disable pooling
             return createConnection(new Key(logicalAddress, physicalAddress, -1));
@@ -506,6 +516,7 @@ public class ConnectionPool implements AutoCloseable {
 
     @Override
     public void close() throws Exception {
+        closed = true;
         closeAllConnections();
         // Also closes the connections that closeAllConnections() can only close once they are established
         channels.close();

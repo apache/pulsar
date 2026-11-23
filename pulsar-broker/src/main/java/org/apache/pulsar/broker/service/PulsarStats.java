@@ -18,9 +18,11 @@
  */
 package org.apache.pulsar.broker.service;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.ReferenceCountUtil;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import java.io.Closeable;
 import java.util.ArrayList;
 import java.util.List;
@@ -39,6 +41,7 @@ import org.apache.pulsar.broker.stats.BrokerOperabilityMetrics.TopicLoadFailureR
 import org.apache.pulsar.broker.stats.BrokerStats;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
+import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
@@ -67,6 +70,12 @@ public class PulsarStats implements Closeable {
     private long updatedAt;
 
     public PulsarStats(PulsarService pulsar) {
+        this(pulsar, PrometheusRegistry.defaultRegistry);
+    }
+
+    /** The registry receives the operability metrics' topic load summary; tests pass their own. */
+    @VisibleForTesting
+    public PulsarStats(PulsarService pulsar, PrometheusRegistry registry) {
         this.topicStatsBuf = Unpooled.buffer(16 * 1024);
         this.tempTopicStatsBuf = Unpooled.buffer(16 * 1024);
 
@@ -77,7 +86,7 @@ public class PulsarStats implements Closeable {
         this.bundleStats = new ConcurrentHashMap<>();
         this.tempMetricsCollection = new ArrayList<>();
         this.metricsCollection = new ArrayList<>();
-        this.brokerOperabilityMetrics = new BrokerOperabilityMetrics(pulsar);
+        this.brokerOperabilityMetrics = new BrokerOperabilityMetrics(pulsar, registry);
         this.tempNonPersistentTopics = new ArrayList<>();
 
         this.exposePublisherStats = pulsar.getConfiguration().isExposePublisherStats();
@@ -94,6 +103,7 @@ public class PulsarStats implements Closeable {
         } finally {
             bufferLock.writeLock().unlock();
         }
+        brokerOperabilityMetrics.close();
     }
 
     public ClusterReplicationMetrics getClusterReplicationMetrics() {
@@ -288,6 +298,10 @@ public class PulsarStats implements Closeable {
 
     public void recordConnectionCreateFail() {
         brokerOperabilityMetrics.recordConnectionCreateFail();
+    }
+
+    public void recordProducerCreateFailure(ServerError error) {
+        brokerOperabilityMetrics.recordProducerCreateFailure(error);
     }
 
     public void recordPublishLatency(long latency, TimeUnit unit) {

@@ -104,6 +104,10 @@ import java.util.function.Consumer;
  * future completes. A failed rebuild on rotation keeps serving the last-good instance (logged at WARN,
  * recorded in the reload-failure metric) and retries on the next observed material change; a consumer
  * callback that throws is caught and logged, and the subscription stays live.
+ *
+ * <p>A factory may serialize reload delivery and subscription disposal with the same lock. Consumers
+ * must not call {@link TlsHandle#dispose()} while holding a lock needed by the reload callback, since
+ * a concurrent delivery may hold the factory lock while waiting for that consumer lock.
  */
 public interface PulsarTlsFactory extends AutoCloseable {
 

@@ -35,6 +35,7 @@ import org.apache.pulsar.common.topics.TopicList;
 import org.apache.pulsar.common.topics.TopicsPattern;
 import org.apache.pulsar.common.topics.TopicsPatternFactory;
 import org.apache.pulsar.metadata.api.NotificationType;
+import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -61,7 +62,8 @@ public class TopicListWatcherTest {
     public void setup() {
         topicListService = mock(TopicListService.class);
         watcher = new TopicListService.TopicListWatcher(topicListService, ID, NamespaceName.get("tenant", "ns"),
-                PATTERN, INITIAL_TOPIC_LIST, MoreExecutors.directExecutor(), 9);
+                PATTERN, MoreExecutors.directExecutor(), 9);
+        watcher.initializeMatchingTopics(INITIAL_TOPIC_LIST);
         watcher.sendingCompleted();
     }
 
@@ -108,6 +110,18 @@ public class TopicListWatcherTest {
         Assert.assertEquals(
                 Arrays.asList("persistent://tenant/ns/topic1", "persistent://tenant/ns/topic2"),
                 watcher.getMatchingTopics());
+    }
+
+    @Test
+    public void testSessionEventWhileListingIsHandledOnceTheTopicsAreListed() {
+        TopicListService.TopicListWatcher listingWatcher = new TopicListService.TopicListWatcher(topicListService,
+                ID, NamespaceName.get("tenant", "ns"), PATTERN, MoreExecutors.directExecutor(), 9);
+        listingWatcher.onSessionEvent(SessionEvent.ConnectionLost);
+        // the initial listing would overwrite the topics of an update started now
+        Assert.assertFalse(listingWatcher.isUpdatingTopics());
+
+        listingWatcher.initializeMatchingTopics(INITIAL_TOPIC_LIST);
+        Assert.assertTrue(listingWatcher.isUpdatingTopics());
     }
 
     @Test

@@ -38,16 +38,16 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.BrokerTestUtil;
@@ -185,15 +185,6 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
     }
 
     /**
-     * Returns the ids of the pending snapshots and of the last completed one.
-     */
-    private static Set<String> getSnapshotIds(ReplicatedSubscriptionsController controller) {
-        Set<String> snapshotIds = new HashSet<>(controller.pendingSnapshots().keySet());
-        controller.getLastCompletedSnapshotId().ifPresent(snapshotIds::add);
-        return snapshotIds;
-    }
-
-    /**
      * Receives and acknowledges messages until the subscription has no backlog, which means that every message
      * the topic holds has been received. The topic must not get new messages meanwhile.
      */
@@ -265,12 +256,14 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
         Producer<Integer> producer = client1.newProducer(Schema.INT32).topic(topicName).create();
         int messageCount = 15;
         for (int i = 0; i < messageCount; i++) {
-            producer.send(i);
-            log.info().attr("sentMessage", i).log("Sent message");
-            // A snapshot that starts after the message has been persisted writes its replicated marker after it.
-            Set<String> snapshotsBeforeMarker = getSnapshotIds(replicatedSubscriptionsController);
-            Awaitility.await().until(() -> !snapshotsBeforeMarker.containsAll(
-                    getSnapshotIds(replicatedSubscriptionsController)));
+            MessageIdAdv messageId = (MessageIdAdv) producer.send(i);
+            Position messagePosition = PositionFactory.create(messageId.getLedgerId(), messageId.getEntryId());
+            log.info().attr("sentMessage", i).attr("position", messagePosition).log("Sent message");
+            // Nothing but replication markers is written to this topic besides the producer above, so the next
+            // entry after the message is a marker. The controller writes one after every user message: either a
+            // pending snapshot completes, or a new one starts because the message is newer than the last
+            // completed snapshot.
+            Awaitility.await().until(() -> persistentTopic1.getLastPosition().compareTo(messagePosition) > 0);
             log.info().attr("replicationSnapshot", replicatedSubscriptionsController.getLastCompletedSnapshotId())
                     .log("latest replication snapshot");
         }

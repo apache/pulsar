@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.admin;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
@@ -74,6 +73,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.loadbalance.LeaderBroker;
+import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
 import org.apache.pulsar.broker.namespace.NamespaceService;
@@ -160,9 +160,10 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
     private static final String BROKER_SHUTDOWN_TIMEOUT_MS = "brokerShutdownTimeoutMs";
 
-    private PulsarAdmin adminTls;
-
     private NamespaceBundleFactory bundleFactory;
+
+    // Set while the broker runs with a configuration that a test method customized in setupConfigAndStart()
+    private boolean brokerConfigCustomized;
 
     @BeforeClass
     @Override
@@ -197,13 +198,11 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         if (configurationConsumer != null) {
             configurationConsumer.accept(conf);
         }
+        brokerConfigCustomized = configurationConsumer != null;
 
         super.internalSetup();
 
         bundleFactory = new NamespaceBundleFactory(pulsar, Hashing.crc32());
-
-        adminTls = spy(PulsarAdmin.builder().tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
-                .serviceHttpUrl(brokerUrlTls.toString()).build());
 
         setupClusters();
     }
@@ -217,7 +216,19 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             log.warn().log("Broker isn't running, skipping the cleanup of the previous test method");
             return;
         }
+        if (brokerConfigCustomized) {
+            // The test method started a broker with a custom configuration, which would apply to the following
+            // test methods too: start a new one with the default configuration
+            cleanup();
+            setupConfigAndStart(null);
+            return;
+        }
         restoreBrokerShutdownTimeout();
+        // Remove the other dynamic configurations that the test method left behind: they would apply to the
+        // following test methods too, and testGetDynamicLocalConfiguration expects none
+        for (String name : admin.brokers().getAllDynamicConfigurations().keySet()) {
+            admin.brokers().deleteDynamicConfiguration(name);
+        }
         pulsar.getConfiguration().setForceDeleteTenantAllowed(true);
         pulsar.getConfiguration().setForceDeleteNamespaceAllowed(true);
         if (!recreateDefaultNamespaceIfNothingElseChanged()) {
@@ -322,8 +333,9 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     @Override
     public void cleanup() throws Exception {
         pulsar.getConfiguration().setBrokerShutdownTimeoutMs(0);
-        adminTls.close();
         super.internalCleanup();
+        // TestNG keeps this test instance until the run ends, and the factory references the closed broker
+        bundleFactory = null;
     }
 
     @DataProvider(name = "numBundles")
@@ -616,6 +628,10 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             }
         }
 
+        // created here, as restarting the broker changes its TLS port
+        @Cleanup
+        PulsarAdmin adminTls = PulsarAdmin.builder().tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
+                .serviceHttpUrl(brokerUrlTls.toString()).build();
         Map<String, NamespaceOwnershipStatus> nsMap2 = adminTls.brokers().getOwnedNamespaces("test", list.get(0));
         Assert.assertEquals(nsMap2.size(), 1);
 
@@ -733,8 +749,13 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         retryStrategically((test) -> pulsar.getConfiguration().getLoadManagerClassName()
                 .equals(SimpleLoadManagerImpl.class.getName()), 150, 5);
         assertEquals(pulsar.getConfiguration().getLoadManagerClassName(), SimpleLoadManagerImpl.class.getName());
+        // The broker replaces its load manager on an executor after updating the configuration. Wait for each
+        // replacement, so that the broker runs a SimpleLoadManagerImpl in between, and the default load manager
+        // again for the following test methods.
+        Awaitility.await().until(() -> pulsar.getLoadManager().get() instanceof SimpleLoadManagerImpl);
         admin.brokers().deleteDynamicConfiguration("loadManagerClassName");
         assertFalse(admin.brokers().getAllDynamicConfigurations().containsKey("loadManagerClassName"));
+        Awaitility.await().until(() -> pulsar.getLoadManager().get() instanceof ModularLoadManagerWrapper);
     }
 
     /**
@@ -2179,7 +2200,6 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         NamespaceBundle bundle = bundleFactory.getBundle(NamespaceName.get("prop-xyz/unloadBundle"),
                 Range.range(0L, BoundType.CLOSED, 0xffffffffL, BoundType.CLOSED));
         assertFalse(pulsar.getNamespaceService().isServiceUnitOwned(bundle));
-        pulsarClient.shutdown();
 
         log.info("--- RELOAD ---");
 

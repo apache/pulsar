@@ -18,9 +18,15 @@
  */
 package org.apache.pulsar.tests.integration.messaging;
 
+import static org.apache.pulsar.tests.integration.messaging.GeoReplicationAdminStats.TOPIC_FIELDS;
+import static org.apache.pulsar.tests.integration.messaging.GeoReplicationAdminStats.assertInstance;
+import static org.apache.pulsar.tests.integration.messaging.GeoReplicationAdminStats.get;
+import com.fasterxml.jackson.databind.JsonNode;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
@@ -28,10 +34,12 @@ import lombok.CustomLog;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
 import org.apache.pulsar.tests.integration.topologies.PulsarGeoClusterTestBase;
 import org.awaitility.Awaitility;
@@ -73,7 +81,7 @@ public class GeoReplicationTest extends PulsarGeoClusterTestBase {
         cleanup();
     }
 
-    @Test(timeOut = 1000 * 60, dataProvider = "TopicDomain")
+    @Test(timeOut = 120_000, dataProvider = "TopicDomain")
     public void testTopicReplication(String domain) throws Exception {
         String cluster1 = getGeoCluster().getClusters()[0].getClusterName();
         String cluster2 = getGeoCluster().getClusters()[1].getClusterName();
@@ -129,8 +137,10 @@ public class GeoReplicationTest extends PulsarGeoClusterTestBase {
             waitForNonPersistentReplicators(admin, topic, cluster2);
         }
 
+        Set<Integer> publishedPartitions = new HashSet<>();
         for (int i = 0; i < MESSAGES; i++) {
-            p.send(String.format("Message [%d]", i).getBytes(StandardCharsets.UTF_8));
+            MessageIdAdv id = (MessageIdAdv) p.send(String.format("Message [%d]", i).getBytes(StandardCharsets.UTF_8));
+            publishedPartitions.add(id.getPartitionIndex());
         }
         log.info()
                 .attr("cluster", cluster1)
@@ -145,6 +155,61 @@ public class GeoReplicationTest extends PulsarGeoClusterTestBase {
                 .attr("cluster", cluster2)
                 .attr("topic", topic)
                 .log("Successfully consume message from cluster for topic .");
+
+        String partition = TopicName.get(topic).getPartition(0).toString();
+        Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() -> {
+            JsonNode detailed = get(admin, topic, "partitioned-stats?perPartition=true");
+            JsonNode aggregate = get(admin, topic, "partitioned-stats?perPartition=false");
+            JsonNode partitionStats = detailed.path("partitions").path(partition).path("replication").path(cluster2);
+            JsonNode direct = get(admin, partition, "stats?getPreciseBacklog=true&excludePublishers=true")
+                    .path("replication").path(cluster2);
+            Assert.assertEquals(aggregate.path("partitions").size(), 0);
+            for (JsonNode top : new JsonNode[]{aggregate, detailed}) {
+                JsonNode row = top.path("replication").path(cluster2);
+                Assert.assertTrue(row.isObject(), top.toString());
+                TOPIC_FIELDS.forEach(field -> Assert.assertFalse(row.has(field), field));
+            }
+            Assert.assertEquals(detailed.path("partitions").size(), PARTITION_COUNT);
+            Assert.assertTrue(direct.isObject() && partitionStats.isObject());
+            JsonNode internal = get(admin, partition, "internalStats");
+            if ("persistent".equals(domain)) {
+                Assert.assertEquals(direct.path("replicatorState").asText(), "STARTED");
+                for (int i = 0; i < PARTITION_COUNT; i++) {
+                    String name = TopicName.get(topic).getPartition(i).toString();
+                    JsonNode row = detailed.path("partitions").path(name).path("replication").path(cluster2);
+                    Assert.assertEquals(row.path("replicatorState").asText(), "STARTED", name);
+                    Assert.assertEquals(row.path("producerState").asText(), "READY", name);
+                    Assert.assertTrue(row.path("replicatorHealth").path("healthy").asBoolean(), name);
+                    if (publishedPartitions.contains(i)) {
+                        Assert.assertTrue(row.path("lastSendStartedAt").isIntegralNumber(), name);
+                        Assert.assertTrue(row.path("lastReplicationSucceededAt").isIntegralNumber(), name);
+                    }
+                    GeoReplicationAdminStats.assertUnavailable(row.path("lastCursorReadStartedAt"));
+                }
+                JsonNode partitionedInternal = get(admin, topic, "partitioned-internalStats");
+                Assert.assertFalse(partitionedInternal.has("replicators"));
+                Assert.assertEquals(partitionedInternal.path("partitions").size(), PARTITION_COUNT);
+                assertInstance(internal.path("replicators").path(cluster2));
+                for (JsonNode perPartition : partitionedInternal.path("partitions")) {
+                    assertInstance(perPartition.path("replicators").path(cluster2));
+                }
+            } else {
+                for (String field : TOPIC_FIELDS) {
+                    Assert.assertFalse(direct.has(field), field);
+                    for (JsonNode perPartition : detailed.path("partitions")) {
+                        Assert.assertFalse(perPartition.path("replication").path(cluster2).has(field), field);
+                    }
+                }
+                Assert.assertFalse(internal.has("replicators"));
+            }
+        });
+        if ("persistent".equals(domain)) {
+            JsonNode cli = ObjectMapperFactory.getMapper().reader().readTree(getGeoCluster().getClusters()[0]
+                    .runAdminCommandOnAnyBroker("topics", "partitioned-stats-internal", topic).getStdout());
+            Assert.assertFalse(cli.has("replicators"));
+            JsonNode instance = cli.path("partitions").path(partition).path("replicators").path(cluster2);
+            Assert.assertTrue(instance.path("producerQueueMaxSize").isIntegralNumber(), instance.toString());
+        }
     }
 
     private void waitForNonPersistentReplicators(PulsarAdmin admin, String topic, String remoteCluster)

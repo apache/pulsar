@@ -8888,7 +8888,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "jvm_memory_pool_bytes_used{instance=~\"$instance\",job=~\"$job\"}",
+          "expr": "jvm_memory_pool_used_bytes{instance=~\"$instance\",job=~\"$job\"}",
           "format": "time_series",
           "intervalFactor": 2,
           "legendFormat": "{{instance}} pool:{{pool}}",
@@ -8899,7 +8899,7 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "jvm_memory_pool_bytes_used",
+      "title": "jvm_memory_pool_used_bytes",
       "tooltip": {
         "shared": true,
         "sort": 0,

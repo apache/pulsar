@@ -37,6 +37,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.bookkeeper.mledger.Entry;
@@ -59,6 +60,7 @@ import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
 import org.apache.pulsar.common.protocol.Commands;
 import org.awaitility.Awaitility;
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
@@ -85,6 +87,9 @@ public class PersistentDispatcherMultipleConsumersStuckReadTest extends MockedBo
 
     private final List<Delivery> deliveries = Collections.synchronizedList(new ArrayList<>());
     private final AtomicLong msgCounter = new AtomicLong();
+    // Mocks and spies that reference this method's broker, which Mockito's inline mock maker would keep, with the
+    // broker, until the JVM exits: released once the broker is closed.
+    private final List<Object> ownedMocks = new CopyOnWriteArrayList<>();
 
     @Override
     protected ManagedLedgerConfig initManagedLedgerConfig(ManagedLedgerConfig config) {
@@ -118,7 +123,7 @@ public class PersistentDispatcherMultipleConsumersStuckReadTest extends MockedBo
         // Open the cursor after topic construction so the topic does not auto-create a second
         // subscription sharing this cursor.
         // Spied so a test can fail a scheduling attempt after the cursor has registered a wait-read.
-        cursor = spy((ManagedCursorImpl) ledger.openCursor("sub"));
+        cursor = ownMock(spy((ManagedCursorImpl) ledger.openCursor("sub")));
         // The dispatcher field is assigned after the subscription: the override below is only
         // evaluated when the first consumer is added, so it hands the spied dispatcher to the
         // real subscription lifecycle (see the seam's javadoc on PersistentSubscription).
@@ -129,7 +134,7 @@ public class PersistentDispatcherMultipleConsumersStuckReadTest extends MockedBo
             }
         };
 
-        dispatcher = spy(new PersistentDispatcherMultipleConsumers(topic, cursor, subscription));
+        dispatcher = ownMock(spy(new PersistentDispatcherMultipleConsumers(topic, cursor, subscription)));
 
         deliveries.clear();
         consumer = newMockConsumer("c1");
@@ -137,8 +142,8 @@ public class PersistentDispatcherMultipleConsumersStuckReadTest extends MockedBo
 
     /** A mock consumer that records deliveries, releases the entries and completes immediately. */
     private Consumer newMockConsumer(String consumerName) {
-        Consumer mockConsumer = mock(Consumer.class);
-        TransportCnx cnx = mock(TransportCnx.class);
+        Consumer mockConsumer = ownMock(mock(Consumer.class));
+        TransportCnx cnx = ownMock(mock(TransportCnx.class));
         doReturn(true).when(cnx).isActive();
         doReturn(cnx).when(mockConsumer).cnx();
         doReturn(1000).when(mockConsumer).getAvailablePermits();
@@ -173,22 +178,43 @@ public class PersistentDispatcherMultipleConsumersStuckReadTest extends MockedBo
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod() {
+        // Close each one even if an earlier one fails: the mocks are released below
         try {
             if (cursor != null && !cursor.isClosed()) {
                 cursor.close();
             }
+        } catch (Exception ignore) {
+            // best effort
+        }
+        try {
             if (ledger != null) {
                 ledger.close();
             }
+        } catch (Exception ignore) {
+            // best effort
+        }
+        try {
             if (pulsarTestContext != null) {
                 pulsarTestContext.close();
             }
         } catch (Exception ignore) {
             // best effort
         }
+        ownedMocks.forEach(mock -> Mockito.framework().clearInlineMock(mock));
+        ownedMocks.clear();
         cursor = null;
         ledger = null;
         pulsarTestContext = null;
+        // TestNG keeps this test instance until the run ends
+        topic = null;
+        subscription = null;
+        dispatcher = null;
+        consumer = null;
+    }
+
+    private <T> T ownMock(T mock) {
+        ownedMocks.add(mock);
+        return mock;
     }
 
     /**

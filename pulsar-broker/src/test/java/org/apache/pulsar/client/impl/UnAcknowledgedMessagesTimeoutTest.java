@@ -497,15 +497,16 @@ public class UnAcknowledgedMessagesTimeoutTest extends SharedPulsarBaseTest {
     private static Object[][] variationsBackoff() {
         return new Object[][]{
                 // ackTimeOutMillis / minDelayMs / maxDelayMs / multiplier
-                {2000, 1000, 2000, 2, SubscriptionType.Shared},
-                {3000, 1000, 3000, 3, SubscriptionType.Shared},
-                {2000, 1000, 2000, 2, SubscriptionType.Exclusive},
-                {3000, 1000, 3000, 3, SubscriptionType.Exclusive}
+                // 1 s is the shortest ack timeout. The backoff reaches its maximum within the five redeliveries.
+                {1000, 100, 400, 2, SubscriptionType.Shared},
+                {1000, 100, 900, 3, SubscriptionType.Shared},
+                {1000, 100, 400, 2, SubscriptionType.Exclusive},
+                {1000, 100, 900, 3, SubscriptionType.Exclusive}
         };
     }
 
     /**
-     * Each variation waits for five redeliveries, up to 28 s: check them at the same time, each on a topic of its own.
+     * Each variation waits for five redeliveries, up to 9 s: check them at the same time, each on a topic of its own.
      */
     @Test
     public void testCheckUnAcknowledgedMessageRedeliveryTimer() throws Exception {
