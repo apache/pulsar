@@ -49,6 +49,19 @@ import org.testng.annotations.Test;
 public class PulsarZooKeeperClientTest extends BaseMetadataStoreTest {
 
     @Test
+    public void testRunStateUpdateIfCurrentHandleRejectsIntentionalClose() throws Exception {
+        @Cleanup
+        PulsarZooKeeperClient zkClient = newClient();
+        PulsarZooKeeperClient.CurrentHandleIdentity identity = zkClient.getCurrentHandleIdentity();
+        AtomicInteger actionRuns = new AtomicInteger();
+        zkClient.close();
+
+        assertThat(zkClient.getCurrentHandleIdentity()).isEqualTo(identity);
+        assertThat(zkClient.runStateUpdateIfCurrentHandle(identity, actionRuns::incrementAndGet)).isFalse();
+        assertThat(actionRuns).hasValue(0);
+    }
+
+    @Test
     public void testRunStateUpdateIfCurrentHandleRejectsReplacedHandleIdentity() throws Exception {
         @Cleanup
         PulsarZooKeeperClient zkClient = newClient();

@@ -97,6 +97,7 @@ import org.apache.pulsar.client.util.MathUtils;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.ProtocolVersion;
+import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.naming.TopicName;
@@ -1729,6 +1730,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             }
         }
         // as msg is not corrupted : let producer resend pending-messages again including checksum failed message
+        if (this instanceof GeoReplicationProducerImpl geo) {
+            // The checksum failed before the target could read the source entry's metadata.
+            geo.recordSendRetry(cnx, ServerError.ChecksumError.name(), null);
+        }
         resendMessages(cnx, this.connectionHandler.getEpoch());
     }
 

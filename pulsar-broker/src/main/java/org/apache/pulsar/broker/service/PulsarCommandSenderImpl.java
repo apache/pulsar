@@ -124,7 +124,19 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
 
     @Override
     public void sendSendError(long producerId, long sequenceId, ServerError error, String errorMsg) {
+        sendReplicationSendError(producerId, sequenceId, error, errorMsg, null, false);
+    }
+
+    @Override
+    public void sendReplicationSendError(long producerId, long sequenceId, ServerError error, String errorMsg,
+                                         long[] sourcePosition, boolean deduplicationUndecided) {
         BaseCommand command = Commands.newSendErrorCommand(producerId, sequenceId, error, errorMsg);
+        if (sourcePosition != null) {
+            command.getSendError().setSourcePosition().setLedgerId(sourcePosition[0]).setEntryId(sourcePosition[1]);
+        }
+        if (deduplicationUndecided) {
+            command.getSendError().setDeduplicationUndecided(true);
+        }
         ByteBuf outBuf = serializeAndIntercept(command);
         writeAndFlush(outBuf);
     }
