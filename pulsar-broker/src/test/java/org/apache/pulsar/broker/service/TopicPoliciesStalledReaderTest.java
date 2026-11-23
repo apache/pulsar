@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import com.google.common.util.concurrent.Uninterruptibles;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -30,6 +31,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -519,44 +521,53 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
                 .isEqualTo(Optional.empty());
     }
 
-    @Test(timeOut = 60_000)
-    public void testPolicyReadBeforeFailedFirstPassIsKeptWithTheReader() throws Exception {
-        final TopicName firstTopic = newTopicNeverLoaded();
+    @Test(timeOut = 120_000)
+    public void testPolicyDeletedAndCompactedAfterFailedFirstPassIsGone() throws Exception {
+        final TopicName deletedTopic = newTopicNeverLoaded();
         final TopicName otherTopic = newTopicNeverLoaded();
         final NamespaceName namespace = NamespaceName.get(NAMESPACE);
-        setMaxConsumers(firstTopic, 5).get(30, TimeUnit.SECONDS);
+        setMaxConsumers(deletedTopic, 5).get(30, TimeUnit.SECONDS);
         setMaxConsumers(otherTopic, 6).get(30, TimeUnit.SECONDS);
 
         // The reader of an initialization whose first pass fails behind the first event, with an error that is
-        // not the reader's close. The broker serves the namespace then, so it keeps that reader for the retry.
-        final StallableReader keptReader = service.prepareNextReader(namespace);
-        assertThat(keptReader.topicOfEventInHand())
-                .describedAs("the first event of __change_events must be the policy of the first topic")
-                .isEqualTo(firstTopic);
-        keptReader.failNextCheckForMoreEvents(
+        // not the reader's close, as a disconnect during the check for more events is.
+        final StallableReader failedReader = service.prepareNextReader(namespace);
+        assertThat(failedReader.topicOfEventInHand())
+                .describedAs("the first event of __change_events must be the policy that is deleted below")
+                .isEqualTo(deletedTopic);
+        failedReader.failNextCheckForMoreEvents(
                 new PulsarClientException("Disconnected while getting the last message id"));
 
-        reloadNamespaceBundle(firstTopic);
+        reloadNamespaceBundle(deletedTopic);
         Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
-            assertThat(keptReader.preparedCheckIsStillPending())
+            assertThat(failedReader.preparedCheckIsStillPending())
                     .describedAs("the first pass must have failed behind the first event")
                     .isFalse();
             assertThat(service.getPoliciesCacheInit(namespace))
                     .describedAs("the failed initialization must be dropped")
                     .isNull();
         });
-        assertThat(keptReader.isClosed())
-                .describedAs("the reader of the failed first pass was closed, so the retry reads the topic from the"
-                        + " start and this is not the scenario under test")
-                .isFalse();
 
-        assertThat(TopicPolicyTestUtils.getLocalTopicPolicies(service, firstTopic).getMaxConsumerPerTopic())
-                .describedAs("the retry reuses the reader, which is past the policy of the first topic, so the"
-                        + " policy must still be cached")
-                .isEqualTo(5);
+        deleteAsAnotherBrokerAndCompactAway(deletedTopic);
+        // A reader that is still subscribed reconnects now and continues behind the last event it received. That
+        // position is inside the compacted part of the topic, which no longer holds the deletion.
+        final String changeEvents = NamespaceEventsSystemTopicFactory.getEventsTopicName(namespace).toString();
+        admin.topics().unload(changeEvents);
+        Awaitility.await().atMost(Duration.ofSeconds(30)).ignoreExceptions().until(() -> failedReader.isClosed()
+                || admin.topics().getStats(changeEvents).getSubscriptions().values().stream()
+                        .anyMatch(subscription -> !subscription.getConsumers().isEmpty()));
+
+        assertThat(service.getTopicPoliciesAsync(deletedTopic, TopicPoliciesService.GetType.LOCAL_ONLY))
+                .describedAs("the next initialization cannot see the deletion any more, so the policy cache must"
+                        + " not keep what the failed first pass had read")
+                .succeedsWithin(Duration.ofSeconds(30))
+                .isEqualTo(Optional.empty());
         assertThat(TopicPolicyTestUtils.getLocalTopicPolicies(service, otherTopic).getMaxConsumerPerTopic())
-                .describedAs("the retry must have read the events behind the failure")
+                .describedAs("the next initialization must read the policy that is still in the topic")
                 .isEqualTo(6);
+        assertThat(failedReader.isClosed())
+                .describedAs("the reader of the failed first pass must not stay subscribed")
+                .isTrue();
     }
 
     @Test(timeOut = 90_000)
@@ -634,6 +645,120 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
                             + " is gone")
                     .doesNotContain(Optional.empty());
         } finally {
+            service.unregisterListener(topicName, listener);
+        }
+    }
+
+    @Test(timeOut = 90_000)
+    public void testPolicyReadDoesNotWaitForListenersToldOfDeletionAfterReaderWasClosed() throws Exception {
+        final TopicName topicName = newTopicNeverLoaded();
+        final List<Optional<TopicPolicies>> updates = new CopyOnWriteArrayList<>();
+        final CountDownLatch deletionReachedListener = new CountDownLatch(1);
+        final CountDownLatch listenerMayReturn = new CountDownLatch(1);
+        final TopicPolicyListener listener = policies -> {
+            updates.add(Optional.ofNullable(policies));
+            if (policies == null) {
+                deletionReachedListener.countDown();
+                Uninterruptibles.awaitUninterruptibly(listenerMayReturn);
+            }
+        };
+        service.registerListenerAsync(topicName, listener).get(30, TimeUnit.SECONDS);
+        try {
+            setMaxConsumers(topicName, 6).get(30, TimeUnit.SECONDS);
+            Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> assertThat(updates)
+                    .describedAs("the listener must hold a policy before the reader is closed")
+                    .last().matches(update -> update.map(TopicPolicies::getMaxConsumerPerTopic).orElse(0) == 6));
+            updates.clear();
+
+            closeReadersUnderTheService();
+            writeEventAsAnotherBroker(topicName, null);
+            assertNoInitializationRanSince("the reader was closed");
+
+            assertThat(service.getTopicPoliciesAsync(topicName, TopicPoliciesService.GetType.LOCAL_ONLY))
+                    .describedAs("the next initialization has read the topic to its end, so a policy read must get"
+                            + " its answer without waiting for a listener to handle what it is re-notified of")
+                    .succeedsWithin(Duration.ofSeconds(10))
+                    .isEqualTo(Optional.empty());
+            assertThat(deletionReachedListener.await(30, TimeUnit.SECONDS))
+                    .describedAs("the listener must be told of the deletion")
+                    .isTrue();
+
+            assertThat(setMaxConsumers(topicName, 7))
+                    .describedAs("an update is read back while the listener still handles the deletion")
+                    .succeedsWithin(Duration.ofSeconds(30));
+            listenerMayReturn.countDown();
+            Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> assertThat(updates)
+                    .describedAs("the listener must get the deletion and then the update")
+                    .hasSize(2));
+            assertThat(updates.get(0))
+                    .describedAs("the deletion that the initialization re-notifies must come before the update that"
+                            + " the reader delivers afterwards")
+                    .isEmpty();
+            assertThat(updates.get(1).map(TopicPolicies::getMaxConsumerPerTopic))
+                    .describedAs("the update must come last, or the listener is left without the policy")
+                    .contains(7);
+        } finally {
+            listenerMayReturn.countDown();
+            service.unregisterListener(topicName, listener);
+        }
+    }
+
+    @Test(timeOut = 90_000)
+    public void testListenerLearnsOfPolicyDeletedAfterReaderWasClosedBeforeTheBundleLoadWasHandled()
+            throws Exception {
+        final TopicName topicName = newTopicNeverLoaded();
+        final NamespaceName namespace = NamespaceName.get(NAMESPACE);
+        final List<Optional<TopicPolicies>> updates = new CopyOnWriteArrayList<>();
+        final TopicPolicyListener listener = policies -> updates.add(Optional.ofNullable(policies));
+        final CountDownLatch bundleLoadMayBeHandled = new CountDownLatch(1);
+        service.registerListenerAsync(topicName, listener).get(30, TimeUnit.SECONDS);
+        try {
+            setMaxConsumers(topicName, 6).get(30, TimeUnit.SECONDS);
+            Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> assertThat(updates)
+                    .describedAs("the listener must hold a policy before the namespace is unloaded")
+                    .last().matches(update -> update.map(TopicPolicies::getMaxConsumerPerTopic).orElse(0) == 6));
+            updates.clear();
+
+            // The broker gives the bundle up, and the service has handled that.
+            admin.namespaces().unload(NAMESPACE);
+            final CompletableFuture<Void> unloadHandled = new CompletableFuture<>();
+            pulsar.getOrderedExecutor().executeOrdered(namespace, () -> unloadHandled.complete(null));
+            unloadHandled.get(30, TimeUnit.SECONDS);
+
+            // The service handles the bundle loads and unloads of a namespace one after the other. Hold that queue,
+            // so that the broker owns the bundle again before the service has handled its load.
+            final CountDownLatch queueHeld = new CountDownLatch(1);
+            pulsar.getOrderedExecutor().executeOrdered(namespace, () -> {
+                queueHeld.countDown();
+                Uninterruptibles.awaitUninterruptibly(bundleLoadMayBeHandled);
+            });
+            assertThat(queueHeld.await(30, TimeUnit.SECONDS)).describedAs("the queue must be held").isTrue();
+
+            // The reader of this initialization subscribes to __change_events, which makes the broker take the
+            // bundle. The load is queued behind the hold.
+            assertThat(TopicPolicyTestUtils.getLocalTopicPolicies(service, topicName).getMaxConsumerPerTopic())
+                    .describedAs("the policy read must initialize the namespace")
+                    .isEqualTo(6);
+
+            closeReadersUnderTheService();
+            // Deleted by another broker of the cluster while this broker has no reader on __change_events.
+            writeEventAsAnotherBroker(topicName, null);
+            assertNoInitializationRanSince("the reader was closed");
+
+            bundleLoadMayBeHandled.countDown();
+            Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() ->
+                    assertThat(service.getPoliciesCacheInit(namespace))
+                            .describedAs("the bundle load was not queued behind the hold, since handling it did not"
+                                    + " start an initialization; this is not the scenario under test")
+                            .isNotNull()
+                            .isCompleted());
+            Awaitility.await().atMost(Duration.ofSeconds(15)).untilAsserted(() -> assertThat(updates)
+                    .describedAs("the topic had a policy before its initialization was discarded and has none"
+                            + " after the next one, so the listener must get the null update a delivered deletion"
+                            + " gives it")
+                    .contains(Optional.empty()));
+        } finally {
+            bundleLoadMayBeHandled.countDown();
             service.unregisterListener(topicName, listener);
         }
     }
