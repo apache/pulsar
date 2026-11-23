@@ -392,4 +392,18 @@ public interface ReaderBuilder<T> extends Cloneable {
      */
     ReaderBuilder<T> expireTimeOfIncompleteChunkedMessage(long duration, TimeUnit unit);
 
+    /**
+     * Sets the policy for {@link Reader#readNextBatch()} and {@link Reader#readNextBatchAsync()}.
+     *
+     * <p>By default, the reader uses {@link BatchReceivePolicy#DEFAULT_POLICY}.
+     *
+     * @param batchReceivePolicy the policy that controls batch size and timeout
+     * @return the reader builder instance
+     * @throws IllegalArgumentException if the policy is null or invalid
+     * @throws UnsupportedOperationException if the builder does not support configuring batch reads
+     */
+    default ReaderBuilder<T> batchReceivePolicy(BatchReceivePolicy batchReceivePolicy) {
+        throw new UnsupportedOperationException("Configuring the batch receive policy is not supported");
+    }
+
 }

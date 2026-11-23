@@ -74,6 +74,7 @@ public class ReaderImpl<T> implements Reader<T> {
         consumerConfiguration.setSubscriptionMode(readerConfiguration.getSubscriptionMode());
         consumerConfiguration.setSubscriptionInitialPosition(readerConfiguration.getSubscriptionInitialPosition());
         consumerConfiguration.setReceiverQueueSize(readerConfiguration.getReceiverQueueSize());
+        consumerConfiguration.setBatchReceivePolicy(readerConfiguration.getBatchReceivePolicy());
         consumerConfiguration.setReadCompacted(readerConfiguration.isReadCompacted());
         consumerConfiguration.setPoolMessages(readerConfiguration.isPoolMessages());
 

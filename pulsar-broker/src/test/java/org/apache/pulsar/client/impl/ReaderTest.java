@@ -51,6 +51,7 @@ import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.CryptoKeyReader;
@@ -365,6 +366,32 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
                 actual.computeIfAbsent(sourceId, ignored -> new ArrayList<>()).add(value);
             }
             assertEquals(actual, expected);
+        }
+    }
+
+    @Test(dataProvider = "batchReaderCases", timeOut = 30000)
+    public void testBatchReadNextWithCustomPolicy(BatchReaderTopology topology, boolean async) throws Exception {
+        BatchReaderTopics topics = createBatchReaderTopics(topology);
+        for (String topic : topics.sourceTopics()) {
+            try (Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                    .topic(topic).enableBatching(false).create()) {
+                producer.send("first");
+                producer.send("second");
+            }
+        }
+
+        BatchReceivePolicy policy = BatchReceivePolicy.builder().maxNumMessages(1).build();
+        try (Reader<String> reader = pulsarClient.newReader(Schema.STRING).topics(topics.readerTopics())
+                .startMessageId(MessageId.earliest).batchReceivePolicy(policy).create()) {
+            ConsumerBase<?> consumer = reader instanceof ReaderImpl<?> singleReader
+                    ? singleReader.getConsumer() : ((MultiTopicsReaderImpl<?>) reader).getMultiTopicsConsumer();
+            int totalMessages = topics.sourceTopics().size() * 2;
+            Awaitility.await().atMost(10, TimeUnit.SECONDS)
+                    .until(() -> consumer.getTotalIncomingMessages() == totalMessages);
+
+            for (int i = 0; i < totalMessages; i++) {
+                assertEquals(batchRead(reader, async).size(), 1);
+            }
         }
     }
 

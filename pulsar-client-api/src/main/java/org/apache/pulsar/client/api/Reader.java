@@ -51,7 +51,8 @@ public interface Reader<T> extends Closeable {
     /**
      * Read the next messages in the topic in a batch.
      *
-     * <p>This method waits until the limits or timeout of {@link BatchReceivePolicy#DEFAULT_POLICY} are reached.
+     * <p>This method waits until a limit or the timeout of the policy configured with
+     * {@link ReaderBuilder#batchReceivePolicy(BatchReceivePolicy)} is reached.
      * It can return an empty batch if no messages are available when the timeout expires. A batch can contain
      * messages from multiple topics or partitions.
      *
@@ -93,11 +94,12 @@ public interface Reader<T> extends Closeable {
     /**
      * Read asynchronously the next messages in the topic.
      *
-     * <p>The batch is subject to {@link BatchReceivePolicy#DEFAULT_POLICY}, and may be empty if no messages
-     * are available when the timeout expires. It can contain messages from multiple topics or partitions.
+     * <p>The batch is subject to the policy configured with
+     * {@link ReaderBuilder#batchReceivePolicy(BatchReceivePolicy)}, and may be empty if no messages are available
+     * when the timeout expires. It can contain messages from multiple topics or partitions.
      * Batch reads cannot be used with a reader listener or a zero receiver queue size.
      *
-     * <p>{@code batchReadNextAsync()} should be called subsequently once the returned {@code CompletableFuture}
+     * <p>{@code readNextBatchAsync()} should be called subsequently once the returned {@code CompletableFuture}
      * completes with received messages. Otherwise, it creates a backlog of receive requests in the application.
      *
      * <p>The returned future can be cancelled before completion by calling {@code .cancel(false)}

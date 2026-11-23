@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.Data;
+import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.MessageCrypto;
@@ -67,6 +68,9 @@ public class ReaderConfigurationData<T> implements Serializable, Cloneable {
                     + "more memory utilization."
     )
     private int receiverQueueSize = 1000;
+
+    @JsonIgnore
+    private BatchReceivePolicy batchReceivePolicy;
 
     @Schema(
             name = "readerListener",
