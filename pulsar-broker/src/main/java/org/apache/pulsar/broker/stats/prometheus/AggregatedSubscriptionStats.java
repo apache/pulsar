@@ -31,6 +31,9 @@ public class AggregatedSubscriptionStats {
 
     public long backlogAgeSeconds = -1;
 
+    // Age in seconds of the backlog entry at each configured quantile, keyed by quantile.
+    public Map<Double, Long> backlogAgeQuantileSeconds = new HashMap<>();
+
     public boolean blockedSubscriptionOnUnackedMsgs;
 
     public double msgRateRedeliver;
