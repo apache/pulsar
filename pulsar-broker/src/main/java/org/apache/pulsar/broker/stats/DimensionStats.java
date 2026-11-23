@@ -18,69 +18,86 @@
  */
 package org.apache.pulsar.broker.stats;
 
-import static io.prometheus.client.CollectorRegistry.defaultRegistry;
-import io.prometheus.client.Collector;
-import io.prometheus.client.Summary;
-import io.prometheus.client.Summary.Builder;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import io.prometheus.metrics.core.metrics.Summary;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
+import io.prometheus.metrics.model.snapshots.Quantile;
+import io.prometheus.metrics.model.snapshots.SummarySnapshot;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import lombok.CustomLog;
 
 /**
  */
 @CustomLog
-public class DimensionStats {
+public class DimensionStats implements AutoCloseable {
 
-    private final String name;
-    private final String dimensionSumLabel;
-    private final String dimensionCountLabel;
     private final Summary summary;
+    /** The registry the summary was registered on, so {@link #close()} removes only its own; null when none. */
+    private final PrometheusRegistry registry;
+    private volatile boolean registered;
+    /**
+     * Summary.clear() drops the data point that a concurrent observe() or collect() is about to use: observe()
+     * can then fail with a NullPointerException and collect() can come back empty. reset() takes the write
+     * side; recording and reading share the read side, so they do not block each other.
+     */
+    private final ReadWriteLock clearLock = new ReentrantReadWriteLock();
     private static final double[] QUANTILES = {0.50, 0.75, 0.95, 0.99, 0.999, 0.9999};
-    private static final List<String> QUANTILE_LABEL = Collections.unmodifiableList(Arrays.asList("quantile"));
-    private static final List<List<String>> QUANTILE_LABEL_VALUES = Collections.unmodifiableList(
-            Arrays.stream(QUANTILES).mapToObj(Collector::doubleToGoString)
-                    .map(Collections::singletonList)
-                    .collect(Collectors.toList()));
 
     public DimensionStats(String name, long updateDurationInSec) {
-        this(name, updateDurationInSec, true);
+        this(name, updateDurationInSec, PrometheusRegistry.defaultRegistry);
     }
 
-    DimensionStats(String name, long updateDurationInSec, boolean register) {
-        this.name = name;
-        this.dimensionSumLabel = name + "_sum";
-        this.dimensionCountLabel = name + "_count";
-        Builder summaryBuilder = Summary.build().name(name).help("-");
-        for (int i = 0; i < QUANTILES.length; i++) {
-            summaryBuilder.quantile(QUANTILES[i], 0.01);
+    /** A null registry leaves the summary unregistered, for tests that only need the snapshot arithmetic. */
+    DimensionStats(String name, long updateDurationInSec, PrometheusRegistry registry) {
+        Summary.Builder summaryBuilder = Summary.builder().name(name).help("-").maxAgeSeconds(updateDurationInSec);
+        for (double quantile : QUANTILES) {
+            summaryBuilder.quantile(quantile, 0.01);
         }
-        this.summary = summaryBuilder.maxAgeSeconds(updateDurationInSec).create();
-        if (register) {
+        this.summary = summaryBuilder.build();
+        this.registry = registry;
+        boolean registered = false;
+        if (registry != null) {
             try {
-                defaultRegistry.register(summary);
+                registry.register(summary);
+                registered = true;
             } catch (IllegalArgumentException ie) {
                 // it only happens in test-cases when try to register summary multiple times in registry
                 log.warn().attr("name", name).exceptionMessage(ie).log("is already registered");
             }
         }
+        this.registered = registered;
+    }
+
+    /** Whether a scrape of the registry reads this instance's summary rather than an earlier one's. */
+    boolean isRegistered() {
+        return registered;
     }
 
     public void recordDimensionTimeValue(long latency, TimeUnit unit) {
-        summary.observe(unit.toMillis(latency));
+        clearLock.readLock().lock();
+        try {
+            summary.observe(unit.toMillis(latency));
+        } finally {
+            clearLock.readLock().unlock();
+        }
     }
 
     public DimensionStatsSnapshot getSnapshot() {
-        return new DimensionStatsSnapshot(summary.collect());
+        clearLock.readLock().lock();
+        try {
+            // collect() creates the data point of an unused summary, and no clear() can run here, so there is one
+            return new DimensionStatsSnapshot(summary.collect().getDataPoints().get(0));
+        } finally {
+            clearLock.readLock().unlock();
+        }
     }
 
-    public class DimensionStatsSnapshot {
-        private final List<Collector.MetricFamilySamples> samples;
+    public static class DimensionStatsSnapshot {
+        private final SummarySnapshot.SummaryDataPointSnapshot dataPoint;
 
-        public DimensionStatsSnapshot(List<Collector.MetricFamilySamples> samples) {
-            this.samples = samples;
+        public DimensionStatsSnapshot(SummarySnapshot.SummaryDataPointSnapshot dataPoint) {
+            this.dataPoint = dataPoint;
         }
 
         public double getMeanDimension() {
@@ -93,53 +110,41 @@ public class DimensionStats {
         }
 
         public double getMedianDimension() {
-            return getQuantile(QUANTILE_LABEL_VALUES.get(0));
+            return getQuantile(QUANTILES[0]);
         }
 
         public double getDimension75() {
-            return getQuantile(QUANTILE_LABEL_VALUES.get(1));
+            return getQuantile(QUANTILES[1]);
         }
 
         public double getDimension95() {
-            return getQuantile(QUANTILE_LABEL_VALUES.get(2));
+            return getQuantile(QUANTILES[2]);
         }
 
         public double getDimension99() {
-            return getQuantile(QUANTILE_LABEL_VALUES.get(3));
+            return getQuantile(QUANTILES[3]);
         }
 
         public double getDimension999() {
-            return getQuantile(QUANTILE_LABEL_VALUES.get(4));
+            return getQuantile(QUANTILES[4]);
         }
 
         public double getDimension9999() {
-            return getQuantile(QUANTILE_LABEL_VALUES.get(5));
+            return getQuantile(QUANTILES[5]);
         }
 
         public double getDimensionSum() {
-            return getSampleValue(dimensionSumLabel);
+            return dataPoint.getSum();
         }
 
         public double getDimensionCount() {
-            return getSampleValue(dimensionCountLabel);
+            return dataPoint.getCount();
         }
 
-        private double getQuantile(List<String> labelValues) {
-            return getSampleValue(name, QUANTILE_LABEL, labelValues);
-        }
-
-        private double getSampleValue(String name) {
-            return getSampleValue(name, Collections.emptyList(), Collections.emptyList());
-        }
-
-        private double getSampleValue(String name, List<String> labelNames, List<String> labelValues) {
-            for (Collector.MetricFamilySamples metricFamilySamples : samples) {
-                for (Collector.MetricFamilySamples.Sample sample : metricFamilySamples.samples) {
-                    if (sample.name.equals(name)
-                            && sample.labelNames.equals(labelNames)
-                            && sample.labelValues.equals(labelValues)) {
-                        return sample.value;
-                    }
+        private double getQuantile(double quantile) {
+            for (Quantile q : dataPoint.getQuantiles()) {
+                if (q.getQuantile() == quantile) {
+                    return q.getValue();
                 }
             }
             return 0;
@@ -147,6 +152,23 @@ public class DimensionStats {
     }
 
     public void reset() {
-        summary.clear();
+        clearLock.writeLock().lock();
+        try {
+            summary.clear();
+        } finally {
+            clearLock.writeLock().unlock();
+        }
+    }
+
+    /**
+     * Unregisters the summary if this instance registered it. An instance that lost the registration to an
+     * earlier one of the same name stays unregistered after that owner closes; it is not registered in its place.
+     */
+    @Override
+    public void close() {
+        if (registered) {
+            registry.unregister(summary);
+            registered = false;
+        }
     }
 }
