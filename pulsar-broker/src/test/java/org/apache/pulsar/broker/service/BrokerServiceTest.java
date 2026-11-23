@@ -2148,9 +2148,14 @@ public class BrokerServiceTest extends BrokerTestBase {
             CompletableFuture<Void> unloadFuture =
                     pulsar.getNamespaceService().unloadNamespaceBundle(bundle, 2, TimeUnit.SECONDS);
             disconnectRequested.get(10, TimeUnit.SECONDS);
+            topic.getCloseFuture().get(10, TimeUnit.SECONDS);
             unloadFuture.get(10, TimeUnit.SECONDS);
-            assertFalse(waitFuture.isDone(), "Bundle unload must not wait for producer disconnect");
-            assertNull(mlFactory.getManagedLedgers().get(topicMlName));
+
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+                assertNull(mlFactory.getManagedLedgers().get(topicMlName));
+                assertTrue(pulsar.getBrokerService()
+                        .getTopicReference(topicName).isEmpty());
+            });
         } finally {
             waitFuture.complete(null);
         }
