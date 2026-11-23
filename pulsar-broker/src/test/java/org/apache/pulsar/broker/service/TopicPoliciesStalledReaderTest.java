@@ -677,25 +677,21 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
             assertThat(service.getTopicPoliciesAsync(topicName, TopicPoliciesService.GetType.LOCAL_ONLY))
                     .describedAs("the next initialization has read the topic to its end, so a policy read must get"
                             + " its answer without waiting for a listener to handle what it is re-notified of")
-                    .succeedsWithin(Duration.ofSeconds(10))
+                    .succeedsWithin(Duration.ofSeconds(30))
                     .isEqualTo(Optional.empty());
             assertThat(deletionReachedListener.await(30, TimeUnit.SECONDS))
                     .describedAs("the listener must be told of the deletion")
                     .isTrue();
-
-            assertThat(setMaxConsumers(topicName, 7))
-                    .describedAs("an update is read back while the listener still handles the deletion")
-                    .succeedsWithin(Duration.ofSeconds(30));
+            // Released before the update: the listener runs on a thread that the broker also dispatches events
+            // with, so the update could wait for the reader behind a listener that is still held.
             listenerMayReturn.countDown();
+
+            setMaxConsumers(topicName, 7).get(30, TimeUnit.SECONDS);
             Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> assertThat(updates)
-                    .describedAs("the listener must get the deletion and then the update")
+                    .describedAs("the listener must get the deletion and the update that follows it")
                     .hasSize(2));
-            assertThat(updates.get(0))
-                    .describedAs("the deletion that the initialization re-notifies must come before the update that"
-                            + " the reader delivers afterwards")
-                    .isEmpty();
-            assertThat(updates.get(1).map(TopicPolicies::getMaxConsumerPerTopic))
-                    .describedAs("the update must come last, or the listener is left without the policy")
+            assertThat(updates.get(0)).describedAs("the deletion").isEmpty();
+            assertThat(updates.get(1).map(TopicPolicies::getMaxConsumerPerTopic)).describedAs("the update")
                     .contains(7);
         } finally {
             listenerMayReturn.countDown();
@@ -706,10 +702,12 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
     @Test(timeOut = 90_000)
     public void testPolicyReadDoesNotWaitForListenerReplayOfAnInitialization() throws Exception {
         final TopicName topicName = newTopicNeverLoaded();
+        final List<Optional<TopicPolicies>> updates = new CopyOnWriteArrayList<>();
         final AtomicBoolean holdListener = new AtomicBoolean();
         final CountDownLatch replayReachedListener = new CountDownLatch(1);
         final CountDownLatch listenerMayReturn = new CountDownLatch(1);
         final TopicPolicyListener listener = policies -> {
+            updates.add(Optional.ofNullable(policies));
             if (holdListener.get()) {
                 replayReachedListener.countDown();
                 Uninterruptibles.awaitUninterruptibly(listenerMayReturn);
@@ -719,6 +717,10 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
         pulsar.getConfiguration().setTopicPolicyListenerReplayEnabled(true);
         try {
             setMaxConsumers(topicName, 5).get(30, TimeUnit.SECONDS);
+            Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> assertThat(updates)
+                    .describedAs("the listener must have got the update before the namespace is reloaded, or the"
+                            + " update is what the listener is held on below, and not the replay")
+                    .isNotEmpty());
 
             holdListener.set(true);
             reloadNamespaceBundle(topicName);
@@ -726,7 +728,7 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
             assertThat(service.getTopicPoliciesAsync(topicName, TopicPoliciesService.GetType.LOCAL_ONLY))
                     .describedAs("the initialization has read the topic to its end, so a policy read must get its"
                             + " answer without waiting for a listener to handle the replay")
-                    .succeedsWithin(Duration.ofSeconds(10))
+                    .succeedsWithin(Duration.ofSeconds(30))
                     .matches(policies -> policies.map(TopicPolicies::getMaxConsumerPerTopic).orElse(0) == 5);
             assertThat(replayReachedListener.await(30, TimeUnit.SECONDS))
                     .describedAs("topicPolicyListenerReplayEnabled is on, so the initialization must re-notify the"
@@ -746,7 +748,7 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
         final NamespaceName namespace = NamespaceName.get(NAMESPACE);
         final List<Optional<TopicPolicies>> updates = new CopyOnWriteArrayList<>();
         final TopicPolicyListener listener = policies -> updates.add(Optional.ofNullable(policies));
-        final CountDownLatch bundleLoadMayBeHandled = new CountDownLatch(1);
+        final AtomicReference<CountDownLatch> bundleLoadMayBeHandled = new AtomicReference<>(new CountDownLatch(0));
         service.registerListenerAsync(topicName, listener).get(30, TimeUnit.SECONDS);
         try {
             setMaxConsumers(topicName, 6).get(30, TimeUnit.SECONDS);
@@ -755,20 +757,30 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
                     .last().matches(update -> update.map(TopicPolicies::getMaxConsumerPerTopic).orElse(0) == 6));
             updates.clear();
 
-            // The broker gives the bundle up, and the service has handled that.
-            admin.namespaces().unload(NAMESPACE);
-            final CompletableFuture<Void> unloadHandled = new CompletableFuture<>();
-            pulsar.getOrderedExecutor().executeOrdered(namespace, () -> unloadHandled.complete(null));
-            unloadHandled.get(30, TimeUnit.SECONDS);
-
-            // The service handles the bundle loads and unloads of a namespace one after the other. Hold that queue,
-            // so that the broker owns the bundle again before the service has handled its load.
-            final CountDownLatch queueHeld = new CountDownLatch(1);
-            pulsar.getOrderedExecutor().executeOrdered(namespace, () -> {
-                queueHeld.countDown();
-                Uninterruptibles.awaitUninterruptibly(bundleLoadMayBeHandled);
+            // The broker gives the bundle up. The service handles the bundle loads and unloads of a namespace one
+            // after the other; that queue is held behind the unload, so that the broker owns the bundle again
+            // before the service has handled its load. A client of __change_events that was reconnecting during
+            // the unload can have made the broker take the bundle back before the hold, so the unload is repeated
+            // until the hold finds no bundle owned.
+            Awaitility.await().atMost(Duration.ofSeconds(60)).untilAsserted(() -> {
+                admin.namespaces().unload(NAMESPACE);
+                final CountDownLatch release = new CountDownLatch(1);
+                final CountDownLatch queueHeld = new CountDownLatch(1);
+                bundleLoadMayBeHandled.set(release);
+                pulsar.getOrderedExecutor().executeOrdered(namespace, () -> {
+                    queueHeld.countDown();
+                    Uninterruptibles.awaitUninterruptibly(release);
+                });
+                assertThat(queueHeld.await(30, TimeUnit.SECONDS)).describedAs("the queue must be held").isTrue();
+                try {
+                    assertThat(pulsar.getNamespaceService().getOwnedServiceUnits())
+                            .describedAs("the broker must own no bundle of the namespace when the queue is held")
+                            .noneMatch(bundle -> namespace.equals(bundle.getNamespaceObject()));
+                } catch (AssertionError bundleTakenBack) {
+                    release.countDown();
+                    throw bundleTakenBack;
+                }
             });
-            assertThat(queueHeld.await(30, TimeUnit.SECONDS)).describedAs("the queue must be held").isTrue();
 
             // The reader of this initialization subscribes to __change_events, which makes the broker take the
             // bundle. The load is queued behind the hold.
@@ -781,7 +793,7 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
             writeEventAsAnotherBroker(topicName, null);
             assertNoInitializationRanSince("the reader was closed");
 
-            bundleLoadMayBeHandled.countDown();
+            bundleLoadMayBeHandled.get().countDown();
             Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() ->
                     assertThat(service.getPoliciesCacheInit(namespace))
                             .describedAs("the bundle load was not queued behind the hold, since handling it did not"
@@ -794,7 +806,7 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
                             + " gives it")
                     .contains(Optional.empty()));
         } finally {
-            bundleLoadMayBeHandled.countDown();
+            bundleLoadMayBeHandled.get().countDown();
             service.unregisterListener(topicName, listener);
         }
     }

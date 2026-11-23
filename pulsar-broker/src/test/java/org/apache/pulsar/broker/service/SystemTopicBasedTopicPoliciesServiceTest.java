@@ -755,7 +755,7 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         Awaitility.await().untilAsserted(() -> Assertions.assertThat(spyService.getReaderCaches())
                 .describedAs("a broker that serves the namespace must not keep the reader for the retry")
                 .doesNotContainKey(ownedNamespace));
-        Mockito.verify(laggingReader, Mockito.atLeastOnce()).closeAsync();
+        Mockito.verify(laggingReader, Mockito.timeout(30_000).atLeastOnce()).closeAsync();
 
         // Nothing looked a topic up in NAMESPACE5, so this broker owns none of its bundles, and a policy read
         // reaches it all the same, as it can during a bundle move. No topic load retries the initialization and no

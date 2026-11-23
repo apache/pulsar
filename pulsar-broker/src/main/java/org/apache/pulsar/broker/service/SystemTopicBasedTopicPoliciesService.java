@@ -416,8 +416,9 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
      * a fresh reader if this broker still serves topics of the namespace.
      */
     private void replaceStalledReader(@NonNull NamespaceName namespace, @NonNull CompletableFuture<Void> initFuture) {
-        if (dropInitializationIfCurrent(namespace, initFuture)) {
-            settleListenerReplayAfterDrop(namespace, true);
+        TopicsWithPoliciesBeforeReplacement replayRequest = dropInitializationIfCurrent(namespace, initFuture);
+        if (replayRequest != null) {
+            settleListenerReplayAfterDrop(namespace, replayRequest, true);
         }
     }
 
@@ -428,13 +429,18 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
      * {@link #addOwnedNamespaceBundleAsync}: the drop runs on another thread, where a bundle whose load is still
      * queued here would not count yet, although its topics can be loaded already.
      *
+     * @param replayRequest the request that the drop recorded; a request that a later drop has recorded or merged
+     *                      is left to the check that follows that drop
      * @param readAgain whether to start the next initialization when the broker owns a bundle of the namespace;
      *                  otherwise the next topic policy access of the namespace starts it
      */
-    private void settleListenerReplayAfterDrop(@NonNull NamespaceName namespace, boolean readAgain) {
+    private void settleListenerReplayAfterDrop(@NonNull NamespaceName namespace,
+                                               @NonNull TopicsWithPoliciesBeforeReplacement replayRequest,
+                                               boolean readAgain) {
         pulsarService.getOrderedExecutor().executeOrdered(namespace, () -> {
             if (!ownsBundleOf(namespace)) {
-                listenerReplayPending.remove(namespace);
+                listenerReplayPending.computeIfPresent(namespace,
+                        (__, pending) -> pending == replayRequest ? null : pending);
                 return;
             }
             if (readAgain) {
@@ -1033,8 +1039,9 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
      */
     @VisibleForTesting
     void cleanupFailedPolicyCacheInit(@NonNull NamespaceName namespace, @NonNull CompletableFuture<Void> initFuture) {
-        if (dropInitializationIfCurrent(namespace, initFuture)) {
-            settleListenerReplayAfterDrop(namespace, false);
+        TopicsWithPoliciesBeforeReplacement replayRequest = dropInitializationIfCurrent(namespace, initFuture);
+        if (replayRequest != null) {
+            settleListenerReplayAfterDrop(namespace, replayRequest, false);
         }
     }
 
@@ -1060,15 +1067,17 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
      * is requested here whether or not this broker owns a bundle of the namespace; the caller has that decided on
      * the namespace's ordered executor ({@link #settleListenerReplayAfterDrop}).
      *
-     * @return whether {@code initFuture} was the current initialization; when not, nothing was touched
+     * @return the listener replay request as it stands after this drop, or {@code null} when {@code initFuture} was
+     *         not the current initialization and nothing was touched
      */
-    private boolean dropInitializationIfCurrent(@NonNull NamespaceName namespace,
-                                                @NonNull CompletableFuture<Void> initFuture) {
+    @Nullable
+    private TopicsWithPoliciesBeforeReplacement dropInitializationIfCurrent(
+            @NonNull NamespaceName namespace, @NonNull CompletableFuture<Void> initFuture) {
         // Capture the reader before dropping the init future so we only close the reader that belongs to this
         // initialization, never one a concurrent retry creates immediately afterwards.
         CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerFuture = readerCaches.get(namespace);
 
-        AtomicBoolean dropped = new AtomicBoolean();
+        MutableObject<TopicsWithPoliciesBeforeReplacement> replayRequest = new MutableObject<>();
         AtomicBoolean readerRemoved = new AtomicBoolean();
         MutableObject<TopicPolicyMessageHandlerTracker> removedTracker = new MutableObject<>();
         policyCacheInitMap.compute(namespace, (__, currentInitFuture) -> {
@@ -1087,13 +1096,12 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             // is empty or half rebuilt. A late delivery of this reader cannot put a policy back after this step
             // (applyEventIfCurrent). The replay is requested here too, so that the next initialization cannot reach
             // the end of the topic without it.
-            listenerReplayPending.merge(namespace, removeCachedPolicies(namespace),
-                    TopicsWithPoliciesBeforeReplacement::mergedWith);
-            dropped.set(true);
+            replayRequest.setValue(listenerReplayPending.merge(namespace, removeCachedPolicies(namespace),
+                    TopicsWithPoliciesBeforeReplacement::mergedWith));
             return null;
         });
-        if (!dropped.get()) {
-            return false;
+        if (replayRequest.getValue() == null) {
+            return null;
         }
 
         // Complete the dropped future (a no-op if the caller already completed it) outside any map remapping function,
@@ -1105,7 +1113,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         if (removedTracker.getValue() != null) {
             removedTracker.getValue().close();
         }
-        return true;
+        return replayRequest.getValue();
     }
 
     private void closeReader(@NonNull NamespaceName namespace,
