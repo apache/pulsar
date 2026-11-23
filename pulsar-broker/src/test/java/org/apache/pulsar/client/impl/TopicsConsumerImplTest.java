@@ -54,6 +54,7 @@ import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.ConsumerInterceptor;
@@ -1470,6 +1471,8 @@ public class TopicsConsumerImplTest extends SharedPulsarBaseTest {
             Producer<Integer> producer = producerClient.newProducer(Schema.INT32)
                     .topic(topic)
                     .enableBatching(false)
+                    .compressionType(CompressionType.LZ4)
+                    .compressionMinMsgBodySize(0)
                     .create();
             List<MessageId> msgIds = new ArrayList<>();
             for (int i = 0; i < 10; i++) {
@@ -1486,8 +1489,11 @@ public class TopicsConsumerImplTest extends SharedPulsarBaseTest {
             for (int i = 6; i < 10; i++) {
                 Message<Integer> msg = consumer.receive(10, TimeUnit.SECONDS);
                 assertThat(msg).as("message %d after the seek", i).isNotNull();
-                assertThat(msg.getValue()).as("value of the next message after the seek").isEqualTo(i);
-                msg.release();
+                try {
+                    assertThat(msg.getValue()).as("value of the next message after the seek").isEqualTo(i);
+                } finally {
+                    msg.release();
+                }
             }
 
             Awaitility.await().untilAsserted(() -> {
