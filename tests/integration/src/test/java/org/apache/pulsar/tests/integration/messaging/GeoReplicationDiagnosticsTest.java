@@ -35,11 +35,16 @@ import io.netty.bootstrap.ChannelInitializerExtension;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -419,8 +424,53 @@ public class GeoReplicationDiagnosticsTest extends PulsarGeoClusterTestBase {
         }
     }
 
-    @Test(timeOut = 150_000)
-    public void testDiagnoseMissingTargetThenTerminatedTarget() throws Exception {
+    private interface Scenario {
+        void run() throws Exception;
+    }
+
+    /**
+     * Each of these scenarios waits out the broker's one-minute health window on topics of its own, and none pauses a
+     * container or changes a broker setting, so they run concurrently and their windows elapse together. They run in
+     * one test method rather than from a parallel data provider so that a retry after a failure sets the clusters up
+     * again once, instead of under the scenarios that are still running.
+     */
+    @Test(timeOut = 390_000)
+    public void testDiagnoseAfterHealthWindow() throws Exception {
+        Map<String, Scenario> scenarios = new LinkedHashMap<>();
+        scenarios.put("dispatch limit by messages", () -> diagnoseDispatchLimit(1, -1L));
+        scenarios.put("dispatch limit by bytes", () -> diagnoseDispatchLimit(-1, 1L));
+        scenarios.put("missing then terminated target", this::diagnoseMissingTargetThenTerminatedTarget);
+        scenarios.put("read failure without message", this::diagnoseReadFailureWithoutMessage);
+        scenarios.put("transaction visibility", this::diagnoseTransactionVisibility);
+        scenarios.put("schema conflict and batched entries", this::diagnoseSchemaConflictAndCountBatchedEntries);
+        ExecutorService executor = Executors.newFixedThreadPool(scenarios.size());
+        try {
+            Map<String, Future<?>> running = new LinkedHashMap<>();
+            scenarios.forEach((name, scenario) -> running.put(name, executor.submit(() -> {
+                scenario.run();
+                return null;
+            })));
+            List<String> failed = new ArrayList<>();
+            List<Throwable> causes = new ArrayList<>();
+            for (var entry : running.entrySet()) {
+                try {
+                    entry.getValue().get();
+                } catch (ExecutionException e) {
+                    failed.add(entry.getKey());
+                    causes.add(new AssertionError(entry.getKey(), e.getCause()));
+                }
+            }
+            if (!failed.isEmpty()) {
+                AssertionError error = new AssertionError("Failed scenarios: " + failed);
+                causes.forEach(error::addSuppressed);
+                throw error;
+            }
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    private void diagnoseMissingTargetThenTerminatedTarget() throws Exception {
         String ns = newNamespace();
         source.namespaces().setRetention(ns, new RetentionPolicies(10, 10));
         String topic = "persistent://" + ns + "/missing";
@@ -501,10 +551,8 @@ public class GeoReplicationDiagnosticsTest extends PulsarGeoClusterTestBase {
         return Schema.generic(record.build(SchemaType.AVRO));
     }
 
-    @Test(timeOut = 390_000)
-    public void testDiagnoseSchemaConflictAndCountBatchedEntries() throws Exception {
-        String ns = newNamespace();
-        String topic = createTopic(ns);
+    private void diagnoseSchemaConflictAndCountBatchedEntries() throws Exception {
+        String topic = createTopic(newNamespace());
         var oldSchema = recordSchema("oldId");
         var newSchema = recordSchema("newId");
         target.topicPolicies().setSchemaCompatibilityStrategy(topic, SchemaCompatibilityStrategy.FULL);
@@ -596,9 +644,13 @@ public class GeoReplicationDiagnosticsTest extends PulsarGeoClusterTestBase {
                 assertTrue(internal(source, topic, targetName).path("sendingMessageSchemaCompatible").isNull());
             });
         }
+    }
 
+    @Test(timeOut = 240_000)
+    public void testDiagnosePendingSchemaRegistration() throws Exception {
+        var newSchema = recordSchema("newId");
         // Age the backlog behind the transaction read limit while the target remains available.
-        String pending = createTopic(ns);
+        String pending = createTopic(newNamespace());
         try (Consumer<byte[]> consumer = consumerClient.newConsumer().topic(pending).subscriptionName("verify")
                      .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest).subscribe();
              Producer<GenericRecord> producer = producerClient.newProducer(newSchema).topic(pending)
@@ -639,13 +691,7 @@ public class GeoReplicationDiagnosticsTest extends PulsarGeoClusterTestBase {
         }
     }
 
-    @DataProvider
-    public Object[][] replicationQuotas() {
-        return new Object[][] {{1, -1L}, {-1, 1L}};
-    }
-
-    @Test(timeOut = 180_000, dataProvider = "replicationQuotas")
-    public void testDiagnoseDispatchLimit(int messages, long bytes) throws Exception {
+    private void diagnoseDispatchLimit(int messages, long bytes) throws Exception {
         String ns = newNamespace();
         DispatchRate rate = DispatchRate.builder().dispatchThrottlingRateInMsg(messages)
                 .dispatchThrottlingRateInByte(bytes).ratePeriodInSecond(300).build();
@@ -685,8 +731,7 @@ public class GeoReplicationDiagnosticsTest extends PulsarGeoClusterTestBase {
         }
     }
 
-    @Test(timeOut = 210_000)
-    public void testDiagnoseTransactionVisibility() throws Exception {
+    private void diagnoseTransactionVisibility() throws Exception {
         String topic = createTopic(newNamespace());
         try (Consumer<String> consumer = subscribe(topic);
              Producer<String> producer = producerClient.newProducer(Schema.STRING).topic(topic)
@@ -887,8 +932,7 @@ public class GeoReplicationDiagnosticsTest extends PulsarGeoClusterTestBase {
         }
     }
 
-    @Test(timeOut = 230_000)
-    public void testDiagnoseReadFailureWithoutMessage() throws Exception {
+    private void diagnoseReadFailureWithoutMessage() throws Exception {
         String topic = createTopic(newNamespace());
         var broker = sourceCluster.getAnyBroker();
         try (Consumer<String> consumer = subscribe(topic);
