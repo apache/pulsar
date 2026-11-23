@@ -31,6 +31,7 @@ import static org.mockito.Mockito.when;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -43,11 +44,14 @@ import java.util.function.Consumer;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.metadata.api.GetResult;
+import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
+import org.apache.pulsar.metadata.impl.DualMetadataStore;
+import org.apache.pulsar.metadata.impl.LocalMemoryMetadataStore;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.testng.annotations.BeforeMethod;
@@ -102,6 +106,50 @@ public class TopicResourcesTest {
 
         assertThat(topicResources.getManagedLedgerCursorsFromStoreAsync(topic).get()).isEmpty();
         verify(metadataStore, never()).getChildrenFromStore(path);
+    }
+
+    /**
+     * On ZooKeeper the metadata store is a {@link DualMetadataStore}, which must forward the sync to the backend
+     * before the cursor names are read, so a follower that lags another broker's cursor creation catches up first.
+     */
+    @Test
+    public void testGetManagedLedgerCursorsFromStoreSyncsThroughTheDualMetadataStore() throws Exception {
+        TopicName topic = TopicName.get("persistent://tenant/ns/topic");
+        String path = "/managed-ledgers/" + topic.getPersistenceNamingEncoding();
+        MetadataStoreConfig config = MetadataStoreConfig.builder().build();
+        List<String> calls = new CopyOnWriteArrayList<>();
+        CompletableFuture<Void> backendSync = new CompletableFuture<>();
+        LocalMemoryMetadataStore source = new LocalMemoryMetadataStore("memory:local", config) {
+            @Override
+            public CompletableFuture<Void> sync(String syncPath) {
+                if (!syncPath.equals(path)) {
+                    return super.sync(syncPath);
+                }
+                calls.add("sync " + syncPath);
+                return backendSync;
+            }
+
+            @Override
+            public CompletableFuture<List<String>> getChildrenFromStore(String childrenPath) {
+                if (childrenPath.equals(path)) {
+                    calls.add("children " + childrenPath);
+                }
+                return super.getChildrenFromStore(childrenPath);
+            }
+        };
+        try (DualMetadataStore dual = new DualMetadataStore(source, config)) {
+            source.put(path, new byte[0], Optional.empty()).get();
+            source.put(path + "/queue-sub", new byte[0], Optional.empty()).get();
+            TopicResources resources = new TopicResources(dual);
+
+            CompletableFuture<Optional<List<String>>> cursors = resources.getManagedLedgerCursorsFromStoreAsync(topic);
+            assertThat(calls).containsExactly("sync " + path);
+            assertThat(cursors).isNotDone();
+
+            backendSync.complete(null);
+            assertThat(cursors.get(10, TimeUnit.SECONDS)).contains(List.of("queue-sub"));
+            assertThat(calls).containsExactly("sync " + path, "children " + path);
+        }
     }
 
     @Test
