@@ -22,6 +22,7 @@ package org.apache.pulsar.broker.service;
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgsRecordingInvocations;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -793,6 +794,59 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         closeOrder.verify(pulsarTestContext.getPulsarService().getNamespaceService())
                 .requireFreshOwnershipBeforeReadmission(TopicName.get(successTopicName));
         closeOrder.verify(ledgerMock).asyncClose(any(CloseCallback.class), any());
+    }
+
+    @Test
+    public void testFencedPublishStillClosesTopicWhenReadmissionGateFails() throws Exception {
+        PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName)
+                .get(30, TimeUnit.SECONDS);
+        NamespaceService nsSvc = pulsarTestContext.getPulsarService().getNamespaceService();
+        // For example, a custom bundle assignment strategy throws while the gate resolves the topic's bundle.
+        doThrow(new IllegalStateException("bundle assignment failed"))
+                .when(nsSvc).requireFreshOwnershipBeforeReadmission(TopicName.get(successTopicName));
+        ManagedLedgerFencedException fenced = new ManagedLedgerFencedException("publish observed fencing");
+        List<Runnable> pendingAddFailures = new ArrayList<>();
+        doAnswer(invocation -> {
+            AddEntryCallback callback = invocation.getArgument(2);
+            Object ctx = invocation.getArgument(3);
+            pendingAddFailures.add(() -> callback.addFailed(fenced, ctx));
+            return null;
+        }).when(ledgerMock).asyncAddEntry(any(ByteBuf.class), anyInt(), any(AddEntryCallback.class), any());
+        CompletableFuture<Exception> publishResult = new CompletableFuture<>();
+        topic.publishMessage(Unpooled.wrappedBuffer("content".getBytes()),
+                (exception, ledgerId, entryId) -> publishResult.complete(exception));
+        assertThat(pendingAddFailures).hasSize(1);
+
+        // The managed ledger reports the failure from its own thread, which would drop a thrown exception.
+        assertThatCode(pendingAddFailures.get(0)::run).doesNotThrowAnyException();
+        assertThat(publishResult.getNow(null)).isInstanceOf(BrokerServiceException.TopicFencedException.class);
+        Awaitility.await().untilAsserted(() ->
+                assertThat(brokerService.getTopicReference(successTopicName)).isEmpty());
+    }
+
+    @Test
+    public void testFencedCursorOpenStillClosesTopicWhenReadmissionGateFails() throws Exception {
+        PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName)
+                .get(30, TimeUnit.SECONDS);
+        NamespaceService nsSvc = pulsarTestContext.getPulsarService().getNamespaceService();
+        doThrow(new IllegalStateException("bundle assignment failed"))
+                .when(nsSvc).requireFreshOwnershipBeforeReadmission(TopicName.get(successTopicName));
+        ManagedLedgerFencedException fenced = new ManagedLedgerFencedException("cursor open observed fencing");
+        List<Runnable> pendingCursorFailures = new ArrayList<>();
+        doAnswer(invocation -> {
+            OpenCursorCallback callback = invocation.getArgument(4);
+            Object ctx = invocation.getArgument(5);
+            pendingCursorFailures.add(() -> callback.openCursorFailed(fenced, ctx));
+            return null;
+        }).when(ledgerMock).asyncOpenCursor(eq(successSubName), any(InitialPosition.class), any(), any(), any(), any());
+        CompletableFuture<Subscription> subscription = topic.createSubscription(successSubName,
+                InitialPosition.Latest, false, Collections.emptyMap());
+        assertThat(pendingCursorFailures).hasSize(1);
+
+        assertThatCode(pendingCursorFailures.get(0)::run).doesNotThrowAnyException();
+        assertThatThrownBy(() -> subscription.getNow(null)).hasRootCause(fenced);
+        Awaitility.await().untilAsserted(() ->
+                assertThat(brokerService.getTopicReference(successTopicName)).isEmpty());
     }
 
     @Test

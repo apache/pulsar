@@ -3030,13 +3030,19 @@ public class BrokerService implements Closeable {
 
     /** Install the reload gate before the fenced topic can remove its cache entry. */
     public void requireFreshOwnershipBeforeTopicReadmission(PersistentTopic failedTopic) {
-        topics.computeIfPresent(failedTopic.getName(), (topic, future) -> {
-            if (future.isDone() && !future.isCompletedExceptionally()
-                    && future.join().orElse(null) == failedTopic) {
-                pulsar.getNamespaceService().requireFreshOwnershipBeforeReadmission(TopicName.get(topic));
-            }
-            return future;
-        });
+        try {
+            topics.computeIfPresent(failedTopic.getName(), (topic, future) -> {
+                if (future.isDone() && !future.isCompletedExceptionally()
+                        && future.join().orElse(null) == failedTopic) {
+                    pulsar.getNamespaceService().requireFreshOwnershipBeforeReadmission(TopicName.get(topic));
+                }
+                return future;
+            });
+        } catch (RuntimeException e) {
+            // The caller must still close the fenced topic. Without the gate, a reload uses the cached ownership.
+            log.warn().attr("topic", failedTopic.getName()).exception(e)
+                    .log("Failed to require fresh namespace ownership before reloading the fenced topic");
+        }
     }
 
     private void onTopicCacheEntryAdded(String name, CompletableFuture<Optional<Topic>> future) {
