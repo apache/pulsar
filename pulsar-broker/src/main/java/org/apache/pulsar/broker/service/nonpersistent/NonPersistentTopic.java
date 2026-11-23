@@ -304,7 +304,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                 return future;
             }
 
-            if (subscriptionName.startsWith(replicatorPrefix)) {
+            if (AbstractReplicator.isReplicatorCursor(replicatorPrefix, subscriptionName)) {
                 log.warn("[{}] Failed to create subscription for {}", topic, subscriptionName);
                 future.completeExceptionally(
                         new NamingException("Subscription with reserved subscription name attempted"));
