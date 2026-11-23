@@ -182,7 +182,8 @@ public class NonPersistentDispatcherFailoverConsumerTest {
                 SubType.Failover, -1, nonPersistentTopic, referenceSubscription);
         Subscription subscription = new NonPersistentSubscription(nonPersistentTopic, "sub-1", Collections.emptyMap());
         long consumerId = 1;
-        for (String consumerName : List.of("Cons1", "Cons2")) {
+        List<String> consumerNames = List.of("Cons1", "Cons2");
+        for (String consumerName : consumerNames) {
             referenceDispatcher.addConsumer(newFailoverConsumer(referenceSubscription, consumerId++, consumerName))
                     .get();
             subscription.addConsumer(newFailoverConsumer(subscription, consumerId++, consumerName)).get();
@@ -190,6 +191,9 @@ public class NonPersistentDispatcherFailoverConsumerTest {
 
         var subscriptionDispatcher = (NonPersistentDispatcherSingleActiveConsumer) subscription.getDispatcher();
         String expectedActiveConsumerName = referenceDispatcher.getActiveConsumer().consumerName();
+        assertThat(expectedActiveConsumerName)
+                .as("The test inputs must distinguish consistent hashing from the old partition-0 election")
+                .isNotEqualTo(Collections.min(consumerNames));
         assertThat(subscriptionDispatcher.getActiveConsumer().consumerName())
                 .as("Failover subscription on %s should elect the same consumer as the non-partitioned dispatcher",
                         TOPIC_NAME)
