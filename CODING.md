@@ -114,11 +114,32 @@ Pulsar relies heavily on `CompletableFuture`; prefer it over `ListenableFuture` 
   async wrappers while keeping the business exception and its cause. Do not assume `getCause()`
   returns the business exception.
 
-- **Forward failures directly.** Use `completeExceptionally(error)` or
-  `CompletableFuture.failedFuture(error)`, keeping the exception type and cause that callers expect.
+- **Forward failures directly.** Pass the original error, including an existing
+  `CompletionException`, to `completeExceptionally(error)` or
+  `CompletableFuture.failedFuture(error)`. Do not wrap the error before forwarding it.
 
-- **Wrap only when needed.** When a callback must throw a checked exception, use
-  `FutureUtil.wrapToCompletionException(error)` to avoid double wrapping.
+  ```java
+  // Avoid: extra wrapping can break callers' exception type checks
+  future.completeExceptionally(new RuntimeException(error));
+  // Prefer
+  future.completeExceptionally(error);
+  ```
+
+- **Wrap only when needed.** When a callback must rethrow a `Throwable` or a checked exception,
+  use `throw FutureUtil.wrapToCompletionException(error)` so an existing `CompletionException`
+  is not wrapped again.
+
+For example, ignore a missing node when deleting metadata, and propagate other failures:
+
+```java
+return store.delete(path, Optional.empty()).exceptionally(error -> {
+    Throwable cause = FutureUtil.unwrapCompletionException(error);
+    if (cause instanceof MetadataStoreException.NotFoundException) {
+        return null;
+    }
+    throw FutureUtil.wrapToCompletionException(error);
+});
+```
 
 ## Testing conventions
 
