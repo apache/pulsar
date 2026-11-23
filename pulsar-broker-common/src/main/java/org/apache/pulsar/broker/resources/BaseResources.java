@@ -86,7 +86,7 @@ public class BaseResources<T> {
         try {
             return getChildrenAsync(path).get(operationTimeoutSec, TimeUnit.SECONDS);
         } catch (ExecutionException e) {
-            throw MetadataStoreException.wrap(FutureUtil.unwrapCompletionException(e));
+            throw unwrapAsMetadataStoreException(e);
         } catch (Exception e) {
             throw new MetadataStoreException("Failed to get children of " + path, e);
         }
@@ -131,7 +131,7 @@ public class BaseResources<T> {
         try {
             return getAsync(path).get(operationTimeoutSec, TimeUnit.SECONDS);
         } catch (ExecutionException e) {
-            throw MetadataStoreException.wrap(FutureUtil.unwrapCompletionException(e));
+            throw unwrapAsMetadataStoreException(e);
         } catch (Exception e) {
             throw new MetadataStoreException("Failed to get data from " + path, e);
         }
@@ -152,7 +152,7 @@ public class BaseResources<T> {
         try {
             setAsync(path, modifyFunction).get(operationTimeoutSec, TimeUnit.SECONDS);
         } catch (ExecutionException e) {
-            throw MetadataStoreException.wrap(FutureUtil.unwrapCompletionException(e));
+            throw unwrapAsMetadataStoreException(e);
         } catch (Exception e) {
             throw new MetadataStoreException("Failed to set data for " + path, e);
         }
@@ -166,7 +166,7 @@ public class BaseResources<T> {
         try {
             setWithCreateAsync(path, createFunction).get(operationTimeoutSec, TimeUnit.SECONDS);
         } catch (ExecutionException e) {
-            throw MetadataStoreException.wrap(FutureUtil.unwrapCompletionException(e));
+            throw unwrapAsMetadataStoreException(e);
         } catch (Exception e) {
             throw new MetadataStoreException("Failed to set/create " + path, e);
         }
@@ -180,7 +180,7 @@ public class BaseResources<T> {
         try {
             createAsync(path, data).get(operationTimeoutSec, TimeUnit.SECONDS);
         } catch (ExecutionException e) {
-            throw MetadataStoreException.wrap(FutureUtil.unwrapCompletionException(e));
+            throw unwrapAsMetadataStoreException(e);
         } catch (Exception e) {
             throw new MetadataStoreException("Failed to create " + path, e);
         }
@@ -194,7 +194,7 @@ public class BaseResources<T> {
         try {
             deleteAsync(path).get(operationTimeoutSec, TimeUnit.SECONDS);
         } catch (ExecutionException e) {
-            throw MetadataStoreException.wrap(FutureUtil.unwrapCompletionException(e));
+            throw unwrapAsMetadataStoreException(e);
         } catch (Exception e) {
             throw new MetadataStoreException("Failed to delete " + path, e);
         }
@@ -227,7 +227,7 @@ public class BaseResources<T> {
         try {
             return cache.exists(path).get(operationTimeoutSec, TimeUnit.SECONDS);
         } catch (ExecutionException e) {
-            throw MetadataStoreException.wrap(FutureUtil.unwrapCompletionException(e));
+            throw unwrapAsMetadataStoreException(e);
         } catch (Exception e) {
             throw new MetadataStoreException("Failed to check exist " + path, e);
         }
@@ -239,6 +239,10 @@ public class BaseResources<T> {
 
     public int getOperationTimeoutSec() {
         return operationTimeoutSec;
+    }
+
+    static MetadataStoreException unwrapAsMetadataStoreException(ExecutionException failure) {
+        return MetadataStoreException.wrap(FutureUtil.unwrapCompletionException(failure));
     }
 
     protected static String joinPath(String... parts) {

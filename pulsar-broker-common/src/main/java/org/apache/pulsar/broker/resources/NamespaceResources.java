@@ -78,7 +78,7 @@ public class NamespaceResources extends BaseResources<Policies> {
         try {
             return getPoliciesReadOnlyAsync().get(getOperationTimeoutSec(), TimeUnit.SECONDS);
         } catch (ExecutionException e) {
-            throw MetadataStoreException.wrap(FutureUtil.unwrapCompletionException(e));
+            throw unwrapAsMetadataStoreException(e);
         } catch (Exception e) {
             throw new MetadataStoreException("Failed to check exist " + POLICIES_READONLY_FLAG_PATH, e);
         }
@@ -426,19 +426,20 @@ public class NamespaceResources extends BaseResources<Policies> {
                 }
 
                 supplier.get().whenComplete((deleteResult, deleteExc) -> {
-                    if (deleteExc != null && mdFound) {
+                    Throwable deleteCause = FutureUtil.unwrapCompletionException(deleteExc);
+                    if (deleteCause != null && mdFound) {
                         unmarkPartitionedTopicDeletedAsync(topic)
-                                .thenRun(() -> future.completeExceptionally(deleteExc))
+                                .thenRun(() -> future.completeExceptionally(deleteCause))
                                 .exceptionally(ex -> {
                                     log.warn()
                                             .attr("topic", topic)
                                             .exception(ex)
                                             .log("Failed to unmark the topic as deleted");
-                                    future.completeExceptionally(deleteExc);
+                                    future.completeExceptionally(deleteCause);
                                     return null;
                                 });
-                    } else if (deleteExc != null) {
-                        future.completeExceptionally(deleteExc);
+                    } else if (deleteCause != null) {
+                        future.completeExceptionally(deleteCause);
                     } else {
                         future.complete(deleteResult);
                     }

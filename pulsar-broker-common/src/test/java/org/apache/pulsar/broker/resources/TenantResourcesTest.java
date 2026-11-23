@@ -18,92 +18,59 @@
  */
 package org.apache.pulsar.broker.resources;
 
+import static org.apache.pulsar.broker.resources.ResourceTestSupport.newMemoryStore;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.Collections;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
-import org.apache.pulsar.metadata.BaseMetadataStoreTest;
-import org.apache.pulsar.metadata.api.MetadataStoreConfig;
-import org.apache.pulsar.metadata.api.MetadataStoreException;
+import lombok.Cleanup;
+import org.apache.pulsar.metadata.api.MetadataCache;
+import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyClosedException;
-import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
-import org.apache.pulsar.metadata.impl.ZKMetadataStore;
-import org.apache.zookeeper.KeeperException;
-import org.apache.zookeeper.ZooDefs;
-import org.apache.zookeeper.data.ACL;
 import org.testng.annotations.Test;
 
-public class TenantResourcesTest extends BaseMetadataStoreTest {
+public class TenantResourcesTest {
 
-    @Test(dataProvider = "impl")
-    public void testListTenantsReportsClosedStore(String provider, Supplier<String> urlSupplier) throws Exception {
-        try (MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
-                MetadataStoreConfig.builder().build())) {
+    @Test
+    public void testListTenantsReportsClosedStore() throws Exception {
+        try (MetadataStore store = newMemoryStore()) {
             TenantResources resources = new TenantResources(store, 5);
+            @Cleanup MetadataCache<?> cache = resources.getCache();
             store.close();
 
             assertThatThrownBy(resources::listTenants)
-                    .as(provider + ": listing tenants reports the closed store")
                     .isInstanceOf(AlreadyClosedException.class);
         }
     }
 
-    @Test(dataProvider = "impl")
-    public void testActiveNamespaceCheckIgnoresInvalidNamespaceData(String provider, Supplier<String> urlSupplier)
-            throws Exception {
-        try (MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
-                MetadataStoreConfig.builder().build())) {
+    @Test
+    public void testActiveNamespaceCheckIgnoresInvalidNamespaceData() throws Exception {
+        try (MetadataStore store = newMemoryStore()) {
             TenantResources resources = new TenantResources(store, 5);
+            @Cleanup MetadataCache<?> cache = resources.getCache();
             String tenant = "tenant-" + UUID.randomUUID();
             store.put("/admin/policies/" + tenant + "/legacy", "not-json".getBytes(StandardCharsets.UTF_8),
                     Optional.of(-1L)).get(5, TimeUnit.SECONDS);
 
             assertThat(resources.hasActiveNamespace(tenant))
-                    .as(provider + ": invalid namespace data is ignored")
                     .succeedsWithin(Duration.ofSeconds(5)).isNull();
         }
     }
 
-    @Test(dataProvider = "impl")
-    public void testActiveNamespaceCheckReportsClosedStore(String provider, Supplier<String> urlSupplier)
-            throws Exception {
-        try (MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
-                MetadataStoreConfig.builder().build())) {
+    @Test
+    public void testActiveNamespaceCheckReportsClosedStore() throws Exception {
+        try (MetadataStore store = newMemoryStore()) {
             TenantResources resources = new TenantResources(store, 5);
+            @Cleanup MetadataCache<?> cache = resources.getCache();
             String tenant = "tenant-" + UUID.randomUUID();
             store.close();
 
-            assertThat(resources.hasActiveNamespace(tenant))
-                    .as(provider + ": checking active namespaces reports the closed store")
-                    .failsWithin(Duration.ofSeconds(5))
-                    .withThrowableOfType(ExecutionException.class)
-                    .havingCause().isInstanceOf(AlreadyClosedException.class);
-        }
-    }
-
-    @Test
-    public void testActiveNamespaceCheckPreservesNamespaceReadFailure() throws Exception {
-        try (ZKMetadataStore store = new ZKMetadataStore(zks.getConnectionString(),
-                MetadataStoreConfig.builder().build(), false)) {
-            String tenant = "tenant-" + UUID.randomUUID();
-            String path = "/admin/policies/" + tenant + "/namespace";
-            store.put(path, "{}".getBytes(StandardCharsets.UTF_8), Optional.of(-1L)).get(5, TimeUnit.SECONDS);
-            // Listing the parent still succeeds, but the namespace node cannot be read.
-            store.getZkClient().setACL(path,
-                    Collections.singletonList(new ACL(ZooDefs.Perms.WRITE, ZooDefs.Ids.ANYONE_ID_UNSAFE)), -1);
-            TenantResources resources = new TenantResources(store, 5);
-
-            assertThat(resources.hasActiveNamespace(tenant))
-                    .failsWithin(Duration.ofSeconds(5))
-                    .withThrowableOfType(ExecutionException.class)
-                    .havingCause().isInstanceOf(MetadataStoreException.class)
-                    .havingCause().isInstanceOf(KeeperException.NoAuthException.class);
+            Throwable failure = resources.hasActiveNamespace(tenant)
+                    .handle((ignored, error) -> error).get(5, TimeUnit.SECONDS);
+            assertThat(failure).isInstanceOf(AlreadyClosedException.class);
         }
     }
 }

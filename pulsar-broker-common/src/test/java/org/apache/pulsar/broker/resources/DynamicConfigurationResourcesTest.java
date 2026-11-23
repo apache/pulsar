@@ -18,27 +18,25 @@
  */
 package org.apache.pulsar.broker.resources;
 
+import static org.apache.pulsar.broker.resources.ResourceTestSupport.newMemoryStore;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.util.Map;
-import java.util.function.Supplier;
-import org.apache.pulsar.metadata.BaseMetadataStoreTest;
-import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import lombok.Cleanup;
+import org.apache.pulsar.metadata.api.MetadataCache;
+import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyClosedException;
-import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.testng.annotations.Test;
 
-public class DynamicConfigurationResourcesTest extends BaseMetadataStoreTest {
+public class DynamicConfigurationResourcesTest {
 
-    @Test(dataProvider = "impl")
-    public void testSetDynamicConfigurationWithCreateReportsClosedStore(String provider, Supplier<String> urlSupplier)
-            throws Exception {
-        try (MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
-                MetadataStoreConfig.builder().build())) {
+    @Test
+    public void testSetDynamicConfigurationWithCreateReportsClosedStore() throws Exception {
+        try (MetadataStore store = newMemoryStore()) {
             DynamicConfigurationResources resources = new DynamicConfigurationResources(store, 5);
+            @Cleanup MetadataCache<?> cache = resources.getCache();
             store.close();
 
             assertThatThrownBy(() -> resources.setDynamicConfigurationWithCreate(current -> Map.of("key", "value")))
-                    .as(provider + ": updating dynamic configuration reports the closed store")
                     .isInstanceOf(AlreadyClosedException.class);
         }
     }

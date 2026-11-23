@@ -304,10 +304,9 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
             String parent = newKey();
             String path = parent + "/child";
             store.put(parent, new byte[0], Optional.of(-1L)).get(5, TimeUnit.SECONDS);
-            try {
+            try (MetadataCache<MyClass> cache = store.getMetadataCache(MyClass.class)) {
                 store.getZkClient().setACL(parent, Collections.singletonList(
                         new ACL(ZooDefs.Perms.READ | ZooDefs.Perms.ADMIN, ZooDefs.Ids.ANYONE_ID_UNSAFE)), -1);
-                MetadataCache<MyClass> cache = store.getMetadataCache(MyClass.class);
 
                 assertThat(cache.create(path, new MyClass("a", 1)))
                         .failsWithin(Duration.ofSeconds(5))
@@ -521,9 +520,9 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
     public void readModifyUpdateWithoutRetryPreservesVersionConflict() throws Exception {
         String url = "memory:" + UUID.randomUUID();
         try (var store = new LocalMemoryMetadataStore(url, MetadataStoreConfig.builder().build());
-                var writer = new LocalMemoryMetadataStore(url, MetadataStoreConfig.builder().build())) {
-            MetadataCache<MyClass> cache = store.getMetadataCache(MyClass.class, MetadataCacheConfig.builder()
-                    .retryBackoff(MetadataCacheConfig.NO_RETRY_BACKOFF_BUILDER).build());
+                var writer = new LocalMemoryMetadataStore(url, MetadataStoreConfig.builder().build());
+                MetadataCache<MyClass> cache = store.getMetadataCache(MyClass.class, MetadataCacheConfig.builder()
+                        .retryBackoff(MetadataCacheConfig.NO_RETRY_BACKOFF_BUILDER).build())) {
             String key = newKey();
             cache.create(key, new MyClass("initial", 1)).get(5, TimeUnit.SECONDS);
             MyClass competingValue = new MyClass("writer", 2);
