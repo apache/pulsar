@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.scalable;
 
+import static org.apache.bookkeeper.mledger.ManagedCursor.CURSOR_INTERNAL_PROPERTY_PREFIX;
 import com.google.common.annotations.VisibleForTesting;
 import io.github.merlimat.slog.Logger;
 import java.time.Clock;
@@ -34,6 +35,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -1560,7 +1562,8 @@ public class ScalableTopicController {
                     for (SegmentInfo successor : pending.replacements().values()) {
                         if (!pending.sources().containsKey(successor.segmentId())) {
                             created = created.thenCompose(__ -> validatePendingLayoutTransition(pending, operationTerm))
-                                    .thenCompose(__ -> createSuccessorTopic(successor, subscriptions));
+                                    .thenCompose(__ -> createSuccessorTopic(successor, subscriptions, pending,
+                                            operationTerm));
                         }
                     }
                     return created;
@@ -1662,7 +1665,8 @@ public class ScalableTopicController {
     /**
      * The durable subscriptions of a segment's topic (see {@link #segmentDurableSubscriptions}), each with the
      * properties of its cursor. None if the segment's managed ledger doesn't exist. A cursor deleted after it was
-     * listed has no properties: its subscription is still created on the successors.
+     * listed has no properties: its subscription is still created on the successors. The broker's internal cursor
+     * properties, such as the delayed-delivery bucket snapshots, belong to the segment and aren't returned.
      */
     private CompletableFuture<Map<String, Map<String, String>>> segmentSubscriptionProperties(SegmentInfo segment) {
         return segmentDurableSubscriptions(segment).thenCompose(durable -> {
@@ -1679,7 +1683,11 @@ public class ScalableTopicController {
                 }
                 return FutureUtil.waitForAll(reads.values()).thenApply(___ -> {
                     Map<String, Map<String, String>> subscriptions = new LinkedHashMap<>();
-                    reads.forEach((subscription, properties) -> subscriptions.put(subscription, properties.join()));
+                    reads.forEach((subscription, read) -> {
+                        Map<String, String> properties = new TreeMap<>(read.join());
+                        properties.keySet().removeIf(key -> key.startsWith(CURSOR_INTERNAL_PROPERTY_PREFIX));
+                        subscriptions.put(subscription, properties);
+                    });
                     return subscriptions;
                 });
             });
@@ -1688,10 +1696,12 @@ public class ScalableTopicController {
 
     /**
      * Create the topic of a successor with {@code subscriptions}. Those with properties are created one by one after
-     * the topic, through the endpoint that takes them, before the successor can take a message.
+     * the topic, through the endpoint that takes them, before the successor can take a message. Each of those
+     * creates checks first that {@code pending} is still current, as the successor's topic did.
      */
     private CompletableFuture<Void> createSuccessorTopic(SegmentInfo successor,
-                                                         Map<String, Map<String, String>> subscriptions) {
+                                                         Map<String, Map<String, String>> subscriptions,
+                                                         PendingLayoutTransition pending, long operationTerm) {
         List<String> withoutProperties = new ArrayList<>();
         subscriptions.forEach((name, properties) -> {
             if (properties.isEmpty()) {
@@ -1701,15 +1711,16 @@ public class ScalableTopicController {
         CompletableFuture<Void> created = createSegmentTopic(successor, withoutProperties);
         for (var subscription : subscriptions.entrySet()) {
             if (!subscription.getValue().isEmpty()) {
-                created = created.thenCompose(__ -> {
-                    try {
-                        return brokerService.getPulsar().getAdminClient().scalableTopics()
-                                .createSegmentSubscriptionAsync(toSegmentPersistentName(successor),
-                                        subscription.getKey(), subscription.getValue());
-                    } catch (PulsarServerException e) {
-                        return CompletableFuture.failedFuture(e);
-                    }
-                });
+                created = created.thenCompose(__ -> validatePendingLayoutTransition(pending, operationTerm))
+                        .thenCompose(__ -> {
+                            try {
+                                return brokerService.getPulsar().getAdminClient().scalableTopics()
+                                        .createSegmentSubscriptionAsync(toSegmentPersistentName(successor),
+                                                subscription.getKey(), subscription.getValue());
+                            } catch (PulsarServerException e) {
+                                return CompletableFuture.failedFuture(e);
+                            }
+                        });
             }
         }
         return created;

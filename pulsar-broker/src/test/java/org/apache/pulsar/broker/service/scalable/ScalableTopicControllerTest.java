@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.scalable;
 
+import static org.apache.pulsar.broker.delayed.bucket.BucketDelayedDeliveryTracker.DELAYED_BUCKET_KEY_PREFIX;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -977,6 +978,48 @@ public class ScalableTopicControllerTest {
         verify(scalableTopics, never()).createSegmentAsync(anyString(), any());
         verify(scalableTopics, never()).terminateSegmentAsync(anyString());
         assertTrue(controller.getLayout().get().getAllSegments().get(0L).isActive(), "the parent keeps serving");
+    }
+
+    /**
+     * The broker's internal cursor properties, such as the delayed-delivery bucket snapshots, stay with the parent:
+     * the children get only the other properties, and a subscription that has only internal ones is created on them
+     * without properties.
+     */
+    @Test
+    public void testSplitDoesNotCarryInternalCursorPropertiesToChildren() throws Exception {
+        controller.initialize().get();
+        managedLedgers.put(managedLedgerOf(0), List.of("queue-sub", "delayed-sub"));
+        cursorProperties.put(managedLedgerOf(0) + "/queue-sub",
+                Map.of("filter", "a", DELAYED_BUCKET_KEY_PREFIX + "_1_10", "5"));
+        cursorProperties.put(managedLedgerOf(0) + "/delayed-sub", Map.of(DELAYED_BUCKET_KEY_PREFIX + "_1_10", "5"));
+        clearInvocations(scalableTopics);
+
+        controller.splitSegment(0).get();
+
+        verify(scalableTopics, times(2)).createSegmentAsync(anyString(), eq(List.of("delayed-sub")));
+        verify(scalableTopics, times(2)).createSegmentSubscriptionAsync(anyString(), eq("queue-sub"),
+                eq(Map.of("filter", "a")));
+        verify(scalableTopics, never()).createSegmentSubscriptionAsync(anyString(), eq("delayed-sub"), anyMap());
+    }
+
+    /**
+     * A subscription with properties isn't created on a child once the transition is no longer current, here because
+     * the controller's term ended while the child's topic was being created.
+     */
+    @Test
+    public void testSplitCreatesSubscriptionWithPropertiesOnlyWhileTheTransitionIsCurrent() throws Exception {
+        controller.initialize().get();
+        managedLedgers.put(managedLedgerOf(0), List.of("queue-sub"));
+        cursorProperties.put(managedLedgerOf(0) + "/queue-sub", Map.of("filter", "a"));
+        clearInvocations(scalableTopics);
+        when(scalableTopics.createSegmentAsync(anyString(), any())).thenAnswer(invocation -> {
+            controller.close();
+            return CompletableFuture.completedFuture(null);
+        });
+
+        assertThrows(ExecutionException.class, () -> controller.splitSegment(0).get());
+        verify(scalableTopics).createSegmentAsync(anyString(), eq(List.of()));
+        verify(scalableTopics, never()).createSegmentSubscriptionAsync(anyString(), anyString(), anyMap());
     }
 
     /**
