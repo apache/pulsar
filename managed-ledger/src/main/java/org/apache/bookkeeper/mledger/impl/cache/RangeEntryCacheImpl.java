@@ -699,10 +699,11 @@ public class RangeEntryCacheImpl implements EntryCache {
                         // or at other positions, as only a pluggable ReadHandle implementation can
                         // return — is treated as the read failure it should have been, after
                         // discarding the entries it did return: the mixed read's failed-read fallback
-                        // then discards what it collected and re-reads the whole range. Surplus
-                        // entries beyond the requested range are a legitimate answer's — an
-                        // offloaded-ledger grouped read starts at its segment's start entry — and
-                        // stay for the merge to drop (#26708).
+                        // then discards what it collected and re-reads the whole range. Any order
+                        // of the entries and any surplus beyond the requested range are a legitimate
+                        // answer's — an offloaded-ledger grouped read starts at its segment's start
+                        // entry and answers with its segments in last-to-first order — and stay for
+                        // the merge to place and drop (#26708).
                         if (isCompleteRangeAnswer(readEntries, lh.getId(), firstEntry, lastEntry)) {
                             future.complete(readEntries);
                         } else {
@@ -723,13 +724,12 @@ public class RangeEntryCacheImpl implements EntryCache {
 
     /**
      * Checks that the answer carries an entry for every position of the requested range of the
-     * ledger. An answer with one entry per requested position covers the range only when each
-     * entry is at its own position, in order; a longer answer covers it only when every requested
-     * position is answered — its surplus entries, as an offloaded-ledger grouped read that starts
-     * at its segment's start entry answers with, are dropped by the merge (#26708). Anything else
-     * — fewer entries, null slots, or entries that leave a requested position unanswered, as only
-     * a ReadHandle implementation that breaks the read contract can return — leaves the read a
-     * gap or a null slot.
+     * ledger, whatever order it carries them in and whatever surplus it carries besides: a
+     * grouped read of an offloaded ledger starts at its segment's start entry and answers with
+     * its segments' entries in last-to-first segment order (#26708). Anything that leaves a
+     * requested position without an entry — fewer entries, null slots, or entries at other
+     * positions, as only a ReadHandle implementation that breaks the read contract can return —
+     * leaves the read a gap or a null slot.
      */
     private static boolean isCompleteRangeAnswer(List<Entry> readEntries, long ledgerId,
                                                  long firstEntry, long lastEntry) {
@@ -738,19 +738,7 @@ public class RangeEntryCacheImpl implements EntryCache {
             // The answer cannot carry an entry for every requested position.
             return false;
         }
-        if (readEntries.size() == expectedCount) {
-            // One entry per requested position covers the range only when each entry is at its
-            // own position: an entry elsewhere leaves its own position unanswered.
-            for (int i = 0; i < expectedCount; i++) {
-                Entry entry = readEntries.get(i);
-                if (entry == null || entry.getLedgerId() != ledgerId || entry.getEntryId() != firstEntry + i) {
-                    return false;
-                }
-            }
-            return true;
-        }
-        // The longer answer may carry surplus entries; the range is covered only when every
-        // requested position is answered.
+        // The range is covered only when every requested position is answered.
         BitSet answeredPositions = new BitSet(expectedCount);
         for (Entry entry : readEntries) {
             if (entry == null || entry.getLedgerId() != ledgerId) {
@@ -770,9 +758,10 @@ public class RangeEntryCacheImpl implements EntryCache {
      * re-read gapped as well, and a delivered gap would advance the reader past the entries it
      * skips, where the delivery's null-slot guard of #26709 fails null slots but not gaps. An
      * incomplete answer is discarded and fails the read, as that guard fails the null slots. A
-     * complete answer may carry surplus entries beyond the range, as an offloaded-ledger grouped
-     * read answers with: only the requested range is delivered, and each surplus entry is released
-     * without counting its drop as a read (#26708).
+     * complete answer may carry the range out of order or with surplus entries beyond it, as an
+     * offloaded-ledger grouped read answers with: only the requested range is delivered, in
+     * ascending order, and each surplus entry is released without counting its drop as a read
+     * (#26708).
      */
     private ReadEntriesCallback wholeRangeReadCallback(ReadHandle lh, Position firstPosition,
                                                        Position lastPosition,
@@ -804,14 +793,20 @@ public class RangeEntryCacheImpl implements EntryCache {
     }
 
     /**
-     * Delivers a complete answer as the requested range: the answer itself when it carries no
-     * surplus entry, otherwise the requested entries placed at their positions, with each surplus
-     * or duplicate entry released the way the mixed read's assembly releases its dropped entries.
+     * Delivers a complete answer as the requested range, in ascending order: the answer itself
+     * when it already is the exact range in order, otherwise the requested entries placed at
+     * their positions — an offloaded-ledger grouped read answers with its segments in
+     * last-to-first order — with each surplus or duplicate entry released the way the mixed
+     * read's assembly releases its dropped entries.
      */
     private static void deliverCompleteRangeAnswer(List<Entry> readEntries, long firstEntry, long lastEntry,
                                                    ReadEntriesCallback callback, Object ctx) {
         int expectedCount = (int) (lastEntry - firstEntry + 1);
-        if (readEntries.size() == expectedCount) {
+        boolean answerIsTheRangeInOrder = readEntries.size() == expectedCount;
+        for (int i = 0; answerIsTheRangeInOrder && i < expectedCount; i++) {
+            answerIsTheRangeInOrder = readEntries.get(i).getEntryId() == firstEntry + i;
+        }
+        if (answerIsTheRangeInOrder) {
             callback.readEntriesComplete(readEntries, ctx);
             return;
         }

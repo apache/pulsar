@@ -1030,6 +1030,67 @@ public class RangeEntryCacheImplTest {
     }
 
     @Test(timeOut = 30_000)
+    public void testOutOfOrderCompleteLegAnswerIsAccepted() {
+        // A grouped read of an offloaded ledger answers with its segments' entries in
+        // last-to-first segment order: with segments starting at 1 and 50, the [1..99] leg of a
+        // read of [0..99] answers 50..99 first, then 1..49. Every requested position is
+        // answered, so the answer is complete — rejecting it would cost a whole-range re-read.
+        rangeEntryCache.insert(EntryImpl.create(1, 0, Unpooled.EMPTY_BUFFER));
+        List<EntryImpl> legEntries = new ArrayList<>();
+        List<Entry> segmentOrdered = new ArrayList<>(entriesForRange(50, 99, legEntries));
+        segmentOrdered.addAll(entriesForRange(1, 49, legEntries));
+        stubLegAnswer(1, 99, segmentOrdered);
+
+        CompletableFuture<List<Entry>> future = readEntriesAsync();
+
+        assertThat(future).isCompleted();
+        List<Entry> delivered = future.getNow(null);
+        try {
+            assertThat(delivered).hasSize(100);
+            assertThat(delivered).doesNotContainNull();
+            for (int i = 0; i < 100; i++) {
+                assertThat(delivered.get(i).getEntryId()).isEqualTo(i);
+            }
+        } finally {
+            delivered.forEach(Entry::release);
+        }
+        // the segment-ordered answer was accepted as the leg's: no whole-range re-read
+        verify(pendingReadsManager, times(1)).readEntries(any(), eq(1L), eq(99L), anyLong(), any(), any(), any());
+        verify(pendingReadsManager, never()).readEntries(any(), eq(0L), eq(99L), anyLong(), any(), any(), any());
+    }
+
+    @Test(timeOut = 30_000)
+    public void testOutOfOrderWholeRangeRetryAnswerIsDeliveredAscending() {
+        // The whole-range re-read of an offloaded ledger's range answers with its segments in
+        // last-to-first order — with segments starting at 0 and 50, the re-read of [0..99]
+        // answers 50..99 first, then 0..49 — carrying exactly the requested count. Every
+        // requested position is answered, so the read must not fail: it delivers the entries
+        // placed at their positions, in ascending order.
+        rangeEntryCache.insert(EntryImpl.create(1, 50, Unpooled.EMPTY_BUFFER));
+        List<EntryImpl> shortLegEntries = new ArrayList<>();
+        stubLegAnswer(51, 99, entriesForRange(51, 90, shortLegEntries));
+        List<EntryImpl> retryEntries = new ArrayList<>();
+        List<Entry> retryAnswer = new ArrayList<>(entriesForRange(50, 99, retryEntries));
+        retryAnswer.addAll(entriesForRange(0, 49, retryEntries));
+        stubLegAnswer(0, 99, retryAnswer);
+
+        CompletableFuture<List<Entry>> future = readEntriesAsync();
+
+        assertThat(future).isCompleted();
+        List<Entry> delivered = future.getNow(null);
+        try {
+            assertThat(delivered).hasSize(100);
+            assertThat(delivered).doesNotContainNull();
+            for (int i = 0; i < 100; i++) {
+                assertThat(delivered.get(i).getEntryId()).isEqualTo(i);
+            }
+        } finally {
+            delivered.forEach(Entry::release);
+        }
+        verify(pendingReadsManager, times(1)).readEntries(any(), eq(0L), eq(99L), anyLong(), any(), any(), any());
+    }
+
+    @Test(timeOut = 30_000)
     public void testNullSlotInDeliveredBatchReturnsItsPermitShareImmediately() {
         // The limiter wrapper's null branch is defense in depth now that the mixed read validates
         // its answers before delivering, but it must keep working: a null slot has no entry that
