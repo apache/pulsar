@@ -55,6 +55,7 @@ import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
+import org.apache.pulsar.broker.service.AbstractReplicator;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.Subscription;
@@ -1972,7 +1973,7 @@ public abstract class NamespacesBase extends AdminResource {
 
 
     private CompletableFuture<Void> unsubscribeAsync(NamespaceBundle bundle, String subscription) {
-        if (subscription.startsWith(pulsar().getConfiguration().getReplicatorPrefix())) {
+        if (AbstractReplicator.isReplicatorCursor(pulsar().getConfiguration().getReplicatorPrefix(), subscription)) {
             return CompletableFuture.failedFuture(
                     new RestException(Status.PRECONDITION_FAILED, "Cannot unsubscribe a replication cursor"));
         }
