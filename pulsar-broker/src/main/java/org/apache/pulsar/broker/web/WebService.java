@@ -19,7 +19,7 @@
 package org.apache.pulsar.broker.web;
 
 import com.google.common.annotations.VisibleForTesting;
-import io.prometheus.client.CollectorRegistry;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import jakarta.servlet.DispatcherType;
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
@@ -476,7 +476,7 @@ public class WebService implements AutoCloseable {
             stats.setHandler(handlerCollection);
             try {
                 jettyStatisticsCollector = new JettyStatisticsCollector(stats);
-                jettyStatisticsCollector.register();
+                PrometheusRegistry.defaultRegistry.register(jettyStatisticsCollector);
             } catch (IllegalArgumentException e) {
                 // Already registered. Eg: in unit tests
             }
@@ -542,11 +542,11 @@ public class WebService implements AutoCloseable {
 
     private void doClose() throws Exception {
         server.stop();
-        // unregister statistics from Prometheus client's default CollectorRegistry singleton
+        // unregister statistics from Prometheus client's default PrometheusRegistry singleton
         // to prevent memory leaks in tests
         if (jettyStatisticsCollector != null) {
             try {
-                CollectorRegistry.defaultRegistry.unregister(jettyStatisticsCollector);
+                PrometheusRegistry.defaultRegistry.unregister(jettyStatisticsCollector);
             } catch (Exception e) {
                 // ignore any exception happening in unregister
                 // exception will be thrown for 2. instance of WebService in tests since
