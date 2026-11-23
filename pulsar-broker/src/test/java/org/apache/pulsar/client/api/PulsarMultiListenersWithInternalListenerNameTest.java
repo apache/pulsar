@@ -21,7 +21,8 @@ package org.apache.pulsar.client.api;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import io.netty.channel.EventLoopGroup;
-import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.MultiThreadIoEventLoopGroup;
+import io.netty.channel.nio.NioIoHandler;
 import io.netty.resolver.DefaultNameResolver;
 import io.netty.util.concurrent.ImmediateEventExecutor;
 import java.io.IOException;
@@ -95,7 +96,7 @@ public class PulsarMultiListenersWithInternalListenerNameTest extends MockedPuls
     @Override
     protected void setup() throws Exception {
         this.executorService = Executors.newSingleThreadScheduledExecutor();
-        this.eventExecutors = new NioEventLoopGroup();
+        this.eventExecutors = new MultiThreadIoEventLoopGroup(NioIoHandler.newFactory());
         InetAddress host = InetAddress.getLocalHost();
         String hostAddress = host.getHostAddress();
         List<Integer> freePorts = getFreePorts(host, 3);

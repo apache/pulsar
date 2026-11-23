@@ -60,6 +60,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerArray;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -162,7 +163,7 @@ public class ConsumerImplTest {
 
     /**
      * Reproduces the chunked-message bookkeeping data race in {@link ConsumerImpl}, using the real
-     * production cross-thread pair:
+     * production cross-thread pair.
      * <ul>
      *   <li>{@code processMessageChunk(...)} on the Netty IO event-loop thread (here: the "receiver" thread);</li>
      *   <li>{@code removeExpireIncompleteChunkedMessages()} on the internalPinnedExecutor (here: the "expirer"
@@ -700,7 +701,7 @@ public class ConsumerImplTest {
         // consumer's lock, here by asking for redelivery, would otherwise deadlock with the flush.
         CountDownLatch interceptorEntered = new CountDownLatch(1);
         CountDownLatch interceptorRelease = new CountDownLatch(1);
-        ConsumerInterceptor<byte[]> interceptor = mock(ConsumerInterceptor.class);
+        ConsumerInterceptor<byte[]> interceptor = mock();
         doAnswer(invocation -> {
             interceptorEntered.countDown();
             interceptorRelease.await();
@@ -813,7 +814,7 @@ public class ConsumerImplTest {
 
     @Test
     public void testCloseNotConnectedConsumerClosesInterceptorsOnce() throws Exception {
-        ConsumerInterceptor<byte[]> interceptor = mock(ConsumerInterceptor.class);
+        ConsumerInterceptor<byte[]> interceptor = mock();
         createConsumer(new ConsumerConfigurationData<>(), topic, interceptor);
 
         consumer.closeAsync().get(5, TimeUnit.SECONDS);
@@ -860,7 +861,7 @@ public class ConsumerImplTest {
         List<MessageImpl<byte[]>> messages = new ArrayList<>(numMessages);
         for (int i = 0; i < numMessages; i++) {
             int index = i;
-            MessageImpl<byte[]> message = mock(MessageImpl.class, withSettings().stubOnly());
+            MessageImpl<byte[]> message = mock(withSettings().stubOnly());
             when(message.size()).thenReturn(100);
             doAnswer(invocation -> releaseCounts.incrementAndGet(index)).when(message).release();
             messages.add(message);
@@ -1090,6 +1091,38 @@ public class ConsumerImplTest {
         Assert.assertTrue(consumer.scaleReceiverQueueHint.get(),
                 "Hint must reflect the post-enqueue state (pipeline had >=1 message); "
                         + "a concurrent drain of the just-enqueued message must not clear it.");
+    }
+
+    @Test
+    public void testEnqueueReservesMemoryBeforeMessageIsVisible() {
+        // receive() takes a message without incomingQueueLock and releases its size. If the enqueue made the
+        // message visible before reserving its size, such a receive could release it first and drop the shared
+        // memory usage below what the queues hold: a consumer sharing the controller then sees usage under the
+        // expansion threshold, and the late reservation crosses the shrink threshold from below.
+        consumerConf = new ConsumerConfigurationData<>();
+        consumerConf.setAutoScaledReceiverQueueSizeEnabled(true);
+        createConsumer(consumerConf);
+        MemoryLimitController memoryLimitController = spy(new MemoryLimitController(300));
+        when(consumer.client.getMemoryLimitController()).thenReturn(memoryLimitController);
+        // Memory held by the queue of another consumer sharing the controller.
+        memoryLimitController.forceReserveMemory(300);
+
+        AtomicLong lowestUsage = new AtomicLong(memoryLimitController.currentUsage());
+        doAnswer(invocation -> {
+            // A receive() on the application thread, racing with the enqueue.
+            Message<byte[]> taken = consumer.incomingMessages.poll();
+            if (taken != null) {
+                consumer.decreaseIncomingMessageSize(taken);
+                lowestUsage.accumulateAndGet(memoryLimitController.currentUsage(), Math::min);
+            }
+            return invocation.callRealMethod();
+        }).when(memoryLimitController).forceReserveMemory(anyLong());
+
+        consumer.enqueueMessageAndCheckBatchReceive(mockIncomingMessage(0));
+
+        assertThat(lowestUsage.get()).isEqualTo(300);
+        assertThat(consumer.getTotalIncomingMessages()).isEqualTo(1);
+        assertThat(memoryLimitController.currentUsage()).isEqualTo(400);
     }
 
     @Test(invocationTimeOut = 1000)

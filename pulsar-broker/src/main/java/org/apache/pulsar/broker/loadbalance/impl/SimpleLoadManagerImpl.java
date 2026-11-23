@@ -26,6 +26,7 @@ import com.google.common.cache.LoadingCache;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 import com.google.common.collect.TreeMultimap;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -239,7 +240,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
                 });
 
         int entryExpiryTime = (int) pulsar.getConfiguration().getLoadBalancerSheddingGracePeriodMinutes();
-        unloadedHotNamespaceCache = CacheBuilder.newBuilder().expireAfterWrite(entryExpiryTime, TimeUnit.MINUTES)
+        unloadedHotNamespaceCache = CacheBuilder.newBuilder().expireAfterWrite(Duration.ofMinutes(entryExpiryTime))
                 .build(new CacheLoader<String, Long>() {
                     @Override
                     public Long load(String key) throws Exception {
@@ -735,7 +736,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
      * distribution: fill up one broker till its load reaches optimum level (defined by underload threshold) before pull
      * another idle broker in; 2) Even distribution: once all brokers' load are above optimum level, maintain all
      * brokers to have even load; 3) Set the underload threshold to small value (like 1) for pure even distribution, and
-     * high value (like 80) for pure optimum distribution;
+     * high value (like 80) for pure optimum distribution.
      * <p>
      * Strategy to select broker: 1) The first choice is the least loaded broker which is underload but not idle; 2) The
      * second choice is idle broker (if there is any); 3) Otherwise simply select the least loaded broker if it is NOT
@@ -1459,8 +1460,10 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
             if (cancelMetadataStoreListener != null) {
                 cancelMetadataStoreListener.run();
             }
-            if (loadReports != null) {
-                loadReports.close();
+            // Release only this load manager's lock: the coordination service gives the same lock manager to every
+            // user of its type, like the load manager that replaces this one, and closes it itself
+            if (brokerLock != null) {
+                brokerLock.release().join();
             }
             scheduler.shutdownNow();
             scheduler.awaitTermination(5, TimeUnit.SECONDS);

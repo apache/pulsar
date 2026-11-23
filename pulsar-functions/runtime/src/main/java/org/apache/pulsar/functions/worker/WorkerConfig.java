@@ -45,6 +45,7 @@ import lombok.ToString;
 import lombok.experimental.Accessors;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
+import org.apache.pulsar.broker.tls.TlsFactorySupport;
 import org.apache.pulsar.common.configuration.Category;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
@@ -52,6 +53,7 @@ import org.apache.pulsar.common.functions.MemoryLimit;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.sasl.SaslConstants;
+import org.apache.pulsar.common.tls.TlsClientAuthMode;
 import org.apache.pulsar.functions.auth.KubernetesSecretsTokenAuthProvider;
 import org.apache.pulsar.functions.instance.state.BKStateStoreProviderImpl;
 import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactory;
@@ -512,9 +514,32 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     private boolean tlsAllowInsecureConnection = false;
     @FieldContext(
         category = CATEGORY_WORKER_SECURITY,
-        doc = "Require trusted client cert on connect"
+        deprecated = true,
+        doc = "Deprecated: use tlsClientAuthMode=REQUIRE instead. Whether a trusted client certificate "
+            + "is required; the connection is rejected if the client certificate is missing or not "
+            + "trusted. Setting it to true together with tlsClientAuthMode=NONE or OPTIONAL is a "
+            + "configuration error."
     )
+    @Deprecated
     private boolean tlsRequireTrustedClientCertOnConnect = false;
+    @FieldContext(
+        category = CATEGORY_WORKER_SECURITY,
+        doc = "Whether the TLS listeners ask connecting clients for a certificate (TLS client "
+            + "authentication): NONE does not request one, OPTIONAL requests one and accepts a "
+            + "connection without it (a presented certificate must be trusted), REQUIRE requires a "
+            + "trusted certificate.\n\n"
+            + "When unset, it is REQUIRE if the deprecated tlsRequireTrustedClientCertOnConnect is "
+            + "true, OPTIONAL if authentication is enabled with AuthenticationProviderTls among the "
+            + "authenticationProviders, and NONE otherwise. A custom authentication provider that reads "
+            + "the client certificate needs OPTIONAL or REQUIRE. Setting NONE while "
+            + "AuthenticationProviderTls is enabled is a configuration error.\n\n"
+            + "Requesting a certificate sends every client the names of all CAs in "
+            + "tlsTrustCertsFilePath or tlsTrustStore, or of the JVM default trust store when neither is "
+            + "set. With a large trust store, the TLS 1.3 handshake then spans several TLS records, which "
+            + "some clients fail to handle, so the trust store should hold only the CAs that issue client "
+            + "certificates."
+    )
+    private TlsClientAuthMode tlsClientAuthMode = null;
     @FieldContext(
         category = CATEGORY_CLIENT_SECURITY,
         doc = "Whether to enable TLS when clients connect to broker",
@@ -1103,5 +1128,34 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
 
     public boolean isMetadataStoreAllowReadOnlyOperations() {
         return zooKeeperAllowReadOnlyOperations || metadataStoreAllowReadOnlyOperations;
+    }
+
+    /**
+     * The effective TLS client-auth mode of the TLS listeners, resolved from {@code tlsClientAuthMode}, the
+     * deprecated {@code tlsRequireTrustedClientCertOnConnect} and the authentication settings; see
+     * {@link TlsFactorySupport#resolveClientAuthMode}.
+     *
+     * @return the effective mode
+     * @throws IllegalArgumentException if the settings conflict
+     */
+    @SuppressWarnings("deprecation")
+    public TlsClientAuthMode resolveTlsClientAuthMode() {
+        return TlsFactorySupport.resolveClientAuthMode(tlsClientAuthMode, tlsRequireTrustedClientCertOnConnect,
+                authenticationEnabled, authenticationProviders);
+    }
+
+    /**
+     * Resolve the effective TLS client-auth mode like {@link #resolveTlsClientAuthMode()} and log it with where it
+     * came from; see {@link TlsFactorySupport#logClientAuthMode}. Called once when a component with a TLS listener
+     * starts.
+     *
+     * @param component the component name for the log
+     * @return the effective mode
+     * @throws IllegalArgumentException if the settings conflict
+     */
+    @SuppressWarnings("deprecation")
+    public TlsClientAuthMode logTlsClientAuthMode(String component) {
+        return TlsFactorySupport.logClientAuthMode(component, tlsClientAuthMode, tlsRequireTrustedClientCertOnConnect,
+                authenticationEnabled, authenticationProviders);
     }
 }

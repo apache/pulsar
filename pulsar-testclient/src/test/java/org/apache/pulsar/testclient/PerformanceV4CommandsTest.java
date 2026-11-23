@@ -48,7 +48,9 @@ import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 import picocli.CommandLine;
@@ -68,10 +70,25 @@ public class PerformanceV4CommandsTest extends MockedPulsarServiceBaseTest {
     private final AtomicInteger lastExitCode = new AtomicInteger(0);
     private volatile CountDownLatch exitLatch;
 
-    @BeforeMethod
+    // The tests share a broker: each one uses topics of its own, and waits for the perf command it runs to end
+    @BeforeClass
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
+        admin.tenants().createTenant(testTenant, tenantInfo);
+        admin.namespaces().createNamespace(myNamespace, Sets.newHashSet("test"));
+    }
+
+    @AfterClass(alwaysRun = true)
+    @Override
+    protected void cleanup() throws Exception {
+        super.internalCleanup();
+    }
+
+    @BeforeMethod
+    public void setExitProcedure() {
         exitLatch = new CountDownLatch(1);
         lastExitCode.set(0);
         PerfClientUtils.setExitProcedure(code -> {
@@ -79,16 +96,10 @@ public class PerformanceV4CommandsTest extends MockedPulsarServiceBaseTest {
             lastExitCode.set(code);
             exitLatch.countDown();
         });
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
-        TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
-        admin.tenants().createTenant(testTenant, tenantInfo);
-        admin.namespaces().createNamespace(myNamespace, Sets.newHashSet("test"));
     }
 
     @AfterMethod(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
+    public void checkExitCode() {
         assertThat(lastExitCode.get()).as("perf tool JVM exit code").isZero();
     }
 

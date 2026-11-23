@@ -703,18 +703,28 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
     private void takeSnapshotByChangeTimes() {
         if (changeMaxReadPositionCount.get() >= takeSnapshotIntervalNumber) {
-            this.changeMaxReadPositionCount.set(0);
-            this.snapshotAbortedTxnProcessor.takeAbortedTxnsSnapshot(this.maxReadPosition);
+            takeSnapshot();
         }
     }
 
     private void takeSnapshotByTimeout() {
         if (changeMaxReadPositionCount.get() > 0) {
-            this.changeMaxReadPositionCount.set(0);
-            this.snapshotAbortedTxnProcessor.takeAbortedTxnsSnapshot(this.maxReadPosition);
+            takeSnapshot();
         }
         this.timer.newTimeout(TopicTransactionBuffer.this,
                 takeSnapshotIntervalTime, TimeUnit.MILLISECONDS);
+    }
+
+    private void takeSnapshot() {
+        changeMaxReadPositionCount.set(0);
+        snapshotAbortedTxnProcessor.takeAbortedTxnsSnapshot(maxReadPosition).whenComplete((ignored, error) -> {
+            if (error != null) {
+                // Keep a timed retry pending even on an idle topic, preserving changes since this attempt.
+                // Restoring the old count could trigger another canceled attempt on every commit while busy.
+                changeMaxReadPositionCount.updateAndGet(changes -> Math.max(changes, 1));
+                log.debug().exception(error).log("Failed to take transaction buffer snapshot; will retry");
+            }
+        });
     }
 
     /**

@@ -39,12 +39,19 @@ final class MessageV5<T> implements Message<T> {
      * to the v4 message topic in that case.
      */
     private final String topicOverride;
+    /** Internal checkpoint-reader identity. Kept out of the public message id and its wire encoding. */
+    private final Object checkpointAttachment;
 
     /**
      * Create with a simple segment ID (for queue consumer, checkpoint consumer, producer).
      */
     MessageV5(org.apache.pulsar.client.api.Message<T> v4Message, long segmentId) {
         this(v4Message, new MessageIdV5(v4Message.getMessageId(), segmentId), null);
+    }
+
+    /** Create a checkpoint message tagged with the reader attachment that buffered it. */
+    MessageV5(org.apache.pulsar.client.api.Message<T> v4Message, long segmentId, Object checkpointAttachment) {
+        this(v4Message, new MessageIdV5(v4Message.getMessageId(), segmentId), null, checkpointAttachment);
     }
 
     /**
@@ -62,9 +69,20 @@ final class MessageV5<T> implements Message<T> {
      */
     MessageV5(org.apache.pulsar.client.api.Message<T> v4Message, MessageIdV5 messageId,
               String topicOverride) {
+        this(v4Message, messageId, topicOverride, null);
+    }
+
+    private MessageV5(org.apache.pulsar.client.api.Message<T> v4Message, MessageIdV5 messageId,
+                      String topicOverride, Object checkpointAttachment) {
         this.v4Message = v4Message;
         this.messageId = messageId;
         this.topicOverride = topicOverride;
+        this.checkpointAttachment = checkpointAttachment;
+    }
+
+    /** Identity used only by the checkpoint consumer to fence messages buffered by an earlier reader. */
+    Object checkpointAttachment() {
+        return checkpointAttachment;
     }
 
     /**
@@ -76,7 +94,7 @@ final class MessageV5<T> implements Message<T> {
     MessageV5<T> withTopicOverride(String parentTopic) {
         MessageIdV5 newId = new MessageIdV5(messageId.v4MessageId(), messageId.segmentId(),
                 messageId.positionVector(), parentTopic);
-        return new MessageV5<>(v4Message, newId, parentTopic);
+        return new MessageV5<>(v4Message, newId, parentTopic, checkpointAttachment);
     }
 
     /** Underlying v4 message — exposed to multi-topic wrappers that re-build with a new id. */

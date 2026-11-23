@@ -85,8 +85,10 @@ public class SegmentLoadReporter {
      * write unconditionally and reset the record's modification time — which the controller
      * uses as "cold since" for the merge window — starving merges under frequent rebalancing.
      *
+     * <p>Nothing is written for a topic that is marked deleted or has no record.
+     *
      * @return a future completing with {@code true} if a write happened, {@code false} if the
-     *         sample was immaterial and skipped
+     *         sample was immaterial and skipped, or the topic is deleted
      */
     public CompletableFuture<Boolean> reportIfChanged(TopicName topic, long segmentId,
                                                       SegmentLoadStats current) {
@@ -120,11 +122,23 @@ public class SegmentLoadReporter {
 
     private CompletableFuture<Boolean> write(TopicName topic, long segmentId, String path,
                                              SegmentLoadStats current) {
-        return resources.reportSegmentLoadAsync(topic, segmentId, current)
-                .thenApply(__ -> {
-                    lastWritten.put(path, current);
-                    return true;
-                });
+        // The store creates the missing parents of a record it writes: Oxia as empty records, ZooKeeper as empty
+        // container nodes. So a write under a deleted topic brings the topic's node back with no record, which the
+        // namespace lists as a topic that can't be read, deleted or created again. The segment topics stay loaded
+        // until the topic's delete gets to them, after it marks the topic deleted and deletes the record. So read the
+        // record from the store right before the write, and skip the write once the topic is marked deleted or gone.
+        // A delete between this read and the write still brings the node back: the store has no write that requires
+        // the parent to exist.
+        return resources.getScalableTopicMetadataAsync(topic, true).thenCompose(metadata -> {
+            if (metadata.isEmpty() || metadata.get().isDeleted()) {
+                return CompletableFuture.completedFuture(false);
+            }
+            return resources.reportSegmentLoadAsync(topic, segmentId, current)
+                    .thenApply(__ -> {
+                        lastWritten.put(path, current);
+                        return true;
+                    });
+        });
     }
 
     /**

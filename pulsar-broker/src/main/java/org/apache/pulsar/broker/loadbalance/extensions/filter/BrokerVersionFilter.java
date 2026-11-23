@@ -73,7 +73,7 @@ public class BrokerVersionFilter implements BrokerFilter {
             Map.Entry<String, BrokerLookupData> next = brokerIterator.next();
             String brokerId = next.getKey();
             String version = next.getValue().brokerVersion();
-            Version brokerVersionVersion = Version.valueOf(version);
+            Version brokerVersionVersion = Version.parse(version);
             if (brokerVersionVersion.equals(latestVersion)) {
                 log.debug().attr("broker", brokerId).attr("version", version)
                         .log("Broker is running the latest version");
@@ -125,7 +125,7 @@ public class BrokerVersionFilter implements BrokerFilter {
             }
             Version brokerVersionVersion;
             try {
-                brokerVersionVersion = Version.valueOf(version);
+                brokerVersionVersion = Version.parse(version);
             } catch (Exception x) {
                 log.warn().attr("broker", brokerId).attr("version", version)
                         .log("Invalid version string in lookup data for broker;"
@@ -137,7 +137,7 @@ public class BrokerVersionFilter implements BrokerFilter {
 
             if (latestVersion == null) {
                 latestVersion = brokerVersionVersion;
-            } else if (Version.BUILD_AWARE_ORDER.compare(latestVersion, brokerVersionVersion) < 0) {
+            } else if (latestVersion.compareTo(brokerVersionVersion) < 0) {
                 latestVersion = brokerVersionVersion;
             }
         }
