@@ -490,8 +490,8 @@ public class PulsarClientImpl implements PulsarClient {
      * This is the only client TLS path since the PIP-337 removal. It normally runs only when broker TLS is
      * enabled (a plaintext client leaves {@code conf.getTlsFactory()} null, and its transports never request
      * TLS); {@link #needsClientTlsFactory()} lists the two configurations that also need it on an otherwise
-     * plaintext client. On the v5-builder path a fail-fast probe of {@code CLIENT_DEFAULT} runs, so a
-     * bad configuration fails the client build.
+     * plaintext client. On the v5-builder path with broker TLS enabled, a fail-fast probe of
+     * {@code CLIENT_DEFAULT} runs, so a bad transport TLS configuration fails the client build.
      *
      * @throws PulsarClientException if the TLS factory cannot be built / initialized / probed
      */
