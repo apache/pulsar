@@ -1459,7 +1459,7 @@ public class TopicsConsumerImplTest extends SharedPulsarBaseTest {
             // from before the seek over after it.
             partitionConsumer.internalPinnedExecutor.execute(() -> {
                 try {
-                    seekCompleted.await();
+                    seekCompleted.await(testTimeout, TimeUnit.MILLISECONDS);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 }
@@ -1475,16 +1475,18 @@ public class TopicsConsumerImplTest extends SharedPulsarBaseTest {
             for (int i = 0; i < 10; i++) {
                 msgIds.add(producer.send(i));
             }
-            Awaitility.await().untilAsserted(() -> assertEquals(
-                    admin.topics().getStats(partition).getSubscriptions().get("sub").getMsgOutCounter(), 10));
+            Awaitility.await().untilAsserted(() -> assertThat(
+                    admin.topics().getStats(partition).getSubscriptions().get("sub").getMsgOutCounter())
+                    .as("messages the broker dispatched to the subscription")
+                    .isEqualTo(10));
 
             consumer.seek(TopicMessageId.create(partition, msgIds.get(5)));
             seekCompleted.countDown();
 
             for (int i = 6; i < 10; i++) {
                 Message<Integer> msg = consumer.receive(10, TimeUnit.SECONDS);
-                assertNotNull(msg);
-                assertEquals(msg.getValue(), i);
+                assertThat(msg).as("message %d after the seek", i).isNotNull();
+                assertThat(msg.getValue()).as("value of the next message after the seek").isEqualTo(i);
                 msg.release();
             }
 
