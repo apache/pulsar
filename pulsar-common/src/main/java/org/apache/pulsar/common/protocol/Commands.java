@@ -2320,6 +2320,14 @@ public class Commands {
         function.accept(brokerEntryMetadata);
     }
 
+    /**
+     * Serializes message metadata and its payload without consuming the payload buffer.
+     *
+     * @param checksumType the checksum to include in the serialized frame
+     * @param msgMetadata the metadata to serialize
+     * @param payload the payload buffer to copy
+     * @return a buffer containing the serialized metadata and payload
+     */
     public static ByteBuf serializeMetadataAndPayload(ChecksumType checksumType,
                                                       MessageMetadata msgMetadata, ByteBuf payload) {
         // / Wire format
@@ -2358,7 +2366,7 @@ public class Commands {
             metadataAndPayload.setInt(checksumReaderIndex, computedChecksum);
             metadataAndPayload.resetReaderIndex();
         }
-        metadataAndPayload.writeBytes(payload);
+        metadataAndPayload.writeBytes(payload, payload.readerIndex(), payload.readableBytes());
 
         return metadataAndPayload;
     }
@@ -2395,6 +2403,14 @@ public class Commands {
         return builder.getSequenceId();
     }
 
+    /**
+     * Serializes a single message into a batch without consuming the payload buffer.
+     *
+     * @param singleMessageMetadata the single-message metadata to serialize
+     * @param payload the payload buffer to copy
+     * @param batchBuffer the destination buffer for the serialized message
+     * @return the destination batch buffer
+     */
     public static ByteBuf serializeSingleMessageInBatchWithPayload(
             SingleMessageMetadata singleMessageMetadata,
             ByteBuf payload, ByteBuf batchBuffer) {
@@ -2403,9 +2419,17 @@ public class Commands {
         // serialize meta-data size, meta-data and payload for single message in batch
         batchBuffer.writeInt(singleMessageMetadata.getSerializedSize());
         singleMessageMetadata.writeTo(batchBuffer);
-        return batchBuffer.writeBytes(payload);
+        return batchBuffer.writeBytes(payload, payload.readerIndex(), payload.readableBytes());
     }
 
+    /**
+     * Serializes a single message into a batch without consuming the payload buffer.
+     *
+     * @param msg the message metadata to serialize
+     * @param payload the payload buffer to copy
+     * @param batchBuffer the destination buffer for the serialized message
+     * @return the destination batch buffer
+     */
     public static ByteBuf serializeSingleMessageInBatchWithPayload(MessageMetadata msg,
             ByteBuf payload, ByteBuf batchBuffer) {
         // build single message meta-data
