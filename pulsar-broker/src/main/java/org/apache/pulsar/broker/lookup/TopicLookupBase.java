@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
+import java.util.function.Supplier;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -37,6 +38,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.service.BrokerServiceException.MetadataSessionLostException;
+import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse.LookupType;
@@ -208,7 +210,21 @@ public class TopicLookupBase extends PulsarWebResource {
                                                               AuthenticationDataSource originalAuthenticationData,
                                                               long requestId, final String advertisedListenerName,
                                                               Map<String, String> properties) {
+        return lookupTopicAsync(pulsarService, topicName, authoritative, requestId, advertisedListenerName, properties,
+                () -> checkAuthorizationAsync(pulsarService, topicName, clientAppId, originalPrincipal,
+                        authenticationData, originalAuthenticationData).thenApply(ignored -> null));
+    }
 
+    /** Looks up a topic using the connection's credentials and binary protocol error handling. */
+    public static CompletableFuture<ByteBuf> lookupTopicForConnectionAsync(ServerCnx connection, TopicName topicName,
+            boolean authoritative, long requestId, String advertisedListenerName, Map<String, String> properties) {
+        return lookupTopicAsync(connection.getBrokerService().pulsar(), topicName, authoritative, requestId,
+                advertisedListenerName, properties, () -> connection.authorizeTopicLookup(topicName, requestId));
+    }
+
+    private static CompletableFuture<ByteBuf> lookupTopicAsync(PulsarService pulsarService, TopicName topicName,
+            boolean authoritative, long requestId, String advertisedListenerName, Map<String, String> properties,
+            Supplier<CompletableFuture<ByteBuf>> authorize) {
         if (!pulsarService.getConfiguration().isScalableTopicsEnabled()
                 && (topicName.isScalable() || topicName.isSegment())) {
             return CompletableFuture.completedFuture(newLookupErrorResponse(ServerError.InvalidTopicName,
@@ -217,28 +233,11 @@ public class TopicLookupBase extends PulsarWebResource {
         final CompletableFuture<ByteBuf> validationFuture = new CompletableFuture<>();
         final CompletableFuture<ByteBuf> lookupfuture = new CompletableFuture<>();
 
-        CompletableFuture<Boolean> authorization = pulsarService.getConfiguration().isAuthorizationEnabled()
-                ? FutureUtil.supplySafely(() -> pulsarService.getBrokerService().getAuthorizationService()
-                        .allowTopicOperationAsync(topicName, TopicOperation.LOOKUP, originalPrincipal, clientAppId,
-                                originalAuthenticationData, authenticationData))
-                : CompletableFuture.completedFuture(true);
-        authorization
-                .handle((allowed, authError) -> {
-                    if (authError != null) {
-                        String msg = "Exception occurred while trying to authorize lookup";
-                        LOG.warn().attr("topic", topicName).exception(FutureUtil.unwrapCompletionException(authError))
-                                .log(msg);
-                        validationFuture.complete(newLookupErrorResponse(ServerError.AuthorizationError,
-                                msg, requestId));
-                        return null;
-                    }
-                    if (!allowed) {
-                        String msg = "Client is not authorized to Lookup";
-                        LOG.warn().attr("principal", originalPrincipal != null ? originalPrincipal : clientAppId)
-                                .attr("topic", topicName).log(msg);
-                        validationFuture.complete(newLookupErrorResponse(ServerError.AuthorizationError,
-                                msg, requestId));
-                        return null;
+        FutureUtil.supplySafely(authorize)
+                .thenAccept(authorizationFailureResponse -> {
+                    if (authorizationFailureResponse != null) {
+                        validationFuture.complete(authorizationFailureResponse);
+                        return;
                     }
                     // Namespace deletion still needs access to system topics to clean up topic data.
                     checkLocalOrGetPeerReplicationCluster(pulsarService,
@@ -278,10 +277,8 @@ public class TopicLookupBase extends PulsarWebResource {
                                                 throwable.getMessage(), requestId));
                                 return null;
                             });
-                    return null;
                 })
                 .exceptionally(e -> {
-                    // Preserve the binary response for a failure starting namespace validation.
                     Throwable cause = FutureUtil.unwrapCompletionException(e);
                     if (cause instanceof RestException) {
                         validationFuture.complete(newLookupErrorResponse(ServerError.AuthorizationError,
@@ -330,12 +327,12 @@ public class TopicLookupBase extends PulsarWebResource {
                                         requestId, shouldRedirectThroughServiceUrl(conf, lookupData)));
                             }
                         }).exceptionally(ex -> {
-                            handleLookupError(lookupfuture, topicName.toString(), clientAppId, requestId, ex);
+                            handleLookupError(lookupfuture, topicName.toString(), requestId, ex);
                             return null;
                         });
             }
         }).exceptionally(ex -> {
-            handleLookupError(lookupfuture, topicName.toString(), clientAppId, requestId, ex);
+            handleLookupError(lookupfuture, topicName.toString(), requestId, ex);
             return null;
         });
 
@@ -370,8 +367,8 @@ public class TopicLookupBase extends PulsarWebResource {
         }
     }
 
-    private static void handleLookupError(CompletableFuture<ByteBuf> lookupFuture, String topicName, String clientAppId,
-                                   long requestId, Throwable ex){
+    private static void handleLookupError(CompletableFuture<ByteBuf> lookupFuture, String topicName,
+                                          long requestId, Throwable ex) {
         Throwable unwrapEx = FutureUtil.unwrapCompletionException(ex);
         final String errorMsg = unwrapEx.getMessage();
         if (unwrapEx instanceof PulsarServerException) {

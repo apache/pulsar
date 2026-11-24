@@ -24,7 +24,7 @@ import static jakarta.ws.rs.core.Response.Status.NOT_FOUND;
 import static org.apache.commons.lang3.StringUtils.EMPTY;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.admin.impl.PersistentTopicsBase.unsafeGetPartitionedTopicMetadataAsync;
-import static org.apache.pulsar.broker.lookup.TopicLookupBase.lookupTopicAsync;
+import static org.apache.pulsar.broker.lookup.TopicLookupBase.lookupTopicForConnectionAsync;
 import static org.apache.pulsar.broker.service.ServerCnxThrottleTracker.ThrottleType;
 import static org.apache.pulsar.broker.service.persistent.PersistentTopic.getMigratedClusterUrlAsync;
 import static org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage.ignoreUnrecoverableBKException;
@@ -835,10 +835,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         } else {
             properties = Collections.emptyMap();
         }
-        AuthenticationDataSource authData = authenticationData;
-        AuthenticationDataSource originalData = originalAuthData;
-        lookupTopicAsync(getBrokerService().pulsar(), topicName, authoritative, authRole, originalPrincipal,
-                authData, originalData != null ? originalData : authData, requestId, advertisedListenerName, properties)
+        lookupTopicForConnectionAsync(this, topicName, authoritative, requestId, advertisedListenerName, properties)
                 .whenComplete((lookupResponse, ex) -> {
                     try {
                         if (ex == null) {
@@ -851,6 +848,27 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     } finally {
                         lookupSemaphore.release();
                     }
+                });
+    }
+
+    /**
+     * Checks LOOKUP permission and completes with a failure response, or a {@code null} result if allowed.
+     */
+    public CompletableFuture<ByteBuf> authorizeTopicLookup(TopicName topicName, long requestId) {
+        return FutureUtil.supplySafely(
+                () -> isTopicOperationAllowed(topicName, TopicOperation.LOOKUP, authenticationData, originalAuthData))
+                .handle((allowed, ex) -> {
+                    if (ex != null) {
+                        logAuthException(remoteAddress, "lookup", getPrincipal(), Optional.of(topicName), ex);
+                        return newLookupErrorResponse(ServerError.AuthorizationError,
+                                "Exception occurred while trying to authorize lookup", requestId);
+                    }
+                    if (!allowed) {
+                        String msg = "Client is not authorized to Lookup";
+                        log.warn().attr("principal", getPrincipal()).attr("topic", topicName).log(msg);
+                        return newLookupErrorResponse(ServerError.AuthorizationError, msg, requestId);
+                    }
+                    return null;
                 });
     }
 
