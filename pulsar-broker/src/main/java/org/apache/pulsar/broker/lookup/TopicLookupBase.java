@@ -223,18 +223,26 @@ public class TopicLookupBase extends PulsarWebResource {
                                 originalAuthenticationData, authenticationData))
                 : CompletableFuture.completedFuture(true);
         authorization
-                .thenAccept(allowed -> {
+                .handle((allowed, authError) -> {
+                    if (authError != null) {
+                        String msg = "Exception occurred while trying to authorize lookup";
+                        LOG.warn().attr("topic", topicName).exception(FutureUtil.unwrapCompletionException(authError))
+                                .log(msg);
+                        validationFuture.complete(newLookupErrorResponse(ServerError.AuthorizationError,
+                                msg, requestId));
+                        return null;
+                    }
                     if (!allowed) {
                         String msg = "Client is not authorized to Lookup";
                         LOG.warn().attr("principal", originalPrincipal != null ? originalPrincipal : clientAppId)
                                 .attr("topic", topicName).log(msg);
                         validationFuture.complete(newLookupErrorResponse(ServerError.AuthorizationError,
                                 msg, requestId));
-                        return;
+                        return null;
                     }
                     // Namespace deletion still needs access to system topics to clean up topic data.
-                    FutureUtil.supplySafely(() -> checkLocalOrGetPeerReplicationCluster(pulsarService,
-                            topicName.getNamespaceObject(), SystemTopicNames.isSystemTopic(topicName)))
+                    checkLocalOrGetPeerReplicationCluster(pulsarService,
+                            topicName.getNamespaceObject(), SystemTopicNames.isSystemTopic(topicName))
                             .thenAccept(peerClusterData -> {
                                 if (peerClusterData == null) {
                                     // All validation passed: initiate lookup
@@ -270,11 +278,17 @@ public class TopicLookupBase extends PulsarWebResource {
                                                 throwable.getMessage(), requestId));
                                 return null;
                             });
+                    return null;
                 })
                 .exceptionally(e -> {
-                    String msg = "Exception occurred while trying to authorize lookup";
-                    LOG.warn().attr("topic", topicName).exception(FutureUtil.unwrapCompletionException(e)).log(msg);
-                    validationFuture.complete(newLookupErrorResponse(ServerError.AuthorizationError, msg, requestId));
+                    // Preserve the binary response for a failure starting namespace validation.
+                    Throwable cause = FutureUtil.unwrapCompletionException(e);
+                    if (cause instanceof RestException) {
+                        validationFuture.complete(newLookupErrorResponse(ServerError.AuthorizationError,
+                                cause.getMessage(), requestId));
+                    } else {
+                        validationFuture.completeExceptionally(cause);
+                    }
                     return null;
                 });
 
