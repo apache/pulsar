@@ -1724,7 +1724,8 @@ public class BrokerService implements Closeable {
      * @param errorUnlessOwner the error of a delete that retries after the topic's close, see
      *                         {@link #deleteAfterClose}, and null for any other delete. A delete of an unloaded
      *                         topic that {@link #deleteUnloadedTopicMetadataIfOwner} does not allow fails with this
-     *                         error, or with a {@link ServiceUnitNotReadyException} if it is null.
+     *                         error, or with a {@link ServiceUnitNotReadyException} if it is null. Any other failure
+     *                         of that method fails the delete with its own error.
      */
     private CompletableFuture<Void> deleteTopicInternal(String topic, boolean forceDelete,
                                                         Throwable errorUnlessOwner) {

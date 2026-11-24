@@ -360,7 +360,8 @@ public class BrokerServiceTopicDeletionTest {
             service.getBrokerService().deleteTopic(heartbeatTopic.toString(), true).get(10, TimeUnit.SECONDS);
 
             assertThat(service.getPulsarResources().getTopicResources().persistentTopicExists(heartbeatTopic)
-                    .get(10, TimeUnit.SECONDS)).as("the managed ledger of the heartbeat topic exists").isFalse();
+                    .get(10, TimeUnit.SECONDS))
+                    .as("whether the managed ledger of the heartbeat topic exists after the delete").isFalse();
         } finally {
             BrokerTestInterceptor.INSTANCE.reset();
         }
@@ -648,7 +649,7 @@ public class BrokerServiceTopicDeletionTest {
                     .log("State after a bundle unload that started during a delete's ownership check");
 
             assertThat(deletionError).as("the delete, which the unload waited for").isNull();
-            assertThat(managedLedgerExists).as("the managed ledger of the deleted topic exists").isFalse();
+            assertThat(managedLedgerExists).as("whether the managed ledger of the deleted topic exists").isFalse();
         } finally {
             BrokerTestInterceptor.INSTANCE.reset();
         }
