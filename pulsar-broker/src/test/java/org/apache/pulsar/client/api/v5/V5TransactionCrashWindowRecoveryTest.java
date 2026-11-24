@@ -167,8 +167,23 @@ public class V5TransactionCrashWindowRecoveryTest extends MockedPulsarServiceBas
                     .get(10, TimeUnit.SECONDS);
             Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
                     assertThat(ackOps(segment, subscription)).isEmpty());
-            assertThat(recovered.receive(Duration.ofSeconds(2)))
-                    .as("committed ACK positions recovered from metadata must advance the durable cursor").isNull();
+        }
+        // Don't check delivery on the consumer above: the dispatcher's first read can be issued while the recovered
+        // ACKs are still pending and complete after the commit moved the mark-delete position past those entries.
+        // The cursor filters only individually deleted entries from a completed read, so that read can still deliver
+        // them. Check the durable cursor from a fresh load instead. The ACK records are gone, so recovery has nothing
+        // left to reapply.
+        restartAndReconnect();
+        try (QueueConsumer<String> afterCommit = subscribe(topic, subscription)) {
+            try (Producer<String> producer = producer(topic)) {
+                producer.newMessage().value("after-commit").send();
+            }
+            Message<String> first = afterCommit.receive(Duration.ofSeconds(10));
+            assertThat(first).isNotNull();
+            assertThat(first.value())
+                    .as("committed ACK positions recovered from metadata must advance the durable cursor")
+                    .isEqualTo("after-commit");
+            assertThat(afterCommit.receive(Duration.ofMillis(300))).isNull();
         }
     }
 
