@@ -935,8 +935,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             if (consumers.get(topic) == target.consumer()) {
                 seeks.add(FutureUtil.supplySafely(() -> target.consumer().seekAsyncAtPosition(target.position())));
             } else {
-                seeks.add(FutureUtil.failedFuture(new PulsarClientException.AlreadyClosedException(
-                        "Consumer for topic " + topic + " was replaced before seek")));
+                seeks.add(FutureUtil.failedFuture(new PulsarClientException(
+                        "Consumer for topic " + topic + " was removed or replaced before seek")));
             }
         });
         // Cancellation by the caller must leave the receive-loop cleanup scheduled.

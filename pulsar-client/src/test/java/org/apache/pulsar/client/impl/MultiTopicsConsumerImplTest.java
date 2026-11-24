@@ -599,8 +599,9 @@ public class MultiTopicsConsumerImplTest {
                 return MessageId.earliest;
             });
 
-            CompletionException failure = expectThrows(CompletionException.class, seek::join);
-            assertTrue(failure.getCause() instanceof PulsarClientException.AlreadyClosedException);
+            assertThat(expectThrows(CompletionException.class, seek::join).getCause())
+                    .isExactlyInstanceOf(PulsarClientException.class)
+                    .hasMessage("Consumer for topic " + topic + " was removed or replaced before seek");
             verify(original, never()).seekAsyncAtPosition(any());
             assertTrue(parent.getUnAckedMessageTracker().remove(unacked));
             assertEquals(parent.getTotalIncomingMessages(), 1);
@@ -633,7 +634,8 @@ public class MultiTopicsConsumerImplTest {
         });
 
         assertThat(expectThrows(CompletionException.class, seek::join).getCause())
-                .isInstanceOf(PulsarClientException.AlreadyClosedException.class);
+                .isExactlyInstanceOf(PulsarClientException.class)
+                .hasMessage("Consumer for topic " + replacedTopic + " was removed or replaced before seek");
         assertThat(visited).containsExactlyInAnyOrder(replacedTopic, otherTopic);
         verify(parent.consumers.get(replacedTopic), never()).seekAsyncAtPosition(any());
     }

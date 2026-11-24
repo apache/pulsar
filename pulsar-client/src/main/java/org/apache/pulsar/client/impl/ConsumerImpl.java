@@ -2997,7 +2997,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     @Override
     public void seek(Function<String, Object> function) throws PulsarClientException {
         try {
-            seekAsync(function).get();
+            seekByFunction(function).get();
         } catch (Exception e) {
             throw PulsarClientException.unwrap(e);
         }
@@ -3005,6 +3005,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     @Override
     public CompletableFuture<Void> seekAsync(Function<String, Object> function) {
+        return FutureUtil.supplySafely(() -> seekByFunction(function));
+    }
+
+    private CompletableFuture<Void> seekByFunction(Function<String, Object> function) {
         if (function == null) {
             return FutureUtil.failedFuture(new PulsarClientException("Function must be set"));
         }
@@ -3125,7 +3129,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 attemptSeek(seekId, byTimestamp, seekBy, encodeCommand, backoff, remainingTime - nextDelay);
             }, nextDelay, TimeUnit.MILLISECONDS);
         } catch (RejectedExecutionException e) {
-            failSeek(e);
+            failSeek(new PulsarClientException(
+                    String.format("Seek retry for subscription %s of topic %s was rejected",
+                            subscription, topicName.toString()), e));
         }
     }
 

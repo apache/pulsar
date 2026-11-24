@@ -3326,7 +3326,7 @@ public class PersistentTopicsBase extends AdminResource {
                 throw new RestException(Status.METHOD_NOT_ALLOWED,
                         "Peek messages on a non-persistent topic is not allowed");
             } else {
-                if (subName.startsWith(((PersistentTopic) topic).getReplicatorPrefix())) {
+                if (AbstractReplicator.isReplicatorCursor(((PersistentTopic) topic).getReplicatorPrefix(), subName)) {
                     PersistentReplicator repl = getReplicatorReference(subName, (PersistentTopic) topic);
                     entry = repl.peekNthMessage(messagePosition);
                 } else {

@@ -533,6 +533,18 @@ public interface ScalableTopics {
     CompletableFuture<Void> createSegmentSubscriptionAsync(String segmentTopic, String subscription);
 
     /**
+     * As {@link #createSegmentSubscriptionAsync(String, String)}, with the properties of the subscription. A
+     * subscription that already exists keeps its own properties. A broker that predates this method creates the
+     * subscription without the properties.
+     *
+     * @param segmentTopic Full segment topic name ({@code segment://tenant/namespace/topic/descriptor})
+     * @param subscription Subscription name
+     * @param subscriptionProperties Properties of the subscription
+     */
+    CompletableFuture<Void> createSegmentSubscriptionAsync(String segmentTopic, String subscription,
+                                                           Map<String, String> subscriptionProperties);
+
+    /**
      * Delete a subscription cursor on the given segment topic. The call routes to the broker
      * that owns the segment.
      *

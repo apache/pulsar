@@ -560,7 +560,7 @@ public interface Consumer<T> extends Closeable, MessageAcknowledger {
      * The Function input is topic+partition. It returns only timestamp or MessageId.
      * <p>
      * The return value is the seek position/timestamp of the current partition.
-     * Exception is thrown if other object types are returned.
+     * The returned future completes exceptionally if the function throws or returns an unsupported type.
      * <p>
      * If returns null, the current partition will not do any processing.
      * Exception in a partition may affect other partitions.

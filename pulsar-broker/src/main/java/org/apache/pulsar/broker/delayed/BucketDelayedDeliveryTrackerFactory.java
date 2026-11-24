@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.delayed;
 
+import static org.apache.bookkeeper.mledger.util.Futures.executeWithRetry;
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
@@ -30,6 +31,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -43,6 +45,8 @@ import org.apache.pulsar.common.util.FutureUtil;
 
 @CustomLog
 public class BucketDelayedDeliveryTrackerFactory implements DelayedDeliveryTrackerFactory {
+    private static final int MaxRetryTimes = 3;
+
     BucketSnapshotStorage bucketSnapshotStorage;
 
     private Timer timer;
@@ -150,7 +154,17 @@ public class BucketDelayedDeliveryTrackerFactory implements DelayedDeliveryTrack
             if (k != null && v != null && k.startsWith(BucketDelayedDeliveryTracker.DELAYED_BUCKET_KEY_PREFIX)) {
                 CompletableFuture<Void> future = sequencer.sequential(() ->
                         bucketSnapshotStorage.deleteBucketSnapshot(Long.parseLong(v))
-                                .thenCompose(__ -> cursor.removeCursorProperty(k)));
+                                .thenCompose(__ -> executeWithRetry(() -> {
+                                    // The removal is conditional, so a retry after a concurrent
+                                    // property write re-checks the value instead of removing a
+                                    // replacement's only durable reference.
+                                    return cursor.updateCursorProperties(properties -> {
+                                        if (v.equals(properties.get(k))) {
+                                            properties.remove(k);
+                                        }
+                                        return properties;
+                                    });
+                                }, ManagedLedgerException.BadVersionException.class, MaxRetryTimes)));
                 futures.add(future);
             }
         });

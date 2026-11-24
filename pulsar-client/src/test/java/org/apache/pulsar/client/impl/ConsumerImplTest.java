@@ -22,11 +22,13 @@ import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -62,6 +64,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerArray;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import lombok.Cleanup;
@@ -94,6 +97,7 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.Backoff;
 import org.awaitility.Awaitility;
 import org.mockito.ArgumentCaptor;
+import org.mockito.MockedStatic;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -1040,20 +1044,24 @@ public class ConsumerImplTest {
         when(provider.getExecutor()).thenReturn(scheduledExecutorService);
         when(consumer.getClient().getScheduledExecutorProvider()).thenReturn(provider);
 
-        CompletableFuture<Void> firstResult = consumer.seekAsync(1L);
-        ArgumentCaptor<Runnable> retry = ArgumentCaptor.forClass(Runnable.class);
-        verify(scheduledExecutorService).schedule(retry.capture(), anyLong(), any(TimeUnit.class));
+        try (MockedStatic<Commands> commands = mockStatic(Commands.class, CALLS_REAL_METHODS)) {
+            CompletableFuture<Void> firstResult = consumer.seekAsync(1L);
+            ArgumentCaptor<Runnable> retry = ArgumentCaptor.forClass(Runnable.class);
+            verify(scheduledExecutorService).schedule(retry.capture(), anyLong(), any(TimeUnit.class));
+            commands.verify(() -> Commands.newSeek(anyLong(), anyLong(), anyLong()), never());
 
-        consumer.setClientCnx(cnx);
-        consumer.setState(HandlerState.State.Ready);
-        retry.getValue().run();
+            consumer.setClientCnx(cnx);
+            consumer.setState(HandlerState.State.Ready);
+            retry.getValue().run();
 
-        CompletableFuture<Void> secondResult = consumer.seekAsync(1L);
-        clientReq.complete(null);
+            CompletableFuture<Void> secondResult = consumer.seekAsync(1L);
+            clientReq.complete(null);
 
-        assertThat(firstResult).isCompleted();
-        assertTrue(secondResult.isCompletedExceptionally());
-        verify(cnx, times(1)).sendRequestWithId(any(ByteBuf.class), anyLong());
+            assertThat(firstResult).isCompleted();
+            assertTrue(secondResult.isCompletedExceptionally());
+            verify(cnx, times(1)).sendRequestWithId(any(ByteBuf.class), anyLong());
+            commands.verify(() -> Commands.newSeek(anyLong(), anyLong(), anyLong()), times(1));
+        }
     }
 
     @Test
@@ -1063,12 +1071,15 @@ public class ConsumerImplTest {
         when(seekingConsumer.getClient().getScheduledExecutorProvider().getExecutor()).thenReturn(scheduler);
         ClientCnx detachedConnection = mock(ClientCnx.class);
         seekingConsumer.setClientCnx(detachedConnection);
+        AtomicBoolean detachOnReadyRead = new AtomicBoolean(true);
         doAnswer(invocation -> {
-            ClientCnx captured = seekingConsumer.getClientCnx();
-            // Match the disconnect sequence before the state changes from Ready to Connecting.
-            seekingConsumer.getConnectionHandler().setClientCnx(null);
-            return captured;
-        }).when(seekingConsumer).cnx();
+            HandlerState.State state = (HandlerState.State) invocation.callRealMethod();
+            if (state == HandlerState.State.Ready && detachOnReadyRead.getAndSet(false)) {
+                // Disconnect clears the connection before publishing the Connecting state.
+                seekingConsumer.getConnectionHandler().setClientCnx(null);
+            }
+            return state;
+        }).when(seekingConsumer).getState();
         doAnswer(invocation -> {
             invocation.<ByteBuf>getArgument(0).release();
             return CompletableFuture.failedFuture(new PulsarClientException.NotConnectedException());
@@ -1077,21 +1088,67 @@ public class ConsumerImplTest {
         CompletableFuture<Void> seek = seekingConsumer.seekAsync(1L);
 
         verify(detachedConnection, never()).sendRequestWithId(any(ByteBuf.class), anyLong());
-        verify(scheduler).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+        ArgumentCaptor<Runnable> retry = ArgumentCaptor.forClass(Runnable.class);
+        verify(scheduler).schedule(retry.capture(), anyLong(), any(TimeUnit.class));
         assertThat(seek).isNotDone();
+
+        ClientCnx reconnected = mock(ClientCnx.class);
+        doAnswer(invocation -> {
+            invocation.<ByteBuf>getArgument(0).release();
+            return CompletableFuture.completedFuture(null);
+        }).when(reconnected).sendRequestWithId(any(ByteBuf.class), anyLong());
+        seekingConsumer.setClientCnx(reconnected);
+        retry.getValue().run();
+
+        assertThat(seek).isCompleted();
+        verify(reconnected).sendRequestWithId(any(ByteBuf.class), anyLong());
     }
 
     @Test
     public void testSeekFailsWhenRetrySchedulingIsRejected() {
         ScheduledExecutorService scheduler = mock(ScheduledExecutorService.class);
         when(consumer.getClient().getScheduledExecutorProvider().getExecutor()).thenReturn(scheduler);
+        RejectedExecutionException rejection = new RejectedExecutionException("Executor is shutting down");
         when(scheduler.schedule(any(Runnable.class), anyLong(), any(TimeUnit.class)))
-                .thenThrow(new RejectedExecutionException("Executor is shutting down"));
+                .thenThrow(rejection);
 
-        assertThatThrownBy(consumer.seekAsync(1L)::join).hasCauseInstanceOf(RejectedExecutionException.class);
-        // Another seek can enter the retry path after the rejected attempt.
-        assertThatThrownBy(consumer.seekAsync(2L)::join).hasCauseInstanceOf(RejectedExecutionException.class);
-        verify(scheduler, times(2)).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+        try (MockedStatic<Commands> commands = mockStatic(Commands.class, CALLS_REAL_METHODS)) {
+            assertThatThrownBy(consumer.seekAsync(1L)::join)
+                    .hasCauseInstanceOf(PulsarClientException.class).hasRootCause(rejection);
+            // Another seek can enter the retry path after the rejected attempt.
+            assertThatThrownBy(consumer.seekAsync(2L)::join)
+                    .hasCauseInstanceOf(PulsarClientException.class).hasRootCause(rejection);
+            verify(scheduler, times(2)).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+            commands.verify(() -> Commands.newSeek(anyLong(), anyLong(), anyLong()), never());
+        }
+    }
+
+    @Test
+    public void testSeekAsyncTimesOutWithoutAllocatingCommand() {
+        ScheduledExecutorService scheduler = mock(ScheduledExecutorService.class);
+        when(consumer.getClient().getScheduledExecutorProvider().getExecutor()).thenReturn(scheduler);
+        doAnswer(invocation -> {
+            invocation.<Runnable>getArgument(0).run();
+            return null;
+        }).when(scheduler).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+
+        try (MockedStatic<Commands> commands = mockStatic(Commands.class, CALLS_REAL_METHODS)) {
+            CompletableFuture<Void> seek = consumer.seekAsync(1L);
+            assertThatThrownBy(seek::join).hasCauseInstanceOf(PulsarClientException.TimeoutException.class);
+            commands.verify(() -> Commands.newSeek(anyLong(), anyLong(), anyLong()), never());
+        }
+    }
+
+    @Test
+    public void testSeekPropagatesPositionFunctionFailure() {
+        IllegalArgumentException failure = new IllegalArgumentException("invalid seek position");
+        Function<String, Object> position = topic -> {
+            throw failure;
+        };
+
+        assertThatThrownBy(() -> consumer.seek(position)).isSameAs(failure);
+        CompletableFuture<Void> seek = consumer.seekAsync(position);
+        assertThatThrownBy(seek::join).isInstanceOf(CompletionException.class).hasCause(failure);
     }
 
     @Test(timeOut = 10000)

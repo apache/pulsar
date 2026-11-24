@@ -500,7 +500,9 @@ public class PatternMultiTopicsConsumerImplTest {
                 return MessageId.earliest;
             });
 
-            assertThatThrownBy(seek::join).hasCauseInstanceOf(PulsarClientException.AlreadyClosedException.class);
+            assertThatThrownBy(seek::join).cause()
+                    .isExactlyInstanceOf(PulsarClientException.class)
+                    .hasMessage("Consumer for topic " + topic + " was removed or replaced before seek");
             assertThat(tracker.size()).isZero();
         } finally {
             tracker.close();
