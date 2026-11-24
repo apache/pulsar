@@ -672,7 +672,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             }
 
             PulsarClient client;
-            // Under the lock of getClient(), to also close a client that is still being created
+            // Take the client under the getClient() lock, so a concurrent getClient()
+            // cannot publish one after we read it.
             synchronized (this) {
                 client = this.client;
                 this.client = null;
@@ -1706,7 +1707,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
      * check the current pulsar service is running, including Started and Init state.
      */
     public boolean isRunning() {
-        return this.state == State.Started || this.state == State.Init;
+        State s = this.state;
+        return s == State.Started || s == State.Init;
     }
 
     /**
