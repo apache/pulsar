@@ -209,6 +209,11 @@ public class CustomizedManagedLedgerStorageForTest extends ManagedLedgerClientFa
         }
 
         @Override
+        public CompletableFuture<Map<String, String>> getCursorPropertiesAsync(String ledgerName, String cursorName) {
+            return delegate.getCursorPropertiesAsync(ledgerName, cursorName);
+        }
+
+        @Override
         public Map<String, ManagedLedger> getManagedLedgers() {
             return delegate.getManagedLedgers();
         }

@@ -50,6 +50,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.TopicClosedExcept
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicTerminatedException;
 import org.apache.pulsar.broker.service.Topic.PublishContext;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
+import org.apache.pulsar.broker.service.persistent.MessageDeduplication.MessageDupUnknownException;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandTopicMigrated.ResourceType;
@@ -573,8 +574,16 @@ public class Producer {
                         // already notified
                         // For TopicClosingOrDeleting exception, a notification will be sent separately
                         long callBackSequenceId = Math.max(highestSequenceId, sequenceId);
-                        producer.cnx.getCommandSender().sendSendError(producer.producerId, callBackSequenceId,
-                                serverError, exception.getMessage());
+                        PulsarCommandSender sender = producer.cnx.getCommandSender();
+                        if (producer.isRemoteOrShadow && serverError == ServerError.PersistenceError) {
+                            Object position = getProperty(MSG_PROP_REPL_SOURCE_POSITION);
+                            sender.sendReplicationSendError(producer.producerId, callBackSequenceId, serverError,
+                                    exception.getMessage(), position instanceof long[] pair && pair.length == 2
+                                            ? pair : null, exception instanceof MessageDupUnknownException);
+                        } else {
+                            sender.sendSendError(producer.producerId, callBackSequenceId, serverError,
+                                    exception.getMessage());
+                        }
                     }
                     producer.cnx.completedSendOperation(producer.isNonPersistentTopic, msgSize);
                     producer.publishOperationCompleted();
