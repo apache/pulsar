@@ -1096,7 +1096,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     private void removeTopic(String topic) {
         String fullTopicName = getFullTopicName(topic);
         if (fullTopicName != null) {
-            partitionedTopics.remove(topic);
+            partitionedTopics.remove(fullTopicName);
         }
     }
 
@@ -1448,6 +1448,10 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 return TopicName.get(consumerTopicName).getPartitionedTopicName().equals(topicPartName);
             }).collect(Collectors.toList());
 
+        // Drop the topic from the refresh set before unsubscribing the children: a schema lookup
+        // that completes while the child RPCs are still in flight must not resurrect the topic.
+        removeTopic(topicName);
+
         List<CompletableFuture<Void>> futureList = consumersToUnsub.stream()
             .map(ConsumerImpl::unsubscribeAsync).collect(Collectors.toList());
 
@@ -1460,7 +1464,6 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         allTopicPartitionsNumber.decrementAndGet();
                     });
 
-                    removeTopic(topicName);
                     removeTopicMessagesFromUnackedTracker(topicName);
 
                     unsubscribeFuture.complete(null);
@@ -1597,7 +1600,34 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 // Otherwise the new partition consumers are created with the raw schema and decoding
                 // their messages fails with "SchemaInfoProvider is not set yet".
                 return client.preProcessSchemaBeforeSubscribe(client, schema, topicName)
+                        .handle((processedSchema, ex) -> {
+                            if (ex != null) {
+                                // A schema lookup failure is not a partition-metadata failure:
+                                // name the topic so a persistent failure is not mistaken for one.
+                                log.warn().attr("topic", topicName).exception(ex)
+                                        .log("Failed to get schema for topic to determine"
+                                                + " if new partitions are added");
+                                return null;
+                            }
+                            return processedSchema;
+                        })
                         .thenCompose(processedSchema -> {
+                            // A failed lookup leaves no schema to subscribe with; the counts stay
+                            // put so the next refresh retries. (processedSchema is only null here
+                            // when the lookup failed: the pre-processing never returns null for a
+                            // non-null schema.)
+                            if (processedSchema == null && schema != null) {
+                                return CompletableFuture.completedFuture(null);
+                            }
+                            // The consumer may have been closed or unsubscribed while the lookup
+                            // was in flight. Only subscribe new partitions while it is Ready;
+                            // otherwise the new child would never be closed.
+                            if (getState() != State.Ready) {
+                                closeUnusedSchema(processedSchema);
+                                log.debug().attr("topic", topicName)
+                                        .log("Topics consumer is no longer ready, skipping new partitions");
+                                return CompletableFuture.completedFuture(null);
+                            }
                             // Only advance the partition counts once the schema is ready. If the
                             // lookup fails, the counts stay put so the next refresh sees the
                             // growth again and retries instead of skipping the new partition.
@@ -1607,6 +1637,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                             // resurrect a removed topic and subscribe its new partition.
                             if (!partitionedTopics.replace(topicName, oldPartitionNumber,
                                     currentPartitionNumber)) {
+                                closeUnusedSchema(processedSchema);
                                 log.debug().attr("topic", topicName)
                                         .log("Topic was removed while preparing the schema for its"
                                                 + " new partitions, skipping");
@@ -1643,11 +1674,21 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 return FutureUtil.failedFuture(new NotSupportedException("not support shrink topic partitions"));
             }
         }).exceptionally(throwable -> {
-            log.warn().exception(throwable)
+            log.warn().attr("topic", topicName).exception(throwable)
                     .log("Failed to get partitions for topic to determine"
                             + " if new partitions are added");
             return null;
         });
+    }
+
+    // A versioned schema lookup returns a clone that only the new child would own. If the new
+    // partitions are skipped, close the clone so a custom resource-owning schema is not leaked.
+    // Built-in schemas have a no-op closeAsync, and a non-versioned lookup returns the shared
+    // schema itself, which must not be closed here.
+    private void closeUnusedSchema(Schema<T> processedSchema) {
+        if (processedSchema != null && processedSchema != schema) {
+            processedSchema.closeAsync();
+        }
     }
 
     private CompletableFuture<Consumer<T>> addNewConsumerIfNotExists(String internalTopicName,

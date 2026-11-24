@@ -25,6 +25,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -34,6 +35,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.expectThrows;
 import com.google.common.collect.Sets;
@@ -433,7 +435,7 @@ public class MultiTopicsConsumerImplTest {
         verify(partitionConsumer1).closeAsync();
     }
 
-    @Test
+    @Test(timeOut = 30000)
     @SuppressWarnings("unchecked")
     public void testNewPartitionConsumerGetsPreProcessedSchema() {
         String topicName = "persistent://public/default/auto-consume-topic";
@@ -453,6 +455,13 @@ public class MultiTopicsConsumerImplTest {
         MultiTopicsConsumerImpl<GenericRecord> impl = new MultiTopicsConsumerImpl<>(
                 clientMock, consumerConfData, executorProvider,
                 new CompletableFuture<>(), schema, null, true);
+        impl.changeToReadyState();
+
+        // Have the lookup return a schema instance distinct from the one passed in, so the
+        // test can tell whether the new child actually received the pre-processed schema.
+        Schema<GenericRecord> processedSchema = Schema.AUTO_CONSUME();
+        when(clientMock.preProcessSchemaBeforeSubscribe(any(), any(), any()))
+                .thenAnswer(invocation -> CompletableFuture.completedFuture(processedSchema));
 
         impl.partitionedTopics.put(topicName, 1);
         impl.allTopicPartitionsNumber.set(1);
@@ -464,15 +473,15 @@ public class MultiTopicsConsumerImplTest {
         listener.onTopicsExtended(Collections.singleton(topicName)).join();
 
         // The new partition must be subscribed with the pre-processed schema, i.e. the expansion
-        // path must run the same schema pre-processing as the initial subscription path.
-        // On master this fails: the expansion path never calls preProcessSchemaBeforeSubscribe,
-        // so the new partition consumer gets the raw AUTO_CONSUME schema without a
+        // path must run the same schema pre-processing as the initial subscription path;
+        // otherwise the new partition consumer gets the raw AUTO_CONSUME schema without a
         // SchemaInfoProvider and decoding its messages fails.
-        verify(clientMock, times(1)).preProcessSchemaBeforeSubscribe(any(), any(), any());
+        verify(clientMock, times(1)).preProcessSchemaBeforeSubscribe(any(), any(), eq(topicName));
         assertTrue(impl.consumers.containsKey(topicPartition1));
+        assertSame(processedSchema, impl.consumers.get(topicPartition1).schema);
     }
 
-    @Test
+    @Test(timeOut = 30000)
     @SuppressWarnings("unchecked")
     public void testNewPartitionConsumerRetriesAfterSchemaLookupFailure() {
         String topicName = "persistent://public/default/auto-consume-topic";
@@ -492,6 +501,7 @@ public class MultiTopicsConsumerImplTest {
         MultiTopicsConsumerImpl<GenericRecord> impl = new MultiTopicsConsumerImpl<>(
                 clientMock, consumerConfData, executorProvider,
                 new CompletableFuture<>(), schema, null, true);
+        impl.changeToReadyState();
 
         impl.partitionedTopics.put(topicName, 1);
         impl.allTopicPartitionsNumber.set(1);
@@ -511,8 +521,6 @@ public class MultiTopicsConsumerImplTest {
 
         // A failed schema lookup must not advance the partition counts, otherwise the
         // next refresh sees no growth and the new partition is skipped for good.
-        // On the PR head this fails: the counts advance from 1 to 2 even though no
-        // new consumer was created.
         assertEquals(impl.partitionedTopics.get(topicName), Integer.valueOf(1));
         assertEquals(impl.allTopicPartitionsNumber.get(), 1);
         assertFalse(impl.consumers.containsKey(topicPartition1));
@@ -543,6 +551,7 @@ public class MultiTopicsConsumerImplTest {
         MultiTopicsConsumerImpl<GenericRecord> impl = new MultiTopicsConsumerImpl<>(
                 clientMock, consumerConfData, executorProvider,
                 new CompletableFuture<>(), schema, null, true);
+        impl.changeToReadyState();
 
         impl.partitionedTopics.put(topicName, 1);
         impl.allTopicPartitionsNumber.set(1);
@@ -575,6 +584,122 @@ public class MultiTopicsConsumerImplTest {
         assertFalse(impl.consumers.containsKey(topicPartition0));
         assertFalse(impl.consumers.containsKey(topicPartition1));
         verify(partitionConsumer0).unsubscribeAsync();
+    }
+
+    @Test(timeOut = 30000)
+    @SuppressWarnings("unchecked")
+    public void testLookupCompletingDuringChildUnsubscribeDoesNotRestoreTopic() throws Exception {
+        String topicName = "persistent://public/default/auto-consume-topic";
+        String topicPartition0 = topicName + "-partition-0";
+        String topicPartition1 = topicName + "-partition-1";
+
+        ConsumerConfigurationData<GenericRecord> consumerConfData = new ConsumerConfigurationData<>();
+        consumerConfData.setSubscriptionName("subscriptionName");
+        consumerConfData.setAutoUpdatePartitions(true);
+        consumerConfData.setAutoUpdatePartitionsIntervalSeconds(60);
+
+        PulsarClientImpl clientMock = createPulsarClientMockWithMockedClientCnx(executorProvider, internalExecutor);
+        when(clientMock.getPartitionedTopicMetadata(any(), anyBoolean(), anyBoolean()))
+                .thenReturn(CompletableFuture.completedFuture(new PartitionedTopicMetadata()));
+        Schema<GenericRecord> schema = Schema.AUTO_CONSUME();
+
+        MultiTopicsConsumerImpl<GenericRecord> impl = new MultiTopicsConsumerImpl<>(
+                clientMock, consumerConfData, executorProvider,
+                new CompletableFuture<>(), schema, null, true);
+        impl.changeToReadyState();
+
+        impl.partitionedTopics.put(topicName, 1);
+        impl.allTopicPartitionsNumber.set(1);
+        ConsumerImpl<GenericRecord> partitionConsumer0 = mock(ConsumerImpl.class);
+        when(partitionConsumer0.getTopic()).thenReturn(topicPartition0);
+        CompletableFuture<Void> pendingChildUnsubscribe = new CompletableFuture<>();
+        when(partitionConsumer0.unsubscribeAsync()).thenReturn(pendingChildUnsubscribe);
+        impl.consumers.put(topicPartition0, partitionConsumer0);
+
+        when(clientMock.getPartitionsForTopic(topicName, false)).thenReturn(CompletableFuture.completedFuture(
+                Arrays.asList(topicPartition0, topicPartition1)));
+
+        // Pause the schema lookup until the child unsubscribe is in flight.
+        CompletableFuture<Schema<GenericRecord>> pausedLookup = new CompletableFuture<>();
+        doAnswer(invocation -> pausedLookup).when(clientMock)
+                .preProcessSchemaBeforeSubscribe(any(), any(), any());
+
+        PartitionsChangedListener listener = impl.topicsPartitionChangedListener;
+        CompletableFuture<Void> refresh = listener.onTopicsExtended(Collections.singleton(topicName));
+
+        // The application unsubscribes the topic; the child unsubscribe RPC is still pending.
+        CompletableFuture<Void> unsubscribe = impl.unsubscribeAsync(topicName);
+        assertFalse(unsubscribe.isDone());
+        assertFalse(impl.partitionedTopics.containsKey(topicName));
+
+        // The late lookup must not bring the removed topic back, even though the child
+        // unsubscribe has not finished yet.
+        pausedLookup.complete(schema);
+        refresh.join();
+
+        assertFalse(impl.partitionedTopics.containsKey(topicName));
+        assertEquals(impl.allTopicPartitionsNumber.get(), 1);
+        assertFalse(impl.consumers.containsKey(topicPartition1));
+
+        // Once the child unsubscribe finishes, the topic is fully gone.
+        pendingChildUnsubscribe.complete(null);
+        unsubscribe.join();
+        assertEquals(impl.allTopicPartitionsNumber.get(), 0);
+        assertFalse(impl.consumers.containsKey(topicPartition0));
+        verify(partitionConsumer0).unsubscribeAsync();
+    }
+
+    @Test(timeOut = 30000)
+    @SuppressWarnings("unchecked")
+    public void testLookupCompletingAfterCloseDoesNotSubscribeNewPartition() throws Exception {
+        String topicName = "persistent://public/default/auto-consume-topic";
+        String topicPartition0 = topicName + "-partition-0";
+        String topicPartition1 = topicName + "-partition-1";
+
+        ConsumerConfigurationData<GenericRecord> consumerConfData = new ConsumerConfigurationData<>();
+        consumerConfData.setSubscriptionName("subscriptionName");
+        consumerConfData.setAutoUpdatePartitions(true);
+        consumerConfData.setAutoUpdatePartitionsIntervalSeconds(60);
+
+        PulsarClientImpl clientMock = createPulsarClientMockWithMockedClientCnx(executorProvider, internalExecutor);
+        when(clientMock.getPartitionedTopicMetadata(any(), anyBoolean(), anyBoolean()))
+                .thenReturn(CompletableFuture.completedFuture(new PartitionedTopicMetadata()));
+        Schema<GenericRecord> schema = Schema.AUTO_CONSUME();
+
+        MultiTopicsConsumerImpl<GenericRecord> impl = new MultiTopicsConsumerImpl<>(
+                clientMock, consumerConfData, executorProvider,
+                new CompletableFuture<>(), schema, null, true);
+        impl.changeToReadyState();
+
+        impl.partitionedTopics.put(topicName, 1);
+        impl.allTopicPartitionsNumber.set(1);
+        ConsumerImpl<GenericRecord> partitionConsumer0 = mock(ConsumerImpl.class);
+        when(partitionConsumer0.getTopic()).thenReturn(topicPartition0);
+        when(partitionConsumer0.closeAsync()).thenReturn(CompletableFuture.completedFuture(null));
+        impl.consumers.put(topicPartition0, partitionConsumer0);
+
+        when(clientMock.getPartitionsForTopic(topicName, false)).thenReturn(CompletableFuture.completedFuture(
+                Arrays.asList(topicPartition0, topicPartition1)));
+
+        // Pause the schema lookup until the test closes the consumer.
+        CompletableFuture<Schema<GenericRecord>> pausedLookup = new CompletableFuture<>();
+        doAnswer(invocation -> pausedLookup).when(clientMock)
+                .preProcessSchemaBeforeSubscribe(any(), any(), any());
+
+        PartitionsChangedListener listener = impl.topicsPartitionChangedListener;
+        CompletableFuture<Void> refresh = listener.onTopicsExtended(Collections.singleton(topicName));
+
+        // The application closes the consumer while the lookup is still pending.
+        impl.closeAsync().join();
+
+        // The late lookup must not subscribe a new partition on a closed consumer.
+        pausedLookup.complete(schema);
+        refresh.join();
+
+        assertFalse(impl.consumers.containsKey(topicPartition1));
+        assertEquals(impl.partitionedTopics.get(topicName), Integer.valueOf(1));
+        assertEquals(impl.allTopicPartitionsNumber.get(), 1);
+        verify(partitionConsumer0).closeAsync();
     }
 
     @DataProvider
