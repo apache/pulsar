@@ -85,12 +85,14 @@ public class MultiTopicsConsumerPauseTest {
     }
 
     @Test(dataProvider = "initialPauseState", timeOut = 30000)
-    public void testConfiguredTopicSubscribesSynchronously(boolean initiallyPaused) throws Exception {
+    public void testConfiguredTopicReceivesInitialPermitsOnce(boolean initiallyPaused) throws Exception {
         Wire wire = new Wire();
         wire.subscribeReply.complete(null);
         try (Fixture fixture = new Fixture(initiallyPaused, wire)) {
             assertThat(fixture.parent.getState()).isEqualTo(HandlerState.State.Ready);
-            assertThat(fixture.parent.subscribeFuture().isDone()).isTrue();
+            // Child creation is queued on the pinned executor, so the configured topic is no
+            // longer subscribed by the time the constructor returns: wait for the subscribe
+            // future instead of asserting it is already done.
             assertThat(fixture.parent.subscribeFuture().get(TIMEOUT_SECONDS, TimeUnit.SECONDS))
                     .isSameAs(fixture.parent);
             assertThat(fixture.parent.getConsumers()).hasSize(1);
@@ -133,6 +135,9 @@ public class MultiTopicsConsumerPauseTest {
                     .when(fixture.client).getConnection(anyString(), anyInt());
 
             CompletableFuture<Void> subscription = fixture.parent.subscribeAsync(TOPIC, 0);
+            // Child creation is queued on the pinned executor: wait for the creation task to
+            // publish the child before reading it back.
+            fixture.parent.internalPinnedExecutor.submit(() -> { }).get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
             ConsumerImpl<byte[]> child = fixture.parent.consumers.get(TOPIC);
             assertThat(registrations.get()).isEqualTo(1);
             assertThat(absentBeforePublication.get()).as("registered child is not yet published").isTrue();
@@ -187,6 +192,9 @@ public class MultiTopicsConsumerPauseTest {
             }
 
             CompletableFuture<Void> subscription = publication.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            // The worker returned as soon as the creation task was enqueued: wait for the pinned
+            // executor to publish the child before reading it back.
+            fixture.parent.internalPinnedExecutor.submit(() -> { }).get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
             ConsumerImpl<byte[]> child = fixture.parent.consumers.get(childTopic);
             boolean expectedPaused = !initiallyPaused;
             assertThat(child).isNotNull();

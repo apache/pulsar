@@ -43,6 +43,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -88,6 +89,15 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     // Map <topic+partition, consumer>, when get do ACK, consumer will by find by topic name
     protected final ConcurrentHashMap<String, ConsumerImpl<T>> consumers;
+
+    // The parent epoch as of the last redelivery fan-out that ran on internalPinnedExecutor.
+    // redeliverUnacknowledgedMessages() bumps CONSUMER_EPOCH on the caller thread and only then queues the fan-out,
+    // so a child created from a task queued ahead of the fan-out would read the bumped value and be bumped again
+    // by the fan-out, ending one epoch ahead of the parent. Seeding new children from this value instead keeps
+    // them at the epoch the fan-out has actually applied: either the child joins the fan-out and is bumped with
+    // the rest, or it reads the already-applied value. Read and written only on internalPinnedExecutor; volatile
+    // so the initial value is visible to the executor thread.
+    private volatile long appliedConsumerEpoch;
 
     // Map <topic, numPartitions>, store partition number for each topic
     protected final ConcurrentHashMap<String, Integer> partitionedTopics;
@@ -802,6 +812,10 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                     consumer.redeliverUnacknowledgedMessages();
                     consumer.unAckedChunkedMessageIdSequenceMap.clear();
                 });
+                // The fan-out has now bumped every published child: record the epoch it applied, so a
+                // child created afterwards seeds from it instead of the receive-side counter, which may
+                // already include a redelivery whose fan-out is still queued behind this task.
+                appliedConsumerEpoch = CONSUMER_EPOCH.get(this);
                 clearIncomingMessages();
                 unAckedMessageTracker.clear();
                 resumeReceivingFromPausedConsumersIfNeeded();
@@ -1293,32 +1307,79 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             allTopicPartitionsNumber.incrementAndGet();
 
             CompletableFuture<Consumer<T>> subscribeFuture = new CompletableFuture<>();
-            subscribeAllPartitionsFuture = subscribeFuture.thenAccept(__ -> {});
+            CompletableFuture<ConsumerImpl<T>> createdFuture = new CompletableFuture<>();
+            // Chain on the creation task as well as the subscribe response: the start scan below must see the
+            // published child, and the subscribe response can arrive before the queued creation task runs.
+            subscribeAllPartitionsFuture =
+                    createdFuture.thenCompose(ConsumerImpl::subscribeFuture).thenAccept(__ -> {});
 
             // Create and publish on the same executor the redelivery fan-out runs on, so a concurrent
             // redeliver cannot slip between the epoch read in createInternalConsumer and publication.
             // See addNewConsumerIfNotExists for the full reasoning.
-            internalPinnedExecutor.execute(() -> {
-                try {
-                    ConsumerImpl<T> consumer = consumers.compute(topicName, (key, existingValue) -> {
-                        if (existingValue != null) {
-                            String errorMessage =
-                                    String.format("[%s] Failed to subscribe for topic [%s] in topics consumer. "
-                                    + "Topic is already being subscribed for in other thread.", topic, topicName);
-                            log.warn(errorMessage);
-                            subscribeResult.completeExceptionally(new PulsarClientException(errorMessage));
-                            return existingValue;
-                        } else {
-                            ConsumerImpl<T> newConsumer = createInternalConsumer(internalConfig, topicName,
-                                    -1, subscribeFuture, createIfDoesNotExist, schema);
-                            return newConsumer;
+            try {
+                internalPinnedExecutor.execute(() -> {
+                    try {
+                        if (getState() == State.Closing || getState() == State.Closed) {
+                            // The parent started closing before this task ran: fail without creating a
+                            // child that closeAsync() would never see, and release the reservation.
+                            allTopicPartitionsNumber.decrementAndGet();
+                            PulsarClientException.AlreadyClosedException ex =
+                                    new PulsarClientException.AlreadyClosedException(
+                                            "Topics Consumer was already closed");
+                            subscribeFuture.completeExceptionally(ex);
+                            createdFuture.completeExceptionally(ex);
+                            return;
                         }
-                    });
-                    synchronizeConsumerPauseState(consumer);
-                } catch (Throwable t) {
-                    subscribeFuture.completeExceptionally(t);
-                }
-            });
+                        AtomicBoolean created = new AtomicBoolean();
+                        ConsumerImpl<T> consumer = consumers.compute(topicName, (key, existingValue) -> {
+                            if (existingValue != null) {
+                                String errorMessage =
+                                        String.format("[%s] Failed to subscribe for topic [%s] in topics consumer. "
+                                        + "Topic is already being subscribed for in other thread.", topic, topicName);
+                                log.warn(errorMessage);
+                                subscribeResult.completeExceptionally(new PulsarClientException(errorMessage));
+                                return existingValue;
+                            } else {
+                                created.set(true);
+                                ConsumerImpl<T> newConsumer = createInternalConsumer(internalConfig, topicName,
+                                        -1, subscribeFuture, createIfDoesNotExist, schema);
+                                return newConsumer;
+                            }
+                        });
+                        if (!created.get()) {
+                            // Duplicate subscription: subscribeResult already failed above, and the
+                            // existing child keeps its own subscribe future. Leave createdFuture
+                            // uncompleted so the start scan below never runs for it.
+                            return;
+                        }
+                        if (getState() == State.Closing || getState() == State.Closed) {
+                            // The parent started closing after the check above but before publication:
+                            // closeAsync() already snapshotted the children, so this child would escape
+                            // the close. Remove and close it here instead, and release the reservation.
+                            consumers.remove(topicName, consumer);
+                            consumer.closeAsync();
+                            allTopicPartitionsNumber.decrementAndGet();
+                            PulsarClientException.AlreadyClosedException ex =
+                                    new PulsarClientException.AlreadyClosedException(
+                                            "Topics Consumer was already closed");
+                            subscribeFuture.completeExceptionally(ex);
+                            createdFuture.completeExceptionally(ex);
+                            return;
+                        }
+                        synchronizeConsumerPauseState(consumer);
+                        createdFuture.complete(consumer);
+                    } catch (Throwable t) {
+                        subscribeFuture.completeExceptionally(t);
+                        createdFuture.completeExceptionally(t);
+                    }
+                });
+            } catch (RejectedExecutionException e) {
+                // The client shut the executor down: fail instead of leaving subscribeResult hanging,
+                // and release the reservation no child will ever claim.
+                allTopicPartitionsNumber.decrementAndGet();
+                subscribeFuture.completeExceptionally(e);
+                createdFuture.completeExceptionally(e);
+            }
         }
 
         subscribeAllPartitionsFuture.thenAccept(finalFuture -> {
@@ -1365,11 +1426,14 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         // A child can connect or reconnect before it is published in consumers. Keep it paused until
         // publication and reconciliation with the parent so it cannot send FLOW with a stale state.
         configurationData.setStartPaused(true);
+        // Seed from the epoch the last completed fan-out applied, not the receive-side counter: the counter may
+        // already include a redelivery whose fan-out is still queued behind this creation task, and the fan-out
+        // would then bump the child a second time. See appliedConsumerEpoch.
         return ConsumerImpl.newConsumerImpl(client, partitionName,
                 configurationData, client.externalExecutorProvider(),
                 partitionIndex, true, listener != null, subFuture,
                 startMessageId, schema, this.internalConsumerInterceptors,
-                createIfDoesNotExist, startMessageRollbackDurationInSec, CONSUMER_EPOCH.get(this));
+                createIfDoesNotExist, startMessageRollbackDurationInSec, appliedConsumerEpoch);
     }
 
     // The child must already be published. Sharing the parent transition lock ensures that either
@@ -1645,37 +1709,70 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         // other thread leaves a window where a redeliver bumps the parent epoch and fans out before
         // the child is published: the child then keeps the stale epoch and the parent drops its
         // messages as stale. On this executor the creation task is ordered against the fan-out task,
-        // so the child either joins the fan-out and is bumped with the rest, or reads the bumped
-        // epoch. The epoch itself is still seeded in the constructor, before grabCnx() subscribes.
+        // and the child seeds from the epoch the last completed fan-out applied, so it either joins
+        // the fan-out and is bumped with the rest, or reads the already-applied epoch. The epoch
+        // itself is still seeded in the constructor, before grabCnx() subscribes.
         CompletableFuture<ConsumerImpl<T>> createdFuture = new CompletableFuture<>();
-        internalPinnedExecutor.execute(() -> {
-            try {
-                ConsumerImpl<T> consumer = consumers.compute(internalTopicName, (__, existingConsumer) -> {
-                    if (existingConsumer != null) {
-                        if (existingConsumer.subscribeFuture().isCompletedExceptionally()) {
-                                log.debug().attr("internalTopicName", internalTopicName)
-                                        .log("Closing and replacing existing consumer"
-                                                + " that wasn't completed successfully"
-                                                + " for");
-                            existingConsumer.closeAsync();
-                        } else {
-                                log.debug().attr("internalTopicName", internalTopicName)
-                                        .log("Reusing existing consumer for");
-                            return existingConsumer;
-                        }
+        try {
+            internalPinnedExecutor.execute(() -> {
+                try {
+                    if (getState() == State.Closing || getState() == State.Closed) {
+                        // The parent started closing before this task ran: fail without creating a
+                        // child that closeAsync() would never see, and release the reservation.
+                        allTopicPartitionsNumber.decrementAndGet();
+                        createdFuture.completeExceptionally(
+                                new PulsarClientException.AlreadyClosedException(
+                                        "Topics Consumer was already closed"));
+                        return;
                     }
-                    // create the new consumer
-                        log.debug().attr("internalTopicName", internalTopicName)
-                                .log("Creating consumer for");
-                    return newConsumerSupplier.get();
-                });
-                // Reconcile after compute publishes the child, without holding a map lock together with pauseMutex.
-                synchronizeConsumerPauseState(consumer);
-                createdFuture.complete(consumer);
-            } catch (Throwable t) {
-                createdFuture.completeExceptionally(t);
-            }
-        });
+                    AtomicBoolean created = new AtomicBoolean();
+                    ConsumerImpl<T> consumer = consumers.compute(internalTopicName, (__, existingConsumer) -> {
+                        if (existingConsumer != null) {
+                            if (existingConsumer.subscribeFuture().isCompletedExceptionally()) {
+                                    log.debug().attr("internalTopicName", internalTopicName)
+                                            .log("Closing and replacing existing consumer"
+                                                    + " that wasn't completed successfully"
+                                                    + " for");
+                                existingConsumer.closeAsync();
+                            } else {
+                                    log.debug().attr("internalTopicName", internalTopicName)
+                                            .log("Reusing existing consumer for");
+                                return existingConsumer;
+                            }
+                        }
+                        // create the new consumer
+                            log.debug().attr("internalTopicName", internalTopicName)
+                                    .log("Creating consumer for");
+                        created.set(true);
+                        return newConsumerSupplier.get();
+                    });
+                    if (created.get() && (getState() == State.Closing || getState() == State.Closed)) {
+                        // The parent started closing after the check above but before publication:
+                        // closeAsync() already snapshotted the children, so this child would escape
+                        // the close. Remove and close it here instead, and release the reservation.
+                        // A reused child never escapes: it was published before this task ran, so
+                        // any close snapshot taken since then includes it.
+                        consumers.remove(internalTopicName, consumer);
+                        consumer.closeAsync();
+                        allTopicPartitionsNumber.decrementAndGet();
+                        createdFuture.completeExceptionally(
+                                new PulsarClientException.AlreadyClosedException(
+                                        "Topics Consumer was already closed"));
+                        return;
+                    }
+                    // Reconcile after compute publishes the child, without holding a map lock together with pauseMutex.
+                    synchronizeConsumerPauseState(consumer);
+                    createdFuture.complete(consumer);
+                } catch (Throwable t) {
+                    createdFuture.completeExceptionally(t);
+                }
+            });
+        } catch (RejectedExecutionException e) {
+            // The client shut the executor down: fail instead of leaving the returned future
+            // hanging, and release the reservation no child will ever claim.
+            allTopicPartitionsNumber.decrementAndGet();
+            createdFuture.completeExceptionally(e);
+        }
         // return the subscribe future
         return createdFuture.thenCompose(ConsumerImpl::subscribeFuture);
     }

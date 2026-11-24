@@ -351,6 +351,18 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                            MessageId startMessageId,
                            long startMessageRollbackDurationInSec, Schema<T> schema,
                            ConsumerInterceptors<T> interceptors,
+                           boolean createTopicIfDoesNotExist) {
+        this(client, topic, conf, executorProvider, partitionIndex, hasParentConsumer,
+                parentConsumerHasListener, subscribeFuture, startMessageId,
+                startMessageRollbackDurationInSec, schema, interceptors, createTopicIfDoesNotExist, 0);
+    }
+
+    protected ConsumerImpl(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
+                           ExecutorProvider executorProvider, int partitionIndex, boolean hasParentConsumer,
+                           boolean parentConsumerHasListener, CompletableFuture<Consumer<T>> subscribeFuture,
+                           MessageId startMessageId,
+                           long startMessageRollbackDurationInSec, Schema<T> schema,
+                           ConsumerInterceptors<T> interceptors,
                            boolean createTopicIfDoesNotExist, long initialConsumerEpoch) {
         super(client, topic, conf, conf.getReceiverQueueSize(), executorProvider, subscribeFuture, schema,
                 interceptors);
