@@ -21,12 +21,16 @@ package org.apache.pulsar.broker.service;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType.message_age;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.RejectedExecutionException;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
+import org.apache.pulsar.broker.testcontext.SpyConfig.SpyType;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
@@ -34,13 +38,19 @@ public class BrokerServiceBacklogQuotaTest {
 
     @Test
     public void testPropagatesTimeQuotaFailure() throws Exception {
-        try (PulsarTestContext context = PulsarTestContext.builderForNonStartableContext().build()) {
+        try (PulsarTestContext context = PulsarTestContext.builderForNonStartableContext()
+                .spyConfigCustomizer(spies -> spies.brokerService(SpyType.SPY))
+                .build()) {
             PersistentTopic topic = mock(PersistentTopic.class);
             CompletableFuture<Boolean> timeQuotaExceeded = new CompletableFuture<>();
             when(topic.updateOldPositionInfo()).thenReturn(CompletableFuture.completedFuture(null));
             when(topic.checkTimeBacklogExceeded(false)).thenReturn(timeQuotaExceeded);
-            IllegalStateException failure = new IllegalStateException("Cannot read the time quota policy");
-            when(topic.getBacklogQuota(message_age)).thenThrow(failure);
+
+            BacklogQuotaManager quotaManager = mock(BacklogQuotaManager.class);
+            doReturn(quotaManager).when(context.getBrokerService()).getBacklogQuotaManager();
+            var failure = new RejectedExecutionException("Producer connection event loop is shut down");
+            doThrow(failure).when(quotaManager).handleExceededBacklogQuota(
+                    topic, message_age, context.getConfig().isPreciseTimeBasedBacklogQuotaCheck());
 
             CompletableFuture<Void> check = context.getBrokerService().checkBacklogQuota(topic);
             assertThat(check).as("quota check while the time quota decision is pending").isNotDone();
