@@ -145,6 +145,7 @@ import org.apache.pulsar.common.api.proto.IntRange;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet;
+import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
@@ -4790,13 +4791,15 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         long previousLedger = cursor.getCursorLedger();
 
         failNextPut.set(true);
-        // The operation may report failure, but a lost response cannot make its committed ledger an orphan.
-        createCursorMetadataLedger(cursor).handle((ignored, error) -> null).get(5, TimeUnit.SECONDS);
+        // The store reports the node's creation timestamp, so reconciliation recognizes and adopts the committed CAS.
+        createCursorMetadataLedger(cursor).get(5, TimeUnit.SECONDS);
 
         assertThat(committed.get()).as("the real cursor CAS committed before its response failed").isNotNull();
         ManagedCursorInfo published = readCursorInfo(ledger, cursorName);
         assertThat(published).as("the native cursor node remains readable").isNotNull();
         assertThat(published.getCursorsLedgerId()).isNotEqualTo(previousLedger).isGreaterThanOrEqualTo(0);
+        assertThat(cursor.getCursorLedger()).as("the cursor adopts the committed ledger")
+                .isEqualTo(published.getCursorsLedgerId());
         assertThat(metadataStore.get(path).get(5, TimeUnit.SECONDS).orElseThrow().getStat().getVersion())
                 .isEqualTo(committed.get().getVersion());
         assertThat(bkc.getLedgerMap()).as("a cursor ledger published by the committed CAS is not an orphan")
@@ -4905,6 +4908,11 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     private ManagedLedgerImpl openWithOwnershipChecker(ManagedLedgerFactoryImpl factory, String ledgerName)
             throws Exception {
+        return openWithOwnershipChecker(factory, ledgerName, () -> CompletableFuture.completedFuture(true));
+    }
+
+    private ManagedLedgerImpl openWithOwnershipChecker(ManagedLedgerFactoryImpl factory, String ledgerName,
+            Supplier<CompletableFuture<Boolean>> ownershipChecker) throws Exception {
         CompletableFuture<ManagedLedger> opened = new CompletableFuture<>();
         // Brokers open managed ledgers with an ownership checker.
         factory.asyncOpen(ledgerName, defaultConfig(), new AsyncCallbacks.OpenLedgerCallback() {
@@ -4917,7 +4925,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             public void openLedgerFailed(ManagedLedgerException error, Object context) {
                 opened.completeExceptionally(error);
             }
-        }, () -> CompletableFuture.completedFuture(true), null);
+        }, ownershipChecker, null);
         return (ManagedLedgerImpl) opened.get(5, TimeUnit.SECONDS);
     }
 
@@ -4982,10 +4990,12 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         long expectedBacklog = cursor.getNumberOfEntriesInBacklog(false);
 
         failNextPut.set(true);
-        createCursorMetadataLedger(cursor).handle((ignored, error) -> null).get(5, TimeUnit.SECONDS);
+        createCursorMetadataLedger(cursor).get(5, TimeUnit.SECONDS);
         assertThat(committed.get()).as("the real cursor CAS committed before its response failed").isNotNull();
         ManagedCursorInfo published = readCursorInfo(ledger, cursorName);
         assertThat(published).isNotNull();
+        assertThat(cursor.getCursorLedger()).as("the cursor adopts the committed ledger")
+                .isEqualTo(published.getCursorsLedgerId());
         // Rollover puts the complete ranges and batch masks in the new ledger, not in this node.
         assertThat(published.getIndividualDeletedMessagesCount()).isZero();
         assertThat(published.getBatchedEntryDeletionIndexInfosCount()).isZero();
@@ -5256,6 +5266,368 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             Mockito.doReturn(realExecutor).when(ledgerSpy).getExecutor();
             ownership.complete(true);
         }
+    }
+
+    @Test(timeOut = 20000)
+    public void testRetainedCursorLedgerIsDeletedOnceALaterPublicationMovesTheCursorNodePastIt() throws Exception {
+        String ledgerName = "cursor_retained_ledger_reclaimed";
+        String cursorName = "c1";
+        String path = "/managed-ledgers/" + ledgerName + "/" + cursorName;
+        AtomicBoolean timeOutNextPut = new AtomicBoolean();
+        FaultInjectionMetadataStore spyStore = cursorStoreWithPutTimeout(path, timeOutNextPut);
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl isolatedFactory = new ManagedLedgerFactoryImpl(spyStore, bkc);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) isolatedFactory.open(ledgerName, defaultConfig());
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor(cursorName);
+        Set<Long> ledgersBefore = new HashSet<>(bkc.getLedgerMap().keySet());
+
+        timeOutNextPut.set(true);
+        assertThat(publicationFailure(createCursorMetadataLedger(cursor)))
+                .hasMessageContaining("write request timed out");
+        assertThat(ledgersCreatedSince(ledgersBefore)).as("a candidate whose CAS may still commit is retained")
+                .hasSize(1);
+
+        createCursorMetadataLedger(cursor).get(5, TimeUnit.SECONDS);
+        long published = readCursorInfo(ledger, cursorName).getCursorsLedgerId();
+        assertThat(cursor.getCursorLedger()).isEqualTo(published);
+        Awaitility.await().untilAsserted(() -> assertThat(ledgersCreatedSince(ledgersBefore))
+                .as("the cursor node moved past the version that the retained CAS expected, without referencing it")
+                .containsExactly(published));
+    }
+
+    @Test(timeOut = 20000)
+    public void testRetainedCursorLedgerIsKeptWhileTheCursorNodeReferencesIt() throws Exception {
+        String ledgerName = "cursor_retained_ledger_referenced";
+        String cursorName = "c1";
+        String path = "/managed-ledgers/" + ledgerName + "/" + cursorName;
+        AtomicBoolean holdNextPut = new AtomicBoolean();
+        AtomicReference<byte[]> heldValue = new AtomicReference<>();
+        AtomicReference<Optional<Long>> heldVersion = new AtomicReference<>();
+        FaultInjectionMetadataStore spyStore = spy(metadataStore);
+        doAnswer(invocation -> {
+            if (holdNextPut.compareAndSet(true, false)) {
+                heldValue.set(((byte[]) invocation.getArgument(1)).clone());
+                heldVersion.set(invocation.getArgument(2));
+                return CompletableFuture.<Stat>failedFuture(new MetadataStoreException("write request timed out"));
+            }
+            return invocation.callRealMethod();
+        }).when(spyStore).put(eq(path), any(byte[].class), any());
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl isolatedFactory = new ManagedLedgerFactoryImpl(spyStore, bkc);
+        ManagedLedgerImpl ledger = openWithOwnershipChecker(isolatedFactory, ledgerName);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor(cursorName);
+        Set<Long> ledgersBefore = new HashSet<>(bkc.getLedgerMap().keySet());
+
+        holdNextPut.set(true);
+        assertThat(publicationFailure(createCursorMetadataLedger(cursor)))
+                .hasMessageContaining("write request timed out");
+        long retainedLedger = ((MetaStoreImpl) ledger.getStore()).parseManagedCursorInfo(heldValue.get())
+                .getCursorsLedgerId();
+        // The held CAS commits after the reconciliation read, so the cursor node now references the retained ledger.
+        metadataStore.put(path, heldValue.get(), heldVersion.get()).get(5, TimeUnit.SECONDS);
+
+        // The next publication conflicts with that version and refreshes the cursor to it.
+        assertThat(publicationFailure(createCursorMetadataLedger(cursor)))
+                .isInstanceOf(MetaStoreException.BadVersionException.class);
+        assertThat(readCursorInfo(ledger, cursorName).getCursorsLedgerId()).isEqualTo(retainedLedger);
+        Awaitility.await().untilAsserted(() -> assertThat(ledgersCreatedSince(ledgersBefore))
+                .as("the rejected candidate is deleted and the referenced one is kept")
+                .containsExactly(retainedLedger));
+
+        createCursorMetadataLedger(cursor).get(5, TimeUnit.SECONDS);
+        long published = readCursorInfo(ledger, cursorName).getCursorsLedgerId();
+        assertThat(published).isEqualTo(cursor.getCursorLedger()).isNotEqualTo(retainedLedger);
+        Awaitility.await().untilAsserted(() -> assertThat(ledgersCreatedSince(ledgersBefore))
+                .as("the cursor node no longer references the retained ledger").containsExactly(published));
+    }
+
+    @Test(timeOut = 20000)
+    public void testRetainedCursorLedgerIsDeletedWithTheCursor() throws Exception {
+        String ledgerName = "cursor_retained_ledger_deleted_cursor";
+        String cursorName = "c1";
+        String path = "/managed-ledgers/" + ledgerName + "/" + cursorName;
+        AtomicBoolean timeOutNextPut = new AtomicBoolean();
+        FaultInjectionMetadataStore spyStore = cursorStoreWithPutTimeout(path, timeOutNextPut);
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl isolatedFactory = new ManagedLedgerFactoryImpl(spyStore, bkc);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) isolatedFactory.open(ledgerName, defaultConfig());
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor(cursorName);
+        Set<Long> ledgersBefore = new HashSet<>(bkc.getLedgerMap().keySet());
+
+        timeOutNextPut.set(true);
+        assertThat(publicationFailure(createCursorMetadataLedger(cursor)))
+                .hasMessageContaining("write request timed out");
+        assertThat(ledgersCreatedSince(ledgersBefore)).hasSize(1);
+
+        ledger.deleteCursor(cursorName);
+
+        Awaitility.await().untilAsserted(() -> assertThat(ledgersCreatedSince(ledgersBefore))
+                .as("no cursor node is left to reference the retained ledger").isEmpty());
+    }
+
+    @Test(timeOut = 20000)
+    public void testCursorLedgerPublicationRecoversAfterTheCursorNodeCreationTimestampChanges() throws Exception {
+        String ledgerName = "cursor_node_creation_timestamp_changed";
+        String cursorName = "c1";
+        String path = "/managed-ledgers/" + ledgerName + "/" + cursorName;
+        AtomicBoolean migrated = new AtomicBoolean();
+        AtomicBoolean failNextPut = new AtomicBoolean();
+        AtomicReference<Stat> committed = new AtomicReference<>();
+        long migratedCreationTimestamp = 1L;
+        FaultInjectionMetadataStore spyStore = spy(metadataStore);
+        // A metadata store migration keeps each node's version, but the new store reports its own creation timestamp.
+        // The cursor stays open across the migration.
+        doAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            CompletableFuture<Stat> real = ((CompletableFuture<Stat>) invocation.callRealMethod())
+                    .thenApply(stat -> migrated.get() ? withCreationTimestamp(stat, migratedCreationTimestamp) : stat);
+            if (failNextPut.compareAndSet(true, false)) {
+                return real.thenCompose(stat -> {
+                    committed.set(stat);
+                    return CompletableFuture.<Stat>failedFuture(new MetadataStoreException("write response was lost"));
+                });
+            }
+            return real;
+        }).when(spyStore).put(eq(path), any(byte[].class), any());
+        doAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            CompletableFuture<Optional<GetResult>> real =
+                    (CompletableFuture<Optional<GetResult>>) invocation.callRealMethod();
+            return real.thenApply(result -> !migrated.get() ? result : result.map(found -> new GetResult(
+                    found.getValue(), withCreationTimestamp(found.getStat(), migratedCreationTimestamp))));
+        }).when(spyStore).get(eq(path));
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl isolatedFactory = new ManagedLedgerFactoryImpl(spyStore, bkc);
+        ManagedLedgerImpl ledger = openWithOwnershipChecker(isolatedFactory, ledgerName);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor(cursorName);
+        Set<Long> ledgersBefore = new HashSet<>(bkc.getLedgerMap().keySet());
+
+        migrated.set(true);
+        failNextPut.set(true);
+        // The committed CAS cannot be recognized, because the node's creation timestamp no longer matches.
+        assertThat(publicationFailure(createCursorMetadataLedger(cursor)))
+                .hasMessageContaining("write response was lost");
+        assertThat(committed.get()).isNotNull();
+        // The cursor's version is now stale, so the next publication conflicts and refreshes it.
+        assertThat(publicationFailure(createCursorMetadataLedger(cursor)))
+                .isInstanceOf(MetaStoreException.BadVersionException.class);
+
+        createCursorMetadataLedger(cursor).get(5, TimeUnit.SECONDS);
+        long published = readCursorInfo(ledger, cursorName).getCursorsLedgerId();
+        assertThat(cursor.getCursorLedger()).isEqualTo(published);
+        Awaitility.await().untilAsserted(() -> assertThat(ledgersCreatedSince(ledgersBefore))
+                .as("the candidates of both failed publications are deleted once the node moves past them")
+                .containsExactly(published));
+    }
+
+    @Test(timeOut = 20000)
+    public void testCursorLedgerPublicationKeepsTheCursorPropertiesOfTheNodeItRefreshesTo() throws Exception {
+        String ledgerName = "cursor_publication_keeps_node_properties";
+        String cursorName = "c1";
+        String path = "/managed-ledgers/" + ledgerName + "/" + cursorName;
+        FaultInjectionMetadataStore spyStore = spy(metadataStore);
+        reportNoCreationTimestampOnCreate(spyStore, path);
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl isolatedFactory = new ManagedLedgerFactoryImpl(spyStore, bkc);
+        ManagedLedgerImpl ledger = openWithOwnershipChecker(isolatedFactory, ledgerName);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor(cursorName);
+        // Another writer, such as the previous owner, sets a cursor property after this cursor created the node.
+        addCursorPropertyInStore(ledger, path, "written-elsewhere", "kept");
+
+        // Without the node's creation timestamp, the cursor reads the node and refreshes to it before publishing.
+        createCursorMetadataLedger(cursor).get(5, TimeUnit.SECONDS);
+
+        ManagedCursorInfo published = readCursorInfo(ledger, cursorName);
+        assertThat(published.getCursorsLedgerId()).isEqualTo(cursor.getCursorLedger());
+        assertThat(cursorPropertiesOf(published)).containsEntry("written-elsewhere", "kept");
+        assertThat(cursor.getCursorProperties()).containsEntry("written-elsewhere", "kept");
+    }
+
+    @Test(timeOut = 20000)
+    public void testCursorLedgerPublicationKeepsTheCursorPropertiesOfTheNodeAfterAVersionConflict() throws Exception {
+        String ledgerName = "cursor_publication_conflict_keeps_node_properties";
+        String cursorName = "c1";
+        String path = "/managed-ledgers/" + ledgerName + "/" + cursorName;
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl isolatedFactory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        ManagedLedgerImpl ledger = openWithOwnershipChecker(isolatedFactory, ledgerName);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor(cursorName);
+        addCursorPropertyInStore(ledger, path, "written-elsewhere", "kept");
+
+        assertThat(publicationFailure(createCursorMetadataLedger(cursor)))
+                .isInstanceOf(MetaStoreException.BadVersionException.class);
+        createCursorMetadataLedger(cursor).get(5, TimeUnit.SECONDS);
+
+        assertThat(cursorPropertiesOf(readCursorInfo(ledger, cursorName))).containsEntry("written-elsewhere", "kept");
+        assertThat(cursor.getCursorProperties()).containsEntry("written-elsewhere", "kept");
+    }
+
+    @Test(timeOut = 20000)
+    public void testCursorLedgerPublicationKeepsTheCursorPropertiesOfTheNodeAfterAConflictingAckFallback()
+            throws Exception {
+        String ledgerName = "cursor_ack_fallback_conflict_keeps_node_properties";
+        String cursorName = "c1";
+        String path = "/managed-ledgers/" + ledgerName + "/" + cursorName;
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl isolatedFactory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        ManagedLedgerImpl ledger = openWithOwnershipChecker(isolatedFactory, ledgerName);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor(cursorName);
+        List<Position> positions = addEntriesWithUnacknowledgedTail(ledger, 3);
+        cursor.markDelete(positions.get(0));
+        addCursorPropertyInStore(ledger, path, "written-elsewhere", "kept");
+
+        // The ACK cannot be written to the cursor ledger, and its fallback write to the cursor node conflicts.
+        bkc.addEntryFailAfter(0, BKException.Code.BookieHandleNotAvailableException);
+        markDeleteIgnoringFailure(cursor, positions.get(1));
+        // The next ACK publishes a new cursor ledger at the version that the conflict refreshed.
+        cursor.markDelete(positions.get(2));
+
+        assertThat(cursorPropertiesOf(readCursorInfo(ledger, cursorName))).containsEntry("written-elsewhere", "kept");
+        assertThat(cursor.getCursorProperties()).containsEntry("written-elsewhere", "kept");
+    }
+
+    @Test(timeOut = 20000)
+    public void testCursorLedgerPublicationDeletesAnUnreferencedCandidateWhenTheExecutorRejectsReconciliation()
+            throws Exception {
+        String ledgerName = "cursor_ledger_rejected_reconciliation_unreferenced";
+        String cursorName = "c1";
+        String path = "/managed-ledgers/" + ledgerName + "/" + cursorName;
+        CompletableFuture<Boolean> ownership = new CompletableFuture<>();
+        CountDownLatch ownershipEntered = new CountDownLatch(1);
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl isolatedFactory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        // Create the cursor through the spy so that its final ledger field also names the spy.
+        ManagedLedgerImpl ledgerSpy = spy(openWithOwnershipChecker(isolatedFactory, ledgerName, () -> {
+            ownershipEntered.countDown();
+            return ownership;
+        }));
+        ThreadBoundExecutor realExecutor = ledgerSpy.getExecutor();
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledgerSpy.openCursor(cursorName);
+        Set<Long> ledgersBefore = new HashSet<>(bkc.getLedgerMap().keySet());
+        // Another writer advances the cursor node, so the next publication conflicts with it.
+        addCursorPropertyInStore(ledgerSpy, path, "written-elsewhere", "kept");
+        ThreadBoundExecutor rejectingExecutor = mock(ThreadBoundExecutor.class);
+        Mockito.doThrow(new RejectedExecutionException("reconciliation executor stopped"))
+                .when(rejectingExecutor).execute(any(Runnable.class));
+        try {
+            CompletableFuture<Void> publication = createCursorMetadataLedger(cursor);
+            assertTrue(ownershipEntered.await(5, TimeUnit.SECONDS),
+                    "the version conflict must reach the controlled ownership check");
+            Mockito.doReturn(rejectingExecutor).when(ledgerSpy).getExecutor();
+            ownership.complete(true);
+
+            assertThat(publicationFailure(publication)).isInstanceOf(MetaStoreException.BadVersionException.class);
+            Awaitility.await().untilAsserted(() -> assertThat(ledgersCreatedSince(ledgersBefore))
+                    .as("the read proved the candidate unreferenced before the executor rejected the completion")
+                    .isEmpty());
+        } finally {
+            Mockito.doReturn(realExecutor).when(ledgerSpy).getExecutor();
+            ownership.complete(true);
+        }
+    }
+
+    @Test(timeOut = 20000)
+    public void testCursorLedgerPublicationFailsWhenTheOwnershipCheckFailsDuringAConcurrentCursorUpdate()
+            throws Exception {
+        String ledgerName = "cursor_identity_ownership_lost";
+        String cursorName = "c1";
+        String path = "/managed-ledgers/" + ledgerName + "/" + cursorName;
+        AtomicBoolean alterNextRead = new AtomicBoolean();
+        AtomicReference<MetaStoreImpl> parser = new AtomicReference<>();
+        FaultInjectionMetadataStore spyStore = spy(metadataStore);
+        reportNoCreationTimestampOnCreate(spyStore, path);
+        doAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            CompletableFuture<Optional<GetResult>> real =
+                    (CompletableFuture<Optional<GetResult>>) invocation.callRealMethod();
+            if (!alterNextRead.compareAndSet(true, false)) {
+                return real;
+            }
+            // The read shows content that this cursor did not write, so the cursor has to check its ownership.
+            return real.thenApply(result -> result.map(found -> new GetResult(
+                    withCursorProperty(parser.get(), found.getValue(), "unknown", "writer"), found.getStat())));
+        }).when(spyStore).get(eq(path));
+        CompletableFuture<Boolean> ownership = new CompletableFuture<>();
+        CountDownLatch ownershipEntered = new CountDownLatch(1);
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl isolatedFactory = new ManagedLedgerFactoryImpl(spyStore, bkc);
+        ManagedLedgerImpl ledger = openWithOwnershipChecker(isolatedFactory, ledgerName, () -> {
+            ownershipEntered.countDown();
+            return ownership;
+        });
+        parser.set((MetaStoreImpl) ledger.getStore());
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor(cursorName);
+        long previousLedger = readCursorInfo(ledger, cursorName).getCursorsLedgerId();
+        Set<Long> ledgersBefore = new HashSet<>(bkc.getLedgerMap().keySet());
+
+        alterNextRead.set(true);
+        CompletableFuture<Void> publication = createCursorMetadataLedger(cursor);
+        assertTrue(ownershipEntered.await(5, TimeUnit.SECONDS), "the publication must check the ownership");
+        // While the ownership check is in flight, a cursor properties update succeeds and changes the cursor's version.
+        cursor.setCursorProperties(Map.of("concurrent", "update")).get(5, TimeUnit.SECONDS);
+        ownership.complete(false);
+
+        assertThat(publicationFailure(publication)).isInstanceOf(MetaStoreException.BadVersionException.class);
+        assertThat(readCursorInfo(ledger, cursorName).getCursorsLedgerId())
+                .as("a broker that does not own the ledger publishes nothing").isEqualTo(previousLedger);
+        Awaitility.await().untilAsserted(() -> assertThat(ledgersCreatedSince(ledgersBefore)).isEmpty());
+    }
+
+    private FaultInjectionMetadataStore cursorStoreWithPutTimeout(String path, AtomicBoolean timeOutNextPut) {
+        FaultInjectionMetadataStore spyStore = spy(metadataStore);
+        doAnswer(invocation -> {
+            if (timeOutNextPut.compareAndSet(true, false)) {
+                // The server never applies the write, but the cursor cannot tell this from a lost response.
+                return CompletableFuture.<Stat>failedFuture(new MetadataStoreException("write request timed out"));
+            }
+            return invocation.callRealMethod();
+        }).when(spyStore).put(eq(path), any(byte[].class), any());
+        return spyStore;
+    }
+
+    private static Throwable publicationFailure(CompletableFuture<Void> publication) throws Exception {
+        try {
+            publication.get(5, TimeUnit.SECONDS);
+        } catch (ExecutionException error) {
+            return error.getCause();
+        }
+        throw new AssertionError("the publication must fail");
+    }
+
+    private Set<Long> ledgersCreatedSince(Set<Long> before) {
+        Set<Long> created = new HashSet<>(bkc.getLedgerMap().keySet());
+        created.removeAll(before);
+        return created;
+    }
+
+    private static Stat withCreationTimestamp(Stat stat, long creationTimestamp) {
+        return new Stat(stat.getPath(), stat.getVersion(), creationTimestamp, stat.getModificationTimestamp(),
+                stat.isEphemeral(), stat.isCreatedBySelf());
+    }
+
+    private static Map<String, String> cursorPropertiesOf(ManagedCursorInfo info) {
+        Map<String, String> properties = new HashMap<>();
+        for (int index = 0; index < info.getCursorPropertiesCount(); index++) {
+            properties.put(info.getCursorPropertyAt(index).getName(), info.getCursorPropertyAt(index).getValue());
+        }
+        return properties;
+    }
+
+    private static byte[] withCursorProperty(MetaStoreImpl store, byte[] cursorInfo, String name, String value) {
+        try {
+            ManagedCursorInfo info = store.parseManagedCursorInfo(cursorInfo);
+            info.addCursorProperty().setName(name).setValue(value);
+            return store.compressCursorInfo(info);
+        } catch (Exception error) {
+            throw new IllegalStateException(error);
+        }
+    }
+
+    private void addCursorPropertyInStore(ManagedLedgerImpl ledger, String path, String name, String value)
+            throws Exception {
+        GetResult current = metadataStore.get(path).get(5, TimeUnit.SECONDS).orElseThrow();
+        metadataStore.put(path, withCursorProperty((MetaStoreImpl) ledger.getStore(), current.getValue(), name, value),
+                Optional.of(current.getStat().getVersion())).get(5, TimeUnit.SECONDS);
     }
 
     private FaultInjectionMetadataStore cursorStoreWithLostPutResponse(String path, AtomicBoolean failNextPut,
