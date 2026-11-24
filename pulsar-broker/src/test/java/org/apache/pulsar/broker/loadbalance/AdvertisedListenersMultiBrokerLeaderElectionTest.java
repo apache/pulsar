@@ -19,14 +19,25 @@
 package org.apache.pulsar.broker.loadbalance;
 
 import java.util.Optional;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class AdvertisedListenersMultiBrokerLeaderElectionTest extends MultiBrokerLeaderElectionTest {
+    /**
+     * The lookups here check that the brokers find the leader when the advertised listeners are configured: a broker
+     * forwards the lookup of an unowned bundle to the leader, which assigns it, and all the brokers look up each topic
+     * at once. A few dozen bundles cover that from every broker. The parent class races the lookups of 500 topics,
+     * which doesn't depend on the listeners.
+     */
+    @Override
+    protected int numberOfLookupTopics() {
+        return 50;
+    }
+
     @Override
     protected PulsarTestContext.Builder createPulsarTestContextBuilder(ServiceConfiguration conf) {
         conf.setWebServicePortTls(Optional.of(0));

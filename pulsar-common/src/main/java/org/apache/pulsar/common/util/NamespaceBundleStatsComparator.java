@@ -27,6 +27,8 @@ import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage.Resource
 /**
  */
 public class NamespaceBundleStatsComparator implements Comparator<String>, Serializable {
+    private static final long serialVersionUID = 1L;
+
     Map<String, NamespaceBundleStats> map;
     ResourceType resType;
 

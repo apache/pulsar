@@ -22,23 +22,28 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.expectThrows;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.meta.LedgerAuditorManager;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.pulsar.metadata.BaseMetadataStoreTest;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class PulsarLedgerAuditorManagerTest extends BaseMetadataStoreTest {
 
     private static final int managerVersion = 0xabcd;
@@ -82,7 +87,7 @@ public class PulsarLedgerAuditorManagerTest extends BaseMetadataStoreTest {
         assertNull(lam1.getCurrentAuditor());
 
         lam1.tryToBecomeAuditor("bookie-1:3181", auditorEvent -> {
-            log.info("---- LAM-1 - Received auditor event: {}", auditorEvent);
+            log.info().attr("auditorEvent", auditorEvent).log("LAM-1 - Received auditor event");
         });
 
         assertEquals(lam1.getCurrentAuditor(), BookieId.parse("bookie-1:3181"));
@@ -98,13 +103,13 @@ public class PulsarLedgerAuditorManagerTest extends BaseMetadataStoreTest {
         executor.execute(() -> {
             try {
                 lam2.tryToBecomeAuditor("bookie-2:3181", auditorEvent -> {
-                    log.info("---- LAM-2 - Received auditor event: {}", auditorEvent);
+                    log.info().attr("auditorEvent", auditorEvent).log("LAM-2 - Received auditor event");
                 });
 
                 // Lam2 is now auditor
                 latch.countDown();
             } catch (Exception e) {
-                log.error("---- Failed to become auditor", e);
+                log.error().exception(e).log("Failed to become auditor");
             }
         });
 
@@ -119,6 +124,44 @@ public class PulsarLedgerAuditorManagerTest extends BaseMetadataStoreTest {
         // Now LAM2 will take over
         assertTrue(latch.await(10, TimeUnit.SECONDS));
         assertEquals(lam2.getCurrentAuditor(), BookieId.parse("bookie-2:3181"));
+    }
+
+    @Test(dataProvider = "distributedImpl")
+    public void testCloseReleasesWaitingCandidate(String provider, Supplier<String> urlSupplier) throws Exception {
+        methodSetup(urlSupplier);
+
+        @Cleanup
+        LedgerAuditorManager lam1 = new PulsarLedgerAuditorManager(store1, ledgersRootPath);
+        lam1.tryToBecomeAuditor("bookie-1:3181", auditorEvent -> {});
+
+        @Cleanup("shutdownNow")
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        LedgerAuditorManager lam2 = new PulsarLedgerAuditorManager(store2, ledgersRootPath);
+        AtomicReference<Thread> candidateThread = new AtomicReference<>();
+        Future<?> candidate = executor.submit(() -> {
+            candidateThread.set(Thread.currentThread());
+            lam2.tryToBecomeAuditor("bookie-2:3181", auditorEvent -> {});
+            return null;
+        });
+        // The candidate keeps waiting for the leadership while LAM1 is the auditor
+        Awaitility.await().until(() -> candidate.isDone() || isWaitingForLeadership(candidateThread.get()));
+        assertFalse(candidate.isDone());
+
+        lam2.close();
+
+        // Closing the manager must release the candidate instead of leaving it to wait for the leadership
+        ExecutionException e = expectThrows(ExecutionException.class, () -> candidate.get(10, TimeUnit.SECONDS));
+        assertTrue(e.getCause() instanceof IllegalStateException, "Unexpected failure: " + e.getCause());
+        assertEquals(lam1.getCurrentAuditor(), BookieId.parse("bookie-1:3181"));
+    }
+
+    // In the Object.wait() of tryToBecomeAuditor(), past the election request
+    private static boolean isWaitingForLeadership(Thread thread) {
+        if (thread == null || thread.getState() != Thread.State.WAITING) {
+            return false;
+        }
+        StackTraceElement[] stack = thread.getStackTrace();
+        return stack.length > 0 && stack[0].getClassName().equals(Object.class.getName());
     }
 
 }

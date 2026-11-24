@@ -18,11 +18,11 @@
  */
 package org.apache.pulsar.functions.worker.service.api;
 
+import jakarta.ws.rs.core.Response;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.util.List;
-import javax.ws.rs.core.Response;
 import org.apache.pulsar.broker.authentication.AuthenticationParameters;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.functions.worker.WorkerService;

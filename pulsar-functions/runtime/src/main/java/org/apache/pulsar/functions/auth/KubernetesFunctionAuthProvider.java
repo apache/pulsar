@@ -23,7 +23,7 @@ import io.kubernetes.client.openapi.models.V1StatefulSet;
 import java.util.Map;
 import java.util.Optional;
 import org.apache.pulsar.common.util.Reflections;
-import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.FunctionDetails;
 
 /**
  * Kubernetes runtime specific functions authentication provider.
@@ -38,14 +38,14 @@ public interface KubernetesFunctionAuthProvider extends FunctionAuthProvider {
      */
     @Deprecated(since = "3.0.0")
     default void initialize(CoreV1Api coreClient, byte[] caBytes,
-                            java.util.function.Function<Function.FunctionDetails, String> namespaceCustomizerFunc) {
+                            java.util.function.Function<FunctionDetails, String> namespaceCustomizerFunc) {
         setCaBytes(caBytes);
         setNamespaceProviderFunc(namespaceCustomizerFunc);
         initialize(coreClient);
     }
 
     default void initialize(CoreV1Api coreClient, byte[] caBytes,
-                            java.util.function.Function<Function.FunctionDetails, String> namespaceCustomizerFunc,
+                            java.util.function.Function<FunctionDetails, String> namespaceCustomizerFunc,
                             Map<String, Object> config) {
         initialize(coreClient, caBytes, namespaceCustomizerFunc);
     }
@@ -54,7 +54,7 @@ public interface KubernetesFunctionAuthProvider extends FunctionAuthProvider {
 
     }
 
-    default void setNamespaceProviderFunc(java.util.function.Function<Function.FunctionDetails, String> funcDetails) {
+    default void setNamespaceProviderFunc(java.util.function.Function<FunctionDetails, String> funcDetails) {
 
     }
 

@@ -31,6 +31,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.awaitility.Awaitility;
@@ -63,7 +64,8 @@ public class EnableProxyProtocolTest extends BrokerTestBase  {
         final int messages = 100;
 
         @Cleanup
-        org.apache.pulsar.client.api.Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
+        org.apache.pulsar.client.api.Consumer<byte[]> consumer =
+                pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
                 .subscribe();
 
         @Cleanup
@@ -81,7 +83,8 @@ public class EnableProxyProtocolTest extends BrokerTestBase  {
         Assert.assertEquals(received, messages);
 
         // cleanup.
-        org.apache.pulsar.broker.service.Consumer serverConsumer = pulsar.getBrokerService().getTopicReference(topicName)
+        org.apache.pulsar.broker.service.Consumer serverConsumer =
+                pulsar.getBrokerService().getTopicReference(topicName)
                 .get().getSubscription(subName).getConsumers().get(0);
         ((ServerCnx) serverConsumer.cnx()).close();
         consumer.close();
@@ -99,7 +102,7 @@ public class EnableProxyProtocolTest extends BrokerTestBase  {
         ClientBuilderImpl clientBuilder = (ClientBuilderImpl) PulsarClient.builder().serviceUrl(lookupUrl.toString());
         @Cleanup
         PulsarClientImpl protocolClient = InjectedClientCnxClientBuilder.create(clientBuilder,
-                (conf, eventLoopGroup) -> new ClientCnx(conf, eventLoopGroup) {
+                (conf, eventLoopGroup) -> new ClientCnx(InstrumentProvider.NOOP, conf, eventLoopGroup) {
                     public void channelActive(ChannelHandlerContext ctx) throws Exception {
                         byte[] bs = "PROXY TCP4 198.51.100.22 203.0.113.7 35646 80\r\n".getBytes();
                         ctx.writeAndFlush(Unpooled.copiedBuffer(bs));
@@ -124,7 +127,7 @@ public class EnableProxyProtocolTest extends BrokerTestBase  {
         ClientBuilderImpl clientBuilder = (ClientBuilderImpl) PulsarClient.builder().serviceUrl(lookupUrl.toString());
         @Cleanup
         PulsarClientImpl protocolClient = InjectedClientCnxClientBuilder.create(clientBuilder,
-                (conf, eventLoopGroup) -> new ClientCnx(conf, eventLoopGroup) {
+                (conf, eventLoopGroup) -> new ClientCnx(InstrumentProvider.NOOP, conf, eventLoopGroup) {
                     public void channelActive(ChannelHandlerContext ctx) throws Exception {
                         Thread task = new Thread(() -> {
                             try {
@@ -152,7 +155,8 @@ public class EnableProxyProtocolTest extends BrokerTestBase  {
     private void testPubAndSub(String topicName, String subName, String expectedHostAndPort,
                                PulsarClientImpl pulsarClient) throws Exception {
         // Verify: subscribe
-        org.apache.pulsar.client.api.Consumer<String> clientConsumer = pulsarClient.newConsumer(Schema.STRING).topic(topicName)
+        org.apache.pulsar.client.api.Consumer<String> clientConsumer =
+                pulsarClient.newConsumer(Schema.STRING).topic(topicName)
                 .subscriptionName(subName).subscribe();
         org.apache.pulsar.broker.service.Consumer serverConsumer = pulsar.getBrokerService()
                 .getTopicReference(topicName).get().getSubscription(subName).getConsumers().get(0);

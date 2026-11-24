@@ -20,18 +20,18 @@ package org.apache.pulsar.proxy.server;
 
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
-
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-
 import java.util.Optional;
-
+import lombok.CustomLog;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -39,18 +39,17 @@ import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.apache.pulsar.policies.data.loadbalancer.LoadReport;
-import org.eclipse.jetty.servlet.ServletHolder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.eclipse.jetty.ee10.servlet.ServletHolder;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@CustomLog
 public class AuthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
-    private static final Logger LOG = LoggerFactory.getLogger(AuthedAdminProxyHandlerTest.class);
 
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
+    private Authentication proxyClientAuthentication;
     private WebServer webServer;
     private BrokerDiscoveryProvider discoveryProvider;
     private PulsarResources resource;
@@ -99,6 +98,10 @@ public class AuthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setBrokerClientTrustCertsFilePath(CA_CERT_FILE_PATH);
         proxyConfig.setAuthenticationProviders(ImmutableSet.of(AuthenticationProviderTls.class.getName()));
 
+        proxyClientAuthentication = AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+                proxyConfig.getBrokerClientAuthenticationParameters());
+        proxyClientAuthentication.start();
+
         resource = new PulsarResources(registerCloseable(new ZKMetadataStore(mockZooKeeper)),
                 registerCloseable(new ZKMetadataStore(mockZooKeeperGlobal)));
         webServer = new WebServer(proxyConfig, new AuthenticationService(
@@ -107,7 +110,12 @@ public class AuthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
         LoadManagerReport report = new LoadReport(brokerUrl.toString(), brokerUrlTls.toString(), null, null);
         doReturn(report).when(discoveryProvider).nextBroker();
 
-        ServletHolder servletHolder = new ServletHolder(new AdminProxyHandler(proxyConfig, discoveryProvider));
+        // PIP-478: overridable, no-op by default — lets a subclass select an alternate broker-client TLS path
+        // (e.g. the new PIP-478 factory) without altering this test's behavior.
+        customizeProxyConfiguration(proxyConfig);
+
+        ServletHolder servletHolder =
+                new ServletHolder(new AdminProxyHandler(proxyConfig, discoveryProvider, proxyClientAuthentication));
         webServer.addServlet("/admin", servletHolder);
         webServer.addServlet("/lookup", servletHolder);
 
@@ -115,10 +123,22 @@ public class AuthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
         webServer.start();
     }
 
+    /**
+     * Hook for subclasses to select an alternate broker-client TLS path before the {@link AdminProxyHandler}
+     * is constructed. No-op by default, so this test runs the legacy path unchanged.
+     *
+     * @param proxyConfig the proxy configuration to customize
+     */
+    protected void customizeProxyConfiguration(ProxyConfiguration proxyConfig) {
+    }
+
     @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         webServer.stop();
+        if (proxyClientAuthentication != null) {
+            proxyClientAuthentication.close();
+        }
         super.internalCleanup();
     }
 
@@ -156,7 +176,8 @@ public class AuthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
                 // expected
             }
 
-            brokerAdmin.clusters().createCluster(configClusterName, ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+            brokerAdmin.clusters().createCluster(configClusterName, ClusterData.builder()
+                    .serviceUrl(brokerUrl.toString()).build());
 
             brokerAdmin.tenants().createTenant("tenant1",
                                                new TenantInfoImpl(ImmutableSet.of("user1"),

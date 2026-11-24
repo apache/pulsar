@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.functions.api.examples;
 
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
@@ -29,7 +29,7 @@ import org.apache.pulsar.functions.api.Function;
 /**
  * Merge various schemas data to a topic.
  */
-@Slf4j
+@CustomLog
 public class MergeTopicFunction implements Function<GenericRecord, byte[]> {
 
     @Override
@@ -40,7 +40,8 @@ public class MergeTopicFunction implements Function<GenericRecord, byte[]> {
                 log.warn("The reader schema is null.");
                 return null;
             }
-            log.info("process message with reader schema {}", msg.getReaderSchema().get());
+            log.info().attr("readerSchema", msg.getReaderSchema().get())
+                    .log("process message with reader schema");
             TypedMessageBuilder<byte[]> messageBuilder =
                     context.newOutputMessage(context.getOutputTopic(),
                             Schema.AUTO_PRODUCE_BYTES(msg.getReaderSchema().get()));

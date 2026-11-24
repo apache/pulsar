@@ -22,27 +22,28 @@ import static org.apache.pulsar.functions.worker.SchedulerManager.checkHeartBeat
 import com.google.common.annotations.VisibleForTesting;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
-import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.Assignment;
+import org.apache.pulsar.functions.proto.FunctionMetaData;
+import org.apache.pulsar.functions.proto.Instance;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 
 /**
  * A simple implementation of leader election using a pulsar topic.
  */
-@Slf4j
+@CustomLog
 public class MembershipManager implements AutoCloseable {
 
     private final WorkerConfig workerConfig;
@@ -53,9 +54,10 @@ public class MembershipManager implements AutoCloseable {
     private static final String WORKER_IDENTIFIER = "id";
 
     // How long functions have remained assigned or scheduled on a failed node
-    // FullyQualifiedFunctionName -> time in millis
+    // FullyQualifiedInstanceId (String) -> time in millis
+    // Uses String key instead of Instance to avoid relying on LightProto's identity-based hashCode/equals
     @VisibleForTesting
-    Map<Function.Instance, Long> unsignedFunctionDurations = new HashMap<>();
+    Map<String, Long> unsignedFunctionDurations = new HashMap<>();
 
     MembershipManager(WorkerService workerService, PulsarClient pulsarClient, PulsarAdmin pulsarAdmin) {
         this.workerConfig = workerService.getWorkerConfig();
@@ -69,8 +71,10 @@ public class MembershipManager implements AutoCloseable {
         try {
             topicStats = this.pulsarAdmin.topics().getStats(this.workerConfig.getClusterCoordinationTopic());
         } catch (PulsarAdminException e) {
-            log.error("Failed to get status of coordinate topic {}",
-                    this.workerConfig.getClusterCoordinationTopic(), e);
+            log.error().attr("topic",
+                    this.workerConfig.getClusterCoordinationTopic())
+                    .exception(e)
+                    .log("Failed to get status of coordinate topic");
             throw new RuntimeException(e);
         }
 
@@ -87,8 +91,10 @@ public class MembershipManager implements AutoCloseable {
         try {
             topicStats = this.pulsarAdmin.topics().getStats(this.workerConfig.getClusterCoordinationTopic());
         } catch (PulsarAdminException e) {
-            log.error("Failed to get status of coordinate topic {}",
-                    this.workerConfig.getClusterCoordinationTopic(), e);
+            log.error().attr("topic",
+                    this.workerConfig.getClusterCoordinationTopic())
+                    .exception(e)
+                    .log("Failed to get status of coordinate topic");
             throw new RuntimeException(e);
         }
 
@@ -118,32 +124,33 @@ public class MembershipManager implements AutoCloseable {
 
         Set<String> currentMembership = this.getCurrentMembership().stream()
                 .map(entry -> entry.getWorkerId()).collect(Collectors.toSet());
-        List<Function.FunctionMetaData> functionMetaDataList = functionMetaDataManager.getAllFunctionMetaData();
-        Map<String, Function.FunctionMetaData> functionMetaDataMap = new HashMap<>();
-        for (Function.FunctionMetaData entry : functionMetaDataList) {
+        List<FunctionMetaData> functionMetaDataList = functionMetaDataManager.getAllFunctionMetaData();
+        Map<String, FunctionMetaData> functionMetaDataMap = new HashMap<>();
+        for (FunctionMetaData entry : functionMetaDataList) {
             functionMetaDataMap.put(FunctionCommon.getFullyQualifiedName(entry.getFunctionDetails()), entry);
         }
-        Map<String, Map<String, Function.Assignment>> currentAssignments =
+        Map<String, Map<String, Assignment>> currentAssignments =
                 functionRuntimeManager.getCurrentAssignments();
-        Map<String, Function.Assignment> assignmentMap = new HashMap<>();
-        for (Map<String, Function.Assignment> entry : currentAssignments.values()) {
+        Map<String, Assignment> assignmentMap = new HashMap<>();
+        for (Map<String, Assignment> entry : currentAssignments.values()) {
             assignmentMap.putAll(entry);
         }
         long currentTimeMs = System.currentTimeMillis();
 
         // remove functions
-        Iterator<Map.Entry<Function.Instance, Long>> it = unsignedFunctionDurations.entrySet().iterator();
+        Iterator<Map.Entry<String, Long>> it = unsignedFunctionDurations.entrySet().iterator();
         while (it.hasNext()) {
-            Map.Entry<Function.Instance, Long> entry = it.next();
-            String fullyQualifiedFunctionName = FunctionCommon.getFullyQualifiedName(
-                    entry.getKey().getFunctionMetaData().getFunctionDetails());
-            String fullyQualifiedInstanceId = FunctionCommon.getFullyQualifiedInstanceId(entry.getKey());
+            Map.Entry<String, Long> entry = it.next();
+            String fullyQualifiedInstanceId = entry.getKey();
+            // derive function name from instance id (strip the ":instanceId" suffix)
+            String fullyQualifiedFunctionName =
+                    fullyQualifiedInstanceId.substring(0, fullyQualifiedInstanceId.lastIndexOf(':'));
             //remove functions that don't exist anymore
             if (!functionMetaDataMap.containsKey(fullyQualifiedFunctionName)) {
                 it.remove();
             } else {
                 //remove functions that have been scheduled
-                Function.Assignment assignment = assignmentMap.get(fullyQualifiedInstanceId);
+                Assignment assignment = assignmentMap.get(fullyQualifiedInstanceId);
                 if (assignment != null) {
                     String assignedWorkerId = assignment.getWorkerId();
                     // check if assigned to worker that has failed
@@ -155,42 +162,44 @@ public class MembershipManager implements AutoCloseable {
         }
 
         // check for function instances that haven't been assigned
-        for (Function.FunctionMetaData functionMetaData : functionMetaDataList) {
-            Collection<Function.Assignment> assignments =
+        for (FunctionMetaData functionMetaData : functionMetaDataList) {
+            Collection<Assignment> assignments =
                     FunctionRuntimeManager.findFunctionAssignments(functionMetaData.getFunctionDetails().getTenant(),
                     functionMetaData.getFunctionDetails().getNamespace(),
                     functionMetaData.getFunctionDetails().getName(),
                     currentAssignments);
 
-            Set<Function.Instance> assignedInstances = assignments.stream()
-                    .map(assignment -> assignment.getInstance())
+            Set<String> assignedInstanceIds = assignments.stream()
+                    .map(assignment -> FunctionCommon.getFullyQualifiedInstanceId(assignment.getInstance()))
                     .collect(Collectors.toSet());
 
-            Set<Function.Instance> instances = new HashSet<>(SchedulerManager.computeInstances(functionMetaData,
-                    functionRuntimeManager.getRuntimeFactory().externallyManaged()));
+            List<Instance> instances = SchedulerManager.computeInstances(functionMetaData,
+                    functionRuntimeManager.getRuntimeFactory().externallyManaged());
 
-            for (Function.Instance instance : instances) {
-                if (!assignedInstances.contains(instance)) {
-                    if (!this.unsignedFunctionDurations.containsKey(instance)) {
-                        this.unsignedFunctionDurations.put(instance, currentTimeMs);
+            for (Instance instance : instances) {
+                String instanceId = FunctionCommon.getFullyQualifiedInstanceId(instance);
+                if (!assignedInstanceIds.contains(instanceId)) {
+                    if (!this.unsignedFunctionDurations.containsKey(instanceId)) {
+                        this.unsignedFunctionDurations.put(instanceId, currentTimeMs);
                     }
                 }
             }
         }
 
         // check failed nodes
-        for (Map.Entry<String, Map<String, Function.Assignment>> entry : currentAssignments.entrySet()) {
+        for (Map.Entry<String, Map<String, Assignment>> entry : currentAssignments.entrySet()) {
             String workerId = entry.getKey();
-            Map<String, Function.Assignment> assignmentEntries = entry.getValue();
+            Map<String, Assignment> assignmentEntries = entry.getValue();
             if (!currentMembership.contains(workerId)) {
-                for (Function.Assignment assignmentEntry : assignmentEntries.values()) {
-                    Function.Instance instance = assignmentEntry.getInstance();
+                for (Assignment assignmentEntry : assignmentEntries.values()) {
+                    Instance instance = assignmentEntry.getInstance();
                     // avoid scheduling-trigger for heartbeat-function if owner-worker is not up
                     if (checkHeartBeatFunction(instance) != null) {
                         continue;
                     }
-                    if (!this.unsignedFunctionDurations.containsKey(instance)) {
-                        this.unsignedFunctionDurations.put(instance, currentTimeMs);
+                    String instanceId = FunctionCommon.getFullyQualifiedInstanceId(instance);
+                    if (!this.unsignedFunctionDurations.containsKey(instanceId)) {
+                        this.unsignedFunctionDurations.put(instanceId, currentTimeMs);
                     }
                 }
             }
@@ -198,17 +207,16 @@ public class MembershipManager implements AutoCloseable {
 
         boolean triggerScheduler = false;
         // check unassigned
-        Collection<Function.Instance> needSchedule = new LinkedList<>();
-        Collection<Function.Assignment> needRemove = new LinkedList<>();
+        Collection<String> needSchedule = new LinkedList<>();
+        Collection<Assignment> needRemove = new LinkedList<>();
         Map<String, Integer> numRemoved = new HashMap<>();
-        for (Map.Entry<Function.Instance, Long> entry : this.unsignedFunctionDurations.entrySet()) {
-            Function.Instance instance = entry.getKey();
+        for (Map.Entry<String, Long> entry : this.unsignedFunctionDurations.entrySet()) {
+            String instanceId = entry.getKey();
             long unassignedDurationMs = entry.getValue();
             if (currentTimeMs - unassignedDurationMs > this.workerConfig.getRescheduleTimeoutMs()) {
-                needSchedule.add(instance);
+                needSchedule.add(instanceId);
                 // remove assignment from failed node
-                Function.Assignment assignment =
-                        assignmentMap.get(FunctionCommon.getFullyQualifiedInstanceId(instance));
+                Assignment assignment = assignmentMap.get(instanceId);
                 if (assignment != null) {
                     needRemove.add(assignment);
 
@@ -225,11 +233,12 @@ public class MembershipManager implements AutoCloseable {
             functionRuntimeManager.removeAssignments(needRemove);
         }
         if (triggerScheduler) {
-            log.info(
-                    "Failure check - Total number of instances that need to be scheduled/rescheduled: {} "
-                            + "| Number of unassigned instances that need to be scheduled: {} | Number of instances "
-                            + "on dead workers that need to be reassigned {}",
-                    needSchedule.size(), needSchedule.size() - needRemove.size(), numRemoved);
+            log.info().attr("totalInstances", needSchedule.size())
+                    .attr("unassignedInstances",
+                            needSchedule.size() - needRemove.size())
+                    .attr("deadWorkerInstances", numRemoved)
+                    .log("Failure check - instances that need to be"
+                            + " scheduled/rescheduled");
             schedulerManager.schedule();
         }
     }

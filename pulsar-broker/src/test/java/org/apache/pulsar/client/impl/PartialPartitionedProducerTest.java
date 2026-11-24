@@ -18,48 +18,45 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
-
-import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
 import java.lang.reflect.Field;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
-import org.apache.pulsar.broker.BrokerTestUtil;
+import lombok.Cleanup;
+import lombok.CustomLog;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageRouter;
 import org.apache.pulsar.client.api.MessageRoutingMode;
+import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerAccessMode;
-import org.apache.pulsar.client.api.ProducerConsumerBase;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TopicMetadata;
 import org.apache.pulsar.client.impl.customroute.PartialRoundRobinMessageRouterImpl;
+import org.apache.pulsar.common.naming.TopicName;
 import org.awaitility.Awaitility;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-impl")
-public class PartialPartitionedProducerTest extends ProducerConsumerBase {
-    @Override
-    @BeforeClass
-    public void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
-
-    @Override
-    @AfterClass(alwaysRun = true)
-    public void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+public class PartialPartitionedProducerTest extends SharedPulsarBaseTest {
 
     @Test
     public void testPtWithSinglePartition() throws Throwable {
-        final String topic = BrokerTestUtil.newUniqueName("pt-with-single-routing");
+        final String topic = newTopicName();
         admin.topics().createPartitionedTopic(topic, 10);
 
         @Cleanup
-        final PartitionedProducerImpl<byte[]> producerImpl = (PartitionedProducerImpl<byte[]>) pulsarClient.newProducer()
+        final PartitionedProducerImpl<byte[]> producerImpl =
+                (PartitionedProducerImpl<byte[]>) pulsarClient.newProducer()
                 .topic(topic)
                 .enableLazyStartPartitionedProducers(true)
                 .enableBatching(false)
@@ -73,12 +70,77 @@ public class PartialPartitionedProducerTest extends ProducerConsumerBase {
     }
 
     @Test
+    public void testSendAfterCloseDoesNotStartPartitionProducer() throws Throwable {
+        final String topic = newTopicName();
+        admin.topics().createPartitionedTopic(topic, 2);
+
+        final PartitionedProducerImpl<byte[]> producerImpl =
+                (PartitionedProducerImpl<byte[]>) pulsarClient.newProducer()
+                .topic(topic)
+                .enableLazyStartPartitionedProducers(true)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.CustomPartition)
+                .messageRouter(new MessageRouter() {
+                    @Override
+                    public int choosePartition(Message<?> msg, TopicMetadata metadata) {
+                        return msg.hasKey() ? Integer.parseInt(msg.getKey()) : 0;
+                    }
+                })
+                .create();
+        producerImpl.newMessage().key("0").value("msg".getBytes()).send();
+        assertEquals(producerImpl.getProducers().size(), 1);
+        producerImpl.close();
+
+        assertThrows(PulsarClientException.AlreadyClosedException.class,
+                () -> producerImpl.newMessage().key("1").value("msg".getBytes()).send());
+        // No producer may be started for partition 1 on a closed producer
+        assertEquals(producerImpl.getProducers().size(), 1);
+        assertTrue(admin.topics().getStats(TopicName.get(topic).getPartition(1).toString())
+                .getPublishers().isEmpty());
+    }
+
+    @Test
+    public void testCloseRacingLazyStartClosesPartitionProducer() throws Throwable {
+        final String topic = newTopicName();
+        admin.topics().createPartitionedTopic(topic, 2);
+
+        final PulsarClientImpl client = spy((PulsarClientImpl) pulsarClient);
+        final AtomicReference<Producer<byte[]>> producerRef = new AtomicReference<>();
+        // close() runs after the send passed the state check and before the new producer is added
+        doAnswer(invocation -> {
+            producerRef.get().close();
+            return invocation.callRealMethod();
+        }).when(client).newProducerImpl(any(), eq(1), any(), any(), any(), any(), any());
+        final PartitionedProducerImpl<byte[]> producerImpl =
+                (PartitionedProducerImpl<byte[]>) new ProducerBuilderImpl<>(client, Schema.BYTES)
+                .topic(topic)
+                .enableLazyStartPartitionedProducers(true)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.CustomPartition)
+                .messageRouter(new MessageRouter() {
+                    @Override
+                    public int choosePartition(Message<?> msg, TopicMetadata metadata) {
+                        return msg.hasKey() ? Integer.parseInt(msg.getKey()) : 0;
+                    }
+                })
+                .create();
+        producerRef.set(producerImpl);
+
+        assertThrows(PulsarClientException.AlreadyClosedException.class,
+                () -> producerImpl.newMessage().key("1").value("msg".getBytes()).send());
+        assertEquals(producerImpl.getProducers().size(), 1);
+        Awaitility.await().untilAsserted(() -> assertTrue(
+                admin.topics().getStats(TopicName.get(topic).getPartition(1).toString()).getPublishers().isEmpty()));
+    }
+
+    @Test
     public void testPtWithPartialPartition() throws Throwable {
-        final String topic = BrokerTestUtil.newUniqueName("pt-with-partial-routing");
+        final String topic = newTopicName();
         admin.topics().createPartitionedTopic(topic, 10);
 
         @Cleanup
-        final PartitionedProducerImpl<byte[]> producerImpl = (PartitionedProducerImpl<byte[]>) pulsarClient.newProducer()
+        final PartitionedProducerImpl<byte[]> producerImpl =
+                (PartitionedProducerImpl<byte[]>) pulsarClient.newProducer()
                 .topic(topic)
                 .enableLazyStartPartitionedProducers(true)
                 .enableBatching(false)
@@ -95,11 +157,12 @@ public class PartialPartitionedProducerTest extends ProducerConsumerBase {
     // AddPartitionTest
     @Test
     public void testPtLazyLoading() throws Throwable {
-        final String topic = BrokerTestUtil.newUniqueName("pt-lazily");
+        final String topic = newTopicName();
         admin.topics().createPartitionedTopic(topic, 10);
 
         @Cleanup
-        final PartitionedProducerImpl<byte[]> producerImpl = (PartitionedProducerImpl<byte[]>) pulsarClient.newProducer()
+        final PartitionedProducerImpl<byte[]> producerImpl =
+                (PartitionedProducerImpl<byte[]>) pulsarClient.newProducer()
                 .topic(topic)
                 .enableLazyStartPartitionedProducers(true)
                 .enableBatching(false)
@@ -126,11 +189,12 @@ public class PartialPartitionedProducerTest extends ProducerConsumerBase {
 
     @Test
     public void testPtLoadingNotSharedMode() throws Throwable {
-        final String topic = BrokerTestUtil.newUniqueName("pt-not-shared-mode");
+        final String topic = newTopicName();
         admin.topics().createPartitionedTopic(topic, 10);
 
         @Cleanup
-        final PartitionedProducerImpl<byte[]> producerImplExclusive = (PartitionedProducerImpl<byte[]>) pulsarClient.newProducer()
+        final PartitionedProducerImpl<byte[]> producerImplExclusive =
+                (PartitionedProducerImpl<byte[]>) pulsarClient.newProducer()
                 .topic(topic)
                 .enableLazyStartPartitionedProducers(true)
                 .enableBatching(false)
@@ -144,7 +208,8 @@ public class PartialPartitionedProducerTest extends ProducerConsumerBase {
         producerImplExclusive.close();
 
         @Cleanup
-        final PartitionedProducerImpl<byte[]> producerImplWaitForExclusive = (PartitionedProducerImpl<byte[]>) pulsarClient.newProducer()
+        final PartitionedProducerImpl<byte[]> producerImplWaitForExclusive =
+                (PartitionedProducerImpl<byte[]>) pulsarClient.newProducer()
                 .topic(topic)
                 .enableLazyStartPartitionedProducers(true)
                 .enableBatching(false)
@@ -158,13 +223,14 @@ public class PartialPartitionedProducerTest extends ProducerConsumerBase {
     // AddPartitionAndLimitTest
     @Test
     public void testPtUpdateWithPartialPartition() throws Throwable {
-        final String topic = BrokerTestUtil.newUniqueName("pt-update-with-partial-routing");
+        final String topic = newTopicName();
         admin.topics().createPartitionedTopic(topic, 2);
 
         final Field field = PartitionedProducerImpl.class.getDeclaredField("topicMetadata");
         field.setAccessible(true);
         @Cleanup
-        final PartitionedProducerImpl<byte[]> producerImpl = (PartitionedProducerImpl<byte[]>) pulsarClient.newProducer()
+        final PartitionedProducerImpl<byte[]> producerImpl =
+                (PartitionedProducerImpl<byte[]>) pulsarClient.newProducer()
                 .topic(topic)
                 .enableLazyStartPartitionedProducers(true)
                 .enableBatching(false)
@@ -209,13 +275,14 @@ public class PartialPartitionedProducerTest extends ProducerConsumerBase {
 
     @Test
     public void testPtUpdateNotSharedMode() throws Throwable {
-        final String topic = BrokerTestUtil.newUniqueName("pt-update-not-shared");
+        final String topic = newTopicName();
         admin.topics().createPartitionedTopic(topic, 2);
 
         final Field field = PartitionedProducerImpl.class.getDeclaredField("topicMetadata");
         field.setAccessible(true);
         @Cleanup
-        final PartitionedProducerImpl<byte[]> producerImplExclusive = (PartitionedProducerImpl<byte[]>) pulsarClient.newProducer()
+        final PartitionedProducerImpl<byte[]> producerImplExclusive =
+                (PartitionedProducerImpl<byte[]>) pulsarClient.newProducer()
                 .topic(topic)
                 .enableLazyStartPartitionedProducers(true)
                 .enableBatching(false)
@@ -235,7 +302,8 @@ public class PartialPartitionedProducerTest extends ProducerConsumerBase {
         producerImplExclusive.close();
 
         @Cleanup
-        final PartitionedProducerImpl<byte[]> producerImplWaitForExclusive = (PartitionedProducerImpl<byte[]>) pulsarClient.newProducer()
+        final PartitionedProducerImpl<byte[]> producerImplWaitForExclusive =
+                (PartitionedProducerImpl<byte[]>) pulsarClient.newProducer()
                 .topic(topic)
                 .enableLazyStartPartitionedProducers(true)
                 .enableBatching(false)

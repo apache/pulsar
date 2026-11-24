@@ -18,9 +18,11 @@
  */
 package org.apache.pulsar.metadata.coordination.impl;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
@@ -32,19 +34,21 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
 import org.apache.pulsar.metadata.api.MetadataSerde;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.coordination.CoordinationService;
 import org.apache.pulsar.metadata.api.coordination.LeaderElection;
 import org.apache.pulsar.metadata.api.coordination.LeaderElectionState;
 import org.apache.pulsar.metadata.api.coordination.LockManager;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.api.extended.SessionEvent;
 
-@Slf4j
+@CustomLog
 @SuppressWarnings("unchecked")
 public class CoordinationServiceImpl implements CoordinationService {
 
@@ -55,7 +59,11 @@ public class CoordinationServiceImpl implements CoordinationService {
     private final MetadataStoreExtended store;
 
     private final Map<Object, LockManager<?>> lockManagers = new ConcurrentHashMap<>();
-    private final Map<String, LeaderElection<?>> leaderElections = new ConcurrentHashMap<>();
+    // The leader elections that are not closed, by path, to which the store notifications and session
+    // events are dispatched. A closed election is removed, and added back if it's re-opened.
+    private final Map<String, LeaderElectionImpl<?>> leaderElections = new ConcurrentHashMap<>();
+    private Runnable cancelLeaderElectionListener;
+    private Runnable cancelLeaderElectionSessionListener;
 
     private final ScheduledExecutorService executor;
 
@@ -88,6 +96,7 @@ public class CoordinationServiceImpl implements CoordinationService {
             throw MetadataStoreException.unwrap(ce);
         } finally {
             executor.shutdownNow();
+            unregisterLeaderElectionListeners();
         }
     }
 
@@ -125,7 +134,7 @@ public class CoordinationServiceImpl implements CoordinationService {
 
     private void internalGetNextCounterValueWithRetry(String path, CompletableFuture<Long> future, int count) {
         if (count == 0) {
-            log.error("The number of retries has exhausted when get next counter value from path {}", path);
+            log.error().attr("path", path).log("The number of retries has exhausted when get next counter value");
             future.completeExceptionally(new MetadataStoreException("The number of retries has exhausted"));
             return;
         }
@@ -133,11 +142,12 @@ public class CoordinationServiceImpl implements CoordinationService {
                 .thenAccept(future::complete)
                 .exceptionally(ex -> {
                     if (ex.getCause() instanceof MetadataStoreException.BadVersionException) {
-                        log.warn("Failed to get next counter value because of bad version. "
-                                + "Retry to get next counter value from path {}", path);
+                        log.warn().attr("path", path)
+                                .log("Failed to get next counter value because of bad version."
+                                        + " Retry to get next counter value");
                         internalGetNextCounterValueWithRetry(path, future, count - 1);
                     } else {
-                        log.error("Failed to get next counter value from path {}", path, ex);
+                        log.error().attr("path", path).exception(ex).log("Failed to get next counter value");
                         future.completeExceptionally(ex);
                     }
                     return null;
@@ -160,7 +170,66 @@ public class CoordinationServiceImpl implements CoordinationService {
     public <T> LeaderElection<T> getLeaderElection(Class<T> clazz, String path,
             Consumer<LeaderElectionState> stateChangesListener) {
 
+        registerLeaderElectionListeners();
         return (LeaderElection<T>) leaderElections.computeIfAbsent(path,
-                key -> new LeaderElectionImpl<T>(store, clazz, path, stateChangesListener, executor));
+                key -> new LeaderElectionImpl<T>(this, store, clazz, path, stateChangesListener, executor));
+    }
+
+    /**
+     * Register the store listener and the session listener of the elections, once: the elections share them, they
+     * dispatch to the elections that are not closed, and they are unregistered when this service is closed. The
+     * store calls its listeners in registration order, so every election sees a notification where the first
+     * election was created: after the listeners registered before it, like the one of the broker's metadata
+     * resources, and before the ones registered after it. That's why they are registered with the first election,
+     * rather than when this service is created.
+     */
+    private synchronized void registerLeaderElectionListeners() {
+        if (cancelLeaderElectionListener == null) {
+            cancelLeaderElectionListener = store.registerCancellableListener(this::handleLeaderElectionNotification);
+            cancelLeaderElectionSessionListener =
+                    store.registerCancellableSessionListener(this::handleLeaderElectionSessionEvent);
+        }
+    }
+
+    private synchronized void unregisterLeaderElectionListeners() {
+        if (cancelLeaderElectionListener != null) {
+            cancelLeaderElectionListener.run();
+            cancelLeaderElectionSessionListener.run();
+            cancelLeaderElectionListener = null;
+            cancelLeaderElectionSessionListener = null;
+        }
+    }
+
+    private void handleLeaderElectionNotification(Notification notification) {
+        LeaderElectionImpl<?> leaderElection = leaderElections.get(notification.getPath());
+        if (leaderElection != null) {
+            leaderElection.handlePathNotification(notification);
+        }
+    }
+
+    private void handleLeaderElectionSessionEvent(SessionEvent event) {
+        leaderElections.values().forEach(leaderElection -> leaderElection.handleSessionNotification(event));
+    }
+
+    /**
+     * Stop dispatching the store notifications and session events to a leader election that was closed.
+     */
+    void removeLeaderElection(String path, LeaderElectionImpl<?> leaderElection) {
+        leaderElections.remove(path, leaderElection);
+    }
+
+    /**
+     * Dispatch the store notifications and session events again to a closed leader election that is
+     * re-opened, unless another election was created for its path since it was closed.
+     *
+     * @return whether the election was added back
+     */
+    boolean readdLeaderElection(String path, LeaderElectionImpl<?> leaderElection) {
+        return leaderElections.putIfAbsent(path, leaderElection) == null;
+    }
+
+    @VisibleForTesting
+    Map<String, LeaderElectionImpl<?>> getLeaderElections() {
+        return Collections.unmodifiableMap(leaderElections);
     }
 }

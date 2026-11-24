@@ -18,19 +18,18 @@
  */
 package org.apache.pulsar.admin.cli;
 
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParameterException;
-import com.beust.jcommander.Parameters;
 import com.google.common.base.Strings;
 import java.util.function.Supplier;
 import lombok.NonNull;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.policies.data.BookieInfo;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
 
-@Parameters(commandDescription = "Operations about bookies rack placement")
+@Command(description = "Operations about bookies rack placement")
 public class CmdBookies extends CmdBase {
 
-    @Parameters(commandDescription = "Gets the rack placement information for all the bookies in the cluster")
+    @Command(description = "Gets the rack placement information for all the bookies in the cluster")
     private class GetAll extends CliCommand {
 
         @Override
@@ -39,10 +38,10 @@ public class CmdBookies extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Gets the rack placement information for a specific bookie in the cluster")
+    @Command(description = "Gets the rack placement information for a specific bookie in the cluster")
     private class GetBookie extends CliCommand {
 
-        @Parameter(names = { "-b", "--bookie" },
+        @Option(names = {"-b", "--bookie"},
                 description = "Bookie address (format: `address:port`)", required = true)
         private String bookieAddress;
 
@@ -52,7 +51,7 @@ public class CmdBookies extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "List bookies")
+    @Command(description = "List bookies")
     private class ListBookies extends CliCommand {
 
         @Override
@@ -61,10 +60,10 @@ public class CmdBookies extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Remove rack placement information for a specific bookie in the cluster")
+    @Command(description = "Remove rack placement information for a specific bookie in the cluster")
     private class RemoveBookie extends CliCommand {
 
-        @Parameter(names = { "-b", "--bookie" },
+        @Option(names = {"-b", "--bookie"},
                 description = "Bookie address (format: `address:port`)", required = true)
         private String bookieAddress;
 
@@ -74,19 +73,19 @@ public class CmdBookies extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Updates the rack placement information for a specific bookie in the cluster "
+    @Command(description = "Updates the rack placement information for a specific bookie in the cluster "
             + "(note. bookie address format:`address:port`)")
     private class UpdateBookie extends CliCommand {
         private static final String PATH_SEPARATOR = "/";
 
-        @Parameter(names = { "-g", "--group" }, description = "Bookie group name", required = false)
+        @Option(names = {"-g", "--group"}, description = "Bookie group name", required = false)
         private String group = "default";
 
-        @Parameter(names = { "-b", "--bookie" },
+        @Option(names = {"-b", "--bookie"},
                 description = "Bookie address (format: `address:port`)", required = true)
         private String bookieAddress;
 
-        @Parameter(names = { "-r", "--rack" }, description = "Bookie rack name. "
+        @Option(names = {"-r", "--rack"}, description = "Bookie rack name. "
                 + "If you set a bookie rack name to slash (/) "
                 + "or an empty string (\"\"): "
                 + "when using Pulsar earlier than 2.7.5, 2.8.3, and 2.9.2, "
@@ -104,7 +103,7 @@ public class CmdBookies extends CmdBase {
                 + "but /region0rack0 and /region0/rack/0 are not allowed.", required = true)
         private String bookieRack;
 
-        @Parameter(names = {"-hn", "--hostname"}, description = "Bookie host name", required = false)
+        @Option(names = {"-hn", "--hostname"}, description = "Bookie host name", required = false)
         private String bookieHost;
 
         @Override
@@ -128,10 +127,10 @@ public class CmdBookies extends CmdBase {
 
     public CmdBookies(Supplier<PulsarAdmin> admin) {
         super("bookies", admin);
-        jcommander.addCommand("racks-placement", new GetAll());
-        jcommander.addCommand("list-bookies", new ListBookies());
-        jcommander.addCommand("get-bookie-rack", new GetBookie());
-        jcommander.addCommand("delete-bookie-rack", new RemoveBookie());
-        jcommander.addCommand("set-bookie-rack", new UpdateBookie());
+        addCommand("racks-placement", new GetAll());
+        addCommand("list-bookies", new ListBookies());
+        addCommand("get-bookie-rack", new GetBookie());
+        addCommand("delete-bookie-rack", new RemoveBookie());
+        addCommand("set-bookie-rack", new UpdateBookie());
     }
 }

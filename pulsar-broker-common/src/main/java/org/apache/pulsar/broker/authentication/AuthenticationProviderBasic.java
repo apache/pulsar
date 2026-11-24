@@ -40,11 +40,15 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 import org.apache.pulsar.client.api.url.URL;
 
+@SuppressWarnings("deprecation")
 public class AuthenticationProviderBasic implements AuthenticationProvider {
     private static final String HTTP_HEADER_NAME = "Authorization";
+    private static final String HTTP_HEADER_VALUE_PREFIX = "Basic ";
     private static final String CONF_SYSTEM_PROPERTY_KEY = "pulsar.auth.basic.conf";
     private static final String CONF_PULSAR_PROPERTY_KEY = "basicAuthConf";
     private Map<String, String> users;
+
+    private AuthenticationMetrics authenticationMetrics;
 
     private enum ErrorCode {
         UNKNOWN,
@@ -75,6 +79,14 @@ public class AuthenticationProviderBasic implements AuthenticationProvider {
 
     @Override
     public void initialize(ServiceConfiguration config) throws IOException {
+        initialize(Context.builder().config(config).build());
+    }
+
+    @Override
+    public void initialize(Context context) throws IOException {
+        authenticationMetrics = new AuthenticationMetrics(context.getOpenTelemetry(),
+                getClass().getSimpleName(), getAuthMethodName());
+        var config = context.getConfig();
         String data = config.getProperties().getProperty(CONF_PULSAR_PROPERTY_KEY);
         if (StringUtils.isEmpty(data)) {
             data = System.getProperty(CONF_SYSTEM_PROPERTY_KEY);
@@ -104,6 +116,11 @@ public class AuthenticationProviderBasic implements AuthenticationProvider {
     @Override
     public String getAuthMethodName() {
         return "basic";
+    }
+
+    @Override
+    public void incrementFailureMetric(Enum<?> errorCode) {
+        authenticationMetrics.recordFailure(errorCode);
     }
 
     @Override
@@ -138,7 +155,7 @@ public class AuthenticationProviderBasic implements AuthenticationProvider {
             incrementFailureMetric(errorCode);
             throw exception;
         }
-        AuthenticationMetrics.authenticateSuccess(getClass().getSimpleName(), getAuthMethodName());
+        authenticationMetrics.recordSuccess();
         return userId;
     }
 
@@ -153,7 +170,9 @@ public class AuthenticationProviderBasic implements AuthenticationProvider {
             } else if (authData.hasDataFromHttp()) {
                 String rawAuthToken = authData.getHttpHeader(HTTP_HEADER_NAME);
                 // parsing and validation
-                if (StringUtils.isBlank(rawAuthToken) || !rawAuthToken.toUpperCase().startsWith("BASIC ")) {
+                if (StringUtils.isBlank(rawAuthToken)
+                        || !rawAuthToken.regionMatches(true, 0, HTTP_HEADER_VALUE_PREFIX, 0,
+                                HTTP_HEADER_VALUE_PREFIX.length())) {
                     incrementFailureMetric(ErrorCode.INVALID_HEADER);
                     throw new AuthenticationException("Authentication token has to be started with \"Basic \"");
                 }

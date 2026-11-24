@@ -21,15 +21,15 @@ package org.apache.pulsar.functions.worker;
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
 
-@Slf4j
+@CustomLog
 public class FunctionMetaDataTopicTailer
         implements Runnable, AutoCloseable {
 
@@ -39,11 +39,13 @@ public class FunctionMetaDataTopicTailer
     private final Thread tailerThread;
     private volatile boolean isRunning;
     private ErrorNotifier errorNotifier;
-    private volatile boolean exitOnEndOfTopic;
+    // Completed by stopWhenNoMoreMessages(), so that a tailer waiting for the next message checks for the end of the
+    // topic right away
+    private final CompletableFuture<Void> exitOnEndOfTopic = new CompletableFuture<>();
     private CompletableFuture<Void> exitFuture = new CompletableFuture<>();
 
     public FunctionMetaDataTopicTailer(FunctionMetaDataManager functionMetaDataManager,
-                                       ReaderBuilder readerBuilder, WorkerConfig workerConfig,
+                                       ReaderBuilder<byte[]> readerBuilder, WorkerConfig workerConfig,
                                        MessageId lastMessageSeen,
                                        ErrorNotifier errorNotifier)
             throws PulsarClientException {
@@ -52,7 +54,6 @@ public class FunctionMetaDataTopicTailer
         tailerThread = new Thread(this);
         tailerThread.setName("function-metadata-tailer-thread");
         this.errorNotifier = errorNotifier;
-        exitOnEndOfTopic = false;
     }
 
     public void start() {
@@ -64,23 +65,29 @@ public class FunctionMetaDataTopicTailer
     public void run() {
         while (isRunning) {
             try {
-                Message<byte[]> msg = reader.readNext(1, TimeUnit.SECONDS);
-                if (msg == null) {
-                    if (exitOnEndOfTopic && !reader.hasMessageAvailableAsync().get(10, TimeUnit.SECONDS)) {
-                        break;
-                    }
+                CompletableFuture<Message<byte[]>> nextMessage = reader.readNextAsync();
+                CompletableFuture.anyOf(nextMessage, exitOnEndOfTopic).get();
+                if (nextMessage.isDone() || reader.hasMessageAvailableAsync().get(10, TimeUnit.SECONDS)) {
+                    functionMetaDataManager.processMetaDataTopicMessage(nextMessage.get());
                 } else {
-                    functionMetaDataManager.processMetaDataTopicMessage(msg);
+                    // Reached the end of the topic. Closing the reader completes the pending read: with the last
+                    // message, if the reader had already received it, or else with an error.
+                    reader.closeAsync();
+                    Message<byte[]> lastMessage = nextMessage.exceptionally(e -> null).get();
+                    if (lastMessage != null) {
+                        functionMetaDataManager.processMetaDataTopicMessage(lastMessage);
+                    }
+                    break;
                 }
             } catch (Throwable th) {
                 if (isRunning) {
-                    log.error("Encountered error in metadata tailer", th);
+                    log.error().exception(th).log("Encountered error in metadata tailer");
                     // trigger fatal error
                     isRunning = false;
                     errorNotifier.triggerError(th);
                 } else {
                     if (!(th instanceof InterruptedException || th.getCause() instanceof InterruptedException)) {
-                        log.warn("Encountered error when metadata tailer is not running", th);
+                        log.warn().exception(th).log("Encountered error when metadata tailer is not running");
                     }
                 }
             }
@@ -90,7 +97,7 @@ public class FunctionMetaDataTopicTailer
     }
 
     public CompletableFuture<Void> stopWhenNoMoreMessages() {
-        exitOnEndOfTopic = true;
+        exitOnEndOfTopic.complete(null);
         return exitFuture;
     }
 
@@ -104,7 +111,7 @@ public class FunctionMetaDataTopicTailer
                 try {
                     tailerThread.join(5000, 0);
                 } catch (InterruptedException e) {
-                    log.warn("Waiting for metadata tailer thread to stop is interrupted", e);
+                    log.warn().exception(e).log("Waiting for metadata tailer thread to stop is interrupted");
                 }
 
                 if (tailerThread.isAlive()) {
@@ -116,14 +123,14 @@ public class FunctionMetaDataTopicTailer
 
             reader.close();
         } catch (IOException e) {
-            log.error("Failed to stop function metadata tailer", e);
+            log.error().exception(e).log("Failed to stop function metadata tailer");
         }
         log.info("Stopped function metadata tailer");
     }
 
-    public static Reader createReader(WorkerConfig workerConfig, ReaderBuilder readerBuilder,
+    public static Reader<byte[]> createReader(WorkerConfig workerConfig, ReaderBuilder<byte[]> readerBuilder,
                                       MessageId startMessageId) throws PulsarClientException {
-        ReaderBuilder builder = readerBuilder
+        ReaderBuilder<byte[]> builder = readerBuilder
                 .topic(workerConfig.getFunctionMetadataTopic())
                 .startMessageId(startMessageId)
                 .readerName(workerConfig.getWorkerId() + "-function-metadata-tailer")

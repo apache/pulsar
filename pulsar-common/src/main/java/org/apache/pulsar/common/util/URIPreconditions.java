@@ -22,9 +22,9 @@ import static java.util.Objects.requireNonNull;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.function.Predicate;
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Static convenience URI checker.
@@ -39,8 +39,8 @@ public class URIPreconditions {
      * @param predicate User defined rule
      * @throws IllegalArgumentException Illegal URI or failed in the user's rules
      */
-    public static void checkURI(@Nonnull String uri,
-                                @Nonnull Predicate<URI> predicate) throws IllegalArgumentException {
+    public static void checkURI(@NonNull String uri,
+                                @NonNull Predicate<URI> predicate) throws IllegalArgumentException {
         checkURI(uri, predicate, null);
     }
 
@@ -52,7 +52,7 @@ public class URIPreconditions {
      * @throws IllegalArgumentException Illegal URI or failed in the user's rules
      */
     public static void checkURIIfPresent(@Nullable String uri,
-                                         @Nonnull Predicate<URI> predicate) throws IllegalArgumentException {
+                                         @NonNull Predicate<URI> predicate) throws IllegalArgumentException {
         checkURIIfPresent(uri, predicate, null);
     }
 
@@ -65,7 +65,7 @@ public class URIPreconditions {
      * @throws IllegalArgumentException Illegal URI or failed in the user's rules
      */
     public static void checkURIIfPresent(@Nullable String uri,
-                                         @Nonnull Predicate<URI> predicate,
+                                         @NonNull Predicate<URI> predicate,
                                          @Nullable String errorMessage) throws IllegalArgumentException {
         if (uri == null || uri.length() == 0) {
             return;
@@ -81,8 +81,8 @@ public class URIPreconditions {
      * @param errorMessage Error message
      * @throws IllegalArgumentException Illegal URI or failed in the user's rules
      */
-    public static void checkURI(@Nonnull String uri,
-                                @Nonnull Predicate<URI> predicate,
+    public static void checkURI(@NonNull String uri,
+                                @NonNull Predicate<URI> predicate,
                                 @Nullable String errorMessage) throws IllegalArgumentException {
         requireNonNull(uri, "uri");
         requireNonNull(predicate, "predicate");

@@ -33,16 +33,16 @@ public class DynamicRateAsyncTokenBucket extends AsyncTokenBucket {
     private final double targetFillFactorAfterThrottling;
 
     protected DynamicRateAsyncTokenBucket(double capacityFactor, LongSupplier rateFunction,
-                                          MonotonicSnapshotClock clockSource, LongSupplier ratePeriodNanosFunction,
-                                          long resolutionNanos, double initialTokensFactor,
+                                          MonotonicClock clockSource, long addTokensResolutionNanos,
+                                          LongSupplier ratePeriodNanosFunction, double initialTokensFactor,
                                           double targetFillFactorAfterThrottling) {
-        super(clockSource, resolutionNanos);
+        super(clockSource, addTokensResolutionNanos);
         this.capacityFactor = capacityFactor;
         this.rateFunction = rateFunction;
         this.ratePeriodNanosFunction = ratePeriodNanosFunction;
         this.targetFillFactorAfterThrottling = targetFillFactorAfterThrottling;
         this.tokens = (long) (rateFunction.getAsLong() * initialTokensFactor);
-        tokens(false);
+        getTokens();
     }
 
     @Override
@@ -65,4 +65,8 @@ public class DynamicRateAsyncTokenBucket extends AsyncTokenBucket {
         return rateFunction.getAsLong();
     }
 
+    @Override
+    protected long getNanosForOneToken() {
+        return getRatePeriodNanos() / getRate();
+    }
 }

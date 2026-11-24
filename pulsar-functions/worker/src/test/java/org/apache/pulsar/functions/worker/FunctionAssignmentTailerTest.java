@@ -20,7 +20,6 @@ package org.apache.pulsar.functions.worker;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
@@ -34,10 +33,7 @@ import static org.testng.Assert.assertEquals;
 import io.netty.buffer.Unpooled;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -48,21 +44,36 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.Assignment;
+import org.apache.pulsar.functions.proto.FunctionMetaData;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
 import org.apache.pulsar.functions.utils.FunctionCommon;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class FunctionAssignmentTailerTest {
 
     private static final String CLUSTER_NAME = "test-cluster";
 
+    private static FunctionMetaData createFunctionMetaData(String tenant, String namespace, String name) {
+        FunctionMetaData fmd = new FunctionMetaData();
+        fmd.setFunctionDetails().setTenant(tenant).setNamespace(namespace).setName(name);
+        return fmd;
+    }
+
+    private static Assignment createAssignment(String workerId, FunctionMetaData function, int instanceId) {
+        Assignment assignment = new Assignment();
+        assignment.setWorkerId(workerId);
+        assignment.setInstance().setFunctionMetaData().copyFrom(function);
+        assignment.getInstance().setInstanceId(instanceId);
+        return assignment;
+    }
+
     @Test(timeOut = 10000)
+    @SuppressWarnings("unchecked")
     public void testErrorNotifier() throws Exception {
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");
@@ -75,26 +86,12 @@ public class FunctionAssignmentTailerTest {
         workerConfig.setFunctionAssignmentTopicName("assignments");
         workerConfig.setPulsarFunctionsCluster(CLUSTER_NAME);
 
-        Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
-                Function.FunctionDetails.newBuilder()
-                        .setTenant("test-tenant").setNamespace("test-namespace").setName("func-1")).build();
+        FunctionMetaData function1 = createFunctionMetaData("test-tenant", "test-namespace", "func-1");
+        FunctionMetaData function2 = createFunctionMetaData("test-tenant", "test-namespace", "func-2");
 
-        Function.FunctionMetaData function2 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
-                Function.FunctionDetails.newBuilder()
-                        .setTenant("test-tenant").setNamespace("test-namespace").setName("func-2")).build();
+        Assignment assignment1 = createAssignment("worker-1", function1, 0);
+        Assignment assignment2 = createAssignment("worker-1", function2, 0);
 
-        Function.Assignment assignment1 = Function.Assignment.newBuilder()
-                .setWorkerId("worker-1")
-                .setInstance(Function.Instance.newBuilder()
-                        .setFunctionMetaData(function1).setInstanceId(0).build())
-                .build();
-        Function.Assignment assignment2 = Function.Assignment.newBuilder()
-                .setWorkerId("worker-1")
-                .setInstance(Function.Instance.newBuilder()
-                        .setFunctionMetaData(function2).setInstanceId(0).build())
-                .build();
-
-        ArrayBlockingQueue<Message<byte[]>> messageList = new ArrayBlockingQueue<>(2);
         MessageMetadata metadata = new MessageMetadata();
         Message message1 = spy(new MessageImpl("foo", MessageId.latest.toString(),
                 new HashMap<>(), Unpooled.copiedBuffer(assignment1.toByteArray()), null, metadata));
@@ -107,27 +104,7 @@ public class FunctionAssignmentTailerTest {
         PulsarClient pulsarClient = mock(PulsarClient.class);
 
         Reader<byte[]> reader = mock(Reader.class);
-
-        when(reader.readNext(anyInt(), any())).thenAnswer(new Answer<Message<byte[]>>() {
-            @Override
-            public Message<byte[]> answer(InvocationOnMock invocationOnMock) throws Throwable {
-                return messageList.poll(10, TimeUnit.SECONDS);
-            }
-        });
-
-        when(reader.readNextAsync()).thenAnswer(new Answer<CompletableFuture<Message<byte[]>>>() {
-            @Override
-            public CompletableFuture<Message<byte[]>> answer(InvocationOnMock invocationOnMock) throws Throwable {
-                return new CompletableFuture<>();
-            }
-        });
-
-        when(reader.hasMessageAvailable()).thenAnswer(new Answer<Boolean>() {
-            @Override
-            public Boolean answer(InvocationOnMock invocationOnMock) throws Throwable {
-                return !messageList.isEmpty();
-            }
-        });
+        ReaderStub readerStub = new ReaderStub(reader);
 
         ReaderBuilder readerBuilder = mock(ReaderBuilder.class);
         doReturn(readerBuilder).when(pulsarClient).newReader();
@@ -147,6 +124,10 @@ public class FunctionAssignmentTailerTest {
 
         // test new assignment add functions
         FunctionRuntimeManager functionRuntimeManager = mock(FunctionRuntimeManager.class);
+        // Processing the second message fails. Stub it before the tailer thread starts calling the mock, rather than
+        // re-stubbing it in between: processAssignmentMessage is synchronized, so the stubbing call waits for any call
+        // of the tailer thread that is still in it.
+        doThrow(new RuntimeException("test")).when(functionRuntimeManager).processAssignmentMessage(eq(message2));
 
         FunctionAssignmentTailer functionAssignmentTailer =
                 spy(new FunctionAssignmentTailer(functionRuntimeManager, readerBuilder, workerConfig, errorNotifier));
@@ -156,14 +137,13 @@ public class FunctionAssignmentTailerTest {
         // verify no errors occurred
         verify(errorNotifier, times(0)).triggerError(any());
 
-        messageList.add(message1);
+        readerStub.add(message1);
+        Awaitility.await().untilAsserted(() ->
+                verify(functionRuntimeManager, times(1)).processAssignmentMessage(eq(message1)));
 
         verify(errorNotifier, times(0)).triggerError(any());
 
-        // trigger an error to be thrown
-        doThrow(new RuntimeException("test")).when(functionRuntimeManager).processAssignmentMessage(any());
-
-        messageList.add(message2);
+        readerStub.add(message2);
 
         try {
             errorNotifier.waitForError();
@@ -176,6 +156,7 @@ public class FunctionAssignmentTailerTest {
     }
 
     @Test(timeOut = 10000)
+    @SuppressWarnings("unchecked")
     public void testProcessingAssignments() throws Exception {
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");
@@ -188,26 +169,11 @@ public class FunctionAssignmentTailerTest {
         workerConfig.setFunctionAssignmentTopicName("assignments");
         workerConfig.setPulsarFunctionsCluster(CLUSTER_NAME);
 
-        Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
-                Function.FunctionDetails.newBuilder()
-                        .setTenant("test-tenant").setNamespace("test-namespace").setName("func-1")).build();
+        FunctionMetaData function1 = createFunctionMetaData("test-tenant", "test-namespace", "func-1");
+        FunctionMetaData function2 = createFunctionMetaData("test-tenant", "test-namespace", "func-2");
 
-        Function.FunctionMetaData function2 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
-                Function.FunctionDetails.newBuilder()
-                        .setTenant("test-tenant").setNamespace("test-namespace").setName("func-2")).build();
-
-        Function.Assignment assignment1 = Function.Assignment.newBuilder()
-                .setWorkerId("worker-1")
-                .setInstance(Function.Instance.newBuilder()
-                        .setFunctionMetaData(function1).setInstanceId(0).build())
-                .build();
-        Function.Assignment assignment2 = Function.Assignment.newBuilder()
-                .setWorkerId("worker-1")
-                .setInstance(Function.Instance.newBuilder()
-                        .setFunctionMetaData(function2).setInstanceId(0).build())
-                .build();
-
-        ArrayBlockingQueue<Message<byte[]>> messageList = new ArrayBlockingQueue<>(2);
+        Assignment assignment1 = createAssignment("worker-1", function1, 0);
+        Assignment assignment2 = createAssignment("worker-1", function2, 0);
 
         MessageId messageId1 = new MessageIdImpl(1, 1, -1);
         MessageId messageId2 = new MessageIdImpl(1, 2, -1);
@@ -224,27 +190,7 @@ public class FunctionAssignmentTailerTest {
         PulsarClient pulsarClient = mock(PulsarClient.class);
 
         Reader<byte[]> reader = mock(Reader.class);
-
-        when(reader.readNext(anyInt(), any())).thenAnswer(new Answer<Message<byte[]>>() {
-            @Override
-            public Message<byte[]> answer(InvocationOnMock invocationOnMock) throws Throwable {
-                return messageList.poll(10, TimeUnit.SECONDS);
-            }
-        });
-
-        when(reader.readNextAsync()).thenAnswer(new Answer<CompletableFuture<Message<byte[]>>>() {
-            @Override
-            public CompletableFuture<Message<byte[]>> answer(InvocationOnMock invocationOnMock) throws Throwable {
-                return new CompletableFuture<>();
-            }
-        });
-
-        when(reader.hasMessageAvailable()).thenAnswer(new Answer<Boolean>() {
-            @Override
-            public Boolean answer(InvocationOnMock invocationOnMock) throws Throwable {
-                return !messageList.isEmpty();
-            }
-        });
+        ReaderStub readerStub = new ReaderStub(reader);
 
         ReaderBuilder readerBuilder = mock(ReaderBuilder.class);
         doReturn(readerBuilder).when(pulsarClient).newReader();
@@ -268,39 +214,24 @@ public class FunctionAssignmentTailerTest {
         FunctionAssignmentTailer functionAssignmentTailer =
                 spy(new FunctionAssignmentTailer(functionRuntimeManager, readerBuilder, workerConfig, errorNotifier));
 
-        functionAssignmentTailer.start();
+        try (functionAssignmentTailer) {
+            functionAssignmentTailer.start();
 
-        messageList.add(message1);
-        for (int i = 0; i < 10; i++) {
-            try {
-                verify(functionRuntimeManager, times(1)).processAssignmentMessage(eq(message1));
-                break;
-            } catch (org.mockito.exceptions.verification.WantedButNotInvoked e) {
-                if (i == 9) {
-                    throw e;
-                }
-            }
-            Thread.sleep(200);
+            readerStub.add(message1);
+            Awaitility.await().untilAsserted(() ->
+                    verify(functionRuntimeManager, times(1)).processAssignmentMessage(eq(message1)));
+
+            readerStub.add(message2);
+            Awaitility.await().untilAsserted(() ->
+                    verify(functionRuntimeManager, times(1)).processAssignmentMessage(eq(message2)));
         }
 
-        messageList.add(message2);
-        for (int i = 0; i < 10; i++) {
-            try {
-                verify(functionRuntimeManager, times(1)).processAssignmentMessage(eq(message2));
-                break;
-            } catch (org.mockito.exceptions.verification.WantedButNotInvoked e) {
-                if (i == 9) {
-                    throw e;
-                }
-            }
-            Thread.sleep(200);
-        }
-
+        // Verification observes method entry; close joins the tailer after it updates the last message id.
         Assert.assertEquals(functionAssignmentTailer.getLastMessageId(), message2.getMessageId());
-        functionAssignmentTailer.close();
     }
 
     @Test(timeOut = 10000)
+    @SuppressWarnings("unchecked")
     public void testTriggerReadToTheEndAndExit() throws Exception {
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");
@@ -313,26 +244,11 @@ public class FunctionAssignmentTailerTest {
         workerConfig.setFunctionAssignmentTopicName("assignments");
         workerConfig.setPulsarFunctionsCluster(CLUSTER_NAME);
 
-        Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
-                Function.FunctionDetails.newBuilder()
-                        .setTenant("test-tenant").setNamespace("test-namespace").setName("func-1")).build();
+        FunctionMetaData function1 = createFunctionMetaData("test-tenant", "test-namespace", "func-1");
+        FunctionMetaData function2 = createFunctionMetaData("test-tenant", "test-namespace", "func-2");
 
-        Function.FunctionMetaData function2 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
-                Function.FunctionDetails.newBuilder()
-                        .setTenant("test-tenant").setNamespace("test-namespace").setName("func-2")).build();
-
-        Function.Assignment assignment1 = Function.Assignment.newBuilder()
-                .setWorkerId("worker-1")
-                .setInstance(Function.Instance.newBuilder()
-                        .setFunctionMetaData(function1).setInstanceId(0).build())
-                .build();
-        Function.Assignment assignment2 = Function.Assignment.newBuilder()
-                .setWorkerId("worker-1")
-                .setInstance(Function.Instance.newBuilder()
-                        .setFunctionMetaData(function2).setInstanceId(0).build())
-                .build();
-
-        ArrayBlockingQueue<Message<byte[]>> messageList = new ArrayBlockingQueue<>(2);
+        Assignment assignment1 = createAssignment("worker-1", function1, 0);
+        Assignment assignment2 = createAssignment("worker-1", function2, 0);
 
         MessageId messageId1 = new MessageIdImpl(1, 1, -1);
         MessageId messageId2 = new MessageIdImpl(1, 2, -1);
@@ -349,27 +265,7 @@ public class FunctionAssignmentTailerTest {
         PulsarClient pulsarClient = mock(PulsarClient.class);
 
         Reader<byte[]> reader = mock(Reader.class);
-
-        when(reader.readNext(anyInt(), any())).thenAnswer(new Answer<Message<byte[]>>() {
-            @Override
-            public Message<byte[]> answer(InvocationOnMock invocationOnMock) throws Throwable {
-                return messageList.poll(10, TimeUnit.MILLISECONDS);
-            }
-        });
-
-        when(reader.readNextAsync()).thenAnswer(new Answer<CompletableFuture<Message<byte[]>>>() {
-            @Override
-            public CompletableFuture<Message<byte[]>> answer(InvocationOnMock invocationOnMock) throws Throwable {
-                return new CompletableFuture<>();
-            }
-        });
-
-        when(reader.hasMessageAvailable()).thenAnswer(new Answer<Boolean>() {
-            @Override
-            public Boolean answer(InvocationOnMock invocationOnMock) throws Throwable {
-                return !messageList.isEmpty();
-            }
-        });
+        ReaderStub readerStub = new ReaderStub(reader);
 
         ReaderBuilder readerBuilder = mock(ReaderBuilder.class);
         doReturn(readerBuilder).when(pulsarClient).newReader();
@@ -395,7 +291,7 @@ public class FunctionAssignmentTailerTest {
 
         functionAssignmentTailer.start();
 
-        messageList.add(message1);
+        readerStub.add(message1);
         for (int i = 0; i < 10; i++) {
             try {
                 verify(functionRuntimeManager, times(1)).processAssignmentMessage(eq(message1));
@@ -420,9 +316,47 @@ public class FunctionAssignmentTailerTest {
             Thread.sleep(200);
         }
 
-        messageList.add(message2);
+        readerStub.add(message2);
         Assert.assertEquals(functionAssignmentTailer.getLastMessageId(), message1.getMessageId());
 
         functionAssignmentTailer.close();
+    }
+
+    @Test(timeOut = 10000)
+    @SuppressWarnings("unchecked")
+    public void testTriggerReadToTheEndAndExitProcessesTheLastReceivedMessage() throws Exception {
+        WorkerConfig workerConfig = new WorkerConfig();
+        workerConfig.setWorkerId("worker-1");
+        workerConfig.setFunctionAssignmentTopicName("assignments");
+
+        Message<byte[]> message = mock(Message.class);
+        MessageId messageId = new MessageIdImpl(1, 1, -1);
+        when(message.getMessageId()).thenReturn(messageId);
+
+        Reader<byte[]> reader = mock(Reader.class);
+        ReaderStub readerStub = new ReaderStub(reader);
+        ReaderBuilder<byte[]> readerBuilder = mock(ReaderBuilder.class);
+        doReturn(readerBuilder).when(readerBuilder).topic(anyString());
+        doReturn(readerBuilder).when(readerBuilder).readerName(anyString());
+        doReturn(readerBuilder).when(readerBuilder).subscriptionRolePrefix(anyString());
+        doReturn(readerBuilder).when(readerBuilder).startMessageId(any());
+        doReturn(readerBuilder).when(readerBuilder).readCompacted(anyBoolean());
+        doReturn(reader).when(readerBuilder).create();
+
+        FunctionRuntimeManager functionRuntimeManager = mock(FunctionRuntimeManager.class);
+        FunctionAssignmentTailer functionAssignmentTailer = new FunctionAssignmentTailer(functionRuntimeManager,
+                readerBuilder, workerConfig, ErrorNotifier.getDefaultImpl());
+        try (functionAssignmentTailer) {
+            functionAssignmentTailer.start();
+            Awaitility.await().untilAsserted(() -> verify(reader).readNextAsync());
+
+            // The reader takes the last message off the topic right before the tailer finds no more messages
+            // available
+            readerStub.receiveBeforeClose(message);
+            functionAssignmentTailer.triggerReadToTheEndAndExit().get();
+
+            verify(functionRuntimeManager).processAssignmentMessage(message);
+            assertEquals(functionAssignmentTailer.getLastMessageId(), messageId);
+        }
     }
 }

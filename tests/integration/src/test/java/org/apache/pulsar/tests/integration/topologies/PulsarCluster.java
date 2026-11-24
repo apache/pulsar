@@ -25,19 +25,27 @@ import static org.apache.pulsar.tests.integration.containers.PulsarContainer.BRO
 import static org.apache.pulsar.tests.integration.containers.PulsarContainer.CS_PORT;
 import static org.apache.pulsar.tests.integration.containers.PulsarContainer.PULSAR_CONTAINERS_LEAVE_RUNNING;
 import static org.apache.pulsar.tests.integration.containers.PulsarContainer.ZK_PORT;
+import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.tests.integration.containers.BKContainer;
@@ -57,7 +65,7 @@ import org.testcontainers.containers.Network;
 /**
  * Pulsar Cluster in containers.
  */
-@Slf4j
+@CustomLog
 public class PulsarCluster {
 
     public static final String ADMIN_SCRIPT = "/pulsar/bin/pulsar-admin";
@@ -65,29 +73,44 @@ public class PulsarCluster {
     public static final String PULSAR_COMMAND_SCRIPT = "/pulsar/bin/pulsar";
     public static final String CURL = "/usr/bin/curl";
 
+    // Starts and stops containers, a thread for each: the threads mostly wait for Docker and for the services
+    private static final ExecutorService CONTAINER_EXECUTOR = Executors.newCachedThreadPool(
+            new ThreadFactoryBuilder().setNameFormat("pulsar-cluster-container-%d").setDaemon(true).build());
+
     /**
-     * Pulsar Cluster Spec
+     * Pulsar Cluster Spec.
      *
      * @param spec pulsar cluster spec.
      * @return the built pulsar cluster
      */
     public static PulsarCluster forSpec(PulsarClusterSpec spec) {
+        return forSpec(spec, Network.newNetwork());
+    }
+
+    public static PulsarCluster forSpec(PulsarClusterSpec spec, Network network) {
+        checkArgument(network != null, "Network should not be null");
         CSContainer csContainer = null;
         if (!spec.enableOxia) {
-            csContainer = new CSContainer(spec.clusterName)
-                    .withNetwork(Network.newNetwork())
+            csContainer = new CSContainer(spec.clusterName, clusterImage(spec))
+                    .withNetwork(network)
                     .withNetworkAliases(CSContainer.NAME);
         }
-        return new PulsarCluster(spec, csContainer, false);
+        return new PulsarCluster(spec, network, csContainer, false);
+    }
+
+    // The image of the cluster's ZooKeeper, configuration store, bookies, brokers and proxy
+    private static String clusterImage(PulsarClusterSpec spec) {
+        return spec.clusterImage != null ? spec.clusterImage : PulsarContainer.DEFAULT_IMAGE_NAME;
     }
 
     public static PulsarCluster forSpec(PulsarClusterSpec spec, CSContainer csContainer) {
-        return new PulsarCluster(spec, csContainer, true);
+        return new PulsarCluster(spec, csContainer.getNetwork(), csContainer, true);
     }
 
     @Getter
     private final PulsarClusterSpec spec;
 
+    public boolean closeNetworkOnExit = true;
     @Getter
     private final String clusterName;
     private final Network network;
@@ -108,18 +131,18 @@ public class PulsarCluster {
     private final String metadataStoreUrl;
     private final String configurationMetadataStoreUrl;
 
-    private PulsarCluster(PulsarClusterSpec spec, CSContainer csContainer, boolean sharedCsContainer) {
-
+    @SuppressWarnings("deprecation")
+    private PulsarCluster(PulsarClusterSpec spec, Network network, CSContainer csContainer, boolean sharedCsContainer) {
         this.spec = spec;
         this.sharedCsContainer = sharedCsContainer;
         this.clusterName = spec.clusterName();
-        if (csContainer != null ) {
+        if (network != null) {
+            this.network = network;
+        } else if (csContainer != null) {
             this.network = csContainer.getNetwork();
         } else {
             this.network = Network.newNetwork();
         }
-
-
 
         if (spec.enableOxia) {
             this.zkContainer = null;
@@ -131,7 +154,9 @@ public class PulsarCluster {
             configurationMetadataStoreUrl = metadataStoreUrl;
         } else {
             this.oxiaContainer = null;
-            this.zkContainer = new ZKContainer(clusterName);
+            // A hostname of its own, as the bookies have, since the clusters that share a configuration store also
+            // share a network, where a container's hostname resolves too
+            this.zkContainer = new ZKContainer(clusterName, appendClusterName(ZKContainer.NAME), clusterImage(spec));
             this.zkContainer
                     .withNetwork(network)
                     .withNetworkAliases(appendClusterName(ZKContainer.NAME))
@@ -142,6 +167,7 @@ public class PulsarCluster {
                     .withEnv("pulsarNode", appendClusterName("pulsar-broker-0"));
             metadataStoreUrl = appendClusterName(ZKContainer.NAME);
             configurationMetadataStoreUrl = CSContainer.NAME + ":" + CS_PORT;
+            configureProfiling(zkContainer, spec.profileZookeeper);
         }
 
         this.csContainer = csContainer;
@@ -150,48 +176,20 @@ public class PulsarCluster {
         this.brokerContainers = Maps.newTreeMap();
         this.workerContainers = Maps.newTreeMap();
 
-        this.proxyContainer = new ProxyContainer(clusterName, appendClusterName(ProxyContainer.NAME), spec.enableTls)
-                .withNetwork(network)
-                .withNetworkAliases(appendClusterName("pulsar-proxy"))
-                .withEnv("metadataStoreUrl", metadataStoreUrl)
-                .withEnv("configurationMetadataStoreUrl", configurationMetadataStoreUrl)
-                .withEnv("clusterName", clusterName);
-        // enable mTLS
-        if (spec.enableTls) {
-            proxyContainer
-                    .withEnv("webServicePortTls", String.valueOf(BROKER_HTTPS_PORT))
-                    .withEnv("servicePortTls", String.valueOf(BROKER_PORT_TLS))
-                    .withEnv("forwardAuthorizationCredentials", "true")
-                    .withEnv("tlsRequireTrustedClientCertOnConnect", "true")
-                    .withEnv("tlsAllowInsecureConnection", "false")
-                    .withEnv("tlsCertificateFilePath", "/pulsar/certificate-authority/server-keys/proxy.cert.pem")
-                    .withEnv("tlsKeyFilePath", "/pulsar/certificate-authority/server-keys/proxy.key-pk8.pem")
-                    .withEnv("tlsTrustCertsFilePath", "/pulsar/certificate-authority/certs/ca.cert.pem")
-                    .withEnv("brokerClientAuthenticationPlugin", AuthenticationTls.class.getName())
-                    .withEnv("brokerClientAuthenticationParameters", String.format("tlsCertFile:%s,tlsKeyFile:%s",
-                            "/pulsar/certificate-authority/client-keys/admin.cert.pem",
-                            "/pulsar/certificate-authority/client-keys/admin.key-pk8.pem"))
-                    .withEnv("tlsEnabledWithBroker", "true")
-                    .withEnv("brokerClientTrustCertsFilePath", "/pulsar/certificate-authority/certs/ca.cert.pem")
-                    .withEnv("brokerClientCertificateFilePath",
-                            "/pulsar/certificate-authority/server-keys/proxy.cert.pem")
-                    .withEnv("brokerClientKeyFilePath", "/pulsar/certificate-authority/server-keys/proxy.key-pk8.pem");
-
+        if (spec.numProxies() > 1) {
+            throw new IllegalArgumentException("A cluster has at most one proxy, not " + spec.numProxies());
         }
-        if (spec.proxyEnvs != null) {
-            spec.proxyEnvs.forEach(this.proxyContainer::withEnv);
-        }
-        if (spec.proxyMountFiles != null) {
-            spec.proxyMountFiles.forEach(this.proxyContainer::withFileSystemBind);
-        }
-        if (spec.proxyAdditionalPorts != null) {
-            spec.proxyAdditionalPorts.forEach(this.proxyContainer::addExposedPort);
-        }
+        this.proxyContainer = spec.numProxies() > 0 ? createProxyContainer() : null;
 
         // create bookies
         bookieContainers.putAll(
                 runNumContainers("bookie", spec.numBookies(), (name) -> {
-                    BKContainer bookieContainer = new BKContainer(clusterName, name)
+                    // The bookie ID is the hostname (useHostNameAsBookieID). With a shared configuration store the
+                    // clusters share a network, where a container's hostname resolves too, so each cluster's bookies
+                    // need a hostname of their own: with the same ID, a broker would reach the other cluster's bookie,
+                    // whose ledger IDs overlap with its own.
+                    BKContainer bookieContainer = new BKContainer(clusterName, appendClusterName(name),
+                            clusterImage(spec))
                             .withNetwork(network)
                             .withNetworkAliases(appendClusterName(name))
                             .withEnv("metadataServiceUri", "metadata-store:" + metadataStoreUrl)
@@ -203,13 +201,16 @@ public class PulsarCluster {
                             .withEnv("PULSAR_PREFIX_diskUsageWarnThreshold", "0.95")
                             .withEnv("diskUsageThreshold", "0.99")
                             .withEnv("PULSAR_PREFIX_diskUsageLwmThreshold", "0.97")
-                            .withEnv("nettyMaxFrameSizeBytes", String.valueOf(spec.maxMessageSize));
+                            .withEnv("nettyMaxFrameSizeBytes", String.valueOf(spec.maxMessageSize))
+                            .withEnv("ledgerDirectories", "data/bookkeeper/" + name + "/ledgers")
+                            .withEnv("journalDirectory", "data/bookkeeper/" + name + "/journal");
                     if (spec.bookkeeperEnvs != null) {
                         bookieContainer.withEnv(spec.bookkeeperEnvs);
                     }
                     if (spec.bookieAdditionalPorts != null) {
                         spec.bookieAdditionalPorts.forEach(bookieContainer::addExposedPort);
                     }
+                    configureProfiling(bookieContainer, spec.profileBookie);
                     return bookieContainer;
                 })
         );
@@ -218,7 +219,8 @@ public class PulsarCluster {
         brokerContainers.putAll(
                 runNumContainers("broker", spec.numBrokers(), (name) -> {
                             BrokerContainer brokerContainer =
-                                    new BrokerContainer(clusterName, appendClusterName(name), spec.enableTls)
+                                    new BrokerContainer(clusterName, appendClusterName(name), spec.enableTls,
+                                            clusterImage(spec))
                                             .withNetwork(network)
                                             .withNetworkAliases(appendClusterName(name))
                                             .withEnv("metadataStoreUrl", metadataStoreUrl)
@@ -258,15 +260,37 @@ public class PulsarCluster {
                             if (spec.brokerAdditionalPorts() != null) {
                                 spec.brokerAdditionalPorts().forEach(brokerContainer::addExposedPort);
                             }
+                            configureProfiling(brokerContainer, spec.profileBroker);
                             return brokerContainer;
                         }
                 ));
+
+        if (spec.dataContainer != null) {
+            if (!sharedCsContainer && csContainer != null) {
+                csContainer.withVolumesFrom(spec.dataContainer, BindMode.READ_WRITE);
+            }
+            if (zkContainer != null) {
+                zkContainer.withVolumesFrom(spec.dataContainer, BindMode.READ_WRITE);
+            }
+            if (proxyContainer != null) {
+                proxyContainer.withVolumesFrom(spec.dataContainer, BindMode.READ_WRITE);
+            }
+
+            bookieContainers.values().forEach(c -> c.withVolumesFrom(spec.dataContainer, BindMode.READ_WRITE));
+            brokerContainers.values().forEach(c -> c.withVolumesFrom(spec.dataContainer, BindMode.READ_WRITE));
+            workerContainers.values().forEach(c -> c.withVolumesFrom(spec.dataContainer, BindMode.READ_WRITE));
+        }
 
         spec.classPathVolumeMounts.forEach((key, value) -> {
             if (zkContainer != null) {
                 zkContainer.withClasspathResourceMapping(key, value, BindMode.READ_WRITE);
             }
-            proxyContainer.withClasspathResourceMapping(key, value, BindMode.READ_WRITE);
+            if (!sharedCsContainer && csContainer != null) {
+                csContainer.withClasspathResourceMapping(key, value, BindMode.READ_WRITE);
+            }
+            if (proxyContainer != null) {
+                proxyContainer.withClasspathResourceMapping(key, value, BindMode.READ_WRITE);
+            }
 
             bookieContainers.values().forEach(c -> c.withClasspathResourceMapping(key, value, BindMode.READ_WRITE));
             brokerContainers.values().forEach(c -> c.withClasspathResourceMapping(key, value, BindMode.READ_WRITE));
@@ -277,12 +301,102 @@ public class PulsarCluster {
         functionWorkerAdditionalPorts = spec.functionWorkerAdditionalPorts;
     }
 
-    public String getPlainTextServiceUrl() {
-        return proxyContainer.getPlainTextServiceUrl();
+    /** The cluster's proxy, configured by the spec's proxy settings. */
+    @SuppressWarnings("deprecation")
+    private ProxyContainer createProxyContainer() {
+        ProxyContainer proxyContainer =
+                new ProxyContainer(clusterName, appendClusterName(ProxyContainer.NAME), spec.enableTls,
+                        clusterImage(spec))
+                .withNetwork(network)
+                .withNetworkAliases(appendClusterName("pulsar-proxy"))
+                .withEnv("metadataStoreUrl", metadataStoreUrl)
+                .withEnv("configurationMetadataStoreUrl", configurationMetadataStoreUrl)
+                .withEnv("clusterName", clusterName);
+        configureProfiling(proxyContainer, spec.profileProxy);
+
+        // enable mTLS
+        if (spec.enableTls) {
+            proxyContainer
+                    .withEnv("webServicePortTls", String.valueOf(BROKER_HTTPS_PORT))
+                    .withEnv("servicePortTls", String.valueOf(BROKER_PORT_TLS))
+                    .withEnv("forwardAuthorizationCredentials", "true")
+                    .withEnv("tlsRequireTrustedClientCertOnConnect", "true")
+                    .withEnv("tlsAllowInsecureConnection", "false")
+                    .withEnv("tlsCertificateFilePath", "/pulsar/certificate-authority/server-keys/proxy.cert.pem")
+                    .withEnv("tlsKeyFilePath", "/pulsar/certificate-authority/server-keys/proxy.key-pk8.pem")
+                    .withEnv("tlsTrustCertsFilePath", "/pulsar/certificate-authority/certs/ca.cert.pem")
+                    .withEnv("brokerClientAuthenticationPlugin", AuthenticationTls.class.getName())
+                    .withEnv("brokerClientAuthenticationParameters", String.format("tlsCertFile:%s,tlsKeyFile:%s",
+                            "/pulsar/certificate-authority/client-keys/admin.cert.pem",
+                            "/pulsar/certificate-authority/client-keys/admin.key-pk8.pem"))
+                    .withEnv("tlsEnabledWithBroker", "true")
+                    // The proxy discovers brokers through the metadata store and connects to each broker's
+                    // advertised address, which in this docker topology is the broker container's network
+                    // alias (e.g. "pulsar-broker-<cluster>"). That alias is not — and cannot statically be —
+                    // in the shared test broker certificate's SubjectAltName. TLS hostname verification is on
+                    // by default since Pulsar 5.0 (PIP-478), so verify the internal proxy->broker hop against
+                    // the alias would fail with "No name matching ... found". This relaxes verification only
+                    // for that internal, not-under-test hop; the client-under-test connections (client/admin
+                    // -> proxy and -> broker over loopback) still verify against the localhost SAN.
+                    .withEnv("tlsHostnameVerificationEnabled", "false")
+                    .withEnv("brokerClientTrustCertsFilePath", "/pulsar/certificate-authority/certs/ca.cert.pem")
+                    .withEnv("brokerClientCertificateFilePath",
+                            "/pulsar/certificate-authority/server-keys/proxy.cert.pem")
+                    .withEnv("brokerClientKeyFilePath", "/pulsar/certificate-authority/server-keys/proxy.key-pk8.pem");
+
+        }
+        if (spec.proxyEnvs != null) {
+            spec.proxyEnvs.forEach(proxyContainer::withEnv);
+        }
+        if (spec.proxyMountFiles != null) {
+            spec.proxyMountFiles.forEach(proxyContainer::withFileSystemBind);
+        }
+        if (spec.proxyAdditionalPorts != null) {
+            spec.proxyAdditionalPorts.forEach(proxyContainer::addExposedPort);
+        }
+        return proxyContainer;
     }
 
+    /** The proxy's binary service URL, which clients outside the cluster's network connect to. */
+    public String getPlainTextServiceUrl() {
+        return requireProxy().getPlainTextServiceUrl();
+    }
+
+    // The brokers advertise their names on the cluster's network, which a client outside it can't resolve, so the
+    // proxy is the way in; a cluster without one says so rather than handing out a URL that fails later
+    private ProxyContainer requireProxy() {
+        if (proxyContainer == null) {
+            throw new IllegalStateException("The cluster has no proxy: its spec sets numProxies to 0");
+        }
+        return proxyContainer;
+    }
+
+    public void forEachContainer(Consumer<GenericContainer<?>> consumer) {
+        if (zkContainer != null) {
+            consumer.accept(zkContainer);
+        }
+        if (csContainer != null) {
+            consumer.accept(csContainer);
+        }
+        if (oxiaContainer != null) {
+            consumer.accept(oxiaContainer);
+        }
+        if (proxyContainer != null) {
+            consumer.accept(proxyContainer);
+        }
+        bookieContainers.values().forEach(consumer);
+        brokerContainers.values().forEach(consumer);
+        workerContainers.values().forEach(consumer);
+        externalServices.values().forEach(consumer);
+    }
+
+    /**
+     * The proxy's HTTP service URL, or a broker's when the cluster has no proxy. A broker serves the admin requests
+     * that it handles itself; one that it redirects to another broker's advertised name fails outside the cluster's
+     * network.
+     */
     public String getHttpServiceUrl() {
-        return proxyContainer.getHttpServiceUrl();
+        return proxyContainer != null ? proxyContainer.getHttpServiceUrl() : getAnyBroker().getHttpServiceUrl();
     }
 
     public String getAnyBrokersHttpsServiceUrl() {
@@ -323,22 +437,17 @@ public class PulsarCluster {
     }
 
     public void start() throws Exception {
+        start(true);
+    }
 
-        if (!spec.enableOxia) {
-            // start the local zookeeper
-            zkContainer.start();
-            log.info("Successfully started local zookeeper container.");
+    public void start(boolean doInit) throws Exception {
+        // Each group of containers starts at once, since it only needs the groups before it: the metadata stores,
+        // then the bookies, then the brokers and the proxy
 
-            // start the configuration store
-            if (!sharedCsContainer) {
-                csContainer.start();
-                log.info("Successfully started configuration store container.");
-            }
-        } else {
-            oxiaContainer.start();
-        }
+        inParallel(metadataStoreContainers(), GenericContainer::start);
+        log.info("Successfully started metadata store containers.");
 
-        {
+        if (doInit) {
             // Run cluster metadata initialization
             @Cleanup
             PulsarInitMetadataContainer init = new PulsarInitMetadataContainer(
@@ -352,26 +461,32 @@ public class PulsarCluster {
         }
 
         // start bookies
-        bookieContainers.values().forEach(BKContainer::start);
-        log.info("Successfully started {} bookie containers.", bookieContainers.size());
+        inParallel(bookieContainers.values(), BKContainer::start);
+        log.info().attr("started", bookieContainers.size()).log("Successfully started bookie containers.");
 
-        // start brokers
-        this.startAllBrokers();
-        log.info("Successfully started {} broker containers.", brokerContainers.size());
+        // start brokers and the proxy, which finds the brokers as they register. A broker container is started once
+        // the broker is ready, which is after it has registered
+        List<PulsarContainer<?>> brokersAndProxy = new ArrayList<>(brokerContainers.values());
+        if (proxyContainer != null) {
+            brokersAndProxy.add(proxyContainer);
+        }
+        inParallel(brokersAndProxy, PulsarContainer::start);
+        log.info().attr("started", brokerContainers.size()).log("Successfully started broker containers.");
+        if (proxyContainer != null) {
+            log.info("Successfully started pulsar proxy.");
+        }
 
-        // create proxy
-        proxyContainer.start();
-        log.info("Successfully started pulsar proxy.");
-
-        log.info("Pulsar cluster {} is up running:", clusterName);
-        log.info("\tBinary Service Url : {}", getPlainTextServiceUrl());
-        log.info("\tHttp Service Url : {}", getHttpServiceUrl());
+        log.info().attr("cluster", clusterName).log("Pulsar cluster is up running");
+        if (proxyContainer != null) {
+            log.info().attr("url", getPlainTextServiceUrl()).log("\tBinary Service Url");
+            log.info().attr("url", getHttpServiceUrl()).log("\tHttp Service Url");
+        }
 
         // start external services
         this.externalServices = spec.externalServices;
         this.externalServiceEnvs = spec.externalServiceEnvs;
         if (null != externalServices) {
-            externalServices.entrySet().parallelStream().forEach(service -> {
+            inParallel(externalServices.entrySet(), service -> {
                 GenericContainer<?> serviceContainer = service.getValue();
                 serviceContainer.withNetwork(network);
                 serviceContainer.withNetworkAliases(service.getKey());
@@ -382,19 +497,19 @@ public class PulsarCluster {
                 }
                 PulsarContainer.configureLeaveContainerRunning(serviceContainer);
                 serviceContainer.start();
-                log.info("Successfully started external service {}.", service.getKey());
+                log.info().attr("service", service.getKey()).log("Successfully started external service .");
             });
         }
     }
 
     public void startService(String networkAlias,
                              GenericContainer<?> serviceContainer) {
-        log.info("Starting external service {} ...", networkAlias);
+        log.info().attr("service", networkAlias).log("Starting external service ...");
         serviceContainer.withNetwork(network);
         serviceContainer.withNetworkAliases(networkAlias);
         PulsarContainer.configureLeaveContainerRunning(serviceContainer);
         serviceContainer.start();
-        log.info("Successfully start external service {}", networkAlias);
+        log.info().attr("service", networkAlias).log("Successfully start external service");
     }
 
     public static void stopService(String networkAlias,
@@ -403,9 +518,9 @@ public class PulsarCluster {
             logIgnoringStopDueToLeaveRunning();
             return;
         }
-        log.info("Stopping external service {} ...", networkAlias);
+        log.info().attr("service", networkAlias).log("Stopping external service ...");
         serviceContainer.stop();
-        log.info("Successfully stop external service {}", networkAlias);
+        log.info().attr("service", networkAlias).log("Successfully stop external service");
     }
 
 
@@ -427,43 +542,58 @@ public class PulsarCluster {
             return;
         }
 
-        stopInParallel(workerContainers.values());
+        // Each group of containers stops at once, after the groups that use it
+        inParallel(workerContainers.values(), GenericContainer::stop);
 
         if (externalServices != null) {
-            stopInParallel(externalServices.values());
+            inParallel(externalServices.values(), GenericContainer::stop);
         }
 
-        if (null != proxyContainer) {
-            proxyContainer.stop();
-        }
+        // The brokers stop before the bookies, which they need to close their ledgers, and the proxy meanwhile, as it
+        // needs neither
+        Runnable stopBrokersAndBookies = () -> {
+            inParallel(brokerContainers.values(), GenericContainer::stop);
+            inParallel(bookieContainers.values(), GenericContainer::stop);
+        };
+        Runnable stopProxy = proxyContainer != null ? proxyContainer::stop : () -> { };
+        inParallel(List.of(stopBrokersAndBookies, stopProxy), Runnable::run);
 
-        stopInParallel(brokerContainers.values());
+        inParallel(metadataStoreContainers(), GenericContainer::stop);
 
-        stopInParallel(bookieContainers.values());
-
-        if (!sharedCsContainer && null != csContainer) {
-            csContainer.stop();
-        }
-
-        if (null != zkContainer) {
-            zkContainer.stop();
-        }
-
-        if (oxiaContainer != null) {
-            oxiaContainer.stop();
-        }
-
-        try {
-            network.close();
-        } catch (Exception e) {
-            log.info("Failed to shutdown network for pulsar cluster {}", clusterName, e);
+        if (closeNetworkOnExit) {
+            try {
+                network.close();
+            } catch (Exception e) {
+                log.info()
+                        .attr("cluster", clusterName)
+                        .exception(e)
+                        .log("Failed to shutdown network for pulsar cluster");
+            }
         }
     }
 
-    private static void stopInParallel(Collection<? extends GenericContainer<?>> containers) {
-        containers.parallelStream()
+    // The local zookeeper and the configuration store, unless another cluster owns it, or else oxia
+    private List<GenericContainer<?>> metadataStoreContainers() {
+        return Arrays.asList(zkContainer, sharedCsContainer ? null : csContainer, oxiaContainer);
+    }
+
+    /**
+     * Runs the action on all the items, such as containers to start, at once, each in a thread of its own, and returns
+     * once every action is done. A failure is rethrown only then, so that whatever the caller does next, such as
+     * stopping the cluster, doesn't overlap an action that's still running. A parallel stream did neither: it runs a
+     * TreeMap's 2 values one after the other, and rethrows a failure as soon as it happens.
+     */
+    private static <T> void inParallel(Collection<T> items, Consumer<? super T> action) {
+        CompletableFuture<?>[] futures = items.stream()
                 .filter(Objects::nonNull)
-                .forEach(GenericContainer::stop);
+                .map(item -> CompletableFuture.runAsync(() -> action.accept(item), CONTAINER_EXECUTOR))
+                .toArray(CompletableFuture[]::new);
+        try {
+            CompletableFuture.allOf(futures).join();
+        } catch (CompletionException e) {
+            Throwables.throwIfUnchecked(e.getCause());
+            throw e;
+        }
     }
 
     public synchronized void setupFunctionWorkers(String suffix, FunctionRuntimeType runtimeType,
@@ -490,13 +620,13 @@ public class PulsarCluster {
     private WorkerContainer createWorkerContainer(String name) {
         String serviceUrl = "pulsar://pulsar-broker-0:" + PulsarContainer.BROKER_PORT;
         String httpServiceUrl = "http://pulsar-broker-0:" + PulsarContainer.BROKER_HTTP_PORT;
-        return new WorkerContainer(clusterName, name)
+        WorkerContainer workerContainer = new WorkerContainer(clusterName, name)
                 .withNetwork(network)
                 .withNetworkAliases(name)
                 // worker settings
                 .withEnv("PF_workerId", name)
                 .withEnv("PF_workerHostname", name)
-                .withEnv("PF_workerPort", "" + PulsarContainer.BROKER_HTTP_PORT)
+                .withEnv("PF_workerPort", "" + BROKER_HTTP_PORT)
                 .withEnv("PF_pulsarFunctionsCluster", clusterName)
                 .withEnv("PF_pulsarServiceUrl", serviceUrl)
                 .withEnv("PF_pulsarWebServiceUrl", httpServiceUrl)
@@ -507,6 +637,22 @@ public class PulsarCluster {
                 .withEnv("zkServers", ZKContainer.NAME)
                 .withEnv(functionWorkerEnvs)
                 .withExposedPorts(functionWorkerAdditionalPorts.toArray(new Integer[0]));
+        configureProfiling(workerContainer, spec.profileFunctionWorker);
+        return workerContainer;
+    }
+
+    /**
+     * Applies the spec's profiling settings to a container. The output directory is set alongside
+     * the enable flag rather than at each call site, so that the two cannot drift apart.
+     *
+     * @param container the container to configure
+     * @param enabled whether this component is profiled
+     */
+    private void configureProfiling(PulsarContainer<?> container, boolean enabled) {
+        container.setEnableAsyncProfiler(enabled);
+        container.setProfileDirectory(spec.profileDirectory);
+        container.setJonoffcpuAgentJar(spec.jonoffcpuAgentJar);
+        container.setJonoffcpuOptions(spec.jonoffcpuOptions);
     }
 
     private void startFunctionWorkersWithThreadContainerFactory(String suffix, int numFunctionWorkers) {
@@ -522,9 +668,14 @@ public class PulsarCluster {
     }
 
     public synchronized void startWorkers() {
-        // Start workers that have been initialized
-        workerContainers.values().parallelStream().forEach(WorkerContainer::start);
-        log.info("Successfully started {} worker containers.", workerContainers.size());
+        // Start workers that have been initialized, the first one alone: a worker creates the subscription of the
+        // coordination topic unless it finds it, and exits if another worker creates it meanwhile
+        List<WorkerContainer> workers = new ArrayList<>(workerContainers.values());
+        if (!workers.isEmpty()) {
+            workers.get(0).start();
+            inParallel(workers.subList(1, workers.size()), WorkerContainer::start);
+        }
+        log.info().attr("started", workerContainers.size()).log("Successfully started worker containers.");
     }
 
     public synchronized void stopWorker(String workerName) {
@@ -535,12 +686,12 @@ public class PulsarCluster {
         // Stop the named worker.
         WorkerContainer worker = workerContainers.get(workerName);
         if (worker == null) {
-            log.warn("Failed to find the worker to stop ({})", workerName);
+            log.warn().attr("stop", workerName).log("Failed to find the worker to stop ( )");
             return;
         }
         worker.stop();
         workerContainers.remove(workerName);
-        log.info("Worker {} stopped and removed from the map of worker containers", workerName);
+        log.info().attr("worker", workerName).log("Worker stopped and removed from the map of worker containers");
     }
 
     public synchronized void stopWorkers() {
@@ -549,7 +700,7 @@ public class PulsarCluster {
             return;
         }
         // Stop workers that have been initialized
-        workerContainers.values().parallelStream().forEach(WorkerContainer::stop);
+        inParallel(workerContainers.values(), WorkerContainer::stop);
         workerContainers.clear();
     }
 
@@ -560,7 +711,7 @@ public class PulsarCluster {
                     .withNetwork(network)
                     .withNetworkAliases(name)
                     .start();
-            log.info("Successfully start container {}.", name);
+            log.info().attr("container", name).log("Successfully start container .");
         });
     }
 
@@ -569,8 +720,8 @@ public class PulsarCluster {
             logIgnoringStopDueToLeaveRunning();
             return;
         }
-        containers.values().parallelStream().forEach(GenericContainer::stop);
-        log.info("Successfully stop containers : {}", containers);
+        inParallel(containers.values(), GenericContainer::stop);
+        log.info().attr("containers", containers).log("Successfully stop containers");
     }
 
     private static void logIgnoringStopDueToLeaveRunning() {
@@ -619,6 +770,7 @@ public class PulsarCluster {
         return brokerContainers.values();
     }
 
+    /** The proxy, or null when the spec sets numProxies to 0. */
     public ProxyContainer getProxy() {
         return proxyContainer;
     }
@@ -690,20 +842,48 @@ public class PulsarCluster {
                 enabled ? "--enable" : "--disable");
     }
 
+    public String getFunctionLogs(String name) {
+        StringBuilder logs = new StringBuilder();
+        for (WorkerContainer container : getAlWorkers()) {
+            try {
+                String logFile = "/pulsar/logs/functions/public/default/" + name + "/" + name + "-0.log";
+                logs.append(container.<String>copyFileFromContainer(logFile, (inputStream) -> {
+                    return IOUtils.toString(inputStream, "utf-8");
+                }));
+            } catch (Exception e) {
+                log.error()
+                        .attr("container", container.getContainerName())
+                        .exception(e)
+                        .log("Failed to get function logs from container");
+            }
+        }
+        return logs.toString();
+    }
+
     public void dumpFunctionLogs(String name) {
         for (WorkerContainer container : getAlWorkers()) {
-            log.info("Trying to get function {} logs from container {}", name, container.getContainerName());
+            log.info()
+                    .attr("function", name)
+                    .attr("container", container.getContainerName())
+                    .log("Trying to get function logs from container");
             try {
                 String logFile = "/pulsar/logs/functions/public/default/" + name + "/" + name + "-0.log";
                 String logs = container.<String>copyFileFromContainer(logFile, (inputStream) -> {
                     return IOUtils.toString(inputStream, "utf-8");
                 });
-                log.info("Function {} logs {}", name, logs);
+                log.info().attr("function", name).attr("logs", logs).log("Function logs");
             } catch (com.github.dockerjava.api.exception.NotFoundException notFound) {
-                log.info("Cannot download {} logs from {} not found exception {}", name, container.getContainerName(),
-                        notFound.toString());
+                log.info()
+                        .attr("download", name)
+                        .attr("from", container.getContainerName())
+                        .attr("exception", notFound.toString())
+                        .log("Cannot download logs from not found exception");
             } catch (Throwable err) {
-                log.info("Cannot download {} logs from {}", name, container.getContainerName(), err);
+                log.info()
+                        .attr("download", name)
+                        .attr("from", container.getContainerName())
+                        .exception(err)
+                        .log("Cannot download logs from");
             }
         }
     }

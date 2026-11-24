@@ -1,0 +1,31 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# Profiles the broker as configs/profile-broker does, and also records the events of Netty's buffer allocators with
+# JDK Flight Recorder, from tests/performance/jfr/netty-allocations.jfc: every buffer allocation, reallocation and
+# free, and every chunk allocation and free. nettyAllocationsReport summarizes them in the profile report's Netty
+# allocator events section, by size, pooled or one-off memory and thread pool. The buffer events are recorded for
+# every buffer, so they add a heavy overhead to the broker and make the recording much larger: in the max-rate
+# scenario, about 2.5 events of each kind per message, and a broker recording of 1 GB instead of 10 MB. Prefer a short
+# measurement, and compare throughput and latency only between runs that record the same events. Netty 4.1, which
+# Pulsar 4.x uses, has no such events. Add it to a scenario with the launcher's --extends configs/profile-broker-
+# netty-allocations option, in place of configs/profile-broker, and run the scenario with the profile task.
+extends: profile-broker.yaml
+profiling:
+  broker:
+    jfrConfigurations: [profile, netty-allocations.jfc]
+    nettyAllocationsReport: true

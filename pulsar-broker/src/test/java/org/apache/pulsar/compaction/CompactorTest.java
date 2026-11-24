@@ -18,13 +18,17 @@
  */
 package org.apache.pulsar.compaction;
 
+import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricDoubleSumValue;
+import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricLongSumValue;
 import static org.apache.pulsar.client.impl.RawReaderTest.extractKey;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.netty.buffer.ByteBuf;
+import io.opentelemetry.api.common.Attributes;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -37,18 +41,20 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Cleanup;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerEntry;
 import org.apache.bookkeeper.client.LedgerHandle;
-import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.stats.OpenTelemetryTopicStats;
+import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
+import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRoutingMode;
@@ -63,6 +69,8 @@ import org.apache.pulsar.client.impl.RawMessageImpl;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.testng.Assert;
@@ -84,17 +92,17 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
     public void setup() throws Exception {
         super.internalSetup();
 
-        admin.clusters().createCluster("use",
+        admin.clusters().createCluster("test",
                 ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
         admin.tenants().createTenant("my-property",
-                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
-        admin.namespaces().createNamespace("my-property/use/my-ns");
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+        admin.namespaces().createNamespace("my-property/my-ns");
 
         compactionScheduler = Executors.newSingleThreadScheduledExecutor(
                 new ThreadFactoryBuilder().setNameFormat("compactor").setDaemon(true).build());
         bk = pulsar.getBookKeeperClientFactory().create(
-                this.conf, null, null, Optional.empty(), null);
-        compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
+                this.conf, null, null, Optional.empty(), null).get();
+        compactor = new PublishingOrderCompactor(conf, pulsarClient, bk, compactionScheduler);
     }
 
 
@@ -106,6 +114,12 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
         compactionScheduler.shutdownNow();
     }
 
+    @Override
+    protected void customizeMainPulsarTestContextBuilder(PulsarTestContext.Builder pulsarTestContextBuilder) {
+        super.customizeMainPulsarTestContextBuilder(pulsarTestContextBuilder);
+        pulsarTestContextBuilder.enableOpenTelemetry(true);
+    }
+
     protected long compact(String topic) throws ExecutionException, InterruptedException {
         return compactor.compact(topic).get();
     }
@@ -114,7 +128,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
         return compactor;
     }
 
-    private List<String> compactAndVerify(String topic, Map<String, byte[]> expected, boolean checkMetrics)
+    protected List<String> compactAndVerify(String topic, Map<String, byte[]> expected, boolean checkMetrics)
             throws Exception {
 
         long compactedLedgerId = compact(topic);
@@ -158,7 +172,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testCompaction() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/my-topic1";
+        String topic = "persistent://my-property/my-ns/my-topic1";
         final int numMessages = 1000;
         final int maxKeys = 10;
 
@@ -186,7 +200,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testAllCompactedOut() throws Exception {
-        String topicName = "persistent://my-property/use/my-ns/testAllCompactedOut";
+        String topicName = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/testAllCompactedOut");
         // set retain null key to true
         boolean oldRetainNullKey = pulsar.getConfig().isTopicCompactionRetainNullKey();
         pulsar.getConfig().setTopicCompactionRetainNullKey(true);
@@ -207,6 +221,34 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
             Assert.assertEquals(admin.topics().compactionStatus(topicName).status,
                     LongRunningProcessStatus.Status.SUCCESS);
         });
+
+        var attributes = Attributes.builder()
+                .put(OpenTelemetryAttributes.PULSAR_DOMAIN, "persistent")
+                .put(OpenTelemetryAttributes.PULSAR_TENANT, "my-property")
+                .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, "my-property/my-ns")
+                .put(OpenTelemetryAttributes.PULSAR_TOPIC, topicName)
+                .build();
+        var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
+        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_REMOVED_COUNTER, attributes, 1);
+        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_OPERATION_COUNTER, Attributes.builder()
+                        .putAll(attributes)
+                        .put(OpenTelemetryAttributes.PULSAR_COMPACTION_STATUS, "success")
+                        .build(),
+                1);
+        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_OPERATION_COUNTER, Attributes.builder()
+                        .putAll(attributes)
+                        .put(OpenTelemetryAttributes.PULSAR_COMPACTION_STATUS, "failure")
+                        .build(),
+                0);
+        assertMetricDoubleSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_DURATION_SECONDS, attributes,
+                actual -> assertThat(actual).isPositive());
+        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_BYTES_IN_COUNTER, attributes,
+                actual -> assertThat(actual).isPositive());
+        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_BYTES_OUT_COUNTER, attributes,
+                actual -> assertThat(actual).isPositive());
+        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_ENTRIES_COUNTER, attributes, 1);
+        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.COMPACTION_BYTES_COUNTER, attributes,
+                actual -> assertThat(actual).isPositive());
 
         producer.newMessage().key("K1").value(null).sendAsync();
         producer.flush();
@@ -235,7 +277,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testCompactAddCompact() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/my-topic1";
+        String topic = "persistent://my-property/my-ns/my-topic1";
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
@@ -273,7 +315,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testCompactedInOrder() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/my-topic1";
+        String topic = "persistent://my-property/my-ns/my-topic1";
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
@@ -305,7 +347,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testCompactEmptyTopic() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/my-topic1";
+        String topic = "persistent://my-property/my-ns/my-topic1";
 
         // trigger creation of topic on server side
         pulsarClient.newConsumer().topic(topic).subscriptionName("sub1").subscribe().close();
@@ -320,14 +362,14 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
         PulsarClientImpl mockClient = mock(PulsarClientImpl.class);
         ConnectionPool connectionPool = mock(ConnectionPool.class);
         when(mockClient.getCnxPool()).thenReturn(connectionPool);
-        TwoPhaseCompactor compactor = new TwoPhaseCompactor(configuration, mockClient,
+        PublishingOrderCompactor compactor = new PublishingOrderCompactor(configuration, mockClient,
                 Mockito.mock(BookKeeper.class), compactionScheduler);
         Assert.assertEquals(compactor.getPhaseOneLoopReadTimeoutInSeconds(), 60);
     }
 
     @Test
     public void testCompactedWithConcurrentSend() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/testCompactedWithConcurrentSend";
+        String topic = "persistent://my-property/my-ns/testCompactedWithConcurrentSend";
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
@@ -359,12 +401,53 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
         });
 
         Position lastCompactedPosition = topicCompactionService.getLastCompactedPosition().get();
-        Entry lastCompactedEntry = topicCompactionService.readLastCompactedEntry().get();
+        final var lastMessagePosition = topicCompactionService.getLastMessagePosition().get();
 
-        Assert.assertTrue(PositionImpl.get(lastCompactedPosition.getLedgerId(), lastCompactedPosition.getEntryId())
-                .compareTo(lastCompactedEntry.getLedgerId(), lastCompactedEntry.getEntryId()) >= 0);
+        Assert.assertTrue(PositionFactory.create(lastCompactedPosition.getLedgerId(),
+                lastCompactedPosition.getEntryId()).compareTo(lastMessagePosition.ledgerId(),
+                lastMessagePosition.entryId()) >= 0);
 
         future.join();
+    }
+
+    @Test
+    public void testLastMessagePositionOfCompressedBatch() throws Exception {
+        String topic = BrokerTestUtil.newUniqueName(
+                "persistent://my-property/my-ns/testLastMessagePositionOfCompressedBatch");
+        final int numMessages = 5;
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
+                .compressionType(CompressionType.LZ4)
+                .compressionMinMsgBodySize(0)
+                .enableBatching(true)
+                .batchingMaxMessages(numMessages)
+                .batchingMaxPublishDelay(1, TimeUnit.HOURS)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
+        List<CompletableFuture<MessageId>> futures = new ArrayList<>();
+        for (int i = 0; i < numMessages; i++) {
+            // a compressible value so that the compressed batch payload differs from the uncompressed one
+            futures.add(producer.newMessage().key("key-" + i).value(("value-" + i).repeat(20).getBytes())
+                    .sendAsync());
+        }
+        FutureUtil.waitForAll(futures).get();
+
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).get();
+        PulsarTopicCompactionService topicCompactionService =
+                (PulsarTopicCompactionService) persistentTopic.getTopicCompactionService();
+
+        long compactedLedgerId = compact(topic);
+        Awaitility.await().untilAsserted(() -> {
+            Optional<CompactedTopicContext> compactedTopicContext = topicCompactionService.getCompactedTopic()
+                    .getCompactedTopicContext();
+            assertThat(compactedTopicContext).isPresent();
+            assertThat(compactedTopicContext.get().ledger.getId()).isEqualTo(compactedLedgerId);
+        });
+
+        // the last entry of the compacted ledger is a compressed batch of numMessages messages
+        final var lastMessagePosition = topicCompactionService.getLastMessagePosition().get();
+        assertThat(lastMessagePosition.batchIndex()).isEqualTo(numMessages - 1);
     }
 
     public ByteBuf extractPayload(RawMessage m) throws Exception {

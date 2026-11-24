@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.admin.cli;
 
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.Parameters;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.gson.Gson;
@@ -29,24 +27,30 @@ import com.google.gson.stream.JsonWriter;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
 import java.util.function.Supplier;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.stats.AllocatorStats;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.Parameters;
 
-@Parameters(commandDescription = "Operations to collect broker statistics")
+@Command(description = "Operations to collect broker statistics")
 public class CmdBrokerStats extends CmdBase {
     private static final String DEFAULT_INDENTATION = "    ";
 
-    @Parameters(commandDescription = "dump metrics for Monitoring")
+    @Command(description = "dump metrics for Monitoring")
     private class CmdMonitoringMetrics extends CliCommand {
-        @Parameter(names = { "-i", "--indent" }, description = "Indent JSON output", required = false)
+        @Option(names = {"-b", "--broker-id"}, description = "Broker id (from `brokers list`) to get the stats of;"
+                + " defaults to the connected broker", required = false)
+        private String brokerId;
+
+        @Option(names = {"-i", "--indent"}, description = "Indent JSON output", required = false)
         private boolean indent = false;
 
         @Override
         void run() throws Exception {
-            String s = getAdmin().brokerStats().getMetrics();
+            String s = getAdmin().brokerStats().getMetrics(brokerId);
             JsonArray metrics = new Gson().fromJson(s, JsonArray.class);
 
             try (Writer out = new OutputStreamWriter(System.out, StandardCharsets.UTF_8);
@@ -67,14 +71,18 @@ public class CmdBrokerStats extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "dump mbean stats")
+    @Command(description = "dump mbean stats")
     private class CmdDumpMBeans extends CliCommand {
-        @Parameter(names = { "-i", "--indent" }, description = "Indent JSON output", required = false)
+        @Option(names = {"-b", "--broker-id"}, description = "Broker id (from `brokers list`) to get the stats of;"
+                + " defaults to the connected broker", required = false)
+        private String brokerId;
+
+        @Option(names = {"-i", "--indent"}, description = "Indent JSON output", required = false)
         private boolean indent = false;
 
         @Override
         void run() throws Exception {
-            String s = getAdmin().brokerStats().getMBeans();
+            String s = getAdmin().brokerStats().getMBeans(brokerId);
             JsonArray result = new Gson().fromJson(s, JsonArray.class);
             try (Writer out = new OutputStreamWriter(System.out, StandardCharsets.UTF_8);
                  JsonWriter jsonWriter = new JsonWriter(out)) {
@@ -88,23 +96,30 @@ public class CmdBrokerStats extends CmdBase {
 
     }
 
-    @Parameters(commandDescription = "dump broker load-report")
+    @Command(description = "dump broker load-report")
     private class CmdLoadReport extends CliCommand {
+        @Option(names = {"-b", "--broker-id"}, description = "Broker id (from `brokers list`) to get the stats of;"
+                + " defaults to the connected broker", required = false)
+        private String brokerId;
 
         @Override
         void run() throws Exception {
-            print(getAdmin().brokerStats().getLoadReport());
+            print(getAdmin().brokerStats().getLoadReport(brokerId));
         }
     }
 
-    @Parameters(commandDescription = "dump topics stats")
+    @Command(description = "dump topics stats")
     private class CmdTopics extends CliCommand {
-        @Parameter(names = { "-i", "--indent" }, description = "Indent JSON output", required = false)
+        @Option(names = {"-b", "--broker-id"}, description = "Broker id (from `brokers list`) to get the stats of;"
+                + " defaults to the connected broker", required = false)
+        private String brokerId;
+
+        @Option(names = {"-i", "--indent"}, description = "Indent JSON output", required = false)
         private boolean indent = false;
 
         @Override
         void run() throws Exception {
-            String s = getAdmin().brokerStats().getTopics();
+            String s = getAdmin().brokerStats().getTopics(brokerId);
             JsonObject result = new Gson().fromJson(s, JsonObject.class);
             try (Writer out = new OutputStreamWriter(System.out, StandardCharsets.UTF_8);
                  JsonWriter jsonWriter = new JsonWriter(out)) {
@@ -118,14 +133,18 @@ public class CmdBrokerStats extends CmdBase {
 
     }
 
-    @Parameters(commandDescription = "dump allocator stats")
+    @Command(description = "dump allocator stats")
     private class CmdAllocatorStats extends CliCommand {
-        @Parameter(description = "allocator-name", required = true)
-        private List<String> params;
+        @Parameters(description = "allocator-name", arity = "1")
+        private String allocatorName;
+
+        @Option(names = {"-b", "--broker-id"}, description = "Broker id (from `brokers list`) to get the stats of;"
+                + " defaults to the connected broker", required = false)
+        private String brokerId;
 
         @Override
         void run() throws Exception {
-            AllocatorStats stats = getAdmin().brokerStats().getAllocatorStats(params.get(0));
+            AllocatorStats stats = getAdmin().brokerStats().getAllocatorStats(brokerId, allocatorName);
             ObjectMapper mapper = ObjectMapperFactory.create();
             ObjectWriter writer = mapper.writerWithDefaultPrettyPrinter();
             try (Writer out = new OutputStreamWriter(System.out, StandardCharsets.UTF_8)) {
@@ -138,11 +157,11 @@ public class CmdBrokerStats extends CmdBase {
 
     public CmdBrokerStats(Supplier<PulsarAdmin> admin) {
         super("broker-stats", admin);
-        jcommander.addCommand("monitoring-metrics", new CmdMonitoringMetrics());
-        jcommander.addCommand("mbeans", new CmdDumpMBeans());
-        jcommander.addCommand("topics", new CmdTopics(), "destinations");
-        jcommander.addCommand("allocator-stats", new CmdAllocatorStats());
-        jcommander.addCommand("load-report", new CmdLoadReport());
+        addCommand("monitoring-metrics", new CmdMonitoringMetrics());
+        addCommand("mbeans", new CmdDumpMBeans());
+        addCommand("topics", new CmdTopics(), "destinations");
+        addCommand("allocator-stats", new CmdAllocatorStats());
+        addCommand("load-report", new CmdLoadReport());
     }
 
 }

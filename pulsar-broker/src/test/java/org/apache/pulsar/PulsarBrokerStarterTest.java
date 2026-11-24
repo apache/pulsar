@@ -18,12 +18,13 @@
  */
 package org.apache.pulsar;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import com.beust.jcommander.Parameter;
 import com.google.common.collect.Sets;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -32,17 +33,37 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.PrintStream;
 import java.io.PrintWriter;
-import java.lang.reflect.Constructor;
+import java.io.StringWriter;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.nio.file.Files;
 import java.util.Arrays;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
+import lombok.Cleanup;
+import org.apache.bookkeeper.bookie.storage.ldb.DbLedgerStorage;
+import org.apache.bookkeeper.common.allocator.PoolingPolicy;
+import org.apache.bookkeeper.common.component.LifecycleComponentStack;
+import org.apache.bookkeeper.conf.ServerConfiguration;
+import org.apache.bookkeeper.stats.NullStatsProvider;
+import org.apache.bookkeeper.stats.StatsProvider;
+import org.apache.commons.io.FileUtils;
+import org.apache.pulsar.PulsarBrokerStarter.BrokerStarter;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.docs.tools.CmdGenerateDocs;
+import org.apache.pulsar.metadata.bookkeeper.BookieStatsProviders;
+import org.apache.pulsar.metrics.prometheus.bookkeeper.PrometheusMetricsProvider;
+import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.testng.annotations.Test;
+import picocli.CommandLine.Option;
 
 @Test(groups = "broker")
 public class PulsarBrokerStarterTest {
+
+    private static final Predicate<String> JVM_FAMILIES =
+            name -> name.startsWith("jvm_") || name.startsWith("process_");
 
     private File createValidBrokerConfigFile() throws FileNotFoundException {
         File testConfigFile = new File("tmp." + System.currentTimeMillis() + ".properties");
@@ -95,6 +116,7 @@ public class PulsarBrokerStarterTest {
      * method returns a non-null {@link ServiceConfiguration} instance where all required settings are filled in and (2)
      * if the property variables inside the given property file are correctly referred to that returned object.
      */
+    @SuppressWarnings("deprecation")
     public void testLoadConfig() throws SecurityException, NoSuchMethodException, IOException, IllegalArgumentException,
             IllegalAccessException, InvocationTargetException {
 
@@ -171,6 +193,7 @@ public class PulsarBrokerStarterTest {
      * method returns a non-null {@link ServiceConfiguration} instance where all required settings are filled in and (2)
      * if the property variables inside the given property file are correctly referred to that returned object.
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testLoadBalancerConfig() throws SecurityException, NoSuchMethodException, IOException,
             IllegalArgumentException, IllegalAccessException, InvocationTargetException {
@@ -220,6 +243,7 @@ public class PulsarBrokerStarterTest {
      * method returns a non-null {@link ServiceConfiguration} instance where all required settings are filled in and (2)
      * if the property variables inside the given property file are correctly referred to that returned object.
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testGlobalZooKeeperConfig() throws SecurityException, NoSuchMethodException, IOException,
             IllegalArgumentException, IllegalAccessException, InvocationTargetException {
@@ -282,12 +306,15 @@ public class PulsarBrokerStarterTest {
      */
     @Test
     public void testMainWithNoArgument() throws Exception {
-        try {
-            PulsarBrokerStarter.main(new String[0]);
-            fail("No argument to main should've raised FileNotFoundException for no broker config!");
-        } catch (FileNotFoundException e) {
-            // code should reach here.
-        }
+        @Cleanup("shutdown")
+        BrokerStarter brokerStarter = new BrokerStarter();
+        @Cleanup
+        StringWriter err = new StringWriter();
+        @Cleanup
+        PrintWriter printWriter = new PrintWriter(err);
+        brokerStarter.getCommander().setErr(printWriter);
+        assertEquals(brokerStarter.start(new String[0]), 1);
+        assertTrue(err.toString().contains("FileNotFoundException"));
     }
 
     /**
@@ -296,16 +323,17 @@ public class PulsarBrokerStarterTest {
      */
     @Test
     public void testMainRunBookieAndAutoRecoveryNoConfig() throws Exception {
-        try {
-            File testConfigFile = createValidBrokerConfigFile();
-            String[] args = {"-c", testConfigFile.getAbsolutePath(), "-rb", "-ra", "-bc", ""};
-            PulsarBrokerStarter.main(args);
-            fail("No Config file for bookie auto recovery should've raised IllegalArgumentException!");
-        } catch (IllegalArgumentException e) {
-            // code should reach here.
-            e.printStackTrace();
-            assertEquals(e.getMessage(), "No configuration file for Bookie");
-        }
+        File testConfigFile = createValidBrokerConfigFile();
+        String[] args = {"-c", testConfigFile.getAbsolutePath(), "-rb", "-ra", "-bc", ""};
+        @Cleanup("shutdown")
+        BrokerStarter starter = new BrokerStarter();
+        @Cleanup
+        StringWriter err = new StringWriter();
+        @Cleanup
+        PrintWriter printWriter = new PrintWriter(err);
+        starter.getCommander().setErr(printWriter);
+        assertEquals(starter.start(args), 1);
+        assertTrue(err.toString().contains("No configuration file for Bookie"));
     }
 
     /**
@@ -314,15 +342,17 @@ public class PulsarBrokerStarterTest {
      */
     @Test
     public void testMainRunBookieRecoveryNoConfig() throws Exception {
-        try {
-            File testConfigFile = createValidBrokerConfigFile();
-            String[] args = {"-c", testConfigFile.getAbsolutePath(), "-ra", "-bc", ""};
-            PulsarBrokerStarter.main(args);
-            fail("No Config file for bookie auto recovery should've raised IllegalArgumentException!");
-        } catch (IllegalArgumentException e) {
-            // code should reach here.
-            assertEquals(e.getMessage(), "No configuration file for Bookie");
-        }
+        File testConfigFile = createValidBrokerConfigFile();
+        String[] args = {"-c", testConfigFile.getAbsolutePath(), "-ra", "-bc", ""};
+        @Cleanup("shutdown")
+        BrokerStarter starter = new BrokerStarter();
+        @Cleanup
+        StringWriter err = new StringWriter();
+        @Cleanup
+        PrintWriter printWriter = new PrintWriter(err);
+        starter.getCommander().setErr(printWriter);
+        assertEquals(starter.start(args), 1);
+        assertTrue(err.toString().contains("No configuration file for Bookie"));
     }
 
     /**
@@ -330,15 +360,17 @@ public class PulsarBrokerStarterTest {
      */
     @Test
     public void testMainRunBookieNoConfig() throws Exception {
-        try {
-            File testConfigFile = createValidBrokerConfigFile();
-            String[] args = {"-c", testConfigFile.getAbsolutePath(), "-rb", "-bc", ""};
-            PulsarBrokerStarter.main(args);
-            fail("No Config file for bookie should've raised IllegalArgumentException!");
-        } catch (IllegalArgumentException e) {
-            // code should reach here
-            assertEquals(e.getMessage(), "No configuration file for Bookie");
-        }
+        File testConfigFile = createValidBrokerConfigFile();
+        String[] args = {"-c", testConfigFile.getAbsolutePath(), "-rb", "-bc", ""};
+        @Cleanup("shutdown")
+        BrokerStarter starter = new BrokerStarter();
+        @Cleanup
+        StringWriter err = new StringWriter();
+        @Cleanup
+        PrintWriter printWriter = new PrintWriter(err);
+        starter.getCommander().setErr(printWriter);
+        assertEquals(starter.start(args), 1);
+        assertTrue(err.toString().contains("No configuration file for Bookie"));
     }
 
     /**
@@ -346,14 +378,17 @@ public class PulsarBrokerStarterTest {
      */
     @Test
     public void testMainEnableRunBookieThroughBrokerConfig() throws Exception {
-        try {
-            File testConfigFile = createValidBrokerConfigFile();
-            String[] args = {"-c", testConfigFile.getAbsolutePath()};
-            PulsarBrokerStarter.main(args);
-            fail("No argument to main should've raised IllegalArgumentException for no bookie config!");
-        } catch (IllegalArgumentException e) {
-            // code should reach here.
-        }
+        File testConfigFile = createValidBrokerConfigFile();
+        String[] args = {"-c", testConfigFile.getAbsolutePath()};
+        @Cleanup("shutdown")
+        BrokerStarter starter = new BrokerStarter();
+        @Cleanup
+        StringWriter err = new StringWriter();
+        @Cleanup
+        PrintWriter printWriter = new PrintWriter(err);
+        starter.getCommander().setErr(printWriter);
+        assertEquals(starter.start(args), 1);
+        assertTrue(err.toString().contains("IllegalArgumentException"));
     }
 
     @Test
@@ -363,22 +398,16 @@ public class PulsarBrokerStarterTest {
             ByteArrayOutputStream baoStream = new ByteArrayOutputStream();
             System.setOut(new PrintStream(baoStream));
 
-            Class argumentsClass = Class.forName("org.apache.pulsar.PulsarBrokerStarter$StarterArguments");
-            Constructor constructor = argumentsClass.getDeclaredConstructor();
-            constructor.setAccessible(true);
-            Object obj = constructor.newInstance();
-
-            CmdGenerateDocs cmd = new CmdGenerateDocs("pulsar");
-            cmd.addCommand("broker", obj);
-            cmd.run(null);
+            Class<?> argumentsClass = Class.forName("org.apache.pulsar.PulsarBrokerStarter$StarterArguments");
+            PulsarBrokerStarter.main(new String[]{"-g"});
 
             String message = baoStream.toString();
 
             Field[] fields = argumentsClass.getDeclaredFields();
             for (Field field : fields) {
-                boolean fieldHasAnno = field.isAnnotationPresent(Parameter.class);
+                boolean fieldHasAnno = field.isAnnotationPresent(Option.class);
                 if (fieldHasAnno) {
-                    Parameter fieldAnno = field.getAnnotation(Parameter.class);
+                    Option fieldAnno = field.getAnnotation(Option.class);
                     String[] names = fieldAnno.names();
                     String nameStr = Arrays.asList(names).toString();
                     nameStr = nameStr.substring(1, nameStr.length() - 1);
@@ -388,5 +417,75 @@ public class PulsarBrokerStarterTest {
         } finally {
             System.setOut(oldStream);
         }
+    }
+
+    /**
+     * Starts a bookie the way {@code -rb} does, against an embedded ZooKeeper, and checks that the broker's
+     * registry never sees it. {@code EmbeddedServer} builds its own provider from the configuration when none is
+     * passed in, and that one lands on the 1.x default registry.
+     */
+    @Test
+    public void testInProcessBookieStatsProviderStaysOutOfTheBrokerScrape() throws Exception {
+        LocalBookkeeperEnsemble zk = new LocalBookkeeperEnsemble(0, 0);
+        zk.start();
+        File bookieDir = Files.createTempDirectory("bk-starter-test").toFile();
+        StatsProvider provider = null;
+        LifecycleComponentStack bookieServer = null;
+        try {
+            ServerConfiguration bookieConf = new ServerConfiguration();
+            // An explicit id keeps the cookie validation from resolving the host name of the local address.
+            bookieConf.setBookieId("bk-starter-test");
+            bookieConf.setStatsProviderClass(PrometheusMetricsProvider.class);
+            bookieConf.setProperty(PrometheusMetricsProvider.PROMETHEUS_STATS_HTTP_ENABLE, false);
+            bookieConf.setProperty("metadataServiceUri", "zk://127.0.0.1:" + zk.getZookeeperPort() + "/ledgers");
+            bookieConf.setJournalDirName(bookieDir.getPath());
+            bookieConf.setLedgerDirNames(new String[] {bookieDir.getPath()});
+            bookieConf.setLedgerStorageClass(DbLedgerStorage.class.getName());
+            bookieConf.setProperty("dbStorage_writeCacheMaxSizeMb", 2);
+            bookieConf.setProperty("dbStorage_readAheadCacheMaxSizeMb", 1);
+            bookieConf.setProperty("dbStorage_rocksDB_writeBufferSizeMB", 1);
+            bookieConf.setProperty("dbStorage_rocksDB_blockCacheSize", 1024 * 1024);
+            bookieConf.setJournalSyncData(false);
+            bookieConf.setAllowLoopback(true);
+            bookieConf.setBookiePort(0);
+            bookieConf.setAllowEphemeralPorts(true);
+            bookieConf.setAllocatorPoolingPolicy(PoolingPolicy.UnpooledHeap);
+
+            // A broker started earlier in this JVM registers the JVM metrics on the default registry itself.
+            Set<String> jvmFamiliesBefore = familyNames(JVM_FAMILIES);
+            provider = BookieStatsProviders.create(bookieConf);
+            provider.start(bookieConf);
+            bookieServer = BookieStatsProviders.buildBookieServer(bookieConf, provider);
+            bookieServer.start();
+
+            // The bookie's own stats endpoint serves the JVM metrics and the bookie's metrics.
+            StringWriter bookieEndpoint = new StringWriter();
+            provider.writeAllMetrics(bookieEndpoint);
+            assertThat(bookieEndpoint.toString())
+                    .contains("# TYPE jvm_memory_direct_bytes_used gauge\n")
+                    .contains("bookie_SERVER_STATUS");
+            // But none of them reached the registry the broker's /metrics scrapes.
+            assertThat(familyNames(name -> name.startsWith("bookie_"))).isEmpty();
+            assertThat(familyNames(JVM_FAMILIES)).isEqualTo(jvmFamiliesBefore);
+        } finally {
+            if (bookieServer != null) {
+                bookieServer.close();
+            }
+            if (provider != null) {
+                provider.stop();
+            }
+            zk.stop();
+            FileUtils.deleteDirectory(bookieDir);
+        }
+        // Any other provider still comes from its no-arg constructor.
+        ServerConfiguration nullProviderConf = new ServerConfiguration();
+        nullProviderConf.setStatsProviderClass(NullStatsProvider.class);
+        assertThat(BookieStatsProviders.create(nullProviderConf)).isInstanceOf(NullStatsProvider.class);
+    }
+
+    private static Set<String> familyNames(Predicate<String> filter) {
+        return PrometheusRegistry.defaultRegistry.scrape(filter).stream()
+                .map(snapshot -> snapshot.getMetadata().getPrometheusName())
+                .collect(Collectors.toCollection(TreeSet::new));
     }
 }

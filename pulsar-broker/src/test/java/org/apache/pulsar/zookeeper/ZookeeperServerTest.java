@@ -22,11 +22,11 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import lombok.CustomLog;
 import org.apache.zookeeper.server.NIOServerCnxnFactory;
 import org.apache.zookeeper.server.ZooKeeperServer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class ZookeeperServerTest implements Closeable {
     private final File zkTmpDir;
     private ZooKeeperServer zks;
@@ -43,7 +43,7 @@ public class ZookeeperServerTest implements Closeable {
 
     public ZookeeperServerTest(int zkPort) throws IOException {
         this.zkTmpDir = File.createTempFile("zookeeper", "test");
-        log.info("**** Start GZK on {} ****", zkTmpDir);
+        log.info().attr("gZK", zkTmpDir).log("**** Start GZK on ****");
         if (!zkTmpDir.delete() || !zkTmpDir.mkdir()) {
             throw new IOException("Couldn't create zk directory " + zkTmpDir);
         }
@@ -57,26 +57,31 @@ public class ZookeeperServerTest implements Closeable {
         try {
             serverFactory.startup(zks);
         } catch (Exception e) {
-            log.error("Exception while instantiating ZooKeeper", e);
+            log.error().exception(e).log("Exception while instantiating ZooKeeper");
         }
 
         this.zkPort = serverFactory.getLocalPort();
         this.hostPort = "127.0.0.1:" + zkPort;
 
         LocalBookkeeperEnsemble.waitForServerUp(hostPort, 30000);
-        log.info("ZooKeeper started at {}", hostPort);
+        log.info().attr("started", hostPort).log("ZooKeeper started at");
     }
 
     public void stop() throws IOException {
-        zks.shutdown();
-        serverFactory.shutdown();
-        log.info("Stopped ZK server at {}", hostPort);
+        if (zks != null) {
+            zks.shutdown();
+            zks = null;
+        }
+        if (serverFactory != null) {
+            serverFactory.shutdown();
+            serverFactory = null;
+        }
+        log.info().attr("server", hostPort).log("Stopped ZK server at");
     }
 
     @Override
     public void close() throws IOException {
-        zks.shutdown();
-        serverFactory.shutdown();
+        stop();
         zkTmpDir.delete();
     }
 
@@ -87,6 +92,4 @@ public class ZookeeperServerTest implements Closeable {
     public String getHostPort() {
         return hostPort;
     }
-
-    private static final Logger log = LoggerFactory.getLogger(ZookeeperServerTest.class);
 }

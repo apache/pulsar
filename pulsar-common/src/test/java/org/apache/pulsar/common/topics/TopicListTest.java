@@ -18,18 +18,23 @@
  */
 package org.apache.pulsar.common.topics;
 
-import com.google.common.collect.Lists;
-import org.testng.annotations.Test;
-
-import java.util.Arrays;
-import java.util.List;
-import java.util.Set;
-import java.util.regex.Pattern;
-import java.util.stream.Stream;
-
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
+import com.google.common.collect.Lists;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Set;
+import java.util.regex.Pattern;
+import org.apache.pulsar.common.naming.TopicName;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 public class TopicListTest {
 
@@ -44,12 +49,120 @@ public class TopicListTest {
 
         Pattern pattern1 = Pattern.compile("persistent://my-property/my-ns/pattern-topic.*");
         List<String> result1 = TopicList.filterTopics(topicsNames, pattern1);
-        assertTrue(result1.size() == 2 && result1.contains(topicName1) && result1.contains(topicName2));
+        assertThat(result1).containsExactly(topicName1, topicName2);
 
         Pattern pattern2 = Pattern.compile("persistent://my-property/my-ns/.*");
         List<String> result2 = TopicList.filterTopics(topicsNames, pattern2);
-        assertTrue(result2.size() == 4
-                && Stream.of(topicName1, topicName2, topicName3, topicName4).allMatch(result2::contains));
+        assertThat(result2).containsExactly(topicName1, topicName2, topicName3, topicName4);
+    }
+
+    private static List<String> projectionTopics() {
+        return List.of(
+                "persistent://tenant/ns/plain",
+                "non-persistent://tenant/ns/plain",
+                "tenant/ns/short",
+                "short-topic",
+                "persistent://tenant/ns/local-partition-0",
+                "persistent://tenant/ns/local-partition-1",
+                "persistent://tenant/ns/local-partition-01",
+                "persistent://tenant/ns/local-partition--1",
+                "persistent://tenant/ns/local-partition-word",
+                "persistent://tenant/ns/-partition-0",
+                "persistent://tenant/ns/local%3A%2F%2Ftail",
+                "persistent://tenant/ns/雪-😀",
+                "topic://tenant/ns/plain",
+                "topic://tenant/ns/plain/child",
+                "topic://tenant/ns/a://b",
+                "topic://tenant/ns/a://b://c",
+                "topic://tenant/ns/a://",
+                "topic://tenant/ns/a://://b",
+                "topic://tenant/ns/://",
+                "topic://tenant/ns/雪://😀",
+                "topic://tenant/ns/local-partition-1",
+                "segment://tenant/ns/plain/0000-ffff-1",
+                "segment://tenant/ns/a://b/0000-ffff-1",
+                "segment://tenant/ns/a://b://c/0000-7fff-2",
+                "segment://tenant/ns/local-partition-1/0000-ffff-2",
+                "segment://tenant/ns/雪://😀/0000-ffff-1",
+                "segment://tenant/ns/plain/00AF-FFFF-01");
+    }
+
+    @Test
+    public void testFilterTopicsPreservesLegacyProjectionAndCanonicalOrder() {
+        List<String> expectedProjections = new ArrayList<>();
+        List<String> expectedTopics = new ArrayList<>();
+        for (String input : projectionTopics()) {
+            TopicName topic = TopicName.get(input);
+            expectedProjections.add(legacyProjection(topic));
+            expectedTopics.add(topic.toString());
+        }
+        List<String> actualProjections = new ArrayList<>();
+        TopicsPattern recording = new TopicsPattern() {
+            @Override
+            public boolean matches(String topic) {
+                actualProjections.add(topic);
+                return true;
+            }
+
+            @Override
+            public String inputPattern() {
+                return ".*";
+            }
+        };
+
+        assertThat(TopicList.filterTopics(projectionTopics(), recording)).containsExactlyElementsOf(expectedTopics);
+        assertThat(actualProjections).containsExactlyElementsOf(expectedProjections);
+        // The second literal separator is intentionally preserved as a boundary, rather than changing semantics.
+        assertThat(actualProjections.get(14)).isEqualTo("tenant/ns/a");
+        assertThat(actualProjections.get(23)).isEqualTo("tenant/ns/a");
+    }
+
+    @DataProvider
+    public Object[][] patternImplementations() {
+        return Arrays.stream(TopicsPattern.RegexImplementation.values()).map(value -> new Object[] {value})
+                .toArray(Object[][]::new);
+    }
+
+    @Test(dataProvider = "patternImplementations")
+    public void testFilterTopicsMatchesLegacyImplementation(TopicsPattern.RegexImplementation implementation) {
+        List<String> expressions = new ArrayList<>(List.of(".*", "tenant/ns/plain", "tenant/ns/.*",
+                "tenant/ns/a", "tenant/ns/a/.*", "tenant/ns/local", "tenant/ns/absent"));
+        if (implementation != TopicsPattern.RegexImplementation.RE2J) {
+            expressions.add("tenant/ns/(?=plain).*?");
+        }
+        for (String expression : expressions) {
+            TopicsPattern pattern = TopicsPatternFactory.create(expression, implementation);
+            assertThat(TopicList.filterTopics(projectionTopics(), pattern))
+                    .as("legacy projection using %s and %s", implementation, expression)
+                    .containsExactlyElementsOf(legacyFilter(projectionTopics(), pattern));
+        }
+    }
+
+    @DataProvider
+    public Object[][] invalidProjectionTopics() {
+        return new Object[][] {{"unknown://tenant/ns/topic"}, {"persistent://tenant/cluster/ns/topic"},
+                {"persistent://tenant/ns/"}, {"persistent://tenant/ns/a://b"},
+                {"segment://tenant/ns/topic/invalid-descriptor"}, {""}, {null}};
+    }
+
+    @Test(dataProvider = "invalidProjectionTopics")
+    public void testFilterTopicsPreservesInvalidNameFailures(String input) {
+        List<String> topics = Arrays.asList(input);
+        TopicsPattern pattern = TopicsPatternFactory.matchAll();
+        Throwable oldFailure = catchThrowable(() -> legacyFilter(topics, pattern));
+        assertThat(oldFailure).isNotNull();
+        assertThatThrownBy(() -> TopicList.filterTopics(topics, pattern)).isExactlyInstanceOf(oldFailure.getClass());
+    }
+
+    private static String legacyProjection(TopicName topic) {
+        // Independent reference for the exact implementation before the allocation optimization.
+        return com.google.re2j.Pattern.compile(com.google.re2j.Pattern.quote("://"))
+                .split(topic.getPartitionedTopicName())[1];
+    }
+
+    private static List<String> legacyFilter(List<String> topics, TopicsPattern pattern) {
+        return topics.stream().map(TopicName::get).filter(topic -> pattern.matches(legacyProjection(topic)))
+                .map(TopicName::toString).toList();
     }
 
     @Test
@@ -67,18 +180,18 @@ public class TopicListTest {
         Set<String> addedNames = TopicList.minus(newNames, oldNames);
         Set<String> removedNames = TopicList.minus(oldNames, newNames);
 
-        assertTrue(addedNames.size() == 2 &&
-                addedNames.contains(topicName5) &&
-                addedNames.contains(topicName6));
-        assertTrue(removedNames.size() == 2 &&
-                removedNames.contains(topicName1) &&
-                removedNames.contains(topicName2));
+        assertTrue(addedNames.size() == 2
+                && addedNames.contains(topicName5)
+                && addedNames.contains(topicName6));
+        assertTrue(removedNames.size() == 2
+                && removedNames.contains(topicName1)
+                && removedNames.contains(topicName2));
 
         // totally 2 different list, should return content of first lists.
         Set<String> addedNames2 = TopicList.minus(addedNames, removedNames);
-        assertTrue(addedNames2.size() == 2 &&
-                addedNames2.contains(topicName5) &&
-                addedNames2.contains(topicName6));
+        assertTrue(addedNames2.size() == 2
+                && addedNames2.contains(topicName5)
+                && addedNames2.contains(topicName6));
 
         // 2 same list, should return empty list.
         Set<String> addedNames3 = TopicList.minus(addedNames, addedNames);
@@ -101,11 +214,72 @@ public class TopicListTest {
         String hash1 = TopicList.calculateHash(Arrays.asList(topicName3, topicName2, topicName1));
         String hash2 = TopicList.calculateHash(Arrays.asList(topicName1, topicName3, topicName2));
         assertEquals(hash1, hash2, "Hash must not depend on order of topics in the list");
+        assertEquals(hash1, "90d4a04a", "Hash must be equal to the expected value");
 
         String hash3 = TopicList.calculateHash(Arrays.asList(topicName1, topicName2));
         assertNotEquals(hash1, hash3, "Different list must have different hashes");
 
+        String hash4 = TopicList.calculateHash(Arrays.asList(topicName1));
+        assertEquals(hash4, "0d0602ed", "Hash must be equal to the expected value");
+
+        String hash5 = TopicList.calculateHash(Collections.emptyList());
+        assertEquals(hash5, "00000000", "Hash of empty list must be 0");
     }
 
+    @Test
+    public void testRemoveTopicDomainScheme() {
+        // persistent.
+        final String tpName1 = "persistent://public/default/tp";
+        String res1 = TopicList.removeTopicDomainScheme(tpName1);
+        assertEquals(res1, "public/default/tp");
 
+        // non-persistent
+        final String tpName2 = "non-persistent://public/default/tp";
+        String res2 = TopicList.removeTopicDomainScheme(tpName2);
+        assertEquals(res2, "public/default/tp");
+
+        // without topic domain.
+        final String tpName3 = "public/default/tp";
+        String res3 = TopicList.removeTopicDomainScheme(tpName3);
+        assertEquals(res3, "public/default/tp");
+
+        // persistent & "java.util.regex.Pattern.quote".
+        final String tpName4 = java.util.regex.Pattern.quote(tpName1);
+        String res4 = TopicList.removeTopicDomainScheme(tpName4);
+        assertEquals(res4, java.util.regex.Pattern.quote("public/default/tp"));
+
+        // persistent & "java.util.regex.Pattern.quote" & "^$".
+        final String tpName5 = "^" + java.util.regex.Pattern.quote(tpName1) + "$";
+        String res5 = TopicList.removeTopicDomainScheme(tpName5);
+        assertEquals(res5, "^" + java.util.regex.Pattern.quote("public/default/tp") + "$");
+
+        // persistent & "com.google.re2j.Pattern.quote".
+        final String tpName6 = Pattern.quote(tpName1);
+        String res6 = TopicList.removeTopicDomainScheme(tpName6);
+        assertEquals(res6, Pattern.quote("public/default/tp"));
+
+        // non-persistent & "java.util.regex.Pattern.quote".
+        final String tpName7 = java.util.regex.Pattern.quote(tpName2);
+        String res7 = TopicList.removeTopicDomainScheme(tpName7);
+        assertEquals(res7, java.util.regex.Pattern.quote("public/default/tp"));
+
+        // non-persistent & "com.google.re2j.Pattern.quote".
+        final String tpName8 = Pattern.quote(tpName2);
+        String res8 = TopicList.removeTopicDomainScheme(tpName8);
+        assertEquals(res8, Pattern.quote("public/default/tp"));
+
+        // non-persistent & "com.google.re2j.Pattern.quote" & "^$".
+        final String tpName9 = "^" + Pattern.quote(tpName2) + "$";
+        String res9 = TopicList.removeTopicDomainScheme(tpName9);
+        assertEquals(res9, "^" + Pattern.quote("public/default/tp") + "$");
+
+        // wrong topic domain.
+        final String tpName10 = "xx://public/default/tp";
+        try {
+            TopicList.removeTopicDomainScheme(tpName10);
+            fail("Does not support the topic domain xx");
+        } catch (Exception ex) {
+            // expected error.
+        }
+    }
 }

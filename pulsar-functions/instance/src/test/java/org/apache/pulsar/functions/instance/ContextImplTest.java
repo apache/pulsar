@@ -19,6 +19,8 @@
 package org.apache.pulsar.functions.instance;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -38,6 +40,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.ClientBuilder;
@@ -55,6 +59,7 @@ import org.apache.pulsar.client.impl.ProducerBase;
 import org.apache.pulsar.client.impl.ProducerBuilderImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.TypedMessageBuilderImpl;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.io.SourceConfig;
@@ -62,8 +67,10 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.instance.state.BKStateStoreImpl;
 import org.apache.pulsar.functions.instance.state.InstanceStateManager;
+import org.apache.pulsar.functions.instance.stats.ComponentStatsManager;
 import org.apache.pulsar.functions.instance.stats.FunctionCollectorRegistry;
-import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.instance.v5.LazyPulsarClientV5;
+import org.apache.pulsar.functions.proto.FunctionDetails;
 import org.apache.pulsar.functions.secretsprovider.EnvironmentBasedSecretsProvider;
 import org.apache.pulsar.functions.source.PulsarFunctionRecord;
 import org.apache.pulsar.io.core.SinkContext;
@@ -72,6 +79,7 @@ import org.assertj.core.util.Lists;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -86,24 +94,33 @@ public class ContextImplTest {
     private PulsarClientImpl client;
     private PulsarAdmin pulsarAdmin;
     private ContextImpl context;
+    @SuppressWarnings("rawtypes")
     private Producer producer;
+    private ProducerCache producerCache;
 
     @BeforeMethod(alwaysRun = true)
+    @SuppressWarnings("unchecked")
     public void setup() throws PulsarClientException {
         config = new InstanceConfig();
         config.setExposePulsarAdminClientEnabled(true);
-        FunctionDetails functionDetails = FunctionDetails.newBuilder()
-            .setUserConfig("")
-            .build();
+        FunctionDetails functionDetails = new FunctionDetails()
+            .setUserConfig("");
         config.setFunctionDetails(functionDetails);
         logger = mock(Logger.class);
         pulsarAdmin = mock(PulsarAdmin.class);
 
         producer = mock(Producer.class);
         client = mock(PulsarClientImpl.class);
+        when(client.getConfiguration()).thenReturn(new ClientConfigurationData());
         ConnectionPool connectionPool = mock(ConnectionPool.class);
         when(client.getCnxPool()).thenReturn(connectionPool);
-        when(client.newProducer()).thenReturn(new ProducerBuilderImpl(client, Schema.BYTES));
+        when(client.newProducer()).thenAnswer(invocation -> new ProducerBuilderImpl<>(client, Schema.BYTES));
+        when(client.newProducer(any())).thenAnswer(
+                invocation -> new ProducerBuilderImpl<>(client, invocation.getArgument(0)));
+        // The builder asks the client to fill in the pending-message defaults before creating the
+        // producer; on a mock that would otherwise hand back a null configuration.
+        when(client.applyNoMemoryLimitProducerDefaults(any(ProducerConfigurationData.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
         when(client.createProducerAsync(any(ProducerConfigurationData.class), any(), any()))
                 .thenReturn(CompletableFuture.completedFuture(producer));
         when(client.getSchema(anyString())).thenReturn(CompletableFuture.completedFuture(Optional.empty()));
@@ -112,17 +129,26 @@ public class ContextImplTest {
         clientBuilder = mock(ClientBuilder.class);
         when(clientBuilder.build()).thenReturn(client);
 
+        @SuppressWarnings("rawtypes")
         TypedMessageBuilder messageBuilder = spy(new TypedMessageBuilderImpl(mock(ProducerBase.class), Schema.STRING));
         doReturn(new CompletableFuture<>()).when(messageBuilder).sendAsync();
         when(producer.newMessage()).thenReturn(messageBuilder);
+        doReturn(CompletableFuture.completedFuture(null)).when(producer).flushAsync();
+        producerCache = new ProducerCache();
         context = new ContextImpl(
             config,
             logger,
             client,
             new EnvironmentBasedSecretsProvider(), FunctionCollectorRegistry.getDefaultImplementation(), new String[0],
                 FunctionDetails.ComponentType.FUNCTION, null, new InstanceStateManager(),
-                pulsarAdmin, clientBuilder, t -> {});
+                pulsarAdmin, clientBuilder, t -> {}, producerCache);
         context.setCurrentMessageContext((Record<String>) () -> null);
+    }
+
+    @AfterMethod(alwaysRun = true)
+    public void tearDown() {
+        producerCache.close();
+        producerCache = null;
     }
 
     @Test(expectedExceptions = IllegalStateException.class)
@@ -220,6 +246,90 @@ public class ContextImplTest {
         context.newOutputMessage("sometopic", null).value("Somevalue").sendAsync();
     }
 
+    @SuppressWarnings("unchecked")
+    private ContextImpl contextWithClientV5(org.apache.pulsar.client.api.v5.PulsarClient clientV5,
+                                            boolean publishWithClientV5) throws Exception {
+        org.apache.pulsar.client.api.v5.PulsarClientBuilder builder =
+                mock(org.apache.pulsar.client.api.v5.PulsarClientBuilder.class);
+        when(builder.build()).thenReturn(clientV5);
+        return new ContextImpl(config, logger, client, new LazyPulsarClientV5(() -> builder), publishWithClientV5,
+                new EnvironmentBasedSecretsProvider(), FunctionCollectorRegistry.getDefaultImplementation(),
+                new String[0], FunctionDetails.ComponentType.FUNCTION, null, new InstanceStateManager(),
+                pulsarAdmin, clientBuilder, t -> {}, producerCache);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static org.apache.pulsar.client.api.v5.async.AsyncMessageBuilder<String> mockV5Producer(
+            org.apache.pulsar.client.api.v5.PulsarClient clientV5) throws Exception {
+        org.apache.pulsar.client.api.v5.ProducerBuilder<String> producerBuilder =
+                mock(org.apache.pulsar.client.api.v5.ProducerBuilder.class, org.mockito.Answers.RETURNS_SELF);
+        org.apache.pulsar.client.api.v5.Producer<String> v5Producer =
+                mock(org.apache.pulsar.client.api.v5.Producer.class);
+        org.apache.pulsar.client.api.v5.async.AsyncProducer<String> asyncProducer =
+                mock(org.apache.pulsar.client.api.v5.async.AsyncProducer.class);
+        org.apache.pulsar.client.api.v5.async.AsyncMessageBuilder<String> messageBuilder =
+                mock(org.apache.pulsar.client.api.v5.async.AsyncMessageBuilder.class);
+        when(clientV5.newProducer(any())).thenAnswer(invocation -> producerBuilder);
+        doReturn(v5Producer).when(producerBuilder).create();
+        when(v5Producer.async()).thenReturn(asyncProducer);
+        when(asyncProducer.newMessage()).thenReturn(messageBuilder);
+        when(asyncProducer.flush()).thenReturn(CompletableFuture.completedFuture(null));
+        when(asyncProducer.close()).thenReturn(CompletableFuture.completedFuture(null));
+        return messageBuilder;
+    }
+
+    @Test
+    public void testClientV5IsCreatedOnFirstUse() throws Exception {
+        org.apache.pulsar.client.api.v5.PulsarClient clientV5 =
+                mock(org.apache.pulsar.client.api.v5.PulsarClient.class);
+        ContextImpl contextV5 = contextWithClientV5(clientV5, false);
+        assertThat(contextV5.getPulsarClientV5()).isSameAs(clientV5);
+        assertThat(contextV5.getPulsarClientV5()).isSameAs(clientV5);
+        // the v4-only context has no V5 client
+        assertThatThrownBy(() -> context.getPulsarClientV5()).isInstanceOf(UnsupportedOperationException.class);
+    }
+
+    @Test
+    public void testV4ComponentPublishesToScalableTopicWithClientV5() throws Exception {
+        org.apache.pulsar.client.api.v5.PulsarClient clientV5 =
+                mock(org.apache.pulsar.client.api.v5.PulsarClient.class);
+        mockV5Producer(clientV5);
+        ContextImpl contextV4 = contextWithClientV5(clientV5, false);
+
+        // a topic:// topic is published with the V5 client, whichever client the component's own topics use
+        assertThat(contextV4.newOutputMessage("topic://public/default/out", Schema.STRING)).isNotNull();
+        contextV4.newOutputMessage("topic://public/default/out", Schema.STRING);
+        verify(clientV5, times(1)).newProducer(any());
+        assertTrue(producerCache.containsKey(ProducerCache.CacheArea.CONTEXT_CACHE, "topic://public/default/out"));
+
+        // other topics stay on the v4 client
+        contextV4.newOutputMessage("persistent://public/default/out", Schema.STRING);
+        verify(client, times(1)).newProducer(any());
+        verify(clientV5, times(1)).newProducer(any());
+    }
+
+    @Test
+    public void testV5ComponentPublishesWithClientV5() throws Exception {
+        org.apache.pulsar.client.api.v5.PulsarClient clientV5 =
+                mock(org.apache.pulsar.client.api.v5.PulsarClient.class);
+        mockV5Producer(clientV5);
+        ContextImpl contextV5 = contextWithClientV5(clientV5, true);
+
+        TypedMessageBuilder<String> message = contextV5.newOutputMessage("topic://public/default/out", Schema.STRING);
+        assertThat(message).isNotNull();
+        verify(clientV5, times(1)).newProducer(any());
+        // the input consumers of a V5 component are V5 consumers, which cannot seek, pause or resume
+        assertThatThrownBy(() -> contextV5.pause("topic://public/default/in", 0))
+                .isInstanceOf(UnsupportedOperationException.class);
+    }
+
+    @Test
+    public void testPublishToScalableTopicNeedsClientV5() {
+        assertThatThrownBy(() -> context.newOutputMessage("topic://public/default/out", Schema.STRING))
+                .isInstanceOf(PulsarClientException.class)
+                .hasMessageContaining("the function runtime has no V5 client");
+    }
+
     @Test
     public void testGetPulsarAdmin() throws Exception {
         assertEquals(context.getPulsarAdmin(), pulsarAdmin);
@@ -235,8 +345,34 @@ public class ContextImplTest {
                 new EnvironmentBasedSecretsProvider(), FunctionCollectorRegistry.getDefaultImplementation(),
                 new String[0],
                 FunctionDetails.ComponentType.FUNCTION, null, new InstanceStateManager(),
-                pulsarAdmin, clientBuilder, t -> {});
+                pulsarAdmin, clientBuilder, t -> {}, producerCache);
         context.getPulsarAdmin();
+    }
+
+    @Test
+    public void testGetPulsarAdminFromSinkAndSourceContext() {
+        SinkContext sinkContext = context;
+        SourceContext sourceContext = context;
+        assertEquals(sinkContext.getPulsarAdmin(), pulsarAdmin);
+        assertEquals(sourceContext.getPulsarAdmin(), pulsarAdmin);
+    }
+
+    @Test
+    public void testGetPulsarAdminFromSinkAndSourceContextWithExposePulsarAdminDisabled()
+            throws PulsarClientException {
+        config.setExposePulsarAdminClientEnabled(false);
+        context = new ContextImpl(
+                config,
+                logger,
+                client,
+                new EnvironmentBasedSecretsProvider(), FunctionCollectorRegistry.getDefaultImplementation(),
+                new String[0],
+                FunctionDetails.ComponentType.SINK, null, new InstanceStateManager(),
+                pulsarAdmin, clientBuilder, t -> {}, producerCache);
+        SinkContext sinkContext = context;
+        SourceContext sourceContext = context;
+        assertThatThrownBy(sinkContext::getPulsarAdmin).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(sourceContext::getPulsarAdmin).isInstanceOf(IllegalStateException.class);
     }
 
     @Test
@@ -249,7 +385,7 @@ public class ContextImplTest {
                 new EnvironmentBasedSecretsProvider(), FunctionCollectorRegistry.getDefaultImplementation(),
                 new String[0],
                 FunctionDetails.ComponentType.FUNCTION, null, new InstanceStateManager(),
-                pulsarAdmin, clientBuilder, t -> {});
+                pulsarAdmin, clientBuilder, t -> {}, producerCache);
         try {
             context.seek("z", 0, Mockito.mock(MessageId.class));
             Assert.fail("Expected exception");
@@ -280,7 +416,7 @@ public class ContextImplTest {
                 new EnvironmentBasedSecretsProvider(), FunctionCollectorRegistry.getDefaultImplementation(),
                 new String[0],
                 FunctionDetails.ComponentType.FUNCTION, null, new InstanceStateManager(),
-                pulsarAdmin, clientBuilder, t -> {});
+                pulsarAdmin, clientBuilder, t -> {}, producerCache);
         Consumer<?> mockConsumer = Mockito.mock(Consumer.class);
         when(mockConsumer.getTopic()).thenReturn(TopicName.get("z").toString());
         context.setInputConsumers(Lists.newArrayList(mockConsumer));
@@ -312,7 +448,7 @@ public class ContextImplTest {
                 new EnvironmentBasedSecretsProvider(), FunctionCollectorRegistry.getDefaultImplementation(),
                 new String[0],
                 FunctionDetails.ComponentType.FUNCTION, null, new InstanceStateManager(),
-                pulsarAdmin, clientBuilder, t -> {});
+                pulsarAdmin, clientBuilder, t -> {}, producerCache);
         Consumer<?> mockConsumer = Mockito.mock(Consumer.class);
         when(mockConsumer.getTopic()).thenReturn(TopicName.get("z").toString());
         context.setInputConsumers(Lists.newArrayList(mockConsumer));
@@ -336,13 +472,14 @@ public class ContextImplTest {
                 new EnvironmentBasedSecretsProvider(), FunctionCollectorRegistry.getDefaultImplementation(),
                 new String[0],
                 FunctionDetails.ComponentType.FUNCTION, null, new InstanceStateManager(),
-                pulsarAdmin, clientBuilder, t -> {});
+                pulsarAdmin, clientBuilder, t -> {}, producerCache);
         ConsumerImpl<?> consumer1 = Mockito.mock(ConsumerImpl.class);
         when(consumer1.getTopic()).thenReturn(TopicName.get("first").toString());
         ConsumerImpl<?> consumer2 = Mockito.mock(ConsumerImpl.class);
         when(consumer2.getTopic()).thenReturn(TopicName.get("second").toString());
         List<Consumer<?>> consumersList = Lists.newArrayList(consumer1, consumer2);
 
+        @SuppressWarnings("rawtypes")
         MultiTopicsConsumerImpl mtc = Mockito.mock(MultiTopicsConsumerImpl.class);
         when(mtc.getConsumers()).thenReturn(consumersList);
 
@@ -454,8 +591,72 @@ public class ContextImplTest {
                 pulsarAdmin, clientBuilder, t -> {
                     assertEquals(t, fatalException);
                     fatalInvoked.set(true);
-        });
+        }, producerCache);
         context.fatal(fatalException);
         assertTrue(fatalInvoked.get());
+    }
+
+    /**
+     * The admin API exposes user metrics as {@code user_metric_<name>_{sum,count,0.5,0.9,0.99,0.999}}; the key
+     * format is a compatibility contract. The registry is shared by every instance of a LocalRunner, so each
+     * instance must only report its own label set.
+     */
+    @Test
+    public void testGetMetricsKeys() throws Exception {
+        FunctionCollectorRegistry registry = FunctionCollectorRegistry.getDefaultImplementation();
+        context = new ContextImpl(config, logger, client, new EnvironmentBasedSecretsProvider(), registry,
+                new String[]{"public", "public/default", "fn", "0", "standalone", "public/default/fn"},
+                FunctionDetails.ComponentType.FUNCTION, null, new InstanceStateManager(),
+                pulsarAdmin, clientBuilder, t -> {}, producerCache);
+        ContextImpl otherInstance = new ContextImpl(config, logger, client, new EnvironmentBasedSecretsProvider(),
+                registry, new String[]{"public", "public/default", "fn", "1", "standalone", "public/default/fn"},
+                FunctionDetails.ComponentType.FUNCTION, null, new InstanceStateManager(),
+                pulsarAdmin, clientBuilder, t -> {}, producerCache);
+
+        context.recordMetric("latency", 2.0);
+        context.recordMetric("latency", 4.0);
+        otherInstance.recordMetric("latency", 10.0);
+
+        Map<String, Double> metrics = context.getMetrics();
+        assertThat(metrics).containsOnlyKeys("user_metric_latency_sum", "user_metric_latency_count",
+                "user_metric_latency_0.5", "user_metric_latency_0.9", "user_metric_latency_0.99",
+                "user_metric_latency_0.999");
+        assertThat(metrics).containsEntry("user_metric_latency_sum", 6.0)
+                .containsEntry("user_metric_latency_count", 2.0);
+        assertThat(metrics.get("user_metric_latency_0.5")).isBetween(2.0, 4.0);
+        assertThat(metrics.get("user_metric_latency_0.999")).isEqualTo(4.0);
+        assertThat(otherInstance.getMetrics()).containsEntry("user_metric_latency_sum", 10.0)
+                .containsEntry("user_metric_latency_count", 1.0);
+
+        // the thread runtime serves the registry through the stats manager's writer, which must not print
+        // the 0.x-incompatible _created samples
+        ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+        try {
+            ComponentStatsManager stats = ComponentStatsManager.getStatsManager(registry,
+                    new String[]{"public", "public/default", "fn", "0", "standalone", "public/default/fn"},
+                    executor, FunctionDetails.ComponentType.FUNCTION);
+            String exposition = stats.getStatsAsString();
+            stats.close();
+            assertThat(exposition).containsOnlyOnce("# TYPE pulsar_function_user_metric_ summary\n")
+                    .contains("pulsar_function_user_metric_{cluster=\"standalone\",fqfn=\"public/default/fn\","
+                            + "instance_id=\"0\",metric=\"latency\",name=\"fn\",namespace=\"public/default\","
+                            + "tenant=\"public\",quantile=\"0.5\"} ")
+                    .contains("pulsar_function_user_metric__count{cluster=\"standalone\",fqfn=\"public/default/fn\","
+                            + "instance_id=\"0\",metric=\"latency\",name=\"fn\",namespace=\"public/default\","
+                            + "tenant=\"public\"} 2\n")
+                    .contains("pulsar_function_user_metric__sum{cluster=\"standalone\",fqfn=\"public/default/fn\","
+                            + "instance_id=\"1\",metric=\"latency\",name=\"fn\",namespace=\"public/default\","
+                            + "tenant=\"public\"} 10.0\n")
+                    .doesNotContain("_created");
+        } finally {
+            executor.shutdownNow();
+        }
+
+        // after a reset the metric is still reported, with zero counts, until it is observed again
+        context.resetMetrics();
+        metrics = context.getMetrics();
+        assertThat(metrics).containsEntry("user_metric_latency_count", 0.0)
+                .containsEntry("user_metric_latency_sum", 0.0);
+        assertThat(metrics.get("user_metric_latency_0.5")).isNaN();
     }
 }

@@ -19,7 +19,10 @@
 package org.apache.pulsar.broker.transaction;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
@@ -28,17 +31,23 @@ import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import lombok.CustomLog;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.MessageRedeliveryController;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBuffer;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -59,33 +68,39 @@ import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.protocol.Commands;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
-import org.testng.annotations.AfterMethod;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
  * Test for consuming transaction messages.
  */
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class TransactionConsumeTest extends TransactionTestBase {
 
     private static final String CONSUME_TOPIC = "persistent://public/txn/txn-consume-test";
+    // the topic of the current test method
+    private String consumeTopic;
     private static final String NORMAL_MSG_CONTENT = "Normal - ";
     private static final String TXN_MSG_CONTENT = "Txn - ";
 
-    @BeforeMethod(alwaysRun = true)
+    // The test methods share the broker, each with a topic of its own. After a failed method, the next one gets a
+    // new broker (TestRetrySupport).
+    @BeforeClass(alwaysRun = true)
     public void setup() throws Exception {
         setBrokerCount(1);
         super.internalSetup();
 
         String[] brokerServiceUrlArr = getPulsarServiceList().get(0).getBrokerServiceUrl().split(":");
-        String webServicePort = brokerServiceUrlArr[brokerServiceUrlArr.length -1];
-        admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder().serviceUrl("http://localhost:" + webServicePort).build());
+        String webServicePort = brokerServiceUrlArr[brokerServiceUrlArr.length - 1];
+        admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder()
+                .serviceUrl("http://localhost:" + webServicePort).build());
         admin.tenants().createTenant("public",
                 new TenantInfoImpl(new HashSet<>(), Sets.newHashSet(CLUSTER_NAME)));
         admin.namespaces().createNamespace("public/txn", 10);
-        admin.topics().createNonPartitionedTopic(CONSUME_TOPIC);
 
         admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
                 new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
@@ -93,7 +108,13 @@ public class TransactionConsumeTest extends TransactionTestBase {
         createTransactionCoordinatorAssign(1);
     }
 
-    @AfterMethod(alwaysRun = true)
+    @BeforeMethod(alwaysRun = true)
+    public void createConsumeTopic() throws Exception {
+        consumeTopic = BrokerTestUtil.newUniqueName(CONSUME_TOPIC);
+        admin.topics().createNonPartitionedTopic(consumeTopic);
+    }
+
+    @AfterClass(alwaysRun = true)
     protected void cleanup() {
         super.internalCleanup();
     }
@@ -103,22 +124,21 @@ public class TransactionConsumeTest extends TransactionTestBase {
         int messageCntBeforeTxn = 10;
         int transactionMessageCnt = 10;
         int messageCntAfterTxn = 10;
-        int totalMsgCnt = messageCntBeforeTxn + transactionMessageCnt + messageCntAfterTxn;
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(CONSUME_TOPIC)
+                .topic(consumeTopic)
                 .create();
 
         @Cleanup
         Consumer<byte[]> exclusiveConsumer = pulsarClient.newConsumer()
-                .topic(CONSUME_TOPIC)
+                .topic(consumeTopic)
                 .subscriptionName("exclusive-test")
                 .subscribe();
 
         @Cleanup
         Consumer<byte[]> sharedConsumer = pulsarClient.newConsumer()
-                .topic(CONSUME_TOPIC)
+                .topic(consumeTopic)
                 .subscriptionName("shared-test")
                 .subscriptionType(SubscriptionType.Shared)
                 .subscribe();
@@ -131,7 +151,7 @@ public class TransactionConsumeTest extends TransactionTestBase {
         TxnID txnID = new TxnID(mostSigBits, leastSigBits);
 
         PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0).getBrokerService()
-                .getTopic(CONSUME_TOPIC, false).get().get();
+                .getTopic(consumeTopic, false).get().get();
         log.info("transactionBuffer init finish.");
 
         List<String> sendMessageList = new ArrayList<>();
@@ -140,26 +160,23 @@ public class TransactionConsumeTest extends TransactionTestBase {
         sendNormalMessages(producer, messageCntBeforeTxn, messageCntAfterTxn, sendMessageList);
 
         Message<byte[]> message;
-        for (int i = 0; i < totalMsgCnt; i++) {
-            if (i < messageCntBeforeTxn) {
-                // receive normal messages successfully
-                message = exclusiveConsumer.receive(2, TimeUnit.SECONDS);
-                Assert.assertNotNull(message);
-                log.info("Receive exclusive normal msg: {}" + new String(message.getData(), UTF_8));
-                message = sharedConsumer.receive(2, TimeUnit.SECONDS);
-                Assert.assertNotNull(message);
-                log.info("Receive shared normal msg: {}" + new String(message.getData(), UTF_8));
-            } else {
-                // can't receive transaction messages before commit
-                message = exclusiveConsumer.receive(500, TimeUnit.MILLISECONDS);
-                Assert.assertNull(message);
-                log.info("exclusive consumer can't receive message before commit.");
-
-                message = sharedConsumer.receive(500, TimeUnit.MILLISECONDS);
-                Assert.assertNull(message);
-                log.info("shared consumer can't receive message before commit.");
-            }
+        for (int i = 0; i < messageCntBeforeTxn; i++) {
+            // receive normal messages successfully
+            message = exclusiveConsumer.receive(2, TimeUnit.SECONDS);
+            Assert.assertNotNull(message);
+            log.info().attr("msg", new String(message.getData(), UTF_8))
+                    .log("Receive exclusive normal msg");
+            message = sharedConsumer.receive(2, TimeUnit.SECONDS);
+            Assert.assertNotNull(message);
+            log.info().attr("msg", new String(message.getData(), UTF_8))
+                    .log("Receive shared normal msg");
         }
+
+        // can't receive transaction messages before commit, nor the normal messages after them
+        assertNoMoreMessages(exclusiveConsumer);
+        log.info("exclusive consumer can't receive message before commit.");
+        assertNoMoreMessages(sharedConsumer);
+        log.info("shared consumer can't receive message before commit.");
 
         persistentTopic.endTxn(txnID, TxnAction.COMMIT_VALUE, 0L).get();
         log.info("Commit txn.");
@@ -168,11 +185,13 @@ public class TransactionConsumeTest extends TransactionTestBase {
         for (int i = 0; i < transactionMessageCnt + messageCntAfterTxn; i++) {
             message = exclusiveConsumer.receive(5, TimeUnit.SECONDS);
             Assert.assertNotNull(message);
-            log.info("Receive txn exclusive id: {}, msg: {}", message.getMessageId(), new String(message.getData()));
+            log.info().attr("exclusiveId", message.getMessageId()).attr("msg", new String(message.getData()))
+                    .log("Receive txn exclusive id, msg");
 
             message = sharedConsumer.receive(5, TimeUnit.SECONDS);
             Assert.assertNotNull(message);
-            log.info("Receive txn shared id: {}, msg: {}", message.getMessageId(), new String(message.getData()));
+            log.info().attr("sharedId", message.getMessageId()).attr("msg", new String(message.getData()))
+                    .log("Receive txn shared id, msg");
         }
         log.info("TransactionConsumeTest noSortedTest finish.");
     }
@@ -186,18 +205,18 @@ public class TransactionConsumeTest extends TransactionTestBase {
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(CONSUME_TOPIC)
+                .topic(consumeTopic)
                 .create();
 
         @Cleanup
         Consumer<byte[]> exclusiveConsumer = pulsarClient.newConsumer()
-                .topic(CONSUME_TOPIC)
+                .topic(consumeTopic)
                 .subscriptionName("exclusive-test")
                 .subscribe();
 
         @Cleanup
         Consumer<byte[]> sharedConsumer = pulsarClient.newConsumer()
-                .topic(CONSUME_TOPIC)
+                .topic(consumeTopic)
                 .subscriptionName("shared-test")
                 .subscriptionType(SubscriptionType.Shared)
                 .subscribe();
@@ -209,7 +228,7 @@ public class TransactionConsumeTest extends TransactionTestBase {
         TxnID txnID = new TxnID(mostSigBits, leastSigBits);
 
         PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0).getBrokerService()
-                .getTopic(CONSUME_TOPIC, false).get().get();
+                .getTopic(consumeTopic, false).get().get();
 
         List<String> sendMessageList = new ArrayList<>();
         sendNormalMessages(producer, 0, messageCntBeforeTxn, sendMessageList);
@@ -224,11 +243,13 @@ public class TransactionConsumeTest extends TransactionTestBase {
             message = exclusiveConsumer.receive(2, TimeUnit.SECONDS);
             Assert.assertNotNull(message);
             Assert.assertEquals(sendMessageList.get(i), new String(message.getData()));
-            log.info("Receive exclusive normal msg: {}, index: {}", new String(message.getData(), UTF_8), i);
+            log.info().attr("normalMsg", new String(message.getData(), UTF_8)).attr("index", i)
+                    .log("Receive exclusive normal msg, index");
             message = sharedConsumer.receive(2, TimeUnit.SECONDS);
             Assert.assertNotNull(message);
             Assert.assertEquals(sendMessageList.get(i), new String(message.getData()));
-            log.info("Receive shared normal msg: {}, index: {}", new String(message.getData(), UTF_8), i);
+            log.info().attr("normalMsg", new String(message.getData(), UTF_8)).attr("index", i)
+                    .log("Receive shared normal msg, index");
         }
         log.info("TransactionConsumeTest sortedTest finish.");
     }
@@ -240,7 +261,7 @@ public class TransactionConsumeTest extends TransactionTestBase {
 
         @Cleanup
         Consumer<byte[]> sharedConsumer = pulsarClient.newConsumer()
-                .topic(CONSUME_TOPIC)
+                .topic(consumeTopic)
                 .subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscribe();
@@ -253,10 +274,11 @@ public class TransactionConsumeTest extends TransactionTestBase {
 
         // produce batch message with txn and then abort
         PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0).getBrokerService()
-                .getTopic(CONSUME_TOPIC, false).get().get();
+                .getTopic(consumeTopic, false).get().get();
 
         List<String> sendMessageList = new ArrayList<>();
-        List<MessageIdData> messageIdDataList = appendTransactionMessages(txnID, persistentTopic, transactionMessageCnt, sendMessageList);
+        List<MessageIdData> messageIdDataList = appendTransactionMessages(txnID, persistentTopic,
+                transactionMessageCnt, sendMessageList);
 
         persistentTopic.endTxn(txnID, TxnAction.ABORT_VALUE, 0L).get();
         log.info("Abort txn.");
@@ -283,7 +305,7 @@ public class TransactionConsumeTest extends TransactionTestBase {
         dispatcher.readMoreEntries();
 
         // shared consumer should not receive the redelivered aborted transaction messages
-        Message message = sharedConsumer.receive(5, TimeUnit.SECONDS);
+        Message<?> message = sharedConsumer.receive(5, TimeUnit.SECONDS);
         Assert.assertNull(message);
 
         log.info("TransactionConsumeTest testMessageRedelivery finish.");
@@ -308,7 +330,7 @@ public class TransactionConsumeTest extends TransactionTestBase {
                 .enableTransaction(true).build();
         @Cleanup
         Producer<String> producer = pulsarClient1
-                .newProducer(Schema.STRING).topic(CONSUME_TOPIC).sendTimeout(0, TimeUnit.SECONDS).create();
+                .newProducer(Schema.STRING).topic(consumeTopic).sendTimeout(0, TimeUnit.SECONDS).create();
         List<MessageIdData> positionList = new ArrayList<>();
         for (int i = 0; i < transactionMsgCnt; i++) {
             final int j = i;
@@ -323,7 +345,7 @@ public class TransactionConsumeTest extends TransactionTestBase {
             ByteBuf headerAndPayload = Commands.serializeMetadataAndPayload(
                     Commands.ChecksumType.Crc32c, metadata,
                     Unpooled.copiedBuffer(msg.getBytes(UTF_8)));
-            CompletableFuture<PositionImpl> completableFuture = new CompletableFuture<>();
+            CompletableFuture<Position> completableFuture = new CompletableFuture<>();
             topic.publishTxnMessage(txnID, headerAndPayload, new Topic.PublishContext() {
 
                 @Override
@@ -338,8 +360,8 @@ public class TransactionConsumeTest extends TransactionTestBase {
                 /**
                  * Return the producer name for the original producer.
                  *
-                 * For messages published locally, this will return the same local producer name, though in case of replicated
-                 * messages, the original producer name will differ
+                 * For messages published locally, this will return the same local producer name,
+                 * though in case of replicated messages, the original producer name will differ
                  */
                 public String getOriginalProducerName() {
                     return "test";
@@ -363,7 +385,7 @@ public class TransactionConsumeTest extends TransactionTestBase {
 
                 @Override
                 public void completed(Exception e, long ledgerId, long entryId) {
-                    completableFuture.complete(PositionImpl.get(ledgerId, entryId));
+                    completableFuture.complete(PositionFactory.create(ledgerId, entryId));
                 }
             });
             positionList.add(new MessageIdData().setLedgerId(completableFuture.get()
@@ -384,14 +406,14 @@ public class TransactionConsumeTest extends TransactionTestBase {
         Producer<String> producer = pulsarClient1
                 .newProducer(Schema.STRING)
                 .producerName(producerName)
-                .topic(CONSUME_TOPIC)
+                .topic(consumeTopic)
                 .enableChunking(true)
                 .enableBatching(false)
                 .create();
         Consumer<String> consumer = pulsarClient1
                 .newConsumer(Schema.STRING)
                 .subscriptionType(SubscriptionType.Shared)
-                .topic(CONSUME_TOPIC)
+                .topic(consumeTopic)
                 .subscriptionName(subName)
                 .subscribe();
 
@@ -411,7 +433,101 @@ public class TransactionConsumeTest extends TransactionTestBase {
         consumer.acknowledgeAsync(msg.getMessageId(), transaction);
         transaction.commit().get();
 
-        Assert.assertEquals(admin.topics().getStats(CONSUME_TOPIC).getSubscriptions().get(subName)
+        Assert.assertEquals(admin.topics().getStats(consumeTopic).getSubscriptions().get(subName)
                 .getUnackedMessages(), 0);
+    }
+
+    @DataProvider
+    public Object[][] doCommitTxn() {
+        return new Object[][] {
+                {true},
+                {false}
+        };
+    }
+
+    @Test(dataProvider = "doCommitTxn", timeOut = 60_000, invocationCount = 3)
+    public void testFirstTnxBufferSnapshotAndRecoveryConcurrently(boolean doCommitTxn) throws Exception {
+        String topic = BrokerTestUtil.newUniqueName("persistent://public/txn/tp");
+        // Create many clients and publish with transaction, which will trigger transaction buffer snapshot
+        // concurrently.
+        int producerCount = 10;
+        List<PulsarClient> clientList = new ArrayList<>();
+        List<Producer<String>> producerList = new ArrayList<>();
+        List<CompletableFuture<MessageId>> sendResults = new ArrayList<>();
+        List<Transaction> pendingTnxList = new ArrayList<>();
+        for (int i = 0; i < producerCount; i++) {
+            clientList.add(PulsarClient.builder()
+                    .serviceUrl(pulsarServiceList.get(0).getBrokerServiceUrl())
+                    .enableTransaction(true)
+                    .build());
+        }
+        for (int i = 0; i < producerCount; i++) {
+            producerList.add(clientList.get(i).newProducer(Schema.STRING).topic(topic).create());
+        }
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topic)
+                .subscriptionName("s1").subscribe();
+        for (int i = 0; i < producerCount; i++) {
+            Transaction transaction = clientList.get(i).newTransaction()
+                    .withTransactionTimeout(5, TimeUnit.HOURS)
+                    .build().get();
+            pendingTnxList.add(transaction);
+            final int index = i;
+            Producer<String> producer = producerList.get(i);
+            new Thread(() -> {
+                sendResults.add(producer.newMessage(transaction).value(index + "").sendAsync());
+            }).start();
+        }
+
+        // Verify that the transaction buffer snapshot succeed.
+        AtomicReference<TopicTransactionBuffer> topicTransactionBuffer = new AtomicReference<>();
+        for (PulsarService pulsar : pulsarServiceList) {
+            if (pulsar.getBrokerService().getTopics().containsKey(topic)) {
+                PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
+                        .getTopic(topic, false).get().get();
+                topicTransactionBuffer.set((TopicTransactionBuffer) persistentTopic.getTransactionBuffer());
+                break;
+            }
+        }
+        Awaitility.await().untilAsserted(() -> {
+            assertNotNull(topicTransactionBuffer.get());
+            assertEquals(topicTransactionBuffer.get().getState().toString(), "Ready");
+            assertTrue(topicTransactionBuffer.get().getTransactionBufferFuture().isDone());
+            assertFalse(topicTransactionBuffer.get().getTransactionBufferFuture().isCompletedExceptionally());
+        });
+
+        // Verify that all messages are sent successfully.
+        for (int i = 0; i < producerCount; i++) {
+            sendResults.get(i).get();
+            if (doCommitTxn) {
+                pendingTnxList.get(i).commit();
+            } else {
+                pendingTnxList.get(i).abort();
+            }
+        }
+        Set<String> msgReceived = new HashSet<>();
+        while (true) {
+            Message<String> msg = consumer.receive(2, TimeUnit.SECONDS);
+            if (msg == null) {
+                break;
+            }
+            msgReceived.add(msg.getValue());
+        }
+        if (doCommitTxn) {
+            for (int i = 0; i < producerCount; i++) {
+                assertTrue(msgReceived.contains(i + ""));
+            }
+        } else {
+            assertTrue(msgReceived.isEmpty());
+        }
+
+        // cleanup.
+        consumer.close();
+        List<CompletableFuture<Void>> closeFutures = new ArrayList<>(producerCount);
+        for (int i = 0; i < producerCount; i++) {
+            producerList.get(i).close();
+            closeFutures.add(clientList.get(i).closeAsync());
+        }
+        CompletableFuture.allOf(closeFutures.toArray(CompletableFuture[]::new)).get();
+        admin.topics().delete(topic, false);
     }
 }

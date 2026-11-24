@@ -19,7 +19,7 @@
 
 package org.apache.pulsar.proxy.util;
 
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
@@ -29,7 +29,7 @@ import org.apache.pulsar.docs.tools.BaseGenerateDocumentation;
 import org.apache.pulsar.proxy.server.ProxyConfiguration;
 import org.apache.pulsar.websocket.service.WebSocketProxyConfiguration;
 
-@Slf4j
+@CustomLog
 public class CmdGenerateDocumentation extends BaseGenerateDocumentation {
 
     @Override
@@ -39,15 +39,15 @@ public class CmdGenerateDocumentation extends BaseGenerateDocumentation {
         } else if (ServiceConfiguration.class.getName().equals(className)) {
             return generateDocByFieldContext(className, "Broker");
         } else if (ClientConfigurationData.class.getName().equals(className)) {
-            return generateDocByApiModelProperty(className, "Client");
+            return generateDocBySchema(className, "Client");
         } else if (WebSocketProxyConfiguration.class.getName().equals(className)) {
             return generateDocByFieldContext(className, "WebSocket");
         } else if (ProducerConfigurationData.class.getName().equals(className)) {
-            return generateDocByApiModelProperty(className, "Producer");
+            return generateDocBySchema(className, "Producer");
         } else if (ConsumerConfigurationData.class.getName().equals(className)) {
-            return generateDocByApiModelProperty(className, "Consumer");
+            return generateDocBySchema(className, "Consumer");
         } else if (ReaderConfigurationData.class.getName().equals(className)) {
-            return generateDocByApiModelProperty(className, "Reader");
+            return generateDocBySchema(className, "Reader");
         } else {
             return "Class [" + className + "] not found";
         }

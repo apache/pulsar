@@ -19,19 +19,27 @@
 package org.apache.pulsar.broker.service;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.PriorityQueue;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
-import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
@@ -39,18 +47,19 @@ import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataExc
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.client.impl.Murmur3Hash32;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBaseDispatcher {
 
+    private static final int MAX_RETRY_COUNT_FOR_ADD_CONSUMER_RACE = 5;
     protected final String topicName;
-    protected static final AtomicReferenceFieldUpdater<AbstractDispatcherSingleActiveConsumer, Consumer>
-            ACTIVE_CONSUMER_UPDATER = AtomicReferenceFieldUpdater.newUpdater(
-            AbstractDispatcherSingleActiveConsumer.class, Consumer.class, "activeConsumer");
     private volatile Consumer activeConsumer = null;
+    // Guarded by this. The generation is only changed while the dispatcher monitor is held and is captured/read
+    // from the same monitor by the persistent dispatcher read lifecycle.
+    private long activeConsumerGeneration;
     protected final CopyOnWriteArrayList<Consumer> consumers;
     protected StickyKeyConsumerSelector stickyKeyConsumerSelector;
     protected boolean isKeyHashRangeFiltered = false;
@@ -67,7 +76,17 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
     private volatile int isClosed = FALSE;
 
     protected boolean isFirstRead = true;
+    // For compacted reads: the position from which the subscription has been reading the original ledger, after its
+    // compacted snapshot. Later compactions must not move it back to the compacted ledger past that point.
+    protected Position originalLedgerReadPosition;
     private static final int CONSUMER_CONSISTENT_HASH_REPLICAS = 100;
+    // Above this many (partition, consumer) pairs the balanced selection falls back to the hash ring
+    private static final long MAX_BALANCED_HASHING_PAIRS = 1_000_000;
+    // The partitions of a topic on this broker compute the same balanced assignment, so they share it
+    private static final Cache<List<Object>, int[]> BALANCED_ASSIGNMENTS = Caffeine.newBuilder()
+            .maximumSize(1_000).expireAfterAccess(1, TimeUnit.MINUTES).build();
+    // Partition count of the partitioned topic, remembered because its metadata cache entry can be evicted
+    private int numPartitions;
 
     public AbstractDispatcherSingleActiveConsumer(SubType subscriptionType, int partitionIndex,
                                                   String topicName, Subscription subscription,
@@ -78,11 +97,16 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
         this.partitionIndex = partitionIndex;
         this.subscriptionType = subscriptionType;
         this.cursor = cursor;
-        ACTIVE_CONSUMER_UPDATER.set(this, null);
     }
 
+    /**
+     * @apiNote this method does not need to be thread safe
+     */
     protected abstract void scheduleReadOnActiveConsumer();
 
+    /**
+     * @apiNote this method does not need to be thread safe
+     */
     protected abstract void cancelPendingRead();
 
     protected void notifyActiveConsumerChanged(Consumer activeConsumer) {
@@ -99,6 +123,7 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
      * distributed partitions evenly across consumers with highest priority level.
      *
      * @return the true consumer if the consumer is changed, otherwise false.
+     * @apiNote this method is not thread safe
      */
     protected boolean pickAndScheduleActiveConsumer() {
         checkArgument(!consumers.isEmpty());
@@ -124,20 +149,32 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
                 }
             }
         }
-        int index = partitionIndex >= 0
-                ? partitionIndex % consumersSize
-                : peekConsumerIndexFromHashRing(makeHashRing(consumersSize));
+        int index;
+        if (partitionIndex < 0) {
+            index = peekConsumerIndexFromHashRing(makeHashRing(consumersSize));
+        } else if (!serviceConfig.isActiveConsumerFailoverConsistentHashing()) {
+            index = partitionIndex % consumersSize;
+        } else {
+            index = pickConsumerIndexWithBalancedHashing(consumersSize);
+        }
 
-        Consumer prevConsumer = ACTIVE_CONSUMER_UPDATER.getAndSet(this, consumers.get(index));
+        Consumer selectedConsumer = consumers.get(index);
 
-        Consumer activeConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
-        if (prevConsumer == activeConsumer) {
+        if (selectedConsumer == activeConsumer) {
             // Active consumer did not change. Do nothing at this point
             return false;
         } else {
             // If the active consumer is changed, send notification.
+            updateActiveConsumer(selectedConsumer);
             scheduleReadOnActiveConsumer();
             return true;
+        }
+    }
+
+    private void updateActiveConsumer(Consumer consumer) {
+        if (activeConsumer != consumer) {
+            activeConsumer = consumer;
+            activeConsumerGeneration++;
         }
     }
 
@@ -159,22 +196,168 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
         return Collections.unmodifiableNavigableMap(hashRing);
     }
 
-    public synchronized CompletableFuture<Void> addConsumer(Consumer consumer) {
+    /**
+     * Re-picks the active consumer when partitions are added to the partitioned topic, because consistent hashing
+     * assigns the partitions by the partition count.
+     */
+    public synchronized void onPartitionsUpdate(int partitions) {
+        if (partitions <= numPartitions) {
+            return;
+        }
+        numPartitions = partitions;
+        if (serviceConfig.isActiveConsumerFailoverConsistentHashing() && closeFuture == null && !consumers.isEmpty()) {
+            pickAndScheduleActiveConsumer();
+        }
+    }
+
+    /**
+     * Consistent hashing selection for a partition of a partitioned topic, see {@link #balancedAssignment}.
+     *
+     * @return the index of the selected consumer
+     */
+    private int pickConsumerIndexWithBalancedHashing(int consumersSize) {
+        String partitionedTopicName = TopicName.get(topicName).getPartitionedTopicName();
+        // Partitions can only be added, so the largest count seen is the current one
+        numPartitions = Math.max(numPartitions, subscription.getTopic().getBrokerService()
+                .fetchPartitionedTopicMetadataIfCachedAndAsyncLoad(TopicName.get(partitionedTopicName)).partitions);
+        // shortcut: until the partition count is cached, or when the table is too big, the partition uses the hash
+        // ring until the next consumer change or partition update. Re-pick on metadata load if that shows up.
+        if (numPartitions <= partitionIndex || (long) numPartitions * consumersSize > MAX_BALANCED_HASHING_PAIRS) {
+            return peekConsumerIndexFromHashRing(makeHashRing(consumersSize));
+        }
+        List<String> consumerNames = new ArrayList<>(consumersSize);
+        for (int i = 0; i < consumersSize; i++) {
+            consumerNames.add(consumers.get(i).consumerName());
+        }
+        int partitions = numPartitions;
+        return BALANCED_ASSIGNMENTS.get(List.of(partitionedTopicName, partitions, consumerNames),
+                key -> balancedAssignment(partitionedTopicName, partitions, consumerNames))[partitionIndex];
+    }
+
+    /**
+     * Assigns the partitions of a partitioned topic to consumers so that each consumer gets {@code numPartitions / n}
+     * or one more partition, partitions of different topics land on different consumers, and adding or removing a
+     * consumer moves few partitions.
+     *
+     * <p>Every (partition, consumer) pair has a hash score. Pairs are taken in descending score order, and a pair is
+     * assigned when its partition is still unassigned and its consumer is under quota: every consumer gets
+     * {@code numPartitions / n}, and only {@code numPartitions % n} consumers can get one more. Every partition
+     * computes the same assignment on its own, so the partitions need no coordination.
+     *
+     * @param consumerNames the candidate consumer names, in the same order for every partition
+     * @return for each partition, the index in {@code consumerNames} of its consumer
+     */
+    static int[] balancedAssignment(String partitionedTopicName, int numPartitions, List<String> consumerNames) {
+        int n = consumerNames.size();
+        checkArgument(n > 0 && numPartitions > 0 && (long) numPartitions * n <= Integer.MAX_VALUE);
+        long[] consumerHashes = new long[n];
+        for (int c = 0; c < n; c++) {
+            consumerHashes[c] = Murmur3_32Hash.getInstance()
+                    .makeHash(consumerNames.get(c).getBytes(StandardCharsets.UTF_8));
+        }
+        int base = numPartitions / n;
+        int extra = numPartitions % n;
+        int extraUsed = 0;
+        int[] loads = new int[n];
+        long[] partitionHashes = new long[numPartitions];
+        // The best (score << 32 | pairId) of every unassigned partition among the consumers with room left
+        PriorityQueue<Long> candidates = new PriorityQueue<>(numPartitions, Comparator.reverseOrder());
+        for (int p = 0; p < numPartitions; p++) {
+            partitionHashes[p] = Murmur3_32Hash.getInstance().makeHash(
+                    TopicName.getTopicPartitionNameString(partitionedTopicName, p).getBytes(StandardCharsets.UTF_8));
+            candidates.add(bestCandidate(p, partitionHashes[p], consumerHashes, loads, base, extra > 0));
+        }
+        int[] assignment = new int[numPartitions];
+        while (!candidates.isEmpty()) {
+            int pairId = candidates.poll().intValue();
+            int p = pairId / n;
+            int c = pairId % n;
+            if (!hasRoom(loads[c], base, extraUsed < extra)) {
+                // Consumers only fill up, so the next best pair of the partition is its best among those with room
+                candidates.add(bestCandidate(p, partitionHashes[p], consumerHashes, loads, base, extraUsed < extra));
+                continue;
+            }
+            assignment[p] = c;
+            if (loads[c]++ == base) {
+                extraUsed++;
+            }
+        }
+        return assignment;
+    }
+
+    private static boolean hasRoom(int load, int base, boolean extraLeft) {
+        return load < base || (load == base && extraLeft);
+    }
+
+    private static long bestCandidate(int partition, long partitionHash, long[] consumerHashes, int[] loads,
+                                      int base, boolean extraLeft) {
+        long best = -1;
+        for (int c = 0; c < consumerHashes.length; c++) {
+            if (hasRoom(loads[c], base, extraLeft)) {
+                long pairId = (long) partition * consumerHashes.length + c;
+                best = Math.max(best, score(partitionHash, consumerHashes[c]) << 32 | pairId);
+            }
+        }
+        return best;
+    }
+
+    // MurmurHash3 fmix64 of both hashes, cut to 31 bits so that (score << 32 | pairId) stays positive
+    private static long score(long partitionHash, long consumerHash) {
+        long h = partitionHash << 32 | consumerHash;
+        h = (h ^ (h >>> 33)) * 0xff51afd7ed558ccdL;
+        h = (h ^ (h >>> 33)) * 0xc4ceb9fe1a85ec53L;
+        return (h ^ (h >>> 33)) >>> 33;
+    }
+
+    public CompletableFuture<Void> addConsumer(Consumer consumer) {
+        return internalAddConsumer(consumer, 0);
+    }
+
+    private synchronized CompletableFuture<Void> internalAddConsumer(Consumer consumer, int retryCount) {
         if (IS_CLOSED_UPDATER.get(this) == TRUE) {
-            log.warn("[{}] Dispatcher is already closed. Closing consumer {}", this.topicName, consumer);
+            log.warn()
+                    .attr("topic", this.topicName)
+                    .attr("consumer", consumer)
+                    .log("Dispatcher is already closed. Closing consumer");
             consumer.disconnect();
             return CompletableFuture.completedFuture(null);
         }
 
         if (subscriptionType == SubType.Exclusive && !consumers.isEmpty()) {
-            Consumer actConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
+            Consumer actConsumer = getActiveConsumer();
             if (actConsumer != null) {
+                final var callerThread = Thread.currentThread();
                 return actConsumer.cnx().checkConnectionLiveness().thenCompose(actConsumerStillAlive -> {
                     if (actConsumerStillAlive.isEmpty() || actConsumerStillAlive.get()) {
                         return FutureUtil.failedFuture(new ConsumerBusyException("Exclusive consumer is already"
                                 + " connected"));
+                    } else if (retryCount >= MAX_RETRY_COUNT_FOR_ADD_CONSUMER_RACE) {
+                        log.warn()
+                                .attr("arg0", getName())
+                                .attr("actConsumer", actConsumer)
+                                .attr("consumer", consumer)
+                                .log("The active consumer's connection is still inactive after all retries, skip "
+                                        + "adding new consumer");
+                        return FutureUtil.failedFuture(new ConsumerBusyException("Exclusive consumer is already"
+                                + " connected after " + MAX_RETRY_COUNT_FOR_ADD_CONSUMER_RACE + " attempts"));
                     } else {
-                        return addConsumer(consumer);
+                        if (Thread.currentThread().equals(callerThread)) {
+                            // A race condition happened in `ServerCnx#channelInactive`
+                            // 1. `isActive` was set to false
+                            // 2. `consumer.close()` is called
+                            // We should wait until the consumer is closed, retry for some times
+                            log.warn()
+                                    .attr("arg0", getName())
+                                    .attr("actConsumer", actConsumer)
+                                    .log("race condition happened that cnx of the active consumer () is inactive "
+                                            + "but it's not removed, retrying");
+                            final var future = new CompletableFuture<Void>();
+                            CompletableFuture.delayedExecutor(100, TimeUnit.MILLISECONDS)
+                                    .execute(() -> future.complete(null));
+                            return future.thenCompose(__ -> internalAddConsumer(consumer, retryCount + 1));
+                        } else {
+                            return internalAddConsumer(consumer, retryCount + 1);
+                        }
                     }
                 });
             } else {
@@ -186,8 +369,9 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
         }
 
         if (subscriptionType == SubType.Failover && isConsumersExceededOnSubscription()) {
-            log.warn("[{}] Attempting to add consumer to subscription which reached max consumers limit",
-                    this.topicName);
+            log.warn()
+                    .attr("topic", this.topicName)
+                    .log("Attempting to add consumer to subscription which reached max consumers limit");
             return FutureUtil.failedFuture(new ConsumerBusyException("Subscription reached max consumers limit"));
         }
 
@@ -204,17 +388,16 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
 
         if (consumers.isEmpty()) {
             isFirstRead = true;
+            originalLedgerReadPosition = null;
         }
 
         consumers.add(consumer);
 
         if (!pickAndScheduleActiveConsumer()) {
             // the active consumer is not changed
-            Consumer currentActiveConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
+            Consumer currentActiveConsumer = getActiveConsumer();
             if (null == currentActiveConsumer) {
-                if (log.isDebugEnabled()) {
-                    log.debug("Current active consumer disappears while adding consumer {}", consumer);
-                }
+                log.debug().attr("consumer", consumer).log("Current active consumer disappears while adding consumer");
             } else {
                 consumer.notifyActiveConsumerChange(currentActiveConsumer);
             }
@@ -224,13 +407,13 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
     }
 
     public synchronized void removeConsumer(Consumer consumer) throws BrokerServiceException {
-        log.info("Removing consumer {}", consumer);
+        log.info().attr("consumer", consumer).log("Removing consumer");
         if (!consumers.remove(consumer)) {
             throw new ServerMetadataException("Consumer was not connected");
         }
 
         if (consumers.isEmpty()) {
-            ACTIVE_CONSUMER_UPDATER.set(this, null);
+            updateActiveConsumer(null);
         }
 
         if (closeFuture == null && !consumers.isEmpty()) {
@@ -255,7 +438,7 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
      *            Calling consumer object
      */
     public synchronized boolean canUnsubscribe(Consumer consumer) {
-        return (consumers.size() == 1) && Objects.equals(consumer, ACTIVE_CONSUMER_UPDATER.get(this));
+        return (consumers.size() == 1) && Objects.equals(consumer, activeConsumer);
     }
 
     @Override
@@ -322,7 +505,11 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
     }
 
     public Consumer getActiveConsumer() {
-        return ACTIVE_CONSUMER_UPDATER.get(this);
+        return activeConsumer;
+    }
+
+    protected final long getActiveConsumerGeneration() {
+        return activeConsumerGeneration;
     }
 
     @Override
@@ -331,9 +518,12 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
     }
 
     public boolean isConsumerConnected() {
-        return ACTIVE_CONSUMER_UPDATER.get(this) != null;
+        return activeConsumer != null;
     }
 
-    private static final Logger log = LoggerFactory.getLogger(AbstractDispatcherSingleActiveConsumer.class);
-
+    @Override
+    protected int getAvgMessagesPerEntry() {
+        Consumer active = getActiveConsumer();
+        return active != null ? active.getAvgMessagesPerEntry() : 0;
+    }
 }

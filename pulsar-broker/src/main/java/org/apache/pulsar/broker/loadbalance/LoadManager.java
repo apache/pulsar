@@ -18,10 +18,12 @@
  */
 package org.apache.pulsar.broker.loadbalance;
 
+import io.github.merlimat.slog.Logger;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -31,12 +33,11 @@ import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerWrap
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.broker.lookup.LookupResult;
+import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * LoadManager runs through set of load reports collected from different brokers and generates a recommendation of
@@ -46,11 +47,15 @@ import org.slf4j.LoggerFactory;
  * Concrete Load Manager is also return the least loaded broker that should own the new namespace.
  */
 public interface LoadManager {
-    Logger LOG = LoggerFactory.getLogger(LoadManager.class);
+    Logger LOG = Logger.get(LoadManager.class);
 
     String LOADBALANCE_BROKERS_ROOT = "/loadbalance/brokers";
 
     void start() throws PulsarServerException;
+
+    default boolean started() {
+        return true;
+    }
 
     /**
      * Is centralized decision making to assign a new bundle.
@@ -62,8 +67,21 @@ public interface LoadManager {
      */
     Optional<ResourceUnit> getLeastLoaded(ServiceUnitId su) throws Exception;
 
+    /**
+     * Asynchronous version of {@link #getLeastLoaded(ServiceUnitId)}.
+     * The default implementation calls the synchronous method on the caller's thread. Implementations should override
+     * this method to avoid blocking the caller on metadata reads.
+     */
+    default CompletableFuture<Optional<ResourceUnit>> getLeastLoadedAsync(ServiceUnitId su) {
+        try {
+            return CompletableFuture.completedFuture(getLeastLoaded(su));
+        } catch (Exception e) {
+            return CompletableFuture.failedFuture(e);
+        }
+    }
+
     default CompletableFuture<Optional<LookupResult>> findBrokerServiceUrl(
-            Optional<ServiceUnitId> topic, ServiceUnitId bundle) {
+            Optional<ServiceUnitId> topic, ServiceUnitId bundle, LookupOptions options) {
         throw new UnsupportedOperationException();
     }
 
@@ -145,29 +163,31 @@ public interface LoadManager {
     void initialize(PulsarService pulsar);
 
     static LoadManager create(final PulsarService pulsar) {
-        try {
-            final ServiceConfiguration conf = pulsar.getConfiguration();
-            // Assume there is a constructor with one argument of PulsarService.
-            final Object loadManagerInstance = Reflections.createInstance(conf.getLoadManagerClassName(),
-                    Thread.currentThread().getContextClassLoader());
-            if (loadManagerInstance instanceof LoadManager casted) {
-                casted.initialize(pulsar);
-                return casted;
-            } else if (loadManagerInstance instanceof ModularLoadManager modularLoadManager) {
-                final LoadManager casted = new ModularLoadManagerWrapper(modularLoadManager);
-                casted.initialize(pulsar);
-                return casted;
-            } else if (loadManagerInstance instanceof ExtensibleLoadManager) {
-                final LoadManager casted =
-                        new ExtensibleLoadManagerWrapper((ExtensibleLoadManagerImpl) loadManagerInstance);
-                casted.initialize(pulsar);
-                return casted;
-            }
-        } catch (Exception e) {
-            LOG.warn("Error when trying to create load manager: ", e);
+        final ServiceConfiguration conf = pulsar.getConfiguration();
+
+        String loadManagerClassName = conf.getLoadManagerClassName();
+        if (StringUtils.isBlank(loadManagerClassName)) {
+            loadManagerClassName = SimpleLoadManagerImpl.class.getName();
         }
-        // If we failed to create a load manager, default to SimpleLoadManagerImpl.
-        return new SimpleLoadManagerImpl(pulsar);
+
+        // Assume there is a constructor with one argument of PulsarService.
+        final Object loadManagerInstance = Reflections.createInstance(loadManagerClassName,
+                Thread.currentThread().getContextClassLoader());
+        if (loadManagerInstance instanceof LoadManager casted) {
+            casted.initialize(pulsar);
+            return casted;
+        } else if (loadManagerInstance instanceof ModularLoadManager modularLoadManager) {
+            final LoadManager casted = new ModularLoadManagerWrapper(modularLoadManager);
+            casted.initialize(pulsar);
+            return casted;
+        } else if (loadManagerInstance instanceof ExtensibleLoadManager) {
+            final LoadManager casted =
+                    new ExtensibleLoadManagerWrapper((ExtensibleLoadManagerImpl) loadManagerInstance);
+            casted.initialize(pulsar);
+            return casted;
+        } else {
+            throw new IllegalArgumentException(loadManagerClassName + " is not a supported LoadManager");
+        }
     }
 
 }

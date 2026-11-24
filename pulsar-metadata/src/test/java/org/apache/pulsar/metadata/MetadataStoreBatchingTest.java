@@ -21,7 +21,6 @@ package org.apache.pulsar.metadata;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
-
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
@@ -30,7 +29,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.function.Supplier;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStore;
@@ -43,7 +42,7 @@ import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class MetadataStoreBatchingTest extends BaseMetadataStoreTest {
 
     @Test(dataProvider = "impl")
@@ -51,7 +50,7 @@ public class MetadataStoreBatchingTest extends BaseMetadataStoreTest {
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder()
                 .batchingEnabled(true)
-                .batchingMaxDelayMillis(1_000)
+                .batchingMaxDelayMillis(50)
                 .build());
 
         String key1 = newKey();
@@ -62,8 +61,8 @@ public class MetadataStoreBatchingTest extends BaseMetadataStoreTest {
 
         Stat s1 = f1.join();
         Stat s2 = f2.join();
-        log.info("s1: {}", s1);
-        log.info("s2: {}", s2);
+        log.info().attr("s1", s1).log("s1");
+        log.info().attr("s2", s2).log("s2");
     }
 
     @Test(dataProvider = "impl")
@@ -71,7 +70,7 @@ public class MetadataStoreBatchingTest extends BaseMetadataStoreTest {
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder()
                         .batchingEnabled(true)
-                        .batchingMaxDelayMillis(1_000)
+                        .batchingMaxDelayMillis(50)
                 .build());
 
         String key1 = newKey();
@@ -94,7 +93,7 @@ public class MetadataStoreBatchingTest extends BaseMetadataStoreTest {
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder()
                 .batchingEnabled(true)
-                .batchingMaxDelayMillis(1_000)
+                .batchingMaxDelayMillis(50)
                 .build());
 
         String key1 = newKey();
@@ -129,7 +128,7 @@ public class MetadataStoreBatchingTest extends BaseMetadataStoreTest {
         @Cleanup
         MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(), MetadataStoreConfig.builder()
                 .batchingEnabled(true)
-                .batchingMaxDelayMillis(1_000)
+                .batchingMaxDelayMillis(50)
                 .build());
 
         String key1 = newKey();
@@ -153,7 +152,7 @@ public class MetadataStoreBatchingTest extends BaseMetadataStoreTest {
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder()
                 .batchingEnabled(true)
-                .batchingMaxDelayMillis(1_000)
+                .batchingMaxDelayMillis(50)
                 .build());
 
         String key1 = newKey();
@@ -161,11 +160,11 @@ public class MetadataStoreBatchingTest extends BaseMetadataStoreTest {
         // Create 20 MB of data and try to read it out
         int dataSize = 500 * 1024;
         byte[] payload = new byte[dataSize];
-        int N = 40;
+        int num = 40;
 
         List<CompletableFuture<Stat>> putFutures = new ArrayList<>();
 
-        for (int i = 0; i < N; i++) {
+        for (int i = 0; i < num; i++) {
             putFutures.add(store.put(key1 + "/" + i, payload, Optional.empty()));
         }
 
@@ -174,7 +173,7 @@ public class MetadataStoreBatchingTest extends BaseMetadataStoreTest {
 
         List<CompletableFuture<Optional<GetResult>>> getFutures = new ArrayList<>();
 
-        for (int i = 0; i < N; i++) {
+        for (int i = 0; i < num; i++) {
             getFutures.add(store.get(key1 + "/" + i));
         }
 

@@ -20,39 +20,51 @@ package org.apache.pulsar.shell;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
+import lombok.CustomLog;
 import lombok.SneakyThrows;
-import org.apache.pulsar.admin.cli.PulsarAdminSupplier;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.cli.CmdProduce;
 import org.jline.reader.EndOfFileException;
+import org.jline.reader.Parser;
 import org.jline.reader.UserInterruptException;
 import org.jline.reader.impl.LineReaderImpl;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.TerminalBuilder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.jline.terminal.impl.DumbTerminal;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@CustomLog
 public class PulsarShellTest {
-
-    private static final Logger log = LoggerFactory.getLogger(PulsarShellTest.class);
 
     private PulsarAdmin pulsarAdmin;
 
@@ -74,14 +86,14 @@ public class PulsarShellTest {
         @SneakyThrows
         public String readLine() throws UserInterruptException, EndOfFileException {
             final String cmd = commandsQueue.take();
-            log.info("writing command: {}", cmd);
+            log.info().attr("command", cmd).log("Writing command");
             return cmd;
 
         }
 
         @Override
         public List<String> parseLine(String line) {
-            return getParser().parse(line, 0).words();
+            return getParser().parse(line, 0, Parser.ParseContext.SPLIT_LINE).words();
         }
     }
 
@@ -89,6 +101,7 @@ public class PulsarShellTest {
 
         private final PulsarAdmin pulsarAdmin;
         AtomicReference<CmdProduce> cmdProduceHolder = new AtomicReference<>();
+        Consumer<CmdProduce> cmdProduceCustomizer = cmdProduce -> { };
         Integer exitCode;
 
         public TestPulsarShell(String[] args, Properties props, PulsarAdmin pulsarAdmin) throws IOException {
@@ -99,19 +112,20 @@ public class PulsarShellTest {
         @Override
         protected AdminShell createAdminShell(Properties properties) throws Exception {
             final AdminShell adminShell = new AdminShell(properties);
-            final PulsarAdminSupplier supplier = mock(PulsarAdminSupplier.class);
-            when(supplier.get()).thenReturn(pulsarAdmin);
-            adminShell.setPulsarAdminSupplier(supplier);
+            PulsarAdminBuilder builder = mock(PulsarAdminBuilder.class);
+            doReturn(pulsarAdmin).when(builder).build();
+            adminShell.getPulsarAdminSupplier().setAdminBuilder(builder);
             return adminShell;
         }
 
         @Override
         protected ClientShell createClientShell(Properties properties) {
             final CmdProduce cmdProduce = mock(CmdProduce.class);
+            cmdProduceCustomizer.accept(cmdProduce);
             cmdProduceHolder.set(cmdProduce);
-            return new ClientShell(properties) {{
-                this.produceCommand = cmdProduce;
-            }};
+            ClientShell clientShell = new ClientShell(properties);
+            clientShell.replaceProducerCommand(cmdProduce);
+            return clientShell;
         }
 
         @Override
@@ -138,8 +152,16 @@ public class PulsarShellTest {
         when(pulsarAdmin.topics()).thenReturn(topics);
     }
 
+    // Writes reach the stream before flush() returns. A TerminalBuilder terminal over these streams is backed by a
+    // PTY when a native provider is available, and a pump thread copies its output to the stream later.
+    private static Terminal newDumbTerminal(OutputStream output) throws IOException {
+        return new DumbTerminal("test", Terminal.TYPE_DUMB, new ByteArrayInputStream(new byte[0]), output,
+                StandardCharsets.UTF_8);
+    }
+
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testInteractiveMode() throws Exception {
         Terminal terminal = TerminalBuilder.builder().build();
         final MockLineReader linereader = new MockLineReader(terminal);
@@ -148,16 +170,18 @@ public class PulsarShellTest {
         props.setProperty("webServiceUrl", "http://localhost:8080");
         linereader.addCmd("admin topics create my-topic --metadata a=b ");
         linereader.addCmd("client produce -m msg my-topic");
+        linereader.addCmd("client produce -m \"hello pulsar\" my-topic");
         linereader.addCmd("quit");
         final TestPulsarShell testPulsarShell = new TestPulsarShell(new String[]{}, props, pulsarAdmin);
-        testPulsarShell.run((a) -> linereader, (a) -> terminal);
+        testPulsarShell.run((a) -> linereader, () -> terminal);
         verify(topics).createNonPartitionedTopic(eq("persistent://public/default/my-topic"), any(Map.class));
-        verify(testPulsarShell.cmdProduceHolder.get()).run();
+        verify(testPulsarShell.cmdProduceHolder.get(), times(2)).call();
         assertEquals((int) testPulsarShell.exitCode, 0);
 
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testFileMode() throws Exception {
         Terminal terminal = TerminalBuilder.builder().build();
         final MockLineReader linereader = new MockLineReader(terminal);
@@ -169,12 +193,13 @@ public class PulsarShellTest {
 
         final TestPulsarShell testPulsarShell = new TestPulsarShell(new String[]{"-f", shellFile},
                 props, pulsarAdmin);
-        testPulsarShell.run((a) -> linereader, (a) -> terminal);
+        testPulsarShell.run((a) -> linereader, () -> terminal);
         verify(topics).createNonPartitionedTopic(eq("persistent://public/default/my-topic"), any(Map.class));
-        verify(testPulsarShell.cmdProduceHolder.get()).run();
+        verify(testPulsarShell.cmdProduceHolder.get()).call();
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testFileModeExitOnError() throws Exception {
         Terminal terminal = TerminalBuilder.builder().build();
         final MockLineReader linereader = new MockLineReader(terminal);
@@ -187,7 +212,7 @@ public class PulsarShellTest {
         final TestPulsarShell testPulsarShell = new TestPulsarShell(new String[]{"-f", shellFile, "--fail-on-error"},
                 props, pulsarAdmin);
         try {
-            testPulsarShell.run((a) -> linereader, (a) -> terminal);
+            testPulsarShell.run((a) -> linereader, () -> terminal);
             fail();
         } catch (SystemExitCalledException ex) {
             assertEquals(ex.code, 1);
@@ -195,6 +220,120 @@ public class PulsarShellTest {
 
         verify(topics).createNonPartitionedTopic(eq("persistent://public/default/my-topic"), any(Map.class));
         verify(testPulsarShell.cmdProduceHolder.get(), times(0)).run();
+    }
+
+    @Test
+    public void testInterruptRunningCommand() throws Exception {
+        final ByteArrayOutputStream output = new ByteArrayOutputStream();
+        Terminal terminal = newDumbTerminal(output);
+        final MockLineReader linereader = new MockLineReader(terminal);
+        final Properties props = new Properties();
+        props.setProperty("webServiceUrl", "http://localhost:8080");
+        linereader.addCmd("client produce -m msg my-topic");
+
+        final TestPulsarShell testPulsarShell = new TestPulsarShell(new String[]{}, props, pulsarAdmin);
+        final CountDownLatch commandStarted = new CountDownLatch(1);
+        final AtomicBoolean commandInterrupted = new AtomicBoolean();
+        testPulsarShell.cmdProduceCustomizer = cmdProduce -> {
+            try {
+                doAnswer(invocation -> {
+                    commandStarted.countDown();
+                    try {
+                        Thread.sleep(TimeUnit.SECONDS.toMillis(30));
+                    } catch (InterruptedException e) {
+                        commandInterrupted.set(true);
+                        throw e;
+                    }
+                    return 0;
+                }).when(cmdProduce).call();
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        };
+
+        // Press Ctrl-C while the command is running, then quit
+        final Thread signaller = new Thread(() -> {
+            try {
+                assertTrue(commandStarted.await(10, TimeUnit.SECONDS));
+                testPulsarShell.handleSignal(Terminal.Signal.INT);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } finally {
+                linereader.addCmd("quit");
+            }
+        });
+        signaller.start();
+        testPulsarShell.run((a) -> linereader, () -> terminal);
+        signaller.join();
+
+        assertTrue(commandInterrupted.get());
+        assertEquals((int) testPulsarShell.exitCode, 0);
+        final String out = output.toString(StandardCharsets.UTF_8);
+        assertTrue(out.contains("Interrupted"), out);
+        assertFalse(out.contains("InterruptShellException"), out);
+    }
+
+    @Test
+    public void testInterruptRacingCommandCompletionDoesNotReachNextCommand() throws Exception {
+        final ByteArrayOutputStream output = new ByteArrayOutputStream();
+        Terminal terminal = newDumbTerminal(output);
+        final MockLineReader linereader = new MockLineReader(terminal);
+        final Properties props = new Properties();
+        props.setProperty("webServiceUrl", "http://localhost:8080");
+        linereader.addCmd("client produce -m first my-topic");
+        linereader.addCmd("client produce -m second my-topic");
+        linereader.addCmd("quit");
+
+        final TestPulsarShell testPulsarShell = new TestPulsarShell(new String[]{}, props, pulsarAdmin);
+        final CountDownLatch firstStarted = new CountDownLatch(1);
+        final CountDownLatch firstMayFinish = new CountDownLatch(1);
+        final CountDownLatch firstFinished = new CountDownLatch(1);
+        final AtomicBoolean secondInterrupted = new AtomicBoolean();
+        final AtomicBoolean secondRan = new AtomicBoolean();
+        testPulsarShell.cmdProduceCustomizer = cmdProduce -> {
+            try {
+                doAnswer(invocation -> {
+                    firstStarted.countDown();
+                    assertTrue(firstMayFinish.await(10, TimeUnit.SECONDS));
+                    firstFinished.countDown();
+                    return 0;
+                }).doAnswer(invocation -> {
+                    secondRan.set(true);
+                    try {
+                        Thread.sleep(200);
+                    } catch (InterruptedException e) {
+                        secondInterrupted.set(true);
+                    }
+                    return 0;
+                }).when(cmdProduce).call();
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        };
+
+        // Deliver Ctrl-C after the first command's work is done but before the shell retires it: holding the
+        // lock keeps the shell from retiring the command until the signal has been delivered.
+        final Thread signaller = new Thread(() -> {
+            try {
+                assertTrue(firstStarted.await(10, TimeUnit.SECONDS));
+                synchronized (testPulsarShell.interruptLock) {
+                    firstMayFinish.countDown();
+                    assertTrue(firstFinished.await(10, TimeUnit.SECONDS));
+                    testPulsarShell.handleSignal(Terminal.Signal.INT);
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+        signaller.start();
+        testPulsarShell.run((a) -> linereader, () -> terminal);
+        signaller.join();
+
+        assertTrue(secondRan.get());
+        assertFalse(secondInterrupted.get(), "the interrupt for the first command reached the second one");
+        assertEquals((int) testPulsarShell.exitCode, 0);
+        final String out = output.toString(StandardCharsets.UTF_8);
+        assertTrue(out.contains("Interrupted"), out);
     }
 
     @Test

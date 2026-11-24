@@ -25,9 +25,12 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
+import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.KeySharedPolicy;
 import org.apache.pulsar.client.api.Message;
@@ -41,8 +44,6 @@ import org.apache.pulsar.client.impl.BinaryProtoLookupService;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.mockito.Mockito;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testcontainers.Testcontainers;
 import org.testcontainers.containers.SocatContainer;
 import org.testng.Assert;
@@ -50,12 +51,12 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@CustomLog
 public class ProxyStuckConnectionTest extends MockedPulsarServiceBaseTest {
-
-    private static final Logger log = LoggerFactory.getLogger(ProxyStuckConnectionTest.class);
 
     private ProxyService proxyService;
     private ProxyConfiguration proxyConfig;
+    private Authentication proxyClientAuthentication;
     private SocatContainer socatContainer;
 
     private String brokerServiceUriSocat;
@@ -66,6 +67,7 @@ public class ProxyStuckConnectionTest extends MockedPulsarServiceBaseTest {
     protected void setup() throws Exception {
         useBrokerSocatProxy = true;
         internalSetup();
+        setupDefaultTenantAndNamespace();
 
         int brokerPort = pulsar.getBrokerService().getListenPort().get();
         Testcontainers.exposeHostPorts(brokerPort);
@@ -81,6 +83,10 @@ public class ProxyStuckConnectionTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setBrokerServiceURL(pulsar.getBrokerServiceUrl());
         proxyConfig.setClusterName(configClusterName);
 
+        proxyClientAuthentication = AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+                proxyConfig.getBrokerClientAuthenticationParameters());
+        proxyClientAuthentication.start();
+
         startProxyService();
         // use the same port for subsequent restarts
         proxyConfig.setServicePort(proxyService.getListenPort());
@@ -88,7 +94,7 @@ public class ProxyStuckConnectionTest extends MockedPulsarServiceBaseTest {
 
     private void startProxyService() throws Exception {
         proxyService = Mockito.spy(new ProxyService(proxyConfig, new AuthenticationService(
-                PulsarConfigurationLoader.convertFrom(proxyConfig))) {
+                PulsarConfigurationLoader.convertFrom(proxyConfig)), proxyClientAuthentication) {
             @Override
             protected LookupProxyHandler newLookupProxyHandler(ProxyConnection proxyConnection) {
                 return new TestLookupProxyHandler(this, proxyConnection);
@@ -106,6 +112,9 @@ public class ProxyStuckConnectionTest extends MockedPulsarServiceBaseTest {
         internalCleanup();
         if (proxyService != null) {
             proxyService.close();
+        }
+        if (proxyClientAuthentication != null) {
+            proxyClientAuthentication.close();
         }
         if (socatContainer != null) {
             socatContainer.close();
@@ -133,7 +142,7 @@ public class ProxyStuckConnectionTest extends MockedPulsarServiceBaseTest {
                 // such as hash range conflicts
                 .keepAliveInterval(2, TimeUnit.SECONDS)
                 .build();
-        String topicName = BrokerTestUtil.newUniqueName("persistent://sample/test/local/test-topic");
+        String topicName = BrokerTestUtil.newUniqueName("persistent://public/default/test-topic");
 
         @Cleanup
         Consumer<byte[]> consumer = client.newConsumer()
@@ -170,14 +179,21 @@ public class ProxyStuckConnectionTest extends MockedPulsarServiceBaseTest {
                 break;
             }
             String msgString = new String(msg.getData());
-            log.info("Received message {}", msgString);
+            log.info()
+                    .attr("msgString", msgString)
+                    .log("Received message");
             try {
                 consumer.acknowledge(msg);
             } catch (PulsarClientException e) {
-                log.error("Failed to ack message {}", msgString, e);
+                log.error()
+                        .attr("msgString", msgString)
+                        .exception(e)
+                        .log("Failed to ack message");
             }
             messages.remove(msgString);
-            log.info("Remaining messages {}", messages.size());
+            log.info()
+                    .attr("size", messages.size())
+                    .log("Remaining messages");
             if (messages.size() == 0) {
                 break;
             }

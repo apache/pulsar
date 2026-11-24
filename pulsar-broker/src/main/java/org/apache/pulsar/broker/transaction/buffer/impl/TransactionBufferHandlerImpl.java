@@ -30,7 +30,7 @@ import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLong;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -51,7 +51,7 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
 
-@Slf4j
+@CustomLog
 public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
 
     private final ConcurrentSkipListMap<Long, OpRequestSend> outstandingRequests;
@@ -83,11 +83,12 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
     @Override
     public CompletableFuture<TxnID> endTxnOnTopic(String topic, long txnIdMostBits, long txnIdLeastBits,
                                                   TxnAction action, long lowWaterMark) {
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] endTxnOnTopic txnId: [{}], txnAction: [{}]",
-                    topic, new TxnID(txnIdMostBits, txnIdLeastBits), action.getValue());
-        }
-        CompletableFuture<TxnID> cb = new CompletableFuture<>();
+            log.debug()
+                    .attr("topic", topic)
+                    .attr("txnId", new TxnID(txnIdMostBits, txnIdLeastBits))
+                    .attr("txnAction", action.getValue())
+                    .log("endTxnOnTopic");
+                CompletableFuture<TxnID> cb = new CompletableFuture<>();
         long requestId = requestIdGenerator.getAndIncrement();
         ByteBuf cmd = Commands.newEndTxnOnPartition(requestId, txnIdLeastBits, txnIdMostBits,
                 topic, action, lowWaterMark);
@@ -103,11 +104,12 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
     public CompletableFuture<TxnID> endTxnOnSubscription(String topic, String subscription,
                                                                       long txnIdMostBits, long txnIdLeastBits,
                                                                       TxnAction action, long lowWaterMark) {
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] endTxnOnSubscription txnId: [{}], txnAction: [{}]",
-                    topic, new TxnID(txnIdMostBits, txnIdLeastBits), action.getValue());
-        }
-        CompletableFuture<TxnID> cb = new CompletableFuture<>();
+            log.debug()
+                    .attr("topic", topic)
+                    .attr("txnId", new TxnID(txnIdMostBits, txnIdLeastBits))
+                    .attr("txnAction", action.getValue())
+                    .log("endTxnOnSubscription");
+                CompletableFuture<TxnID> cb = new CompletableFuture<>();
         long requestId = requestIdGenerator.getAndIncrement();
         ByteBuf cmd = Commands.newEndTxnOnSubscription(requestId, txnIdLeastBits, txnIdMostBits,
                 topic, subscription, action, lowWaterMark);
@@ -128,6 +130,9 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
             }
         } else {
             pendingRequests.add(op);
+            if (currentPermits != REQUEST_CREDITS_UPDATER.get(this)) {
+                checkPendingRequests();
+            }
             return false;
         }
     }
@@ -142,28 +147,37 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
                     timer.newTimeout(timeout -> {
                         OpRequestSend peek = outstandingRequests.remove(requestId);
                         if (peek != null && !peek.cb.isDone() && !peek.cb.isCompletedExceptionally()) {
-                            peek.cb.completeExceptionally(new TransactionBufferClientException
-                                    .RequestTimeoutException());
+                            CompletableFuture<TxnID> cb = peek.cb;
                             onResponse(peek);
+                            cb.completeExceptionally(new TransactionBufferClientException
+                                    .RequestTimeoutException());
                         }
                     }, operationTimeoutInMills, TimeUnit.MILLISECONDS);
                     op.cmd.retain();
                     clientCnx.ctx().writeAndFlush(op.cmd, clientCnx.ctx().voidPromise());
                 } else {
-                    op.cb.completeExceptionally(
-                            new PulsarClientException.LookupException(op.topic + " endTxn channel is not active"));
+                    CompletableFuture<TxnID> cb = op.cb;
+                    String topic = op.topic;
                     onResponse(op);
+                    cb.completeExceptionally(
+                            new PulsarClientException.LookupException(topic + " endTxn channel is not active"));
                 }
             } else {
                 Throwable cause = FutureUtil.unwrapCompletionException(ex);
-                log.error("endTxn error topic: [{}]", op.topic, cause);
-                if (cause instanceof PulsarClientException.BrokerMetadataException) {
-                    op.cb.complete(null);
+                if (cause instanceof PulsarClientException.ConnectException) {
+                    log.warn().attr("topic", op.topic).exceptionMessage(cause)
+                            .log("endTxn failed, connection closed");
                 } else {
-                    op.cb.completeExceptionally(
+                    log.error().attr("topic", op.topic).exception(cause).log("endTxn error topic");
+                }
+                CompletableFuture<TxnID> cb = op.cb;
+                onResponse(op);
+                if (cause instanceof PulsarClientException.TopicDoesNotExistException) {
+                    cb.complete(null);
+                } else {
+                    cb.completeExceptionally(
                             new PulsarClientException.LookupException(cause.getMessage()));
                 }
-                onResponse(op);
             }
         });
     }
@@ -172,28 +186,29 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
     public void handleEndTxnOnTopicResponse(long requestId, CommandEndTxnOnPartitionResponse response) {
         OpRequestSend op = outstandingRequests.remove(requestId);
         if (op == null) {
-            if (log.isDebugEnabled()) {
-                log.debug("Got end txn on topic response for timeout {} - {}", response.getTxnidMostBits(),
-                        response.getTxnidLeastBits());
-            }
-            return;
+                log.debug()
+                        .attr("timeout", response.getTxnidMostBits())
+                        .attr("txnidLeastBits", response.getTxnidLeastBits())
+                        .log("Got end txn on topic response for timeout -");
+                        return;
         }
-        try {
-            if (!response.hasError()) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Got end txn on topic response for for request {}", op.topic,
-                            response.getRequestId());
-                }
-                op.cb.complete(new TxnID(response.getTxnidMostBits(), response.getTxnidLeastBits()));
-            } else {
-                log.error("[{}] Got end txn on topic response for request {} error {}", op.topic,
-                        response.getRequestId(),
-                        response.getError());
-                op.cb.completeExceptionally(ClientCnx.getPulsarClientException(response.getError(),
-                        response.getMessage()));
-            }
-        } finally {
-            onResponse(op);
+        String topic = op.topic;
+        CompletableFuture<TxnID> cb = op.cb;
+        onResponse(op);
+        if (!response.hasError()) {
+            log.debug()
+                    .attr("topic", topic)
+                    .attr("request", response.getRequestId())
+                    .log("Got end txn on topic response for for request");
+            cb.complete(new TxnID(response.getTxnidMostBits(), response.getTxnidLeastBits()));
+        } else {
+            log.error()
+                    .attr("topic", topic)
+                    .attr("request", response.getRequestId())
+                    .attr("errorCode", response.getError())
+                    .log("Got end txn on topic response error");
+            cb.completeExceptionally(ClientCnx.getPulsarClientException(response.getError(),
+                    response.getMessage()));
         }
     }
 
@@ -202,31 +217,37 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
                                                    CommandEndTxnOnSubscriptionResponse response) {
         OpRequestSend op = outstandingRequests.remove(requestId);
         if (op == null) {
-            if (log.isDebugEnabled()) {
-                log.debug("Got end txn on subscription response for timeout {} - {}", response.getTxnidMostBits(),
-                        response.getTxnidLeastBits());
-            }
-            return;
+                log.debug()
+                        .attr("timeout", response.getTxnidMostBits())
+                        .attr("txnidLeastBits", response.getTxnidLeastBits())
+                        .log("Got end txn on subscription response for timeout -");
+                        return;
         }
 
-        try {
-            if (!response.hasError()) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Got end txn on subscription response for for request {}",
-                            op.topic, response.getRequestId());
-                }
-                op.cb.complete(new TxnID(response.getTxnidMostBits(), response.getTxnidLeastBits()));
-            } else {
-                log.error("[{}] Got end txn on subscription response for request {} error {}",
-                        op.topic, response.getRequestId(), response.getError());
-                op.cb.completeExceptionally(ClientCnx.getPulsarClientException(response.getError(),
-                        response.getMessage()));
-            }
-        } finally {
-            onResponse(op);
+        String topic = op.topic;
+        CompletableFuture<TxnID> cb = op.cb;
+        onResponse(op);
+        if (!response.hasError()) {
+            log.debug()
+                    .attr("topic", topic)
+                    .attr("request", response.getRequestId())
+                    .log("Got end txn on subscription response for for request");
+            cb.complete(new TxnID(response.getTxnidMostBits(), response.getTxnidLeastBits()));
+        } else {
+            log.error()
+                    .attr("topic", topic)
+                    .attr("request", response.getRequestId())
+                    .attr("errorCode", response.getError())
+                    .log("Got end txn on subscription response error");
+            cb.completeExceptionally(ClientCnx.getPulsarClientException(response.getError(),
+                    response.getMessage()));
         }
     }
 
+    /**
+     * Gives the credit of a finished request back and recycles the request. Callers complete the request's future
+     * after this, from a reference taken before, so that the credit is back when the future's callbacks run.
+     */
     public void onResponse(OpRequestSend op) {
         REQUEST_CREDITS_UPDATER.incrementAndGet(this);
         if (op != null) {
@@ -251,6 +272,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
                             invalid.recycle();
                         }
                         endTxn(polled);
+                        break;
                     } else {
                         REQUEST_CREDITS_UPDATER.incrementAndGet(this);
                     }

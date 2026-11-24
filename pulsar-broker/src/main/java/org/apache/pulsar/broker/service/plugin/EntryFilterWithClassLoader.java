@@ -20,25 +20,33 @@ package org.apache.pulsar.broker.service.plugin;
 
 import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
+import lombok.CustomLog;
 import lombok.ToString;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.common.nar.NarClassLoader;
 
-@Slf4j
+@CustomLog
 @ToString
 public class EntryFilterWithClassLoader implements EntryFilter {
     private final EntryFilter entryFilter;
     private final NarClassLoader classLoader;
+    private final boolean classLoaderOwned;
 
-    public EntryFilterWithClassLoader(EntryFilter entryFilter, NarClassLoader classLoader) {
+    public EntryFilterWithClassLoader(EntryFilter entryFilter, NarClassLoader classLoader, boolean classLoaderOwned) {
         this.entryFilter = entryFilter;
         this.classLoader = classLoader;
+        this.classLoaderOwned = classLoaderOwned;
     }
 
     @Override
     public FilterResult filterEntry(Entry entry, FilterContext context) {
-        return entryFilter.filterEntry(entry, context);
+        ClassLoader currentClassLoader = Thread.currentThread().getContextClassLoader();
+        try {
+            Thread.currentThread().setContextClassLoader(classLoader);
+            return entryFilter.filterEntry(entry, context);
+        } finally {
+            Thread.currentThread().setContextClassLoader(currentClassLoader);
+        }
     }
 
     @VisibleForTesting
@@ -48,11 +56,23 @@ public class EntryFilterWithClassLoader implements EntryFilter {
 
     @Override
     public void close() {
-        entryFilter.close();
+        ClassLoader currentClassLoader = Thread.currentThread().getContextClassLoader();
         try {
-            classLoader.close();
-        } catch (IOException e) {
-            log.error("close EntryFilterWithClassLoader failed", e);
+            Thread.currentThread().setContextClassLoader(classLoader);
+            entryFilter.close();
+        } finally {
+            Thread.currentThread().setContextClassLoader(currentClassLoader);
+        }
+        if (classLoaderOwned) {
+            log.info()
+                    .attr("classLoader", classLoader)
+                    .attr("name", entryFilter.getClass().getName())
+                    .log("Closing classloader for EntryFilter");
+            try {
+                classLoader.close();
+            } catch (IOException e) {
+                log.error().exception(e).log("close EntryFilterWithClassLoader failed");
+            }
         }
     }
 }

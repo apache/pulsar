@@ -49,5 +49,5 @@ public interface MetadataEventSynchronizer {
     /**
      * close synchronizer resources.
      */
-    void close();
+    CompletableFuture<Void> closeAsync();
 }

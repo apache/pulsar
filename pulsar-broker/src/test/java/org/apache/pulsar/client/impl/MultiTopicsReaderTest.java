@@ -37,7 +37,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -65,7 +65,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-impl")
 public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
 
@@ -91,6 +91,22 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @Test(timeOut = 30000)
+    public void testReaderAutoUpdatePartitionsDisabled() throws Exception {
+        String topic = "persistent://my-property/my-ns/reader-no-auto-update" + UUID.randomUUID();
+        admin.topics().createPartitionedTopic(topic, 2);
+
+        @Cleanup
+        Reader<byte[]> reader = pulsarClient.newReader()
+                .topic(topic)
+                .startMessageId(MessageId.earliest)
+                .autoUpdatePartitions(false)
+                .create();
+
+        assertNull(((MultiTopicsReaderImpl<byte[]>) reader).getMultiTopicsConsumer()
+                .getPartitionsAutoUpdateTimeout());
     }
 
     @Test(timeOut = 30000)
@@ -171,7 +187,7 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
             if (hasMessageAvailable) {
                 reader.readNextAsync().whenComplete((msg, ex) -> {
                     if (ex != null) {
-                        log.error("Read message failed.", ex);
+                        log.error().exception(ex).log("Read message failed");
                         latch.countDown();
                         return;
                     }
@@ -182,7 +198,7 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
                 latch.countDown();
             }
         }).exceptionally(throwable -> {
-            log.error("Read message failed.", throwable);
+            log.error().exception(throwable).log("Read message failed");
             latch.countDown();
             return null;
         });
@@ -297,21 +313,24 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
                 .create();
 
         Assert.assertEquals(admin.topics().getSubscriptions(topic).size(), 2);
-        for (PersistentTopicInternalStats value : admin.topics().getPartitionedInternalStats(topic).partitions.values()) {
+        for (PersistentTopicInternalStats value : admin.topics().getPartitionedInternalStats(topic)
+                .partitions.values()) {
             Assert.assertEquals(value.cursors.size(), 2);
         }
 
         reader1.close();
 
         Assert.assertEquals(admin.topics().getSubscriptions(topic).size(), 1);
-        for (PersistentTopicInternalStats value : admin.topics().getPartitionedInternalStats(topic).partitions.values()) {
+        for (PersistentTopicInternalStats value : admin.topics().getPartitionedInternalStats(topic)
+                .partitions.values()) {
             Assert.assertEquals(value.cursors.size(), 1);
         }
 
         reader2.close();
 
         Assert.assertEquals(admin.topics().getSubscriptions(topic).size(), 0);
-        for (PersistentTopicInternalStats value : admin.topics().getPartitionedInternalStats(topic).partitions.values()) {
+        for (PersistentTopicInternalStats value : admin.topics().getPartitionedInternalStats(topic)
+                .partitions.values()) {
             Assert.assertEquals(value.cursors.size(), 0);
         }
 
@@ -321,7 +340,7 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
     public void testMultiReaderSeek() throws Exception {
         String topic = "persistent://my-property/my-ns/testKeyHashRangeReader" + UUID.randomUUID();
         admin.topics().createPartitionedTopic(topic, 3);
-        publishMessages(topic,100,false);
+        publishMessages(topic, 100, false);
     }
 
     @Test
@@ -629,6 +648,7 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
     void shouldSupportCancellingReadNextAsync() throws Exception {
         String topic = "persistent://my-property/my-ns/my-reader-topic" + UUID.randomUUID();
         admin.topics().createPartitionedTopic(topic, 3);
+        @Cleanup
         MultiTopicsReaderImpl<byte[]> reader = (MultiTopicsReaderImpl<byte[]>) pulsarClient.newReader()
                 .topic(topic)
                 .startMessageId(MessageId.earliest)

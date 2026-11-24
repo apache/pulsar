@@ -19,9 +19,8 @@
 package org.apache.pulsar.broker.service;
 
 import java.util.concurrent.atomic.AtomicLong;
+import lombok.CustomLog;
 import org.apache.pulsar.metadata.api.coordination.CoordinationService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Generate unique ids across multiple nodes.
@@ -32,6 +31,7 @@ import org.slf4j.LoggerFactory;
  * After that, each node can just use a local counter and combine, the application prefix, its own instance id and with
  * the counter incremental value to obtain a globally unique id.
  */
+@CustomLog
 public class DistributedIdGenerator {
 
     private final String prefix;
@@ -52,12 +52,13 @@ public class DistributedIdGenerator {
         this.prefix = prefix;
         this.counter = new AtomicLong(0);
         this.generatorInstanceId = cs.getNextCounterValue(path).get();
-        log.info("Broker distributed id generator started with instance id {}-{}", prefix, generatorInstanceId);
+        log.info()
+                .attr("prefix", prefix)
+                .attr("generatorInstanceId", generatorInstanceId)
+                .log("Broker distributed id generator started");
     }
 
     public String getNextId() {
         return String.format("%s-%d-%d", prefix, generatorInstanceId, counter.getAndIncrement());
     }
-
-    private static final Logger log = LoggerFactory.getLogger(DistributedIdGenerator.class);
 }

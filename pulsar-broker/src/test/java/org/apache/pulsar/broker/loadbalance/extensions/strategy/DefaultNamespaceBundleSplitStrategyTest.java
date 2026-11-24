@@ -88,6 +88,7 @@ public class DefaultNamespaceBundleSplitStrategyTest {
     String broker = "broker-1";
 
     @BeforeMethod
+    @SuppressWarnings("unchecked")
     void setup() {
         config = new ServiceConfiguration();
         config.setLoadBalancerDebugModeEnabled(true);
@@ -120,7 +121,7 @@ public class DefaultNamespaceBundleSplitStrategyTest {
         doReturn(namespaceBundleFactory).when(namespaceService).getNamespaceBundleFactory();
         doReturn(brokerRegistry).when(loadManagerContext).brokerRegistry();
         doReturn(broker).when(brokerRegistry).getBrokerId();
-        doReturn(new AtomicReference(loadManagerWrapper)).when(pulsar).getLoadManager();
+        doReturn(new AtomicReference<>(loadManagerWrapper)).when(pulsar).getLoadManager();
         doReturn(loadManager).when(loadManagerWrapper).get();
         doReturn(channel).when(loadManager).getServiceUnitStateChannel();
         doReturn(true).when(channel).isOwner(any());
@@ -133,10 +134,10 @@ public class DefaultNamespaceBundleSplitStrategyTest {
                 LoadManagerShared.getBundleRangeFromBundleName(bundle2));
         doReturn(CompletableFuture.completedFuture(
                 List.of(splitBoundary1))).when(namespaceService).getSplitBoundary(
-                        eq(namespaceBundle1), eq((List<Long>)null), any());
+                        eq(namespaceBundle1), eq((List<Long>) null), any());
         doReturn(CompletableFuture.completedFuture(
                 List.of(splitBoundary2))).when(namespaceService).getSplitBoundary(
-                        eq(namespaceBundle2), eq((List<Long>)null), any());
+                        eq(namespaceBundle2), eq((List<Long>) null), any());
 
         bundleStats = new LinkedHashMap<>();
         NamespaceBundleStats stats1 = new NamespaceBundleStats();

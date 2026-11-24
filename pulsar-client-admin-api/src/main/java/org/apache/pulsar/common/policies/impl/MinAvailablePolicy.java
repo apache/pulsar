@@ -21,6 +21,7 @@ package org.apache.pulsar.common.policies.impl;
 import java.util.SortedSet;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import org.apache.pulsar.common.policies.AutoFailoverPolicy;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
@@ -30,6 +31,7 @@ import org.apache.pulsar.common.policies.data.BrokerStatus;
  * Implementation of min available policy.
  */
 @Data
+@EqualsAndHashCode(callSuper = false)
 @AllArgsConstructor
 public class MinAvailablePolicy extends AutoFailoverPolicy {
     private static final String MIN_LIMIT_KEY = "min_limit";

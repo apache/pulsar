@@ -35,11 +35,11 @@ import java.util.regex.Pattern;
 import java.util.stream.IntStream;
 import javax.naming.AuthenticationException;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 import org.apache.pulsar.broker.authorization.AuthorizationProvider;
-import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
@@ -62,17 +62,15 @@ import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-impl")
+@CustomLog
 public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
     private static final long testTimeout = 90000; // 1.5 min
-    private static final Logger log = LoggerFactory.getLogger(PatternTopicsConsumerImplAuthTest.class);
     private static final String clientRole = "pluggableRole";
     private static final String superUserRole = "superUser";
     private static final Set<String> clientAuthProviderSupportedRoles = Sets.newHashSet(clientRole);
@@ -204,7 +202,7 @@ public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
         assertTrue(consumer.getTopic().startsWith(PatternMultiTopicsConsumerImpl.DUMMY_TOPIC_NAME_PREFIX));
 
         // 4. verify consumer
-        assertSame(pattern, ((PatternMultiTopicsConsumerImpl<?>) consumer).getPattern());
+        assertSame(pattern.pattern(), ((PatternMultiTopicsConsumerImpl<?>) consumer).getPattern().inputPattern());
         List<String> topics = ((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitions();
         List<ConsumerImpl<byte[]>> consumers = ((PatternMultiTopicsConsumerImpl<byte[]>) consumer).getConsumers();
 
@@ -212,13 +210,14 @@ public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
         assertEquals(consumers.size(), 6);
         assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitionedTopics().size(), 2);
 
-        topics.forEach(topic -> log.debug("topic: {}", topic));
-        consumers.forEach(c -> log.debug("consumer: {}", c.getTopic()));
+        topics.forEach(topic -> log.debug().attr("topic", topic).log("topic"));
+        consumers.forEach(c -> log.debug().attr("topic", c.getTopic()).log("consumer"));
 
         IntStream.range(0, topics.size()).forEach(index ->
                 assertEquals(consumers.get(index).getTopic(), topics.get(index)));
 
-        ((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitionedTopics().forEach(topic -> log.debug("getTopics topic: {}", topic));
+        ((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitionedTopics()
+                .forEach(topic -> log.debug().attr("topic", topic).log("getTopics topic"));
 
         // 5. produce data
         for (int i = 0; i < totalMessages / 3; i++) {
@@ -233,7 +232,7 @@ public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
         Message<byte[]> message = consumer.receive();
         do {
             assertTrue(message instanceof TopicMessageImpl);
-            messageSet ++;
+            messageSet++;
             consumer.acknowledge(message);
             log.debug("Consumer acknowledged : " + new String(message.getData()));
             message = consumer.receive(500, TimeUnit.MILLISECONDS);
@@ -257,8 +256,8 @@ public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
         }
 
         @Override
-        public void initialize(ServiceConfiguration conf, PulsarResources resources) throws IOException {
-            this.conf = conf;
+        public void initialize(InitialContext context) throws IOException {
+            this.conf = context.config();
             // No-op
         }
 
@@ -270,7 +269,7 @@ public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
 
         @Override
         public CompletableFuture<Boolean> canConsumeAsync(TopicName topicName, String role,
-                                                          AuthenticationDataSource authenticationData, String subscription) {
+                                                 AuthenticationDataSource authenticationData, String subscription) {
             return CompletableFuture.completedFuture(clientAuthProviderSupportedRoles.contains(role));
         }
 
@@ -281,17 +280,20 @@ public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
         }
 
         @Override
-        public CompletableFuture<Boolean> allowFunctionOpsAsync(NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
+        public CompletableFuture<Boolean> allowFunctionOpsAsync(NamespaceName namespaceName, String role,
+                                                                AuthenticationDataSource authenticationData) {
             return null;
         }
 
         @Override
-        public CompletableFuture<Boolean> allowSourceOpsAsync(NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
+        public CompletableFuture<Boolean> allowSourceOpsAsync(NamespaceName namespaceName, String role,
+                                                              AuthenticationDataSource authenticationData) {
             return null;
         }
 
         @Override
-        public CompletableFuture<Boolean> allowSinkOpsAsync(NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
+        public CompletableFuture<Boolean> allowSinkOpsAsync(NamespaceName namespaceName, String role,
+                                                            AuthenticationDataSource authenticationData) {
             return null;
         }
 
@@ -309,18 +311,19 @@ public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
 
         @Override
         public CompletableFuture<Void> grantSubscriptionPermissionAsync(NamespaceName namespace,
-                                                                        String subscriptionName, Set<String> roles, String authDataJson) {
+                                               String subscriptionName, Set<String> roles, String authDataJson) {
             return CompletableFuture.completedFuture(null);
         }
 
         @Override
         public CompletableFuture<Void> revokeSubscriptionPermissionAsync(NamespaceName namespace,
-                                                                         String subscriptionName, String role, String authDataJson) {
+                                                String subscriptionName, String role, String authDataJson) {
             return CompletableFuture.completedFuture(null);
         }
 
         @Override
-        public CompletableFuture<Boolean> isTenantAdmin(String tenant, String role, TenantInfo tenantInfo, AuthenticationDataSource authenticationData) {
+        public CompletableFuture<Boolean> isTenantAdmin(String tenant, String role, TenantInfo tenantInfo,
+                                                        AuthenticationDataSource authenticationData) {
             return CompletableFuture.completedFuture(true);
         }
 
@@ -332,7 +335,8 @@ public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
 
         @Override
         public CompletableFuture<Boolean> allowNamespaceOperationAsync(
-                NamespaceName namespaceName, String role, NamespaceOperation operation, AuthenticationDataSource authData) {
+                NamespaceName namespaceName, String role, NamespaceOperation operation,
+                AuthenticationDataSource authData) {
             CompletableFuture<Boolean> isAuthorizedFuture;
 
             if (role.equals(superUserRole) || role.equals(clientRole)) {
@@ -373,6 +377,7 @@ public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
             return isAuthorizedFuture;
         }
     }
+    @SuppressWarnings("deprecation")
 
     public static class ClientAuthentication implements Authentication {
         String user;
@@ -425,6 +430,7 @@ public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
         }
 
     }
+    @SuppressWarnings("deprecation")
 
     public static class TestAuthenticationProvider implements AuthenticationProvider {
 

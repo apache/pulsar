@@ -72,4 +72,7 @@ public class SourceConfig {
     private BatchSourceConfig batchSourceConfig;
     // batchBuilder provides two types of batch construction methods, DEFAULT and KEY_BASED
     private String batchBuilder;
+    private String logTopic;
+    // Pulsar client API for the source's own topics; null picks it from the topic domains
+    private FunctionConfig.ClientApi clientApi;
 }

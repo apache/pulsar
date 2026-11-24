@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.worker;
 
+import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.metrics.Meter;
 import java.io.Closeable;
 import lombok.Getter;
@@ -27,7 +28,14 @@ import org.apache.pulsar.opentelemetry.OpenTelemetryService;
 public class PulsarWorkerOpenTelemetry implements Closeable {
 
     public static final String SERVICE_NAME = "pulsar-function-worker";
+    public static final String INSTRUMENTATION_SCOPE_NAME = "org.apache.pulsar.function_worker";
+
     private final OpenTelemetryService openTelemetryService;
+
+    // PIP-478: the OpenTelemetry root, so a component's TlsFactoryInitContext gets a real handle (the
+    // pulsar.tls.reload / last_reload_success instruments) instead of OpenTelemetry.noop().
+    @Getter
+    private final OpenTelemetry openTelemetry;
 
     @Getter
     private final Meter meter;
@@ -38,7 +46,8 @@ public class PulsarWorkerOpenTelemetry implements Closeable {
                 .serviceName(SERVICE_NAME)
                 .serviceVersion(PulsarVersion.getVersion())
                 .build();
-        meter = openTelemetryService.getOpenTelemetry().getMeter("org.apache.pulsar.function_worker");
+        openTelemetry = openTelemetryService.getOpenTelemetry();
+        meter = openTelemetry.getMeter(INSTRUMENTATION_SCOPE_NAME);
     }
 
     @Override

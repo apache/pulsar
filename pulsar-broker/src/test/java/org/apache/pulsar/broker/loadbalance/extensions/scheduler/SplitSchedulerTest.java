@@ -33,14 +33,15 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannel;
 import org.apache.pulsar.broker.loadbalance.extensions.manager.SplitManager;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Split;
-import org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision;
 import org.apache.pulsar.broker.loadbalance.extensions.models.SplitCounter;
+import org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision;
 import org.apache.pulsar.broker.loadbalance.extensions.strategy.NamespaceBundleSplitStrategy;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.stats.Metrics;
@@ -103,15 +104,17 @@ public class SplitSchedulerTest {
     }
 
     @Test(timeOut = 30 * 1000)
+    @SuppressWarnings("unchecked")
     public void testExecuteSuccess() {
-        AtomicReference<List<Metrics>> reference = new AtomicReference();
+        AtomicReference<List<Metrics>> reference = new AtomicReference<>();
         SplitCounter counter = new SplitCounter();
         SplitManager manager = mock(SplitManager.class);
         SplitScheduler scheduler = new SplitScheduler(pulsar, channel, manager, counter, reference, context, strategy);
         doAnswer((invocation)->{
             var decision = invocation.getArgument(2, SplitDecision.class);
             counter.update(decision);
-            return CompletableFuture.completedFuture(null);
+            // Publish the split, as the split manager does
+            return invocation.<Supplier<CompletableFuture<Void>>>getArgument(0).get();
         }).when(manager).waitAsync(any(), any(), any(), anyLong(), any());
         scheduler.execute();
 
@@ -133,8 +136,9 @@ public class SplitSchedulerTest {
     }
 
     @Test(timeOut = 30 * 1000)
+    @SuppressWarnings("unchecked")
     public void testExecuteFailure() {
-        AtomicReference<List<Metrics>> reference = new AtomicReference();
+        AtomicReference<List<Metrics>> reference = new AtomicReference<>();
         SplitCounter counter = new SplitCounter();
         SplitManager manager = new SplitManager(counter);
         SplitScheduler scheduler = new SplitScheduler(pulsar, channel, manager, counter, reference, context, strategy);

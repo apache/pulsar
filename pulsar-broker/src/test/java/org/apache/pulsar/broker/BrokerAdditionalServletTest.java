@@ -18,16 +18,16 @@
  */
 package org.apache.pulsar.broker;
 
+import jakarta.servlet.Servlet;
+import jakarta.servlet.ServletConfig;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletOutputStream;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-import javax.servlet.Servlet;
-import javax.servlet.ServletConfig;
-import javax.servlet.ServletException;
-import javax.servlet.ServletOutputStream;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import okhttp3.OkHttpClient;
 import okhttp3.Response;
 import org.apache.commons.lang3.RandomUtils;
@@ -36,22 +36,22 @@ import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlet;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServletWithClassLoader;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServletWithPulsarService;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlets;
+import org.apache.pulsar.broker.web.plugin.servlet.LegacyJavaxAdditionalServlet;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
-import org.eclipse.jetty.server.Request;
-import org.eclipse.jetty.servlet.ServletHolder;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class BrokerAdditionalServletTest extends MockedPulsarServiceBaseTest {
 
-    private final String BASE_PATH = "/additional/servlet";
-    private final String WITH_PULSAR_SERVICE_BASE_PATH = "/additional/servlet/with/pulsar/service";
-    private final String QUERY_PARAM = "param";
+    private static final String BASE_PATH = "/additional/servlet";
+    private static final String WITH_PULSAR_SERVICE_BASE_PATH = "/additional/servlet/with/pulsar/service";
+    private static final String JAVAX_BASE_PATH = "/additional/servlet/javax";
+    private static final String QUERY_PARAM = "param";
 
     @Override
     @BeforeClass
@@ -75,7 +75,9 @@ public class BrokerAdditionalServletTest extends MockedPulsarServiceBaseTest {
 
         AdditionalServlet brokerAdditionalServlet = Mockito.mock(AdditionalServlet.class);
         Mockito.when(brokerAdditionalServlet.getBasePath()).thenReturn(BASE_PATH);
-        Mockito.when(brokerAdditionalServlet.getServletHolder()).thenReturn(new ServletHolder(servlet));
+        Mockito.when(brokerAdditionalServlet.getServletInstance()).thenReturn(servlet);
+        Mockito.when(brokerAdditionalServlet.getServletType())
+                .thenReturn(AdditionalServlet.AdditionalServletType.JAKARTA_SERVLET);
 
         AdditionalServletWithPulsarService brokerAdditionalServletWithPulsarService =
                 new AdditionalServletWithPulsarService() {
@@ -91,13 +93,18 @@ public class BrokerAdditionalServletTest extends MockedPulsarServiceBaseTest {
                     }
 
                     @Override
+                    public AdditionalServletType getServletType() {
+                        return AdditionalServletType.JAKARTA_SERVLET;
+                    }
+
+                    @Override
                     public String getBasePath() {
                         return WITH_PULSAR_SERVICE_BASE_PATH;
                     }
 
                     @Override
-                    public ServletHolder getServletHolder() {
-                        return new ServletHolder(new WithPulsarServiceServlet(pulsarService));
+                    public Object getServletInstance() {
+                        return new WithPulsarServiceServlet(pulsarService);
                     }
 
                     @Override
@@ -110,23 +117,35 @@ public class BrokerAdditionalServletTest extends MockedPulsarServiceBaseTest {
         AdditionalServlets brokerAdditionalServlets = Mockito.mock(AdditionalServlets.class);
         Map<String, AdditionalServletWithClassLoader> map = new HashMap<>();
         map.put("broker-additional-servlet", new AdditionalServletWithClassLoader(brokerAdditionalServlet, null));
-        map.put("broker-additional-servlet-with-pulsar-service", new AdditionalServletWithClassLoader(brokerAdditionalServletWithPulsarService, null));
+        map.put("broker-additional-servlet-with-pulsar-service", new
+                AdditionalServletWithClassLoader(brokerAdditionalServletWithPulsarService, null));
+        map.put("broker-additional-servlet-javax", new AdditionalServletWithClassLoader(
+                new LegacyJavaxAdditionalServlet(JAVAX_BASE_PATH), null));
         Mockito.when(brokerAdditionalServlets.getServlets()).thenReturn(map);
 
         Mockito.when(pulsar.getBrokerAdditionalServlets()).thenReturn(brokerAdditionalServlets);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void test() throws IOException {
         int httpPort = pulsar.getWebService().getListenPortHTTP().get();
-        log.info("pulsar webService httpPort {}", httpPort);
+        log.info().attr("httpPort", httpPort).log("pulsar webService httpPort");
         String paramValue = "value - " + RandomUtils.nextInt();
         String response = httpGet("http://localhost:" + httpPort + BASE_PATH + "?" + QUERY_PARAM + "=" + paramValue);
         Assert.assertEquals(response, paramValue);
 
-        String WithPulsarServiceParamValue = PulsarService.class.getName();
+        String withPulsarServiceParamValue = PulsarService.class.getName();
         String withPulsarServiceResponse = httpGet("http://localhost:" + httpPort + WITH_PULSAR_SERVICE_BASE_PATH);
-        Assert.assertEquals(WithPulsarServiceParamValue, withPulsarServiceResponse);
+        Assert.assertEquals(withPulsarServiceParamValue, withPulsarServiceResponse);
+
+        // A servlet written against the legacy javax.servlet API is adapted to jakarta.servlet and serves
+        // requests through the same Jetty environment as the jakarta.servlet ones
+        String javaxParamValue = "value - " + RandomUtils.nextInt();
+        String javaxResponse = httpGet("http://localhost:" + httpPort + JAVAX_BASE_PATH
+                + "?" + QUERY_PARAM + "=" + javaxParamValue);
+        Assert.assertEquals(javaxResponse.trim(),
+                LegacyJavaxAdditionalServlet.expectedResponse(JAVAX_BASE_PATH, javaxParamValue));
     }
 
 
@@ -145,7 +164,8 @@ public class BrokerAdditionalServletTest extends MockedPulsarServiceBaseTest {
         @Override
         public void service(ServletRequest servletRequest, ServletResponse servletResponse) throws ServletException,
                 IOException {
-            log.info("[service] path: {}", ((Request) servletRequest).getOriginalURI());
+            log.info().attr("path",
+                    ((jakarta.servlet.http.HttpServletRequest) servletRequest).getRequestURI()).log("[service]");
             String value = servletRequest.getParameterMap().get(QUERY_PARAM)[0];
             ServletOutputStream servletOutputStream = servletResponse.getOutputStream();
             servletResponse.setContentLength(value.getBytes().length);
@@ -176,7 +196,8 @@ public class BrokerAdditionalServletTest extends MockedPulsarServiceBaseTest {
         @Override
         public void service(ServletRequest servletRequest, ServletResponse servletResponse) throws ServletException,
                 IOException {
-            log.info("[service] path: {}", ((Request) servletRequest).getOriginalURI());
+            log.info().attr("path",
+                    ((jakarta.servlet.http.HttpServletRequest) servletRequest).getRequestURI()).log("[service]");
             String value = pulsarService == null ? "null" : PulsarService.class.getName();
             ServletOutputStream servletOutputStream = servletResponse.getOutputStream();
             servletResponse.setContentLength(value.getBytes().length);

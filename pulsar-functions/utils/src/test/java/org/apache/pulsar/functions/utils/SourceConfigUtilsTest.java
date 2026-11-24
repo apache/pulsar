@@ -18,7 +18,17 @@
  */
 package org.apache.pulsar.functions.utils;
 
+import static org.apache.pulsar.common.functions.FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.expectThrows;
 import com.google.gson.Gson;
+import java.lang.reflect.Field;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.function.Consumer;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
@@ -29,20 +39,13 @@ import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.io.BatchSourceConfig;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.config.validation.ConfigValidationAnnotations;
-import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.FunctionDetails;
 import org.apache.pulsar.io.core.BatchSourceTriggerer;
 import org.apache.pulsar.io.core.SourceContext;
+import org.json.JSONException;
+import org.skyscreamer.jsonassert.JSONAssert;
+import org.skyscreamer.jsonassert.JSONCompareMode;
 import org.testng.annotations.Test;
-
-import java.lang.reflect.Field;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.function.Consumer;
-
-import static org.apache.pulsar.common.functions.FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.expectThrows;
 
 /**
  * Unit test of {@link SourceConfigUtilsTest}.
@@ -78,7 +81,8 @@ public class SourceConfigUtilsTest {
     @Test
     public void testConvertBackFidelity() {
         SourceConfig sourceConfig = createSourceConfig();
-        Function.FunctionDetails functionDetails = SourceConfigUtils.convert(sourceConfig, new SourceConfigUtils.ExtractedSourceDetails(null, null));
+        FunctionDetails functionDetails = SourceConfigUtils.convert(sourceConfig,
+                new SourceConfigUtils.ExtractedSourceDetails(null, null));
         SourceConfig convertedConfig = SourceConfigUtils.convertFromDetails(functionDetails);
 
         // add default resources
@@ -92,7 +96,8 @@ public class SourceConfigUtilsTest {
     @Test
     public void testConvertBackFidelityWithBatch() {
         SourceConfig sourceConfig = createSourceConfigWithBatch();
-        Function.FunctionDetails functionDetails = SourceConfigUtils.convert(sourceConfig, new SourceConfigUtils.ExtractedSourceDetails(null, null));
+        FunctionDetails functionDetails = SourceConfigUtils.convert(sourceConfig,
+                new SourceConfigUtils.ExtractedSourceDetails(null, null));
         SourceConfig convertedConfig = SourceConfigUtils.convertFromDetails(functionDetails);
 
         // add default resources
@@ -115,17 +120,19 @@ public class SourceConfigUtilsTest {
     }
 
     @Test
-    public void testBatchConfigMergeEqual() {
+    public void testBatchConfigMergeEqual() throws JSONException {
         SourceConfig sourceConfig = createSourceConfigWithBatch();
         SourceConfig newSourceConfig = createSourceConfigWithBatch();
         SourceConfig mergedConfig = SourceConfigUtils.validateUpdate(sourceConfig, newSourceConfig);
-        assertEquals(
+        JSONAssert.assertEquals(
                 new Gson().toJson(sourceConfig),
-                new Gson().toJson(mergedConfig)
+                new Gson().toJson(mergedConfig),
+                JSONCompareMode.STRICT
         );
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Function Names differ")
+    @Test(expectedExceptions = IllegalArgumentException.class,
+            expectedExceptionsMessageRegExp = "Function Names differ")
     public void testMergeDifferentName() {
         SourceConfig sourceConfig = createSourceConfig();
         SourceConfig newSourceConfig = createUpdatedSourceConfig("name", "Different");
@@ -162,7 +169,8 @@ public class SourceConfigUtilsTest {
         );
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Processing Guarantees cannot be altered")
+    @Test(expectedExceptions = IllegalArgumentException.class,
+            expectedExceptionsMessageRegExp = "Processing Guarantees cannot be altered")
     public void testMergeDifferentProcessingGuarantees() {
         SourceConfig sourceConfig = createSourceConfig();
         SourceConfig newSourceConfig = createUpdatedSourceConfig("processingGuarantees", EFFECTIVELY_ONCE);
@@ -256,7 +264,8 @@ public class SourceConfigUtilsTest {
         );
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "DiscoverTriggerer class cannot be updated for batchsources")
+    @Test(expectedExceptions = IllegalArgumentException.class,
+            expectedExceptionsMessageRegExp = "DiscoverTriggerer class cannot be updated for batchsources")
     public void testMergeDifferentBatchTriggerer() {
         SourceConfig sourceConfig = createSourceConfigWithBatch();
         BatchSourceConfig batchSourceConfig = createBatchSourceConfig();
@@ -278,7 +287,8 @@ public class SourceConfigUtilsTest {
                 mergedConfig.getBatchSourceConfig().getDiscoveryTriggererConfig().get("something"),
                 "different"
         );
-        mergedConfig.getBatchSourceConfig().setDiscoveryTriggererConfig(sourceConfig.getBatchSourceConfig().getDiscoveryTriggererConfig());
+        mergedConfig.getBatchSourceConfig().setDiscoveryTriggererConfig(
+                sourceConfig.getBatchSourceConfig().getDiscoveryTriggererConfig());
         assertEquals(
                 new Gson().toJson(sourceConfig),
                 new Gson().toJson(mergedConfig)
@@ -310,6 +320,22 @@ public class SourceConfigUtilsTest {
     }
 
     @Test
+    public void testMergeDifferentLogTopic() {
+        SourceConfig sourceConfig = createSourceConfig();
+        SourceConfig newSourceConfig = createUpdatedSourceConfig("logTopic", "Different");
+        SourceConfig mergedConfig = SourceConfigUtils.validateUpdate(sourceConfig, newSourceConfig);
+        assertEquals(
+                mergedConfig.getLogTopic(),
+                "Different"
+        );
+        mergedConfig.setLogTopic(sourceConfig.getLogTopic());
+        assertEquals(
+                new Gson().toJson(sourceConfig),
+                new Gson().toJson(mergedConfig)
+        );
+    }
+
+    @Test
     public void testValidateConfig() {
         SourceConfig sourceConfig = createSourceConfig();
 
@@ -320,8 +346,10 @@ public class SourceConfigUtilsTest {
         // Bad config
         sourceConfig.getConfigs().put("configParameter", null);
         Exception e = expectThrows(IllegalArgumentException.class,
-                () -> SourceConfigUtils.validateSourceConfig(sourceConfig, SourceConfigUtilsTest.TestSourceConfig.class));
-        assertTrue(e.getMessage().contains("Could not validate source config: Field 'configParameter' cannot be null!"));
+                () -> SourceConfigUtils.validateSourceConfig(sourceConfig,
+                        SourceConfigUtilsTest.TestSourceConfig.class));
+        assertTrue(e.getMessage()
+                .contains("Could not validate source config: Field 'configParameter' cannot be null!"));
     }
 
     @Test
@@ -329,8 +357,9 @@ public class SourceConfigUtilsTest {
         SourceConfig sourceConfig = createSourceConfig();
         sourceConfig.setProducerConfig(null);
         sourceConfig.setBatchBuilder("KEY_BASED");
-        Function.FunctionDetails functionDetails =
-                SourceConfigUtils.convert(sourceConfig, new SourceConfigUtils.ExtractedSourceDetails(null, null));
+        FunctionDetails functionDetails =
+                SourceConfigUtils.convert(sourceConfig,
+                        new SourceConfigUtils.ExtractedSourceDetails(null, null));
         assertEquals(functionDetails.getSink().getProducerSpec().getBatchBuilder(), "KEY_BASED");
     }
 
@@ -339,8 +368,9 @@ public class SourceConfigUtilsTest {
         SourceConfig sourceConfig = createSourceConfig();
         sourceConfig.setBatchBuilder("KEY_BASED");
         sourceConfig.getProducerConfig().setMaxPendingMessages(123456);
-        Function.FunctionDetails functionDetails =
-                SourceConfigUtils.convert(sourceConfig, new SourceConfigUtils.ExtractedSourceDetails(null, null));
+        FunctionDetails functionDetails =
+                SourceConfigUtils.convert(sourceConfig,
+                        new SourceConfigUtils.ExtractedSourceDetails(null, null));
         assertEquals(functionDetails.getSink().getProducerSpec().getBatchBuilder(), "KEY_BASED");
         assertEquals(functionDetails.getSink().getProducerSpec().getMaxPendingMessages(), 123456);
     }
@@ -350,8 +380,9 @@ public class SourceConfigUtilsTest {
         SourceConfig sourceConfig = createSourceConfig();
         sourceConfig.setBatchBuilder(null);
         sourceConfig.getProducerConfig().setBatchBuilder("KEY_BASED");
-        Function.FunctionDetails functionDetails =
-                SourceConfigUtils.convert(sourceConfig, new SourceConfigUtils.ExtractedSourceDetails(null, null));
+        FunctionDetails functionDetails =
+                SourceConfigUtils.convert(sourceConfig,
+                        new SourceConfigUtils.ExtractedSourceDetails(null, null));
         assertEquals(functionDetails.getSink().getProducerSpec().getBatchBuilder(), "KEY_BASED");
     }
 
@@ -399,6 +430,7 @@ public class SourceConfigUtilsTest {
         sourceConfig.setProducerConfig(producerConfig);
 
         sourceConfig.setConfigs(configs);
+        sourceConfig.setLogTopic("log-topic");
         return sourceConfig;
     }
 
@@ -413,5 +445,38 @@ public class SourceConfigUtilsTest {
             throw new RuntimeException("Something wrong with the test", e);
         }
         return sourceConfig;
+    }
+
+    @Test
+    public void testConvertClientApi() {
+        SourceConfig sourceConfig = createSourceConfig();
+        sourceConfig.setTopicName("topic://public/default/out");
+        sourceConfig.setLogTopic(null);
+        FunctionDetails functionDetails = SourceConfigUtils.convert(sourceConfig,
+                new SourceConfigUtils.ExtractedSourceDetails(null, null));
+        assertThat(functionDetails.getClientApi()).isEqualTo(FunctionDetails.ClientApi.AUTO);
+        assertThat(SourceConfigUtils.convertFromDetails(functionDetails).getClientApi()).isNull();
+
+        sourceConfig.setTopicName("persistent://public/default/out");
+        sourceConfig.setClientApi(FunctionConfig.ClientApi.V5);
+        functionDetails = SourceConfigUtils.convert(sourceConfig,
+                new SourceConfigUtils.ExtractedSourceDetails(null, null));
+        assertThat(functionDetails.getClientApi()).isEqualTo(FunctionDetails.ClientApi.V5);
+        assertThat(SourceConfigUtils.convertFromDetails(functionDetails).getClientApi())
+                .isEqualTo(FunctionConfig.ClientApi.V5);
+
+        sourceConfig.setProcessingGuarantees(EFFECTIVELY_ONCE);
+        assertThatThrownBy(() -> SourceConfigUtils.convert(sourceConfig,
+                new SourceConfigUtils.ExtractedSourceDetails(null, null)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("EFFECTIVELY_ONCE");
+    }
+
+    @Test
+    public void testMergeClientApi() {
+        SourceConfig sourceConfig = createSourceConfig();
+        SourceConfig mergedConfig = SourceConfigUtils.validateUpdate(sourceConfig,
+                createUpdatedSourceConfig("clientApi", FunctionConfig.ClientApi.V5));
+        assertThat(mergedConfig.getClientApi()).isEqualTo(FunctionConfig.ClientApi.V5);
     }
 }

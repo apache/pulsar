@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 /**
  * Common exception used by pulsar transaction related modules.
  */

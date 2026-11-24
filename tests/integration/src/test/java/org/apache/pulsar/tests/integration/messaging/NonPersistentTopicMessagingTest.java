@@ -19,11 +19,16 @@
 package org.apache.pulsar.tests.integration.messaging;
 
 import java.util.function.Supplier;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class NonPersistentTopicMessagingTest extends TopicMessagingBase {
+
+    @Override
+    protected boolean isClusterShared() {
+        return true;
+    }
 
     @Test(dataProvider = "ServiceUrls")
     public void testNonPartitionedTopicMessagingWithExclusive(Supplier<String> serviceUrl) throws Exception {

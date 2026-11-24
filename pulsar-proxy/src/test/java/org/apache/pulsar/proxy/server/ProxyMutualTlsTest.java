@@ -26,6 +26,8 @@ import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
+import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -40,25 +42,32 @@ import org.testng.annotations.Test;
 
 public class ProxyMutualTlsTest extends MockedPulsarServiceBaseTest {
 
-    private final String TLS_TRUST_CERT_FILE_PATH = "./src/test/resources/authentication/tls/cacert.pem";
-    private final String TLS_PROXY_CERT_FILE_PATH = "./src/test/resources/authentication/tls/server-cert.pem";
-    private final String TLS_PROXY_KEY_FILE_PATH = "./src/test/resources/authentication/tls/server-key.pem";
-    private final String TLS_CLIENT_CERT_FILE_PATH = "./src/test/resources/authentication/tls/client-cert.pem";
-    private final String TLS_CLIENT_KEY_FILE_PATH = "./src/test/resources/authentication/tls/client-key.pem";
+    private static final String TLS_TRUST_CERT_FILE_PATH = "./src/test/resources/authentication/tls/cacert.pem";
+    private static final String TLS_PROXY_CERT_FILE_PATH = "./src/test/resources/authentication/tls/server-cert.pem";
+    private static final String TLS_PROXY_KEY_FILE_PATH = "./src/test/resources/authentication/tls/server-key.pem";
+    private static final String TLS_CLIENT_CERT_FILE_PATH = "./src/test/resources/authentication/tls/client-cert.pem";
+    private static final String TLS_CLIENT_KEY_FILE_PATH = "./src/test/resources/authentication/tls/client-key.pem";
 
     private ProxyService proxyService;
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
+    private Authentication proxyClientAuthentication;
 
     @Override
     @BeforeClass
     protected void setup() throws Exception {
         internalSetup();
+        setupDefaultTenantAndNamespace();
 
         proxyConfig.setServicePort(Optional.of(0));
         proxyConfig.setBrokerProxyAllowedTargetPorts("*");
         proxyConfig.setServicePortTls(Optional.of(0));
         proxyConfig.setWebServicePort(Optional.of(0));
         proxyConfig.setWebServicePortTls(Optional.of(0));
+        // Advertise over loopback so the proxy service URL host (localhost) matches the server
+        // certificate's SubjectAltName (DNS:localhost, IP:127.0.0.1). TLS hostname verification is on by
+        // default (PIP-478), and the default advertised address resolves to the machine's
+        // canonical hostname/IP, which is not in the cert SAN. This keeps hostname verification enabled.
+        proxyConfig.setAdvertisedAddress("localhost");
         proxyConfig.setTlsCertificateFilePath(TLS_PROXY_CERT_FILE_PATH);
         proxyConfig.setTlsKeyFilePath(TLS_PROXY_KEY_FILE_PATH);
         proxyConfig.setTlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
@@ -68,9 +77,14 @@ public class ProxyMutualTlsTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setTlsAllowInsecureConnection(false);
         proxyConfig.setClusterName(configClusterName);
 
+        proxyClientAuthentication = AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+                proxyConfig.getBrokerClientAuthenticationParameters());
+        proxyClientAuthentication.start();
+
         proxyService = Mockito.spy(new ProxyService(proxyConfig, new AuthenticationService(
-                                                            PulsarConfigurationLoader.convertFrom(proxyConfig))));
-        doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeper))).when(proxyService).createLocalMetadataStore();
+                PulsarConfigurationLoader.convertFrom(proxyConfig)), proxyClientAuthentication));
+        doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeper)))
+                .when(proxyService).createLocalMetadataStore();
         doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeperGlobal))).when(proxyService)
                 .createConfigurationMetadataStore();
 
@@ -83,6 +97,9 @@ public class ProxyMutualTlsTest extends MockedPulsarServiceBaseTest {
         internalCleanup();
 
         proxyService.close();
+        if (proxyClientAuthentication != null) {
+            proxyClientAuthentication.close();
+        }
     }
 
     @Test
@@ -98,7 +115,7 @@ public class ProxyMutualTlsTest extends MockedPulsarServiceBaseTest {
                 .build();
         @Cleanup
         Producer<byte[]> producer =
-                client.newProducer(Schema.BYTES).topic("persistent://sample/test/local/"+ UUID.randomUUID()).create();
+                client.newProducer(Schema.BYTES).topic("persistent://public/default/" + UUID.randomUUID()).create();
 
         for (int i = 0; i < 10; i++) {
             producer.send("test".getBytes());
@@ -117,7 +134,7 @@ public class ProxyMutualTlsTest extends MockedPulsarServiceBaseTest {
                 .build();
         @Cleanup
         Producer<byte[]> producer =
-                client.newProducer(Schema.BYTES).topic("persistent://sample/test/local/"+ UUID.randomUUID()).create();
+                client.newProducer(Schema.BYTES).topic("persistent://public/default/" + UUID.randomUUID()).create();
 
         for (int i = 0; i < 10; i++) {
             producer.send("test".getBytes());
@@ -135,6 +152,7 @@ public class ProxyMutualTlsTest extends MockedPulsarServiceBaseTest {
                 .build();
 
         assertThrows(PulsarClientException.class,
-                () -> client.newProducer(Schema.BYTES).topic("persistent://sample/test/local/"+ UUID.randomUUID()).create());
+                () -> client.newProducer(Schema.BYTES)
+                        .topic("persistent://public/default/" + UUID.randomUUID()).create());
     }
 }

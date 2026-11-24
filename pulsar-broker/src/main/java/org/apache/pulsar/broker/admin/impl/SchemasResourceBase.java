@@ -19,8 +19,9 @@
 package org.apache.pulsar.broker.admin.impl;
 
 import static java.util.Objects.isNull;
-import static org.apache.commons.lang.StringUtils.defaultIfEmpty;
+import static org.apache.commons.lang3.StringUtils.defaultIfEmpty;
 import com.google.common.annotations.VisibleForTesting;
+import jakarta.ws.rs.core.Response;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -28,9 +29,9 @@ import java.time.Clock;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
-import javax.ws.rs.core.Response;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry.SchemaAndMetadata;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.web.RestException;
@@ -38,6 +39,7 @@ import org.apache.pulsar.client.impl.schema.SchemaUtils;
 import org.apache.pulsar.client.internal.DefaultImplementation;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
+import org.apache.pulsar.common.policies.data.SchemaMetadata;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.protocol.schema.GetAllVersionsSchemaResponse;
 import org.apache.pulsar.common.protocol.schema.GetSchemaResponse;
@@ -46,8 +48,7 @@ import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.LongSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaType;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.pulsar.common.util.FutureUtil;
 
 public class SchemasResourceBase extends AdminResource {
 
@@ -105,6 +106,13 @@ public class SchemasResourceBase extends AdminResource {
                 });
     }
 
+    public CompletableFuture<SchemaMetadata> getSchemaMetadataAsync(boolean authoritative) {
+        String schemaId = getSchemaId();
+        BookkeeperSchemaStorage storage = (BookkeeperSchemaStorage) pulsar().getSchemaStorage();
+        return validateOwnershipAndOperationAsync(authoritative, TopicOperation.GET_METADATA)
+                .thenCompose(__ -> storage.getSchemaMetadata(schemaId));
+    }
+
     public CompletableFuture<SchemaVersion> deleteSchemaAsync(boolean authoritative, boolean force) {
         return validateDestinationAndAdminOperationAsync(authoritative)
                 .thenCompose(__ -> {
@@ -143,7 +151,8 @@ public class SchemasResourceBase extends AdminResource {
 
     public CompletableFuture<Pair<Boolean, SchemaCompatibilityStrategy>> testCompatibilityAsync(
             PostSchemaPayload payload, boolean authoritative) {
-        return validateDestinationAndAdminOperationAsync(authoritative)
+        return validateTopicOwnershipAsync(topicName, authoritative)
+                .thenCompose(__ -> validateSchemaCompatibilityAccessAsync())
                 .thenCompose(__ -> getSchemaCompatibilityStrategyAsync())
                 .thenCompose(strategy -> {
                     String schemaId = getSchemaId();
@@ -230,16 +239,24 @@ public class SchemasResourceBase extends AdminResource {
                 .thenCompose(__ -> validateAdminAccessForTenantAsync(topicName.getTenant()));
     }
 
+    private CompletableFuture<Void> validateSchemaCompatibilityAccessAsync() {
+        return validateAdminAccessForTenantAsync(topicName.getTenant()).exceptionallyCompose(ex -> {
+            Throwable cause = FutureUtil.unwrapCompletionException(ex);
+            if (cause instanceof RestException rest
+                    && rest.getResponse().getStatus() == Response.Status.UNAUTHORIZED.getStatusCode()) {
+                return validateTopicOperationAsync(topicName, TopicOperation.GET_METADATA);
+            }
+            return CompletableFuture.failedFuture(cause);
+        });
+    }
+
     private CompletableFuture<Void> validateOwnershipAndOperationAsync(boolean authoritative,
                                                                        TopicOperation operation) {
         return validateTopicOwnershipAsync(topicName, authoritative)
                 .thenCompose(__ -> validateTopicOperationAsync(topicName, operation));
     }
 
-
     protected boolean shouldPrintErrorLog(Throwable ex) {
         return isNot307And404Exception(ex);
     }
-
-    private static final Logger log = LoggerFactory.getLogger(SchemasResourceBase.class);
 }

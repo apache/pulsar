@@ -18,13 +18,15 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertThrows;
+import static org.testng.Assert.assertTrue;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
-
 import lombok.Data;
-
 import org.apache.pulsar.broker.service.schema.SchemaRegistry;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -42,10 +44,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertThrows;
-import static org.testng.Assert.assertTrue;
 
 public class NonPersistentTopicE2ETest extends BrokerTestBase {
 
@@ -183,7 +181,10 @@ public class NonPersistentTopicE2ETest extends BrokerTestBase {
         consumer.close();
 
         runGC();
-        assertFalse(getTopic(topicName3).isPresent());
+        // the GC deletes the topic asynchronously, and the schema before the topic leaves the topics map
+        Awaitility.await().untilAsserted(() -> {
+            assertFalse(getTopic(topicName3).isPresent());
+        });
         assertFalse(topicHasSchema(topicName3));
 
     }
@@ -250,7 +251,9 @@ public class NonPersistentTopicE2ETest extends BrokerTestBase {
         assertThrows(() -> admin.topics().deleteSubscription(topicName, subName));
 
         runGC();
-        assertFalse(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
+        Awaitility.await().untilAsserted(() ->
+                assertFalse(pulsar.getBrokerService().getTopicReference(topicName).isPresent())
+        );
         //4. Get the topic and make sure it doesn't come back
         admin.lookups().lookupTopic(topicName);
         Optional<Topic> topic = pulsar.getBrokerService().getTopicIfExists(topicName).join();
@@ -301,6 +304,8 @@ public class NonPersistentTopicE2ETest extends BrokerTestBase {
         consumer.close();
 
         runGC();
-        assertFalse(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
+        Awaitility.await().untilAsserted(() ->
+                assertFalse(pulsar.getBrokerService().getTopicReference(topicName).isPresent())
+        );
     }
 }

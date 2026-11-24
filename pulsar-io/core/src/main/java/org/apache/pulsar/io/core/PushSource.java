@@ -24,7 +24,7 @@ import org.apache.pulsar.functions.api.Record;
 
 /**
  * Pulsar's Push Source interface. PushSource read data from
- * external sources (database changes, twitter firehose, etc)
+ * external sources (database changes, etc)
  * and publish to a Pulsar topic. The reason its called Push is
  * because PushSources get passed a consumer that they
  * invoke whenever they have data to be published to Pulsar.

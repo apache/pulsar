@@ -19,7 +19,6 @@
 package org.apache.pulsar.tests.integration.containers;
 
 import static java.time.temporal.ChronoUnit.SECONDS;
-
 import java.time.Duration;
 import org.testcontainers.containers.wait.strategy.HttpWaitStrategy;
 
@@ -64,6 +63,7 @@ public class StandaloneContainer extends PulsarContainer<StandaloneContainer> {
                 .forPort(BROKER_HTTP_PORT)
                 .forStatusCode(200)
                 .forPath("/admin/v2/namespaces/public/default")
+                .withRateLimiter(newHttpWaitRateLimiter())
                 .withStartupTimeout(Duration.of(300, SECONDS));
     }
 }

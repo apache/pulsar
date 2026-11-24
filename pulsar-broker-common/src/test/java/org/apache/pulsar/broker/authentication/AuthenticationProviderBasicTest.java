@@ -25,6 +25,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Base64;
+import java.util.Locale;
 import java.util.Properties;
 import javax.naming.AuthenticationException;
 import lombok.Cleanup;
@@ -34,7 +35,8 @@ import org.testng.annotations.Test;
 
 public class AuthenticationProviderBasicTest {
     private final String basicAuthConf = Resources.getResource("authentication/basic/.htpasswd").getPath();
-    private final String basicAuthConfBase64 = Base64.getEncoder().encodeToString(Files.readAllBytes(Path.of(basicAuthConf)));
+    private final String basicAuthConfBase64 =
+            Base64.getEncoder().encodeToString(Files.readAllBytes(Path.of(basicAuthConf)));
 
     public AuthenticationProviderBasicTest() throws IOException {
     }
@@ -52,7 +54,7 @@ public class AuthenticationProviderBasicTest {
         Properties properties = new Properties();
         properties.setProperty("basicAuthConf", basicAuthConf);
         serviceConfiguration.setProperties(properties);
-        provider.initialize(serviceConfiguration);
+        provider.initialize(AuthenticationProvider.Context.builder().config(serviceConfiguration).build());
         testAuthenticate(provider);
     }
 
@@ -64,7 +66,7 @@ public class AuthenticationProviderBasicTest {
         Properties properties = new Properties();
         properties.setProperty("basicAuthConf", basicAuthConfBase64);
         serviceConfiguration.setProperties(properties);
-        provider.initialize(serviceConfiguration);
+        provider.initialize(AuthenticationProvider.Context.builder().config(serviceConfiguration).build());
         testAuthenticate(provider);
     }
 
@@ -74,7 +76,7 @@ public class AuthenticationProviderBasicTest {
         AuthenticationProviderBasic provider = new AuthenticationProviderBasic();
         ServiceConfiguration serviceConfiguration = new ServiceConfiguration();
         System.setProperty("pulsar.auth.basic.conf", basicAuthConf);
-        provider.initialize(serviceConfiguration);
+        provider.initialize(AuthenticationProvider.Context.builder().config(serviceConfiguration).build());
         testAuthenticate(provider);
     }
 
@@ -84,7 +86,7 @@ public class AuthenticationProviderBasicTest {
         AuthenticationProviderBasic provider = new AuthenticationProviderBasic();
         ServiceConfiguration serviceConfiguration = new ServiceConfiguration();
         System.setProperty("pulsar.auth.basic.conf", basicAuthConfBase64);
-        provider.initialize(serviceConfiguration);
+        provider.initialize(AuthenticationProvider.Context.builder().config(serviceConfiguration).build());
         testAuthenticate(provider);
     }
 
@@ -100,5 +102,43 @@ public class AuthenticationProviderBasicTest {
         // file format
         assertEquals(AuthenticationProviderBasic.readData("file://" + basicAuthConf), data);
         assertEquals(AuthenticationProviderBasic.readData(basicAuthConf), data);
+    }
+
+    @Test
+    public void testHttpHeaderPrefixMatchesRegardlessOfDefaultLocale() throws Exception {
+        @Cleanup
+        AuthenticationProviderBasic provider = new AuthenticationProviderBasic();
+        ServiceConfiguration serviceConfiguration = new ServiceConfiguration();
+        Properties properties = new Properties();
+        properties.setProperty("basicAuthConf", basicAuthConf);
+        serviceConfiguration.setProperties(properties);
+        provider.initialize(AuthenticationProvider.Context.builder().config(serviceConfiguration).build());
+        String credentials = Base64.getEncoder()
+                .encodeToString("superUser2:superpassword".getBytes(StandardCharsets.UTF_8));
+
+        Locale defaultLocale = Locale.getDefault();
+        // In Turkish, "Basic".toUpperCase() is "BASİC" (dotted capital I)
+        Locale.setDefault(Locale.forLanguageTag("tr-TR"));
+        try {
+            assertEquals(provider.authenticate(httpAuthData("Basic " + credentials)), "superUser2");
+            assertEquals(provider.authenticate(httpAuthData("basic " + credentials)), "superUser2");
+            assertEquals(provider.authenticate(httpAuthData("BASIC " + credentials)), "superUser2");
+        } finally {
+            Locale.setDefault(defaultLocale);
+        }
+    }
+
+    private static AuthenticationDataSource httpAuthData(String authorizationHeader) {
+        return new AuthenticationDataSource() {
+            @Override
+            public boolean hasDataFromHttp() {
+                return true;
+            }
+
+            @Override
+            public String getHttpHeader(String name) {
+                return "Authorization".equals(name) ? authorizationHeader : null;
+            }
+        };
     }
 }

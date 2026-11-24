@@ -42,18 +42,18 @@ import java.util.TimerTask;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.bookkeeper.bookie.BookieImpl;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
-import org.apache.bookkeeper.client.BookKeeperTestClient;
 import org.apache.bookkeeper.client.ClientUtil;
 import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.LedgerEntry;
 import org.apache.bookkeeper.client.LedgerHandle;
+import org.apache.bookkeeper.client.PulsarBookKeeperTestClient;
 import org.apache.bookkeeper.client.RackawareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.ZoneawareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
@@ -87,13 +87,12 @@ import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.metadata.bookkeeper.PulsarLedgerManagerFactory;
 import org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver;
+import org.apache.pulsar.metadata.impl.DualMetadataStore;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.data.Stat;
 import org.awaitility.Awaitility;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -102,11 +101,10 @@ import org.testng.annotations.Test;
  * Test the ReplicationWroker, where it has to replicate the fragments from
  * failed Bookies to given target Bookie.
  */
+@CustomLog
 public class TestReplicationWorker extends BookKeeperClusterTestCase {
 
     private static final byte[] TESTPASSWD = "testpasswd".getBytes();
-    private static final Logger LOG = LoggerFactory
-            .getLogger(TestReplicationWorker.class);
     private String basePath = "";
     private String baseLockPath = "";
     private MetadataBookieDriver driver;
@@ -123,7 +121,7 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
 
     TestReplicationWorker(String ledgerManagerFactory) throws Exception {
         super(3, 300);
-        LOG.info("Running test case using ledger manager : "
+        log.info("Running test case using ledger manager : "
                 + ledgerManagerFactory);
         Class.forName("org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver");
         Class.forName("org.apache.pulsar.metadata.bookkeeper.PulsarMetadataBookieDriver");
@@ -134,6 +132,14 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
         baseConf.setZkTimeout(7000);
         baseConf.setZkRetryBackoffMaxMs(500);
         baseConf.setZkRetryBackoffStartMs(10);
+        // The tests let the workers fail while the bookies with the entries are down. After a failure, a worker
+        // waits rwRereplicateBackoffMs (5 s by default) before its next attempt, and holds on to the ledger lock
+        // for 1/32 of the grace period (9.4 s by default), twice as long on each further failure.
+        baseConf.setRwRereplicateBackoffMs(100);
+        baseConf.setLockReleaseOfFailedLedgerGracePeriod("64");
+        // A read of several entries schedules a speculative read for each of them, but only cancels the last one
+        // when it completes, so closing the client would wait for the others to time out (2 s by default)
+        baseClientConf.setSpeculativeReadTimeout(0);
     }
 
     @BeforeMethod
@@ -205,11 +211,11 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
         }
         BookieId replicaToKill = lh.getLedgerMetadata().getAllEnsembles().get(0L).get(0);
 
-        LOG.info("Killing Bookie : {}", replicaToKill);
+        log.info().attr("bookie", replicaToKill).log("Killing Bookie");
         killBookie(replicaToKill);
 
         BookieId newBkAddr = startNewBookieAndReturnBookieId();
-        LOG.info("New Bookie addr : {}", newBkAddr);
+        log.info().attr("addr", newBkAddr).log("New Bookie addr");
 
         for (int i = 0; i < 10; i++) {
             lh.addEntry(data);
@@ -252,11 +258,11 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
         }
         lh.close();
         BookieId replicaToKill = lh.getLedgerMetadata().getAllEnsembles().get(0L).get(0);
-        LOG.info("Killing Bookie : {}", replicaToKill);
+        log.info().attr("bookie", replicaToKill).log("Killing Bookie");
         ServerConfiguration killedBookieConfig = killBookie(replicaToKill);
 
         BookieId newBkAddr = startNewBookieAndReturnBookieId();
-        LOG.info("New Bookie addr :" + newBkAddr);
+        log.info("New Bookie addr :" + newBkAddr);
 
         killAllBookies(lh, newBkAddr);
         ReplicationWorker rw = new ReplicationWorker(baseConf);
@@ -300,18 +306,18 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
         }
         lh.close();
         BookieId replicaToKill = lh.getLedgerMetadata().getAllEnsembles().get(0L).get(0);
-        LOG.info("Killing Bookie : {}", replicaToKill);
+        log.info().attr("bookie", replicaToKill).log("Killing Bookie");
         ServerConfiguration killedBookieConfig = killBookie(replicaToKill);
 
         killAllBookies(lh, null);
         // Starte RW1
         BookieId newBkAddr1 = startNewBookieAndReturnBookieId();
-        LOG.info("New Bookie addr : {}", newBkAddr1);
+        log.info().attr("addr", newBkAddr1).log("New Bookie addr");
         ReplicationWorker rw1 = new ReplicationWorker(baseConf);
 
         // Starte RW2
         BookieId newBkAddr2 = startNewBookieAndReturnBookieId();
-        LOG.info("New Bookie addr : {}", newBkAddr2);
+        log.info().attr("addr", newBkAddr2).log("New Bookie addr");
         ReplicationWorker rw2 = new ReplicationWorker(baseConf);
         rw1.start();
         rw2.start();
@@ -355,11 +361,11 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
         }
         lh.close();
         BookieId replicaToKill = lh.getLedgerMetadata().getAllEnsembles().get(0L).get(0);
-        LOG.info("Killing Bookie : {}", replicaToKill);
+        log.info().attr("bookie", replicaToKill).log("Killing Bookie");
         killBookie(replicaToKill);
 
         BookieId newBkAddr = startNewBookieAndReturnBookieId();
-        LOG.info("New Bookie addr : {}", newBkAddr);
+        log.info().attr("addr", newBkAddr).log("New Bookie addr");
         ReplicationWorker rw = new ReplicationWorker(baseConf);
         rw.start();
 
@@ -390,7 +396,7 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
         }
         BookieId replicaToKillFromFirstLedger = lh1.getLedgerMetadata().getAllEnsembles().get(0L).get(0);
 
-        LOG.info("Killing Bookie : {}", replicaToKillFromFirstLedger);
+        log.info().attr("bookie", replicaToKillFromFirstLedger).log("Killing Bookie");
 
         // Ledger2
         LedgerHandle lh2 = bkc.createLedger(3, 3, BookKeeper.DigestType.CRC32,
@@ -401,7 +407,7 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
         }
         BookieId replicaToKillFromSecondLedger = lh2.getLedgerMetadata().getAllEnsembles().get(0L).get(0);
 
-        LOG.info("Killing Bookie : {}", replicaToKillFromSecondLedger);
+        log.info().attr("bookie", replicaToKillFromSecondLedger).log("Killing Bookie");
 
         // Kill ledger1
         killBookie(replicaToKillFromFirstLedger);
@@ -411,7 +417,7 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
         lh2.close();
 
         BookieId newBkAddr = startNewBookieAndReturnBookieId();
-        LOG.info("New Bookie addr : {}", newBkAddr);
+        log.info().attr("addr", newBkAddr).log("New Bookie addr");
 
         ReplicationWorker rw = new ReplicationWorker(baseConf);
 
@@ -460,11 +466,11 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
         }
         BookieId replicaToKill = lh.getLedgerMetadata().getAllEnsembles().get(0L).get(0);
 
-        LOG.info("Killing Bookie : {}", replicaToKill);
+        log.info().attr("bookie", replicaToKill).log("Killing Bookie");
         killBookie(replicaToKill);
 
         BookieId newBkAddr = startNewBookieAndReturnBookieId();
-        LOG.info("New Bookie addr : {}", newBkAddr);
+        log.info().attr("addr", newBkAddr).log("New Bookie addr");
 
         // set to 3s instead of default 30s
         baseConf.setOpenLedgerRereplicationGracePeriod("3000");
@@ -519,7 +525,7 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
         for (int i = 0; i < ensembleSize; i++) {
             bookiesKilled[i] = lh.getLedgerMetadata().getAllEnsembles().get(0L).get(i);
             killedBookiesConfig[i] = getBkConf(bookiesKilled[i]);
-            LOG.info("Killing Bookie : {}", bookiesKilled[i]);
+            log.info().attr("bookie", bookiesKilled[i]).log("Killing Bookie");
             killBookie(bookiesKilled[i]);
         }
 
@@ -553,28 +559,18 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
             rw1.start();
             rw2.start();
 
-            AtomicBoolean isBookieRestarted = new AtomicBoolean(false);
-
-            (new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        Thread.sleep(3000);
-                        isBookieRestarted.set(true);
-                        /*
-                         * after sleeping for 3000 msecs, restart one of the
-                         * bookie, so that replication can succeed.
-                         */
-                        startBookie(killedBookiesConfig[0]);
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-                }
-            })).start();
-
+            /*
+             * Let both workers fail a few times, then restart one of the
+             * bookies, so that replication can succeed.
+             */
+            int minFailedAttemptsBeforeRestart = 3;
+            long failedAttemptsDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
             int rw1PrevFailedAttemptsCount = 0;
             int rw2PrevFailedAttemptsCount = 0;
-            while (!isBookieRestarted.get()) {
+            while (rw1PrevFailedAttemptsCount < minFailedAttemptsBeforeRestart
+                    || rw2PrevFailedAttemptsCount < minFailedAttemptsBeforeRestart) {
+                assertTrue("Both workers should keep failing while the bookies are down",
+                        System.nanoTime() < failedAttemptsDeadline);
                 /*
                  * since all the bookies containing the ledger entries are down
                  * replication wouldnt have succeeded.
@@ -599,6 +595,7 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
 
                 Thread.sleep(50);
             }
+            startAndAddBookie(killedBookiesConfig[0]);
 
             /**
              * since one of the killed bookie is restarted, replicationworker
@@ -680,7 +677,7 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
         for (int i = 0; i < ensembleSize; i++) {
             bookiesKilled[i] = lh.getLedgerMetadata().getAllEnsembles().get(0L).get(i);
             killedBookiesConfig[i] = getBkConf(bookiesKilled[i]);
-            LOG.info("Killing Bookie : {}", bookiesKilled[i]);
+            log.info().attr("bookie", bookiesKilled[i]).log("Killing Bookie");
             killBookie(bookiesKilled[i]);
         }
 
@@ -798,11 +795,11 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
         }
         BookieId replicaToKill = lh.getLedgerMetadata().getAllEnsembles().get(0L).get(0);
 
-        LOG.info("Killing Bookie : {}", replicaToKill);
+        log.info().attr("bookie", replicaToKill).log("Killing Bookie");
         killBookie(replicaToKill);
 
         BookieId newBkAddr = startNewBookieAndReturnBookieId();
-        LOG.info("New Bookie addr : {}", newBkAddr);
+        log.info().attr("addr", newBkAddr).log("New Bookie addr");
 
         // Reform ensemble...Making sure that last fragment is not in
         // under-replication
@@ -854,28 +851,28 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
      * Test that the replication worker will not shutdown on a simple ZK disconnection.
      */
     @Test
+    @SuppressWarnings("try")
     public void testRWZKConnectionLost() throws Exception {
-        try (ZooKeeperClient zk = ZooKeeperClient.newBuilder()
+        try (ZooKeeperClient ignored = ZooKeeperClient.newBuilder()
                 .connectString(zkUtil.getZooKeeperConnectString())
                 .sessionTimeoutMs(10000)
                 .build()) {
 
             ReplicationWorker rw = new ReplicationWorker(baseConf);
             rw.start();
-            for (int i = 0; i < 10; i++) {
-                if (rw.isRunning()) {
-                    break;
-                }
+            try {
+                Awaitility.await().atMost(10, TimeUnit.SECONDS).until(rw::isRunning);
+                assertTrue("Replication worker should be running", rw.isRunning());
+
+                stopZKCluster();
+                // ZK is down for shorter period than reconnect timeout
                 Thread.sleep(1000);
+                startZKCluster();
+
+                assertTrue("Replication worker should not shutdown", rw.isRunning());
+            } finally {
+                rw.shutdown();
             }
-            assertTrue("Replication worker should be running", rw.isRunning());
-
-            stopZKCluster();
-            // ZK is down for shorter period than reconnect timeout
-            Thread.sleep(1000);
-            startZKCluster();
-
-            assertTrue("Replication worker should not shutdown", rw.isRunning());
         }
     }
 
@@ -920,12 +917,7 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
         auditor.submitAuditTask();
         rw.run();
 
-        for (int i = 0; i < 10; i++) {
-            if (!rw.isRunning() && !auditor.isRunning()) {
-                break;
-            }
-            Thread.sleep(1000);
-        }
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> !rw.isRunning() && !auditor.isRunning());
         assertFalse("Replication worker should NOT be running", rw.isRunning());
         assertFalse("Auditor should NOT be running", auditor.isRunning());
     }
@@ -990,6 +982,7 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
         testRepairedNotAdheringPlacementPolicyLedgerFragments(RackawareEnsemblePlacementPolicy.class, null);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testReplicationStats() throws Exception {
         BiConsumer<Boolean, ReplicationWorker> checkReplicationStats = (first, rw) -> {
@@ -1032,7 +1025,7 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
         testRepairedNotAdheringPlacementPolicyLedgerFragments(
                 RackawareEnsemblePlacementPolicy.class, checkReplicationStats);
     }
-
+    @SuppressWarnings({"deprecation", "try"})
     private void testRepairedNotAdheringPlacementPolicyLedgerFragments(
             Class<? extends EnsemblePlacementPolicy> placementPolicyClass,
             BiConsumer<Boolean, ReplicationWorker> checkReplicationStats) throws Exception {
@@ -1047,14 +1040,14 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
         baseClientConf.setProperty("reppDnsResolverClass", StaticDNSResolver.class.getName());
         baseClientConf.setProperty("enforceStrictZoneawarePlacement", false);
         bkc.close();
-        bkc = new BookKeeperTestClient(baseClientConf) {
+        bkc = new PulsarBookKeeperTestClient(baseClientConf) {
             @Override
             protected EnsemblePlacementPolicy initializeEnsemblePlacementPolicy(ClientConfiguration conf,
-                                                                                DNSToSwitchMapping dnsResolver,
-                                                                                HashedWheelTimer timer,
-                                                                                FeatureProvider featureProvider,
-                                                                                StatsLogger statsLogger,
-                                                                                BookieAddressResolver bookieAddressResolver)
+                                                                         DNSToSwitchMapping dnsResolver,
+                                                                         HashedWheelTimer timer,
+                                                                         FeatureProvider featureProvider,
+                                                                         StatsLogger statsLogger,
+                                                                         BookieAddressResolver bookieAddressResolver)
                     throws IOException {
                 EnsemblePlacementPolicy ensemblePlacementPolicy = null;
                 if (ZoneawareEnsemblePlacementPolicy.class == placementPolicyClass) {
@@ -1085,6 +1078,9 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
         servConf.setAuditorPeriodicPlacementPolicyCheckInterval(1000);
         servConf.setRepairedPlacementPolicyNotAdheringBookieEnable(true);
 
+        ZooKeeper zk = getZk((PulsarMetadataClientDriver) bkc.getMetadataClientDriver());
+        String urLedgerPath = "/ledgers/underreplication/ledgers/0000/0000/0000/0000/urL0000000000";
+
         MutableObject<Auditor> auditorRef = new MutableObject<Auditor>();
         try {
             TestStatsLogger statsLogger = startAuditorAndWaitForPlacementPolicyCheck(servConf, auditorRef);
@@ -1096,6 +1092,13 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
                     .getGauge(ReplicationStats.NUM_LEDGERS_SOFTLY_ADHERING_TO_PLACEMENT_POLICY);
             assertEquals("NUM_LEDGERS_SOFTLY_ADHERING_TO_PLACEMENT_POLICY guage value",
                     0, ledgersSoftlyAdheringToPlacementPolicyGuage.getSample());
+            /*
+             * placementPolicyCheck marks the ledger underreplicated with a fire-and-forget async write which
+             * it doesn't await before recording its stats, so the znode isn't necessarily there yet once the
+             * check reports success. Poll for it, and do so while the auditor is still up so that the wait
+             * doesn't race auditor shutdown and the periodic check can retry a write that failed.
+             */
+            Awaitility.await().untilAsserted(() -> assertNotNull(zk.exists(urLedgerPath, false)));
         } finally {
             Auditor auditor = auditorRef.getValue();
             if (auditor != null) {
@@ -1103,21 +1106,26 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
             }
         }
 
-        ZooKeeper zk = getZk((PulsarMetadataClientDriver) bkc.getMetadataClientDriver());
-
-
-        Stat stat = zk.exists("/ledgers/underreplication/ledgers/0000/0000/0000/0000/urL0000000000", false);
-        assertNotNull(stat);
-
-        baseConf.setRepairedPlacementPolicyNotAdheringBookieEnable(true);
-        BookKeeper bookKeeper = new BookKeeperTestClient(baseClientConf) {
+        /*
+         * The worker's first replication attempt necessarily fails, since the only /rack2 bookie is started
+         * afterwards. That failure defers the ledger lock release by
+         * lockReleaseOfFailedLedgerGracePeriod / 2^5, i.e. 9375ms with the default grace period, and the run
+         * loop then backs off for rwRereplicateBackoffMs, i.e. another 5000ms. Both delays would be spent
+         * inside the awaits below, leaving them a few hundred milliseconds of their default 10s timeout, so
+         * shorten them here the way the other ReplicationWorker tests in this class do.
+         */
+        ServerConfiguration rwConf = new ServerConfiguration(baseConf);
+        rwConf.setRepairedPlacementPolicyNotAdheringBookieEnable(true);
+        rwConf.setLockReleaseOfFailedLedgerGracePeriod("64");
+        rwConf.setRwRereplicateBackoffMs(100);
+        BookKeeper bookKeeper = new PulsarBookKeeperTestClient(baseClientConf) {
             @Override
             protected EnsemblePlacementPolicy initializeEnsemblePlacementPolicy(ClientConfiguration conf,
-                                                                                DNSToSwitchMapping dnsResolver,
-                                                                                HashedWheelTimer timer,
-                                                                                FeatureProvider featureProvider,
-                                                                                StatsLogger statsLogger,
-                                                                                BookieAddressResolver bookieAddressResolver)
+                                                                         DNSToSwitchMapping dnsResolver,
+                                                                         HashedWheelTimer timer,
+                                                                         FeatureProvider featureProvider,
+                                                                         StatsLogger statsLogger,
+                                                                         BookieAddressResolver bookieAddressResolver)
                     throws IOException {
                 EnsemblePlacementPolicy ensemblePlacementPolicy = null;
                 if (ZoneawareEnsemblePlacementPolicy.class == placementPolicyClass) {
@@ -1132,7 +1140,7 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
         };
         TestStatsProvider statsProvider = new TestStatsProvider();
         TestStatsLogger statsLogger = statsProvider.getStatsLogger(REPLICATION_SCOPE);
-        ReplicationWorker rw = new ReplicationWorker(baseConf, bookKeeper, false, statsLogger);
+        ReplicationWorker rw = new ReplicationWorker(rwConf, bookKeeper, false, statsLogger);
 
         if (checkReplicationStats != null) {
             checkReplicationStats.accept(true, rw);
@@ -1154,7 +1162,7 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
         });
 
         Awaitility.await().untilAsserted(() -> {
-            Stat stat1 = zk.exists("/ledgers/underreplication/ledgers/0000/0000/0000/0000/urL0000000000", false);
+            Stat stat1 = zk.exists(urLedgerPath, false);
             assertNull(stat1);
         });
 
@@ -1167,7 +1175,6 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
         if (checkReplicationStats == null) {
             rw.shutdown();
         }
-        baseConf.setRepairedPlacementPolicyNotAdheringBookieEnable(false);
         bookKeeper.close();
     }
 
@@ -1242,7 +1249,8 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
                 (PulsarLedgerManagerFactory) pulsarMetadataClientDriver.getLedgerManagerFactory();
         Field field = pulsarLedgerManagerFactory.getClass().getDeclaredField("store");
         field.setAccessible(true);
-        ZKMetadataStore zkMetadataStore = (ZKMetadataStore) field.get(pulsarLedgerManagerFactory);
+        DualMetadataStore store = (DualMetadataStore) field.get(pulsarLedgerManagerFactory);
+        ZKMetadataStore zkMetadataStore = (ZKMetadataStore) store.getSourceStore();
         return zkMetadataStore.getZkClient();
     }
 }

@@ -22,14 +22,14 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.annotations.VisibleForTesting;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.functions.api.StateStore;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 
 /**
  * The state manager for managing state stores for a running function instance.
  */
-@Slf4j
+@CustomLog
 public class InstanceStateManager implements StateManager {
 
     private final Map<String, StateStore> stores = new LinkedHashMap<>();
@@ -60,16 +60,17 @@ public class InstanceStateManager implements StateManager {
         RuntimeException firstException = null;
         for (Map.Entry<String, StateStore> entry : stores.entrySet()) {
             final StateStore store = entry.getValue();
-            if (log.isDebugEnabled()) {
-                log.debug("Closing store {}", store.fqsn());
-            }
+            log.debug().attr("storeName", store.fqsn()).log("Closing store");
             try {
                 store.close();
             } catch (RuntimeException e) {
                 if (firstException == null) {
                     firstException = e;
                 }
-                log.error("Failed to close state store {}: ", store.fqsn(), e);
+                log.error()
+                        .attr("storeName", store.fqsn())
+                        .exception(e)
+                        .log("Failed to close state store");
             }
         }
         stores.clear();

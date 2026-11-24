@@ -19,12 +19,16 @@
 package org.apache.pulsar.common.policies.data;
 
 import static org.apache.pulsar.common.policies.data.OffloadPoliciesImpl.EXTRA_CONFIG_PREFIX;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 import java.io.DataInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Method;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -39,8 +43,8 @@ import org.testng.annotations.Test;
  */
 public class OffloadPoliciesTest {
 
-    private final int M = 1024 * 1024;
-    private final long MIN = 1000 * 60;
+    private static final int M = 1024 * 1024;
+    private static final long MIN = 1000 * 60;
 
     private final String offloadersDirectory = "./test-offloader-directory";
     private final Integer managedLedgerOffloadMaxThreads = 10;
@@ -93,6 +97,52 @@ public class OffloadPoliciesTest {
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis(),
                 Long.valueOf(offloadDeletionLagInMillis));
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadThresholdInSeconds(), offloadThresholdInSeconds);
+    }
+
+    @Test
+    public void testAliyunOssConfiguration() {
+        final String driver = "aliyun-oss";
+        final String region = "test-region";
+        final String bucket = "test-bucket";
+        final String role = "test-role";
+        final String roleSessionName = "test-role-session-name";
+        final String credentialId = "test-credential-id";
+        final String credentialSecret = "test-credential-secret";
+        final String endPoint = "test-endpoint";
+        final Integer maxBlockSizeInBytes = 5 * M;
+        final Integer readBufferSizeInBytes = 2 * M;
+        final Long offloadThresholdInBytes = 10L * M;
+        final Long offloadThresholdInSeconds = 1000L;
+        final Long offloadDeletionLagInMillis = 5L * MIN;
+
+        OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl.create(
+                driver,
+                region,
+                bucket,
+                endPoint,
+                role,
+                roleSessionName,
+                credentialId,
+                credentialSecret,
+                maxBlockSizeInBytes,
+                readBufferSizeInBytes,
+                offloadThresholdInBytes,
+                offloadThresholdInSeconds,
+                offloadDeletionLagInMillis,
+                OffloadedReadPriority.TIERED_STORAGE_FIRST
+        );
+
+        Assert.assertTrue(offloadPolicies.isS3Driver());
+        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadDriver(), driver);
+        Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadRegion(), region);
+        Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadBucket(), bucket);
+        Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadServiceEndpoint(), endPoint);
+        // The CLI create() path must carry the credentials under the s3-prefixed keys the
+        // S3-compatible aliyun-oss offloader reads, not silently drop them.
+        Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadCredentialId(), credentialId);
+        Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadCredentialSecret(), credentialSecret);
+        Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadMaxBlockSizeInBytes(), maxBlockSizeInBytes);
+        Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadReadBufferSizeInBytes(), readBufferSizeInBytes);
     }
 
     @Test
@@ -202,7 +252,8 @@ public class OffloadPoliciesTest {
         Assert.assertEquals(offloadPolicies.getOffloadersDirectory(), offloadersDirectory);
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadDriver(), driver);
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadMaxThreads(), managedLedgerOffloadMaxThreads);
-        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadPrefetchRounds(), managedLedgerOffloadPrefetchRounds);
+        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadPrefetchRounds(),
+                managedLedgerOffloadPrefetchRounds);
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadThresholdInBytes(), offloadThresholdInBytes);
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadThresholdInSeconds(), offloadThresholdInSeconds);
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis(), offloadDeletionLagInMillis);
@@ -331,6 +382,75 @@ public class OffloadPoliciesTest {
         Assert.assertNull(offloadPolicies.getS3ManagedLedgerOffloadRegion());
     }
 
+    @Test
+    public void brokerExtraConfigMergeTest() {
+        final String bucketPrefix = "o-123/c-456";
+        Properties brokerProperties = new Properties();
+        brokerProperties.setProperty("managedLedgerOffloadDriver", "aws-s3");
+        brokerProperties.setProperty(EXTRA_CONFIG_PREFIX + "tieredStorageBucketPrefix", bucketPrefix);
+
+        OffloadPoliciesImpl offloadPolicies =
+                OffloadPoliciesImpl.mergeConfiguration(null, null, brokerProperties);
+
+        Assert.assertNotNull(offloadPolicies);
+        assertEquals(offloadPolicies.getManagedLedgerExtraConfigurations(),
+                Map.of("tieredStorageBucketPrefix", bucketPrefix));
+    }
+
+    @Test
+    public void higherLevelExtraConfigOverridesBrokerExtraConfigMergeTest() {
+        Properties brokerProperties = new Properties();
+        brokerProperties.setProperty("managedLedgerOffloadDriver", "aws-s3");
+        brokerProperties.setProperty(EXTRA_CONFIG_PREFIX + "tieredStorageBucketPrefix", "broker-prefix");
+        brokerProperties.setProperty(EXTRA_CONFIG_PREFIX + "brokerOnly", "broker-value");
+
+        OffloadPoliciesImpl topicLevelPolicies = new OffloadPoliciesImpl();
+        topicLevelPolicies.getManagedLedgerExtraConfigurations().put("tieredStorageBucketPrefix", "topic-prefix");
+        topicLevelPolicies.getManagedLedgerExtraConfigurations().put("topicOnly", "topic-value");
+
+        OffloadPoliciesImpl offloadPolicies =
+                OffloadPoliciesImpl.mergeConfiguration(topicLevelPolicies, null, brokerProperties);
+
+        Assert.assertNotNull(offloadPolicies);
+        assertEquals(offloadPolicies.getManagedLedgerExtraConfigurations(),
+                Map.of("tieredStorageBucketPrefix", "topic-prefix",
+                        "brokerOnly", "broker-value",
+                        "topicOnly", "topic-value"));
+    }
+
+    @Test
+    public void emptyHigherLevelExtraConfigInheritsBrokerExtraConfigMergeTest() {
+        Properties brokerProperties = new Properties();
+        brokerProperties.setProperty("managedLedgerOffloadDriver", "aws-s3");
+        brokerProperties.setProperty(EXTRA_CONFIG_PREFIX + "tieredStorageBucketPrefix", "broker-prefix");
+
+        OffloadPoliciesImpl nsLevelPolicies = new OffloadPoliciesImpl();
+
+        OffloadPoliciesImpl offloadPolicies =
+                OffloadPoliciesImpl.mergeConfiguration(null, nsLevelPolicies, brokerProperties);
+
+        Assert.assertNotNull(offloadPolicies);
+        assertEquals(offloadPolicies.getManagedLedgerExtraConfigurations(),
+                Map.of("tieredStorageBucketPrefix", "broker-prefix"));
+    }
+
+    @Test
+    public void emptyHigherLevelExtraConfigOverridesBrokerExtraConfigMergeTest() {
+        Properties brokerProperties = new Properties();
+        brokerProperties.setProperty("managedLedgerOffloadDriver", "aws-s3");
+        brokerProperties.setProperty(EXTRA_CONFIG_PREFIX + "tieredStorageBucketPrefix", "broker-prefix");
+
+        OffloadPoliciesImpl topicLevelPolicies = new OffloadPoliciesImpl();
+        topicLevelPolicies.getManagedLedgerExtraConfigurations().put("tieredStorageBucketPrefix", "");
+
+        OffloadPoliciesImpl offloadPolicies =
+                OffloadPoliciesImpl.mergeConfiguration(topicLevelPolicies, null, brokerProperties);
+
+        Assert.assertNotNull(offloadPolicies);
+        assertEquals(offloadPolicies.getManagedLedgerExtraConfigurations(),
+                Map.of("tieredStorageBucketPrefix", ""));
+    }
+
 
     @Test
     public void brokerPropertyCompatibleTest() {
@@ -368,7 +488,8 @@ public class OffloadPoliciesTest {
         brokerProperties.setProperty("managedLedgerOffloadDeletionLagInMillis", "" + (brokerDeletionLag));
         brokerProperties.setProperty("managedLedgerOffloadedReadPriority", "" + (brokerReadPriority));
         // 2.2 offload properties name in conf file
-        brokerProperties.setProperty("managedLedgerOffloadAutoTriggerSizeThresholdBytes", "" + brokerOffloadThreshold + 30);
+        brokerProperties.setProperty("managedLedgerOffloadAutoTriggerSizeThresholdBytes", ""
+                + brokerOffloadThreshold + 30);
         brokerProperties.setProperty("managedLedgerOffloadDeletionLagMs", "" + brokerDeletionLag + 30);
         brokerProperties.setProperty("managedLedgerDataReadPriority", "" + "tiered-storage-first");
         offloadPolicies = OffloadPoliciesImpl.create(brokerProperties);
@@ -397,6 +518,36 @@ public class OffloadPoliciesTest {
         Assert.assertEquals(method.invoke(o), true);
     }
 
+    /**
+     * Convert a {@code file:} URL to a filesystem path.
+     * Use {@code Paths.get(url.toURI())} rather than {@code URL.getPath()}, which is not a filesystem path.
+     */
+    static Path pathFromFileUrl(URL url) throws URISyntaxException {
+        return Paths.get(url.toURI());
+    }
+
+    @Test
+    public void testPathFromFileUrlDecodesPercentEncodedCharacters() throws Exception {
+        // Issue 21868: on Windows, URL.getPath() of a file URL looks like "/C:/...", and Paths.get
+        // throws InvalidPathException (illegal ':' at index 2). That exception cannot be reproduced
+        // on Linux, where ':' is a legal path character. This test covers the same class of bug
+        // that is reproducible here: URL.getPath() keeps percent-encoding, so a directory whose
+        // name contains a space is not found.
+        Path dir = Files.createTempDirectory("offload policies");
+        try {
+            URL url = dir.toUri().toURL();
+            Path resolved = pathFromFileUrl(url).toAbsolutePath().normalize();
+            assertThat(resolved)
+                    .as("file URL with a percent-encoded space must resolve to the real directory")
+                    .isEqualTo(dir.toAbsolutePath().normalize());
+            assertThat(resolved.toString())
+                    .as("resolved path must not retain a percent-encoded space from URL.getPath()")
+                    .doesNotContain("%20");
+        } finally {
+            Files.deleteIfExists(dir);
+        }
+    }
+
     // this is used for the testSupportExtraOffloadDrivers. Because we need to change the system property,
     // we need to reload the class to read the system property.
     static class TestClassLoader extends ClassLoader {
@@ -409,12 +560,20 @@ public class OffloadPoliciesTest {
         }
 
         private Class<?> getClass(String name) {
-            String file = name.replace('.', File.separatorChar) + ".class";
-            Path targetPath = Paths.get(getClass().getClassLoader().getResource(".").getPath()).getParent();
-            file = Paths.get(targetPath.toString(), "classes", file).toString();
-            byte[] byteArr = null;
+            String classFile = name.replace('.', File.separatorChar) + ".class";
             try {
-                byteArr = loadClassData(file);
+                URL testClassesUrl = getClass().getClassLoader().getResource(".");
+                Path testClassesDir = pathFromFileUrl(testClassesUrl);
+                Path mainClassesDir;
+                if (testClassesDir.endsWith(Paths.get("classes", "java", "test"))) {
+                    // Gradle layout: build/classes/java/test -> build/classes/java/main
+                    mainClassesDir = testClassesDir.getParent().resolve("main");
+                } else {
+                    // Maven layout: target/test-classes -> target/classes
+                    mainClassesDir = testClassesDir.getParent().resolve("classes");
+                }
+                String file = mainClassesDir.resolve(classFile).toString();
+                byte[] byteArr = loadClassData(file);
                 Class<?> c = defineClass(name, byteArr, 0, byteArr.length);
                 resolveClass(c);
                 return c;
@@ -469,7 +628,16 @@ public class OffloadPoliciesTest {
         Map<String, String> extraConfiguration = new HashMap<>();
         extraConfiguration.put("key1", "value1");
         extraConfiguration.put("key2", "value2");
-        offloadPolicies.setManagedLedgerExtraConfigurations(extraConfiguration); 
+        offloadPolicies.setManagedLedgerExtraConfigurations(extraConfiguration);
         assertEquals(offloadPolicies, OffloadPoliciesImpl.create(offloadPolicies.toProperties()));
+    }
+
+    @Test
+    public void testDefaultOffloadPolicies() {
+        OffloadPoliciesImpl offloadPolicies = new OffloadPoliciesImpl();
+        assertNull(offloadPolicies.getManagedLedgerOffloadedReadPriority());
+        assertNull(offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis());
+        assertNull(offloadPolicies.getManagedLedgerOffloadThresholdInSeconds());
+        assertNull(offloadPolicies.getManagedLedgerOffloadThresholdInBytes());
     }
 }

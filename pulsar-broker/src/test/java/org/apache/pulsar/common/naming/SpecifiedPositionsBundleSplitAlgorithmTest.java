@@ -18,19 +18,19 @@
  */
 package org.apache.pulsar.common.naming;
 
-import com.google.common.collect.Lists;
-import java.util.Arrays;
-import org.apache.pulsar.broker.namespace.NamespaceService;
-import org.testng.annotations.Test;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import com.google.common.collect.Lists;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.testng.annotations.Test;
 
 public class SpecifiedPositionsBundleSplitAlgorithmTest {
 

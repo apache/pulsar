@@ -26,7 +26,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -36,16 +36,18 @@ import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.coordination.LockManager;
+import org.apache.pulsar.metadata.api.coordination.ResourceLock;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 
-@Slf4j
+@CustomLog
 public class NoopLoadManager implements LoadManager {
 
     private PulsarService pulsar;
     private String brokerId;
     private ResourceUnit localResourceUnit;
     private LockManager<LocalBrokerData> lockManager;
+    private ResourceLock<LocalBrokerData> brokerLock;
     private Map<String, String> bundleBrokerAffinityMap;
 
     @Override
@@ -60,7 +62,7 @@ public class NoopLoadManager implements LoadManager {
         brokerId = pulsar.getBrokerId();
         localResourceUnit = new SimpleResourceUnit(brokerId, new PulsarResourceDescription());
 
-        LocalBrokerData localData = new LocalBrokerData(pulsar.getWebServiceAddress(),
+        LocalBrokerData localData = new LocalBrokerData(pulsar.getBrokerId(), pulsar.getWebServiceAddress(),
                 pulsar.getWebServiceAddressTls(),
                 pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls(), pulsar.getAdvertisedListeners());
         localData.setProtocols(pulsar.getProtocolDataToAdvertise());
@@ -68,9 +70,9 @@ public class NoopLoadManager implements LoadManager {
         String brokerReportPath = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + brokerId;
 
         try {
-            log.info("Acquiring broker resource lock on {}", brokerReportPath);
-            lockManager.acquireLock(brokerReportPath, localData).join();
-            log.info("Acquired broker resource lock on {}", brokerReportPath);
+            log.info().attr("broker", brokerReportPath).log("Acquiring broker resource lock");
+            brokerLock = lockManager.acquireLock(brokerReportPath, localData).join();
+            log.info().attr("broker", brokerReportPath).log("Acquired broker resource lock");
         } catch (CompletionException ce) {
             throw new PulsarServerException(MetadataStoreException.unwrap(ce));
         }
@@ -138,9 +140,11 @@ public class NoopLoadManager implements LoadManager {
 
     @Override
     public void stop() throws PulsarServerException {
-        if (lockManager != null) {
+        // Release only this load manager's lock: the coordination service gives the same lock manager to every user
+        // of its type, like the load manager that replaces this one, and closes it itself
+        if (brokerLock != null) {
             try {
-                lockManager.close();
+                brokerLock.release().join();
             } catch (Exception e) {
                 throw new PulsarServerException(e);
             }

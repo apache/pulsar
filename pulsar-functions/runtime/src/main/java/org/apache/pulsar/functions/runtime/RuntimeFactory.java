@@ -23,7 +23,7 @@ import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.auth.FunctionAuthProvider;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
-import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.FunctionDetails;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
 import org.apache.pulsar.functions.worker.ConnectorsManager;
 import org.apache.pulsar.functions.worker.FunctionsManager;
@@ -59,7 +59,7 @@ public interface RuntimeFactory extends AutoCloseable {
         return false;
     }
 
-    default void doAdmissionChecks(Function.FunctionDetails functionDetails) {
+    default void doAdmissionChecks(FunctionDetails functionDetails) {
     }
 
     default Optional<? extends FunctionAuthProvider> getAuthProvider() {

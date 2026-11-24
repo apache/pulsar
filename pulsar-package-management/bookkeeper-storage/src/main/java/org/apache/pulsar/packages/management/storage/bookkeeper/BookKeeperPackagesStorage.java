@@ -26,7 +26,7 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.distributedlog.DistributedLogConfiguration;
 import org.apache.distributedlog.DistributedLogConstants;
@@ -46,7 +46,7 @@ import org.apache.zookeeper.KeeperException;
 /**
  * Packages management storage implementation with bookkeeper.
  */
-@Slf4j
+@CustomLog
 public class BookKeeperPackagesStorage implements PackagesStorage {
 
     private static final String NS_CLIENT_ID = "packages-management";
@@ -66,7 +66,11 @@ public class BookKeeperPackagesStorage implements PackagesStorage {
             .setWriteQuorumSize(configuration.getPackagesReplicas())
             .setEnsembleSize(configuration.getPackagesReplicas())
             .setAckQuorumSize(configuration.getPackagesReplicas())
-            .setLockTimeout(DistributedLogConstants.LOCK_IMMEDIATE);
+            .setLockTimeout(DistributedLogConstants.LOCK_IMMEDIATE)
+            // A path is updated by deleting its log and writing a new one, whose log segment gets the same
+            // metadata path. The log segment metadata cache would keep the old segment on the broker that
+            // wrote it, and that broker would keep reading the old data.
+            .setLogSegmentCacheEnabled(false);
         if (!Strings.isNullOrEmpty(configuration.getBookkeeperClientAuthenticationPlugin())) {
             conf.setProperty("bkc.clientAuthProviderFactoryClass",
                 configuration.getBookkeeperClientAuthenticationPlugin());
@@ -79,7 +83,8 @@ public class BookKeeperPackagesStorage implements PackagesStorage {
         // bookie client.
         PropertiesUtils.filterAndMapProperties(configuration.getProperties(), "bookkeeper_", "bkc.")
                 .forEach((key, value) -> {
-                    log.info("Applying DLog BookKeeper client configuration setting {}={}", key, value);
+                    log.info().attr("key", key).attr("value", value)
+                            .log("Applying DLog BookKeeper client configuration setting");
                     conf.setProperty(key, value);
                 });
         try {

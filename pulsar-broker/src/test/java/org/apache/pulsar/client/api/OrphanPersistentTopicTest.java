@@ -18,32 +18,44 @@
  */
 package org.apache.pulsar.client.api;
 
+import static org.apache.pulsar.broker.service.persistent.PersistentTopic.DEDUPLICATION_CURSOR_NAME;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import java.lang.reflect.Field;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
+import lombok.SneakyThrows;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.TopicPoliciesService;
 import org.apache.pulsar.broker.service.TopicPolicyListener;
+import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
+import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
+import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferDisable;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.compaction.CompactionServiceFactory;
+import org.apache.pulsar.compaction.TopicCompactionService;
 import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-api")
 public class OrphanPersistentTopicTest extends ProducerConsumerBase {
 
@@ -63,19 +75,20 @@ public class OrphanPersistentTopicTest extends ProducerConsumerBase {
     @Test
     public void testNoOrphanTopicAfterCreateTimeout() throws Exception {
         // Make the topic loading timeout faster.
-        int topicLoadTimeoutSeconds = 2;
+        int topicLoadTimeoutSeconds = 1;
         long originalTopicLoadTimeoutSeconds = pulsar.getConfig().getTopicLoadTimeoutSeconds();
-        pulsar.getConfig().setTopicLoadTimeoutSeconds(2);
+        pulsar.getConfig().setTopicLoadTimeoutSeconds(topicLoadTimeoutSeconds);
 
         String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
-        String mlPath = BrokerService.MANAGED_LEDGER_PATH_ZNODE + "/" + TopicName.get(tpName).getPersistenceNamingEncoding();
+        String mlPath = BrokerService.MANAGED_LEDGER_PATH_ZNODE + "/" + TopicName.get(tpName)
+                .getPersistenceNamingEncoding();
 
-        // Make topic load timeout 5 times.
+        // Make topic load timeout 2 times.
         AtomicInteger timeoutCounter = new AtomicInteger();
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < 2; i++) {
             mockZooKeeper.delay(topicLoadTimeoutSeconds * 2 * 1000, (op, path) -> {
                 if (mlPath.equals(path)) {
-                    log.info("Topic load timeout: " + timeoutCounter.incrementAndGet());
+                    log.info().attr("incrementAndGet", timeoutCounter.incrementAndGet()).log("Topic load timeout");
                     return true;
                 }
                 return false;
@@ -88,7 +101,7 @@ public class OrphanPersistentTopicTest extends ProducerConsumerBase {
                 .subscriptionName("my-sub")
                 .subscribeAsync();
 
-        // After create timeout 5 times, the topic will be created successful.
+        // After create timeout 2 times, the topic will be created successful.
         Awaitility.await().ignoreExceptions().atMost(40, TimeUnit.SECONDS).untilAsserted(() -> {
             CompletableFuture<Optional<Topic>> future = pulsar.getBrokerService().getTopic(tpName, false);
             assertTrue(future.isDone());
@@ -98,7 +111,7 @@ public class OrphanPersistentTopicTest extends ProducerConsumerBase {
 
         // Assert only one PersistentTopic was not closed.
         TopicPoliciesService topicPoliciesService = pulsar.getTopicPoliciesService();
-        Map<TopicName, List<TopicPolicyListener<TopicPolicies>>> listeners =
+        Map<TopicName, List<TopicPolicyListener>> listeners =
                 WhiteboxImpl.getInternalState(topicPoliciesService, "listeners");
         assertEquals(listeners.get(TopicName.get(tpName)).size(), 1);
 
@@ -106,6 +119,68 @@ public class OrphanPersistentTopicTest extends ProducerConsumerBase {
         consumer.join().close();
         admin.topics().delete(tpName, false);
         pulsar.getConfig().setTopicLoadTimeoutSeconds(originalTopicLoadTimeoutSeconds);
+    }
+
+    @Test
+    public void testCloseLedgerThatTopicAfterCreateTimeout() throws Exception {
+        // Make the topic loading timeout faster.
+        long originalTopicLoadTimeoutSeconds = pulsar.getConfig().getTopicLoadTimeoutSeconds();
+        int topicLoadTimeoutSeconds = 1;
+        pulsar.getConfig().setTopicLoadTimeoutSeconds(topicLoadTimeoutSeconds);
+        pulsar.getConfig().setBrokerDeduplicationEnabled(true);
+        pulsar.getConfig().setTransactionCoordinatorEnabled(true);
+        String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp2");
+
+        // Mock message deduplication recovery speed topicLoadTimeoutSeconds
+        String mlPath = BrokerService.MANAGED_LEDGER_PATH_ZNODE + "/"
+                + TopicName.get(tpName).getPersistenceNamingEncoding() + "/" + DEDUPLICATION_CURSOR_NAME;
+        mockZooKeeper.delay(topicLoadTimeoutSeconds * 1000, (op, path) -> {
+            if (mlPath.equals(path)) {
+                log.info().attr("path", path).log("Topic load timeout");
+                return true;
+            }
+            return false;
+        });
+
+        // First load topic will trigger timeout
+        // The first topic load will trigger a timeout. When the topic closes, it will call transactionBuffer.close.
+        // Here, we simulate a sleep to ensure that the ledger is not immediately closed.
+        TransactionBufferProvider mockTransactionBufferProvider = new TransactionBufferProvider() {
+            @Override
+            public TransactionBuffer newTransactionBuffer(Topic originTopic) {
+                return new TransactionBufferDisable(originTopic) {
+                    @SneakyThrows
+                    @Override
+                    public CompletableFuture<Void> closeAsync() {
+                        Thread.sleep(500);
+                        return super.closeAsync();
+                    }
+                };
+            }
+        };
+        TransactionBufferProvider originalTransactionBufferProvider = pulsar.getTransactionBufferProvider();
+        pulsar.setTransactionBufferProvider(mockTransactionBufferProvider);
+        CompletableFuture<Optional<Topic>> firstLoad = pulsar.getBrokerService().getTopic(tpName, true);
+        Awaitility.await().ignoreExceptions().atMost(5, TimeUnit.SECONDS)
+                .pollInterval(100, TimeUnit.MILLISECONDS)
+                // assert first create topic timeout
+                .untilAsserted(() -> {
+                    assertTrue(firstLoad.isCompletedExceptionally());
+                });
+
+        // Once the first load topic times out, immediately to load the topic again.
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(tpName).create();
+        for (int i = 0; i < 10; i++) {
+            MessageId send = producer.send("msg".getBytes());
+            Thread.sleep(100);
+            assertNotNull(send);
+        }
+
+        // set to back
+        pulsar.setTransactionBufferProvider(originalTransactionBufferProvider);
+        pulsar.getConfig().setTopicLoadTimeoutSeconds(originalTopicLoadTimeoutSeconds);
+        pulsar.getConfig().setBrokerDeduplicationEnabled(false);
+        pulsar.getConfig().setTransactionCoordinatorEnabled(false);
     }
 
     @Test
@@ -119,16 +194,34 @@ public class OrphanPersistentTopicTest extends ProducerConsumerBase {
                 .subscriptionName("my-sub")
                 .subscribe();
 
-        // Make the method `PersitentTopic.initialize` fail.
+        // Make the method `PersitentTopic.initialize` fail, counting the failed loads of the topic.
         Field fieldCompactionServiceFactory = PulsarService.class.getDeclaredField("compactionServiceFactory");
         fieldCompactionServiceFactory.setAccessible(true);
         CompactionServiceFactory compactionServiceFactory =
                 (CompactionServiceFactory) fieldCompactionServiceFactory.get(pulsar);
-        fieldCompactionServiceFactory.set(pulsar, null);
+        AtomicInteger failedInitializations = new AtomicInteger();
+        fieldCompactionServiceFactory.set(pulsar, new CompactionServiceFactory() {
+            @Override
+            public CompletableFuture<Void> initialize(PulsarService pulsarService) {
+                return CompletableFuture.completedFuture(null);
+            }
+
+            @Override
+            public CompletableFuture<TopicCompactionService> newTopicCompactionService(String topic) {
+                if (tpName.equals(topic)) {
+                    failedInitializations.incrementAndGet();
+                }
+                return CompletableFuture.failedFuture(new RuntimeException("mocked error"));
+            }
+
+            @Override
+            public void close() {
+            }
+        });
         admin.topics().unload(tpName);
 
         // Wait for failed to create topic for several times.
-        Thread.sleep(5 * 1000);
+        Awaitility.await().untilAsserted(() -> assertTrue(failedInitializations.get() >= 3));
 
         // Remove the injected error, the topic will be created successful.
         fieldCompactionServiceFactory.set(pulsar, compactionServiceFactory);
@@ -143,12 +236,103 @@ public class OrphanPersistentTopicTest extends ProducerConsumerBase {
 
         // Assert only one PersistentTopic was not closed.
         TopicPoliciesService topicPoliciesService = pulsar.getTopicPoliciesService();
-        Map<TopicName, List<TopicPolicyListener<TopicPolicies>>> listeners =
+        Map<TopicName, List<TopicPolicyListener>> listeners =
                 WhiteboxImpl.getInternalState(topicPoliciesService, "listeners");
         assertEquals(listeners.get(TopicName.get(tpName)).size(), 1);
 
         // cleanup.
         consumer.close();
         admin.topics().delete(tpName, false);
+    }
+
+    @DataProvider(name = "whetherTimeoutOrNot")
+    public Object[][] whetherTimeoutOrNot() {
+        return new Object[][] {
+            {true},
+            {false}
+        };
+    }
+
+    @Test(timeOut = 60 * 1000, dataProvider = "whetherTimeoutOrNot")
+    public void testCheckOwnerShipFails(boolean injectTimeout) throws Exception {
+        if (injectTimeout) {
+            pulsar.getConfig().setTopicLoadTimeoutSeconds(1);
+        }
+        String ns = "public" + "/" + UUID.randomUUID().toString().replaceAll("-", "");
+        String tpName = BrokerTestUtil.newUniqueName("persistent://" + ns + "/tp");
+        admin.namespaces().createNamespace(ns);
+        admin.topics().createNonPartitionedTopic(tpName);
+        admin.namespaces().unload(ns);
+
+        // Inject an error when loading the topic
+        AtomicInteger failedTimes = new AtomicInteger();
+        NamespaceService namespaceService = pulsar.getNamespaceService();
+        doAnswer(invocation -> {
+            TopicName paramTp = (TopicName) invocation.getArguments()[0];
+            if (paramTp.toString().equalsIgnoreCase(tpName) && failedTimes.incrementAndGet() <= 2) {
+                if (injectTimeout) {
+                    // Longer than the topic load timeout.
+                    Thread.sleep(2 * 1000);
+                }
+                log.info().attr("failed", failedTimes.get()).log("Failed times");
+                return CompletableFuture.failedFuture(new RuntimeException("mocked error"));
+            }
+            return invocation.callRealMethod();
+        }).when(namespaceService).checkBundleOwnership(any(TopicName.class), any());
+
+        // Verify: the consumer can create successfully eventually.
+        Consumer consumer = pulsarClient.newConsumer().topic(tpName).subscriptionName("s1").subscribe();
+
+        // cleanup.
+        if (injectTimeout) {
+            pulsar.getConfig().setTopicLoadTimeoutSeconds(60);
+        }
+        consumer.close();
+        admin.topics().delete(tpName);
+    }
+
+    @Test(timeOut = 60 * 1000, dataProvider = "whetherTimeoutOrNot")
+    public void testTopicLoadAndDeleteAtTheSameTime(boolean injectTimeout) throws Exception {
+        if (injectTimeout) {
+            pulsar.getConfig().setTopicLoadTimeoutSeconds(1);
+        }
+        String ns = "public" + "/" + UUID.randomUUID().toString().replaceAll("-", "");
+        String tpName = BrokerTestUtil.newUniqueName("persistent://" + ns + "/tp");
+        admin.namespaces().createNamespace(ns);
+        admin.topics().createNonPartitionedTopic(tpName);
+        admin.namespaces().unload(ns);
+
+        // Inject a race condition: load topic and delete topic execute at the same time.
+        AtomicInteger mockRaceConditionCounter = new AtomicInteger();
+        NamespaceService namespaceService = pulsar.getNamespaceService();
+        doAnswer(invocation -> {
+            TopicName paramTp = (TopicName) invocation.getArguments()[0];
+            if (paramTp.toString().equalsIgnoreCase(tpName) && mockRaceConditionCounter.incrementAndGet() <= 1) {
+                if (injectTimeout) {
+                    // Longer than the topic load timeout.
+                    Thread.sleep(2 * 1000);
+                }
+                log.info().attr("conditionOccurs", mockRaceConditionCounter.get()).log("Race condition occurs times");
+                pulsar.getDefaultManagedLedgerFactory().delete(TopicName.get(tpName).getPersistenceNamingEncoding());
+            }
+            return invocation.callRealMethod();
+        }).when(namespaceService).checkBundleOwnership(any(TopicName.class), any());
+
+        // Verify: the consumer create failed due to pulsar does not allow to create topic automatically.
+        try {
+            pulsar.getBrokerService().getTopic(tpName, false, Collections.emptyMap()).join();
+        } catch (Exception ex) {
+            log.warn().exception(ex).log("Expected error");
+        }
+
+        // Verify: the consumer create successfully after allowing to create topic automatically.
+        Consumer consumer = pulsarClient.newConsumer().topic(tpName).subscriptionName("s1").subscribe();
+
+        // cleanup.
+        if (injectTimeout) {
+            pulsar.getConfig().setTopicLoadTimeoutSeconds(60);
+        }
+        consumer.close();
+        admin.topics().delete(tpName);
     }
 }

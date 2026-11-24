@@ -19,7 +19,7 @@
 package org.apache.pulsar.functions.api.examples.window;
 
 import java.util.Collection;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.api.WindowContext;
 import org.apache.pulsar.functions.api.WindowFunction;
@@ -27,7 +27,7 @@ import org.apache.pulsar.functions.api.WindowFunction;
 /**
  * Example Function that acts on a window of tuples at a time rather than per tuple basis.
  */
-@Slf4j
+@CustomLog
 public class ContextWindowFunction implements WindowFunction<Integer, Integer> {
     @Override
     public Integer process(Collection<Record<Integer>> integers, WindowContext context) {

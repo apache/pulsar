@@ -20,7 +20,11 @@ package org.apache.pulsar.zookeeper;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
+import org.apache.bookkeeper.conf.ServerConfiguration;
+import org.apache.bookkeeper.proto.BookieServer;
+import org.apache.bookkeeper.stats.NullStatsProvider;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -41,7 +45,7 @@ public class LocalBookkeeperEnsembleTest {
         final int numBk = 1;
 
         // Start local Bookies/ZooKeepers and confirm that they are running at specified ports
-        LocalBookkeeperEnsemble ensemble = new LocalBookkeeperEnsemble(numBk, 0, () -> 0);
+        LocalBookkeeperEnsemble ensemble = new LocalBookkeeperEnsemble(numBk, 0);
         ensemble.start();
         assertTrue(ensemble.getZkServer().isRunning());
         assertEquals(ensemble.getZkServer().getClientPort(), ensemble.getZookeeperPort());
@@ -53,5 +57,47 @@ public class LocalBookkeeperEnsembleTest {
         assertFalse(ensemble.getZkServer().isRunning());
         assertFalse(ensemble.getZkClient().getState().isConnected());
         assertFalse(ensemble.getBookies()[0].isRunning());
+    }
+
+    @Test(timeOut = 10_000)
+    public void testStartWithSpecifiedStreamStoragePort() throws Exception {
+        LocalBookkeeperEnsemble ensemble = null;
+        try {
+            ensemble = new LocalBookkeeperEnsemble(1, 0, 4182, null, null, true, null);
+            ensemble.startStandalone(new ServerConfiguration(), true);
+        } finally {
+            if (ensemble != null) {
+                ensemble.stop();
+            }
+        }
+    }
+
+    /**
+     * A bookie whose restart failed leaves both of its slots empty. Stopping the ensemble must skip that bookie
+     * and still stop the others, instead of failing on the empty slot and leaving them running.
+     */
+    @Test(timeOut = 60_000)
+    public void testStopAfterAFailedRestart() throws Exception {
+        LocalBookkeeperEnsemble ensemble = new LocalBookkeeperEnsemble(2, 0);
+        ensemble.start();
+        BookieServer secondBookie = ensemble.getBookies()[1];
+        assertTrue(secondBookie.isRunning());
+        try {
+            ensemble.stopBK(0);
+            // Make the restart of bookie 0 fail before a bookie is built.
+            ensemble.bsConfs[0].setStatsProviderClass(FailingStatsProvider.class);
+            assertThrows(RuntimeException.class, () -> ensemble.startBK(0));
+
+            ensemble.stopBK();
+            assertFalse(secondBookie.isRunning());
+        } finally {
+            ensemble.stop();
+        }
+    }
+
+    public static class FailingStatsProvider extends NullStatsProvider {
+        public FailingStatsProvider() {
+            throw new IllegalStateException("stats provider that cannot be created");
+        }
     }
 }

@@ -37,26 +37,33 @@ import java.util.NavigableMap;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 public abstract class AbstractDeliveryTrackerTest {
 
-    // Create a single shared timer for the test.
-    protected final Timer timer =
-            new HashedWheelTimer(new DefaultThreadFactory("pulsar-in-memory-delayed-delivery-test"),
-                    500, TimeUnit.MILLISECONDS);
-    protected PersistentDispatcherMultipleConsumers dispatcher;
+    protected Timer timer;
+    protected AbstractPersistentDispatcherMultipleConsumers dispatcher;
     protected Clock clock;
 
     protected AtomicLong clockTime;
 
+    @BeforeClass(alwaysRun = true)
+    public void createTimer() {
+        timer = new HashedWheelTimer(new DefaultThreadFactory("pulsar-in-memory-delayed-delivery-test"),
+                        500, TimeUnit.MILLISECONDS);
+    }
+
     @AfterClass(alwaysRun = true)
-    public void cleanup() {
-        timer.stop();
+    public void stopTimer() {
+        if (timer != null) {
+            timer.stop();
+            timer = null;
+        }
     }
 
     @Test(dataProvider = "delayedTracker")
@@ -82,7 +89,7 @@ public abstract class AbstractDeliveryTrackerTest {
 
         assertEquals(tracker.getNumberOfDelayedMessages(), 5);
         assertTrue(tracker.hasMessageAvailable());
-        Set<PositionImpl> scheduled = tracker.getScheduledMessages(10);
+        Set<Position> scheduled = tracker.getScheduledMessages(10);
         assertEquals(scheduled.size(), 1);
 
         // Move time forward
@@ -126,10 +133,10 @@ public abstract class AbstractDeliveryTrackerTest {
         Timeout cancelledTimeout = mock(Timeout.class);
         when(cancelledTimeout.isCancelled()).thenReturn(true);
         task.run(cancelledTimeout);
-        verify(dispatcher, atMostOnce()).readMoreEntries();
+        verify(dispatcher, atMostOnce()).readMoreEntriesAsync();
 
         task.run(mock(Timeout.class));
-        verify(dispatcher).readMoreEntries();
+        verify(dispatcher).readMoreEntriesAsync();
 
         tracker.close();
     }
@@ -180,7 +187,7 @@ public abstract class AbstractDeliveryTrackerTest {
         Timeout timeout = mock(Timeout.class);
         when(timeout.isCancelled()).then(x -> false);
         ((AbstractDelayedDeliveryTracker) tracker).run(timeout);
-        verify(dispatcher, times(1)).readMoreEntries();
+        verify(dispatcher, times(1)).readMoreEntriesAsync();
 
         // Add a message that has a delivery time just after the previous run. It will get delivered based on the
         // tick delay plus the last tick run.
@@ -189,11 +196,11 @@ public abstract class AbstractDeliveryTrackerTest {
         // Wait longer than the tick time plus the HashedWheelTimer's tick time to ensure that enough time has
         // passed where it would have been triggered if the tick time was doing the triggering.
         Thread.sleep(600);
-        verify(dispatcher, times(1)).readMoreEntries();
+        verify(dispatcher, times(1)).readMoreEntriesAsync();
 
         // Not wait for the message delivery to get triggered.
         Awaitility.await().atMost(10, TimeUnit.SECONDS)
-                .untilAsserted(() -> verify(dispatcher).readMoreEntries());
+                .untilAsserted(() -> verify(dispatcher).readMoreEntriesAsync());
 
         tracker.close();
     }
@@ -212,7 +219,7 @@ public abstract class AbstractDeliveryTrackerTest {
         // Wait long enough for the runnable to run, but not longer than the tick time. The point is that the delivery
         // should get scheduled early when the tick duration has passed since the last tick.
         Awaitility.await().atMost(10, TimeUnit.SECONDS)
-                .untilAsserted(() -> verify(dispatcher).readMoreEntries());
+                .untilAsserted(() -> verify(dispatcher).readMoreEntriesAsync());
 
         tracker.close();
     }
@@ -233,7 +240,7 @@ public abstract class AbstractDeliveryTrackerTest {
 
         // Not wait for the message delivery to get triggered.
         Awaitility.await().atMost(10, TimeUnit.SECONDS)
-                .untilAsserted(() -> verify(dispatcher).readMoreEntries());
+                .untilAsserted(() -> verify(dispatcher).readMoreEntriesAsync());
 
         tracker.close();
     }

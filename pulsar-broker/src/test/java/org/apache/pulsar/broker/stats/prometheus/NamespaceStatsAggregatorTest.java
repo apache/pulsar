@@ -18,9 +18,16 @@
  */
 package org.apache.pulsar.broker.stats.prometheus;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.when;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl;
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
@@ -28,51 +35,55 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Consumer;
-import org.apache.pulsar.broker.service.Replicator;
-import org.apache.pulsar.broker.service.Subscription;
+import org.apache.pulsar.broker.service.GetStatsOptions;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopicMetrics;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
+import org.apache.pulsar.common.policies.data.stats.TopicMetricBean;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.apache.pulsar.common.util.SimpleTextOutputStream;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.mockito.Mockito;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class NamespaceStatsAggregatorTest {
     protected PulsarService pulsar;
     private BrokerService broker;
-    private ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, Topic>>>
-            multiLayerTopicsMap;
+    private Map<String, Map<String, Map<String, Topic>>> multiLayerTopicsMap;
 
     @BeforeMethod(alwaysRun = true)
     public void setup() throws Exception {
-        multiLayerTopicsMap = ConcurrentOpenHashMap.<String,
-                        ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, Topic>>>newBuilder()
-                .build();
+        multiLayerTopicsMap = new ConcurrentHashMap<>();
         pulsar = Mockito.mock(PulsarService.class);
         broker = Mockito.mock(BrokerService.class);
-        doReturn(multiLayerTopicsMap).when(broker).getMultiLayerTopicMap();
+        doReturn(multiLayerTopicsMap).when(broker).getMultiLayerTopicsMap();
         Mockito.when(pulsar.getLocalMetadataStore()).thenReturn(Mockito.mock(ZKMetadataStore.class));
         ServiceConfiguration mockConfig = Mockito.mock(ServiceConfiguration.class);
         doReturn(mockConfig).when(pulsar).getConfiguration();
         doReturn(broker).when(pulsar).getBrokerService();
     }
 
-    @Test
-    public void testGenerateSubscriptionsStats() {
+    @DataProvider
+    public Object[][] topicMetrics() {
+        return new Object[][] {{true}, {false}};
+    }
+
+    @Test(dataProvider = "topicMetrics")
+    public void testGenerateSubscriptionsStats(boolean includeTopicMetrics) {
         // given
         final String namespace = "tenant/cluster/ns";
 
         // prepare multi-layer topic map
-        ConcurrentOpenHashMap bundlesMap = ConcurrentOpenHashMap.newBuilder().build();
-        ConcurrentOpenHashMap topicsMap = ConcurrentOpenHashMap.newBuilder().build();
-        ConcurrentOpenHashMap subscriptionsMaps = ConcurrentOpenHashMap.newBuilder().build();
+        final var bundlesMap = new ConcurrentHashMap<String, Map<String, Topic>>();
+        final var topicsMap = new ConcurrentHashMap<String, Topic>();
+        final var subscriptionsMaps = new ConcurrentHashMap<String, PersistentSubscription>();
         bundlesMap.put("my-bundle", topicsMap);
         multiLayerTopicsMap.put(namespace, bundlesMap);
 
@@ -88,7 +99,7 @@ public class NamespaceStatsAggregatorTest {
 
         // Prepare topic and subscription
         PersistentTopic topic = Mockito.mock(PersistentTopic.class);
-        Subscription subscription = Mockito.mock(Subscription.class);
+        PersistentSubscription subscription = Mockito.mock(PersistentSubscription.class);
         Consumer consumer = Mockito.mock(Consumer.class);
         ConsumerStatsImpl consumerStats = new ConsumerStatsImpl();
         when(consumer.getStats()).thenReturn(consumerStats);
@@ -97,67 +108,64 @@ public class NamespaceStatsAggregatorTest {
         SubscriptionStatsImpl subStats = new SubscriptionStatsImpl();
         TopicStatsImpl topicStats = new TopicStatsImpl();
         topicStats.subscriptions.put("my-subscription", subStats);
-        when(topic.getStats(false, false, false)).thenReturn(topicStats);
+        topicStats.bytesInCounter = 9007199254740993L;
+        topicStats.bytesOutCounter = 9007199254740993L;
+        topicStats.bucketDelayedIndexStats.put("bucket", new TopicMetricBean(
+                "pulsar_test_delayed_bucket", 2.5, new String[]{"bucket", "bucket-a"}));
+        GetStatsOptions statsOptions = GetStatsOptions.builder().excludeLastPublishTime(true).build();
+        when(topic.getStats(statsOptions)).thenReturn(topicStats);
         when(topic.getBrokerService()).thenReturn(broker);
         when(topic.getSubscriptions()).thenReturn(subscriptionsMaps);
-        when(topic.getReplicators()).thenReturn(ConcurrentOpenHashMap.<String,Replicator>newBuilder().build());
+        when(topic.getReplicators()).thenReturn(new ConcurrentHashMap<>());
         when(topic.getManagedLedger()).thenReturn(ml);
         when(topic.getBacklogQuota(Mockito.any())).thenReturn(Mockito.mock(BacklogQuota.class));
         PersistentTopicMetrics persistentTopicMetrics = new PersistentTopicMetrics();
         when(topic.getPersistentTopicMetrics()).thenReturn(persistentTopicMetrics);
         topicsMap.put("my-topic", topic);
-        PrometheusMetricStreams metricStreams = Mockito.spy(new PrometheusMetricStreams());
+        @Cleanup("releaseAll")
+        PrometheusMetricStreams metricStreams = new PrometheusMetricStreams();
 
         // Populate subscriptions stats
+        ServiceConfiguration config = pulsar.getConfiguration();
+        doReturn(true).when(config).isExposeSubscriptionBacklogAgeInPrometheus();
         subStats.blockedSubscriptionOnUnackedMsgs = true;
+        subStats.oldestBacklogMessageAgeSeconds = 123;
         consumerStats.blockedConsumerOnUnackedMsgs = false; // should not affect blockedSubscriptionOnUnackedMsgs
         consumerStats.unackedMessages = 1;
         consumerStats.msgRateRedeliver = 0.7;
         subStats.consumers.add(0, consumerStats);
 
         // when
-        NamespaceStatsAggregator.generate(pulsar, true, true,
+        NamespaceStatsAggregator.generate(pulsar, includeTopicMetrics, true,
                 true, true, metricStreams);
 
         // then
-        verifySubscriptionMetric(metricStreams, "pulsar_subscription_blocked_on_unacked_messages", 1);
-        verifyConsumerMetric(metricStreams, "pulsar_consumer_blocked_on_unacked_messages", 0);
-
-        verifySubscriptionMetric(metricStreams, "pulsar_subscription_msg_rate_redeliver", 0.7);
-        verifySubscriptionMetric(metricStreams, "pulsar_subscription_unacked_messages", 1L);
-    }
-
-    private void verifySubscriptionMetric(PrometheusMetricStreams metricStreams, String metricName, Number value) {
-        Mockito.verify(metricStreams).writeSample(metricName,
-                value,
-                "cluster",
-                null,
-                "namespace",
-                "tenant/cluster/ns",
-                "topic",
-                "my-topic",
-                "partition",
-                "-1",
-                "subscription",
-                "my-subscription");
-    }
-
-    private void verifyConsumerMetric(PrometheusMetricStreams metricStreams, String metricName, Number value) {
-        Mockito.verify(metricStreams).writeSample(metricName,
-                value,
-                "cluster",
-                null,
-                "namespace",
-                "tenant/cluster/ns",
-                "topic",
-                "my-topic",
-                "partition",
-                "-1",
-                "subscription",
-                "my-subscription",
-                "consumer_name",
-                null,
-                "consumer_id",
-                "0");
+        Mockito.verify(topic).getStats(statsOptions);
+        ByteBuf buffer = Unpooled.buffer();
+        try {
+            metricStreams.flushAllToStream(new SimpleTextOutputStream(buffer));
+            List<String> lines = buffer.toString(StandardCharsets.UTF_8).lines().toList();
+            if (includeTopicMetrics) {
+                String subscriptionLabels = "{cluster=\"\",namespace=\"tenant/cluster/ns\",topic=\"my-topic\","
+                        + "partition=\"-1\",subscription=\"my-subscription\"";
+                assertThat(lines).containsOnlyOnce(
+                        "pulsar_subscription_blocked_on_unacked_messages" + subscriptionLabels + "} 1",
+                        "pulsar_consumer_blocked_on_unacked_messages" + subscriptionLabels
+                                + ",consumer_name=\"\",consumer_id=\"0\"} 0",
+                        "pulsar_subscription_msg_rate_redeliver" + subscriptionLabels + "} 0.700",
+                        "pulsar_subscription_unacked_messages" + subscriptionLabels + "} 1",
+                        "pulsar_subscription_storage_backlog_age_seconds" + subscriptionLabels + "} 123");
+            } else {
+                assertThat(lines).containsOnlyOnce("pulsar_test_delayed_bucket{cluster=\"\","
+                        + "namespace=\"tenant/cluster/ns\",bucket=\"bucket-a\"} 2.500");
+            }
+            assertThat(lines).containsOnlyOnce(
+                    "pulsar_broker_in_bytes_total{cluster=\"\",system_topic=\"false\"} 9007199254740993",
+                    "pulsar_broker_in_bytes_total{cluster=\"\",system_topic=\"true\"} 0",
+                    "pulsar_broker_out_bytes_total{cluster=\"\",system_subscription=\"false\"} 9007199254740993",
+                    "pulsar_broker_out_bytes_total{cluster=\"\",system_subscription=\"true\"} 0");
+        } finally {
+            buffer.release();
+        }
     }
 }

@@ -18,7 +18,11 @@
  */
 package org.apache.pulsar.tests.integration.containers;
 
+import static java.time.temporal.ChronoUnit.SECONDS;
+import java.time.Duration;
 import org.apache.pulsar.tests.integration.utils.DockerUtils;
+import org.testcontainers.containers.wait.strategy.Wait;
+import org.testcontainers.containers.wait.strategy.WaitAllStrategy;
 
 /**
  * A pulsar container that runs bookkeeper.
@@ -32,14 +36,31 @@ public class BrokerContainer extends PulsarContainer<BrokerContainer> {
     }
 
     public BrokerContainer(String clusterName, String hostName, boolean enableTls) {
+        this(clusterName, hostName, enableTls, DEFAULT_IMAGE_NAME);
+    }
+
+    public BrokerContainer(String clusterName, String hostName, boolean enableTls, String imageName) {
         super(clusterName, hostName, hostName, "bin/run-broker.sh", BROKER_PORT,
                 enableTls ? BROKER_PORT_TLS : 0, BROKER_HTTP_PORT,
-                enableTls ? BROKER_HTTPS_PORT : 0, DEFAULT_HTTP_PATH, DEFAULT_IMAGE_NAME);
+                enableTls ? BROKER_HTTPS_PORT : 0, DEFAULT_HTTP_PATH, imageName);
         tailContainerLog();
     }
 
     public String getHostName() {
         return super.hostname;
+    }
+
+    @Override
+    protected void beforeStart() {
+        // A broker opens its ports before it registers itself and is ready to serve, so also wait for it to be ready:
+        // for its log to say so or, should it not log at INFO level, for its ready probe, which works without
+        // authentication only
+        waitStrategy = new WaitAllStrategy()
+                .withStrategy(waitStrategy)
+                .withStrategy(Wait.forSuccessfulCommand("until grep -qi 'messaging service is ready' "
+                        + "/var/log/pulsar/broker.log || curl -sf -o /dev/null "
+                        + "http://localhost:" + BROKER_HTTP_PORT + "/admin/v2/brokers/ready; do sleep 0.1; done"))
+                .withStartupTimeout(Duration.of(300, SECONDS));
     }
 
     @Override

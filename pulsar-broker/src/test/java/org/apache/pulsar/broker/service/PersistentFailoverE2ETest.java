@@ -169,7 +169,7 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
 
     @Test
     public void testSimpleConsumerEventsWithoutPartition() throws Exception {
-        final String topicName = "persistent://prop/use/ns-abc/failover-topic1-" + System.currentTimeMillis();
+        final String topicName = "persistent://prop/ns-abc/failover-topic1-" + System.currentTimeMillis();
         final String subName = "sub1";
         final int numMsgs = 100;
 
@@ -313,7 +313,8 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
 
         int numPartitions = 4;
 
-        final String topicName = BrokerTestUtil.newUniqueName("persistent://prop/use/ns-abc/testSimpleConsumerEventsWithPartition");
+        final String topicName = BrokerTestUtil.newUniqueName(
+                "persistent://prop/ns-abc/testSimpleConsumerEventsWithPartition");
         final TopicName destName = TopicName.get(topicName);
         final String subName = "sub1";
         final int numMsgs = 100;
@@ -329,24 +330,30 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         ActiveInactiveListenerEvent listener1 = new ActiveInactiveListenerEvent();
         ActiveInactiveListenerEvent listener2 = new ActiveInactiveListenerEvent();
 
-        Consumer<byte[]> consumer1 = consumerBuilder.clone().consumerName("1").consumerEventListener(listener1)
+        Consumer<byte[]> consumer1 = consumerBuilder.clone()
+                .consumerName("1").consumerEventListener(listener1)
                 .receiverQueueSize(1)
                 .subscribe();
-        Consumer<byte[]> consumer2 = consumerBuilder.clone().consumerName("2").consumerEventListener(listener2)
+        Consumer<byte[]> consumer2 = consumerBuilder.clone()
+                .consumerName("2").consumerEventListener(listener2)
                 .receiverQueueSize(1)
                 .subscribe();
 
         PersistentTopic topicRef;
-        topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(destName.getPartition(0).toString()).get();
+        topicRef = (PersistentTopic) pulsar.getBrokerService()
+                .getTopicReference(destName.getPartition(0).toString()).get();
         PersistentDispatcherSingleActiveConsumer disp0 = (PersistentDispatcherSingleActiveConsumer) topicRef
                 .getSubscription(subName).getDispatcher();
-        topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(destName.getPartition(1).toString()).get();
+        topicRef = (PersistentTopic) pulsar.getBrokerService().
+                getTopicReference(destName.getPartition(1).toString()).get();
         PersistentDispatcherSingleActiveConsumer disp1 = (PersistentDispatcherSingleActiveConsumer) topicRef
                 .getSubscription(subName).getDispatcher();
-        topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(destName.getPartition(2).toString()).get();
+        topicRef = (PersistentTopic) pulsar.getBrokerService()
+                .getTopicReference(destName.getPartition(2).toString()).get();
         PersistentDispatcherSingleActiveConsumer disp2 = (PersistentDispatcherSingleActiveConsumer) topicRef
                 .getSubscription(subName).getDispatcher();
-        topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(destName.getPartition(3).toString()).get();
+        topicRef = (PersistentTopic) pulsar.getBrokerService()
+                .getTopicReference(destName.getPartition(3).toString()).get();
         PersistentDispatcherSingleActiveConsumer disp3 = (PersistentDispatcherSingleActiveConsumer) topicRef
                 .getSubscription(subName).getDispatcher();
 
@@ -494,7 +501,7 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
 
     @Test
     public void testActiveConsumerFailoverWithDelay() throws Exception {
-        final String topicName = "persistent://prop/use/ns-abc/failover-topic3";
+        final String topicName = "persistent://prop/ns-abc/failover-topic3";
         final String subName = "sub1";
         final int numMsgs = 100;
         List<Message<byte[]>> receivedMessages = new ArrayList<>();
@@ -562,5 +569,82 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         subscribeFuture1.get().close();
         subscribeFuture2.get().unsubscribe();
         admin.topics().delete(topicName);
+    }
+
+    @Test
+    public void testConsistentHashingAssignmentIsBalanced() throws Exception {
+        conf.setActiveConsumerFailoverConsistentHashing(true);
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://prop/ns-abc/failover-balanced");
+        final String subName = "sub1";
+        final int numPartitions = 10;
+        admin.topics().createPartitionedTopic(topicName, numPartitions);
+        List<String> names = List.of("consumer-0", "consumer-1", "consumer-2", "consumer-3");
+        List<Consumer<byte[]>> consumers = new ArrayList<>();
+        try {
+            for (String name : names) {
+                consumers.add(pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
+                        .subscriptionType(SubscriptionType.Failover).consumerName(name).subscribe());
+            }
+            assertBalancedAssignment(topicName, subName, numPartitions, names);
+
+            consumers.remove(0).close();
+            assertBalancedAssignment(topicName, subName, numPartitions, names.subList(1, names.size()));
+        } finally {
+            conf.setActiveConsumerFailoverConsistentHashing(false);
+            for (Consumer<byte[]> consumer : consumers) {
+                consumer.close();
+            }
+            admin.topics().deletePartitionedTopic(topicName);
+        }
+    }
+
+    @Test
+    public void testConsistentHashingRebalancesWhenPartitionsAreAdded() throws Exception {
+        conf.setActiveConsumerFailoverConsistentHashing(true);
+        List<String> names = List.of("consumer-0", "consumer-1");
+        // A topic whose partition 0 has to move to another consumer when the topic grows from 2 to 4 partitions
+        String prefix = BrokerTestUtil.newUniqueName("persistent://prop/ns-abc/failover-expansion");
+        String topicName = null;
+        for (int i = 0; topicName == null; i++) {
+            String candidate = prefix + "-" + i;
+            if (AbstractDispatcherSingleActiveConsumer.balancedAssignment(candidate, 2, names)[0]
+                    != AbstractDispatcherSingleActiveConsumer.balancedAssignment(candidate, 4, names)[0]) {
+                topicName = candidate;
+            }
+        }
+        final String subName = "sub1";
+        admin.topics().createPartitionedTopic(topicName, 2);
+        List<Consumer<byte[]>> consumers = new ArrayList<>();
+        try {
+            for (String name : names) {
+                consumers.add(pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
+                        .subscriptionType(SubscriptionType.Failover).consumerName(name)
+                        .autoUpdatePartitionsInterval(1, TimeUnit.SECONDS).subscribe());
+            }
+            assertBalancedAssignment(topicName, subName, 2, names);
+
+            // The consumers stay connected and subscribe to the new partitions on their own
+            admin.topics().updatePartitionedTopic(topicName, 4);
+            assertBalancedAssignment(topicName, subName, 4, names);
+        } finally {
+            conf.setActiveConsumerFailoverConsistentHashing(false);
+            for (Consumer<byte[]> consumer : consumers) {
+                consumer.close();
+            }
+            admin.topics().deletePartitionedTopic(topicName);
+        }
+    }
+
+    // The broker's active consumer of every partition is the one picked by the balanced assignment
+    private void assertBalancedAssignment(String topicName, String subName, int numPartitions, List<String> names) {
+        int[] expected = AbstractDispatcherSingleActiveConsumer.balancedAssignment(topicName, numPartitions, names);
+        // New partitions have no stats until the consumers subscribe to them
+        Awaitility.await().ignoreExceptions().untilAsserted(() -> {
+            for (int i = 0; i < numPartitions; i++) {
+                String partition = TopicName.get(topicName).getPartition(i).toString();
+                assertEquals(admin.topics().getStats(partition).getSubscriptions().get(subName)
+                        .getActiveConsumerName(), names.get(expected[i]), partition);
+            }
+        });
     }
 }

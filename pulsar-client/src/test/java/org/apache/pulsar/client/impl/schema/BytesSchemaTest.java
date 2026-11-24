@@ -21,7 +21,6 @@ package org.apache.pulsar.client.impl.schema;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertSame;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import org.apache.pulsar.client.api.Schema;
@@ -52,7 +51,7 @@ public class BytesSchemaTest {
         assertSame(data, deserializedData);
         ByteBuf byteBuf = ByteBufAllocator.DEFAULT.buffer(deserializedData.length);
         byteBuf.writeBytes(deserializedData);
-        assertEquals(data, ((BytesSchema)schema).decode(byteBuf));
+        assertEquals(data, ((BytesSchema) schema).decode(byteBuf));
 
     }
 

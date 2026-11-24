@@ -77,7 +77,7 @@ The process works in the following way:
    sending a message using subject `[VOTE] PIP-xxx: {PIP TITLE}`. Make sure to include a link to the PIP PR in the body of the message.
    Make sure to update the PIP with a link to the vote. You can obtain it from [Apache Pony Mail](https://lists.apache.org/list.html?dev@pulsar.apache.org). 
    Everyone is welcome to vote on the proposal, though only the vote of the PMC members will be considered binding.
-   It is required to have a lazy majority of at least 3 binding +1s votes.
+   The requirement is to have at least one binding +1 vote from a lazy majority if no binding -1 votes have been cast on the PIP.
    The vote should stay open for at least 48 hours.
 9. When the vote is closed, if the outcome is positive, ask a PMC member (using voting thread on mailing list) to merge the PR.
 10. If the outcome is negative, please close the PR (with a small comment that the close is a result of a vote).
@@ -89,9 +89,9 @@ It is advised to create a master GitHub issue to formulate the execution plan an
 * Eve ran into some issues with the client metrics - she needed a metric which was missing.
 * She read the code a bit, and has an idea what metrics she wishes to add.
 * She summarized her idea and direction in an email to the DEV mailing list (she located it on
-[Discussions]([url](https://pulsar.apache.org/community/#section-discussions)) section on the website.
+[Discussions](https://pulsar.apache.org/community/#section-discussions) section on the website.
 * She didn't get any response from the community, so she joined the next
-[community meeting]([url](https://github.com/apache/pulsar/wiki/Community-Meetings)). There Matteo Merli and Asaf helped 
+[community meeting](https://github.com/apache/pulsar/wiki/Community-Meetings). There Matteo Merli and Asaf helped 
 setup a channel in Slack to brainstorm the idea and meet on Zoom with a few Pulsar contributors (e.g. Lari and Tison).
 * Once Eve had a good enough context, and good design outline, she opened a new branch in her Pulsar repository, duplicated 
 TEMPLATE.md and created pip-xxx.MD (the number she will take later).
@@ -112,12 +112,12 @@ email what the PIP was about and gave a link.
 
 ## List of PIPs
 
-### Historical PIPs
-You can the view list of PIPs previously managed by GitHub wiki or GitHub issues [here](https://github.com/apache/pulsar/wiki#pulsar-improvement-proposals)
+The list of all current PIPs, sorted by PIP number, is in [000-INDEX.md](000-INDEX.md).
 
-### List of PIPs
+### Additional Information
+
 1. You can view all PIPs (besides the historical ones) as the list of Pull Requests having title starting with `[improve][pip] PIP-`. Here is the [link](https://github.com/apache/pulsar/pulls?q=is%3Apr+title%3A%22%5Bpip%5D%5Bdesign%5D+PIP-%22) for it. 
    - Merged PR means the PIP was accepted.
    - Closed PR means the PIP was rejected.
    - Open PR means the PIP was submitted and is in the process of discussion.
-2. You can also take a look at the file in the `pip` folder. Each one is an approved PIP.
+2. All PIP files in the `pip` folder follow the naming convention `pip-xxx.md` where `xxx` is the PIP number.

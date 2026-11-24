@@ -18,12 +18,6 @@
 # under the License.
 #
 
-bin/apply-config-from-env.py conf/broker.conf && \
-    bin/apply-config-from-env.py conf/pulsar_env.sh
+source /pulsar/bin/func-lib.sh
 
-if [ -z "$NO_AUTOSTART" ]; then
-    sed -i 's/autostart=.*/autostart=true/' /etc/supervisord/conf.d/broker.conf
-fi
-
-exec /usr/bin/supervisord -c /etc/supervisord.conf
-
+run_pulsar_component broker broker 150M

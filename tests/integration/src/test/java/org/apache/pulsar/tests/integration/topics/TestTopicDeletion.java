@@ -18,7 +18,13 @@
  */
 package org.apache.pulsar.tests.integration.topics;
 
-import lombok.extern.slf4j.Slf4j;
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.fail;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
@@ -29,22 +35,14 @@ import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
 import org.testng.annotations.Test;
 
-import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
-
-import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotEquals;
-import static org.testng.Assert.fail;
-
 /**
  * Test cases for compaction.
  */
-@Slf4j
+@CustomLog
 public class TestTopicDeletion extends PulsarTestSuite {
 
-    final private boolean unload = false;
-    final private int numBrokers = 2;
+    private final boolean unload = false;
+    private final int numBrokers = 2;
 
     public void setupCluster() throws Exception {
         brokerEnvs.put("managedLedgerMaxEntriesPerLedger", "10");
@@ -61,7 +59,7 @@ public class TestTopicDeletion extends PulsarTestSuite {
         return specBuilder;
     }
 
-    @Test(dataProvider = "ServiceUrls", timeOut=300_000)
+    @Test(dataProvider = "ServiceUrls", timeOut = 300_000)
     public void testPartitionedTopicForceDeletion(Supplier<String> serviceUrl) throws Exception {
 
         log.info("Creating tenant and namespace");
@@ -94,7 +92,7 @@ public class TestTopicDeletion extends PulsarTestSuite {
                     .subscribe();
 
             log.info("Producing messages");
-            try(Producer<byte[]> producer = client.newProducer()
+            try (Producer<byte[]> producer = client.newProducer()
                 .topic(topic)
                 .create()
             ) {
@@ -105,13 +103,13 @@ public class TestTopicDeletion extends PulsarTestSuite {
                         .sendAsync();
                 }
                 producer.flush();
-                log.info("Successfully wrote {} values", numKeys);
+                log.info().attr("wrote", numKeys).log("Successfully wrote values");
             }
 
             log.info("Consuming half of the messages");
             for (int i = 0; i < numKeys / 2; i++) {
                 Message<byte[]> m = consumer.receive(1, TimeUnit.MINUTES);
-                log.info("Read value {}", m.getKey());
+                log.info().attr("value", m.getKey()).log("Read value");
             }
 
             if (unload) {
@@ -127,7 +125,7 @@ public class TestTopicDeletion extends PulsarTestSuite {
                         "delete-partitioned-topic", "--force", topic);
                 assertNotEquals(0, res.getExitCode());
             } catch (ContainerExecException e) {
-                log.info("Second delete failed with ContainerExecException, could be ok", e);
+                log.info().exception(e).log("Second delete failed with ContainerExecException, could be ok");
                 if (!e.getMessage().contains("with error code 1")) {
                     fail("Expected different error code");
                 }
@@ -158,12 +156,12 @@ public class TestTopicDeletion extends PulsarTestSuite {
         return result;
     }
 
-    private ContainerExecResult createNamespace(final String Ns) throws Exception {
+    private ContainerExecResult createNamespace(final String ns) throws Exception {
         ContainerExecResult result = pulsarCluster.runAdminCommandOnAnyBroker(
                 "namespaces",
                 "create",
                 "--clusters",
-                pulsarCluster.getClusterName(), Ns);
+                pulsarCluster.getClusterName(), ns);
         assertEquals(0, result.getExitCode());
         return result;
     }

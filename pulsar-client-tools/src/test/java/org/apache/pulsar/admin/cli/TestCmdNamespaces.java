@@ -18,16 +18,16 @@
  */
 package org.apache.pulsar.admin.cli;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import java.io.IOException;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
-import java.io.IOException;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 public class TestCmdNamespaces {
 
@@ -46,7 +46,34 @@ public class TestCmdNamespaces {
 
         CmdNamespaces cmd = new CmdNamespaces(() -> admin);
 
-        cmd.run("set-retention public/default -s 2T -t 2h".split("\\s+"));
-        verify(namespaces, times(1)).setRetention("public/default", new RetentionPolicies(120, 2 * 1024 * 1024));
+        cmd.run("set-retention public/default -s 2T -t 200d".split("\\s+"));
+        verify(namespaces, times(1)).setRetention("public/default",
+                new RetentionPolicies(200 * 24 * 60, 2 * 1024 * 1024));
    }
+
+    @Test
+    @SuppressWarnings("deprecation")
+    public void testSetIsAllowAutoUpdateSchemaCmd() throws Exception {
+        Namespaces namespaces = mock(Namespaces.class);
+        PulsarAdmin admin = mock(PulsarAdmin.class);
+        when(admin.namespaces()).thenReturn(namespaces);
+
+        CmdNamespaces cmd = new CmdNamespaces(() -> admin);
+
+        cmd.run("set-is-allow-auto-update-schema public/default --disable"
+                .split("\\s+"));
+        verify(namespaces, times(1)).setIsAllowAutoUpdateSchema("public/default", false, null);
+
+        cmd.run("set-is-allow-auto-update-schema public/default --enable"
+                .split("\\s+"));
+        verify(namespaces, times(1)).setIsAllowAutoUpdateSchema("public/default", true, null);
+
+        cmd.run("set-is-allow-auto-update-schema public/default --disable --enable-for-replicator"
+                .split("\\s+"));
+        verify(namespaces, times(1)).setIsAllowAutoUpdateSchema("public/default", false, Boolean.TRUE);
+
+        cmd.run("set-is-allow-auto-update-schema public/default --enable --enable-for-replicator"
+                .split("\\s+"));
+        verify(namespaces, times(1)).setIsAllowAutoUpdateSchema("public/default", true, Boolean.TRUE);
+    }
 }

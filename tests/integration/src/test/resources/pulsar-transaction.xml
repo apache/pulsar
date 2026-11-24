@@ -23,6 +23,9 @@
     <test name="pulsar-transaction-test-suite" preserve-order="true" >
         <classes>
             <class name="org.apache.pulsar.tests.integration.transaction.TransactionTest" />
+            <class name="org.apache.pulsar.tests.integration.transaction.TcMetadataDiscoveryTest" />
+            <class name="org.apache.pulsar.tests.integration.transaction.V5ScalableTopicTransactionTest" />
+            <class name="org.apache.pulsar.tests.integration.transaction.V5ScalableTopicTransactionOnOxiaTest" />
         </classes>
     </test>
 </suite>

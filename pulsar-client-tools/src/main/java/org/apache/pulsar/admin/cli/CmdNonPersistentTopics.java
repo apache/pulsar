@@ -18,28 +18,29 @@
  */
 package org.apache.pulsar.admin.cli;
 
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.Parameters;
 import java.util.function.Supplier;
 import org.apache.pulsar.client.admin.NonPersistentTopics;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.Parameters;
 
 @SuppressWarnings("deprecation")
-@Parameters(commandDescription = "Operations on non-persistent topics", hidden = true)
+@Command(description = "Operations on non-persistent topics", hidden = true)
 public class CmdNonPersistentTopics extends CmdBase {
     private NonPersistentTopics nonPersistentTopics;
 
     public CmdNonPersistentTopics(Supplier<PulsarAdmin> admin) {
         super("non-persistent", admin);
 
-        jcommander.addCommand("create-partitioned-topic", new CreatePartitionedCmd());
-        jcommander.addCommand("lookup", new Lookup());
-        jcommander.addCommand("stats", new GetStats());
-        jcommander.addCommand("stats-internal", new GetInternalStats());
-        jcommander.addCommand("get-partitioned-topic-metadata", new GetPartitionedTopicMetadataCmd());
-        jcommander.addCommand("list", new GetList());
-        jcommander.addCommand("list-in-bundle", new GetListInBundle());
+        addCommand("create-partitioned-topic", new CreatePartitionedCmd());
+        addCommand("lookup", new Lookup());
+        addCommand("stats", new GetStats());
+        addCommand("stats-internal", new GetInternalStats());
+        addCommand("get-partitioned-topic-metadata", new GetPartitionedTopicMetadataCmd());
+        addCommand("list", new GetList());
+        addCommand("list-in-bundle", new GetListInBundle());
     }
 
     private NonPersistentTopics getNonPersistentTopics() {
@@ -49,99 +50,97 @@ public class CmdNonPersistentTopics extends CmdBase {
         return nonPersistentTopics;
     }
 
-    @Parameters(commandDescription = "Lookup a topic from the current serving broker")
+    @Command(description = "Lookup a topic from the current serving broker")
     private class Lookup extends CliCommand {
-        @Parameter(description = "non-persistent://tenant/namespace/topic", required = true)
-        private java.util.List<String> params;
+        @Parameters(description = "non-persistent://tenant/namespace/topic", arity = "1")
+        private String topicName;
 
         @Override
         void run() throws PulsarAdminException {
-            String topic = validateTopicName(params);
+            String topic = validateTopicName(topicName);
             print(getAdmin().lookups().lookupTopic(topic));
         }
     }
 
-    @Parameters(commandDescription = "Get the stats for the topic and its connected producers and consumers. "
+    @Command(description = "Get the stats for the topic and its connected producers and consumers. "
             + "All the rates are computed over a 1 minute window and are relative the last completed 1 minute period.")
     private class GetStats extends CliCommand {
-        @Parameter(description = "non-persistent://tenant/namespace/topic", required = true)
-        private java.util.List<String> params;
+        @Parameters(description = "non-persistent://tenant/namespace/topic", arity = "1")
+        private String topicName;
 
         @Override
         void run() throws PulsarAdminException {
-            String persistentTopic = validateNonPersistentTopic(params);
+            String persistentTopic = validateNonPersistentTopic(topicName);
             print(getNonPersistentTopics().getStats(persistentTopic));
         }
     }
 
-    @Parameters(commandDescription = "Get the internal stats for the topic")
+    @Command(description = "Get the internal stats for the topic")
     private class GetInternalStats extends CliCommand {
-        @Parameter(description = "non-persistent://tenant/namespace/topic", required = true)
-        private java.util.List<String> params;
+        @Parameters(description = "non-persistent://tenant/namespace/topic", arity = "1")
+        private String topicName;
 
         @Override
         void run() throws PulsarAdminException {
-            String persistentTopic = validateNonPersistentTopic(params);
+            String persistentTopic = validateNonPersistentTopic(topicName);
             print(getNonPersistentTopics().getInternalStats(persistentTopic));
         }
     }
 
-    @Parameters(commandDescription = "Create a partitioned topic. "
+    @Command(description = "Create a partitioned topic. "
             + "The partitioned topic has to be created before creating a producer on it.")
     private class CreatePartitionedCmd extends CliCommand {
 
-        @Parameter(description = "non-persistent://tenant/namespace/topic", required = true)
-        private java.util.List<String> params;
+        @Parameters(description = "non-persistent://tenant/namespace/topic", arity = "1")
+        private String topicName;
 
-        @Parameter(names = { "-p",
+        @Option(names = { "-p",
                 "--partitions" }, description = "Number of partitions for the topic", required = true)
         private int numPartitions;
 
         @Override
         void run() throws Exception {
-            String persistentTopic = validateNonPersistentTopic(params);
+            String persistentTopic = validateNonPersistentTopic(topicName);
             getNonPersistentTopics().createPartitionedTopic(persistentTopic, numPartitions);
         }
     }
 
-    @Parameters(commandDescription = "Get the partitioned topic metadata. "
+    @Command(description = "Get the partitioned topic metadata. "
             + "If the topic is not created or is a non-partitioned topic, it returns empty topic with 0 partitions")
     private class GetPartitionedTopicMetadataCmd extends CliCommand {
 
-        @Parameter(description = "non-persistent://tenant/namespace/topic", required = true)
-        private java.util.List<String> params;
+        @Parameters(description = "non-persistent://tenant/namespace/topic", arity = "1")
+        private String topicName;
 
         @Override
         void run() throws Exception {
-            String persistentTopic = validateNonPersistentTopic(params);
-            print(getNonPersistentTopics().getPartitionedTopicMetadata(persistentTopic));
+            String nonPersistentTopic = validateNonPersistentTopic(topicName);
+            print(getNonPersistentTopics().getPartitionedTopicMetadata(nonPersistentTopic));
         }
     }
 
-    @Parameters(commandDescription = "Get list of non-persistent topics present under a namespace")
+    @Command(description = "Get list of non-persistent topics present under a namespace")
     private class GetList extends CliCommand {
-        @Parameter(description = "tenant/namespace", required = true)
-        private java.util.List<String> params;
+        @Parameters(description = "tenant/namespace", arity = "1")
+        private String namespace;
 
         @Override
         void run() throws PulsarAdminException {
-            String namespace = validateNamespace(params);
             print(getNonPersistentTopics().getList(namespace));
         }
     }
 
-    @Parameters(commandDescription = "Get list of non-persistent topics present under a namespace bundle")
+    @Command(description = "Get list of non-persistent topics present under a namespace bundle")
     private class GetListInBundle extends CliCommand {
-        @Parameter(description = "tenant/namespace", required = true)
-        private java.util.List<String> params;
+        @Parameters(description = "tenant/namespace", arity = "1")
+        private String namespace;
 
-        @Parameter(names = { "-b",
+        @Option(names = { "-b",
                 "--bundle" }, description = "bundle range", required = true)
         private String bundleRange;
 
         @Override
         void run() throws PulsarAdminException {
-            String namespace = validateNamespace(params);
             print(getNonPersistentTopics().getListInBundle(namespace, bundleRange));
         }
     }

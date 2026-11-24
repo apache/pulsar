@@ -20,8 +20,7 @@ package org.apache.pulsar.common.policies.data;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -31,27 +30,27 @@ import org.apache.pulsar.common.policies.impl.AutoFailoverPolicyFactory;
 /**
  * The auto failover policy configuration data.
  */
-@ApiModel(
-        value = "AutoFailoverPolicyData",
+@Schema(
+        name = "AutoFailoverPolicyData",
         description = "The auto failover policy configuration data"
 )
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class AutoFailoverPolicyDataImpl implements AutoFailoverPolicyData {
-    @ApiModelProperty(
+    @Schema(
             name = "policy_type",
-            value = "The auto failover policy type",
-            allowableValues = "min_available"
+            description = "The auto failover policy type",
+            allowableValues = {"min_available"}
     )
     @JsonProperty("policy_type")
     private AutoFailoverPolicyType policyType;
 
-    @ApiModelProperty(
+    @Schema(
             name = "parameters",
-            value =
+            description =
                     "The parameters applied to the auto failover policy specified by `policy_type`.\n"
-                            + "The parameters for 'min_available' are :\n"
+                            + "The parameters for 'min_available' are:\n"
                             + "  - 'min_limit': the limit of minimal number of available brokers in primary"
                             + " group before auto failover\n"
                             + "  - 'usage_threshold': the resource usage threshold. If the usage of a broker"

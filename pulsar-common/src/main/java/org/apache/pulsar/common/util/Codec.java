@@ -18,33 +18,19 @@
  */
 package org.apache.pulsar.common.util;
 
-import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  */
 public class Codec {
-    private static final Logger LOG = LoggerFactory.getLogger(Codec.class);
 
     public static String encode(String s) {
-        try {
-            return URLEncoder.encode(s, StandardCharsets.UTF_8.toString());
-        } catch (UnsupportedEncodingException e) {
-            LOG.error(String.format("%s is Unknown", StandardCharsets.UTF_8.toString()) + "exception - [{}]", e);
-            return s;
-        }
+        return URLEncoder.encode(s, StandardCharsets.UTF_8);
     }
 
     public static String decode(String s) {
-        try {
-            return URLDecoder.decode(s, StandardCharsets.UTF_8.toString());
-        } catch (UnsupportedEncodingException e) {
-            LOG.error(String.format("%s is Unknown", StandardCharsets.UTF_8.toString()) + "exception - [{}]", e);
-            return s;
-        }
+        return URLDecoder.decode(s, StandardCharsets.UTF_8);
     }
 }

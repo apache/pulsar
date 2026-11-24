@@ -24,6 +24,7 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import io.opentelemetry.api.common.Attributes;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -36,6 +37,9 @@ import lombok.Cleanup;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.Dispatcher;
+import org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil;
+import org.apache.pulsar.broker.stats.OpenTelemetryTopicStats;
+import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -44,7 +48,9 @@ import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
+import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -57,16 +63,26 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
     @Override
     @BeforeClass
     public void setup() throws Exception {
-        conf.setDelayedDeliveryTickTimeMillis(1024);
+        // Delayed messages can be delivered up to a tick early: a message delayed by 3 s stays back for 2.9 s
+        conf.setDelayedDeliveryTickTimeMillis(100);
         conf.setDispatcherReadFailureBackoffInitialTimeInMs(1000);
         super.internalSetup();
         super.producerBaseSetup();
+        // With the mock BookKeeper's default 1 ms per add, publishing 1000 messages would take about as long as the
+        // delays: the tests check that nothing is delivered once they are published
+        pulsarTestContext.getMockBookKeeper().setDefaultAddEntryDelayMillis(0);
     }
 
     @Override
     @AfterClass(alwaysRun = true)
     public void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @Override
+    protected void customizeMainPulsarTestContextBuilder(PulsarTestContext.Builder pulsarTestContextBuilder) {
+        super.customizeMainPulsarTestContextBuilder(pulsarTestContextBuilder);
+        pulsarTestContextBuilder.enableOpenTelemetry(true);
     }
 
     @Test
@@ -95,7 +111,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         for (int i = 0; i < 10; i++) {
             producer.newMessage()
                     .value("msg-" + i)
-                    .deliverAfter(5, TimeUnit.SECONDS)
+                    .deliverAfter(3, TimeUnit.SECONDS)
                     .sendAsync();
         }
 
@@ -105,6 +121,16 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         // the shared consumer will get them after the delay
         Message<String> msg = sharedConsumer.receive(100, TimeUnit.MILLISECONDS);
         assertNull(msg);
+
+        var attributes = Attributes.builder()
+                .put(OpenTelemetryAttributes.PULSAR_DOMAIN, "persistent")
+                .put(OpenTelemetryAttributes.PULSAR_TENANT, "public")
+                .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, "public/default")
+                .put(OpenTelemetryAttributes.PULSAR_TOPIC, "persistent://public/default/" + topic)
+                .build();
+        var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
+        BrokerOpenTelemetryTestUtil.assertMetricLongSumValue(metrics,
+                OpenTelemetryTopicStats.DELAYED_SUBSCRIPTION_COUNTER, attributes, 10);
 
         for (int i = 0; i < 10; i++) {
             msg = failoverConsumer.receive(100, TimeUnit.MILLISECONDS);
@@ -148,7 +174,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
 
             producer.newMessage()
                     .value("delayed-msg-" + i)
-                    .deliverAfter(5, TimeUnit.SECONDS)
+                    .deliverAfter(3, TimeUnit.SECONDS)
                     .sendAsync();
         }
 
@@ -195,17 +221,20 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         for (int i = 0; i < 10; i++) {
             producer.newMessage()
                     .value("msg-" + i)
-                    .deliverAfter(5, TimeUnit.SECONDS)
+                    .deliverAfter(3, TimeUnit.SECONDS)
                     .send();
         }
 
-        Thread.sleep(1000);
+        // The dispatcher has read the first batch and filtered all of it
+        Dispatcher dispatcher = pulsar.getBrokerService().getTopicReference(TopicName.get(topic).toString()).get()
+                .getSubscription("shared-sub").getDispatcher();
+        Awaitility.await().untilAsserted(() -> assertEquals(dispatcher.getNumberOfDelayedMessages(), 10));
 
         // Write a 2nd batch of messages
         for (int i = 10; i < 20; i++) {
             producer.newMessage()
                     .value("msg-" + i)
-                    .deliverAfter(5, TimeUnit.SECONDS)
+                    .deliverAfter(3, TimeUnit.SECONDS)
                     .send();
         }
 
@@ -238,12 +267,14 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
                 .subscribe();
 
         // Simulate race condition with high frequency of calls to dispatcher.readMoreEntries()
-        PersistentDispatcherMultipleConsumers d = (PersistentDispatcherMultipleConsumers) ((PersistentTopic) pulsar
-                .getBrokerService().getTopicReference(topic).get()).getSubscription("shared-sub").getDispatcher();
+        AbstractPersistentDispatcherMultipleConsumers d =
+                (AbstractPersistentDispatcherMultipleConsumers) ((PersistentTopic) pulsar
+                        .getBrokerService().getTopicReference(topic).get()).getSubscription("shared-sub")
+                        .getDispatcher();
         Thread t = new Thread(() -> {
             while (true) {
                 synchronized (d) {
-                    d.readMoreEntries();
+                    d.readMoreEntriesAsync();
                 }
 
                 try {
@@ -260,12 +291,12 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
                 .topic(topic)
                 .create();
 
-        final int N = 1000;
+        final int num = 1000;
 
-        for (int i = 0; i < N; i++) {
+        for (int i = 0; i < num; i++) {
             producer.newMessage()
                     .value("msg-" + i)
-                    .deliverAfter(5, TimeUnit.SECONDS)
+                    .deliverAfter(3, TimeUnit.SECONDS)
                     .sendAsync();
         }
 
@@ -275,13 +306,13 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         assertNull(msg);
 
         Set<String> receivedMsgs = new TreeSet<>();
-        for (int i = 0; i < N; i++) {
+        for (int i = 0; i < num; i++) {
             msg = consumer.receive(10, TimeUnit.SECONDS);
             receivedMsgs.add(msg.getValue());
         }
 
-        assertEquals(receivedMsgs.size(), N);
-        for (int i = 0; i < N; i++) {
+        assertEquals(receivedMsgs.size(), num);
+        for (int i = 0; i < num; i++) {
             assertTrue(receivedMsgs.contains("msg-" + i));
         }
         t.interrupt();
@@ -303,31 +334,32 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
                 .topic(topic)
                 .create();
 
-        final int N = 1000;
+        final int num = 1000;
 
-        for (int i = 0; i < N; i++) {
+        for (int i = 0; i < num; i++) {
             producer.newMessage()
                     .value("msg-" + i)
-                    .deliverAfter(5, TimeUnit.SECONDS)
+                    .deliverAfter(2, TimeUnit.SECONDS)
                     .send();
         }
 
-        List<Message<String>> receives = new ArrayList<>(N);
-        for (int i = 0; i < N; i++) {
+        List<Message<String>> receives = new ArrayList<>(num);
+        for (int i = 0; i < num; i++) {
             Message<String> received = consumer.receive();
             receives.add(received);
             consumer.acknowledge(received);
         }
 
-        assertEquals(receives.size(), N);
+        assertEquals(receives.size(), num);
 
-        for (int i = 0; i < N; i++) {
-            if (i < N - 1) {
+        for (int i = 0; i < num; i++) {
+            if (i < num - 1) {
                 assertTrue(receives.get(i).getMessageId().compareTo(receives.get(i + 1).getMessageId()) < 0);
             }
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 20000)
     public void testEnableAndDisableTopicDelayedDelivery() throws Exception {
         String topicName = "persistent://public/default/topic-" + UUID.randomUUID();
@@ -364,6 +396,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         assertNull(admin.topics().getDelayedDeliveryPolicy(topicName));
     }
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 20000)
     public void testEnableTopicDelayedDelivery() throws Exception {
         final String topicName = "persistent://public/default/test" + UUID.randomUUID().toString();
@@ -399,17 +432,17 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         for (int i = 0; i < 10; i++) {
             producer.newMessage()
                     .value("delayed-msg-" + i)
-                    .deliverAfter(5, TimeUnit.SECONDS)
+                    .deliverAfter(4, TimeUnit.SECONDS)
                     .sendAsync();
         }
         producer.flush();
 
-        //4 There will be no message in the first 3 seconds
-        assertNull(consumer.receive(3, TimeUnit.SECONDS));
+        //4 There will be no message in the first second
+        assertNull(consumer.receive(1, TimeUnit.SECONDS));
 
         Set<String> delayedMessages = new HashSet<>();
         for (int i = 0; i < 10; i++) {
-            Message<String> msg = consumer.receive(4, TimeUnit.SECONDS);
+            Message<String> msg = consumer.receive(5, TimeUnit.SECONDS);
             delayedMessages.add(msg.getValue());
             consumer.acknowledge(msg);
         }
@@ -460,16 +493,17 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
                 break;
             }
         }
-        producer.newMessage().value("long-tick-msg").deliverAfter(2, TimeUnit.SECONDS).send();
+        producer.newMessage().value("long-tick-msg").deliverAfter(3, TimeUnit.SECONDS).send();
         msg = consumer.receive(1, TimeUnit.SECONDS);
         assertNull(msg);
-        msg = consumer.receive(3, TimeUnit.SECONDS);
+        msg = consumer.receive(4, TimeUnit.SECONDS);
         assertNotNull(msg);
     }
 
     @Test
     public void testClearDelayedMessagesWhenClearBacklog() throws PulsarClientException, PulsarAdminException {
-        final String topic = "persistent://public/default/testClearDelayedMessagesWhenClearBacklog-" + UUID.randomUUID().toString();
+        final String topic = "persistent://public/default/testClearDelayedMessagesWhenClearBacklog-"
+                + UUID.randomUUID().toString();
         final String subName = "my-sub";
         @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
@@ -487,7 +521,8 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
             producer.newMessage().deliverAfter(1, TimeUnit.HOURS).value("Delayed Message - " + i).send();
         }
 
-        Dispatcher dispatcher = pulsar.getBrokerService().getTopicReference(topic).get().getSubscription(subName).getDispatcher();
+        Dispatcher dispatcher = pulsar.getBrokerService().getTopicReference(topic)
+                .get().getSubscription(subName).getDispatcher();
         Awaitility.await().untilAsserted(() -> Assert.assertEquals(dispatcher.getNumberOfDelayedMessages(), messages));
 
         admin.topics().skipAllMessages(topic, subName);
@@ -511,10 +546,11 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
 
         producer.newMessage()
                     .value("msg")
-                    .deliverAfter(5, TimeUnit.SECONDS)
+                    .deliverAfter(3, TimeUnit.SECONDS)
                     .send();
 
-        Dispatcher dispatcher = pulsar.getBrokerService().getTopicReference(topic).get().getSubscription("sub").getDispatcher();
+        Dispatcher dispatcher = pulsar.getBrokerService().getTopicReference(topic)
+                .get().getSubscription("sub").getDispatcher();
         Awaitility.await().untilAsserted(() -> Assert.assertEquals(dispatcher.getNumberOfDelayedMessages(), 1));
 
         c1.close();
@@ -563,12 +599,12 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
                     .value("immediate-msg-" + i)
                     .sendAsync();
 
-            int delayMillis = 1000 + random.nextInt(1000);
+            int delayMillis = 300 + random.nextInt(300);
             producer.newMessage()
                     .value("delayed-msg-" + i)
                     .deliverAfter(delayMillis, TimeUnit.MILLISECONDS)
                     .sendAsync();
-            Thread.sleep(1000);
+            Thread.sleep(300);
         }
 
         producer.flush();
@@ -601,7 +637,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         for (int i = 0; i < 10; i++) {
             producer.newMessage()
                     .value("msg-" + i)
-                    .deliverAfter(5, TimeUnit.SECONDS)
+                    .deliverAfter(3, TimeUnit.SECONDS)
                     .sendAsync();
         }
 
@@ -624,6 +660,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
             assertTrue(receivedMsgs.contains("msg-" + i));
         }
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testDelayedDeliveryExceedsMaxDelay() throws Exception {

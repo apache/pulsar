@@ -20,14 +20,14 @@
 package org.apache.pulsar.tests.integration.containers;
 
 import java.io.IOException;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
 
 /**
- * Initialize the Pulsar metadata
+ * Initialize the Pulsar metadata.
  */
-@Slf4j
+@CustomLog
 public class PulsarInitMetadataContainer extends GenericContainer<PulsarInitMetadataContainer> {
 
     public static final String NAME = "init-metadata";
@@ -37,6 +37,7 @@ public class PulsarInitMetadataContainer extends GenericContainer<PulsarInitMeta
     private final String configurationMetadataStoreUrl;
     private final String brokerHostname;
 
+    @SuppressWarnings("deprecation")
     public PulsarInitMetadataContainer(Network network,
                                        String clusterName,
                                        String metadataStoreUrl,
@@ -50,6 +51,13 @@ public class PulsarInitMetadataContainer extends GenericContainer<PulsarInitMeta
         withNetwork(network);
 
         setCommand("sleep 1000000");
+        // The container only sleeps, so its environment is for the initialize-cluster-metadata command run in it: a
+        // short-lived JVM that writes a few metadata nodes and keeps less than 20 MB of heap live. Replace the broker
+        // defaults of conf/pulsar_env.sh, a 2 GB ZGC heap that the JVM pre-touches as it starts, with a small heap
+        // that the Serial GC manages, and compile with C1 only, which makes the command start and finish faster.
+        withEnv("PULSAR_MEM", "-Xmx256m");
+        withEnv("PULSAR_GC", "-XX:+UseSerialGC");
+        withEnv("PULSAR_EXTRA_OPTS", "-XX:TieredStopAtLevel=1");
     }
 
 
@@ -67,9 +75,10 @@ public class PulsarInitMetadataContainer extends GenericContainer<PulsarInitMeta
         if (res.getExitCode() == 0) {
             log.info("Successfully initialized cluster");
         } else {
-            log.warn("Failed to initialize Pulsar cluster. exit code: " + res.getExitCode());
-            log.warn("STDOUT: " + res.getStdout());
-            log.warn("STDERR: " + res.getStderr());
+            log.warn().attr("exitCode", res.getExitCode())
+                    .attr("stdout", res.getStdout())
+                    .attr("stderr", res.getStderr())
+                    .log("Failed to initialize Pulsar cluster");
             throw new IOException("Failed to initialized Pulsar Cluster");
         }
     }

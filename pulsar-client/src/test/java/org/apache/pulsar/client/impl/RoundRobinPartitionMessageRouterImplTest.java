@@ -22,11 +22,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
-
 import org.apache.pulsar.client.api.HashingScheme;
 import org.apache.pulsar.client.api.Message;
 import org.mockito.Mockito;

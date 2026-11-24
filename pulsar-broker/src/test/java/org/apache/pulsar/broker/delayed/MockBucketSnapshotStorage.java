@@ -18,7 +18,8 @@
  */
 package org.apache.pulsar.broker.delayed;
 
-import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -34,24 +35,29 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.delayed.bucket.BucketSnapshotStorage;
 import org.apache.pulsar.broker.delayed.proto.SnapshotMetadata;
 import org.apache.pulsar.broker.delayed.proto.SnapshotSegment;
 import org.apache.pulsar.common.util.FutureUtil;
 
-@Slf4j
+@CustomLog
 public class MockBucketSnapshotStorage implements BucketSnapshotStorage {
 
     private final AtomicLong maxBucketId;
 
     private final Map<Long, List<ByteBuf>> bucketSnapshots;
 
-    private final ExecutorService executorService =
-            new ThreadPoolExecutor(10, 20, 30, TimeUnit.SECONDS, new LinkedBlockingQueue<>(),
-                    new DefaultThreadFactory("bucket-snapshot-storage-io"));
+    private final ExecutorService executorService;
 
     public MockBucketSnapshotStorage() {
+        this(new ThreadPoolExecutor(10, 20, 30, TimeUnit.SECONDS, new LinkedBlockingQueue<>(),
+                new DefaultThreadFactory("bucket-snapshot-storage-io")));
+    }
+
+    @VisibleForTesting
+    MockBucketSnapshotStorage(ExecutorService executorService) {
+        this.executorService = executorService;
         this.bucketSnapshots = new ConcurrentHashMap<>();
         this.maxBucketId = new AtomicLong();
     }
@@ -117,12 +123,9 @@ public class MockBucketSnapshotStorage implements BucketSnapshotStorage {
         }
         return CompletableFuture.supplyAsync(() -> {
             ByteBuf byteBuf = this.bucketSnapshots.get(bucketId).get(0);
-            SnapshotMetadata snapshotMetadata;
-            try {
-                snapshotMetadata = SnapshotMetadata.parseFrom(byteBuf.nioBuffer());
-            } catch (InvalidProtocolBufferException e) {
-                throw new RuntimeException(e);
-            }
+            SnapshotMetadata snapshotMetadata = new SnapshotMetadata();
+            ByteBuf slice = byteBuf.slice();
+            snapshotMetadata.parseFrom(slice, slice.readableBytes());
             return snapshotMetadata;
         }, executorService);
     }
@@ -137,10 +140,12 @@ public class MockBucketSnapshotStorage implements BucketSnapshotStorage {
         return CompletableFuture.supplyAsync(() -> {
             List<SnapshotSegment> snapshotSegments = new ArrayList<>();
             long lastEntryId = Math.min(lastSegmentEntryId, this.bucketSnapshots.get(bucketId).size());
-            for (int i = (int) firstSegmentEntryId; i <= lastEntryId ; i++) {
+            for (int i = (int) firstSegmentEntryId; i <= lastEntryId; i++) {
                 ByteBuf byteBuf = this.bucketSnapshots.get(bucketId).get(i);
                 SnapshotSegment snapshotSegment = new SnapshotSegment();
-                snapshotSegment.parseFrom(byteBuf, byteBuf.readableBytes());
+                // Parse from a slice so the stored buffer stays re-readable, like a real storage.
+                ByteBuf slice = byteBuf.slice();
+                snapshotSegment.parseFrom(slice, slice.readableBytes());
                 snapshotSegments.add(snapshotSegment);
             }
             return snapshotSegments;
@@ -187,12 +192,15 @@ public class MockBucketSnapshotStorage implements BucketSnapshotStorage {
     }
 
     public void clean() {
+        // Wait for the executor to terminate before releasing snapshot buffers.
+        if (!MoreExecutors.shutdownAndAwaitTermination(executorService, 20, TimeUnit.SECONDS)) {
+            throw new IllegalStateException("Bucket snapshot storage executor did not terminate");
+        }
         for (List<ByteBuf> value : bucketSnapshots.values()) {
             for (ByteBuf byteBuf : value) {
                 byteBuf.release();
             }
         }
         bucketSnapshots.clear();
-        executorService.shutdownNow();
     }
 }

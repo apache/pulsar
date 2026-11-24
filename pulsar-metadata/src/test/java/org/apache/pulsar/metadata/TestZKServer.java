@@ -25,10 +25,15 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.lang.reflect.Field;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Properties;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import lombok.CustomLog;
 import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 import org.apache.zookeeper.server.ContainerManager;
 import org.apache.zookeeper.server.ServerCnxnFactory;
@@ -38,13 +43,21 @@ import org.apache.zookeeper.server.embedded.ExitHandler;
 import org.apache.zookeeper.server.embedded.ZooKeeperServerEmbedded;
 import org.assertj.core.util.Files;
 
-@Slf4j
+@CustomLog
+@SuppressWarnings("try")
 public class TestZKServer implements AutoCloseable {
 
     public static final int TICK_TIME = 1000;
 
     private final File zkDataDir;
-    private int zkPort; // initially this is zero
+    // Clients connect to this port, which stays bound until close(), and reach the server through a proxy. A
+    // restart can't bind the server's previous port again: while the server is stopped, that ephemeral-range port
+    // is free for anyone, e.g. a Docker port mapping in another test fork, and the restart would then fail with
+    // "Address already in use".
+    private final ServerSocket proxyServerSocket;
+    private final Set<Socket> proxiedSockets = ConcurrentHashMap.newKeySet();
+    // The running server's own address, or null while it is stopped; guarded by this
+    private InetSocketAddress serverAddress;
     private ZooKeeperServerEmbedded zooKeeperServerEmbedded;
 
     public TestZKServer() throws Exception {
@@ -54,12 +67,15 @@ public class TestZKServer implements AutoCloseable {
         System.setProperty("zookeeper.4lw.commands.whitelist", "*");
         // disable the admin server as to not have any port conflicts
         System.setProperty("zookeeper.admin.enableServer", "false");
+        proxyServerSocket = new ServerSocket(0);
+        Thread.ofVirtual().name("test-zk-proxy-acceptor").start(this::acceptConnections);
         start();
     }
 
     public void start() throws Exception {
         final Properties configZookeeper = new Properties();
-        configZookeeper.put("clientPort", zkPort + "");
+        // Any free port: clients use the proxy port, which doesn't change
+        configZookeeper.put("clientPort", "0");
         configZookeeper.put("host", "127.0.0.1");
         configZookeeper.put("ticktime", TICK_TIME + "");
         zooKeeperServerEmbedded = ZooKeeperServerEmbedded
@@ -70,15 +86,74 @@ public class TestZKServer implements AutoCloseable {
                 .build();
 
         zooKeeperServerEmbedded.start(60_000);
-        log.info("Started test ZK server on at {}", zooKeeperServerEmbedded.getConnectionString());
 
         ZooKeeperServerMain zooKeeperServerMain = getZooKeeperServerMain(zooKeeperServerEmbedded);
-        ServerCnxnFactory serverCnxnFactory = getServerCnxnFactory(zooKeeperServerMain);
-        // save the port, in order to allow restarting on the same port
-        zkPort = serverCnxnFactory.getLocalPort();
-
-        boolean zkServerReady = waitForServerUp(this.getConnectionString(), 30_000);
+        int serverPort = getServerCnxnFactory(zooKeeperServerMain).getLocalPort();
+        boolean zkServerReady = waitForServerUp("localhost:" + serverPort, 30_000);
         assertTrue(zkServerReady);
+        synchronized (this) {
+            serverAddress = new InetSocketAddress(InetAddress.getLoopbackAddress(), serverPort);
+        }
+        log.info().attr("connectionString", getConnectionString()).attr("serverPort", serverPort)
+                .log("Started test ZK server");
+    }
+
+    private void acceptConnections() {
+        while (true) {
+            Socket client;
+            try {
+                client = proxyServerSocket.accept();
+            } catch (IOException e) {
+                // close() closed the proxy server socket
+                return;
+            }
+            Socket server = connectToServer(client);
+            if (server == null) {
+                // The server is stopped: drop the connection, as the client then retries like on a refused one
+                closeQuietly(client);
+                continue;
+            }
+            Thread.ofVirtual().name("test-zk-proxy").start(() -> forward(client, server));
+            Thread.ofVirtual().name("test-zk-proxy").start(() -> forward(server, client));
+        }
+    }
+
+    // Registered under the lock that stop() takes, so no connection to a stopping server outlives stop()
+    private synchronized Socket connectToServer(Socket client) {
+        if (serverAddress == null) {
+            return null;
+        }
+        Socket server = new Socket();
+        try {
+            client.setTcpNoDelay(true);
+            server.setTcpNoDelay(true);
+            server.connect(serverAddress);
+        } catch (IOException e) {
+            closeQuietly(server);
+            return null;
+        }
+        proxiedSockets.add(client);
+        proxiedSockets.add(server);
+        return server;
+    }
+
+    private void forward(Socket from, Socket to) {
+        try (from; to) {
+            from.getInputStream().transferTo(to.getOutputStream());
+        } catch (IOException e) {
+            // Either side closed the connection, which the try-with-resources propagates to the other side
+        } finally {
+            proxiedSockets.remove(from);
+            proxiedSockets.remove(to);
+        }
+    }
+
+    private static void closeQuietly(Socket socket) {
+        try {
+            socket.close();
+        } catch (IOException e) {
+            // ignore
+        }
     }
 
     @SneakyThrows
@@ -90,7 +165,8 @@ public class TestZKServer implements AutoCloseable {
 
     @SneakyThrows
     private static ContainerManager getContainerManager(ZooKeeperServerMain zooKeeperServerMain) {
-        ContainerManager containerManager = readField(ZooKeeperServerMain.class, "containerManager", zooKeeperServerMain);
+        ContainerManager containerManager = readField(ZooKeeperServerMain.class,
+                "containerManager", zooKeeperServerMain);
         return containerManager;
     }
 
@@ -101,8 +177,9 @@ public class TestZKServer implements AutoCloseable {
         return zkServer;
     }
 
+    @SuppressWarnings({"deprecation", "unchecked"})
     @SneakyThrows
-    private static <T> T readField(Class clazz, String field, Object object) {
+    private static <T> T readField(Class<?> clazz, String field, Object object) {
         Field declaredField = clazz.getDeclaredField(field);
         boolean accessible = declaredField.isAccessible();
         if (!accessible) {
@@ -129,8 +206,14 @@ public class TestZKServer implements AutoCloseable {
     }
 
     public void stop() throws Exception {
+        synchronized (this) {
+            // Drop the clients' connections and refuse new ones, as the stopped server would
+            serverAddress = null;
+            proxiedSockets.forEach(TestZKServer::closeQuietly);
+        }
         if (zooKeeperServerEmbedded != null) {
             zooKeeperServerEmbedded.close();
+            zooKeeperServerEmbedded = null;
         }
         log.info("Stopped test ZK server");
     }
@@ -140,15 +223,21 @@ public class TestZKServer implements AutoCloseable {
                 .expire(sessionId);
     }
 
+    public void setMultiReadLimits(int maxOps, long maxResponseBytes) {
+        ZooKeeperServer zkServer = getZooKeeperServer(getZooKeeperServerMain(zooKeeperServerEmbedded));
+        zkServer.setMultiReadMaxOps(maxOps);
+        zkServer.setMultiReadMaxResponseBytes(maxResponseBytes);
+    }
+
     @Override
     public void close() throws Exception {
         stop();
+        proxyServerSocket.close();
         FileUtils.deleteDirectory(zkDataDir);
     }
 
-    @SneakyThrows
     public String getConnectionString() {
-        return zooKeeperServerEmbedded.getConnectionString();
+        return "localhost:" + proxyServerSocket.getLocalPort();
     }
 
     public static boolean waitForServerUp(String hp, long timeout) {
@@ -179,7 +268,7 @@ public class TestZKServer implements AutoCloseable {
                 }
             } catch (IOException e) {
                 // ignore as this is expected
-                log.info("ZK server {} not up: {}", hp, e.getMessage());
+                log.info().attr("server", hp).exceptionMessage(e).log("ZK server not up");
             }
 
             if (System.currentTimeMillis() > start + timeout) {

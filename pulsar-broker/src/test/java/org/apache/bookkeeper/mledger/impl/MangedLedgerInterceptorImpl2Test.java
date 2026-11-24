@@ -18,26 +18,26 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import static org.apache.pulsar.broker.intercept.ManagedLedgerInterceptorImplTest.TestPayloadProcessor;
 import static org.testng.Assert.assertEquals;
-import static org.apache.pulsar.broker.intercept.MangedLedgerInterceptorImplTest.TestPayloadProcessor;
 import java.util.HashSet;
 import java.util.Set;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.pulsar.broker.intercept.ManagedLedgerInterceptorImpl;
-import org.apache.pulsar.broker.intercept.MangedLedgerInterceptorImplTest;
+import org.apache.pulsar.broker.intercept.ManagedLedgerInterceptorImplTest;
 import org.apache.pulsar.common.intercept.ManagedLedgerPayloadProcessor;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
 /***
- * Differ to {@link MangedLedgerInterceptorImplTest}, this test can call {@link ManagedLedgerImpl}'s methods modified
+ * Differ to {@link ManagedLedgerInterceptorImplTest}, this test can call {@link ManagedLedgerImpl}'s methods modified
  * by "default".
  */
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class MangedLedgerInterceptorImpl2Test extends MockedBookKeeperTestCase {
 
@@ -57,9 +57,9 @@ public class MangedLedgerInterceptorImpl2Test extends MockedBookKeeperTestCase {
 
         // Registry interceptor.
         ManagedLedgerConfig config = new ManagedLedgerConfig();
-        Set<ManagedLedgerPayloadProcessor> processors = new HashSet();
+        Set<ManagedLedgerPayloadProcessor> processors = new HashSet<>();
         processors.add(new TestPayloadProcessor());
-        ManagedLedgerInterceptor interceptor = new ManagedLedgerInterceptorImpl(new HashSet(), processors);
+        ManagedLedgerInterceptor interceptor = new ManagedLedgerInterceptorImpl(new HashSet<>(), processors);
         config.setManagedLedgerInterceptor(interceptor);
         config.setMaxEntriesPerLedger(100);
 
@@ -73,7 +73,7 @@ public class MangedLedgerInterceptorImpl2Test extends MockedBookKeeperTestCase {
         switchLedgerManually(ledger);
 
         // verify.
-        assertEquals(currentLedgerSize, MangedLedgerInterceptorImplTest.calculatePreciseSize(ledger));
+        assertEquals(currentLedgerSize, ManagedLedgerInterceptorImplTest.calculatePreciseSize(ledger));
 
         // cleanup.
         cursor.close();

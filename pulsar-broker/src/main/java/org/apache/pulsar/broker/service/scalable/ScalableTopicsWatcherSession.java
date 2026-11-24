@@ -1,0 +1,413 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.pulsar.broker.service.scalable;
+
+import io.github.merlimat.slog.Logger;
+import io.netty.channel.ChannelFuture;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import lombok.Getter;
+import org.apache.pulsar.broker.resources.ScalableTopicMetadata;
+import org.apache.pulsar.broker.resources.ScalableTopicResources;
+import org.apache.pulsar.broker.service.ServerCnx;
+import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.topics.TopicList;
+import org.apache.pulsar.common.util.Codec;
+import org.apache.pulsar.metadata.api.Notification;
+import org.apache.pulsar.metadata.api.NotificationType;
+
+/**
+ * Broker-side handler for a multi-topic consumer's namespace watch session.
+ *
+ * <p>Watches the metadata store for scalable-topic create / modify / delete events
+ * under a given namespace, evaluates them against a (possibly empty) set of property
+ * filters, and pushes the matching set to the client. The client receives:
+ * <ul>
+ *   <li>One {@code Snapshot} on subscribe (and on every reconnect-resync).</li>
+ *   <li>One {@code Diff} per coalescing window when membership changes.</li>
+ * </ul>
+ *
+ * <p>Tied to a connection — drop the session when the channel goes away. The client
+ * re-opens a fresh watch on reconnect; the new session emits a fresh snapshot and
+ * the client reconciles locally.
+ *
+ * <p>Any broker can serve this role: every broker observes the same metadata events
+ * via the registered listener, so no coordinator is needed at the namespace level.
+ */
+public class ScalableTopicsWatcherSession implements ScalableTopicResources.NamespaceListener {
+
+    private static final Logger LOG = Logger.get(ScalableTopicsWatcherSession.class);
+    /**
+     * Window over which back-to-back metadata events are batched into one Diff frame.
+     * Small enough to feel "live", large enough to amortise rapid bursts (e.g. test
+     * setups that create N topics in a tight loop).
+     */
+    private static final Duration COALESCE_WINDOW = Duration.ofMillis(50);
+
+    private final Logger log;
+
+    @Getter
+    private final long watchId;
+    private final NamespaceName namespace;
+    private final Map<String, String> propertyFilters;
+    /**
+     * Hash of the topic set the client believes it has. Optional: present on
+     * reconnect, absent on first subscribe. When equal to the freshly-computed
+     * hash on the broker, {@link #start()} skips emitting the initial snapshot —
+     * the client's state is already correct.
+     */
+    private final String clientHash;
+    private final ServerCnx cnx;
+    private final ScalableTopicResources resources;
+    private final ScheduledExecutorService scheduler;
+
+    /** {@code /topics/<tenant>/<namespace>} — direct children are scalable topic records. */
+    private final String basePath;
+
+    /**
+     * Topics currently in the matching set. Maintained server-side so we can detect
+     * actual membership flips on Modified events (filter changes a topic in/out).
+     * Topic names are fully-qualified ({@code topic://tenant/ns/name}).
+     */
+    private final Set<String> currentSet = Collections.synchronizedSet(new HashSet<>());
+
+    /**
+     * Id of each topic's latest metadata read, while that read is in flight: the read started by
+     * the topic's latest Created / Modified event, or by {@link #start()} for a topic that changed
+     * while the initial listing was in flight. Only that read may change the topic's membership:
+     * an earlier one — or one still in flight when the topic is deleted — may have seen an older
+     * record, and applying it would undo the later event, e.g. bring a deleted topic back. Guarded
+     * by {@code currentSet}'s monitor, together with the membership changes it gates.
+     */
+    private final Map<String, Long> inFlightReads = new HashMap<>();
+    private long lastReadId;
+
+    /**
+     * Last event of each topic that changed while the initial listing was in flight, or
+     * {@code null} once the listing has been applied. The listing may have read the store
+     * before or after any of these events, so it can't be trusted for these topics:
+     * {@link #start()} settles them once the listing is in place. Guarded by
+     * {@code currentSet}'s monitor.
+     */
+    private Map<String, NotificationType> changedDuringListing = new HashMap<>();
+
+    private final AtomicBoolean closed = new AtomicBoolean();
+    private final AtomicBoolean snapshotEmitted = new AtomicBoolean();
+    private final AtomicBoolean initialResponseCompleted = new AtomicBoolean();
+    private final AtomicBoolean metricsTrackingStopped = new AtomicBoolean();
+    private final ScalableTopicMetrics metrics;
+    private final ScalableTopicMetrics.Request request;
+
+    // --- Coalescing state. All three fields guarded by `coalesceLock`. ---
+    private final Object coalesceLock = new Object();
+    private final LinkedHashSet<String> pendingAdded = new LinkedHashSet<>();
+    private final LinkedHashSet<String> pendingRemoved = new LinkedHashSet<>();
+    private boolean flushScheduled = false;
+
+    public ScalableTopicsWatcherSession(long watchId,
+                                         NamespaceName namespace,
+                                         Map<String, String> propertyFilters,
+                                         String clientHash,
+                                         ServerCnx cnx,
+                                         ScalableTopicResources resources,
+                                         ScheduledExecutorService scheduler) {
+        this(watchId, namespace, propertyFilters, clientHash, cnx, resources, scheduler,
+                cnx.getBrokerService() == null ? null : cnx.getBrokerService().getScalableTopicMetrics(), null);
+    }
+
+    public ScalableTopicsWatcherSession(long watchId,
+                                         NamespaceName namespace,
+                                         Map<String, String> propertyFilters,
+                                         String clientHash,
+                                         ServerCnx cnx,
+                                         ScalableTopicResources resources,
+                                         ScheduledExecutorService scheduler,
+                                         ScalableTopicMetrics metrics,
+                                         ScalableTopicMetrics.Request request) {
+        this.watchId = watchId;
+        this.namespace = namespace;
+        this.propertyFilters = propertyFilters == null ? Map.of() : propertyFilters;
+        this.clientHash = clientHash;
+        this.cnx = cnx;
+        this.resources = resources;
+        this.scheduler = scheduler;
+        this.basePath = resources.namespacePath(namespace);
+        this.log = LOG.with()
+                .attr("namespace", namespace)
+                .attr("watchId", watchId)
+                .attr("filters", this.propertyFilters)
+                .build();
+        this.metrics = metrics;
+        this.request = request;
+        if (metrics != null) {
+            metrics.sessionOpened(ScalableTopicMetrics.WatchType.NAMESPACE);
+        }
+    }
+
+    @Override
+    public NamespaceName getNamespaceName() {
+        return namespace;
+    }
+
+    /**
+     * Start the watch: register on the namespace listener registry first (so events
+     * during snapshot computation are queued, not lost), compute the initial filtered
+     * set, then emit the {@code Snapshot} frame. After that, deltas flow through the
+     * listener.
+     */
+    public CompletableFuture<Void> start() {
+        // Register BEFORE computing the initial set, so that no event is lost. An event that
+        // arrives before the listing completes may or may not be reflected in it: it is only
+        // recorded in changedDuringListing, and settled once the listing is in place.
+        resources.registerNamespaceListener(this);
+
+        return resources.findScalableTopicsByPropertiesAsync(namespace, propertyFilters)
+                .thenAccept(listedTopics -> {
+                    if (closed.get()) {
+                        return;
+                    }
+                    List<String> initialTopics;
+                    List<String> topicsToRead = new ArrayList<>();
+                    synchronized (currentSet) {
+                        currentSet.addAll(listedTopics);
+                        changedDuringListing.forEach((topic, lastEvent) -> {
+                            if (lastEvent == NotificationType.Deleted) {
+                                // Gone, unless created again — and then a Created event follows.
+                                currentSet.remove(topic);
+                            } else {
+                                // Created or Modified, possibly after the listing read the store.
+                                topicsToRead.add(topic);
+                            }
+                        });
+                        changedDuringListing = null;
+                        initialTopics = new ArrayList<>(currentSet);
+                    }
+                    // Hash short-circuit: if the client tells us it already has this
+                    // exact set (reconnect within an unchanged window), don't waste
+                    // bytes on the wire. Future Diffs flow as usual.
+                    if (clientHash != null && clientHash.equals(TopicList.calculateHash(initialTopics))) {
+                        log.info().attr("topics", initialTopics.size())
+                                .log("Reconnect hash matched; skipping snapshot");
+                        completeInitialRequest(true);
+                    } else {
+                        log.info().attr("topics", initialTopics.size()).log("Initial snapshot");
+                        pushSnapshot(initialTopics);
+                    }
+                    // Diffs are computed against the snapshot's set: let them out only after it.
+                    snapshotEmitted.set(true);
+                    topicsToRead.forEach(this::evaluateTopic);
+                });
+    }
+
+    private void pushSnapshot(List<String> topics) {
+        ChannelFuture write = cnx.ctx().writeAndFlush(Commands.newWatchScalableTopicsSnapshot(watchId, topics));
+        write.addListener(future -> completeInitialRequest(future.isSuccess()));
+    }
+
+    private void completeInitialRequest(boolean success) {
+        if (request != null && initialResponseCompleted.compareAndSet(false, true)) {
+            if (success) {
+                request.success();
+            } else {
+                request.failure();
+            }
+        }
+    }
+
+    /**
+     * Invoked by {@link ScalableTopicResources} for every metadata event whose path
+     * is a direct child of this watcher's namespace base path. The resources-level
+     * fan-out has already done the namespace + direct-child filtering, so we go
+     * straight to evaluating the filter and updating the matching set.
+     */
+    @Override
+    public void onNotification(Notification notification) {
+        if (closed.get()) {
+            return;
+        }
+        // ChildrenChanged on a topic path reports a change under the record — the controller
+        // lock, a subscription, a segment load record — not to the record itself.
+        if (notification.getType() == NotificationType.ChildrenChanged) {
+            return;
+        }
+        String path = notification.getPath();
+        // Resources-level fan-out guarantees direct-child paths under basePath, but
+        // re-derive the encoded local name defensively.
+        String rest = path.startsWith(basePath + "/")
+                ? path.substring(basePath.length() + 1) : path;
+
+        String topicName = TopicName.get("topic", namespace, Codec.decode(rest)).toString();
+
+        synchronized (currentSet) {
+            if (changedDuringListing != null) {
+                // Settled by start() once the listing is in place.
+                changedDuringListing.put(topicName, notification.getType());
+                return;
+            }
+            if (notification.getType() == NotificationType.Deleted) {
+                inFlightReads.remove(topicName);
+                if (currentSet.remove(topicName)) {
+                    enqueueRemoved(topicName);
+                }
+                return;
+            }
+        }
+
+        // Created or Modified — fetch the new value to evaluate the filter against.
+        evaluateTopic(topicName);
+    }
+
+    /** Read the topic's record and add it to, or remove it from, the matching set accordingly. */
+    private void evaluateTopic(String topicName) {
+        long readId;
+        synchronized (currentSet) {
+            readId = ++lastReadId;
+            inFlightReads.put(topicName, readId);
+        }
+        TopicName tn = TopicName.get(topicName);
+        resources.getScalableTopicMetadataAsync(tn, true)
+                .whenComplete((optMd, ex) -> {
+                    if (closed.get()) {
+                        return;
+                    }
+                    if (ex != null) {
+                        log.warn().attr("topic", topicName).exceptionMessage(ex)
+                                .log("Failed to load scalable topic metadata for filter eval");
+                    }
+                    synchronized (currentSet) {
+                        boolean latestRead = inFlightReads.remove(topicName, readId);
+                        if (!latestRead || ex != null) {
+                            return;
+                        }
+                        boolean wasInSet = currentSet.contains(topicName);
+                        boolean shouldBeInSet = optMd.isPresent() && matchesFilters(optMd.get());
+                        if (!wasInSet && shouldBeInSet) {
+                            currentSet.add(topicName);
+                            enqueueAdded(topicName);
+                        } else if (wasInSet && !shouldBeInSet) {
+                            currentSet.remove(topicName);
+                            enqueueRemoved(topicName);
+                        }
+                    }
+                });
+    }
+
+    private boolean matchesFilters(ScalableTopicMetadata metadata) {
+        if (propertyFilters.isEmpty()) {
+            return true;
+        }
+        Map<String, String> p = metadata.getProperties();
+        if (p == null) {
+            return false;
+        }
+        for (var e : propertyFilters.entrySet()) {
+            if (!e.getValue().equals(p.get(e.getKey()))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private void enqueueAdded(String topic) {
+        synchronized (coalesceLock) {
+            // Cancel out a pending remove (e.g. rapid remove-then-add of same topic).
+            pendingRemoved.remove(topic);
+            pendingAdded.add(topic);
+            scheduleFlush();
+        }
+    }
+
+    private void enqueueRemoved(String topic) {
+        synchronized (coalesceLock) {
+            pendingAdded.remove(topic);
+            pendingRemoved.add(topic);
+            scheduleFlush();
+        }
+    }
+
+    private void scheduleFlush() {
+        // Caller holds coalesceLock.
+        if (flushScheduled) {
+            return;
+        }
+        flushScheduled = true;
+        scheduler.schedule(this::flushPending, COALESCE_WINDOW.toMillis(), TimeUnit.MILLISECONDS);
+    }
+
+    private void flushPending() {
+        if (closed.get()) {
+            return;
+        }
+        // The pending changes are relative to the snapshot's set: send them only after the
+        // snapshot frame, and leave them pending until then, so that a later change can still
+        // cancel them out. flushScheduled stays set, so nothing else gets scheduled meanwhile.
+        if (!snapshotEmitted.get()) {
+            scheduler.schedule(this::flushPending, COALESCE_WINDOW.toMillis(), TimeUnit.MILLISECONDS);
+            return;
+        }
+        Set<String> added;
+        Set<String> removed;
+        synchronized (coalesceLock) {
+            added = pendingAdded.isEmpty() ? Set.of() : new LinkedHashSet<>(pendingAdded);
+            removed = pendingRemoved.isEmpty() ? Set.of() : new LinkedHashSet<>(pendingRemoved);
+            pendingAdded.clear();
+            pendingRemoved.clear();
+            flushScheduled = false;
+        }
+        if (added.isEmpty() && removed.isEmpty()) {
+            return;
+        }
+        log.info().attr("added", added.size()).attr("removed", removed.size()).log("Pushing diff");
+        cnx.ctx().writeAndFlush(Commands.newWatchScalableTopicsDiff(watchId, added, removed));
+    }
+
+    /**
+     * Drop the session. Deregister from the resources' namespace listener registry so
+     * the per-event fan-out skips us — no listener leak, no per-notification dispatch
+     * tax for the broker's lifetime.
+     */
+    public void close() {
+        if (!closed.compareAndSet(false, true)) {
+            return;
+        }
+        completeInitialRequest(false);
+        stopMetricsTracking();
+        resources.deregisterNamespaceListener(this);
+    }
+
+    /** Stops counting this session without changing its lifecycle or request completion. */
+    public void stopMetricsTracking() {
+        if (metricsTrackingStopped.compareAndSet(false, true) && metrics != null) {
+            metrics.sessionClosed(ScalableTopicMetrics.WatchType.NAMESPACE);
+        }
+    }
+}

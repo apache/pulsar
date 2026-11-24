@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.tests.integration.metrics;
 
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.awaitility.Awaitility.waitAtMost;
+import java.net.URI;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -29,6 +32,8 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.stats.PulsarBrokerOpenTelemetry;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.functions.worker.PulsarWorkerOpenTelemetry;
 import org.apache.pulsar.proxy.stats.PulsarProxyOpenTelemetry;
 import org.apache.pulsar.tests.integration.containers.ChaosContainer;
@@ -37,15 +42,15 @@ import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
 import org.apache.pulsar.tests.integration.topologies.PulsarTestBase;
-import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
 public class OpenTelemetrySanityTest {
 
     // Validate that the OpenTelemetry metrics can be exported to a remote OpenTelemetry collector.
     @Test(timeOut = 360_000)
+    @SuppressWarnings("unchecked")
     public void testOpenTelemetryMetricsOtlpExport() throws Exception {
-        var clusterName = "testOpenTelemetryMetrics-" + UUID.randomUUID();
+        var clusterName = newClusterName();
         var openTelemetryCollectorContainer = new OpenTelemetryCollectorContainer(clusterName);
 
         var exporter = "otlp";
@@ -70,18 +75,18 @@ public class OpenTelemetrySanityTest {
 
         // TODO: Validate cluster name and service version are present once
         // https://github.com/open-telemetry/opentelemetry-java/issues/6108 is solved.
-        var metricName = "queueSize_ratio"; // Sent automatically by the OpenTelemetry SDK.
-        Awaitility.waitAtMost(90, TimeUnit.SECONDS).ignoreExceptions().pollInterval(1, TimeUnit.SECONDS).until(() -> {
+        var metricName = "jvm_cpu_count"; // Configured by the OpenTelemetryService.
+        waitAtMost(90, TimeUnit.SECONDS).ignoreExceptions().pollInterval(1, TimeUnit.SECONDS).until(() -> {
             var metrics = getMetricsFromPrometheus(
                     openTelemetryCollectorContainer, OpenTelemetryCollectorContainer.PROMETHEUS_EXPORTER_PORT);
             return !metrics.findByNameAndLabels(metricName, "job", PulsarBrokerOpenTelemetry.SERVICE_NAME).isEmpty();
         });
-        Awaitility.waitAtMost(90, TimeUnit.SECONDS).ignoreExceptions().pollInterval(1, TimeUnit.SECONDS).until(() -> {
+        waitAtMost(90, TimeUnit.SECONDS).ignoreExceptions().pollInterval(1, TimeUnit.SECONDS).until(() -> {
             var metrics = getMetricsFromPrometheus(
                     openTelemetryCollectorContainer, OpenTelemetryCollectorContainer.PROMETHEUS_EXPORTER_PORT);
             return !metrics.findByNameAndLabels(metricName, "job", PulsarProxyOpenTelemetry.SERVICE_NAME).isEmpty();
         });
-        Awaitility.waitAtMost(90, TimeUnit.SECONDS).ignoreExceptions().pollInterval(1, TimeUnit.SECONDS).until(() -> {
+        waitAtMost(90, TimeUnit.SECONDS).ignoreExceptions().pollInterval(1, TimeUnit.SECONDS).until(() -> {
             var metrics = getMetricsFromPrometheus(
                     openTelemetryCollectorContainer, OpenTelemetryCollectorContainer.PROMETHEUS_EXPORTER_PORT);
             return !metrics.findByNameAndLabels(metricName, "job", PulsarWorkerOpenTelemetry.SERVICE_NAME).isEmpty();
@@ -94,9 +99,10 @@ public class OpenTelemetrySanityTest {
      * https://github.com/open-telemetry/opentelemetry-java/blob/main/sdk-extensions/autoconfigure/README.md#prometheus-exporter
      */
     @Test(timeOut = 360_000)
+    @SuppressWarnings("unchecked")
     public void testOpenTelemetryMetricsPrometheusExport() throws Exception {
         var prometheusExporterPort = 9464;
-        var clusterName = "testOpenTelemetryMetrics-" + UUID.randomUUID();
+        var clusterName = newClusterName();
 
         var exporter = "prometheus";
         var prometheusExporterPortProp =
@@ -120,31 +126,58 @@ public class OpenTelemetrySanityTest {
         pulsarCluster.start();
         pulsarCluster.setupFunctionWorkers(PulsarTestBase.randomName(), FunctionRuntimeType.PROCESS, 1);
 
-        var metricName = "target_info"; // Sent automatically by the OpenTelemetry SDK.
-        Awaitility.waitAtMost(90, TimeUnit.SECONDS).ignoreExceptions().pollInterval(1, TimeUnit.SECONDS).until(() -> {
-            var metrics = getMetricsFromPrometheus(pulsarCluster.getBroker(0), prometheusExporterPort);
-            return !metrics.findByNameAndLabels(metricName,
+        // A broker exports the topic metrics only for the topics it serves, and the load manager may place all of the
+        // function worker's topics on another broker, so check the broker that serves a topic of the test's own
+        var topic = "persistent://public/default/" + PulsarTestBase.randomName();
+        @Cleanup
+        var client = PulsarClient.builder().serviceUrl(pulsarCluster.getPlainTextServiceUrl()).build();
+        @Cleanup
+        var producer = client.newProducer().topic(topic).create();
+        @Cleanup
+        var admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build();
+        var brokerHostname = URI.create(admin.lookups().lookupTopic(topic)).getHost();
+        var broker = pulsarCluster.getBrokers().stream()
+                .filter(brokerContainer -> brokerContainer.getHostname().equals(brokerHostname))
+                .findFirst()
+                .orElseThrow();
+
+        var targetInfoMetricName = "target_info"; // Sent automatically by the OpenTelemetry SDK.
+        var cpuCountMetricName = "jvm_cpu_count"; // Configured by the OpenTelemetryService.
+        waitAtMost(90, TimeUnit.SECONDS).ignoreExceptions().pollInterval(1, TimeUnit.SECONDS).untilAsserted(() -> {
+            var expectedMetrics = new String[] {targetInfoMetricName, cpuCountMetricName,
+                    "pulsar_broker_topic_producer_count"};
+            var actualMetrics = getMetricsFromPrometheus(broker, prometheusExporterPort);
+            assertThat(expectedMetrics).allMatch(expectedMetric -> !actualMetrics.findByNameAndLabels(expectedMetric,
                     Pair.of("pulsar_cluster", clusterName),
                     Pair.of("service_name", PulsarBrokerOpenTelemetry.SERVICE_NAME),
                     Pair.of("service_version", PulsarVersion.getVersion()),
-                    Pair.of("host_name", pulsarCluster.getBroker(0).getHostname())).isEmpty();
+                    Pair.of("host_name", broker.getHostname())).isEmpty());
         });
-        Awaitility.waitAtMost(90, TimeUnit.SECONDS).ignoreExceptions().pollInterval(1, TimeUnit.SECONDS).until(() -> {
-            var metrics = getMetricsFromPrometheus(pulsarCluster.getProxy(), prometheusExporterPort);
-            return !metrics.findByNameAndLabels(metricName,
+        waitAtMost(90, TimeUnit.SECONDS).ignoreExceptions().pollInterval(1, TimeUnit.SECONDS).untilAsserted(() -> {
+            var expectedMetrics = new String[] {targetInfoMetricName, cpuCountMetricName};
+            var actualMetrics = getMetricsFromPrometheus(pulsarCluster.getProxy(), prometheusExporterPort);
+            assertThat(expectedMetrics).allMatch(expectedMetric -> !actualMetrics.findByNameAndLabels(expectedMetric,
                     Pair.of("pulsar_cluster", clusterName),
                     Pair.of("service_name", PulsarProxyOpenTelemetry.SERVICE_NAME),
                     Pair.of("service_version", PulsarVersion.getVersion()),
-                    Pair.of("host_name", pulsarCluster.getProxy().getHostname())).isEmpty();
+                    Pair.of("host_name", pulsarCluster.getProxy().getHostname())).isEmpty());
         });
-        Awaitility.waitAtMost(90, TimeUnit.SECONDS).ignoreExceptions().pollInterval(1, TimeUnit.SECONDS).until(() -> {
-            var metrics = getMetricsFromPrometheus(pulsarCluster.getAnyWorker(), prometheusExporterPort);
-            return !metrics.findByNameAndLabels(metricName,
+        waitAtMost(90, TimeUnit.SECONDS).ignoreExceptions().pollInterval(1, TimeUnit.SECONDS).untilAsserted(() -> {
+            var expectedMetrics = new String[] {targetInfoMetricName, cpuCountMetricName};
+            var actualMetrics = getMetricsFromPrometheus(pulsarCluster.getAnyWorker(), prometheusExporterPort);
+            assertThat(expectedMetrics).allMatch(expectedMetric -> !actualMetrics.findByNameAndLabels(expectedMetric,
                     Pair.of("pulsar_cluster", clusterName),
                     Pair.of("service_name", PulsarWorkerOpenTelemetry.SERVICE_NAME),
                     Pair.of("service_version", PulsarVersion.getVersion()),
-                    Pair.of("host_name", pulsarCluster.getAnyWorker().getHostname())).isEmpty();
+                    Pair.of("host_name", pulsarCluster.getAnyWorker().getHostname())).isEmpty());
         });
+    }
+
+    // Container names are "<cluster>-<hostname>", and Docker's DNS gives no reverse lookup answer for a name longer
+    // than a DNS label (63 characters). The ZooKeeper client in every container looks up the server's name from its
+    // address before it connects, and would wait 5 s per connection for that lookup to time out.
+    private static String newClusterName() {
+        return "testOpenTelemetryMetrics-" + UUID.randomUUID().toString().substring(0, 8);
     }
 
     private static PrometheusMetricsClient.Metrics getMetricsFromPrometheus(ChaosContainer<?> container, int port) {
@@ -152,6 +185,7 @@ public class OpenTelemetrySanityTest {
         return client.getMetrics();
     }
 
+    @SuppressWarnings("unchecked")
     private static Map<String, String> getOpenTelemetryProps(String exporter, Pair<String, String> ... extraProps) {
         var defaultProps = Map.of(
                 "OTEL_SDK_DISABLED", "false",

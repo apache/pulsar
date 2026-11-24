@@ -19,23 +19,21 @@
 package org.apache.pulsar.broker.namespace;
 
 import static org.testng.Assert.assertTrue;
-
 import com.google.common.collect.Sets;
-
 import lombok.Cleanup;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class NamespaceUnloadingTest extends BrokerTestBase {
 
-    @BeforeMethod
+    @BeforeClass(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         conf.setTopicLevelPoliciesEnabled(true);
@@ -44,7 +42,7 @@ public class NamespaceUnloadingTest extends BrokerTestBase {
         super.baseSetup();
     }
 
-    @AfterMethod(alwaysRun = true)
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -53,7 +51,7 @@ public class NamespaceUnloadingTest extends BrokerTestBase {
     @Test
     public void testUnloadNotLoadedNamespace() throws Exception {
         admin.namespaces().createNamespace("prop/ns-test-1");
-        admin.namespaces().setNamespaceReplicationClusters("prop/ns-test-1", Sets.newHashSet("test"));
+        admin.namespaces().setNamespaceReplicationClusters("prop/ns-test-1", Sets.newHashSet("test"), false);
 
         assertTrue(admin.namespaces().getNamespaces("prop").contains("prop/ns-test-1"));
 
@@ -63,7 +61,7 @@ public class NamespaceUnloadingTest extends BrokerTestBase {
     @Test
     public void testUnloadPartiallyLoadedNamespace() throws Exception {
         admin.namespaces().createNamespace("prop/ns-test-2", 16);
-        admin.namespaces().setNamespaceReplicationClusters("prop/ns-test-2", Sets.newHashSet("test"));
+        admin.namespaces().setNamespaceReplicationClusters("prop/ns-test-2", Sets.newHashSet("test"), false);
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://prop/ns-test-2/my-topic")
                 .create();

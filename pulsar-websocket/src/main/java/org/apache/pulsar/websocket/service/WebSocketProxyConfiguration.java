@@ -26,8 +26,10 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
+import org.apache.pulsar.broker.tls.TlsFactorySupport;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
+import org.apache.pulsar.common.tls.TlsClientAuthMode;
 
 @Getter
 @Setter
@@ -75,6 +77,9 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     @FieldContext(doc = "Metadata store cache expiry time in seconds.")
     private int metadataStoreCacheExpirySeconds = 300;
 
+    @FieldContext(doc = "Is metadata store read-only operations.")
+    private boolean metadataStoreAllowReadOnlyOperations;
+
     @FieldContext(
             deprecated = true,
             doc = "ZooKeeper session timeout in milliseconds. "
@@ -95,6 +100,20 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
 
     @FieldContext(doc = "Hostname or IP address the service binds on, default is 0.0.0.0.")
     private String bindAddress = "0.0.0.0";
+
+    @FieldContext(doc = "Enable or disable the use of HA proxy protocol for resolving the client IP for http/https "
+                    + "requests. Default is false.")
+    private boolean webServiceHaProxyProtocolEnabled = false;
+
+    @FieldContext(doc = "Trust X-Forwarded-For header for resolving the client IP for http/https requests.\n"
+                    + "Default is false.")
+    private boolean webServiceTrustXForwardedFor = false;
+
+    @FieldContext(doc =
+            "Add detailed client/remote and server/local addresses and ports to http/https request logging.\n"
+                    + "Defaults to true when either webServiceHaProxyProtocolEnabled or webServiceTrustXForwardedFor "
+                    + "is enabled.")
+    private Boolean webServiceLogDetailedAddresses;
 
     @FieldContext(doc = "Maximum size of a text message during parsing in WebSocket proxy")
     private int webSocketMaxTextFrameSize = 1024 * 1024;
@@ -130,8 +149,9 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     private String brokerClientTrustCertsFilePath = "";
 
     // Note: name matches the ServiceConfiguration name to ensure correct mapping
-    @FieldContext(doc = "Enable TLS hostname verification when connecting to broker")
-    private boolean tlsHostnameVerificationEnabled = false;
+    @FieldContext(doc = "Enable TLS hostname verification when connecting to broker. Enabled by default since "
+            + "Pulsar 5.0 (PIP-478): a broker whose certificate does not match its hostname/SAN is rejected.")
+    private boolean tlsHostnameVerificationEnabled = true;
 
     @FieldContext(doc = "Number of IO threads in Pulsar client used in WebSocket proxy")
     private int webSocketNumIoThreads = Runtime.getRuntime().availableProcessors();
@@ -162,6 +182,9 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     @FieldContext(doc = "Number of connections per broker in Pulsar client used in WebSocket proxy")
     private int webSocketConnectionsPerBroker = Runtime.getRuntime().availableProcessors();
 
+    @FieldContext(doc = "Memory limit in MBs for direct memory in Pulsar Client used in WebSocket proxy")
+    private int webSocketPulsarClientMemoryLimitInMB = 0;
+
     @FieldContext(doc = "Timeout of idling WebSocket session (in milliseconds)")
     private int webSocketSessionIdleTimeoutMillis = 300000;
 
@@ -190,12 +213,57 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     @FieldContext(doc = "Accept untrusted TLS certificate from client and broker")
     private boolean tlsAllowInsecureConnection = false;
 
-    @FieldContext(doc = "Specify whether client certificates are required for "
-            + "TLS rejecting the connection if the client certificate is not trusted")
+    @FieldContext(
+        deprecated = true,
+        doc = "Deprecated: use tlsClientAuthMode=REQUIRE instead. Whether a trusted client certificate "
+            + "is required; the connection is rejected if the client certificate is missing or not "
+            + "trusted. Setting it to true together with tlsClientAuthMode=NONE or OPTIONAL is a "
+            + "configuration error."
+    )
+    @Deprecated
     private boolean tlsRequireTrustedClientCertOnConnect = false;
 
-    @FieldContext(doc = "TLS cert refresh duration (in seconds). 0 means checking every new connection.")
+    @FieldContext(
+        doc = "Whether the TLS listeners ask connecting clients for a certificate (TLS client "
+            + "authentication): NONE does not request one, OPTIONAL requests one and accepts a "
+            + "connection without it (a presented certificate must be trusted), REQUIRE requires a "
+            + "trusted certificate.\n\n"
+            + "When unset, it is REQUIRE if the deprecated tlsRequireTrustedClientCertOnConnect is "
+            + "true, OPTIONAL if authentication is enabled with AuthenticationProviderTls among the "
+            + "authenticationProviders, and NONE otherwise. A custom authentication provider that reads "
+            + "the client certificate needs OPTIONAL or REQUIRE. Setting NONE while "
+            + "AuthenticationProviderTls is enabled is a configuration error.\n\n"
+            + "Requesting a certificate sends every client the names of all CAs in "
+            + "tlsTrustCertsFilePath or tlsTrustStore, or of the JVM default trust store when neither is "
+            + "set. With a large trust store, the TLS 1.3 handshake then spans several TLS records, which "
+            + "some clients fail to handle, so the trust store should hold only the CAs that issue client "
+            + "certificates."
+    )
+    private TlsClientAuthMode tlsClientAuthMode = null;
+
+    @FieldContext(doc = "TLS cert refresh duration (in seconds). Set 0 to disable the background rotation "
+            + "check, so the TLS material loaded at startup is kept until restart.")
     private long tlsCertRefreshCheckDurationSec = 300;
+
+    @FieldContext(doc = "PIP-478 TLS factory (PulsarTlsFactory) class name for the WebSocket proxy's web "
+            + "server TLS (purpose WEB). When set, the new PIP-478 TLS SPI is used instead of the built-in "
+            + "file-based TLS loading: an empty value or the literal 'default' selects the built-in default "
+            + "factory composed from these tls* settings, otherwise the named class is instantiated via its "
+            + "public no-arg constructor. This is the WebSocket proxy's first TLS-factory pluggability.")
+    private String tlsFactoryClassName = "";
+    @FieldContext(doc = "PIP-478 configuration parameters for tlsFactoryClassName. Accepts a JSON object or "
+            + "a comma-separated key=value list.")
+    private String tlsFactoryConfig = "";
+
+    @FieldContext(doc = "PIP-478 TLS factory (PulsarTlsFactory) class name for the WebSocket proxy's own "
+            + "outbound (websocket-to-broker) client connections (purpose BROKER_CLIENT). An empty value or "
+            + "the literal 'default' selects the built-in default factory composed from the broker-client "
+            + "tls* settings, otherwise the named class is instantiated via its public no-arg constructor. "
+            + "This is the only outbound-client TLS-factory path for the WebSocket proxy.")
+    private String brokerClientTlsFactoryClassName = "";
+    @FieldContext(doc = "PIP-478 configuration parameters for brokerClientTlsFactoryClassName. Accepts a JSON "
+            + "object or a comma-separated key=value list.")
+    private String brokerClientTlsFactoryConfig = "";
 
     /**** --- KeyStore TLS config variables. --- ****/
     @FieldContext(
@@ -204,9 +272,58 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     private boolean tlsEnabledWithKeyStore = false;
 
     @FieldContext(
-            doc = "Specify the TLS provider for the WebSocket service: SunJSSE, Conscrypt and etc."
+            doc = "Specify the TLS provider for the WebSocket service: SunJSSE, Conscrypt and etc.\n"
+                    + "Leave unset (the default) to use Conscrypt when it is available on this platform, else\n"
+                    + "the JVM's default provider; a configured name is pinned and startup fails if it cannot be\n"
+                    + "resolved. Conscrypt ships native libraries for x86_64 and, since 2.6.1, aarch64 — but not\n"
+                    + "for every platform, which is why the default falls back instead of failing where it cannot\n"
+                    + "load; pinning it explicitly there does fail."
     )
-    private String tlsProvider = "Conscrypt";
+    private String tlsProvider = null;
+
+    @FieldContext(
+            doc = "PIP-478: the name of a JSSE (SSLContext) provider — a java.security.Provider that supplies "
+                    + "an SSLContext (TLS) implementation (e.g. the BouncyCastle JSSE provider BCJSSE for FIPS, "
+                    + "with BCFIPS registered separately as the crypto provider it uses) — used to build the "
+                    + "WebSocket service's web-listener TLS SSLContext. When set, the default factory builds the "
+                    + "JDK engine with this provider as the SSLContext provider. Resolved by preferring a "
+                    + "provider already registered in the JVM (Security.getProvider), falling back to the "
+                    + "ServiceLoader mechanism, and failing loudly when unresolvable."
+    )
+    private String jsseProvider = null;
+
+    @FieldContext(
+            doc = "PIP-478: the Netty SSL engine provider for the WebSocket proxy's own outbound "
+                    + "(proxy-to-broker) client connections — JDK, OPENSSL or OPENSSL_REFCNT. The "
+                    + "listener-side tlsProvider governs the proxy's web server only; this is the outbound "
+                    + "counterpart, matching the broker's brokerClientSslProvider. Leave unset to keep the "
+                    + "JVM default."
+    )
+    private String brokerClientSslProvider = null;
+
+    @FieldContext(
+            doc = "PIP-478: the name of a JSSE (SSLContext) provider used for the WebSocket proxy's own "
+                    + "outbound (proxy-to-broker) client connections (e.g. BCJSSE for FIPS). The "
+                    + "listener-side jsseProvider governs the proxy's web server only; this is the outbound "
+                    + "counterpart, matching the broker's brokerClientJsseProvider. Applied independently of "
+                    + "brokerClientTlsFactoryClassName. Leave unset to use the JVM provider search order."
+    )
+    private String brokerClientJsseProvider = null;
+
+    @FieldContext(
+            doc = "PIP-478: the name of a JCA (material) provider — a java.security.Provider supplying the "
+                    + "KeyStore, CertificateFactory and KeyFactory engines that parse the TLS material (e.g. "
+                    + "BCFIPS for FIPS, alongside jsseProvider=BCJSSE). A distinct axis from jsseProvider, "
+                    + "which supplies the SSLContext. Unset uses the JVM provider search order. Applies to "
+                    + "the WebSocket proxy's web listener."
+    )
+    private String jcaProvider = null;
+
+    @FieldContext(
+            doc = "PIP-478: the JCA (material) provider for the WebSocket proxy's own outbound "
+                    + "(proxy-to-broker) client connections — the outbound counterpart of jcaProvider."
+    )
+    private String brokerClientJcaProvider = null;
 
     @FieldContext(
             doc = "TLS KeyStore type configuration in WebSocket: JKS, PKCS12"
@@ -266,5 +383,34 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
 
     public int getMetadataStoreCacheExpirySeconds() {
         return zooKeeperCacheExpirySeconds > 0 ? zooKeeperCacheExpirySeconds : metadataStoreCacheExpirySeconds;
+    }
+
+    /**
+     * The effective TLS client-auth mode of the TLS listeners, resolved from {@code tlsClientAuthMode}, the
+     * deprecated {@code tlsRequireTrustedClientCertOnConnect} and the authentication settings; see
+     * {@link TlsFactorySupport#resolveClientAuthMode}.
+     *
+     * @return the effective mode
+     * @throws IllegalArgumentException if the settings conflict
+     */
+    @SuppressWarnings("deprecation")
+    public TlsClientAuthMode resolveTlsClientAuthMode() {
+        return TlsFactorySupport.resolveClientAuthMode(tlsClientAuthMode, tlsRequireTrustedClientCertOnConnect,
+                authenticationEnabled, authenticationProviders);
+    }
+
+    /**
+     * Resolve the effective TLS client-auth mode like {@link #resolveTlsClientAuthMode()} and log it with where it
+     * came from; see {@link TlsFactorySupport#logClientAuthMode}. Called once when a component with a TLS listener
+     * starts.
+     *
+     * @param component the component name for the log
+     * @return the effective mode
+     * @throws IllegalArgumentException if the settings conflict
+     */
+    @SuppressWarnings("deprecation")
+    public TlsClientAuthMode logTlsClientAuthMode(String component) {
+        return TlsFactorySupport.logClientAuthMode(component, tlsClientAuthMode, tlsRequireTrustedClientCertOnConnect,
+                authenticationEnabled, authenticationProviders);
     }
 }

@@ -49,7 +49,12 @@
     <Bug pattern="MS_PKGPROTECT"/>
   </Match>
   <Match>
-    <Class name="org.apache.pulsar.functions.sink.PulsarSink$Crypto$CryptoBuilder"/>
+    <Class name="org.apache.pulsar.functions.instance.ProducerBuilderFactory$Crypto$CryptoBuilder"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.ProducerBuilderFactory"/>
+    <Method name="&lt;init&gt;"/>
     <Bug pattern="EI_EXPOSE_REP2"/>
   </Match>
   <Match>
@@ -206,106 +211,6 @@
     <Class name="org.apache.pulsar.functions.instance.stats.FunctionStatsManager"/>
     <Method name="getLatestUserExceptions"/>
     <Bug pattern="EI_EXPOSE_REP"/>
-  </Match>
-  <Match>
-    <Class name="org.apache.pulsar.functions.instance.stats.FunctionStatsManager"/>
-    <Method name="getSinkExceptions"/>
-    <Bug pattern="EI_EXPOSE_REP"/>
-  </Match>
-  <Match>
-    <Class name="org.apache.pulsar.functions.instance.stats.FunctionStatsManager"/>
-    <Method name="getSourceExceptions"/>
-    <Bug pattern="EI_EXPOSE_REP"/>
-  </Match>
-  <Match>
-    <Class name="org.apache.pulsar.functions.instance.stats.FunctionStatsManager"/>
-    <Method name="getStatProcessLatency"/>
-    <Bug pattern="EI_EXPOSE_REP"/>
-  </Match>
-  <Match>
-    <Class name="org.apache.pulsar.functions.instance.stats.FunctionStatsManager"/>
-    <Method name="getStatProcessLatency1min"/>
-    <Bug pattern="EI_EXPOSE_REP"/>
-  </Match>
-  <Match>
-    <Class name="org.apache.pulsar.functions.instance.stats.FunctionStatsManager"/>
-    <Method name="getStatTotalProcessedSuccessfully"/>
-    <Bug pattern="EI_EXPOSE_REP"/>
-  </Match>
-  <Match>
-    <Class name="org.apache.pulsar.functions.instance.stats.FunctionStatsManager"/>
-    <Method name="getStatTotalProcessedSuccessfully1min"/>
-    <Bug pattern="EI_EXPOSE_REP"/>
-  </Match>
-  <Match>
-    <Class name="org.apache.pulsar.functions.instance.stats.FunctionStatsManager"/>
-    <Method name="getStatTotalRecordsReceived"/>
-    <Bug pattern="EI_EXPOSE_REP"/>
-  </Match>
-  <Match>
-    <Class name="org.apache.pulsar.functions.instance.stats.FunctionStatsManager"/>
-    <Method name="getStatTotalRecordsReceived1min"/>
-    <Bug pattern="EI_EXPOSE_REP"/>
-  </Match>
-  <Match>
-    <Class name="org.apache.pulsar.functions.instance.stats.FunctionStatsManager"/>
-    <Method name="getStatTotalSysExceptions"/>
-    <Bug pattern="EI_EXPOSE_REP"/>
-  </Match>
-  <Match>
-    <Class name="org.apache.pulsar.functions.instance.stats.FunctionStatsManager"/>
-    <Method name="getStatTotalSysExceptions1min"/>
-    <Bug pattern="EI_EXPOSE_REP"/>
-  </Match>
-  <Match>
-    <Class name="org.apache.pulsar.functions.instance.stats.FunctionStatsManager"/>
-    <Method name="getStatTotalUserExceptions"/>
-    <Bug pattern="EI_EXPOSE_REP"/>
-  </Match>
-  <Match>
-    <Class name="org.apache.pulsar.functions.instance.stats.FunctionStatsManager"/>
-    <Method name="getStatTotalUserExceptions1min"/>
-    <Bug pattern="EI_EXPOSE_REP"/>
-  </Match>
-  <Match>
-    <Class name="org.apache.pulsar.functions.instance.stats.FunctionStatsManager"/>
-    <Method name="getStatlastInvocation"/>
-    <Bug pattern="EI_EXPOSE_REP"/>
-  </Match>
-  <Match>
-    <Class name="org.apache.pulsar.functions.instance.stats.FunctionStatsManager"/>
-    <Method name="getStatlastInvocationChild"/>
-    <Bug pattern="EI_EXPOSE_REP"/>
-  </Match>
-  <Match>
-    <Class name="org.apache.pulsar.functions.instance.stats.FunctionStatsManager"/>
-    <Method name="getSysExceptionRateLimiter"/>
-    <Bug pattern="EI_EXPOSE_REP"/>
-  </Match>
-  <Match>
-    <Class name="org.apache.pulsar.functions.instance.stats.FunctionStatsManager"/>
-    <Method name="getSysExceptions"/>
-    <Bug pattern="EI_EXPOSE_REP"/>
-  </Match>
-  <Match>
-    <Class name="org.apache.pulsar.functions.instance.stats.FunctionStatsManager"/>
-    <Method name="getUserExceptionRateLimiter"/>
-    <Bug pattern="EI_EXPOSE_REP"/>
-  </Match>
-  <Match>
-    <Class name="org.apache.pulsar.functions.instance.stats.FunctionStatsManager"/>
-    <Method name="getUserExceptions"/>
-    <Bug pattern="EI_EXPOSE_REP"/>
-  </Match>
-  <Match>
-    <Class name="org.apache.pulsar.functions.instance.stats.FunctionStatsManager"/>
-    <Method name="setLatestSystemExceptions"/>
-    <Bug pattern="EI_EXPOSE_REP2"/>
-  </Match>
-  <Match>
-    <Class name="org.apache.pulsar.functions.instance.stats.FunctionStatsManager"/>
-    <Method name="setLatestUserExceptions"/>
-    <Bug pattern="EI_EXPOSE_REP2"/>
   </Match>
   <Match>
     <Class name="org.apache.pulsar.functions.instance.stats.SinkStatsManager"/>
@@ -551,5 +456,10 @@
     <Class name="org.apache.pulsar.functions.instance.go.GoInstanceConfig"/>
     <Method name="setSourceInputSpecs"/>
     <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.JavaInstance$AsyncFuncRequest"/>
+    <Method name="getResult"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
   </Match>
 </FindBugsFilter>

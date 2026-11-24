@@ -1,0 +1,1465 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.bookkeeper.mledger.impl.cache;
+
+import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.defaultConfig;
+import static org.apache.bookkeeper.mledger.util.ManagedLedgerUtils.NO_MAX_SIZE_LIMIT;
+import static org.apache.pulsar.common.allocator.PulsarByteBufAllocator.ML_CACHE_ALLOCATOR_NAME;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.IntSupplier;
+import org.apache.bookkeeper.client.LedgerHandle;
+import org.apache.bookkeeper.client.api.LedgerEntries;
+import org.apache.bookkeeper.client.api.LedgerEntry;
+import org.apache.bookkeeper.client.api.ReadHandle;
+import org.apache.bookkeeper.client.impl.LedgerEntriesImpl;
+import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
+import org.apache.bookkeeper.common.util.ThreadBoundExecutor;
+import org.apache.bookkeeper.mledger.AsyncCallbacks;
+import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.EntryReadCountHandler;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.bookkeeper.mledger.ReferenceCountedEntry;
+import org.apache.bookkeeper.mledger.impl.EntryImpl;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryMBeanImpl;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.protocol.Commands;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
+
+public class RangeEntryCacheImplTest {
+    private RangeEntryCacheImpl rangeEntryCache;
+    private RangeEntryCacheManagerImpl mockEntryCacheManager;
+    private ManagedLedgerImpl mockManagedLedger;
+    private RangeCacheRemovalQueue mockRangeCacheRemovalQueue;
+    private ManagedLedgerConfig managedLedgerConfig;
+    private PendingReadsManager pendingReadsManager;
+    private ReadHandle lh;
+    private IntSupplier expectedReadCount;
+
+    @BeforeMethod
+    public void setup() {
+        mockEntryCacheManager = mock(RangeEntryCacheManagerImpl.class);
+        ManagedLedgerFactoryMBeanImpl mlFactoryMBean = mock(ManagedLedgerFactoryMBeanImpl.class);
+        when(mockEntryCacheManager.getMlFactoryMBean()).thenReturn(mlFactoryMBean);
+        mockManagedLedger = mock(ManagedLedgerImpl.class);
+        ManagedLedgerMBeanImpl mockManagedLedgerMBean = mock(ManagedLedgerMBeanImpl.class);
+        when(mockManagedLedger.getMbean()).thenReturn(mockManagedLedgerMBean);
+        when(mockManagedLedger.getName()).thenReturn("testManagedLedger");
+        managedLedgerConfig = defaultConfig();
+        when(mockManagedLedger.getConfig()).thenReturn(managedLedgerConfig);
+        mockRangeCacheRemovalQueue = mock(RangeCacheRemovalQueue.class);
+        when(mockRangeCacheRemovalQueue.addEntry(any())).thenReturn(true);
+        InflightReadsLimiter inflightReadsLimiter = mock(InflightReadsLimiter.class);
+        when(mockEntryCacheManager.getInflightReadsLimiter()).thenReturn(inflightReadsLimiter);
+        doAnswer(invocation -> {
+            long permits = invocation.getArgument(0);
+            InflightReadsLimiter.Handle
+                    handle = new InflightReadsLimiter.Handle(permits, System.currentTimeMillis(), true);
+            return Optional.of(handle);
+        }).when(inflightReadsLimiter).acquire(anyLong(), any());
+        pendingReadsManager = mock(PendingReadsManager.class);
+        doAnswer(invocation -> {
+            long firstEntry = invocation.getArgument(1);
+            long lastEntry = invocation.getArgument(2);
+            AsyncCallbacks.ReadEntriesCallback callback = invocation.getArgument(5);
+            Object ctx = invocation.getArgument(6);
+            List<Entry> entries = new ArrayList<>((int) (lastEntry - firstEntry + 1));
+            for (long entryId = firstEntry; entryId <= lastEntry; entryId++) {
+                entries.add(EntryImpl.create(1, entryId, Unpooled.EMPTY_BUFFER));
+            }
+            callback.readEntriesComplete(entries, ctx);
+            return null;
+        }).when(pendingReadsManager).readEntries(any(), anyLong(), anyLong(), anyLong(), any(), any(), any());
+        rangeEntryCache = createRangeEntryCache(false);
+        lh = mock(ReadHandle.class);
+        when(lh.getId()).thenReturn(1L);
+        expectedReadCount = () -> 1;
+    }
+
+    @Test
+    public void testReadPermitsReleasedOnlyAfterLastEntryReference() {
+        InflightReadsLimiter limiter = mockEntryCacheManager.getInflightReadsLimiter();
+        InflightReadsLimiter.Handle handle = new InflightReadsLimiter.Handle(300, 0, true);
+        CompletableFuture<List<Entry>> result = new CompletableFuture<>();
+        rangeEntryCache.doAsyncReadEntriesWithAcquiredPermits(lh,
+                PositionFactory.create(1, 0), PositionFactory.create(1, 2), 3, NO_MAX_SIZE_LIMIT, expectedReadCount,
+                new AsyncCallbacks.ReadEntriesCallback() {
+                    @Override
+                    public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                        result.complete(entries);
+                    }
+
+                    @Override
+                    public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                        result.completeExceptionally(exception);
+                    }
+                }, null, handle, 300);
+        assertThat(result).isCompleted();
+        List<Entry> entries = result.getNow(null);
+        try {
+            assertThat(entries).hasSize(3);
+            ((ReferenceCountedEntry) entries.get(0)).retain();
+            entries.get(2).release();
+            entries.get(0).release();
+            entries.get(1).release();
+            verify(limiter, never()).release(any());
+            entries.get(0).release();
+            verify(limiter, times(1)).release(handle);
+        } finally {
+            for (Entry entry : entries) {
+                ReferenceCountedEntry referenceCountedEntry = (ReferenceCountedEntry) entry;
+                if (referenceCountedEntry.refCnt() > 0) {
+                    referenceCountedEntry.release(referenceCountedEntry.refCnt());
+                }
+            }
+        }
+    }
+
+    private RangeEntryCacheImpl createRangeEntryCache(boolean copyEntries) {
+        when(mockEntryCacheManager.isCopyEntriesInCache()).thenReturn(copyEntries);
+        return new RangeEntryCacheImpl(mockEntryCacheManager, mockManagedLedger,
+                mockRangeCacheRemovalQueue, EntryLengthFunction.DEFAULT, pendingReadsManager);
+    }
+
+    @Test
+    public void shouldCopyEntriesInsertedAfterCopyModeIsEnabled() {
+        ByteBuf retainedData = Unpooled.buffer().writeByte(1);
+        EntryImpl retainedEntry = EntryImpl.create(1, 0, retainedData);
+        retainedData.release();
+        assertThat(rangeEntryCache.insert(retainedEntry)).isTrue();
+        retainedEntry.release();
+        assertThat(retainedData.refCnt()).isOne();
+
+        when(mockEntryCacheManager.isCopyEntriesInCache()).thenReturn(true);
+        ByteBuf copiedData = Unpooled.buffer().writeByte(2);
+        EntryImpl copiedEntry = EntryImpl.create(1, 1, copiedData);
+        copiedData.release();
+        assertThat(rangeEntryCache.insert(copiedEntry)).isTrue();
+        copiedEntry.release();
+        assertThat(copiedData.refCnt()).isZero();
+
+        rangeEntryCache.clear();
+        assertThat(retainedData.refCnt()).isZero();
+    }
+
+    @Test
+    public void shouldCopyBatchEntriesWhenCopyModeIsEnabled() {
+        when(mockEntryCacheManager.isCopyEntriesInCache()).thenReturn(true);
+        ByteBuf source = Unpooled.directBuffer(128).writeInt(42);
+        EntryImpl entry = EntryImpl.create(1, 0, source);
+        source.release();
+        try {
+            try {
+                assertThat(rangeEntryCache.insert(List.of(entry), false)).isOne();
+            } finally {
+                entry.release();
+            }
+            assertThat(source.refCnt()).isZero();
+            assertThat(rangeEntryCache.getSize()).isEqualTo(Integer.BYTES);
+        } finally {
+            rangeEntryCache.clear();
+        }
+    }
+
+    @Test
+    public void shouldUseUpdatedCopyModeWhenStorageReadCompletes() {
+        when(mockManagedLedger.getExecutor()).thenReturn(mock(ThreadBoundExecutor.class));
+        when(mockManagedLedger.getOptionalLedgerInfo(1L)).thenReturn(Optional.empty());
+        ByteBuf source = Unpooled.directBuffer(128).writeInt(42);
+        LedgerEntries ledgerEntries = LedgerEntriesImpl.create(new ArrayList<>(List.of(
+                LedgerEntryImpl.create(1, 0, Integer.BYTES, source))));
+        CompletableFuture<LedgerEntries> storageRead = new CompletableFuture<>();
+        when(lh.readAsync(0, 0)).thenReturn(storageRead);
+        CompletableFuture<List<Entry>> result = rangeEntryCache.readFromStorage(lh, 0, 0, NO_MAX_SIZE_LIMIT,
+                expectedReadCount);
+        try {
+            when(mockEntryCacheManager.isCopyEntriesInCache()).thenReturn(true);
+            storageRead.complete(ledgerEntries);
+            assertThat(result).isCompleted();
+            List<Entry> readEntries = result.getNow(null);
+            try {
+                assertThat(readEntries).hasSize(1);
+            } finally {
+                readEntries.forEach(Entry::release);
+            }
+            assertThat(rangeEntryCache.getSize()).isEqualTo(Integer.BYTES);
+            // Check while the cached entry is still alive; clearing the cache would also free an uncopied source.
+            assertThat(source.refCnt()).isZero();
+        } finally {
+            rangeEntryCache.clear();
+        }
+    }
+
+    private static ByteBuf serializeMessage(String producerName) {
+        MessageMetadata metadata = new MessageMetadata()
+                .setProducerName(producerName)
+                .setSequenceId(7)
+                .setPublishTime(123456789L);
+        ByteBuf payload = Unpooled.copiedBuffer("payload", StandardCharsets.UTF_8);
+        try {
+            // serializeMetadataAndPayload copies the payload instead of taking ownership of it
+            return Commands.serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, metadata, payload);
+        } finally {
+            payload.release();
+        }
+    }
+
+    @Test
+    public void testCachedEntriesAreEvictableAfterAFailedPartialReadRetriesTheWholeRange() {
+        // entry 0 is cached with one expected read; entry 1 isn't cached
+        when(mockManagedLedger.getLastConfirmedEntry()).thenReturn(PositionFactory.create(1, 99));
+        when(mockManagedLedger.getExecutor()).thenReturn(mock(ThreadBoundExecutor.class));
+        EntryImpl added = EntryImpl.create(1, 0, "added-0".getBytes(StandardCharsets.UTF_8), 1);
+        added.setDecreaseReadCountOnRelease(false);
+        assertThat(rangeEntryCache.insert(added)).isTrue();
+        added.release();
+        // reading the missing entry 1 fails, and the retry reads both entries from storage, as a cursor's read would
+        List<LedgerEntryImpl> ledgerEntries = new ArrayList<>();
+        for (long entryId = 0; entryId <= 1; entryId++) {
+            ledgerEntries.add(LedgerEntryImpl.create(1L, entryId, 6,
+                    Unpooled.wrappedBuffer(("read-" + entryId).getBytes(StandardCharsets.UTF_8))));
+        }
+        LedgerEntries read = mock(LedgerEntries.class);
+        when(read.iterator()).thenReturn(List.<LedgerEntry>copyOf(ledgerEntries).iterator());
+        when(lh.readAsync(0, 1)).thenReturn(CompletableFuture.completedFuture(read));
+        doAnswer(invocation -> {
+            AsyncCallbacks.ReadEntriesCallback callback = invocation.getArgument(5);
+            callback.readEntriesFailed(new ManagedLedgerException("Injected test failure"), invocation.getArgument(6));
+            return null;
+        }).when(pendingReadsManager).readEntries(any(), eq(1L), eq(1L), anyLong(), any(), any(), any());
+        doAnswer(invocation -> {
+            AsyncCallbacks.ReadEntriesCallback callback = invocation.getArgument(5);
+            rangeEntryCache.readFromStorage(lh, 0, 1, NO_MAX_SIZE_LIMIT, invocation.getArgument(4))
+                    .whenComplete((entries, failure) -> {
+                        if (failure != null) {
+                            callback.readEntriesFailed(new ManagedLedgerException(failure), invocation.getArgument(6));
+                        } else {
+                            callback.readEntriesComplete(entries, invocation.getArgument(6));
+                        }
+                    });
+            return null;
+        }).when(pendingReadsManager).readEntries(any(), eq(0L), eq(1L), anyLong(), any(), any(), any());
+
+        CompletableFuture<List<Entry>> future = new CompletableFuture<>();
+        rangeEntryCache.asyncReadEntry(lh, 0, 1, NO_MAX_SIZE_LIMIT, () -> 1,
+                new AsyncCallbacks.ReadEntriesCallback() {
+                    @Override
+                    public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                        future.complete(entries);
+                    }
+
+                    @Override
+                    public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                        future.completeExceptionally(exception);
+                    }
+                }, null);
+        assertThat(future).isCompletedWithValueMatching(entries -> entries.size() == 2);
+        try {
+            // the cursor reads the returned entries and releases them
+            future.getNow(null).forEach(Entry::release);
+            // the entries' expected reads are done, so both cached entries can be evicted
+            for (long entryId = 0; entryId <= 1; entryId++) {
+                ReferenceCountedEntry cached = rangeEntryCache.getEntries().get(PositionFactory.create(1, entryId));
+                try {
+                    assertThat(cached).as("entry %d", entryId).isNotNull();
+                    assertThat(cached.hasExpectedReads()).as("entry %d", entryId).isFalse();
+                } finally {
+                    if (cached != null) {
+                        cached.release();
+                    }
+                }
+            }
+        } finally {
+            ledgerEntries.forEach(LedgerEntryImpl::close);
+            rangeEntryCache.clear();
+        }
+    }
+
+    @Test
+    public void testTheLatestAdditionsExpectedReadCountOverridesTheCachedEntrys() {
+        EntryImpl first = EntryImpl.create(1, 20, "first".getBytes(StandardCharsets.UTF_8), 2);
+        EntryImpl second = EntryImpl.create(1, 20, "second".getBytes(StandardCharsets.UTF_8), 4);
+        EntryImpl third = EntryImpl.create(1, 20, "third".getBytes(StandardCharsets.UTF_8), 0);
+        ReferenceCountedEntry cached = null;
+        try {
+            assertThat(rangeEntryCache.insert(first)).isTrue();
+            cached = rangeEntryCache.getEntries().get(PositionFactory.create(1, 20));
+            // a later addition at the same position, as when two inserts race, isn't cached, but overrides the count
+            assertThat(rangeEntryCache.insert(second)).isFalse();
+            assertThat(new String(cached.getData(), StandardCharsets.UTF_8)).isEqualTo("first");
+            assertThat(cached.getReadCountHandler()).isSameAs(second.getReadCountHandler());
+            assertThat(cached.getReadCountHandler().getExpectedReadCount()).isEqualTo(4);
+            // also when it has no expected reads
+            assertThat(rangeEntryCache.insert(third)).isFalse();
+            assertThat(cached.hasExpectedReads()).isFalse();
+            // and the discarded duplicates' releases didn't count as reads of the additions' counts
+            assertThat(second.getReadCountHandler().getExpectedReadCount()).isEqualTo(4);
+        } finally {
+            if (cached != null) {
+                cached.release();
+            }
+            first.release();
+            second.release();
+            third.release();
+            rangeEntryCache.clear();
+        }
+    }
+
+    @Test
+    public void testBatchInsertSkipsCachedEntriesBeforeCopyingThem() {
+        // records the entries that the cache prepares for an insert: it computes their length before copying them
+        List<Long> prepared = new ArrayList<>();
+        rangeEntryCache = new RangeEntryCacheImpl(mockEntryCacheManager, mockManagedLedger,
+                mockRangeCacheRemovalQueue, (ml, entry) -> {
+                    prepared.add(entry.getEntryId());
+                    return entry.getLength();
+                }, pendingReadsManager);
+        EntryImpl cachedSource = EntryImpl.create(1, 11, "cached".getBytes(StandardCharsets.UTF_8));
+        assertThat(rangeEntryCache.insert(cachedSource)).isTrue();
+        ReferenceCountedEntry cached = rangeEntryCache.getEntries().get(PositionFactory.create(1, 11));
+        // the cached entry has no expected reads; the read's entries are expected to be read by 3 cursors
+        assertThat(cached.getReadCountHandler()).isNull();
+        List<Entry> read = new ArrayList<>();
+        for (long entryId = 10; entryId <= 12; entryId++) {
+            read.add(EntryImpl.create(1, entryId, ("read-" + entryId).getBytes(StandardCharsets.UTF_8), 3));
+        }
+        List<Entry> laterRead = List.of(EntryImpl.create(1, 11, "later".getBytes(StandardCharsets.UTF_8), 5));
+        try {
+            int sourceRefCnt = read.get(1).getDataBuffer().refCnt();
+            // a read from storage that overlaps the cached entry inserts the others, copying them
+            assertThat(rangeEntryCache.insert(read, true)).isEqualTo(2);
+            // the cached entry is immutable, so it's kept and the read's entry at its position isn't prepared or
+            // copied, but the cached entry takes the read's expected read count
+            assertThat(prepared).containsExactly(11L, 10L, 12L);
+            assertThat(cached.getReadCountHandler().getExpectedReadCount()).isEqualTo(3);
+            // and a later read's
+            assertThat(rangeEntryCache.insert(laterRead, true)).isZero();
+            assertThat(cached.getReadCountHandler().getExpectedReadCount()).isEqualTo(5);
+            ReferenceCountedEntry after = rangeEntryCache.getEntries().get(PositionFactory.create(1, 11));
+            try {
+                assertThat(after).isSameAs(cached);
+                assertThat(new String(after.getData(), StandardCharsets.UTF_8)).isEqualTo("cached");
+            } finally {
+                after.release();
+            }
+            assertThat(read.get(1).getDataBuffer().refCnt()).isEqualTo(sourceRefCnt);
+            assertThat(rangeEntryCache.getEntries().getNumberOfEntries()).isEqualTo(3);
+        } finally {
+            cached.release();
+            cachedSource.release();
+            read.forEach(Entry::release);
+            laterRead.forEach(Entry::release);
+            rangeEntryCache.clear();
+        }
+    }
+
+    @Test
+    public void testInsertDefersMetadataUntilFirstReadAndSharesIt() {
+        managedLedgerConfig.setPulsarMessageEntries(true);
+        ByteBuf headersAndPayload = serializeMessage("producer");
+        EntryImpl entry = EntryImpl.create(1, 50, headersAndPayload);
+        headersAndPayload.release();
+        assertThat(entry.getMessageMetadata()).isNull();
+
+        assertThat(rangeEntryCache.insert(entry)).isTrue();
+        entry.release();
+
+        ReferenceCountedEntry cached = rangeEntryCache.getEntries().get(PositionFactory.create(1, 50));
+        assertThat(cached).isNotNull();
+        assertThat(cached.getMessageMetadata()).isNull();
+        Entry first = readSingleEntryFromCache(1, 50);
+        Entry second = readSingleEntryFromCache(1, 50);
+        try {
+            try {
+                assertThat(first.getMessageMetadata()).isNotNull().isSameAs(cached.getMessageMetadata());
+                assertThat(second.getMessageMetadata()).isSameAs(first.getMessageMetadata());
+                rangeEntryCache.clear();
+            } finally {
+                cached.release();
+                first.release();
+            }
+            // The second read still retains the cache-owned buffer after eviction and the first read's release.
+            assertThat(second.getMessageMetadata().getProducerName()).isEqualTo("producer");
+            assertThat(second.getMessageMetadata().getSequenceId()).isEqualTo(7);
+        } finally {
+            second.release();
+        }
+    }
+
+    @Test(timeOut = 30_000)
+    public void testConcurrentCacheReadsShareMetadata() throws Exception {
+        managedLedgerConfig.setPulsarMessageEntries(true);
+        ByteBuf bytes = serializeMessage("producer");
+        EntryImpl source = EntryImpl.create(1, 50, bytes);
+        bytes.release();
+        assertThat(rangeEntryCache.insert(source)).isTrue();
+        source.release();
+        int readers = 8;
+        CountDownLatch ready = new CountDownLatch(readers);
+        CountDownLatch start = new CountDownLatch(1);
+        List<CompletableFuture<Entry>> reads = new ArrayList<>();
+        ExecutorService executor = Executors.newFixedThreadPool(readers);
+        try {
+            try {
+                for (int i = 0; i < readers; i++) {
+                    reads.add(CompletableFuture.supplyAsync(() -> {
+                        ready.countDown();
+                        try {
+                            start.await();
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            throw new RuntimeException(e);
+                        }
+                        return readSingleEntryFromCache(1, 50);
+                    }, executor));
+                }
+                assertThat(ready.await(5, TimeUnit.SECONDS)).isTrue();
+            } finally {
+                start.countDown();
+            }
+            CompletableFuture.allOf(reads.toArray(CompletableFuture[]::new)).get(5, TimeUnit.SECONDS);
+            MessageMetadata metadata = reads.get(0).join().getMessageMetadata();
+            assertThat(metadata).isNotNull();
+            for (CompletableFuture<Entry> read : reads) {
+                assertThat(read.join().getMessageMetadata()).isSameAs(metadata);
+                assertThat(read.join().getMessageMetadata().getSequenceId()).isEqualTo(7);
+            }
+            rangeEntryCache.clear();
+            assertThat(metadata.getProducerName()).isEqualTo("producer");
+        } finally {
+            executor.shutdownNow();
+            executor.awaitTermination(5, TimeUnit.SECONDS);
+            for (CompletableFuture<Entry> read : reads) {
+                if (read.isDone() && !read.isCompletedExceptionally()) {
+                    read.join().release();
+                }
+            }
+            rangeEntryCache.clear();
+        }
+    }
+
+    @Test
+    public void testInsertReusesTheMessageMetadataTheEntryAlreadyCarries() {
+        managedLedgerConfig.setPulsarMessageEntries(true);
+        ByteBuf headersAndPayload = serializeMessage("in-buffer");
+        EntryImpl entry = EntryImpl.create(1, 50, headersAndPayload);
+        headersAndPayload.release();
+        // deliberately disagrees with the buffer, so that a silent re-parse cannot pass this test
+        MessageMetadata suppliedByTheCaller = new MessageMetadata()
+                .setProducerName("from-publish-path")
+                .setSequenceId(7)
+                .setPublishTime(123456789L);
+        entry.setMessageMetadata(suppliedByTheCaller);
+
+        assertThat(rangeEntryCache.insert(entry)).isTrue();
+        entry.release();
+
+        // the cached entry reuses the instance instead of parsing the same bytes a second time
+        ReferenceCountedEntry cached = rangeEntryCache.getEntries().get(PositionFactory.create(1, 50));
+        assertThat(cached).isNotNull();
+        assertThat(cached.getMessageMetadata()).isSameAs(suppliedByTheCaller);
+        assertThat(cached.getMessageMetadata().getProducerName()).isEqualTo("from-publish-path");
+        cached.release();
+    }
+
+    @Test
+    public void testCopiedEntryUsesRegisteredCacheAllocator() {
+        RangeEntryCacheImpl copyingCache = createRangeEntryCache(true);
+        ByteBuf source = Unpooled.buffer(16).writeLong(123L).writeLong(456L);
+        source.readLong();
+        EntryImpl entry = EntryImpl.create(1, 50, source);
+        source.release();
+        assertThat(PulsarByteBufAllocator.getOrCreate(ML_CACHE_ALLOCATOR_NAME))
+                .isNotSameAs(PulsarByteBufAllocator.DEFAULT);
+        ByteBuf probe = PulsarByteBufAllocator.getOrCreate(ML_CACHE_ALLOCATOR_NAME).directBuffer(8, 8);
+        try {
+            assertThat(copyingCache.insert(entry)).isTrue();
+            assertThat(entry.getDataBuffer().readerIndex()).isEqualTo(8);
+            ReferenceCountedEntry cached = copyingCache.getEntries().get(PositionFactory.create(1, 50));
+            try {
+                assertThat(cached).isNotNull();
+                ByteBuf copied = cached.getDataBuffer();
+                assertThat(copied.isDirect()).isTrue();
+                assertThat(copied.alloc()).isSameAs(probe.alloc());
+                assertThat(copied.readableBytes()).isEqualTo(8);
+                assertThat(copied.getLong(copied.readerIndex())).isEqualTo(456L);
+                entry.getDataBuffer().setLong(8, 789L);
+                assertThat(copied.getLong(copied.readerIndex())).isEqualTo(456L);
+            } finally {
+                if (cached != null) {
+                    cached.release();
+                }
+            }
+        } finally {
+            probe.release();
+            entry.release();
+            copyingCache.clear();
+        }
+    }
+
+    @Test
+    public void testCachedEntryMetadataStaysReadableWhenEntriesAreCopied() {
+        managedLedgerConfig.setPulsarMessageEntries(true);
+        RangeEntryCacheImpl copyingCache = createRangeEntryCache(true);
+        ByteBuf headersAndPayload = serializeMessage("producer");
+        EntryImpl entry = EntryImpl.create(1, 50, headersAndPayload);
+        headersAndPayload.release();
+
+        assertThat(copyingCache.insert(entry)).isTrue();
+        // the source entry, and with it the buffer the metadata was parsed from, is released right after the
+        // insert, exactly as OpAddEntry does on the write path
+        entry.release();
+        assertThat(headersAndPayload.refCnt()).isZero();
+
+        ReferenceCountedEntry cached = copyingCache.getEntries().get(PositionFactory.create(1, 50));
+        assertThat(cached).isNotNull();
+        assertThat(cached.getMessageMetadata()).isNull();
+        Entry readBack = readSingleEntryFromCache(copyingCache, 1, 50);
+        readBack.release();
+        // Metadata is initialized from the retained cache copy, after the source buffer has been released.
+        assertThat(cached.getMessageMetadata()).isNotNull();
+        assertThat(cached.getMessageMetadata().getProducerName()).isEqualTo("producer");
+        assertThat(cached.getMessageMetadata().getSequenceId()).isEqualTo(7);
+        cached.release();
+    }
+
+    @Test
+    public void testReadFromStorageDoesNotShareSourceMetadataWithTheCopiedCacheEntry() {
+        managedLedgerConfig.setPulsarMessageEntries(true);
+        RangeEntryCacheImpl copyingCache = createRangeEntryCache(true);
+        when(mockManagedLedger.getExecutor()).thenReturn(mock(ThreadBoundExecutor.class));
+        // without ledger info, ReadEntryUtils reads through ReadHandle#readAsync
+        when(mockManagedLedger.getOptionalLedgerInfo(1L)).thenReturn(Optional.empty());
+
+        ByteBuf headersAndPayload = serializeMessage("producer");
+        LedgerEntryImpl ledgerEntry =
+                LedgerEntryImpl.create(1L, 0L, headersAndPayload.readableBytes(), headersAndPayload);
+        LedgerEntries ledgerEntries = mock(LedgerEntries.class);
+        when(ledgerEntries.iterator()).thenReturn(List.<LedgerEntry>of(ledgerEntry).iterator());
+        when(lh.readAsync(0L, 0L)).thenReturn(CompletableFuture.completedFuture(ledgerEntries));
+
+        CompletableFuture<List<Entry>> future = copyingCache.readFromStorage(lh, 0L, 0L, NO_MAX_SIZE_LIMIT,
+                expectedReadCount);
+        assertThat(future).isCompleted();
+        List<Entry> readEntries = future.getNow(null);
+        assertThat(readEntries).hasSize(1);
+        Entry sourceEntry = readEntries.get(0);
+
+        // unlike the write path, the read path parses the metadata of the entry it returns before inserting it,
+        // so this is the case where insert receives an entry that already carries a MessageMetadata
+        MessageMetadata sourceMetadata = sourceEntry.getMessageMetadata();
+        assertThat(sourceMetadata).isNotNull();
+        assertThat(sourceMetadata.getSequenceId()).isEqualTo(7);
+
+        ReferenceCountedEntry cached = copyingCache.getEntries().get(PositionFactory.create(1, 0));
+        assertThat(cached).isNotNull();
+        // the cached entry is backed by a copy of the payload, so it must not share the metadata that was parsed
+        // from the source buffer
+        assertThat(cached.getMessageMetadata()).isNull();
+
+        // overwrite the source payload while it is still referenced, the way the pooled buffer behind it gets
+        // overwritten once it has been recycled. This turns a leftover dependency on the source buffer into a
+        // wrong value rather than into a read that only fails when the released memory happens to be reused
+        headersAndPayload.setZero(headersAndPayload.readerIndex(), headersAndPayload.readableBytes());
+        // the metadata parsed from the source buffer was decoded when it was parsed, since copies of an entry share
+        // it across threads, so it doesn't depend on the overwritten bytes either
+        assertThat(sourceMetadata.getProducerName()).isEqualTo("producer");
+
+        // the read path releases the entries it returned once dispatch is done, while the cached copy stays
+        sourceEntry.release();
+        // readFromStorage closes the LedgerEntries, but that is a mock here, so the reference the read result
+        // holds is dropped explicitly instead
+        ledgerEntry.close();
+        assertThat(headersAndPayload.refCnt()).isZero();
+
+        // the cached entry parses its own metadata from the buffer the cache owns
+        Entry readBack = readSingleEntryFromCache(copyingCache, 1, 0);
+        assertThat(readBack.getMessageMetadata()).isNotNull().isNotSameAs(sourceMetadata);
+        readBack.release();
+        assertThat(cached.getMessageMetadata().getProducerName()).isEqualTo("producer");
+        assertThat(cached.getMessageMetadata().getSequenceId()).isEqualTo(7);
+        cached.release();
+    }
+
+    @Test
+    public void testInsertDoesNotParseMessageMetadataWhenTheEntriesArentPulsarMessages() {
+        // the transaction log and the pending ack store keep entries that are not Pulsar messages, so the entry
+        // cache must not try to parse message metadata out of them
+        managedLedgerConfig.setPulsarMessageEntries(false);
+
+        ByteBuf headersAndPayload = serializeMessage("producer");
+        EntryImpl entry = EntryImpl.create(1, 50, headersAndPayload);
+        headersAndPayload.release();
+
+        assertThat(rangeEntryCache.insert(entry)).isTrue();
+        entry.release();
+
+        ReferenceCountedEntry cached = rangeEntryCache.getEntries().get(PositionFactory.create(1, 50));
+        assertThat(cached).isNotNull();
+        assertThat(cached.getMessageMetadata()).isNull();
+        cached.release();
+
+        // Reading back through the cache must also skip metadata initialization for raw ledger entries.
+        Entry readBack = readSingleEntryFromCache(1, 50);
+        assertThat(readBack.getMessageMetadata()).isNull();
+        readBack.release();
+        // the read has to have been served from the cache. A miss would fall through to the mocked storage,
+        // which hands back an entry that carries no metadata either, making the assertion above vacuous
+        verify(pendingReadsManager, never()).readEntries(any(), anyLong(), anyLong(), anyLong(), any(), any(), any());
+
+        // control: the very same bytes are parsed when the managed ledger does hold Pulsar messages, so the
+        // assertions above can't pass merely because the payload happens to be unparseable
+        managedLedgerConfig.setPulsarMessageEntries(true);
+        ByteBuf controlHeadersAndPayload = serializeMessage("producer");
+        EntryImpl controlEntry = EntryImpl.create(1, 51, controlHeadersAndPayload);
+        controlHeadersAndPayload.release();
+        assertThat(rangeEntryCache.insert(controlEntry)).isTrue();
+        controlEntry.release();
+
+        ReferenceCountedEntry cachedControl = rangeEntryCache.getEntries().get(PositionFactory.create(1, 51));
+        assertThat(cachedControl).isNotNull();
+        assertThat(cachedControl.getMessageMetadata()).isNull();
+        Entry controlRead = readSingleEntryFromCache(1, 51);
+        assertThat(controlRead.getMessageMetadata()).isNotNull().isSameAs(cachedControl.getMessageMetadata());
+        assertThat(controlRead.getMessageMetadata().getProducerName()).isEqualTo("producer");
+        controlRead.release();
+        cachedControl.release();
+    }
+
+    @Test
+    public void testReadFromStorageDoesNotParseMessageMetadataWhenTheEntriesArentPulsarMessages() {
+        when(mockManagedLedger.getExecutor()).thenReturn(mock(ThreadBoundExecutor.class));
+        // without ledger info, ReadEntryUtils reads through ReadHandle#readAsync
+        when(mockManagedLedger.getOptionalLedgerInfo(1L)).thenReturn(Optional.empty());
+        managedLedgerConfig.setPulsarMessageEntries(false);
+
+        Entry entryWithoutParsing = readSingleEntryFromStorage(0L);
+        assertThat(entryWithoutParsing.getMessageMetadata()).isNull();
+        entryWithoutParsing.release();
+
+        // control: the same bytes read over the same path do get parsed when the entries are Pulsar messages
+        managedLedgerConfig.setPulsarMessageEntries(true);
+        Entry entryWithParsing = readSingleEntryFromStorage(1L);
+        assertThat(entryWithParsing.getMessageMetadata()).isNotNull();
+        assertThat(entryWithParsing.getMessageMetadata().getProducerName()).isEqualTo("producer");
+        entryWithParsing.release();
+    }
+
+    /**
+     * Reads a single entry back through the cache read path, which is the caller that used to trigger the lazy
+     * metadata initialization inside {@link RangeCacheEntryWrapper}.
+     *
+     * @apiNote the returned entry must be released by the caller
+     */
+    private Entry readSingleEntryFromCache(long ledgerId, long entryId) {
+        return readSingleEntryFromCache(rangeEntryCache, ledgerId, entryId);
+    }
+
+    private Entry readSingleEntryFromCache(RangeEntryCacheImpl cache, long ledgerId, long entryId) {
+        CompletableFuture<Entry> future = new CompletableFuture<>();
+        cache.asyncReadEntry(lh, PositionFactory.create(ledgerId, entryId),
+                new AsyncCallbacks.ReadEntryCallback() {
+                    @Override
+                    public void readEntryComplete(Entry entry, Object ctx) {
+                        future.complete(entry);
+                    }
+
+                    @Override
+                    public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                        future.completeExceptionally(exception);
+                    }
+                }, null);
+        assertThat(future).isCompleted();
+        return future.getNow(null);
+    }
+
+    /**
+     * Reads a single freshly serialized Pulsar message through {@link RangeEntryCacheImpl#readFromStorage}.
+     *
+     * @apiNote the returned entry must be released by the caller
+     */
+    private Entry readSingleEntryFromStorage(long entryId) {
+        ByteBuf headersAndPayload = serializeMessage("producer");
+        LedgerEntryImpl ledgerEntry =
+                LedgerEntryImpl.create(1L, entryId, headersAndPayload.readableBytes(), headersAndPayload);
+        LedgerEntries ledgerEntries = mock(LedgerEntries.class);
+        when(ledgerEntries.iterator()).thenReturn(List.<LedgerEntry>of(ledgerEntry).iterator());
+        when(lh.readAsync(entryId, entryId)).thenReturn(CompletableFuture.completedFuture(ledgerEntries));
+
+        CompletableFuture<List<Entry>> future = rangeEntryCache.readFromStorage(lh, entryId, entryId,
+                NO_MAX_SIZE_LIMIT, expectedReadCount);
+        assertThat(future).isCompleted();
+        List<Entry> readEntries = future.getNow(null);
+        assertThat(readEntries).hasSize(1);
+        // readFromStorage closes the LedgerEntries, but that is a mock here, so the reference the read result
+        // holds is dropped explicitly instead
+        ledgerEntry.close();
+        return readEntries.get(0);
+    }
+
+    @Test
+    public void testPartialCachingWithMiddleEntryInCache() {
+        Entry entry = EntryImpl.create(1, 50, Unpooled.EMPTY_BUFFER);
+        rangeEntryCache.insert(entry);
+        performReadAndValidateResult();
+        verify(pendingReadsManager, times(1)).readEntries(any(), eq(0L), eq(49L), anyLong(), any(), any(), any());
+        verify(pendingReadsManager, times(1)).readEntries(any(), eq(51L), eq(99L), anyLong(), any(), any(), any());
+    }
+
+    @Test
+    public void testPartialCachingWithFirstEntryInCache() {
+        Entry entry = EntryImpl.create(1, 0, Unpooled.EMPTY_BUFFER);
+        rangeEntryCache.insert(entry);
+        performReadAndValidateResult();
+        verify(pendingReadsManager, times(1)).readEntries(any(), eq(1L), eq(99L), anyLong(), any(), any(), any());
+    }
+
+    @Test
+    public void testPartialCachingWithLastEntryInCache() {
+        Entry entry = EntryImpl.create(1, 99, Unpooled.EMPTY_BUFFER);
+        rangeEntryCache.insert(entry);
+        performReadAndValidateResult();
+        verify(pendingReadsManager, times(1)).readEntries(any(), eq(0L), eq(98L), anyLong(), any(), any(), any());
+    }
+
+    @Test
+    public void testPartialCachingWithMiddleRangeInCache() {
+        Entry entry = EntryImpl.create(1, 50, Unpooled.EMPTY_BUFFER);
+        rangeEntryCache.insert(entry);
+        entry = EntryImpl.create(1, 51, Unpooled.EMPTY_BUFFER);
+        rangeEntryCache.insert(entry);
+        performReadAndValidateResult();
+        verify(pendingReadsManager, times(1)).readEntries(any(), eq(0L), eq(49L), anyLong(), any(), any(), any());
+        verify(pendingReadsManager, times(1)).readEntries(any(), eq(52L), eq(99L), anyLong(), any(), any(), any());
+    }
+
+    @Test
+    public void testPartialCachingWithFirstRangeInCache() {
+        Entry entry = EntryImpl.create(1, 0, Unpooled.EMPTY_BUFFER);
+        rangeEntryCache.insert(entry);
+        entry = EntryImpl.create(1, 1, Unpooled.EMPTY_BUFFER);
+        rangeEntryCache.insert(entry);
+        performReadAndValidateResult();
+        verify(pendingReadsManager, times(1)).readEntries(any(), eq(2L), eq(99L), anyLong(), any(), any(), any());
+    }
+
+    @Test
+    public void testPartialCachingWithLastRangeInCache() {
+        Entry entry = EntryImpl.create(1, 98, Unpooled.EMPTY_BUFFER);
+        rangeEntryCache.insert(entry);
+        EntryImpl.create(1, 99, Unpooled.EMPTY_BUFFER);
+        rangeEntryCache.insert(entry);
+        performReadAndValidateResult();
+        verify(pendingReadsManager, times(1)).readEntries(any(), eq(0L), eq(97L), anyLong(), any(), any(), any());
+    }
+
+    @Test
+    public void testPartialCachingWithMultipleEntriesInCache() {
+        Entry entry = EntryImpl.create(1, 5, Unpooled.EMPTY_BUFFER);
+        rangeEntryCache.insert(entry);
+        entry = EntryImpl.create(1, 15, Unpooled.EMPTY_BUFFER);
+        rangeEntryCache.insert(entry);
+        entry = EntryImpl.create(1, 75, Unpooled.EMPTY_BUFFER);
+        rangeEntryCache.insert(entry);
+        entry = EntryImpl.create(1, 76, Unpooled.EMPTY_BUFFER);
+        rangeEntryCache.insert(entry);
+        entry = EntryImpl.create(1, 78, Unpooled.EMPTY_BUFFER);
+        rangeEntryCache.insert(entry);
+        performReadAndValidateResult();
+        verify(pendingReadsManager, times(1)).readEntries(any(), eq(0L), eq(4L), anyLong(), any(), any(), any());
+        verify(pendingReadsManager, times(1)).readEntries(any(), eq(6L), eq(14L), anyLong(), any(), any(), any());
+        verify(pendingReadsManager, times(1)).readEntries(any(), eq(16L), eq(74L), anyLong(), any(), any(), any());
+        verify(pendingReadsManager, times(1)).readEntries(any(), eq(77L), eq(77L), anyLong(), any(), any(), any());
+        verify(pendingReadsManager, times(1)).readEntries(any(), eq(79L), eq(99L), anyLong(), any(), any(), any());
+    }
+
+    @Test
+    public void testPartialCachingWithMultipleEntriesInCacheWhilePartialReadFails() {
+        Entry entry = EntryImpl.create(1, 50, Unpooled.EMPTY_BUFFER);
+        rangeEntryCache.insert(entry);
+        doAnswer(invocation -> {
+            AsyncCallbacks.ReadEntriesCallback callback = invocation.getArgument(5);
+            Object ctx = invocation.getArgument(6);
+            System.out.println("Injecting test failure for readEntries");
+            callback.readEntriesFailed(new ManagedLedgerException("Injected test failure"), ctx);
+            return null;
+        }).when(pendingReadsManager).readEntries(any(), eq(51L), eq(99L), anyLong(), any(), any(), any());
+        performReadAndValidateResult();
+        verify(pendingReadsManager, times(1)).readEntries(any(), eq(0L), eq(49L), anyLong(), any(), any(), any());
+        verify(pendingReadsManager, times(1)).readEntries(any(), eq(51L), eq(99L), anyLong(), any(), any(), any());
+        verify(pendingReadsManager, times(1)).readEntries(any(), eq(0L), eq(99L), anyLong(), any(), any(), any());
+    }
+
+    @Test(timeOut = 30_000)
+    public void testSparseLegWithNullSlotRetriesWholeRangeRead() {
+        // A leg answering with a list that still carries the null slots of a nested sparse
+        // delivery is an incomplete answer: the read must discard what it collected — both
+        // legs' entries, null slots included — and deliver the whole-range re-read's result.
+        rangeEntryCache.insert(EntryImpl.create(1, 50, Unpooled.EMPTY_BUFFER));
+        List<EntryImpl> leftLegEntries = new ArrayList<>();
+        stubLegAnswer(0, 49, entriesForRange(0, 49, leftLegEntries));
+        List<EntryImpl> rightLegEntries = new ArrayList<>();
+        stubLegAnswer(51, 99, sparseEntriesForRange(51, 99, 70, rightLegEntries));
+        AtomicInteger leftLegDiscards = armDiscardRecorder(leftLegEntries);
+        AtomicInteger rightLegDiscards = armDiscardRecorder(rightLegEntries);
+
+        CompletableFuture<List<Entry>> future = readEntriesAsync();
+        assertThat(future).isCompleted();
+        List<Entry> delivered = future.getNow(null);
+
+        assertThat(delivered).hasSize(100);
+        assertThat(delivered).doesNotContainNull();
+        assertThat(delivered.get(0).getEntryId()).isZero();
+        assertThat(delivered.get(99).getEntryId()).isEqualTo(99L);
+        verify(pendingReadsManager, times(1)).readEntries(any(), eq(0L), eq(49L), anyLong(), any(), any(), any());
+        verify(pendingReadsManager, times(1)).readEntries(any(), eq(51L), eq(99L), anyLong(), any(), any(), any());
+        verify(pendingReadsManager, times(1)).readEntries(any(), eq(0L), eq(99L), anyLong(), any(), any(), any());
+        // every leg entry was discarded — the sparse answer's at its rejection, the left leg's at
+        // the failure cleanup — and the read's delivery is released
+        assertThat(leftLegDiscards.get()).isEqualTo(leftLegEntries.size());
+        assertThat(rightLegDiscards.get()).isEqualTo(rightLegEntries.size());
+        delivered.forEach(Entry::release);
+    }
+
+    @Test(timeOut = 30_000)
+    public void testShortLegRetriesWholeRangeRead() {
+        // A leg answering with fewer entries than the range it was asked for is an incomplete
+        // answer even when the list carries no null slot: the unfilled slots would otherwise be
+        // delivered as nulls.
+        rangeEntryCache.insert(EntryImpl.create(1, 50, Unpooled.EMPTY_BUFFER));
+        List<EntryImpl> shortLegEntries = new ArrayList<>();
+        stubLegAnswer(51, 99, entriesForRange(51, 90, shortLegEntries));
+        AtomicInteger shortLegDiscards = armDiscardRecorder(shortLegEntries);
+
+        CompletableFuture<List<Entry>> future = readEntriesAsync();
+        assertThat(future).isCompleted();
+        List<Entry> delivered = future.getNow(null);
+
+        assertThat(delivered).hasSize(100);
+        assertThat(delivered).doesNotContainNull();
+        verify(pendingReadsManager, times(1)).readEntries(any(), eq(0L), eq(49L), anyLong(), any(), any(), any());
+        verify(pendingReadsManager, times(1)).readEntries(any(), eq(51L), eq(99L), anyLong(), any(), any(), any());
+        verify(pendingReadsManager, times(1)).readEntries(any(), eq(0L), eq(99L), anyLong(), any(), any(), any());
+        // the short answer's entries were discarded at its rejection, the delivery released
+        assertThat(shortLegDiscards.get()).isEqualTo(shortLegEntries.size());
+        delivered.forEach(Entry::release);
+    }
+
+    @Test(timeOut = 30_000)
+    public void testFailedLegWithSparseSiblingStillRetriesWholeRangeRead() {
+        // A sparse answer is itself a failed read: next to a genuinely failed leg, the
+        // rejection releases the sparse answer's entries, the failure cleanup the cached
+        // ones, and the whole-range re-read still follows.
+        rangeEntryCache.insert(EntryImpl.create(1, 50, Unpooled.EMPTY_BUFFER));
+        stubLegFailure(0, 49);
+        List<EntryImpl> rightLegEntries = new ArrayList<>();
+        stubLegAnswer(51, 99, sparseEntriesForRange(51, 99, 70, rightLegEntries));
+        AtomicInteger rightLegDiscards = armDiscardRecorder(rightLegEntries);
+
+        CompletableFuture<List<Entry>> future = readEntriesAsync();
+        assertThat(future).isCompleted();
+        List<Entry> delivered = future.getNow(null);
+
+        assertThat(delivered).hasSize(100);
+        assertThat(delivered).doesNotContainNull();
+        verify(pendingReadsManager, times(1)).readEntries(any(), eq(0L), eq(49L), anyLong(), any(), any(), any());
+        verify(pendingReadsManager, times(1)).readEntries(any(), eq(51L), eq(99L), anyLong(), any(), any(), any());
+        verify(pendingReadsManager, times(1)).readEntries(any(), eq(0L), eq(99L), anyLong(), any(), any(), any());
+        // the sparse answer's entries were discarded at its rejection, the delivery released
+        assertThat(rightLegDiscards.get()).isEqualTo(rightLegEntries.size());
+        delivered.forEach(Entry::release);
+    }
+
+    @Test(timeOut = 30_000)
+    public void testWholeRangeRetryThatStillAnswersShortFailsTheRead() {
+        // A storage that persistently answers short makes the re-read fail the read: its short
+        // result would carry no null slot, but the entries the range asked for are still
+        // missing, and delivering the batch would read the same range again with no progress.
+        rangeEntryCache.insert(EntryImpl.create(1, 50, Unpooled.EMPTY_BUFFER));
+        List<EntryImpl> shortLegEntries = new ArrayList<>();
+        stubLegAnswer(51, 99, entriesForRange(51, 90, shortLegEntries));
+        List<EntryImpl> shortRetryEntries = new ArrayList<>();
+        stubLegAnswer(0, 99, entriesForRange(0, 80, shortRetryEntries));
+
+        CompletableFuture<List<Entry>> future = readEntriesAsync();
+
+        assertThat(future).isCompletedExceptionally();
+        Throwable failure = future.handle((entries, t) -> t).getNow(null);
+        assertThat(failure).isInstanceOf(ManagedLedgerException.class)
+                .hasMessageContaining("returned an incomplete result");
+        // the read retried the whole range exactly once and did not deliver anything
+        verify(pendingReadsManager, times(1)).readEntries(any(), eq(0L), eq(49L), anyLong(), any(), any(), any());
+        verify(pendingReadsManager, times(1)).readEntries(any(), eq(51L), eq(99L), anyLong(), any(), any(), any());
+        verify(pendingReadsManager, times(1)).readEntries(any(), eq(0L), eq(99L), anyLong(), any(), any(), any());
+        // the leg's entries were discarded at the rejection, the retry's at the failed delivery
+        for (EntryImpl entry : shortLegEntries) {
+            assertThat(entry.refCnt()).isZero();
+        }
+        for (EntryImpl entry : shortRetryEntries) {
+            assertThat(entry.refCnt()).isZero();
+        }
+    }
+
+    @Test(timeOut = 30_000)
+    public void testGappedWholeRangeRetryFailsTheReadInsteadOfSkippingTheGap() {
+        // A gapped re-read answer carries no null slot, and delivering it would advance the
+        // reader past the entry it skips. It must fail the read and discard the batch instead.
+        rangeEntryCache.insert(EntryImpl.create(1, 50, Unpooled.EMPTY_BUFFER));
+        List<EntryImpl> shortLegEntries = new ArrayList<>();
+        stubLegAnswer(51, 99, entriesForRange(51, 90, shortLegEntries));
+        List<EntryImpl> gappedRetryEntries = new ArrayList<>();
+        List<Entry> gappedRetry = new ArrayList<>();
+        gappedRetry.addAll(entriesForRange(0, 58, gappedRetryEntries));
+        gappedRetry.addAll(entriesForRange(60, 99, gappedRetryEntries));
+        stubLegAnswer(0, 99, gappedRetry);
+
+        CompletableFuture<List<Entry>> future = readEntriesAsync();
+
+        assertThat(future).isCompletedExceptionally();
+        Throwable failure = future.handle((entries, t) -> t).getNow(null);
+        assertThat(failure).isInstanceOf(ManagedLedgerException.class)
+                .hasMessageContaining("returned an incomplete result");
+        verify(pendingReadsManager, times(1)).readEntries(any(), eq(0L), eq(99L), anyLong(), any(), any(), any());
+        for (EntryImpl entry : gappedRetryEntries) {
+            assertThat(entry.refCnt()).isZero();
+        }
+    }
+
+    @Test(timeOut = 30_000)
+    public void testShiftedLegAnswerRetriesWholeRangeRead() {
+        // An answer at shifted positions — [52..100] for [51..99] — has the requested count and
+        // no null slot; only the position check catches it and sends the read to the re-read.
+        rangeEntryCache.insert(EntryImpl.create(1, 50, Unpooled.EMPTY_BUFFER));
+        List<EntryImpl> shiftedLegEntries = new ArrayList<>();
+        stubLegAnswer(51, 99, entriesForRange(52, 100, shiftedLegEntries));
+        AtomicInteger shiftedLegDiscards = armDiscardRecorder(shiftedLegEntries);
+
+        CompletableFuture<List<Entry>> future = readEntriesAsync();
+        assertThat(future).isCompleted();
+        List<Entry> delivered = future.getNow(null);
+
+        assertThat(delivered).hasSize(100);
+        assertThat(delivered).doesNotContainNull();
+        assertThat(delivered.get(0).getEntryId()).isZero();
+        assertThat(delivered.get(99).getEntryId()).isEqualTo(99L);
+        verify(pendingReadsManager, times(1)).readEntries(any(), eq(51L), eq(99L), anyLong(), any(), any(), any());
+        verify(pendingReadsManager, times(1)).readEntries(any(), eq(0L), eq(99L), anyLong(), any(), any(), any());
+        // the shifted answer's entries were discarded at its rejection, the delivery released
+        assertThat(shiftedLegDiscards.get()).isEqualTo(shiftedLegEntries.size());
+        delivered.forEach(Entry::release);
+    }
+
+    @Test(timeOut = 30_000)
+    public void testSurplusWholeRangeRetryAnswerIsTrimmedToTheRange() {
+        // The whole-range re-read can answer with surplus entries beyond the range: an
+        // offloaded-ledger grouped read starts at its segment's start entry (#26708). The range it
+        // was asked for is covered, so the read must not fail — it must deliver exactly the
+        // requested range and release each surplus entry, without counting its drop as a read.
+        rangeEntryCache.insert(EntryImpl.create(1, 50, Unpooled.EMPTY_BUFFER));
+        List<EntryImpl> shortLegEntries = new ArrayList<>();
+        stubLegAnswer(51, 99, entriesForRange(51, 90, shortLegEntries));
+        List<EntryImpl> retryEntries = new ArrayList<>();
+        List<Entry> retryAnswer = new ArrayList<>(entriesForRange(0, 99, retryEntries));
+        EntryImpl surplus = EntryImpl.create(1, 100, Unpooled.EMPTY_BUFFER, 1);
+        retryEntries.add(surplus);
+        retryAnswer.add(surplus);
+        EntryReadCountHandler surplusReadCountHandler = surplus.getReadCountHandler();
+        stubLegAnswer(0, 99, retryAnswer);
+
+        CompletableFuture<List<Entry>> future = readEntriesAsync();
+
+        assertThat(future).isCompleted();
+        List<Entry> delivered = future.getNow(null);
+        try {
+            assertThat(delivered).hasSize(100);
+            assertThat(delivered).doesNotContainNull();
+            assertThat(delivered.get(0).getEntryId()).isZero();
+            assertThat(delivered.get(99).getEntryId()).isEqualTo(99L);
+            assertThat(delivered).doesNotContain(surplus);
+        } finally {
+            delivered.forEach(Entry::release);
+        }
+        verify(pendingReadsManager, times(1)).readEntries(any(), eq(0L), eq(99L), anyLong(), any(), any(), any());
+        // the surplus entry was dropped at the delivery, and its drop was not counted as a read
+        assertThat(surplus.refCnt()).isZero();
+        assertThat(surplusReadCountHandler.getExpectedReadCount()).isEqualTo(1);
+    }
+
+    @Test(timeOut = 30_000)
+    public void testOutOfOrderCompleteLegAnswerIsAccepted() {
+        // A grouped read of an offloaded ledger answers with its segments' entries in
+        // last-to-first segment order: with segments starting at 1 and 50, the [1..99] leg of a
+        // read of [0..99] answers 50..99 first, then 1..49. Every requested position is
+        // answered, so the answer is complete — rejecting it would cost a whole-range re-read.
+        rangeEntryCache.insert(EntryImpl.create(1, 0, Unpooled.EMPTY_BUFFER));
+        List<EntryImpl> legEntries = new ArrayList<>();
+        List<Entry> segmentOrdered = new ArrayList<>(entriesForRange(50, 99, legEntries));
+        segmentOrdered.addAll(entriesForRange(1, 49, legEntries));
+        stubLegAnswer(1, 99, segmentOrdered);
+
+        CompletableFuture<List<Entry>> future = readEntriesAsync();
+
+        assertThat(future).isCompleted();
+        List<Entry> delivered = future.getNow(null);
+        try {
+            assertThat(delivered).hasSize(100);
+            assertThat(delivered).doesNotContainNull();
+            for (int i = 0; i < 100; i++) {
+                assertThat(delivered.get(i).getEntryId()).isEqualTo(i);
+            }
+        } finally {
+            delivered.forEach(Entry::release);
+        }
+        // the segment-ordered answer was accepted as the leg's: no whole-range re-read
+        verify(pendingReadsManager, times(1)).readEntries(any(), eq(1L), eq(99L), anyLong(), any(), any(), any());
+        verify(pendingReadsManager, never()).readEntries(any(), eq(0L), eq(99L), anyLong(), any(), any(), any());
+    }
+
+    @Test(timeOut = 30_000)
+    public void testOutOfOrderWholeRangeRetryAnswerIsDeliveredAscending() {
+        // The whole-range re-read of an offloaded ledger's range answers with its segments in
+        // last-to-first order — with segments starting at 0 and 50, the re-read of [0..99]
+        // answers 50..99 first, then 0..49 — carrying exactly the requested count. Every
+        // requested position is answered, so the read must not fail: it delivers the entries
+        // placed at their positions, in ascending order.
+        rangeEntryCache.insert(EntryImpl.create(1, 50, Unpooled.EMPTY_BUFFER));
+        List<EntryImpl> shortLegEntries = new ArrayList<>();
+        stubLegAnswer(51, 99, entriesForRange(51, 90, shortLegEntries));
+        List<EntryImpl> retryEntries = new ArrayList<>();
+        List<Entry> retryAnswer = new ArrayList<>(entriesForRange(50, 99, retryEntries));
+        retryAnswer.addAll(entriesForRange(0, 49, retryEntries));
+        stubLegAnswer(0, 99, retryAnswer);
+
+        CompletableFuture<List<Entry>> future = readEntriesAsync();
+
+        assertThat(future).isCompleted();
+        List<Entry> delivered = future.getNow(null);
+        try {
+            assertThat(delivered).hasSize(100);
+            assertThat(delivered).doesNotContainNull();
+            for (int i = 0; i < 100; i++) {
+                assertThat(delivered.get(i).getEntryId()).isEqualTo(i);
+            }
+        } finally {
+            delivered.forEach(Entry::release);
+        }
+        verify(pendingReadsManager, times(1)).readEntries(any(), eq(0L), eq(99L), anyLong(), any(), any(), any());
+    }
+
+    @Test(timeOut = 30_000)
+    public void testNullSlotInDeliveredBatchReturnsItsPermitShareImmediately() {
+        // The limiter wrapper's null branch is defense in depth now that the mixed read validates
+        // its answers before delivering, but it must keep working: a null slot has no entry that
+        // will ever deallocate, so its share of the permits returns immediately, while the batch
+        // is still delivered and the entries' shares return when they are released.
+        InflightReadsLimiter limiter = mockEntryCacheManager.getInflightReadsLimiter();
+        InflightReadsLimiter.Handle handle = new InflightReadsLimiter.Handle(300, 0, true);
+        List<EntryImpl> sparseEntries = new ArrayList<>();
+        stubLegAnswer(0, 2, sparseEntriesForRange(0, 2, 1, sparseEntries));
+
+        CompletableFuture<List<Entry>> future = new CompletableFuture<>();
+        rangeEntryCache.doAsyncReadEntriesWithAcquiredPermits(lh, PositionFactory.create(1, 0),
+                PositionFactory.create(1, 2), 3, NO_MAX_SIZE_LIMIT, expectedReadCount,
+                new AsyncCallbacks.ReadEntriesCallback() {
+                    @Override
+                    public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                        future.complete(entries);
+                    }
+
+                    @Override
+                    public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                        future.completeExceptionally(exception);
+                    }
+                }, null, handle, 300);
+
+        assertThat(future).isCompleted();
+        List<Entry> delivered = future.getNow(null);
+        assertThat(delivered).hasSize(3);
+        assertThat(delivered.get(1)).isNull();
+        // the null slot's own share has returned, but the entries hold theirs
+        verify(limiter, never()).release(any());
+        EntryImpl.releaseDiscarded(delivered);
+        verify(limiter, times(1)).release(any());
+        for (EntryImpl entry : sparseEntries) {
+            assertThat(entry.refCnt()).isZero();
+        }
+    }
+
+    @Test
+    public void testReadFromStorageRetriesWhenHandleClosed() {
+        RangeEntryCacheManagerImpl mockEntryCacheManager = mock(RangeEntryCacheManagerImpl.class);
+        ManagedLedgerFactoryMBeanImpl mlFactoryMBean = mock(ManagedLedgerFactoryMBeanImpl.class);
+        when(mockEntryCacheManager.getMlFactoryMBean()).thenReturn(mlFactoryMBean);
+        ManagedLedgerImpl mockManagedLedger = mock(ManagedLedgerImpl.class);
+        ManagedLedgerConfig conf = mock(ManagedLedgerConfig.class);
+        when(mockManagedLedger.isBatchReadEnabled()).thenReturn(false);
+        when(mockManagedLedger.getConfig()).thenReturn(conf);
+        ManagedLedgerMBeanImpl mockManagedLedgerMBean = mock(ManagedLedgerMBeanImpl.class);
+        when(mockManagedLedger.getMbean()).thenReturn(mockManagedLedgerMBean);
+        when(mockManagedLedger.getName()).thenReturn("testManagedLedger");
+        when(mockManagedLedger.getConfig()).thenReturn(defaultConfig());
+        when(mockManagedLedger.getExecutor()).thenReturn(mock(ThreadBoundExecutor.class));
+        when(mockManagedLedger.getOptionalLedgerInfo(1L)).thenReturn(Optional.empty());
+        RangeCacheRemovalQueue mockRangeCacheRemovalQueue = mock(RangeCacheRemovalQueue.class);
+        when(mockRangeCacheRemovalQueue.addEntry(any())).thenReturn(true);
+        InflightReadsLimiter inflightReadsLimiter = mock(InflightReadsLimiter.class);
+        when(mockEntryCacheManager.getInflightReadsLimiter()).thenReturn(inflightReadsLimiter);
+        doAnswer(invocation -> {
+            long permits = invocation.getArgument(0);
+            InflightReadsLimiter.Handle handle = new InflightReadsLimiter.Handle(permits, System.currentTimeMillis(),
+                    true);
+            return Optional.of(handle);
+        }).when(inflightReadsLimiter).acquire(anyLong(), any());
+
+        RangeEntryCacheImpl cache = new RangeEntryCacheImpl(mockEntryCacheManager, mockManagedLedger,
+                mockRangeCacheRemovalQueue, EntryLengthFunction.DEFAULT, mock(PendingReadsManager.class));
+
+        ReadHandle readHandle = mock(ReadHandle.class);
+        when(readHandle.getId()).thenReturn(1L);
+        when(mockManagedLedger.reopenReadHandle(1L)).thenReturn(CompletableFuture.completedFuture(readHandle));
+
+        LedgerEntryImpl ledgerEntry = LedgerEntryImpl.create(1L, 0L, 1, Unpooled.wrappedBuffer(new byte[] {1}));
+        LedgerEntries ledgerEntries = mock(LedgerEntries.class);
+        List<LedgerEntry> entryList = List.of((LedgerEntry) ledgerEntry);
+        when(ledgerEntries.iterator()).thenReturn(entryList.iterator());
+
+        AtomicInteger readAttempts = new AtomicInteger();
+        when(readHandle.readAsync(0L, 0L)).thenAnswer(invocation -> {
+            if (readAttempts.getAndIncrement() == 0) {
+                return CompletableFuture.failedFuture(new ManagedLedgerException.OffloadReadHandleClosedException());
+            }
+            return CompletableFuture.completedFuture(ledgerEntries);
+        });
+
+        CompletableFuture<List<Entry>> future = cache.readFromStorage(readHandle, 0L, 0L, NO_MAX_SIZE_LIMIT, () -> 1);
+        assertThat(future).isCompleted().satisfies(f -> {
+            List<Entry> entries = f.getNow(null);
+            assertThat(entries).hasSize(1);
+            assertThat(entries.get(0).getLedgerId()).isEqualTo(1L);
+            assertThat(entries.get(0).getEntryId()).isEqualTo(0L);
+        });
+        assertThat(readAttempts.get()).isEqualTo(2);
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    @Test
+    public void testReadFromStorageWithBatchReadEnabled() {
+        RangeEntryCacheManagerImpl mockEntryCacheManager = mock(RangeEntryCacheManagerImpl.class);
+        ManagedLedgerFactoryMBeanImpl mlFactoryMBean = mock(ManagedLedgerFactoryMBeanImpl.class);
+        when(mockEntryCacheManager.getMlFactoryMBean()).thenReturn(mlFactoryMBean);
+
+        ManagedLedgerImpl mockManagedLedger = mock(ManagedLedgerImpl.class);
+        ManagedLedgerConfig conf = mock(ManagedLedgerConfig.class);
+        when(mockManagedLedger.isBatchReadEnabled()).thenReturn(true);
+        when(mockManagedLedger.getConfig()).thenReturn(conf);
+
+        ManagedLedgerMBeanImpl mockManagedLedgerMBean = mock(ManagedLedgerMBeanImpl.class);
+        when(mockManagedLedger.getMbean()).thenReturn(mockManagedLedgerMBean);
+        when(mockManagedLedger.getName()).thenReturn("testManagedLedger");
+        when(mockManagedLedger.getExecutor()).thenReturn(mock(ThreadBoundExecutor.class));
+        Position lastConfirmedEntry = PositionFactory.create(1L, 99L);
+        when(mockManagedLedger.getLastConfirmedEntry()).thenReturn(lastConfirmedEntry);
+        when(mockManagedLedger.getOptionalLedgerInfo(1L)).thenReturn((Optional) Optional.of(new Object()));
+
+        RangeCacheRemovalQueue mockRangeCacheRemovalQueue = mock(RangeCacheRemovalQueue.class);
+        when(mockRangeCacheRemovalQueue.addEntry(any())).thenReturn(true);
+        InflightReadsLimiter inflightReadsLimiter = mock(InflightReadsLimiter.class);
+        when(mockEntryCacheManager.getInflightReadsLimiter()).thenReturn(inflightReadsLimiter);
+        doAnswer(invocation -> {
+            long permits = invocation.getArgument(0);
+            InflightReadsLimiter.Handle handle =
+                    new InflightReadsLimiter.Handle(permits, System.currentTimeMillis(), true);
+            return Optional.of(handle);
+        }).when(inflightReadsLimiter).acquire(anyLong(), any());
+
+        RangeEntryCacheImpl cache = new RangeEntryCacheImpl(mockEntryCacheManager, mockManagedLedger,
+                mockRangeCacheRemovalQueue, EntryLengthFunction.DEFAULT, mock(PendingReadsManager.class));
+
+        // Use LedgerHandle mock so batch read path is taken
+        LedgerHandle ledgerHandle = mock(LedgerHandle.class);
+        when(ledgerHandle.getId()).thenReturn(1L);
+
+        // Model BookKeeper batch decoding with slices of one large response buffer.
+        ByteBuf response = Unpooled.buffer(1024 * 1024);
+        response.writeZero(response.capacity());
+        List<LedgerEntry> entryList = new ArrayList<>();
+        for (long i = 0; i <= 4; i++) {
+            entryList.add(LedgerEntryImpl.create(1L, i, 1, response.retainedSlice((int) i, 1)));
+        }
+        response.release();
+        LedgerEntries batchEntries = new LedgerEntries() {
+            @Override
+            public LedgerEntry getEntry(long entryId) {
+                for (LedgerEntry e : entryList) {
+                    if (e.getEntryId() == entryId) {
+                        return e;
+                    }
+                }
+                throw new IndexOutOfBoundsException("Entry " + entryId + " not found");
+            }
+
+            @Override
+            public Iterator<LedgerEntry> iterator() {
+                return entryList.iterator();
+            }
+
+            @Override
+            public void close() {
+                entryList.forEach(LedgerEntry::close);
+            }
+        };
+        when(ledgerHandle.batchReadUnconfirmedAsync(eq(0L), eq(5), eq(1024L * 1024)))
+                .thenReturn(CompletableFuture.completedFuture(batchEntries));
+
+        CompletableFuture<List<Entry>> future = cache.readFromStorage(ledgerHandle, 0L, 4L, 1024 * 1024, () -> 1);
+
+        assertThat(future).isCompleted();
+        List<Entry> entries = future.getNow(null);
+        try {
+            try {
+                assertThat(entries).hasSize(5);
+                for (int i = 0; i < 5; i++) {
+                    assertThat(entries.get(i).getEntryId()).isEqualTo(i);
+                }
+                // Verify batch read was used, not readUnconfirmedAsync
+                verify(ledgerHandle, never()).readUnconfirmedAsync(anyLong(), anyLong());
+            } finally {
+                entries.forEach(Entry::release);
+            }
+            cache.invalidateEntries(PositionFactory.create(1L, 4L));
+            assertThat(cache.getSize()).isEqualTo(1);
+            assertThat(response.refCnt()).as("cache must not retain the shared batch response").isZero();
+            ReferenceCountedEntry cached = cache.getEntries().get(PositionFactory.create(1L, 4L));
+            try {
+                assertThat(cached.getDataBuffer().getByte(0)).isZero();
+            } finally {
+                cached.release();
+            }
+        } finally {
+            cache.clear();
+        }
+    }
+
+    private CompletableFuture<List<Entry>> readEntriesAsync() {
+        CompletableFuture<List<Entry>> future = new CompletableFuture<>();
+        rangeEntryCache.asyncReadEntry(lh, 0, 99, NO_MAX_SIZE_LIMIT, expectedReadCount,
+                new AsyncCallbacks.ReadEntriesCallback() {
+                    @Override
+                    public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                        future.complete(entries);
+                    }
+
+                    @Override
+                    public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                        future.completeExceptionally(exception);
+                    }
+                }, null);
+        return future;
+    }
+
+    private void stubLegAnswer(long firstEntry, long lastEntry, List<Entry> answer) {
+        doAnswer(invocation -> {
+            AsyncCallbacks.ReadEntriesCallback callback = invocation.getArgument(5);
+            Object ctx = invocation.getArgument(6);
+            callback.readEntriesComplete(answer, ctx);
+            return null;
+        }).when(pendingReadsManager).readEntries(any(), eq(firstEntry), eq(lastEntry), anyLong(), any(), any(), any());
+    }
+
+    private void stubLegFailure(long firstEntry, long lastEntry) {
+        doAnswer(invocation -> {
+            AsyncCallbacks.ReadEntriesCallback callback = invocation.getArgument(5);
+            Object ctx = invocation.getArgument(6);
+            callback.readEntriesFailed(new ManagedLedgerException("Injected test failure"), ctx);
+            return null;
+        }).when(pendingReadsManager).readEntries(any(), eq(firstEntry), eq(lastEntry), anyLong(), any(), any(), any());
+    }
+
+    private static List<Entry> entriesForRange(long firstEntry, long lastEntry, List<EntryImpl> collector) {
+        List<Entry> entries = new ArrayList<>((int) (lastEntry - firstEntry + 1));
+        for (long entryId = firstEntry; entryId <= lastEntry; entryId++) {
+            EntryImpl entry = EntryImpl.create(1, entryId, Unpooled.EMPTY_BUFFER);
+            collector.add(entry);
+            entries.add(entry);
+        }
+        return entries;
+    }
+
+    /**
+     * Builds the answer of a leg that mirrors a nested sparse delivery: the entry of
+     * {@code nullEntryId} was never read, so its slot carries no entry at all — the collector
+     * only ever sees the entries the answer delivers.
+     */
+    private static List<Entry> sparseEntriesForRange(long firstEntry, long lastEntry, long nullEntryId,
+                                                     List<EntryImpl> collector) {
+        List<Entry> entries = new ArrayList<>((int) (lastEntry - firstEntry + 1));
+        for (long entryId = firstEntry; entryId <= lastEntry; entryId++) {
+            if (entryId == nullEntryId) {
+                entries.add(null);
+            } else {
+                EntryImpl entry = EntryImpl.create(1, entryId, Unpooled.EMPTY_BUFFER);
+                collector.add(entry);
+                entries.add(entry);
+            }
+        }
+        return entries;
+    }
+
+    /**
+     * Arms a discard recorder on every entry: the recovery tests release the legs' entries before
+     * the whole-range re-read creates its own batch on the same thread, so a discarded entry's
+     * object may already be recycled and re-acquired by that batch, and its {@code refCnt()} can
+     * belong to the re-read. This hook records the discard itself, exactly once, whatever happens
+     * to the object afterwards.
+     */
+    private static AtomicInteger armDiscardRecorder(List<EntryImpl> entries) {
+        AtomicInteger discards = new AtomicInteger();
+        for (EntryImpl entry : entries) {
+            entry.onDeallocate(discards::incrementAndGet);
+        }
+        return discards;
+    }
+
+    private void performReadAndValidateResult() {
+        CompletableFuture<List<Entry>> future = new CompletableFuture<>();
+        rangeEntryCache.asyncReadEntry(lh, 0, 99, NO_MAX_SIZE_LIMIT, expectedReadCount,
+                new AsyncCallbacks.ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                future.complete(entries);
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                future.completeExceptionally(exception);
+            }
+        }, null);
+        assertThat(future).isCompleted().satisfies(f -> {
+            List<Entry> entries = f.getNow(null);
+            assertThat(entries).hasSize(100);
+            for (int i = 0; i < 100; i++) {
+                Entry e = entries.get(i);
+                assertThat(e.getLedgerId()).isEqualTo(1L);
+                assertThat(e.getEntryId()).isEqualTo(i);
+            }
+        });
+    }
+
+    @Test
+    public void testOutOfRangeEntryFromStorageReadIsReleased() {
+        // Partial cache hit on (1,1) so the read takes the mixed path (cache hit + missing-range
+        // storage reads). The missing ranges are [0,0] and [2,3].
+        EntryImpl cached = EntryImpl.create(1, 1, Unpooled.EMPTY_BUFFER);
+        assertThat(rangeEntryCache.insert(cached)).isTrue();
+        cached.release();
+
+        // Each storage read answers beyond its missing sub-range with one extra entry:
+        // - the [0,0] read adds entry 1, which overlaps the slot already filled from the cache —
+        //   the assembly loop must not overwrite the slot (that would leak the cached copy) and
+        //   must release the duplicate;
+        // - the [2,3] read adds entry 4, which is positioned outside the requested range.
+        // A dropped entry has no other owner (the future's list is the sole reference), so the
+        // assembly loop must release it — without counting the drop as a read on the entry's
+        // read-count handler.
+        List<EntryImpl> extraEntries = new ArrayList<>();
+        List<EntryReadCountHandler> extraReadCountHandlers = new ArrayList<>();
+        doAnswer(invocation -> {
+            long firstEntry = invocation.getArgument(1);
+            long lastEntry = invocation.getArgument(2);
+            AsyncCallbacks.ReadEntriesCallback callback = invocation.getArgument(5);
+            Object ctx = invocation.getArgument(6);
+            List<Entry> entries = new ArrayList<>((int) (lastEntry - firstEntry + 2));
+            for (long entryId = firstEntry; entryId <= lastEntry; entryId++) {
+                entries.add(EntryImpl.create(1, entryId, Unpooled.EMPTY_BUFFER));
+            }
+            EntryImpl extra = EntryImpl.create(1, lastEntry + 1, Unpooled.EMPTY_BUFFER, 1);
+            extraEntries.add(extra);
+            extraReadCountHandlers.add(extra.getReadCountHandler());
+            entries.add(extra);
+            callback.readEntriesComplete(entries, ctx);
+            return null;
+        }).when(pendingReadsManager).readEntries(any(), anyLong(), anyLong(), anyLong(), any(), any(), any());
+
+        CompletableFuture<List<Entry>> result = new CompletableFuture<>();
+        rangeEntryCache.doAsyncReadEntriesByPosition(lh, PositionFactory.create(1, 0), PositionFactory.create(1, 3),
+                4, 1024 * 1024, expectedReadCount, new AsyncCallbacks.ReadEntriesCallback() {
+                    @Override
+                    public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                        result.complete(entries);
+                    }
+
+                    @Override
+                    public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                        result.completeExceptionally(exception);
+                    }
+                }, null);
+
+        List<Entry> delivered = result.join();
+        try {
+            assertThat(delivered).hasSize(4);
+            for (int i = 0; i < 4; i++) {
+                assertThat(delivered.get(i)).isNotNull();
+                assertThat(delivered.get(i).getEntryId()).isEqualTo(i);
+            }
+            // Slot 1 must still hold the copy filled from the cache, not the overlapping
+            // duplicate returned by the [0,0] storage read.
+            for (EntryImpl extra : extraEntries) {
+                assertThat(delivered.get(1)).isNotSameAs(extra);
+            }
+        } finally {
+            delivered.forEach(Entry::release);
+        }
+
+        // Both extra entries must have been dropped and released by the assembly loop, and the
+        // drop must not have counted as a read on their read-count handlers.
+        assertThat(extraEntries).hasSize(2);
+        for (int i = 0; i < extraEntries.size(); i++) {
+            assertThat(extraEntries.get(i).refCnt()).isZero();
+            assertThat(extraReadCountHandlers.get(i).getExpectedReadCount()).isEqualTo(1);
+        }
+    }
+}

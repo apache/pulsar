@@ -23,7 +23,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.client.api.schema.GenericRecord;
@@ -38,7 +38,7 @@ import org.apache.pulsar.io.core.SourceContext;
 /**
  * A source that generates {@link GenericRecord}s.
  */
-@Slf4j
+@CustomLog
 public class GenericRecordSource implements Source<GenericRecord> {
 
     private RecordSchemaBuilder recordSchemaBuilder;
@@ -54,7 +54,8 @@ public class GenericRecordSource implements Source<GenericRecord> {
         schema = Schema.generic(this.recordSchemaBuilder.build(SchemaType.AVRO));
         fields = Arrays.asList(new Field("number", 0),
             new Field("text", 1));
-        log.info("created source, schema {}", new String(schema.getSchemaInfo().getSchema(), StandardCharsets.UTF_8));
+        log.info().attr("schema", new String(schema.getSchemaInfo().getSchema(), StandardCharsets.UTF_8))
+                .log("created source");
     }
 
     @Override
@@ -67,7 +68,7 @@ public class GenericRecordSource implements Source<GenericRecord> {
             .set("number", value)
             .set("text", "value-" + value)
             .build();
-        log.info("produced {}", record);
+        log.info().attr("record", record).log("produced");
         return new Record<GenericRecord>() {
             @Override
             public GenericRecord getValue() {

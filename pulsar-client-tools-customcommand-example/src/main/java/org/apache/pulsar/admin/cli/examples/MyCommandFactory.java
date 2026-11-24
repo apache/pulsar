@@ -21,7 +21,7 @@ package org.apache.pulsar.admin.cli.examples;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.admin.cli.extensions.CommandExecutionContext;
 import org.apache.pulsar.admin.cli.extensions.CustomCommand;
 import org.apache.pulsar.admin.cli.extensions.CustomCommandFactory;
@@ -30,7 +30,7 @@ import org.apache.pulsar.admin.cli.extensions.ParameterDescriptor;
 import org.apache.pulsar.admin.cli.extensions.ParameterType;
 import org.apache.pulsar.common.policies.data.TopicStats;
 
-@Slf4j
+@CustomLog
 public class MyCommandFactory implements CustomCommandFactory {
   @Override
   public List<CustomCommandGroup> commandGroups(CommandExecutionContext context) {

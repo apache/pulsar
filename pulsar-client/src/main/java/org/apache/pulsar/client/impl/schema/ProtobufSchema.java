@@ -21,7 +21,7 @@ package org.apache.pulsar.client.impl.schema;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.protobuf.Descriptors;
-import com.google.protobuf.GeneratedMessageV3;
+import com.google.protobuf.Message;
 import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -34,6 +34,7 @@ import org.apache.avro.protobuf.ProtobufData;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.reader.ProtobufReader;
 import org.apache.pulsar.client.impl.schema.writer.ProtobufWriter;
+import org.apache.pulsar.client.schema.AvroTrustedClasses;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -41,7 +42,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 /**
  * A schema implementation to deal with protobuf generated messages.
  */
-public class ProtobufSchema<T extends com.google.protobuf.GeneratedMessageV3> extends AvroBaseStructSchema<T> {
+public class ProtobufSchema<T extends Message> extends AvroBaseStructSchema<T> {
 
     public static final String PARSING_INFO_PROPERTY = "__PARSING_INFO__";
 
@@ -53,7 +54,7 @@ public class ProtobufSchema<T extends com.google.protobuf.GeneratedMessageV3> ex
         private final String type;
         private final String label;
         // For future nested fields
-        private final Map <String, Object> definition;
+        private final Map<String, Object> definition;
     }
 
     private static <T> org.apache.avro.Schema createProtobufAvroSchema(Class<T> pojo) {
@@ -89,23 +90,32 @@ public class ProtobufSchema<T extends com.google.protobuf.GeneratedMessageV3> ex
         }
     }
 
-    public static <T extends com.google.protobuf.GeneratedMessageV3> ProtobufSchema<T> of(Class<T> pojo) {
+    public static <T extends Message> ProtobufSchema<T> of(Class<T> pojo) {
         return of(pojo, new HashMap<>());
     }
 
+    @SuppressWarnings("unchecked")
     public static <T> ProtobufSchema ofGenericClass(Class<T> pojo, Map<String, String> properties) {
         SchemaDefinition<T> schemaDefinition = SchemaDefinition.<T>builder().withPojo(pojo)
                 .withProperties(properties).build();
         return ProtobufSchema.of(schemaDefinition);
     }
 
+    @SuppressWarnings("unchecked")
     public static <T> ProtobufSchema of(SchemaDefinition<T> schemaDefinition) {
         Class<T> pojo = schemaDefinition.getPojo();
 
-        if (!com.google.protobuf.GeneratedMessageV3.class.isAssignableFrom(pojo)) {
-            throw new IllegalArgumentException(com.google.protobuf.GeneratedMessageV3.class.getName()
+        if (!Message.class.isAssignableFrom(pojo)) {
+            throw new IllegalArgumentException(Message.class.getName()
                     + " is not assignable from " + pojo.getName());
         }
+
+        // The application named this class, so let Avro reflect over it and over the protobuf runtime
+        // types avro-protobuf resolves alongside it. This has to happen before the schema is derived,
+        // not after: deriving it is itself a reflective resolution, which is also why there is no
+        // derived schema to expand from here. Encoding and decoding go through protobuf's own reader
+        // and writer, so the message's nested types are never resolved by Avro.
+        AvroTrustedClasses.trustExactly(pojo);
 
             SchemaInfo schemaInfo = SchemaInfoImpl.builder()
                     .schema(createProtobufAvroSchema(schemaDefinition.getPojo()).toString().getBytes(UTF_8))
@@ -116,14 +126,14 @@ public class ProtobufSchema<T extends com.google.protobuf.GeneratedMessageV3> ex
 
         try {
             return new ProtobufSchema(schemaInfo,
-                (GeneratedMessageV3) pojo.getMethod("getDefaultInstance").invoke(null));
+                (Message) pojo.getMethod("getDefaultInstance").invoke(null));
         } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
             throw new IllegalArgumentException(e);
         }
     }
 
-    public static <T extends com.google.protobuf.GeneratedMessageV3> ProtobufSchema<T> of(
-            Class pojo, Map<String, String> properties){
+    @SuppressWarnings("unchecked")
+    public static <T extends Message> ProtobufSchema<T> of(Class<T> pojo, Map<String, String> properties) {
         return ofGenericClass(pojo, properties);
     }
 }

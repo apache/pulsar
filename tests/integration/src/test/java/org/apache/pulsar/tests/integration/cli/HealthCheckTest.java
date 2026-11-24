@@ -18,106 +18,116 @@
  */
 package org.apache.pulsar.tests.integration.cli;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
-
-import org.apache.pulsar.tests.TestRetrySupport;
+import static org.awaitility.Awaitility.await;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.service.HealthChecker;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.tests.integration.containers.BKContainer;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
+import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.apache.pulsar.tests.integration.docker.ContainerExecException;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
-
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
-import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import org.testng.Assert;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 /**
  * Test the healthcheck command.
  */
-public class HealthCheckTest extends TestRetrySupport {
+public class HealthCheckTest extends CombinedSettingsTestSuite {
 
-    private static final Logger log = LoggerFactory.getLogger(HealthCheckTest.class);
-
-    private final PulsarClusterSpec spec = PulsarClusterSpec.builder()
-        .clusterName("HealthCheckTest-" + UUID.randomUUID().toString().substring(0, 8))
-        .numProxies(0)
-        .numFunctionWorkers(0)
-        .build();
-
-    private PulsarCluster pulsarCluster = null;
-
-    @BeforeMethod(alwaysRun = true)
-    public final void setup() throws Exception {
-        incrementSetupNumber();
-        pulsarCluster = PulsarCluster.forSpec(spec);
-        pulsarCluster.start();
-    }
-
-    @AfterMethod(alwaysRun = true)
-    public final void cleanup() {
-        markCurrentSetupNumberCleaned();
-        if (pulsarCluster != null) {
-            pulsarCluster.stop();
-            pulsarCluster = null;
-        }
+    // It pauses ZooKeeper and the bookies, so no class runs on its cluster after it
+    @Override
+    protected boolean isLastClassOnCluster() {
+        return true;
     }
 
     @Test
     public void testEverythingOK() throws Exception {
-        for (BrokerContainer b : pulsarCluster.getBrokers()) {
-            ContainerExecResult result = b.execCmd(PulsarCluster.ADMIN_SCRIPT, "brokers", "healthcheck");
+        for (CompletableFuture<ContainerExecResult> healthcheck : startHealthchecks()) {
+            ContainerExecResult result = healthcheck.get();
             Assert.assertEquals(result.getExitCode(), 0);
             Assert.assertEquals(result.getStdout().trim(), "ok");
         }
     }
 
     private void assertHealthcheckFailure() throws Exception {
-        for (BrokerContainer b : pulsarCluster.getBrokers()) {
+        for (CompletableFuture<ContainerExecResult> healthcheck : startHealthchecks()) {
             try {
-                b.execCmd(PulsarCluster.ADMIN_SCRIPT, "brokers", "healthcheck");
+                healthcheck.get();
                 Assert.fail("Should always fail");
-            } catch (ContainerExecException e) {
-                Assert.assertEquals(e.getResult().getExitCode(), 1);
+            } catch (ExecutionException e) {
+                if (!(e.getCause() instanceof ContainerExecException cee)) {
+                    throw e;
+                }
+                Assert.assertEquals(cee.getResult().getExitCode(), 1);
+            }
+        }
+    }
+
+    // The checks of all the brokers run at once, so that ZooKeeper or the bookies are down for the time of one
+    private List<CompletableFuture<ContainerExecResult>> startHealthchecks() throws Exception {
+        List<CompletableFuture<ContainerExecResult>> healthchecks = new ArrayList<>();
+        for (BrokerContainer b : pulsarCluster.getBrokers()) {
+            healthchecks.add(b.execCmdAsync(PulsarCluster.ADMIN_SCRIPT, "brokers", "healthcheck"));
+        }
+        return healthchecks;
+    }
+
+    // The cluster is shared by the test methods: a method that takes ZooKeeper or the bookies down waits until every
+    // broker passes its health check again
+    private void waitUntilHealthy() throws Exception {
+        for (BrokerContainer b : pulsarCluster.getBrokers()) {
+            try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(b.getHttpServiceUrl()).build()) {
+                await().atMost(60, TimeUnit.SECONDS).ignoreExceptions()
+                        .untilAsserted(() -> admin.brokers().healthcheck());
+            }
+        }
+    }
+
+    // Once a broker has loaded its health check topic, its check doesn't need ZooKeeper
+    private void unloadHealthcheckTopics() throws Exception {
+        for (BrokerContainer b : pulsarCluster.getBrokers()) {
+            String brokerId = b.getHostName() + ":" + PulsarContainer.BROKER_HTTP_PORT;
+            String topic = "persistent://" + String.format(NamespaceService.HEARTBEAT_NAMESPACE_FMT, brokerId) + "/"
+                    + HealthChecker.HEALTH_CHECK_TOPIC_SUFFIX;
+            try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(b.getHttpServiceUrl()).build()) {
+                admin.topics().unload(topic);
             }
         }
     }
 
     @Test
     public void testZooKeeperDown() throws Exception {
-        pulsarCluster.getZooKeeper().execCmd("pkill", "-STOP", "-f", "QuorumPeerMain");
-        assertHealthcheckFailure();
+        // The checks load the health check topics, which the unload then finds
+        waitUntilHealthy();
+        unloadHealthcheckTopics();
+        pulsarCluster.getZooKeeper().execCmd("pkill", "-STOP", "java");
+        try {
+            assertHealthcheckFailure();
+        } finally {
+            pulsarCluster.getZooKeeper().execCmd("pkill", "-CONT", "java");
+        }
+        waitUntilHealthy();
     }
-
-    // Disabled until PulsarAdmin can time out (#2891)
-    // @Test
-    // public void testBrokerDown() throws Exception {
-    //     for (BrokerContainer b : pulsarCluster.getBrokers()) {
-    //         b.execCmd("pkill", "-STOP", "-f", "PulsarBrokerStarter");
-    //     }
-    //     assertHealthcheckFailure();
-    // }
 
     @Test
     public void testBookKeeperDown() throws Exception {
         for (BKContainer b : pulsarCluster.getBookies()) {
-            b.execCmd("pkill", "-STOP", "-f", "Main");
+            b.execCmd("pkill", "-STOP", "java");
         }
-        assertHealthcheckFailure();
-    }
-
-    private static Map<String, String> parseOutput(String output) throws Exception {
-        ObjectMapper mapper = new ObjectMapper();
-        return mapper.readValue(output, new TypeReference<HashMap<String, String>>() {});
+        try {
+            assertHealthcheckFailure();
+        } finally {
+            for (BKContainer b : pulsarCluster.getBookies()) {
+                b.execCmd("pkill", "-CONT", "java");
+            }
+        }
+        waitUntilHealthy();
     }
 }

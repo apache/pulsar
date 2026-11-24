@@ -1,0 +1,34 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# One bookie is cut off from the brokers for 30 s of the measurement, in the failover cluster, as a bookie whose host
+# loses its network does. With an ack quorum of 2 of 3, the other two bookies acknowledge the entries; with --set
+# cluster.brokers.env.managedLedgerDefaultAckQuorum=3, the entries of the ledgers that have the bookie wait for it until
+# the bookie client's timeout, bookkeeperClientTimeoutInSeconds, after which the brokers replace the bookie in the
+# ensembles.
+#
+# Look for: the publish latency against the ack quorum and the client timeout, also with a longer partition, the
+# ensemble changes in the brokers' logs, and correct delivery.
+
+extends: failover-cluster.yaml
+network:
+  impairments:
+    bookie-0-cut-off:
+      between: [brokers, bookie-0]
+      partition: true
+      start: 30s
+      duration: 30s

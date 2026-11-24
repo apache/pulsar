@@ -18,9 +18,8 @@
  */
 package org.apache.pulsar.websocket.proxy;
 
-import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
-
 import javax.naming.AuthenticationException;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 
 public class MockUnauthenticationProvider extends MockAuthenticationProvider {
 

@@ -84,6 +84,7 @@ class AuthenticationStateOpenID implements AuthenticationState {
         return authenticationDataSource;
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public boolean isComplete() {
         return role != null;

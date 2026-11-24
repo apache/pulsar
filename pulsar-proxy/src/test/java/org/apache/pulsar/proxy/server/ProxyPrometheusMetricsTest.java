@@ -28,6 +28,9 @@ import com.google.common.collect.Multimap;
 import io.prometheus.client.Collector;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Counter;
+import jakarta.ws.rs.client.Client;
+import jakarta.ws.rs.client.ClientBuilder;
+import jakarta.ws.rs.core.Response;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -35,13 +38,12 @@ import java.util.Optional;
 import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
-import javax.ws.rs.core.Response;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
+import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.awaitility.Awaitility;
@@ -59,6 +61,7 @@ public class ProxyPrometheusMetricsTest extends MockedPulsarServiceBaseTest {
     private ProxyService proxyService;
     private WebServer proxyWebServer;
     private final ProxyConfiguration proxyConfig = new ProxyConfiguration();
+    private Authentication proxyClientAuthentication;
 
     @Override
     @BeforeClass
@@ -72,8 +75,13 @@ public class ProxyPrometheusMetricsTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
         proxyConfig.setClusterName(TEST_CLUSTER);
 
+        proxyClientAuthentication = AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+                proxyConfig.getBrokerClientAuthenticationParameters());
+        proxyClientAuthentication.start();
+
         proxyService = Mockito.spy(new ProxyService(proxyConfig,
-                new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig))));
+                new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig)),
+                proxyClientAuthentication));
         doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeper))).when(proxyService).createLocalMetadataStore();
         doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeperGlobal))).when(proxyService)
                 .createConfigurationMetadataStore();
@@ -86,7 +94,8 @@ public class ProxyPrometheusMetricsTest extends MockedPulsarServiceBaseTest {
                 PulsarConfigurationLoader.convertFrom(proxyConfig));
 
         proxyWebServer = new WebServer(proxyConfig, authService);
-        ProxyServiceStarter.addWebServerHandlers(proxyWebServer, proxyConfig, proxyService, null);
+        ProxyServiceStarter.addWebServerHandlers(proxyWebServer, proxyConfig, proxyService, null,
+                proxyClientAuthentication);
         proxyWebServer.start();
     }
 
@@ -108,6 +117,9 @@ public class ProxyPrometheusMetricsTest extends MockedPulsarServiceBaseTest {
         }
         if (proxyService != null) {
             proxyService.close();
+        }
+        if (proxyClientAuthentication != null) {
+            proxyClientAuthentication.close();
         }
     }
 

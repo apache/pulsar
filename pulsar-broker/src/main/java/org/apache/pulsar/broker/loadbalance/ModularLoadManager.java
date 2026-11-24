@@ -69,6 +69,19 @@ public interface ModularLoadManager {
     Optional<String> selectBrokerForAssignment(ServiceUnitId serviceUnit);
 
     /**
+     * Asynchronous version of {@link #selectBrokerForAssignment(ServiceUnitId)}.
+     * The default implementation calls the synchronous method on the caller's thread. Implementations should override
+     * this method to avoid blocking the caller on metadata reads.
+     */
+    default CompletableFuture<Optional<String>> selectBrokerForAssignmentAsync(ServiceUnitId serviceUnit) {
+        try {
+            return CompletableFuture.completedFuture(selectBrokerForAssignment(serviceUnit));
+        } catch (Exception e) {
+            return CompletableFuture.failedFuture(e);
+        }
+    }
+
+    /**
      * As any broker, start the load manager.
      *
      * @throws PulsarServerException
@@ -138,8 +151,22 @@ public interface ModularLoadManager {
      *
      * @param bundle
      * @return bundle data
+     * @deprecated use {@link #getBundleDataOrDefaultAsync(String)} instead; this method blocks on
+     *     metadata-store reads and must not be called from async or event-loop threads.
      */
+    @Deprecated
     BundleData getBundleDataOrDefault(String bundle);
+
+    /**
+     * Asynchronously fetch bundle's load report data.
+     *
+     * @param bundle
+     * @return future of the bundle data
+     */
+    @SuppressWarnings("deprecation")
+    default CompletableFuture<BundleData> getBundleDataOrDefaultAsync(String bundle) {
+        return CompletableFuture.completedFuture(getBundleDataOrDefault(bundle));
+    }
 
     String setNamespaceBundleAffinity(String bundle, String broker);
 }

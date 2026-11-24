@@ -21,17 +21,21 @@ package org.apache.pulsar.broker.loadbalance.extensions.reporter;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.VERSION_ID_INIT;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import org.apache.commons.lang.reflect.FieldUtils;
+import java.util.concurrent.TimeoutException;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState;
@@ -55,7 +59,7 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class BrokerLoadDataReporterTest {
     PulsarService pulsar;
-    LoadDataStore store;
+    LoadDataStore<BrokerLoadData> store;
     BrokerService brokerService;
     PulsarStats pulsarStats;
     ServiceConfiguration config;
@@ -70,7 +74,9 @@ public class BrokerLoadDataReporterTest {
         config = new ServiceConfiguration();
         config.setLoadBalancerDebugModeEnabled(true);
         pulsar = mock(PulsarService.class);
-        store = mock(LoadDataStore.class);
+        @SuppressWarnings("unchecked")
+        LoadDataStore<BrokerLoadData> mockedStore = mock(LoadDataStore.class);
+        store = mockedStore;
         brokerService = mock(BrokerService.class);
         pulsarStats = mock(PulsarStats.class);
         doReturn(brokerService).when(pulsar).getBrokerService();
@@ -108,13 +114,13 @@ public class BrokerLoadDataReporterTest {
     public void testGenerate() throws IllegalAccessException {
         try (MockedStatic<LoadManagerShared> mockLoadManagerShared = Mockito.mockStatic(LoadManagerShared.class)) {
             mockLoadManagerShared.when(() -> LoadManagerShared.getSystemResourceUsage(any())).thenReturn(usage);
-            doReturn(0l).when(pulsarStats).getUpdatedAt();
+            doReturn(0L).when(pulsarStats).getUpdatedAt();
             var target = new BrokerLoadDataReporter(pulsar, "", store);
             var expected = new BrokerLoadData();
             expected.update(usage, 1, 2, 3, 4, 5, 6, config);
-            FieldUtils.writeDeclaredField(expected, "updatedAt", 0l, true);
+            FieldUtils.writeDeclaredField(expected, "updatedAt", 0L, true);
             var actual = target.generateLoadData();
-            FieldUtils.writeDeclaredField(actual, "updatedAt", 0l, true);
+            FieldUtils.writeDeclaredField(actual, "updatedAt", 0L, true);
             assertEquals(actual, expected);
         }
     }
@@ -136,7 +142,7 @@ public class BrokerLoadDataReporterTest {
             target.reportAsync(false);
             verify(store, times(1)).pushAsync(eq("broker-1"), any());
 
-            localData.setReportedAt(0l);
+            localData.setReportedAt(0L);
             target.reportAsync(false);
             verify(store, times(2)).pushAsync(eq("broker-1"), any());
 
@@ -214,5 +220,33 @@ public class BrokerLoadDataReporterTest {
             var localData = (BrokerLoadData) FieldUtils.readDeclaredField(target, "localData", true);
             assertEquals(localData, new BrokerLoadData());
         });
+    }
+
+    @Test(timeOut = 30_000)
+    public void testTombstoneDoesNotBlockTheEventThread() throws Exception {
+        // The channel delivers its events on the thread that completes its table view's reads. When the store's
+        // producer is closed, removeAsync() restarts it and waits for the topic lookup, which needs such a read.
+        ExecutorService eventThread = Executors.newSingleThreadExecutor();
+        try {
+            CompletableFuture<Boolean> readCompleted = new CompletableFuture<>();
+            doAnswer(invocation -> {
+                CompletableFuture<Void> read = CompletableFuture.runAsync(() -> { }, eventThread);
+                try {
+                    read.get(5, TimeUnit.SECONDS);
+                    readCompleted.complete(true);
+                } catch (TimeoutException e) {
+                    readCompleted.complete(false);
+                }
+                return CompletableFuture.completedFuture(null);
+            }).when(store).removeAsync(any());
+            var target = new BrokerLoadDataReporter(pulsar, broker, store);
+
+            eventThread.submit(() -> target.handleEvent(bundle,
+                    new ServiceUnitStateData(ServiceUnitState.Owned, broker, VERSION_ID_INIT), null)).get();
+
+            assertTrue(readCompleted.get(), "the tombstone waited for the event thread while blocking it");
+        } finally {
+            eventThread.shutdownNow();
+        }
     }
 }

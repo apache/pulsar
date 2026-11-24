@@ -20,20 +20,23 @@ package org.apache.pulsar.broker.service;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
-import java.nio.charset.StandardCharsets;
-import javax.annotation.Nullable;
+import java.util.function.IntSupplier;
+import java.util.function.ToIntFunction;
 import lombok.Getter;
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.EntryReadCountHandler;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.Commands;
+import org.jspecify.annotations.Nullable;
 
 public class EntryAndMetadata implements Entry {
-
+    private static final int STICKY_KEY_HASH_NOT_INITIALIZED = -1;
     private final Entry entry;
     @Getter
     @Nullable
     private final MessageMetadata metadata;
+    int stickyKeyHash = STICKY_KEY_HASH_NOT_INITIALIZED;
 
     private EntryAndMetadata(final Entry entry, @Nullable final MessageMetadata metadata) {
         this.entry = entry;
@@ -41,23 +44,29 @@ public class EntryAndMetadata implements Entry {
     }
 
     public static EntryAndMetadata create(final Entry entry, final MessageMetadata metadata) {
+        if (entry instanceof EntryAndMetadata entryAndMetadata) {
+            return entryAndMetadata;
+        }
         return new EntryAndMetadata(entry, metadata);
     }
 
     @VisibleForTesting
-    static EntryAndMetadata create(final Entry entry) {
-        return create(entry, Commands.peekAndCopyMessageMetadata(entry.getDataBuffer(), "", -1));
+    public static EntryAndMetadata create(final Entry entry) {
+        if (entry instanceof EntryAndMetadata entryAndMetadata) {
+            return entryAndMetadata;
+        }
+        MessageMetadata msgMetadata = entry.getMessageMetadata();
+        if (msgMetadata == null) {
+            msgMetadata = Commands.peekAndCopyMessageMetadata(entry.getDataBuffer(), "", -1);
+        }
+        return create(entry, msgMetadata);
     }
 
     public byte[] getStickyKey() {
         if (metadata != null) {
-            if (metadata.hasOrderingKey()) {
-                return metadata.getOrderingKey();
-            } else if (metadata.hasPartitionKey()) {
-                return metadata.getPartitionKey().getBytes(StandardCharsets.UTF_8);
-            }
+            return Commands.resolveStickyKey(metadata);
         }
-        return "NONE_KEY".getBytes(StandardCharsets.UTF_8);
+        return Commands.NONE_KEY;
     }
 
     @Override
@@ -110,5 +119,61 @@ public class EntryAndMetadata implements Entry {
     @Override
     public boolean release() {
         return entry.release();
+    }
+
+    /**
+     * Get cached sticky key hash or calculate it based on the sticky key if it's not cached.
+     *
+     * @param makeStickyKeyHash function to calculate the sticky key hash
+     * @return the sticky key hash
+     */
+    public int getOrUpdateCachedStickyKeyHash(ToIntFunction<byte[]> makeStickyKeyHash) {
+        if (stickyKeyHash == STICKY_KEY_HASH_NOT_INITIALIZED) {
+            stickyKeyHash = makeStickyKeyHash.applyAsInt(getStickyKey());
+        }
+        return stickyKeyHash;
+    }
+
+    /**
+     * Get the cached sticky key hash or calculate it with the given function, which doesn't need the sticky key.
+     */
+    public int getOrUpdateCachedStickyKeyHash(IntSupplier makeStickyKeyHash) {
+        if (stickyKeyHash == STICKY_KEY_HASH_NOT_INITIALIZED) {
+            stickyKeyHash = makeStickyKeyHash.getAsInt();
+        }
+        return stickyKeyHash;
+    }
+
+    /**
+     * Get the cached sticky key hash or calculate it with the selector from the key's hash, which hashes the key where
+     * it is in the metadata, without copying, decoding or encoding it into a new array.
+     */
+    public int getOrUpdateCachedStickyKeyHash(StickyKeyConsumerSelector selector) {
+        if (stickyKeyHash == STICKY_KEY_HASH_NOT_INITIALIZED) {
+            stickyKeyHash = metadata != null
+                    ? selector.makeStickyKeyHashOfKeyHash(Commands.resolveStickyKeyHash(metadata))
+                    : selector.makeStickyKeyHash(Commands.NONE_KEY);
+        }
+        return stickyKeyHash;
+    }
+
+    /**
+     * Get cached sticky key hash or return STICKY_KEY_HASH_NOT_SET if it's not cached.
+     *
+     * @return the cached sticky key hash or STICKY_KEY_HASH_NOT_SET if it's not cached
+     */
+    public int getCachedStickyKeyHash() {
+        return stickyKeyHash != STICKY_KEY_HASH_NOT_INITIALIZED ? stickyKeyHash
+                : StickyKeyConsumerSelector.STICKY_KEY_HASH_NOT_SET;
+    }
+
+    @VisibleForTesting
+    public Entry unwrap() {
+        return entry;
+    }
+
+    @Override
+    public EntryReadCountHandler getReadCountHandler() {
+        return entry.getReadCountHandler();
     }
 }

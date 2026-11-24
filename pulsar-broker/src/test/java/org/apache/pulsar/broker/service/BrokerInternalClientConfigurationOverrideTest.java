@@ -18,25 +18,35 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.testng.Assert.assertEquals;
+import java.util.Optional;
+import java.util.Properties;
+import lombok.Cleanup;
 import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.internal.PulsarAdminImpl;
+import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-
-import java.util.Optional;
-import java.util.Properties;
 
 public class BrokerInternalClientConfigurationOverrideTest extends BrokerTestBase {
 
     @BeforeClass
     @Override
     protected void setup() throws Exception {
+        // The broker creates its internal client and admin client once, when it first needs them (in this class, at
+        // the latest when testOldNamespacePolicy loads a topic), so their configuration must be set before it starts.
+        Properties config = conf.getProperties();
+        config.setProperty("brokerClient_operationTimeoutMs", "60000");
+        config.setProperty("brokerClient_statsIntervalSeconds", "10");
+        conf.setBrokerClientAuthenticationParameters("sensitive");
         super.baseSetup();
     }
 
@@ -48,9 +58,6 @@ public class BrokerInternalClientConfigurationOverrideTest extends BrokerTestBas
 
     @Test
     public void testPulsarServiceAdminClientConfiguration() throws PulsarServerException {
-        Properties config = pulsar.getConfiguration().getProperties();
-        config.setProperty("brokerClient_operationTimeoutMs", "60000");
-        config.setProperty("brokerClient_statsIntervalSeconds", "10");
         ClientConfigurationData clientConf = ((PulsarAdminImpl) pulsar.getAdminClient()).getClientConfigData();
         Assert.assertEquals(clientConf.getOperationTimeoutMs(), 60000);
         Assert.assertEquals(clientConf.getStatsIntervalSeconds(), 10);
@@ -58,10 +65,6 @@ public class BrokerInternalClientConfigurationOverrideTest extends BrokerTestBas
 
     @Test
     public void testPulsarServicePulsarClientConfiguration() throws PulsarServerException {
-        Properties config = pulsar.getConfiguration().getProperties();
-        config.setProperty("brokerClient_operationTimeoutMs", "60000");
-        config.setProperty("brokerClient_statsIntervalSeconds", "10");
-        pulsar.getConfiguration().setBrokerClientAuthenticationParameters("sensitive");
         ClientConfigurationData clientConf = ((PulsarClientImpl) pulsar.getClient()).getConfiguration();
         Assert.assertEquals(clientConf.getOperationTimeoutMs(), 60000);
         // Config should override internal default, which is 0.
@@ -112,4 +115,38 @@ public class BrokerInternalClientConfigurationOverrideTest extends BrokerTestBas
         Assert.assertEquals(clientConf.getMemoryLimitBytes(), 100000);
     }
 
+    @Test
+    public void testOldNamespacePolicy() throws Exception {
+
+        String ns = "prop/oldNsWithDefaultNonNullValues";
+        String topic = "persistent://" + ns + "/t1";
+        Policies policies = new Policies();
+        policies.max_consumers_per_subscription = -1;
+        policies.max_consumers_per_topic = -1;
+        policies.max_producers_per_topic = -1;
+        policies.max_subscriptions_per_topic = -1;
+        policies.max_topics_per_namespace = -1;
+        policies.max_unacked_messages_per_consumer = -1;
+        policies.max_unacked_messages_per_subscription = -1;
+        admin.namespaces().createNamespace(ns, policies);
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic).create();
+        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).get();
+        assertEquals(topicRef.topicPolicies.getMaxUnackedMessagesOnSubscription().get(),
+                conf.getMaxUnackedMessagesPerSubscription());
+        assertEquals(topicRef.topicPolicies.getMaxConsumersPerSubscription().get(),
+                conf.getMaxConsumersPerSubscription());
+        assertEquals(topicRef.topicPolicies.getMaxConsumerPerTopic().get(),
+                conf.getMaxConsumersPerTopic());
+        assertEquals(topicRef.topicPolicies.getMaxProducersPerTopic().get(),
+                conf.getMaxProducersPerTopic());
+        assertEquals(topicRef.topicPolicies.getMaxSubscriptionsPerTopic().get(),
+                conf.getMaxSubscriptionsPerTopic());
+        assertEquals(topicRef.topicPolicies.getTopicMaxMessageSize().get(),
+                conf.getMaxMessageSize());
+        assertEquals(topicRef.topicPolicies.getMaxUnackedMessagesOnConsumer().get(),
+                conf.getMaxUnackedMessagesPerConsumer());
+    }
 }

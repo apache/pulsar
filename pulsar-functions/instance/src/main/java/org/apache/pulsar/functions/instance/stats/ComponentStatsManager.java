@@ -19,17 +19,21 @@
 package org.apache.pulsar.functions.instance.stats;
 
 import com.google.common.collect.EvictingQueue;
+import io.prometheus.metrics.core.metrics.Counter;
+import io.prometheus.metrics.core.metrics.Gauge;
+import io.prometheus.metrics.expositionformats.PrometheusTextFormatWriter;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.StringWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.proto.InstanceCommunication;
+import lombok.CustomLog;
+import org.apache.pulsar.functions.proto.FunctionDetails;
+import org.apache.pulsar.functions.proto.FunctionStatus;
 
-@Slf4j
+@CustomLog
 public abstract class ComponentStatsManager implements AutoCloseable {
 
     protected String[] metricsLabels;
@@ -38,7 +42,9 @@ public abstract class ComponentStatsManager implements AutoCloseable {
 
     protected final FunctionCollectorRegistry collectorRegistry;
 
-    protected final EvictingQueue emptyQueue = EvictingQueue.create(0);
+    @SuppressWarnings("unchecked") // empty queue is used as a typed return value
+    protected final EvictingQueue<FunctionStatus.ExceptionInformation> emptyQueue =
+            EvictingQueue.create(0);
 
     public static final String USER_METRIC_PREFIX = "user_metric_";
 
@@ -46,6 +52,9 @@ public abstract class ComponentStatsManager implements AutoCloseable {
             {"tenant", "namespace", "name", "instance_id", "cluster", "fqfn"};
 
     protected static final String[] EXCEPTION_METRICS_LABEL_NAMES;
+
+    private static final PrometheusTextFormatWriter TEXT_WRITER = PrometheusTextFormatWriter.builder()
+            .setIncludeCreatedTimestamps(false).build();
 
     static {
         EXCEPTION_METRICS_LABEL_NAMES = Arrays.copyOf(METRICS_LABEL_NAMES, METRICS_LABEL_NAMES.length + 1);
@@ -55,7 +64,7 @@ public abstract class ComponentStatsManager implements AutoCloseable {
     public static ComponentStatsManager getStatsManager(FunctionCollectorRegistry collectorRegistry,
                                   String[] metricsLabels,
                                   ScheduledExecutorService scheduledExecutorService,
-                                  Function.FunctionDetails.ComponentType componentType) {
+                                  FunctionDetails.ComponentType componentType) {
         switch (componentType) {
             case FUNCTION:
                 return new FunctionStatsManager(collectorRegistry, metricsLabels, scheduledExecutorService);
@@ -79,7 +88,7 @@ public abstract class ComponentStatsManager implements AutoCloseable {
             try {
                 reset();
             } catch (Exception e) {
-                log.error("Failed to reset metrics for 1min window", e);
+                log.error().exception(e).log("Failed to reset metrics for 1min window");
             }
         }, 1, 1, TimeUnit.MINUTES);
     }
@@ -100,9 +109,8 @@ public abstract class ComponentStatsManager implements AutoCloseable {
 
     public abstract void setLastInvocation(long ts);
 
-    public abstract void processTimeStart();
 
-    public abstract void processTimeEnd();
+    public abstract void processTimeEnd(long startTime);
 
     public abstract double getTotalProcessedSuccessfully();
 
@@ -126,34 +134,59 @@ public abstract class ComponentStatsManager implements AutoCloseable {
 
     public abstract double getAvgProcessLatency1min();
 
-    public abstract EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation>
+    public abstract EvictingQueue<FunctionStatus.ExceptionInformation>
     getLatestUserExceptions();
 
-    public abstract EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation>
+    public abstract EvictingQueue<FunctionStatus.ExceptionInformation>
     getLatestSystemExceptions();
 
-    public abstract EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation>
+    public abstract EvictingQueue<FunctionStatus.ExceptionInformation>
     getLatestSourceExceptions();
 
-    public abstract EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation>
+    public abstract EvictingQueue<FunctionStatus.ExceptionInformation>
     getLatestSinkExceptions();
 
     public String getStatsAsString() throws IOException {
-        StringWriter outputWriter = new StringWriter();
-
-        PrometheusTextFormat.write004(outputWriter, collectorRegistry.metricFamilySamples());
-
-        return outputWriter.toString();
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        TEXT_WRITER.write(out, collectorRegistry.scrape());
+        return out.toString(StandardCharsets.UTF_8);
     }
 
-    protected InstanceCommunication.FunctionStatus.ExceptionInformation getExceptionInfo(Throwable th, long ts) {
-        InstanceCommunication.FunctionStatus.ExceptionInformation.Builder exceptionInfoBuilder =
-                InstanceCommunication.FunctionStatus.ExceptionInformation.newBuilder().setMsSinceEpoch(ts);
+    /** A counter with the component labels, shared with the other instances on the same registry. */
+    protected Counter counter(String name, String help) {
+        return collectorRegistry.registerIfNotExist(name, Counter.builder()
+                .name(name)
+                .help(help)
+                .labelNames(METRICS_LABEL_NAMES)
+                .build());
+    }
+
+    /** A gauge with the component labels, shared with the other instances on the same registry. */
+    protected Gauge gauge(String name, String help) {
+        return collectorRegistry.registerIfNotExist(name, Gauge.builder()
+                .name(name)
+                .help(help)
+                .labelNames(METRICS_LABEL_NAMES)
+                .build());
+    }
+
+    /** A gauge with the component labels plus the exception message, set to 1 when an exception is reported. */
+    protected Gauge exceptionGauge(String name, String help) {
+        return collectorRegistry.registerIfNotExist(name, Gauge.builder()
+                .name(name)
+                .help(help)
+                .labelNames(EXCEPTION_METRICS_LABEL_NAMES)
+                .build());
+    }
+
+    protected FunctionStatus.ExceptionInformation getExceptionInfo(Throwable th, long ts) {
+        FunctionStatus.ExceptionInformation exceptionInfo = new FunctionStatus.ExceptionInformation();
+        exceptionInfo.setMsSinceEpoch(ts);
         String msg = String.format("[%s]: %s", th.getClass().getName(), th.getMessage());
         if (msg != null) {
-            exceptionInfoBuilder.setExceptionString(msg);
+            exceptionInfo.setExceptionString(msg);
         }
-        return exceptionInfoBuilder.build();
+        return exceptionInfo;
     }
 
 

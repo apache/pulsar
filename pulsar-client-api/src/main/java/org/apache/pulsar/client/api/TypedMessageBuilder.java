@@ -59,7 +59,7 @@ public interface TypedMessageBuilder<T> extends Serializable {
     MessageId send() throws PulsarClientException;
 
     /**
-     * Send a message asynchronously
+     * Send a message asynchronously.
      *
      * <p>This method returns a future that can be used to track the completion of the send operation and yields the
      * {@link MessageId} assigned by the broker to the published message.
@@ -189,8 +189,8 @@ public interface TypedMessageBuilder<T> extends Serializable {
      * <p>The timestamp is milliseconds and based on UTC (eg: {@link System#currentTimeMillis()}.
      *
      * <p><b>Note</b>: messages are only delivered with delay when a consumer is consuming
-     * through a {@link SubscriptionType#Shared} subscription. With other subscription
-     * types, the messages will still be delivered immediately.
+     * through a {@link SubscriptionType#Shared} or {@link SubscriptionType#Key_Shared} subscription.
+     * With other subscription types, the messages will still be delivered immediately.
      *
      * @param timestamp
      *            absolute timestamp indicating when the message should be delivered to consumers
@@ -202,8 +202,8 @@ public interface TypedMessageBuilder<T> extends Serializable {
      * Request to deliver the message only after the specified relative delay.
      *
      * <p><b>Note</b>: messages are only delivered with delay when a consumer is consuming
-     * through a {@link SubscriptionType#Shared} subscription. With other subscription
-     * types, the messages will still be delivered immediately.
+     * through a {@link SubscriptionType#Shared} or {@link SubscriptionType#Key_Shared} subscription.
+     * With other subscription types, the messages will still be delivered immediately.
      *
      * @param delay
      *            the amount of delay before the message will be delivered

@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.stats.prometheus.metrics;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
 import org.apache.bookkeeper.stats.Counter;
@@ -58,7 +57,6 @@ public class LongAdderCounter implements Counter {
 
     @Override
     public void addLatency(long eventLatency, TimeUnit unit) {
-        checkArgument(eventLatency >= 0);
         long valueMillis = unit.toMillis(eventLatency);
         counter.add(valueMillis);
     }

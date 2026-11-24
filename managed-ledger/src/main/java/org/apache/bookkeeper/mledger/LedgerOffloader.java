@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger;
 
+import java.time.Duration;
 import java.util.Collections;
 import java.util.Map;
 import java.util.UUID;
@@ -26,7 +27,7 @@ import lombok.ToString;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats;
+import org.apache.bookkeeper.mledger.proto.OffloadContext;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
 
 /**
@@ -35,6 +36,19 @@ import org.apache.pulsar.common.policies.data.OffloadPolicies;
 @InterfaceAudience.LimitedPrivate
 @InterfaceStability.Evolving
 public interface LedgerOffloader {
+
+    /**
+     * Asynchronously check whether the configured storage is available for offloading.
+     * Implementations may write and remove a temporary object and should bound storage requests using the timeout.
+     * Failures, including failures to start the check, must be reported through the returned future.
+     * The default implementation skips the check for drivers that do not support it.
+     *
+     * @param timeout positive timeout for the check
+     * @return a future completed when the check succeeds, or exceptionally when it fails
+     */
+    default CompletableFuture<Void> checkStorageAsync(Duration timeout) {
+        return CompletableFuture.completedFuture(null);
+    }
 
     @ToString
     class OffloadResult {
@@ -198,7 +212,7 @@ public interface LedgerOffloader {
     CompletableFuture<Void> deleteOffloaded(long ledgerId, UUID uid,
                                             Map<String, String> offloadDriverMetadata);
 
-    default CompletableFuture<ReadHandle> readOffloaded(long ledgerId, MLDataFormats.OffloadContext ledgerContext,
+    default CompletableFuture<ReadHandle> readOffloaded(long ledgerId, OffloadContext ledgerContext,
                                                         Map<String, String> offloadDriverMetadata) {
         throw new UnsupportedOperationException();
     }
@@ -229,6 +243,10 @@ public interface LedgerOffloader {
     default void scanLedgers(OffloadedLedgerMetadataConsumer consumer,
                              Map<String, String> offloadDriverMetadata) throws ManagedLedgerException {
         throw ManagedLedgerException.getManagedLedgerException(new UnsupportedOperationException());
+    }
+
+    default boolean isAppendable() {
+        return true;
     }
 }
 

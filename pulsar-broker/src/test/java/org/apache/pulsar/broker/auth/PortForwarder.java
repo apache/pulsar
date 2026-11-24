@@ -29,21 +29,21 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
-import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.MultiThreadIoEventLoopGroup;
+import io.netty.channel.nio.NioIoHandler;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import java.net.SocketAddress;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.CustomLog;
 
 /**
  * A TCP server that performs port forwarding for test purposes.
  */
+@CustomLog
+@SuppressWarnings("try")
 public class PortForwarder implements AutoCloseable {
-
-    private static final Logger LOG = LoggerFactory.getLogger(PortForwarder.class);
 
     private final SocketAddress targetAddress;
     private final Channel serverChannel;
@@ -56,10 +56,11 @@ public class PortForwarder implements AutoCloseable {
      * @param listenAddress the local address to listen on.
      * @param targetAddress the remote address to forward traffic to.
      */
+    @SuppressWarnings("try")
     public PortForwarder(SocketAddress listenAddress, SocketAddress targetAddress) {
         this.targetAddress = targetAddress;
-        this.bossGroup = new NioEventLoopGroup(1);
-        this.workerGroup = new NioEventLoopGroup();
+        this.bossGroup = new MultiThreadIoEventLoopGroup(1, NioIoHandler.newFactory());
+        this.workerGroup = new MultiThreadIoEventLoopGroup(NioIoHandler.newFactory());
         try {
             ServerBootstrap b = new ServerBootstrap();
             this.serverChannel = b.group(bossGroup, workerGroup)
@@ -70,8 +71,9 @@ public class PortForwarder implements AutoCloseable {
                     .option(ChannelOption.SO_REUSEADDR, true)
                     .bind(listenAddress).sync().channel();
 
-            LOG.info("Started port forwarding service on {}, target: {}", listenAddress, targetAddress);
-        } catch(Exception e) {
+            log.info().attr("listenAddress", listenAddress).attr("targetAddress", targetAddress)
+                    .log("Started port forwarding service");
+        } catch (Exception e) {
             throw new RuntimeException(String.format("failed to bind to %s: %s", listenAddress, e.getMessage()), e);
         }
     }
@@ -152,7 +154,7 @@ public class PortForwarder implements AutoCloseable {
 
         @Override
         public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-            LOG.error("frontend exception", cause);
+            log.error().exception(cause).log("frontend exception");
             closeOnFlush(ctx.channel());
         }
     }
@@ -191,7 +193,7 @@ public class PortForwarder implements AutoCloseable {
 
         @Override
         public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-            LOG.error("backend exception", cause);
+            log.error().exception(cause).log("backend exception");
             closeOnFlush(ctx.channel());
         }
     }

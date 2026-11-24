@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.cli.converters;
 
-import com.beust.jcommander.ParameterException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
@@ -26,12 +25,12 @@ import java.util.Set;
 import lombok.experimental.UtilityClass;
 
 @UtilityClass
-class ByteUnitUtil {
+public class ByteUnitUtil {
 
     private static Set<Character> sizeUnit = Collections.unmodifiableSet(
             new HashSet<>(Arrays.asList('k', 'K', 'm', 'M', 'g', 'G', 't', 'T')));
 
-    static long validateSizeString(String byteStr) {
+    public static long validateSizeString(String byteStr) {
         if (byteStr.isEmpty()) {
             throw new IllegalArgumentException("byte string cannot be empty");
         }
@@ -44,7 +43,7 @@ class ByteUnitUtil {
                     ? Long.parseLong(subStr)
                     : Long.parseLong(byteStr);
         } catch (IllegalArgumentException e) {
-            throw new ParameterException(String.format("Invalid size '%s'. Valid formats are: %s",
+            throw new IllegalArgumentException(String.format("Invalid size '%s'. Valid formats are: %s",
                     byteStr, "(4096, 100K, 10M, 16G, 2T)"));
         }
         switch (last) {

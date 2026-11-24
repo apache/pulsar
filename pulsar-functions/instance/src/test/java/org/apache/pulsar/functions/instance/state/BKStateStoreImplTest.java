@@ -46,15 +46,16 @@ import org.testng.annotations.Test;
  */
 public class BKStateStoreImplTest {
 
-    private final String TENANT = "test-tenant";
-    private final String NS = "test-ns";
-    private final String NAME = "test-name";
-    private final String FQSN = "test-tenant/test-ns/test-name";
+    private static final String TENANT = "test-tenant";
+    private static final String NS = "test-ns";
+    private static final String NAME = "test-name";
+    private static final String FQSN = "test-tenant/test-ns/test-name";
 
     private Table<ByteBuf, ByteBuf> mockTable;
     private BKStateStoreImpl stateContext;
 
     @BeforeMethod
+    @SuppressWarnings("unchecked")
     public void setup() {
         this.mockTable = mock(Table.class);
         this.stateContext = new BKStateStoreImpl(
@@ -93,6 +94,7 @@ public class BKStateStoreImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testDelete() throws Exception {
         DeleteResult<ByteBuf, ByteBuf> result = mock(DeleteResult.class);
         when(mockTable.delete(any(ByteBuf.class), eq(Options.delete())))
@@ -117,17 +119,19 @@ public class BKStateStoreImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testGetStateValue() throws Exception {
+        @SuppressWarnings("rawtypes")
         KeyValue returnedKeyValue = mock(KeyValue.class);
         ByteBuf returnedValue = Unpooled.copiedBuffer("test-value", UTF_8);
         when(returnedKeyValue.value()).thenReturn(returnedValue);
-        when(returnedKeyValue.version()).thenReturn(1l);
+        when(returnedKeyValue.version()).thenReturn(1L);
         when(returnedKeyValue.isNumber()).thenReturn(false);
         when(mockTable.getKv(any(ByteBuf.class)))
             .thenReturn(FutureUtils.value(returnedKeyValue));
         StateValue result = stateContext.getStateValue("test-key");
         assertEquals("test-value", new String(result.getValue(), UTF_8));
-        assertEquals(1l, result.getVersion().longValue());
+        assertEquals(1L, result.getVersion().longValue());
         assertEquals(false, result.getIsNumber().booleanValue());
         verify(mockTable, times(1)).getKv(
             eq(Unpooled.copiedBuffer("test-key", UTF_8))

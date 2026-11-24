@@ -19,16 +19,23 @@
 package org.apache.pulsar.tests;
 
 import java.util.Arrays;
+import org.testng.IClassListener;
+import org.testng.IExecutionListener;
+import org.testng.ISuite;
+import org.testng.ISuiteListener;
+import org.testng.ITestClass;
 import org.testng.ITestContext;
 import org.testng.ITestListener;
 import org.testng.ITestResult;
 import org.testng.SkipException;
 import org.testng.internal.thread.ThreadTimeoutException;
 
-public class PulsarTestListener implements ITestListener {
+public class PulsarTestListener implements ITestListener, IClassListener, IExecutionListener, ISuiteListener {
 
     @Override
     public void onTestStart(ITestResult result) {
+        ExtendedNettyLeakDetector.setInitialHint(String.format("Test: %s.%s", result.getTestClass().getName(),
+                result.getMethod().getMethodName()));
         System.out.format("------- Starting test %s.%s(%s)-------\n", result.getTestClass(),
                 result.getMethod().getMethodName(), Arrays.toString(result.getParameters()));
     }
@@ -70,16 +77,41 @@ public class PulsarTestListener implements ITestListener {
     }
 
     @Override
-    public void onTestFailedButWithinSuccessPercentage(ITestResult result) {
-
+    public void onAfterClass(ITestClass testClass) {
+        // Detect leaks once per test class instead of with a full GC after every test method: a report names the test
+        // method that allocated the leaked buffer either way (Netty records the hint set in onTestStart at
+        // allocation). TestNG calls this before the @AfterClass methods, so a buffer that they drop is reported after
+        // the next test class, or when the test JVM finishes.
+        ExtendedNettyLeakDetector.triggerLeakDetection();
     }
 
     @Override
     public void onStart(ITestContext context) {
-
+        ExtendedNettyLeakDetector.setInitialHint("Starting test: " + context.getName());
     }
 
     @Override
     public void onFinish(ITestContext context) {
+        ExtendedNettyLeakDetector.triggerLeakDetection();
+        ExtendedNettyLeakDetector.setInitialHint("Finished test: " + context.getName());
+    }
+
+    @Override
+    public void onFinish(ISuite suite) {
+        ExtendedNettyLeakDetector.setInitialHint("Finished suite: " + suite.getName());
+    }
+
+    @Override
+    public void onExecutionFinish() {
+        if (!ExtendedNettyLeakDetector.isEnabled()) {
+            return;
+        }
+        ExtendedNettyLeakDetector.triggerLeakDetection();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        ExtendedNettyLeakDetector.triggerLeakDetection();
     }
 }

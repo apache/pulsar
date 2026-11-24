@@ -19,11 +19,10 @@
 package org.apache.pulsar.common.util;
 
 import java.util.concurrent.TimeUnit;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.CustomLog;
 
+@CustomLog
 public final class Runnables {
-    private static final Logger LOGGER = LoggerFactory.getLogger(Runnables.class);
 
     private Runnables() {}
 
@@ -53,7 +52,7 @@ public final class Runnables {
             try {
                 runnable.run();
             } catch (Throwable t) {
-                LOGGER.error("Unexpected throwable caught", t);
+                log.error().exception(t).log("Unexpected throwable caught");
             }
         }
     }

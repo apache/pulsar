@@ -23,7 +23,7 @@ import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.openapi.models.V1PodSpec;
 import java.lang.reflect.Type;
 import java.util.Map;
-import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.FunctionDetails;
 
 /**
  * This file defines the SecretsProviderConfigurator interface. This interface is used by the function_workers
@@ -42,24 +42,24 @@ public interface SecretsProviderConfigurator {
      * of the instance and should contain the logic of connecting with the secrets
      * provider and obtaining secrets.
      */
-    String getSecretsProviderClassName(Function.FunctionDetails functionDetails);
+    String getSecretsProviderClassName(FunctionDetails functionDetails);
 
     /**
      * Return the secrets provider config.
      */
-    Map<String, String> getSecretsProviderConfig(Function.FunctionDetails functionDetails);
+    Map<String, String> getSecretsProviderConfig(FunctionDetails functionDetails);
 
     /**
      * Attaches any secrets specific stuff to the k8 container for kubernetes runtime.
      */
     void configureKubernetesRuntimeSecretsProvider(V1PodSpec podSpec, String functionsContainerName,
-                                                   Function.FunctionDetails functionDetails);
+                                                   FunctionDetails functionDetails);
 
     /**
      * Attaches any secrets specific stuff to the ProcessBuilder for process runtime.
      */
     void configureProcessRuntimeSecretsProvider(ProcessBuilder processBuilder,
-                                                Function.FunctionDetails functionDetails);
+                                                FunctionDetails functionDetails);
 
     /**
      * What is the type of the object that should be in the user secret config.
@@ -72,7 +72,7 @@ public interface SecretsProviderConfigurator {
      * Do config checks to see whether the secrets provided are conforming.
      */
     default void doAdmissionChecks(AppsV1Api appsV1Api, CoreV1Api coreV1Api, String jobNamespace, String jobName,
-                                   Function.FunctionDetails functionDetails) {
+                                   FunctionDetails functionDetails) {
     }
 
 }

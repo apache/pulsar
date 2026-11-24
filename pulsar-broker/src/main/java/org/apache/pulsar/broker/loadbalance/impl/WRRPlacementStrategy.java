@@ -21,17 +21,16 @@ package org.apache.pulsar.broker.loadbalance.impl;
 import com.google.common.collect.Multimap;
 import java.util.Map;
 import java.util.Random;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.loadbalance.PlacementStrategy;
 import org.apache.pulsar.broker.loadbalance.ResourceUnit;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  *
  * This class implements PlacementStrategy based on Weighted Round Robin Algorithm.
  */
+@CustomLog
 public class WRRPlacementStrategy implements PlacementStrategy {
-    private static final Logger log = LoggerFactory.getLogger(WRRPlacementStrategy.class);
     private final Random rand = new Random();
 
     /**
@@ -59,7 +58,7 @@ public class WRRPlacementStrategy implements PlacementStrategy {
         if (finalCandidates.isEmpty()) {
             return null;
         }
-        log.debug("Total Final Candidates selected - [{}]", finalCandidates.size());
+        log.debug().attr("count", finalCandidates.size()).log("Total final candidates selected");
         int totalAvailability = 0;
         for (Map.Entry<Long, ResourceUnit> candidateOwner : finalCandidates.entries()) {
             totalAvailability += candidateOwner.getKey().intValue();
@@ -75,13 +74,14 @@ public class WRRPlacementStrategy implements PlacementStrategy {
                     .orElse(null);
         }
         int weightedSelector = rand.nextInt(totalAvailability);
-        log.debug("Generated Weighted Selector Number - [{}] ", weightedSelector);
+        log.debug().attr("weightedSelector", weightedSelector).log("Generated weighted selector number");
         long weightRangeSoFar = 0;
         for (Map.Entry<Long, ResourceUnit> candidateOwner : finalCandidates.entries()) {
             weightRangeSoFar += candidateOwner.getKey();
             if (weightedSelector < weightRangeSoFar) {
                 selectedRU = candidateOwner.getValue();
-                log.debug(" Weighted Round Robin Selected RU - [{}]", candidateOwner.getValue().getResourceId());
+                log.debug().attr("resourceId", candidateOwner.getValue().getResourceId())
+                        .log("Weighted round robin selected RU");
                 break;
             }
         }

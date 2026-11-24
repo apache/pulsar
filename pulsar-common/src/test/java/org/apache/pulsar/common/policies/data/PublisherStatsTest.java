@@ -21,7 +21,6 @@ package org.apache.pulsar.common.policies.data;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Sets;
@@ -55,21 +54,21 @@ public class PublisherStatsTest {
         assertNull(stats.getClientVersion());
         assertNull(stats.getConnectedSince());
         assertNull(stats.getProducerName());
-        
+
         stats.setAddress("address");
         assertEquals(stats.getAddress(), "address");
         stats.setAddress("address1");
         assertEquals(stats.getAddress(), "address1");
-        
+
         stats.setClientVersion("version");
         assertEquals(stats.getClientVersion(), "version");
         assertEquals(stats.getAddress(), "address1");
-        
+
         stats.setConnectedSince("connected");
         assertEquals(stats.getConnectedSince(), "connected");
         assertEquals(stats.getAddress(), "address1");
         assertEquals(stats.getClientVersion(), "version");
-        
+
         stats.setProducerName("producer");
         assertEquals(stats.getProducerName(), "producer");
         assertEquals(stats.getConnectedSince(), "connected");
@@ -84,23 +83,23 @@ public class PublisherStatsTest {
             String field = itr.next();
             assertTrue(allowedFields.contains(field), field + " should not be exposed");
         }
-        
+
         stats.setAddress(null);
         assertNull(stats.getAddress());
-        
+
         stats.setConnectedSince("");
         assertEquals(stats.getConnectedSince(), "");
-        
+
         stats.setClientVersion("version2");
         assertEquals(stats.getClientVersion(), "version2");
-        
+
         stats.setProducerName(null);
         assertNull(stats.getProducerName());
 
         assertNull(stats.getAddress());
-        
+
         assertEquals(stats.getClientVersion(), "version2");
-        
+
         stats.setConnectedSince(null);
         stats.setClientVersion(null);
         assertNull(stats.getConnectedSince());

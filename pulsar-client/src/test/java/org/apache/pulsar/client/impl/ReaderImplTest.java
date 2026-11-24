@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.testng.Assert.assertNotNull;
+import static org.testng.AssertJUnit.assertFalse;
+import static org.testng.AssertJUnit.assertTrue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -33,9 +36,6 @@ import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.AssertJUnit.assertFalse;
-import static org.testng.AssertJUnit.assertTrue;
 
 public class ReaderImplTest {
     private PulsarClientImpl client;

@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.cli;
 
-import com.beust.jcommander.ParameterException;
 import lombok.experimental.UtilityClass;
 import org.apache.commons.lang3.StringUtils;
 
@@ -27,31 +26,31 @@ public class ValueValidationUtil {
 
     public static void maxValueCheck(String paramName, long value, long maxValue) {
         if (value > maxValue) {
-            throw new ParameterException(paramName + " cannot be bigger than <" + maxValue + ">!");
+            throw new IllegalArgumentException(paramName + " cannot be bigger than <" + maxValue + ">!");
         }
     }
 
     public static void positiveCheck(String paramName, long value) {
         if (value <= 0) {
-            throw new ParameterException(paramName + " cannot be less than or equal to <0>!");
+            throw new IllegalArgumentException(paramName + " cannot be less than or equal to <0>!");
         }
     }
 
     public static void positiveCheck(String paramName, int value) {
         if (value <= 0) {
-            throw new ParameterException(paramName + " cannot be less than or equal to <0>!");
+            throw new IllegalArgumentException(paramName + " cannot be less than or equal to <0>!");
         }
     }
 
     public static void emptyCheck(String paramName, String value) {
         if (StringUtils.isEmpty(value)) {
-            throw new ParameterException("The value of " + paramName + " can't be empty");
+            throw new IllegalArgumentException("The value of " + paramName + " can't be empty");
         }
     }
 
     public static void minValueCheck(String name, Long value, long min) {
         if (value < min) {
-            throw new ParameterException(name + " cannot be less than <" + min + ">!");
+            throw new IllegalArgumentException(name + " cannot be less than <" + min + ">!");
         }
     }
 }

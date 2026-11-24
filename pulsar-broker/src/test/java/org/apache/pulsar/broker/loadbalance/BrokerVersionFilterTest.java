@@ -18,17 +18,15 @@
  */
 package org.apache.pulsar.broker.loadbalance;
 
+import com.github.zafarkhaja.semver.Version;
 import java.util.Set;
 import java.util.TreeSet;
-
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.impl.BrokerVersionFilter;
-import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.BrokerData;
+import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-
-import com.github.zafarkhaja.semver.Version;
 
 @Test(groups = "broker")
 public class BrokerVersionFilterTest {
@@ -44,9 +42,9 @@ public class BrokerVersionFilterTest {
         BrokerVersionFilter filter = new BrokerVersionFilter();
         try {
             Version latestVersion = filter.getLatestVersionNumber(brokers, loadData);
-            Assert.assertEquals(latestVersion.getMajorVersion(), 1);
-            Assert.assertEquals(latestVersion.getMinorVersion(), 2);
-            Assert.assertEquals(latestVersion.getPatchVersion(), 0);
+            Assert.assertEquals(latestVersion.majorVersion(), 1);
+            Assert.assertEquals(latestVersion.minorVersion(), 2);
+            Assert.assertEquals(latestVersion.patchVersion(), 0);
         } catch (BrokerFilterBadVersionException bad) {
             Assert.fail(bad.getMessage(), bad);
         }

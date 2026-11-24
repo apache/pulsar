@@ -19,19 +19,23 @@
 package org.apache.pulsar.functions.worker.rest.api;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufAllocator;
+import io.netty.buffer.ByteBufOutputStream;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.exporter.common.TextFormat;
+import io.prometheus.metrics.expositionformats.PrometheusTextFormatWriter;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.StreamingOutput;
 import java.io.IOException;
 import java.io.Writer;
 import java.nio.CharBuffer;
 import java.nio.charset.StandardCharsets;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.StreamingOutput;
+import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.rest.FunctionApiResource;
@@ -44,11 +48,14 @@ public class FunctionsMetricsResource extends FunctionApiResource {
     public Response getMetrics() throws IOException {
 
         WorkerService workerService = get();
-        ByteBuf buf = ByteBufAllocator.DEFAULT.heapBuffer();
+        ByteBuf buf = PulsarByteBufAllocator.DEFAULT.heapBuffer();
         // if request, also attach the prometheus metrics
         if (workerService.getWorkerConfig().isIncludeStandardPrometheusMetrics()) {
             Writer writer = new BufWriter(buf);
             TextFormat.write004(writer, CollectorRegistry.defaultRegistry.metricFamilySamples());
+            // Metrics registered on the Prometheus Java client 1.x registry (e.g. Caffeine cache metrics).
+            PrometheusTextFormatWriter.create().write(new ByteBufOutputStream(buf),
+                    PrometheusRegistry.defaultRegistry.scrape());
         }
 
         try {
@@ -63,7 +70,7 @@ public class FunctionsMetricsResource extends FunctionApiResource {
             };
             return Response
                 .ok(streamOut)
-                .type(MediaType.TEXT_PLAIN_TYPE)
+                .type(PrometheusMetricsServlet.PROMETHEUS_CONTENT_TYPE_004)
                 .build();
         } finally {
             buf.release();

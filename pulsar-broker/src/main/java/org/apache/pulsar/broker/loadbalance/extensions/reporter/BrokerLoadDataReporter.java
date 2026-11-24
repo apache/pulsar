@@ -19,11 +19,12 @@
 package org.apache.pulsar.broker.loadbalance.extensions.reporter;
 
 import com.google.common.annotations.VisibleForTesting;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -42,7 +43,7 @@ import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
 /**
  * The broker load data reporter.
  */
-@Slf4j
+@CustomLog
 public class BrokerLoadDataReporter implements LoadDataReporter<BrokerLoadData>, StateChangeListener {
 
     private static final long TOMBSTONE_DELAY_IN_MILLIS = 1000 * 10;
@@ -108,7 +109,7 @@ public class BrokerLoadDataReporter implements LoadDataReporter<BrokerLoadData>,
         boolean debug = ExtensibleLoadManagerImpl.debug(conf, log);
         if (force || needBrokerDataUpdate()) {
             if (debug) {
-                log.info("publishing load report:{}", localData.toString(conf));
+                log.info().attr("report", localData.toString(conf)).log("publishing load report");
             }
             CompletableFuture<Void> future =
                     this.brokerLoadDataStore.pushAsync(this.brokerId, newLoadData);
@@ -117,13 +118,13 @@ public class BrokerLoadDataReporter implements LoadDataReporter<BrokerLoadData>,
                     localData.setReportedAt(System.currentTimeMillis());
                     lastData.update(localData);
                 } else {
-                    log.error("Failed to report the broker load data.", ex);
+                    log.error().exception(ex).log("Failed to report the broker load data");
                 }
             });
             return future;
         } else {
             if (debug) {
-                log.info("skipping load report:{}", localData.toString(conf));
+                log.info().attr("report", localData.toString(conf)).log("skipping load report");
             }
         }
         return CompletableFuture.completedFuture(null);
@@ -138,8 +139,8 @@ public class BrokerLoadDataReporter implements LoadDataReporter<BrokerLoadData>,
         boolean debug = ExtensibleLoadManagerImpl.debug(conf, log);
         if (timeSinceLastReportWrittenToStore > updateMaxIntervalMillis) {
             if (debug) {
-                log.info("Writing local data to metadata store because time since last"
-                                + " update exceeded threshold of {} minutes",
+                log.infof("Writing local data to metadata store because time since last"
+                                + " update exceeded threshold of %s minutes",
                         loadBalancerReportUpdateMaxIntervalMinutes);
             }
             // Always update after surpassing the maximum interval.
@@ -188,7 +189,7 @@ public class BrokerLoadDataReporter implements LoadDataReporter<BrokerLoadData>,
         brokerLoadDataStore.removeAsync(brokerId)
                 .whenComplete((__, e) -> {
                             if (e != null) {
-                                log.error("Failed to clean broker load data.", e);
+                                log.error().exception(e).log("Failed to clean broker load data");
                                 lastTombstonedAt = lastSuccessfulTombstonedAt;
                             } else {
                                 boolean debug = ExtensibleLoadManagerImpl.debug(conf, log);
@@ -209,17 +210,30 @@ public class BrokerLoadDataReporter implements LoadDataReporter<BrokerLoadData>,
         ServiceUnitState state = ServiceUnitStateData.state(data);
         switch (state) {
             case Releasing, Splitting -> {
-                if (StringUtils.equals(data.sourceBroker(), brokerId)) {
-                    localData.clear();
-                    tombstone();
+                if (Objects.equals(data.sourceBroker(), brokerId)) {
+                    scheduleTombstone();
                 }
             }
             case Owned -> {
-                if (StringUtils.equals(data.dstBroker(), brokerId)) {
-                    localData.clear();
-                    tombstone();
+                if (Objects.equals(data.dstBroker(), brokerId)) {
+                    scheduleTombstone();
                 }
             }
+        }
+    }
+
+    // The channel calls its listeners on the thread that completes its table view's reads: with the metadata store
+    // table view, the store's single worker thread. tombstone() blocks while the store restarts a closed producer,
+    // and the producer's topic lookup needs such a read, so run it on the load manager executor, which also sends
+    // the reports: no report goes out between the clear and the tombstone.
+    private void scheduleTombstone() {
+        try {
+            pulsar.getLoadManagerExecutor().execute(() -> {
+                localData.clear();
+                tombstone();
+            });
+        } catch (RejectedExecutionException e) {
+            log.debug().attr("broker", brokerId).log("Skipped the load data tombstone: the broker is closing");
         }
     }
 }

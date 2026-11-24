@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.schema;
 
+import static com.google.protobuf.Descriptors.Descriptor;
 import org.apache.pulsar.client.impl.schema.ProtobufNativeSchemaUtils;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
@@ -25,17 +26,17 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import static com.google.protobuf.Descriptors.Descriptor;
-
 @Test(groups = "broker")
 public class ProtobufNativeSchemaCompatibilityCheckTest {
 
-    private static final SchemaData schemaData1 = getSchemaData(org.apache.pulsar.client.api.schema.proto.Test.TestMessage.getDescriptor());
+    private static final SchemaData schemaData1 =
+            getSchemaData(org.apache.pulsar.client.api.schema.proto.Test.TestMessage.getDescriptor());
 
-    private static final SchemaData schemaData2 = getSchemaData(org.apache.pulsar.client.api.schema.proto.Test.SubMessage.getDescriptor());
+    private static final SchemaData schemaData2 =
+            getSchemaData(org.apache.pulsar.client.api.schema.proto.Test.SubMessage.getDescriptor());
 
     /**
-     * make sure protobuf root message isn't allow change
+     * make sure protobuf root message isn't allow change.
      */
     @Test
     public void testRootMessageChange() {
@@ -46,6 +47,7 @@ public class ProtobufNativeSchemaCompatibilityCheckTest {
     }
 
     private static SchemaData getSchemaData(Descriptor descriptor) {
-        return SchemaData.builder().data(ProtobufNativeSchemaUtils.serialize(descriptor)).type(SchemaType.PROTOBUF_NATIVE).build();
+        return SchemaData.builder().data(ProtobufNativeSchemaUtils.serialize(descriptor))
+                .type(SchemaType.PROTOBUF_NATIVE).build();
     }
 }

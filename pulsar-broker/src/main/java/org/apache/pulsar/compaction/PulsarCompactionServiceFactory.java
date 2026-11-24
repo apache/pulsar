@@ -19,15 +19,15 @@
 package org.apache.pulsar.compaction;
 
 import com.google.common.annotations.VisibleForTesting;
-import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import lombok.AccessLevel;
 import lombok.Getter;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.common.util.FutureUtil;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 public class PulsarCompactionServiceFactory implements CompactionServiceFactory {
 
@@ -54,21 +54,25 @@ public class PulsarCompactionServiceFactory implements CompactionServiceFactory 
     }
 
     protected Compactor newCompactor() throws PulsarServerException {
-        return new TwoPhaseCompactor(pulsarService.getConfiguration(),
+        return new PublishingOrderCompactor(pulsarService.getConfiguration(),
                 pulsarService.getClient(), pulsarService.getBookKeeperClient(),
                 pulsarService.getCompactorExecutor());
     }
 
     @Override
-    public CompletableFuture<Void> initialize(@Nonnull PulsarService pulsarService) {
-        Objects.requireNonNull(pulsarService);
+    public CompletableFuture<Void> initialize(@NonNull PulsarService pulsarService) {
+        if (pulsarService == null) {
+            return FutureUtil.failedFuture(new NullPointerException("Expected pulsarService should not be null"));
+        }
         this.pulsarService = pulsarService;
         return CompletableFuture.completedFuture(null);
     }
 
     @Override
-    public CompletableFuture<TopicCompactionService> newTopicCompactionService(@Nonnull String topic) {
-        Objects.requireNonNull(topic);
+    public CompletableFuture<TopicCompactionService> newTopicCompactionService(@NonNull String topic) {
+        if (topic == null) {
+            return FutureUtil.failedFuture(new NullPointerException("Expected topic should not be null"));
+        }
         PulsarTopicCompactionService pulsarTopicCompactionService =
                 new PulsarTopicCompactionService(topic, pulsarService.getBookKeeperClient(), () -> {
                     try {

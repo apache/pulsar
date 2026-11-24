@@ -18,10 +18,7 @@
  */
 package org.apache.pulsar.functions.worker;
 
-import static org.apache.pulsar.common.util.PortManager.nextLockedFreePort;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.assertNotNull;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Sets;
@@ -29,18 +26,21 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.functions.FunctionConfig;
@@ -61,21 +61,21 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "functions-worker")
 public class PulsarFunctionTlsTest {
 
     protected static final int BROKER_COUNT = 2;
 
-    private final String TLS_SERVER_CERT_FILE_PATH =
+    private static final String TLS_SERVER_CERT_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.cert.pem");
-    private final String TLS_SERVER_KEY_FILE_PATH =
+    private static final String TLS_SERVER_KEY_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.key-pk8.pem");
-    private final String TLS_CLIENT_CERT_FILE_PATH =
+    private static final String TLS_CLIENT_CERT_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/client-keys/admin.cert.pem");
-    private final String TLS_CLIENT_KEY_FILE_PATH =
+    private static final String TLS_CLIENT_KEY_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/client-keys/admin.key-pk8.pem");
-    private final String CA_CERT_FILE_PATH =
+    private static final String CA_CERT_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/certs/ca.cert.pem");
 
     LocalBookkeeperEnsemble bkEnsemble;
@@ -88,27 +88,30 @@ public class PulsarFunctionTlsTest {
     protected String testCluster = "my-cluster";
     protected String testTenant = "my-tenant";
     protected String testNamespace = testTenant + "/my-ns";
-    private PulsarFunctionTestTemporaryDirectory[] tempDirectories = new PulsarFunctionTestTemporaryDirectory[BROKER_COUNT];
+    private PulsarFunctionTestTemporaryDirectory[] tempDirectories =
+            new PulsarFunctionTestTemporaryDirectory[BROKER_COUNT];
+    @SuppressWarnings({"deprecation", "unchecked"})
 
     @BeforeMethod(alwaysRun = true)
     void setup() throws Exception {
         log.info("---- Initializing TopicOwnerTest -----");
         // Start local bookkeeper ensemble
-        bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+        bkEnsemble = new LocalBookkeeperEnsemble(3, 0);
         bkEnsemble.start();
 
         // start brokers
         for (int i = 0; i < BROKER_COUNT; i++) {
-            int brokerPort = nextLockedFreePort();
-            int webPort = nextLockedFreePort();
-
             ServiceConfiguration config = new ServiceConfiguration();
             config.setBrokerShutdownTimeoutMs(0L);
             config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
-            config.setWebServicePort(Optional.empty());
-            config.setWebServicePortTls(Optional.of(webPort));
-            config.setBrokerServicePort(Optional.empty());
-            config.setBrokerServicePortTls(Optional.of(brokerPort));
+            config.setWebServicePort(enablePlaintextListeners() ? Optional.of(0) : Optional.empty());
+            // Pre-allocate the TLS web port: PulsarService.initializeWorkerConfigFromBrokerConfig
+            // builds workerId = "c-{cluster}-fw-{host}-{port}" from the CONFIGURED port. Two
+            // brokers configured with port 0 would end up with the same workerId and the
+            // function-worker membership manager would never elect a leader.
+            config.setWebServicePortTls(Optional.of(PortManager.nextLockedFreePort()));
+            config.setBrokerServicePort(enablePlaintextListeners() ? Optional.of(0) : Optional.empty());
+            config.setBrokerServicePortTls(Optional.of(0));
             config.setClusterName("my-cluster");
             config.setAdvertisedAddress("localhost");
             config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
@@ -131,6 +134,9 @@ public class PulsarFunctionTlsTest {
                 "tlsCertFile:" + TLS_CLIENT_CERT_FILE_PATH + ",tlsKeyFile:" + TLS_CLIENT_KEY_FILE_PATH);
             config.setFunctionsWorkerEnabled(true);
             config.setTlsEnabled(true);
+            // The function workers elect their leader through a Failover subscription: don't delay the election by
+            // the default 1 s
+            config.setActiveConsumerFailoverDelayTimeMillis(0);
 
             WorkerConfig workerConfig = PulsarService.initializeWorkerConfigFromBrokerConfig(config, null);
             tempDirectories[i] = PulsarFunctionTestTemporaryDirectory.create(getClass().getSimpleName());
@@ -150,9 +156,16 @@ public class PulsarFunctionTlsTest {
             workerConfig.setInstanceLivenessCheckFreqMs(100);
             workerConfig.setBrokerClientAuthenticationEnabled(true);
             workerConfig.setTlsEnabled(true);
-            workerConfig.setUseTls(true);
+            // With plaintext listeners enabled, the worker must pick TLS from brokerClientTlsEnabled alone
+            workerConfig.setUseTls(!enablePlaintextListeners());
             workerConfig.setTlsEnableHostnameVerification(true);
             workerConfig.setTlsAllowInsecureConnection(false);
+            File packagePath = new File(
+                    PulsarSink.class.getProtectionDomain().getCodeSource().getLocation().getPath()).getParentFile();
+            List<String> urlPatterns =
+                    List.of(packagePath.toURI() + ".*");
+            workerConfig.setAdditionalEnabledConnectorUrlPatterns(urlPatterns);
+            workerConfig.setAdditionalEnabledFunctionsUrlPatterns(urlPatterns);
             fnWorkerServices[i] = WorkerServiceLoader.load(workerConfig);
 
             configurations[i] = config;
@@ -180,7 +193,15 @@ public class PulsarFunctionTlsTest {
         }
         leaderPulsar = pulsarServices[0];
         leaderAdmin = pulsarAdmins[0];
-        Thread.sleep(1000);
+        // Wait until the worker that won the leader election has finished becoming the leader, which serves the
+        // function updates of both workers
+        Awaitility.await().until(() -> {
+            WorkerInfo leader = ((PulsarWorkerService) fnWorkerServices[0]).getMembershipManager().getLeader();
+            return leader != null && Arrays.stream(fnWorkerServices)
+                    .map(PulsarWorkerService.class::cast)
+                    .anyMatch(worker -> worker.getWorkerConfig().getWorkerId().equals(leader.getWorkerId())
+                            && worker.getLeaderService().isLeader());
+        });
 
         TenantInfo tenantInfo = TenantInfo.builder()
                 .allowedClusters(Collections.singleton(testCluster))
@@ -189,17 +210,23 @@ public class PulsarFunctionTlsTest {
         pulsarAdmins[0].namespaces().createNamespace(testNamespace, 16);
     }
 
+    protected boolean enablePlaintextListeners() {
+        return false;
+    }
+
     @AfterMethod(alwaysRun = true)
     void tearDown() throws Exception {
         try {
             for (int i = 0; i < BROKER_COUNT; i++) {
                 if (pulsarAdmins[i] != null) {
                     pulsarAdmins[i].close();
+                    pulsarAdmins[i] = null;
                 }
             }
             for (int i = 0; i < BROKER_COUNT; i++) {
                 if (fnWorkerServices[i] != null) {
                     fnWorkerServices[i].stop();
+                    fnWorkerServices[i] = null;
                 }
             }
             for (int i = 0; i < BROKER_COUNT; i++) {
@@ -209,14 +236,16 @@ public class PulsarFunctionTlsTest {
             }
             for (int i = 0; i < BROKER_COUNT; i++) {
                 if (pulsarServices[i] != null) {
-                    pulsarServices[i].close();
-                    pulsarServices[i].getConfiguration().
-                            getBrokerServicePort().ifPresent(PortManager::releaseLockedPort);
                     pulsarServices[i].getConfiguration()
-                            .getWebServicePort().ifPresent(PortManager::releaseLockedPort);
+                            .getWebServicePortTls().ifPresent(PortManager::releaseLockedPort);
+                    pulsarServices[i].close();
+                    pulsarServices[i] = null;
                 }
             }
-            bkEnsemble.stop();
+            if (bkEnsemble != null) {
+                bkEnsemble.stop();
+                bkEnsemble = null;
+            }
         } finally {
             for (int i = 0; i < BROKER_COUNT; i++) {
                 if (tempDirectories[i] != null) {
@@ -244,23 +273,18 @@ public class PulsarFunctionTlsTest {
             FunctionConfig functionConfig = createFunctionConfig(jarFilePathUrl, testTenant, "my-ns",
                 functionName, "my.*", "sink-topic-" + i, "sub-" + i);
 
-            log.info(" -------- Start test function : {}", functionName);
+            log.info().attr("function", functionName).log("Start test function");
 
-            int finalI = i;
-            Awaitility.await().atMost(1, TimeUnit.MINUTES).pollInterval(1, TimeUnit.SECONDS).untilAsserted(() -> {
-                final PulsarWorkerService workerService = ((PulsarWorkerService) fnWorkerServices[finalI]);
-                final LeaderService leaderService = workerService.getLeaderService();
-                assertNotNull(leaderService);
-                if (leaderService.isLeader()) {
-                    assertTrue(true);
-                } else {
-                    final WorkerInfo workerInfo = workerService.getMembershipManager().getLeader();
-                    assertTrue(workerInfo != null && !workerInfo.getWorkerId().equals(workerService.getWorkerConfig().getWorkerId()));
-                }
-            });
-            pulsarAdmins[i].functions().createFunctionWithUrl(
-                functionConfig, jarFilePathUrl
-            );
+            final PulsarAdmin createAdmin = pulsarAdmins[i];
+            // During function-worker leadership election/switchover, the coordination topic can already point to
+            // the new leader while that worker is still finishing its leader initialization. In that short window
+            // the internal /functions/leader request returns a transient 503 "Leader not yet ready", so retry only
+            // that condition and let all other failures surface immediately.
+            Awaitility.await().atMost(1, TimeUnit.MINUTES)
+                    .pollInterval(1, TimeUnit.SECONDS)
+                    .ignoreExceptionsMatching(PulsarFunctionTlsTest::isLeaderNotReady)
+                    .untilAsserted(() -> createAdmin.functions()
+                            .createFunctionWithUrl(functionConfig, jarFilePathUrl));
 
             // Function creation is not strongly consistent, so this test can fail with a get that is too eager and
             // does not have retries.
@@ -276,6 +300,15 @@ public class PulsarFunctionTlsTest {
             pulsarAdmins[i].functions().deleteFunction(config.getTenant(), config.getNamespace(), config.getName());
         }
     }
+
+    private static boolean isLeaderNotReady(Throwable e) {
+        return e instanceof PulsarAdminException
+                && ((PulsarAdminException) e).getStatusCode() == 503
+                && String.valueOf(((PulsarAdminException) e).getHttpError())
+                        .contains("Leader not yet ready");
+    }
+
+    @SuppressWarnings("deprecation")
 
     protected static FunctionConfig createFunctionConfig(
         String jarFile,
@@ -310,8 +343,10 @@ public class PulsarFunctionTlsTest {
         functionConfig.setAutoAck(true);
         functionConfig.setOutput(sinkTopic);
 
-        log.info("Function Config: {}", new ObjectMapper().writerWithDefaultPrettyPrinter()
-            .writeValueAsString(functionConfig));
+        log.info()
+                .attr("config", new ObjectMapper().writerWithDefaultPrettyPrinter()
+                        .writeValueAsString(functionConfig))
+                .log("Function Config");
 
         return functionConfig;
     }

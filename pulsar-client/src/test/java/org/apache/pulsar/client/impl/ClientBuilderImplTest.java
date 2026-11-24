@@ -18,8 +18,9 @@
  */
 package org.apache.pulsar.client.impl;
 
-import static org.testng.Assert.fail;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.testng.Assert.fail;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import java.io.IOException;
@@ -28,9 +29,11 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import lombok.Cleanup;
 import lombok.SneakyThrows;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
+import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.EncodedAuthenticationParameterSupport;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -106,7 +109,7 @@ public class ClientBuilderImplTest {
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testClientBuilderWithIllegalDNSServerHostname() throws PulsarClientException {
         PulsarClient.builder().dnsServerAddresses(
-                Arrays.asList(new InetSocketAddress("1.2.3.4", 53), new InetSocketAddress("localhost",53)));
+                Arrays.asList(new InetSocketAddress("1.2.3.4", 53), new InetSocketAddress("localhost", 53)));
     }
 
     @Test()
@@ -123,7 +126,7 @@ public class ClientBuilderImplTest {
         PulsarClient.builder().connectionMaxIdleSeconds(60);
         // test config not correct.
         try {
-            PulsarClient.builder().connectionMaxIdleSeconds(30);
+            PulsarClient.builder().connectionMaxIdleSeconds(14);
             fail();
         } catch (IllegalArgumentException e){
         }
@@ -157,6 +160,71 @@ public class ClientBuilderImplTest {
         confProps.put(AUTH_PARAM_MAP_PROP, secretAuthParamMap("pass2"));
         Authentication auth = createClientAndGetAuth(confProps);
         assertAuthWithSecret(auth, "pass1");
+    }
+
+    @Test
+    public void testLoadConfAfterAuthenticationWithAuthParams() throws Exception {
+        ClientBuilder builder = PulsarClient.builder().serviceUrl("http://localhost:8080")
+                .authentication(MOCK_AUTH_SECRET_PLUGIN_CLASS, secretAuthParams("pass1"))
+                .loadConf(Collections.singletonMap("operationTimeoutMs", 5000));
+        assertAuthWithSecret(buildClientAndGetAuth(builder), "pass1");
+    }
+
+    @Test
+    public void testLoadConfAfterAuthenticationWithAuthParamMap() throws Exception {
+        ClientBuilder builder = PulsarClient.builder().serviceUrl("http://localhost:8080")
+                .authentication(MOCK_AUTH_SECRET_PLUGIN_CLASS, secretAuthParamMap("pass1"))
+                .loadConf(Collections.singletonMap("operationTimeoutMs", 5000));
+        assertAuthWithSecret(buildClientAndGetAuth(builder), "pass1");
+    }
+
+    @Test
+    public void testLoadConfAfterAuthenticationInstance() throws Exception {
+        MockAuthenticationSecret auth = new MockAuthenticationSecret();
+        auth.configure(secretAuthParams("pass1"));
+        ClientBuilder builder = PulsarClient.builder().serviceUrl("http://localhost:8080")
+                .authentication(auth)
+                .loadConf(Collections.singletonMap("operationTimeoutMs", 5000));
+        assertAuthWithSecret(buildClientAndGetAuth(builder), "pass1");
+    }
+
+    @Test
+    public void testLoadConfKeepsAuthenticationAcrossUnrelatedProps() throws Exception {
+        MockAuthenticationSecret auth = new MockAuthenticationSecret();
+        auth.configure(secretAuthParams("pass2"));
+        // The instance replaces the authentication created from the plugin class and params, and stays across
+        // repeated loadConf calls that don't change those properties
+        ClientBuilder builder = PulsarClient.builder().serviceUrl("http://localhost:8080")
+                .authentication(MOCK_AUTH_SECRET_PLUGIN_CLASS, secretAuthParams("pass1"))
+                .authentication(auth)
+                .loadConf(Collections.singletonMap("operationTimeoutMs", 5000))
+                .loadConf(Collections.singletonMap("connectionTimeoutMs", 5000));
+        assertThat(buildClientAndGetAuth(builder)).isSameAs(auth);
+    }
+
+    @Test
+    public void testLoadConfClearsAuthenticationWhenPropsCleared() throws Exception {
+        Map<String, Object> confProps = new HashMap<>();
+        confProps.put(AUTH_PLUGIN_CLASS_PROP, "");
+        confProps.put(AUTH_PARAMS_PROP, "");
+        ClientBuilder builder = PulsarClient.builder().serviceUrl("http://localhost:8080")
+                .authentication(MOCK_AUTH_SECRET_PLUGIN_CLASS, secretAuthParams("pass1"))
+                .loadConf(confProps);
+        assertThatAuthIsNotSet(buildClientAndGetAuth(builder));
+    }
+
+    @Test
+    public void testLoadConfRebuildsAuthenticationWhenParamsChange() throws Exception {
+        ClientBuilder builder = PulsarClient.builder().serviceUrl("http://localhost:8080")
+                .authentication(MOCK_AUTH_SECRET_PLUGIN_CLASS, secretAuthParams("pass1"))
+                .loadConf(Collections.singletonMap(AUTH_PARAMS_PROP, secretAuthParams("pass2")));
+        assertAuthWithSecret(buildClientAndGetAuth(builder), "pass2");
+    }
+
+    private Authentication buildClientAndGetAuth(ClientBuilder builder) throws PulsarClientException {
+        try (PulsarClient client = builder.build()) {
+            return ((PulsarClientImpl) client).conf.getAuthentication();
+        }
     }
 
     private void assertAuthWithSecret(Authentication authentication, String secret) {
@@ -221,6 +289,21 @@ public class ClientBuilderImplTest {
         assertThatAuthIsNotSet(auth);
     }
 
+    @Test
+    public void testClientDescription() throws PulsarClientException {
+        @Cleanup PulsarClient ignored =
+                PulsarClient.builder().serviceUrl("pulsar://localhost:6650").description("forked").build();
+    }
+
+    @Test
+    public void testClientDescriptionLengthExceed64() {
+        String longDescription = "a".repeat(65);
+        assertThatThrownBy(() -> {
+            @Cleanup PulsarClient ignored =
+                    PulsarClient.builder().serviceUrl("pulsar://localhost:6650").description(longDescription).build();
+        }).isInstanceOf(IllegalArgumentException.class);
+    }
+
     private void assertThatAuthIsNotSet(Authentication authentication) {
         // getAuthentication() returns disabled when null
         assertThat(authentication).isInstanceOf(AuthenticationDisabled.class);
@@ -228,8 +311,9 @@ public class ClientBuilderImplTest {
 
     @SneakyThrows
     private Authentication createClientAndGetAuth(Map<String, Object> confProps) {
-        try (PulsarClient client = PulsarClient.builder().serviceUrl("http://localhost:8080").loadConf(confProps).build()) {
-            return ((PulsarClientImpl)client).conf.getAuthentication();
+        try (PulsarClient client = PulsarClient.builder().serviceUrl("http://localhost:8080")
+                .loadConf(confProps).build()) {
+            return ((PulsarClientImpl) client).conf.getAuthentication();
         }
     }
 
@@ -241,7 +325,7 @@ public class ClientBuilderImplTest {
         return Collections.singletonMap("secret", secret);
     }
 
-    static public class MockAuthenticationSecret implements Authentication, EncodedAuthenticationParameterSupport {
+    public static class MockAuthenticationSecret implements Authentication, EncodedAuthenticationParameterSupport {
 
         private String secret;
 
@@ -250,11 +334,13 @@ public class ClientBuilderImplTest {
             return "mock-secret";
         }
 
+        @SuppressWarnings("deprecation")
         @Override
         public AuthenticationDataProvider getAuthData() throws PulsarClientException {
             return null;
         }
 
+        @SuppressWarnings("deprecation")
         @Override
         public void configure(Map<String, String> authParams) {
             configure(new Gson().toJson(authParams));

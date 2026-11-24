@@ -19,7 +19,14 @@
 
 package org.apache.pulsar.broker.testcontext;
 
+import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdkBuilder;
 import java.io.IOException;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Consumer;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.BookKeeperClientFactory;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -27,6 +34,8 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.service.PulsarMetadataEventSynchronizer;
 import org.apache.pulsar.compaction.CompactionServiceFactory;
+import org.apache.pulsar.functions.worker.WorkerConfig;
+import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
@@ -36,16 +45,25 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
  * {@link PulsarService} implementations for a PulsarService instance used in tests.
  * Please see {@link PulsarTestContext} for more details.
  */
+
+@CustomLog
 abstract class AbstractTestPulsarService extends PulsarService {
     protected final SpyConfig spyConfig;
+    private final List<Object> collaboratorMocks = new CopyOnWriteArrayList<>();
 
     public AbstractTestPulsarService(SpyConfig spyConfig, ServiceConfiguration config,
                                      MetadataStoreExtended localMetadataStore,
                                      MetadataStoreExtended configurationMetadataStore,
                                      CompactionServiceFactory compactionServiceFactory,
                                      BrokerInterceptor brokerInterceptor,
-                                     BookKeeperClientFactory bookKeeperClientFactory) {
-        super(config);
+                                     BookKeeperClientFactory bookKeeperClientFactory,
+                                     Consumer<AutoConfiguredOpenTelemetrySdkBuilder>
+                                             openTelemetrySdkBuilderCustomizer,
+                                     Optional<WorkerService> functionWorkerService) {
+        super(config, new WorkerConfig(), functionWorkerService,
+                exitCode -> log.info().attr("exitCode", exitCode).log("Pulsar process termination requested"),
+                openTelemetrySdkBuilderCustomizer);
+
         this.spyConfig = spyConfig;
         setLocalMetadataStore(
                 NonClosingProxyHandler.createNonClosingProxy(localMetadataStore, MetadataStoreExtended.class));
@@ -56,8 +74,23 @@ abstract class AbstractTestPulsarService extends PulsarService {
         setBkClientFactory(bookKeeperClientFactory);
     }
 
+    /**
+     * Registers a Mockito mock or spy that this broker created for one of its collaborators, for
+     * {@link PulsarTestContext} to release after closing the broker.
+     */
+    protected <T> T registerCollaboratorMock(T mock) {
+        collaboratorMocks.add(mock);
+        return mock;
+    }
+
+    void releaseCollaboratorMocks() {
+        collaboratorMocks.forEach(PulsarTestContext::releaseSpyOrMock);
+        collaboratorMocks.clear();
+    }
+
     @Override
-    public MetadataStore createConfigurationMetadataStore(PulsarMetadataEventSynchronizer synchronizer)
+    public MetadataStore createConfigurationMetadataStore(PulsarMetadataEventSynchronizer synchronizer,
+                                                          OpenTelemetry openTelemetry)
             throws MetadataStoreException {
         if (synchronizer != null) {
             synchronizer.registerSyncListener(
@@ -67,7 +100,8 @@ abstract class AbstractTestPulsarService extends PulsarService {
     }
 
     @Override
-    public MetadataStoreExtended createLocalMetadataStore(PulsarMetadataEventSynchronizer synchronizer)
+    public MetadataStoreExtended createLocalMetadataStore(PulsarMetadataEventSynchronizer synchronizer,
+                                                          OpenTelemetry openTelemetry)
             throws MetadataStoreException, PulsarServerException {
         if (synchronizer != null) {
             synchronizer.registerSyncListener(

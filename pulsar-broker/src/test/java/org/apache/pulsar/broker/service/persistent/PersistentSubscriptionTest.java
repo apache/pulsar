@@ -18,35 +18,53 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static org.apache.bookkeeper.mledger.ManagedCursor.CURSOR_INTERNAL_PROPERTY_PREFIX;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import io.netty.channel.EventLoopGroup;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import org.apache.bookkeeper.common.util.OrderedExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
+import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer;
+import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorContainerImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.MutablePair;
+import org.apache.pulsar.broker.delayed.DelayedDeliveryTracker;
+import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.resources.NamespaceResources;
+import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionFencedException;
 import org.apache.pulsar.broker.service.Consumer;
+import org.apache.pulsar.broker.service.Dispatcher;
+import org.apache.pulsar.broker.service.GetStatsOptions;
+import org.apache.pulsar.broker.service.PendingAcksMap;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.broker.transaction.buffer.impl.InMemTransactionBufferProvider;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckStore;
@@ -56,12 +74,15 @@ import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleStat
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.TxnAction;
+import org.apache.pulsar.common.policies.data.HierarchyTopicPolicies;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.PolicyHierarchyValue;
+import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
+import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
 import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 import org.awaitility.Awaitility;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -77,17 +98,13 @@ public class PersistentSubscriptionTest {
     private Consumer consumerMock;
     private ManagedLedgerConfig managedLedgerConfigMock;
 
-    final String successTopicName = "persistent://prop/use/ns-abc/successTopic";
+    final String successTopicName = "persistent://prop/ns-abc/successTopic";
     final String subName = "subscriptionName";
 
-    final TxnID txnID1 = new TxnID(1,1);
-    final TxnID txnID2 = new TxnID(1,2);
+    final TxnID txnID1 = new TxnID(1, 1);
+    final TxnID txnID2 = new TxnID(1, 2);
 
-    private static final Logger log = LoggerFactory.getLogger(PersistentTopicTest.class);
-
-    private OrderedExecutor executor;
-    private EventLoopGroup eventLoopGroup;
-
+    @SuppressWarnings("deprecation")
     @BeforeMethod
     public void setup() throws Exception {
         pulsarTestContext = PulsarTestContext.builderForNonStartableContext()
@@ -108,9 +125,9 @@ public class PersistentSubscriptionTest {
         ledgerMock = mock(ManagedLedgerImpl.class);
         cursorMock = mock(ManagedCursorImpl.class);
         managedLedgerConfigMock = mock(ManagedLedgerConfig.class);
-        doReturn(new ManagedCursorContainer()).when(ledgerMock).getCursors();
+        doReturn(new ManagedCursorContainerImpl()).when(ledgerMock).getCursors();
         doReturn("mockCursor").when(cursorMock).getName();
-        doReturn(new PositionImpl(1, 50)).when(cursorMock).getMarkDeletedPosition();
+        doReturn(PositionFactory.create(1, 50)).when(cursorMock).getMarkDeletedPosition();
         doReturn(ledgerMock).when(cursorMock).getManagedLedger();
         doReturn(managedLedgerConfigMock).when(ledgerMock).getConfig();
         doReturn(false).when(managedLedgerConfigMock).isAutoSkipNonRecoverableData();
@@ -131,11 +148,394 @@ public class PersistentSubscriptionTest {
     }
 
     @Test
+    public void testRepeatedClearBacklogQueuesFreshClearBehindInFlightOne() throws Exception {
+        List<AsyncCallbacks.ClearBacklogCallback> callbacks = new ArrayList<>();
+        doAnswer(invocation -> {
+            callbacks.add(invocation.getArgument(0));
+            return null;
+        }).when(cursorMock).asyncClearBacklog(any(AsyncCallbacks.ClearBacklogCallback.class), any());
+
+        CompletableFuture<Void> firstClear = persistentSubscription.clearBacklog();
+        Awaitility.await().untilAsserted(() -> assertThat(callbacks).hasSize(1));
+
+        // While the first clear is in progress, a repeated clear queues a fresh one behind it: the
+        // cursor samples the backlog tail per invocation, so the in-flight clear alone would not
+        // cover entries published after it started.
+        CompletableFuture<Void> repeatedClear = persistentSubscription.clearBacklog();
+        assertThat(repeatedClear).isNotDone();
+
+        callbacks.get(0).clearBacklogComplete(null);
+        firstClear.get(5, TimeUnit.SECONDS);
+        Awaitility.await().untilAsserted(() -> assertThat(callbacks).hasSize(2));
+        callbacks.get(1).clearBacklogComplete(null);
+        repeatedClear.get(5, TimeUnit.SECONDS);
+
+        // After the queued clear completes, a later clear starts a new one.
+        CompletableFuture<Void> retryClear = persistentSubscription.clearBacklog();
+        Awaitility.await().untilAsserted(() -> assertThat(callbacks).hasSize(3));
+        callbacks.get(2).clearBacklogComplete(null);
+        retryClear.get(5, TimeUnit.SECONDS);
+    }
+
+    @Test
+    public void testQueuedClearRunsAfterPredecessorFailure() throws Exception {
+        List<AsyncCallbacks.ClearBacklogCallback> callbacks = new ArrayList<>();
+        doAnswer(invocation -> {
+            callbacks.add(invocation.getArgument(0));
+            return null;
+        }).when(cursorMock).asyncClearBacklog(any(AsyncCallbacks.ClearBacklogCallback.class), any());
+
+        CompletableFuture<Void> firstClear = persistentSubscription.clearBacklog();
+        Awaitility.await().untilAsserted(() -> assertThat(callbacks).hasSize(1));
+
+        CompletableFuture<Void> queuedClear = persistentSubscription.clearBacklog();
+        assertThat(queuedClear).isNotDone();
+
+        // The queued clear samples its own backlog tail, so the predecessor's failure must not
+        // skip it: the queued caller's backlog is only cleared by its own invocation.
+        callbacks.get(0).clearBacklogFailed(new ManagedLedgerException("first clear failed"), null);
+        assertThat(firstClear).failsWithin(5, TimeUnit.SECONDS)
+                .withThrowableThat().withCauseInstanceOf(ManagedLedgerException.class)
+                .withMessageContaining("first clear failed");
+        Awaitility.await().untilAsserted(() -> assertThat(callbacks).hasSize(2));
+
+        callbacks.get(1).clearBacklogComplete(null);
+        assertThat(queuedClear).succeedsWithin(5, TimeUnit.SECONDS);
+    }
+
+    @Test
+    public void testDispatcherAttachedAfterCleanupStartsIsReleasedWhenClearSettles() throws Exception {
+        // A dispatcher enrolled while the cleanup is already running arms its buffering gate,
+        // but the completion has already chosen the cleanup path for the dispatcher the clear
+        // started on. The settle must release the late dispatcher too, or it stays in buffering
+        // mode and its delayed entries are never delivered.
+        BrokerService dispatcherBrokerService = pulsarTestContext.getBrokerService();
+        DelayedDeliveryTrackerFactory trackerFactory = mock(DelayedDeliveryTrackerFactory.class);
+        doReturn(trackerFactory).when(dispatcherBrokerService).getDelayedDeliveryTrackerFactory();
+        PersistentTopic dispatcherTopic = mock(PersistentTopic.class);
+        doReturn(dispatcherBrokerService).when(dispatcherTopic).getBrokerService();
+        doReturn("persistent://public/default/dispatcher-under-clear").when(dispatcherTopic).getName();
+        doReturn(true).when(dispatcherTopic).isDelayedDeliveryEnabled();
+        doReturn(1000L).when(dispatcherTopic).getDelayedDeliveryTickTimeMillis();
+        HierarchyTopicPolicies hierarchyTopicPolicies = mock(HierarchyTopicPolicies.class);
+        doReturn(new PolicyHierarchyValue<Integer>()).when(hierarchyTopicPolicies).getMaxConsumersPerSubscription();
+        doReturn(hierarchyTopicPolicies).when(dispatcherTopic).getHierarchyTopicPolicies();
+
+        // The tracker clear hands control of the cleanup window to the test.
+        DelayedDeliveryTracker tracker = mock(DelayedDeliveryTracker.class);
+        CompletableFuture<Void> gatedCleanup = new CompletableFuture<>();
+        doReturn(true).when(tracker).addMessage(anyLong(), anyLong(), anyLong());
+        doReturn(gatedCleanup).when(tracker).clear();
+        doReturn(CompletableFuture.completedFuture(tracker)).when(trackerFactory).newTrackerAsync(any());
+
+        List<PersistentDispatcherMultipleConsumers> sharedDispatchers = new ArrayList<>();
+        boolean transactionCoordinatorEnabled = pulsarTestContext.getConfig().isTransactionCoordinatorEnabled();
+        try {
+            pulsarTestContext.getConfig().setTransactionCoordinatorEnabled(false);
+            persistentSubscription = new PersistentSubscription(topic, subName, cursorMock, false) {
+                @Override
+                protected Dispatcher reuseOrCreateDispatcher(Dispatcher currentDispatcher, Consumer consumer) {
+                    if (consumer.subType() == CommandSubscribe.SubType.Shared) {
+                        PersistentDispatcherMultipleConsumers dispatcher =
+                                new PersistentDispatcherMultipleConsumers(dispatcherTopic, cursorMock, this);
+                        sharedDispatchers.add(dispatcher);
+                        return dispatcher;
+                    }
+                    Dispatcher otherTypeDispatcher = mock(Dispatcher.class);
+                    doReturn(consumer.subType()).when(otherTypeDispatcher).getType();
+                    doReturn(CompletableFuture.completedFuture(null)).when(otherTypeDispatcher).addConsumer(any());
+                    doReturn(CompletableFuture.completedFuture(null)).when(otherTypeDispatcher).close();
+                    return otherTypeDispatcher;
+                }
+            };
+        } finally {
+            pulsarTestContext.getConfig().setTransactionCoordinatorEnabled(transactionCoordinatorEnabled);
+        }
+
+        PersistentDispatcherMultipleConsumers initialDispatcher;
+        PersistentDispatcherMultipleConsumers lateDispatcher;
+        try {
+            Consumer firstConsumer = mock(Consumer.class);
+            doReturn(CommandSubscribe.SubType.Shared).when(firstConsumer).subType();
+            doReturn(mock(PendingAcksMap.class)).when(firstConsumer).getPendingAcks();
+            assertThat(persistentSubscription.addConsumer(firstConsumer)).succeedsWithin(5, TimeUnit.SECONDS);
+            initialDispatcher = sharedDispatchers.get(0);
+
+            // Give the dispatcher a tracker, so the cleanup waits on the gated tracker clear.
+            assertThat(initialDispatcher.trackDelayedDelivery(1, 0,
+                    new MessageMetadata().setDeliverAtTime(System.currentTimeMillis() + 10_000))).isTrue();
+            Awaitility.await().untilAsserted(() ->
+                    assertThat(initialDispatcher.isDelayedDeliveryTrackerCreatePending()).isFalse());
+
+            List<AsyncCallbacks.ClearBacklogCallback> callbacks = new ArrayList<>();
+            doAnswer(invocation -> {
+                callbacks.add(invocation.getArgument(0));
+                return null;
+            }).when(cursorMock).asyncClearBacklog(any(AsyncCallbacks.ClearBacklogCallback.class), any());
+
+            CompletableFuture<Void> clearFuture = persistentSubscription.clearBacklog();
+            Awaitility.await().untilAsserted(() -> assertThat(callbacks).hasSize(1));
+
+            callbacks.get(0).clearBacklogComplete(null);
+            // The cleanup runs on the dispatcher the clear started on and is now waiting on the
+            // gated tracker clear: the buffering window is open past this point.
+            Awaitility.await().untilAsserted(() -> verify(tracker).clear());
+
+            // A Shared consumer attaching now enrolls a fresh dispatcher. It is armed because the
+            // clear is still settling. The dispatcher swap goes through a type change after the
+            // current dispatcher lost its consumer.
+            initialDispatcher.removeConsumer(firstConsumer);
+            Consumer exclusiveConsumer = mock(Consumer.class);
+            doReturn(CommandSubscribe.SubType.Exclusive).when(exclusiveConsumer).subType();
+            assertThat(persistentSubscription.addConsumer(exclusiveConsumer)).succeedsWithin(5, TimeUnit.SECONDS);
+            Consumer lateConsumer = mock(Consumer.class);
+            doReturn(CommandSubscribe.SubType.Shared).when(lateConsumer).subType();
+            assertThat(persistentSubscription.addConsumer(lateConsumer)).succeedsWithin(5, TimeUnit.SECONDS);
+            lateDispatcher = sharedDispatchers.get(1);
+
+            // The late dispatcher buffers delayed entries while the clear is settling...
+            long lateDeliverAt = System.currentTimeMillis() + 10_000;
+            assertThat(lateDispatcher.trackDelayedDelivery(2, 0,
+                    new MessageMetadata().setDeliverAtTime(lateDeliverAt))).isTrue();
+            assertThat(lateDispatcher.getDelayedDeliveryTrackerCreatePendingMessages()).isEqualTo(1);
+
+            gatedCleanup.complete(null);
+            assertThat(clearFuture).succeedsWithin(5, TimeUnit.SECONDS);
+
+            // ...and the settle releases it: the buffered entry reaches the tracker instead of
+            // being dropped. A dispatcher left in buffering mode keeps the entry pending.
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+                assertThat(lateDispatcher.getDelayedDeliveryTrackerCreatePendingMessages()).isZero();
+                verify(tracker).addMessage(2L, 0L, lateDeliverAt);
+            });
+        } finally {
+            for (PersistentDispatcherMultipleConsumers dispatcher : sharedDispatchers) {
+                dispatcher.close(false, Optional.empty()).get(1, TimeUnit.MINUTES);
+            }
+        }
+    }
+
+    @Test
+    public void testDispatcherReplacedBeforeCompletionStillRunsDelayedStateCleanup() throws Exception {
+        // When the dispatcher is replaced during the cursor clear, the completion must still run
+        // the delayed-state cleanup on the enrolled dispatcher: the replaced dispatcher's close
+        // leaves the cursor's snapshot properties in place, so skipping the cleanup leaks them.
+        BrokerService dispatcherBrokerService = pulsarTestContext.getBrokerService();
+        DelayedDeliveryTrackerFactory trackerFactory = mock(DelayedDeliveryTrackerFactory.class);
+        doReturn(trackerFactory).when(dispatcherBrokerService).getDelayedDeliveryTrackerFactory();
+        PersistentTopic dispatcherTopic = mock(PersistentTopic.class);
+        doReturn(dispatcherBrokerService).when(dispatcherTopic).getBrokerService();
+        doReturn("persistent://public/default/dispatcher-under-replacement").when(dispatcherTopic).getName();
+        doReturn(true).when(dispatcherTopic).isDelayedDeliveryEnabled();
+        doReturn(1000L).when(dispatcherTopic).getDelayedDeliveryTickTimeMillis();
+        HierarchyTopicPolicies hierarchyTopicPolicies = mock(HierarchyTopicPolicies.class);
+        doReturn(new PolicyHierarchyValue<Integer>()).when(hierarchyTopicPolicies).getMaxConsumersPerSubscription();
+        doReturn(hierarchyTopicPolicies).when(dispatcherTopic).getHierarchyTopicPolicies();
+
+        List<PersistentDispatcherMultipleConsumers> sharedDispatchers = new ArrayList<>();
+        boolean transactionCoordinatorEnabled = pulsarTestContext.getConfig().isTransactionCoordinatorEnabled();
+        try {
+            pulsarTestContext.getConfig().setTransactionCoordinatorEnabled(false);
+            persistentSubscription = new PersistentSubscription(topic, subName, cursorMock, false) {
+                @Override
+                protected Dispatcher reuseOrCreateDispatcher(Dispatcher currentDispatcher, Consumer consumer) {
+                    if (consumer.subType() == CommandSubscribe.SubType.Shared) {
+                        PersistentDispatcherMultipleConsumers dispatcher = spy(
+                                new PersistentDispatcherMultipleConsumers(dispatcherTopic, cursorMock, this));
+                        sharedDispatchers.add(dispatcher);
+                        return dispatcher;
+                    }
+                    Dispatcher otherTypeDispatcher = mock(Dispatcher.class);
+                    doReturn(consumer.subType()).when(otherTypeDispatcher).getType();
+                    doReturn(CompletableFuture.completedFuture(null)).when(otherTypeDispatcher).addConsumer(any());
+                    doReturn(CompletableFuture.completedFuture(null)).when(otherTypeDispatcher).close();
+                    return otherTypeDispatcher;
+                }
+            };
+        } finally {
+            pulsarTestContext.getConfig().setTransactionCoordinatorEnabled(transactionCoordinatorEnabled);
+        }
+
+        try {
+            Consumer firstConsumer = mock(Consumer.class);
+            doReturn(CommandSubscribe.SubType.Shared).when(firstConsumer).subType();
+            doReturn(mock(PendingAcksMap.class)).when(firstConsumer).getPendingAcks();
+            assertThat(persistentSubscription.addConsumer(firstConsumer)).succeedsWithin(5, TimeUnit.SECONDS);
+            PersistentDispatcherMultipleConsumers initialDispatcher = sharedDispatchers.get(0);
+
+            List<AsyncCallbacks.ClearBacklogCallback> callbacks = new ArrayList<>();
+            doAnswer(invocation -> {
+                callbacks.add(invocation.getArgument(0));
+                return null;
+            }).when(cursorMock).asyncClearBacklog(any(AsyncCallbacks.ClearBacklogCallback.class), any());
+
+            CompletableFuture<Void> clearFuture = persistentSubscription.clearBacklog();
+            Awaitility.await().untilAsserted(() -> assertThat(callbacks).hasSize(1));
+
+            // Replace the dispatcher the clear started on before the cursor callback runs.
+            initialDispatcher.removeConsumer(firstConsumer);
+            Consumer exclusiveConsumer = mock(Consumer.class);
+            doReturn(CommandSubscribe.SubType.Exclusive).when(exclusiveConsumer).subType();
+            assertThat(persistentSubscription.addConsumer(exclusiveConsumer)).succeedsWithin(5, TimeUnit.SECONDS);
+            Consumer replacementConsumer = mock(Consumer.class);
+            doReturn(CommandSubscribe.SubType.Shared).when(replacementConsumer).subType();
+            doReturn(mock(PendingAcksMap.class)).when(replacementConsumer).getPendingAcks();
+            assertThat(persistentSubscription.addConsumer(replacementConsumer)).succeedsWithin(5, TimeUnit.SECONDS);
+            PersistentDispatcherMultipleConsumers replacementDispatcher = sharedDispatchers.get(1);
+
+            callbacks.get(0).clearBacklogComplete(null);
+            assertThat(clearFuture).succeedsWithin(5, TimeUnit.SECONDS);
+
+            // The cleanup ran on the enrolled replacement, not just a buffer release.
+            verify(replacementDispatcher).clearDelayedMessagesAfterBacklogClear();
+        } finally {
+            for (PersistentDispatcherMultipleConsumers dispatcher : sharedDispatchers) {
+                dispatcher.close(false, Optional.empty()).get(1, TimeUnit.MINUTES);
+            }
+        }
+    }
+
+    @Test
+    public void testNonDurableSubscriptionResetFencesQueuedAndNewConsumers() throws Exception {
+        Dispatcher testDispatcher = mock(Dispatcher.class);
+        List<Consumer> consumers = new ArrayList<>();
+        doReturn(consumers).when(testDispatcher).getConsumers();
+        doAnswer(invocation -> !consumers.isEmpty()).when(testDispatcher).isConsumerConnected();
+        doReturn(CompletableFuture.completedFuture(null)).when(testDispatcher).close();
+        doAnswer(invocation -> {
+            consumers.add(invocation.getArgument(0));
+            return CompletableFuture.completedFuture(null);
+        }).when(testDispatcher).addConsumer(any());
+        doAnswer(invocation -> {
+            consumers.remove(invocation.getArgument(0));
+            return null;
+        }).when(testDispatcher).removeConsumer(any());
+
+        boolean transactionCoordinatorEnabled = pulsarTestContext.getConfig().isTransactionCoordinatorEnabled();
+        try {
+            pulsarTestContext.getConfig().setTransactionCoordinatorEnabled(false);
+            persistentSubscription = new PersistentSubscription(topic, subName, cursorMock, false) {
+                @Override
+                protected Dispatcher reuseOrCreateDispatcher(Dispatcher currentDispatcher, Consumer consumer) {
+                    return testDispatcher;
+                }
+            };
+        } finally {
+            pulsarTestContext.getConfig().setTransactionCoordinatorEnabled(transactionCoordinatorEnabled);
+        }
+
+        Consumer firstConsumer = mock(Consumer.class);
+        doReturn(CommandSubscribe.SubType.Exclusive).when(firstConsumer).subType();
+        doReturn(new ConsumerStatsImpl()).when(firstConsumer).getStats();
+        persistentSubscription.addConsumer(firstConsumer).get(5, TimeUnit.SECONDS);
+        doAnswer(invocation -> {
+            persistentSubscription.removeConsumer(firstConsumer, true);
+            return CompletableFuture.completedFuture(null);
+        }).when(testDispatcher).disconnectActiveConsumers(true);
+
+        List<AsyncCallbacks.ResetCursorCallback> resetCallbacks = new ArrayList<>();
+        doAnswer(invocation -> {
+            resetCallbacks.add(invocation.getArgument(2));
+            return null;
+        }).when(cursorMock).asyncResetCursor(any(), anyBoolean(), any());
+
+        CompletableFuture<Void> resetFuture = persistentSubscription.resetCursor(PositionFactory.create(1, 20));
+        assertThat(resetFuture.isDone()).isFalse();
+        assertThat(resetCallbacks).hasSize(1);
+
+        Consumer waitingConsumer = mock(Consumer.class);
+        doReturn(CommandSubscribe.SubType.Exclusive).when(waitingConsumer).subType();
+        CompletableFuture<Void> waitingConsumerFuture = persistentSubscription.addConsumer(waitingConsumer);
+        assertThat(waitingConsumerFuture.isDone()).isFalse();
+        verify(ledgerMock, never()).asyncDeleteCursor(any(), any(), any());
+
+        resetCallbacks.get(0).resetComplete(null);
+
+        assertThat(resetFuture.isDone()).isTrue();
+        resetFuture.get(5, TimeUnit.SECONDS);
+        assertThat(waitingConsumerFuture.isDone()).isTrue();
+        Throwable waitingConsumerError = waitingConsumerFuture.handle((ignored, error) -> error)
+                .get(5, TimeUnit.SECONDS);
+        assertThat(waitingConsumerError).hasRootCauseInstanceOf(SubscriptionFencedException.class);
+
+        Consumer newConsumer = mock(Consumer.class);
+        doReturn(CommandSubscribe.SubType.Exclusive).when(newConsumer).subType();
+        CompletableFuture<Void> newConsumerFuture = persistentSubscription.addConsumer(newConsumer);
+        assertThat(newConsumerFuture.isDone()).isTrue();
+        Throwable newConsumerError = newConsumerFuture.handle((ignored, error) -> error)
+                .get(5, TimeUnit.SECONDS);
+        assertThat(newConsumerError).hasRootCauseInstanceOf(SubscriptionFencedException.class);
+        verify(testDispatcher).addConsumer(firstConsumer);
+    }
+
+    @Test
+    public void testNonDurableSubscriptionRemainsReservedUntilCursorDeletionCompletes() throws Exception {
+        Dispatcher testDispatcher = mock(Dispatcher.class);
+        List<Consumer> consumers = new ArrayList<>();
+        doReturn(consumers).when(testDispatcher).getConsumers();
+        doAnswer(invocation -> !consumers.isEmpty()).when(testDispatcher).isConsumerConnected();
+        doReturn(CompletableFuture.completedFuture(null)).when(testDispatcher).close();
+        doAnswer(invocation -> {
+            consumers.add(invocation.getArgument(0));
+            return CompletableFuture.completedFuture(null);
+        }).when(testDispatcher).addConsumer(any());
+        doAnswer(invocation -> {
+            consumers.remove(invocation.getArgument(0));
+            return null;
+        }).when(testDispatcher).removeConsumer(any());
+
+        CompletableFuture<Void> statsRequested = new CompletableFuture<>();
+        boolean transactionCoordinatorEnabled = pulsarTestContext.getConfig().isTransactionCoordinatorEnabled();
+        try {
+            pulsarTestContext.getConfig().setTransactionCoordinatorEnabled(false);
+            persistentSubscription = new PersistentSubscription(topic, subName, cursorMock, false) {
+                @Override
+                protected Dispatcher reuseOrCreateDispatcher(Dispatcher currentDispatcher, Consumer consumer) {
+                    return testDispatcher;
+                }
+
+                @Override
+                public CompletableFuture<SubscriptionStatsImpl> getStatsAsync(GetStatsOptions getStatsOptions) {
+                    statsRequested.complete(null);
+                    return CompletableFuture.completedFuture(new SubscriptionStatsImpl());
+                }
+            };
+        } finally {
+            pulsarTestContext.getConfig().setTransactionCoordinatorEnabled(transactionCoordinatorEnabled);
+        }
+        topic.getSubscriptions().put(subName, persistentSubscription);
+
+        Consumer firstConsumer = mock(Consumer.class);
+        doReturn(CommandSubscribe.SubType.Exclusive).when(firstConsumer).subType();
+        doReturn(new ConsumerStatsImpl()).when(firstConsumer).getStats();
+        persistentSubscription.addConsumer(firstConsumer).get(5, TimeUnit.SECONDS);
+
+        CompletableFuture<AsyncCallbacks.DeleteCursorCallback> deleteCallback = new CompletableFuture<>();
+        doAnswer(invocation -> {
+            deleteCallback.complete(invocation.getArgument(1));
+            return null;
+        }).when(ledgerMock).asyncDeleteCursor(any(), any(), any());
+        doCallRealMethod().when(ledgerMock).deleteCursor(any());
+
+        persistentSubscription.removeConsumer(firstConsumer, false);
+        AsyncCallbacks.DeleteCursorCallback callback = deleteCallback.get(5, TimeUnit.SECONDS);
+        try {
+            assertThat(topic.getSubscription(subName)).isSameAs(persistentSubscription);
+        } finally {
+            callback.deleteCursorComplete(null);
+        }
+
+        statsRequested.get(5, TimeUnit.SECONDS);
+        assertThat(topic.getSubscription(subName)).isNull();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     public void testCanAcknowledgeAndAbortForTransaction() throws Exception {
-        List<MutablePair<PositionImpl, Integer>> positionsPair = new ArrayList<>();
-        positionsPair.add(new MutablePair<>(new PositionImpl(2, 1), 0));
-        positionsPair.add(new MutablePair<>(new PositionImpl(2, 3), 0));
-        positionsPair.add(new MutablePair<>(new PositionImpl(2, 5), 0));
+        List<MutablePair<Position, Integer>> positionsPair = new ArrayList<>();
+        positionsPair.add(new MutablePair<>(PositionFactory.create(2, 1), 0));
+        positionsPair.add(new MutablePair<>(PositionFactory.create(2, 3), 0));
+        positionsPair.add(new MutablePair<>(PositionFactory.create(2, 5), 0));
 
         doAnswer((invocationOnMock) -> {
             ((AsyncCallbacks.DeleteCallback) invocationOnMock.getArguments()[1])
@@ -156,26 +556,26 @@ public class PersistentSubscriptionTest {
         // Single ack for txn1
         persistentSubscription.transactionIndividualAcknowledge(txnID1, positionsPair);
 
-        List<PositionImpl> positions = new ArrayList<>();
-        positions.add(new PositionImpl(1, 100));
+        List<Position> positions = new ArrayList<>();
+        positions.add(PositionFactory.create(1, 100));
 
         // Cumulative ack for txn1
         persistentSubscription.transactionCumulativeAcknowledge(txnID1, positions).get();
 
         positions.clear();
-        positions.add(new PositionImpl(2, 1));
+        positions.add(PositionFactory.create(2, 1));
 
         // Can not single ack message already acked.
         try {
             persistentSubscription.transactionIndividualAcknowledge(txnID2, positionsPair).get();
             fail("Single acknowledge for transaction2 should fail. ");
         } catch (ExecutionException e) {
-            assertEquals(e.getCause().getMessage(),"[persistent://prop/use/ns-abc/successTopic][subscriptionName] " +
-                    "Transaction:(1,2) try to ack message:2:1 in pending ack status.");
+            assertEquals(e.getCause().getMessage(), "[persistent://prop/ns-abc/successTopic][subscriptionName] "
+                    + "Transaction:(1,2) try to ack message:2:1 in pending ack status.");
         }
 
         positions.clear();
-        positions.add(new PositionImpl(2, 50));
+        positions.add(PositionFactory.create(2, 50));
 
         // Can not cumulative ack message for another txn.
         try {
@@ -183,38 +583,39 @@ public class PersistentSubscriptionTest {
             fail("Cumulative acknowledge for transaction2 should fail. ");
         } catch (ExecutionException e) {
             assertTrue(e.getCause() instanceof TransactionConflictException);
-            assertEquals(e.getCause().getMessage(),"[persistent://prop/use/ns-abc/successTopic]" +
-                    "[subscriptionName] Transaction:(1,2) try to cumulative batch ack position: " +
-                    "2:50 within range of current currentPosition: 1:100");
+            assertEquals(e.getCause().getMessage(), "[persistent://prop/ns-abc/successTopic]"
+                    + "[subscriptionName] Transaction:(1,2) try to cumulative batch ack position: "
+                    + "2:50 within range of current currentPosition: 1:100");
         }
 
         List<Position> positionList = new ArrayList<>();
-        positionList.add(new PositionImpl(1, 1));
-        positionList.add(new PositionImpl(1, 3));
-        positionList.add(new PositionImpl(1, 5));
-        positionList.add(new PositionImpl(3, 1));
-        positionList.add(new PositionImpl(3, 3));
-        positionList.add(new PositionImpl(3, 5));
+        positionList.add(PositionFactory.create(1, 1));
+        positionList.add(PositionFactory.create(1, 3));
+        positionList.add(PositionFactory.create(1, 5));
+        positionList.add(PositionFactory.create(3, 1));
+        positionList.add(PositionFactory.create(3, 3));
+        positionList.add(PositionFactory.create(3, 5));
 
         // Acknowledge from normal consumer will succeed ignoring message acked by ongoing transaction.
-        persistentSubscription.acknowledgeMessage(positionList, AckType.Individual, Collections.emptyMap());
+        persistentSubscription.acknowledgeMessageAsync(positionList, AckType.Individual, Collections.emptyMap()).join();
 
         //Abort txn.
         persistentSubscription.endTxn(txnID1.getMostSigBits(), txnID2.getLeastSigBits(), TxnAction.ABORT_VALUE, -1);
 
         positions.clear();
-        positions.add(new PositionImpl(2, 50));
+        positions.add(PositionFactory.create(2, 50));
 
         // Retry above ack, will succeed. As abort has clear pending_ack for those messages.
         persistentSubscription.transactionCumulativeAcknowledge(txnID2, positions);
 
         positionsPair.clear();
-        positionsPair.add(new MutablePair(new PositionImpl(2, 1), 0));
+        positionsPair.add(new MutablePair(PositionFactory.create(2, 1), 0));
 
         persistentSubscription.transactionIndividualAcknowledge(txnID2, positionsPair);
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testAcknowledgeUpdateCursorLastActive() throws Exception {
         doAnswer((invocationOnMock) -> {
             ((AsyncCallbacks.DeleteCallback) invocationOnMock.getArguments()[1])
@@ -226,13 +627,151 @@ public class PersistentSubscriptionTest {
         doCallRealMethod().when(cursorMock).getLastActive();
 
         List<Position> positionList = new ArrayList<>();
-        positionList.add(new PositionImpl(1, 1));
+        positionList.add(PositionFactory.create(1, 1));
         long beforeAcknowledgeTimestamp = System.currentTimeMillis();
         Thread.sleep(1);
-        persistentSubscription.acknowledgeMessage(positionList, AckType.Individual, Collections.emptyMap());
+        persistentSubscription.acknowledgeMessageAsync(positionList, AckType.Individual, Collections.emptyMap()).join();
 
-        // `acknowledgeMessage` should update cursor last active
+        // `acknowledgeMessageAsync` should update cursor last active
         assertTrue(persistentSubscription.cursor.getLastActive() > beforeAcknowledgeTimestamp);
+    }
+
+    @Test
+    public void testGetReplicatedSubscriptionConfiguration() {
+        Map<String, Long> properties = PersistentSubscription.getBaseCursorProperties(true);
+        assertThat(properties).containsEntry(PersistentSubscription.REPLICATED_SUBSCRIPTION_PROPERTY, 1L);
+        ManagedCursor cursor = mock(ManagedCursor.class);
+        doReturn(properties).when(cursor).getProperties();
+        Optional<Boolean> replicatedSubscriptionConfiguration =
+                PersistentSubscription.getReplicatedSubscriptionConfiguration(cursor);
+        assertThat(replicatedSubscriptionConfiguration).isNotEmpty().get().isEqualTo(Boolean.TRUE);
+
+        properties = Map.of(PersistentSubscription.REPLICATED_SUBSCRIPTION_PROPERTY, 10L);
+        doReturn(properties).when(cursor).getProperties();
+        replicatedSubscriptionConfiguration =
+                PersistentSubscription.getReplicatedSubscriptionConfiguration(cursor);
+        assertThat(replicatedSubscriptionConfiguration).isEmpty();
+        properties = Map.of(PersistentSubscription.REPLICATED_SUBSCRIPTION_PROPERTY, -1L);
+        doReturn(properties).when(cursor).getProperties();
+        replicatedSubscriptionConfiguration =
+                PersistentSubscription.getReplicatedSubscriptionConfiguration(cursor);
+        assertThat(replicatedSubscriptionConfiguration).isEmpty();
+
+        properties = PersistentSubscription.getBaseCursorProperties(false);
+        doReturn(properties).when(cursor).getProperties();
+        replicatedSubscriptionConfiguration =
+                PersistentSubscription.getReplicatedSubscriptionConfiguration(cursor);
+        assertThat(replicatedSubscriptionConfiguration).isEmpty();
+
+        properties = PersistentSubscription.getBaseCursorProperties(null);
+        doReturn(properties).when(cursor).getProperties();
+        replicatedSubscriptionConfiguration =
+                PersistentSubscription.getReplicatedSubscriptionConfiguration(cursor);
+        assertThat(replicatedSubscriptionConfiguration).isEmpty();
+    }
+
+    @Test
+    public void testGetSubscriptionPropertiesReflectsLiveCursorUpdates() throws Exception {
+        Map<String, String> backing = new ConcurrentHashMap<>();
+        doReturn(backing).when(cursorMock).getCursorProperties();
+        doAnswer(inv -> {
+            backing.put(inv.getArgument(0), inv.getArgument(1));
+            return CompletableFuture.completedFuture(null);
+        }).when(cursorMock).putCursorProperty(any(), any());
+        doReturn(false).when(cursorMock).isDurable();
+
+        assertThat(persistentSubscription.getSubscriptionProperties()).isEmpty();
+
+        String bucketKey = CURSOR_INTERNAL_PROPERTY_PREFIX + "delayed.bucket_100_100";
+        persistentSubscription.getCursor().putCursorProperty(bucketKey, "42").get();
+
+        Map<String, String> live = persistentSubscription.getSubscriptionProperties();
+        assertThat(live).containsEntry(bucketKey, "42");
+
+        SubscriptionStatsImpl stats = persistentSubscription
+                .getStatsAsync(new GetStatsOptions(false, false, false, false, false)).get();
+        assertThat(stats.subscriptionProperties)
+                .isSameAs(live)
+                .containsEntry(bucketKey, "42");
+    }
+
+    @Test
+    public void testReplicatedAckReleasesPendingAcksOutsideSubscriptionMonitor() throws Exception {
+        Dispatcher testDispatcher = mock(Dispatcher.class);
+        persistentSubscription.dispatcher = testDispatcher;
+        // the cursor can complete the mark-delete synchronously, for example when it's rate limited
+        doAnswer(invocation -> {
+            invocation.<AsyncCallbacks.MarkDeleteCallback>getArgument(2).markDeleteComplete(invocation.getArgument(3));
+            return null;
+        }).when(cursorMock).asyncMarkDelete(any(), any(), any(), any());
+        AtomicBoolean heldSubscriptionMonitor = new AtomicBoolean();
+        doAnswer(invocation -> {
+            heldSubscriptionMonitor.set(Thread.holdsLock(persistentSubscription));
+            return null;
+        }).when(testDispatcher).markDeletePositionMoveForward();
+
+        persistentSubscription.acknowledgeReplicatedSubscriptionMessage(PositionFactory.create(1, 60),
+                cursorMock.getMarkDeletedPosition(), null, false).get(5, TimeUnit.SECONDS);
+
+        verify(testDispatcher).markDeletePositionMoveForward();
+        assertThat(heldSubscriptionMonitor).isFalse();
+    }
+
+    @Test
+    public void testFailedReplicatedAckReleasesPendingAcksWhenMarkDeleteMoved() {
+        Dispatcher testDispatcher = mock(Dispatcher.class);
+        persistentSubscription.dispatcher = testDispatcher;
+        Position markDeleteBeforeAck = cursorMock.getMarkDeletedPosition();
+        ManagedLedgerException failure = new ManagedLedgerException("mark-delete failed");
+        doAnswer(invocation -> {
+            // the cursor moves the in-memory mark-delete position before the persistence fails, and the receiver
+            // doesn't retry an update that the position already covers
+            doReturn(invocation.getArgument(0)).when(cursorMock).getMarkDeletedPosition();
+            invocation.<AsyncCallbacks.MarkDeleteCallback>getArgument(2)
+                    .markDeleteFailed(failure, invocation.getArgument(3));
+            return null;
+        }).when(cursorMock).asyncMarkDelete(any(), any(), any(), any());
+
+        assertThat(persistentSubscription.acknowledgeReplicatedSubscriptionMessage(PositionFactory.create(1, 60),
+                markDeleteBeforeAck, null, false))
+                .failsWithin(5, TimeUnit.SECONDS)
+                .withThrowableOfType(ExecutionException.class)
+                .withCause(failure);
+
+        verify(testDispatcher).markDeletePositionMoveForward();
+    }
+
+    @Test
+    public void testFailedReplicatedAckKeepsPendingAcksWhenMarkDeleteDidNotMove() {
+        Dispatcher testDispatcher = mock(Dispatcher.class);
+        persistentSubscription.dispatcher = testDispatcher;
+        ManagedLedgerException failure = new ManagedLedgerException("mark-delete failed");
+        doAnswer(invocation -> {
+            invocation.<AsyncCallbacks.MarkDeleteCallback>getArgument(2)
+                    .markDeleteFailed(failure, invocation.getArgument(3));
+            return null;
+        }).when(cursorMock).asyncMarkDelete(any(), any(), any(), any());
+
+        assertThat(persistentSubscription.acknowledgeReplicatedSubscriptionMessage(PositionFactory.create(1, 60),
+                cursorMock.getMarkDeletedPosition(), null, false))
+                .failsWithin(5, TimeUnit.SECONDS)
+                .withThrowableOfType(ExecutionException.class)
+                .withCause(failure);
+
+        // the receiver retries the update, so the cleanup runs when that retry moves the position
+        verify(testDispatcher, never()).markDeletePositionMoveForward();
+    }
+
+    @Test
+    public void testRejectedReplicatedAckDoesNotReleasePendingAcks() throws Exception {
+        Dispatcher testDispatcher = mock(Dispatcher.class);
+        persistentSubscription.dispatcher = testDispatcher;
+
+        persistentSubscription.acknowledgeReplicatedSubscriptionMessage(PositionFactory.create(1, 60),
+                cursorMock.getMarkDeletedPosition(), null, true).get(5, TimeUnit.SECONDS);
+
+        verify(cursorMock, never()).asyncMarkDelete(any(), any(), any(), any());
+        verify(testDispatcher, never()).markDeletePositionMoveForward();
     }
 
     public static class CustomTransactionPendingAckStoreProvider implements TransactionPendingAckStoreProvider {
@@ -257,12 +796,12 @@ public class PersistentSubscriptionTest {
 
                 @Override
                 public CompletableFuture<Void> appendIndividualAck(TxnID txnID,
-                                                                   List<MutablePair<PositionImpl, Integer>> positions) {
+                                                                   List<MutablePair<Position, Integer>> positions) {
                     return CompletableFuture.completedFuture(null);
                 }
 
                 @Override
-                public CompletableFuture<Void> appendCumulativeAck(TxnID txnID, PositionImpl position) {
+                public CompletableFuture<Void> appendCumulativeAck(TxnID txnID, Position position) {
                     return CompletableFuture.completedFuture(null);
                 }
 

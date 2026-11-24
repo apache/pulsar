@@ -18,12 +18,13 @@
  */
 package org.apache.pulsar.cli.converters;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertThrows;
 import java.util.concurrent.TimeUnit;
-
+import org.apache.pulsar.cli.converters.picocli.TimeUnitToMillisConverter;
+import org.apache.pulsar.cli.converters.picocli.TimeUnitToSecondsConverter;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-
-import static org.testng.Assert.*;
 
 public class TimeConversionTest {
 
@@ -57,24 +58,28 @@ public class TimeConversionTest {
     }
 
     @Test(dataProvider = "successfulRelativeTimeUtilTestCases")
-    public void testSuccessfulTimeUnitToSecondsConverter(String input, long expected) {
-        TimeUnitToSecondsConverter secondsConverter = new TimeUnitToSecondsConverter("optionName");
+    public void testSuccessfulTimeUnitToSecondsConverter(String input, long expected) throws Exception {
+        TimeUnitToSecondsConverter secondsConverter = new TimeUnitToSecondsConverter();
         assertEquals(secondsConverter.convert(input), Long.valueOf(expected));
     }
 
     @Test(dataProvider = "successfulRelativeTimeUtilTestCases")
-    public void testSuccessfulTimeUnitToMillisConverter(String input, long expected) {
-        TimeUnitToMillisConverter millisConverter = new TimeUnitToMillisConverter("optionName");
+    public void testSuccessfulTimeUnitToMillisConverter(String input, long expected) throws Exception {
+        TimeUnitToMillisConverter millisConverter = new TimeUnitToMillisConverter();
         // We multiply the expected by 1000 to convert the seconds into milliseconds
         assertEquals(millisConverter.convert(input), Long.valueOf(expected * 1000));
     }
 
     @Test
     public void testFailingParsing() {
-        assertThrows(IllegalArgumentException.class, () -> RelativeTimeUtil.parseRelativeTimeInSeconds("")); // Empty string
-        assertThrows(IllegalArgumentException.class, () -> RelativeTimeUtil.parseRelativeTimeInSeconds("s")); // Non-numeric character
-        assertThrows(IllegalArgumentException.class, () -> RelativeTimeUtil.parseRelativeTimeInSeconds("1z")); // Invalid time unit
-        assertThrows(IllegalArgumentException.class, () -> RelativeTimeUtil.parseRelativeTimeInSeconds("1.5")); // Floating point number
+        assertThrows(IllegalArgumentException.class,
+                () -> RelativeTimeUtil.parseRelativeTimeInSeconds("")); // Empty string
+        assertThrows(IllegalArgumentException.class,
+                () -> RelativeTimeUtil.parseRelativeTimeInSeconds("s")); // Non-numeric character
+        assertThrows(IllegalArgumentException.class,
+                () -> RelativeTimeUtil.parseRelativeTimeInSeconds("1z")); // Invalid time unit
+        assertThrows(IllegalArgumentException.class,
+                () -> RelativeTimeUtil.parseRelativeTimeInSeconds("1.5")); // Floating point number
     }
 
     @Test

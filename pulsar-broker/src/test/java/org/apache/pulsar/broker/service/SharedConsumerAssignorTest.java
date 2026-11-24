@@ -29,6 +29,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
+import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -37,6 +39,7 @@ import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.Commands;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -46,6 +49,8 @@ public class SharedConsumerAssignorTest {
     private final ConsumerSelector roundRobinConsumerSelector = new ConsumerSelector();
     private final List<EntryAndMetadata> entryAndMetadataList = new ArrayList<>();
     private final List<EntryAndMetadata> replayQueue = new ArrayList<>();
+    private final Queue<EntryAndMetadata> cleanupQueue = new LinkedBlockingDeque<>();
+
     private SharedConsumerAssignor assignor;
 
     @BeforeMethod
@@ -53,7 +58,7 @@ public class SharedConsumerAssignorTest {
         roundRobinConsumerSelector.clear();
         entryAndMetadataList.clear();
         replayQueue.clear();
-        assignor = new SharedConsumerAssignor(roundRobinConsumerSelector, replayQueue::add);
+        assignor = new SharedConsumerAssignor(roundRobinConsumerSelector, replayQueue::add, null);
         final AtomicLong entryId = new AtomicLong(0L);
         final MockProducer producerA = new MockProducer("A", entryId, entryAndMetadataList);
         final MockProducer producerB = new MockProducer("B", entryId, entryAndMetadataList);
@@ -77,6 +82,16 @@ public class SharedConsumerAssignorTest {
         // P.S. In the table above, The uuid represents the "<producer-name>-<sequence-id>" for non-chunks
         assertEquals(toString(entryAndMetadataList), Arrays.asList(
                 "0:0@A-0", "0:1@A-1-0-3", "0:2@A-1-1-3", "0:3@B-0", "0:4@B-1-0-2", "0:5@A-1-2-3", "0:6@B-1-1-2"));
+        entryAndMetadataList.forEach(entry -> assertEquals(entry.getDataBuffer().refCnt(), 1));
+        cleanupQueue.addAll(entryAndMetadataList);
+    }
+
+    @AfterMethod
+    public void releaseEntries() {
+        EntryAndMetadata entry;
+        while ((entry = cleanupQueue.poll()) != null) {
+            entry.release();
+        }
     }
 
     @Test
@@ -135,6 +150,131 @@ public class SharedConsumerAssignorTest {
                 Collections.singletonList("0:5@A-1-2-3"));
         assertNull(result.get(consumerB));
         assertTrue(replayQueue.isEmpty());
+        assertTrue(assignor.getUuidToConsumer().isEmpty());
+    }
+
+    /**
+     * An orphan chunk is a chunk whose uuid is not tracked and whose chunk id is not 0, e.g. entry 5 (A-1-2-3) when
+     * the earlier chunks of "A-1" were acknowledged before the mapping existed. That happens after a topic unload, a
+     * broker restart, or when the consumer that owned the uuid disconnected.
+     * <p>
+     * Such an entry can never become assignable, so handing it to the unassigned message processor (the replay queue)
+     * stalls the subscription forever: {@code PersistentDispatcherMultipleConsumers#readMoreEntries} drains the replay
+     * queue before every normal read, so the dispatcher keeps replaying the same entry, never reads anything new and
+     * the mark-delete position never moves. It must be dispatched instead, so that the client can discard and
+     * acknowledge the incomplete chunked message.
+     */
+    @Test
+    public void testOrphanChunkIsDispatchedInsteadOfReplayedForever() {
+        final Consumer consumer = new Consumer("A", 100);
+        roundRobinConsumerSelector.addConsumers(consumer);
+        assertTrue(assignor.getUuidToConsumer().isEmpty());
+
+        // The last chunk of "A-1" is read while the uuid was never cached
+        Map<Consumer, List<EntryAndMetadata>> result = assignor.assign(entryAndMetadataList.subList(5, 6), 1);
+        assertEquals(toString(result.getOrDefault(consumer, Collections.emptyList())),
+                Collections.singletonList("0:5@A-1-2-3"));
+        // The entry must not go back to the replay queue, otherwise the dispatcher can never make progress
+        assertTrue(replayQueue.isEmpty());
+        // An orphan chunk must not create a mapping either, there is no first chunk to pin to a consumer
+        assertTrue(assignor.getUuidToConsumer().isEmpty());
+
+        // The same holds for a middle chunk, not only for the last one
+        result = assignor.assign(entryAndMetadataList.subList(2, 3), 1);
+        assertEquals(toString(result.getOrDefault(consumer, Collections.emptyList())),
+                Collections.singletonList("0:2@A-1-1-3"));
+        assertTrue(replayQueue.isEmpty());
+        assertTrue(assignor.getUuidToConsumer().isEmpty());
+    }
+
+    /**
+     * When the consumer that owns a uuid is removed from the dispatcher, the mapping must be dropped. Otherwise the
+     * remaining chunks stay pinned to a disconnected consumer that has no available permits, so they are replayed
+     * forever and the subscription stalls.
+     */
+    @Test
+    public void testUuidMappingIsRemovedWhenConsumerIsRemoved() {
+        final Consumer consumerA = new Consumer("A", 3);
+        final Consumer consumerB = new Consumer("B", 100);
+        roundRobinConsumerSelector.addConsumers(consumerA);
+
+        // consumerA receives A-0, A-1-0-3 and A-1-1-3, so the uuid "A-1" gets pinned to consumerA
+        assignor.assign(entryAndMetadataList.subList(0, 3), 1);
+        assertTrue(replayQueue.isEmpty());
+        assertEquals(assignor.getUuidToConsumer().keySet(), Sets.newHashSet("A-1"));
+        assertSame(assignor.getUuidToConsumer().get("A-1"), consumerA);
+
+        // consumerA disconnects while the chunked message "A-1" is still incomplete
+        assignor.removeConsumer(consumerA);
+        assertTrue(assignor.getUuidToConsumer().isEmpty());
+
+        roundRobinConsumerSelector.clear();
+        roundRobinConsumerSelector.addConsumers(consumerB);
+
+        // The last chunk of "A-1" must be dispatched to the remaining consumer instead of getting stuck
+        Map<Consumer, List<EntryAndMetadata>> result = assignor.assign(entryAndMetadataList.subList(5, 6), 1);
+        assertNull(result.get(consumerA));
+        assertEquals(toString(result.getOrDefault(consumerB, Collections.emptyList())),
+                Collections.singletonList("0:5@A-1-2-3"));
+        assertTrue(replayQueue.isEmpty());
+    }
+
+    /**
+     * A normal read can still be in flight when the consumer that owns a uuid is removed. Its pending chunk 0 then
+     * sits in the replay queue while the read returns a later chunk with no mapping. That chunk must go back to the
+     * replay queue rather than be dispatched as an orphan, otherwise it reaches a consumer before its chunk 0 and the
+     * client discards a message that could have been delivered.
+     */
+    @Test
+    public void testChunkAfterPendingReplayIsReplayedInOrder() {
+        final Consumer consumerA = new Consumer("A", 2);
+        final Consumer consumerB = new Consumer("B", 100);
+        roundRobinConsumerSelector.addConsumers(consumerA);
+
+        // consumerA receives A-0 and A-1-0-3, so the uuid "A-1" gets pinned to consumerA
+        assignor.assign(entryAndMetadataList.subList(0, 2), 1);
+        assertSame(assignor.getUuidToConsumer().get("A-1"), consumerA);
+
+        // consumerA disconnects, its pending A-1-0-3 is added to the replay queue
+        assignor.removeConsumer(consumerA);
+        roundRobinConsumerSelector.clear();
+        roundRobinConsumerSelector.addConsumers(consumerB);
+        final EntryAndMetadata firstChunk = entryAndMetadataList.get(1);
+
+        // The in-flight normal read returns A-1-1-3, which must wait behind its chunk 0 in the replay queue
+        Map<Consumer, List<EntryAndMetadata>> result =
+                assignor.assign(entryAndMetadataList.subList(2, 3), 1, firstChunk.getPosition());
+        assertTrue(result.isEmpty());
+        assertEquals(toString(replayQueue), Collections.singletonList("0:2@A-1-1-3"));
+        assertTrue(assignor.getUuidToConsumer().isEmpty());
+
+        // The replay read returns both chunks in position order, and they go to the same consumer
+        replayQueue.clear();
+        result = assignor.assign(entryAndMetadataList.subList(1, 3), 1);
+        assertEquals(toString(result.get(consumerB)), Arrays.asList("0:1@A-1-0-3", "0:2@A-1-1-3"));
+        assertSame(assignor.getUuidToConsumer().get("A-1"), consumerB);
+        assertTrue(replayQueue.isEmpty());
+
+        // An orphan chunk before the first replay position is still dispatched
+        assignor.clear();
+        result = assignor.assign(entryAndMetadataList.subList(5, 6), 1, entryAndMetadataList.get(6).getPosition());
+        assertEquals(toString(result.get(consumerB)), Collections.singletonList("0:5@A-1-2-3"));
+        assertTrue(replayQueue.isEmpty());
+    }
+
+    /**
+     * The uuid mappings must not outlive the consumers of the dispatcher, otherwise they leak for every chunked
+     * message whose last chunk is never published.
+     */
+    @Test
+    public void testClearRemovesAllUuidMappings() {
+        final Consumer consumer = new Consumer("A", 100);
+        roundRobinConsumerSelector.addConsumers(consumer);
+
+        assignor.assign(entryAndMetadataList.subList(0, 5), 1);
+        assertEquals(assignor.getUuidToConsumer().keySet(), Sets.newHashSet("A-1", "B-1"));
+
+        assignor.clear();
         assertTrue(assignor.getUuidToConsumer().isEmpty());
     }
 
@@ -199,9 +339,13 @@ public class SharedConsumerAssignorTest {
 
     private static EntryAndMetadata createEntryAndMetadata(final long entryId,
                                                            final MessageMetadata metadata) {
-        final ByteBuf payload = Commands.serializeMetadataAndPayload(
-                Commands.ChecksumType.Crc32c, metadata, PulsarByteBufAllocator.DEFAULT.buffer());
-        return EntryAndMetadata.create(EntryImpl.create(0L, entryId, payload));
+        ByteBuf payload = PulsarByteBufAllocator.DEFAULT.buffer();
+        final ByteBuf data = Commands.serializeMetadataAndPayload(
+                Commands.ChecksumType.Crc32c, metadata, payload);
+        payload.release();
+        EntryAndMetadata entryAndMetadata = EntryAndMetadata.create(EntryImpl.create(0L, entryId, data));
+        data.release();
+        return entryAndMetadata;
     }
 
     private static MessageMetadata createMetadata(final String producerName,
@@ -219,4 +363,60 @@ public class SharedConsumerAssignorTest {
         }
         return metadata;
     }
+
+    /**
+     * When there are no consumers online, chunk messages will not be directly lost.
+     */
+    @Test
+    public void testChunkMessagesNotBeLostNoConsumer() {
+        // 1. No consumer initially
+        Map<Consumer, List<EntryAndMetadata>> result = assignor.assign(entryAndMetadataList, 1);
+        assertTrue(result.isEmpty());
+        assertEquals(replayQueue.size(), entryAndMetadataList.size());
+        assertEquals(toString(replayQueue), toString(entryAndMetadataList));
+
+        // 2. Two Consumers come online
+        final Consumer consumerA = new Consumer("A", 100);
+        final Consumer consumerB = new Consumer("B", 100);
+        roundRobinConsumerSelector.addConsumers(consumerA, consumerB);
+
+        // 3. Retry messages from replay queue
+        List<EntryAndMetadata> retryList = new ArrayList<>(replayQueue);
+        replayQueue.clear();
+
+        // Use a larger batch size to ensure we can process enough messages
+        result = assignor.assign(retryList, 10);
+
+        // 4. Verify consumer receives all messages
+        int totalReceived = result.values().stream().mapToInt(List::size).sum();
+        assertEquals(totalReceived, retryList.size());
+
+        // Verify that chunks are assigned to the same consumer
+        List<String> entriesA = toString(result.getOrDefault(consumerA, Collections.emptyList()));
+        List<String> entriesB = toString(result.getOrDefault(consumerB, Collections.emptyList()));
+
+        // Check A-1 chunks (0:1, 0:2, 0:5)
+        boolean a1InA = entriesA.stream().anyMatch(s -> s.contains("A-1"));
+        if (a1InA) {
+            assertTrue(entriesA.containsAll(Arrays.asList("0:1@A-1-0-3", "0:2@A-1-1-3", "0:5@A-1-2-3")));
+            assertTrue(entriesB.stream().noneMatch(s -> s.contains("A-1")));
+        } else {
+            assertTrue(entriesB.containsAll(Arrays.asList("0:1@A-1-0-3", "0:2@A-1-1-3", "0:5@A-1-2-3")));
+            assertTrue(entriesA.stream().noneMatch(s -> s.contains("A-1")));
+        }
+
+        // Check B-1 chunks (0:4, 0:6)
+        boolean b1InA = entriesA.stream().anyMatch(s -> s.contains("B-1"));
+        if (b1InA) {
+            assertTrue(entriesA.containsAll(Arrays.asList("0:4@B-1-0-2", "0:6@B-1-1-2")));
+            assertTrue(entriesB.stream().noneMatch(s -> s.contains("B-1")));
+        } else {
+            assertTrue(entriesB.containsAll(Arrays.asList("0:4@B-1-0-2", "0:6@B-1-1-2")));
+            assertTrue(entriesA.stream().noneMatch(s -> s.contains("B-1")));
+        }
+
+        // 5. Verify internal state is clean (since all chunks are completed)
+        assertTrue(assignor.getUuidToConsumer().isEmpty());
+    }
+
 }

@@ -18,26 +18,26 @@
  */
 package org.apache.pulsar.client.impl;
 
-import java.io.IOException;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.asynchttpclient.Request;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-
 @Test(groups = "broker-impl")
 public class ControlledClusterFailoverTest {
     @Test
-    public void testBuildControlledClusterFailoverInstance() throws IOException {
+    public void testBuildControlledClusterFailoverInstance() throws Exception {
         String defaultServiceUrl = "pulsar://localhost:6650";
         String urlProvider = "http://localhost:8080/test";
         String keyA = "key-a";
@@ -56,6 +56,14 @@ public class ControlledClusterFailoverTest {
             .build();
 
         ControlledClusterFailover controlledClusterFailover = (ControlledClusterFailover) provider;
+
+        PulsarClientImpl pulsarClient = mock(PulsarClientImpl.class);
+        ConnectionPool connectionPool = mock(ConnectionPool.class);
+        ClientConfigurationData clientConf = new ClientConfigurationData();
+        when(pulsarClient.getCnxPool()).thenReturn(connectionPool);
+        when(pulsarClient.getConfiguration()).thenReturn(clientConf);
+        controlledClusterFailover.initialize(pulsarClient);
+
         Request request = controlledClusterFailover.getRequestBuilder().build();
 
         Assert.assertTrue(provider instanceof ControlledClusterFailover);
@@ -67,7 +75,23 @@ public class ControlledClusterFailoverTest {
     }
 
     @Test
-    public void testControlledClusterFailoverSwitch() throws IOException {
+    public void testInitializeCanOnlyBeCalledOnce() throws Exception {
+        String defaultServiceUrl = "pulsar://localhost:6650";
+        String urlProvider = "http://localhost:8080/test";
+
+        ServiceUrlProvider provider = ControlledClusterFailover.builder()
+            .defaultServiceUrl(defaultServiceUrl)
+            .urlProvider(urlProvider)
+            .build();
+
+        try (PulsarClient client = PulsarClient.builder().serviceUrlProvider(provider).build()) {
+            Throwable error = Assert.expectThrows(IllegalStateException.class, () -> provider.initialize(client));
+            Assert.assertEquals(error.getMessage(), "ServiceUrlProvider has already been initialized");
+        }
+    }
+
+    @Test
+    public void testControlledClusterFailoverSwitch() throws Exception {
         String defaultServiceUrl = "pulsar+ssl://localhost:6651";
         String backupServiceUrl = "pulsar+ssl://localhost:6661";
         String urlProvider = "http://localhost:8080";
@@ -93,7 +117,9 @@ public class ControlledClusterFailoverTest {
         ControlledClusterFailover controlledClusterFailover = Mockito.spy((ControlledClusterFailover) provider);
         PulsarClientImpl pulsarClient = mock(PulsarClientImpl.class);
         ConnectionPool connectionPool = mock(ConnectionPool.class);
+        ClientConfigurationData clientConf = new ClientConfigurationData();
         when(pulsarClient.getCnxPool()).thenReturn(connectionPool);
+        when(pulsarClient.getConfiguration()).thenReturn(clientConf);
 
         controlledClusterFailover.initialize(pulsarClient);
 

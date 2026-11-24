@@ -19,14 +19,10 @@
 package org.apache.pulsar.functions.runtime.process;
 
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
-import com.google.common.util.concurrent.FutureCallback;
-import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.MoreExecutors;
 import com.google.gson.Gson;
-import com.google.protobuf.Empty;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import io.grpc.stub.StreamObserver;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -35,16 +31,18 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceCache;
 import org.apache.pulsar.functions.instance.InstanceConfig;
-import org.apache.pulsar.functions.proto.Function.FunctionDetails;
-import org.apache.pulsar.functions.proto.InstanceCommunication;
-import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
+import org.apache.pulsar.functions.proto.Empty;
+import org.apache.pulsar.functions.proto.FunctionDetails;
+import org.apache.pulsar.functions.proto.FunctionStatus;
+import org.apache.pulsar.functions.proto.HealthCheckResult;
 import org.apache.pulsar.functions.proto.InstanceControlGrpc;
+import org.apache.pulsar.functions.proto.MetricsData;
 import org.apache.pulsar.functions.runtime.Runtime;
 import org.apache.pulsar.functions.runtime.RuntimeUtils;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
@@ -53,7 +51,7 @@ import org.apache.pulsar.functions.utils.FunctionCommon;
 /**
  * A function container implemented using java thread.
  */
-@Slf4j
+@CustomLog
 class ProcessRuntime implements Runtime {
 
     // The thread that invokes the function
@@ -66,8 +64,8 @@ class ProcessRuntime implements Runtime {
     @Getter
     private Throwable deathException;
     private ManagedChannel channel;
-    private InstanceControlGrpc.InstanceControlFutureStub stub;
-    private ScheduledFuture timer;
+    private InstanceControlGrpc.InstanceControlStub stub;
+    private ScheduledFuture<?> timer;
     private InstanceConfig instanceConfig;
     private final Long expectedHealthCheckInterval;
     private final SecretsProviderConfigurator secretsProviderConfigurator;
@@ -106,9 +104,8 @@ class ProcessRuntime implements Runtime {
         switch (instanceConfig.getFunctionDetails().getRuntime()) {
             case JAVA:
                 String logConfigPath = System.getProperty("pulsar.functions.log.conf");
-                if (log.isDebugEnabled()) {
-                    log.debug("The loaded value of pulsar.functions.log.conf is {}", logConfigPath);
-                }
+                log.debug().attr("logConfigPath", logConfigPath)
+                        .log("The loaded value of pulsar.functions.log.conf");
                 // Added null check to prevent test failures
                 if (logConfigPath != null && Files.exists(Paths.get(logConfigPath))) {
                     logConfigFile = logConfigPath;
@@ -162,33 +159,34 @@ class ProcessRuntime implements Runtime {
         // Note: we create the expected log folder before the function process logger attempts to create it
         // This is because if multiple instances are launched they can encounter a race condition creation of the dir.
 
-        log.info("Creating function log directory {}", funcLogDir);
+        log.info().attr("logDir", funcLogDir).log("Creating function log directory");
 
         try {
             Files.createDirectories(Paths.get(funcLogDir));
         } catch (IOException e) {
-            log.info("Exception when creating log folder : {}", funcLogDir, e);
+            log.info().attr("logDir", funcLogDir).exception(e)
+                    .log("Exception when creating log folder");
             throw new RuntimeException("Log folder creation error");
         }
 
-        log.info("Created or found function log directory {}", funcLogDir);
+        log.info().attr("logDir", funcLogDir).log("Created or found function log directory");
 
         startProcess();
         if (channel == null && stub == null) {
             channel = ManagedChannelBuilder.forAddress("127.0.0.1", instancePort)
                     .usePlaintext()
                     .build();
-            stub = InstanceControlGrpc.newFutureStub(channel);
+            stub = InstanceControlGrpc.newStub(channel);
 
             timer = InstanceCache.getInstanceCache().getScheduledExecutorService()
                     .scheduleAtFixedRate(catchingAndLoggingThrowables(() -> {
-                        CompletableFuture<InstanceCommunication.HealthCheckResult> result = healthCheck();
+                        CompletableFuture<HealthCheckResult> result = healthCheck();
                         try {
                             result.get();
                         } catch (Exception e) {
-                            log.error("Health check failed for {}-{}",
-                                    instanceConfig.getFunctionDetails().getName(),
-                                    instanceConfig.getInstanceId(), e);
+                            log.error().attr("name", instanceConfig.getFunctionDetails().getName())
+                                    .attr("instanceId", instanceConfig.getInstanceId())
+                                    .exception(e).log("Health check failed");
                         }
                     }), expectedHealthCheckInterval, expectedHealthCheckInterval, TimeUnit.SECONDS);
         }
@@ -225,11 +223,12 @@ class ProcessRuntime implements Runtime {
 
             // forcibly kill after timeout
             if (process.isAlive()) {
-                log.warn("Process for instance {} did not exit within timeout. Forcibly killing process...",
-                        FunctionCommon.getFullyQualifiedInstanceId(
+                log.warn().attr("instance", FunctionCommon.getFullyQualifiedInstanceId(
                                 instanceConfig.getFunctionDetails().getTenant(),
                                 instanceConfig.getFunctionDetails().getNamespace(),
-                                instanceConfig.getFunctionDetails().getName(), instanceConfig.getInstanceId()));
+                                instanceConfig.getFunctionDetails().getName(),
+                                instanceConfig.getInstanceId()))
+                        .log("Process did not exit within timeout. Forcibly killing");
                 process.destroyForcibly();
             }
         }
@@ -242,50 +241,64 @@ class ProcessRuntime implements Runtime {
             retval.completeExceptionally(new RuntimeException("Not alive"));
             return retval;
         }
-        ListenableFuture<FunctionStatus> response = stub.withDeadlineAfter(GRPC_TIMEOUT_SECS, TimeUnit.SECONDS)
-                .getFunctionStatus(Empty.newBuilder().build());
-        Futures.addCallback(response, new FutureCallback<FunctionStatus>() {
+        if (!isAlive()){
+            FunctionStatus status = new FunctionStatus();
+            status.setRunning(false);
+            if (deathException != null && deathException.getMessage() != null) {
+                status.setFailureException(deathException.getMessage());
+            }
+            retval.complete(status);
+            return retval;
+        }
+        stub.withDeadlineAfter(GRPC_TIMEOUT_SECS, TimeUnit.SECONDS)
+                .getFunctionStatus(new Empty(), new StreamObserver<>() {
             @Override
-            public void onFailure(Throwable throwable) {
-                FunctionStatus.Builder builder = FunctionStatus.newBuilder();
-                builder.setRunning(false);
-                if (deathException != null) {
-                    builder.setFailureException(deathException.getMessage());
-                } else {
-                    builder.setFailureException(throwable.getMessage());
-                }
-                retval.complete(builder.build());
+            public void onNext(FunctionStatus t) {
+                retval.complete(t);
             }
 
             @Override
-            public void onSuccess(InstanceCommunication.FunctionStatus t) {
-                retval.complete(t);
+            public void onError(Throwable throwable) {
+                FunctionStatus status = new FunctionStatus();
+                status.setRunning(false);
+                if (deathException != null) {
+                    status.setFailureException(deathException.getMessage());
+                } else {
+                    status.setFailureException(throwable.getMessage());
+                }
+                retval.complete(status);
             }
-        }, MoreExecutors.directExecutor());
+
+            @Override
+            public void onCompleted() {
+            }
+        });
         return retval;
     }
 
     @Override
-    public CompletableFuture<InstanceCommunication.MetricsData> getAndResetMetrics() {
-        CompletableFuture<InstanceCommunication.MetricsData> retval = new CompletableFuture<>();
+    public CompletableFuture<MetricsData> getAndResetMetrics() {
+        CompletableFuture<MetricsData> retval = new CompletableFuture<>();
         if (stub == null) {
             retval.completeExceptionally(new RuntimeException("Not alive"));
             return retval;
         }
-        ListenableFuture<InstanceCommunication.MetricsData> response =
-                stub.withDeadlineAfter(GRPC_TIMEOUT_SECS, TimeUnit.SECONDS)
-                        .getAndResetMetrics(Empty.newBuilder().build());
-        Futures.addCallback(response, new FutureCallback<InstanceCommunication.MetricsData>() {
+        stub.withDeadlineAfter(GRPC_TIMEOUT_SECS, TimeUnit.SECONDS)
+                .getAndResetMetrics(new Empty(), new StreamObserver<>() {
             @Override
-            public void onFailure(Throwable throwable) {
+            public void onNext(MetricsData t) {
+                retval.complete(t);
+            }
+
+            @Override
+            public void onError(Throwable throwable) {
                 retval.completeExceptionally(throwable);
             }
 
             @Override
-            public void onSuccess(InstanceCommunication.MetricsData t) {
-                retval.complete(t);
+            public void onCompleted() {
             }
-        }, MoreExecutors.directExecutor());
+        });
         return retval;
     }
 
@@ -296,42 +309,46 @@ class ProcessRuntime implements Runtime {
             retval.completeExceptionally(new RuntimeException("Not alive"));
             return retval;
         }
-        ListenableFuture<Empty> response =
-                stub.withDeadlineAfter(GRPC_TIMEOUT_SECS, TimeUnit.SECONDS).resetMetrics(Empty.newBuilder().build());
-        Futures.addCallback(response, new FutureCallback<Empty>() {
+        stub.withDeadlineAfter(GRPC_TIMEOUT_SECS, TimeUnit.SECONDS).resetMetrics(new Empty(), new StreamObserver<>() {
             @Override
-            public void onFailure(Throwable throwable) {
+            public void onNext(Empty t) {
+                retval.complete(null);
+            }
+
+            @Override
+            public void onError(Throwable throwable) {
                 retval.completeExceptionally(throwable);
             }
 
             @Override
-            public void onSuccess(Empty t) {
-                retval.complete(null);
+            public void onCompleted() {
             }
-        }, MoreExecutors.directExecutor());
+        });
         return retval;
     }
 
     @Override
-    public CompletableFuture<InstanceCommunication.MetricsData> getMetrics(int instanceId) {
-        CompletableFuture<InstanceCommunication.MetricsData> retval = new CompletableFuture<>();
+    public CompletableFuture<MetricsData> getMetrics(int instanceId) {
+        CompletableFuture<MetricsData> retval = new CompletableFuture<>();
         if (stub == null) {
             retval.completeExceptionally(new RuntimeException("Not alive"));
             return retval;
         }
-        ListenableFuture<InstanceCommunication.MetricsData> response =
-                stub.withDeadlineAfter(GRPC_TIMEOUT_SECS, TimeUnit.SECONDS).getMetrics(Empty.newBuilder().build());
-        Futures.addCallback(response, new FutureCallback<InstanceCommunication.MetricsData>() {
+        stub.withDeadlineAfter(GRPC_TIMEOUT_SECS, TimeUnit.SECONDS).getMetrics(new Empty(), new StreamObserver<>() {
             @Override
-            public void onFailure(Throwable throwable) {
+            public void onNext(MetricsData t) {
+                retval.complete(t);
+            }
+
+            @Override
+            public void onError(Throwable throwable) {
                 retval.completeExceptionally(throwable);
             }
 
             @Override
-            public void onSuccess(InstanceCommunication.MetricsData t) {
-                retval.complete(t);
+            public void onCompleted() {
             }
-        }, MoreExecutors.directExecutor());
+        });
         return retval;
     }
 
@@ -340,25 +357,27 @@ class ProcessRuntime implements Runtime {
         return RuntimeUtils.getPrometheusMetrics(metricsPort);
     }
 
-    public CompletableFuture<InstanceCommunication.HealthCheckResult> healthCheck() {
-        CompletableFuture<InstanceCommunication.HealthCheckResult> retval = new CompletableFuture<>();
+    public CompletableFuture<HealthCheckResult> healthCheck() {
+        CompletableFuture<HealthCheckResult> retval = new CompletableFuture<>();
         if (stub == null) {
             retval.completeExceptionally(new RuntimeException("Not alive"));
             return retval;
         }
-        ListenableFuture<InstanceCommunication.HealthCheckResult> response =
-                stub.withDeadlineAfter(GRPC_TIMEOUT_SECS, TimeUnit.SECONDS).healthCheck(Empty.newBuilder().build());
-        Futures.addCallback(response, new FutureCallback<InstanceCommunication.HealthCheckResult>() {
+        stub.withDeadlineAfter(GRPC_TIMEOUT_SECS, TimeUnit.SECONDS).healthCheck(new Empty(), new StreamObserver<>() {
             @Override
-            public void onFailure(Throwable throwable) {
+            public void onNext(HealthCheckResult t) {
+                retval.complete(t);
+            }
+
+            @Override
+            public void onError(Throwable throwable) {
                 retval.completeExceptionally(throwable);
             }
 
             @Override
-            public void onSuccess(InstanceCommunication.HealthCheckResult t) {
-                retval.complete(t);
+            public void onCompleted() {
             }
-        }, MoreExecutors.directExecutor());
+        });
         return retval;
     }
 
@@ -371,19 +390,23 @@ class ProcessRuntime implements Runtime {
             }
             secretsProviderConfigurator
                     .configureProcessRuntimeSecretsProvider(processBuilder, instanceConfig.getFunctionDetails());
-            log.info("ProcessBuilder starting the process with args {}", String.join(" ", processBuilder.command()));
+            log.info().attr("args", String.join(" ", processBuilder.command()))
+                    .log("ProcessBuilder starting the process");
             process = processBuilder.start();
+            log.info().attr("pid", process.pid()).log("Process started");
         } catch (Exception ex) {
-            log.error("Starting process failed", ex);
+            log.error().exception(ex).log("Starting process failed");
             deathException = ex;
             return;
         }
         try {
             int exitValue = process.exitValue();
-            log.error("Instance Process quit unexpectedly with return value " + exitValue);
+            log.error().attr("pid", process.pid())
+                    .attr("exitValue", exitValue)
+                    .log("Instance Process quit unexpectedly");
             tryExtractingDeathException();
         } catch (IllegalThreadStateException ex) {
-            log.info("Started process successfully");
+            log.info().attr("pid", process.pid()).log("Started process successfully");
         }
     }
 
@@ -408,10 +431,10 @@ class ProcessRuntime implements Runtime {
             errorStream.read(errorBytes);
             String errorMessage = new String(errorBytes);
             deathException = new RuntimeException(errorMessage);
-            log.error("Extracted Process death exception", deathException);
+            log.error().exception(deathException).log("Extracted Process death exception");
         } catch (Exception ex) {
             deathException = ex;
-            log.error("Error extracting Process death exception", deathException);
+            log.error().exception(deathException).log("Error extracting Process death exception");
         }
     }
 }

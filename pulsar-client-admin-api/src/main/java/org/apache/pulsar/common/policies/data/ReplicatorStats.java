@@ -24,19 +24,39 @@ package org.apache.pulsar.common.policies.data;
 public interface ReplicatorStats {
 
     /** Total rate of messages received from the remote cluster (msg/s). */
+    @Deprecated
     double getMsgRateIn();
 
+    /** Total number of messages received from the remote cluster. */
+    long getMsgInCount();
+
     /** Total throughput received from the remote cluster (bytes/s). */
+    @Deprecated
     double getMsgThroughputIn();
 
+    /** Total number of bytes received from the remote cluster. */
+    long getBytesInCount();
+
     /** Total rate of messages delivered to the replication-subscriber (msg/s). */
+    @Deprecated
     double getMsgRateOut();
 
+    /** Total number of messages sent to the remote cluster. */
+    long getMsgOutCount();
+
     /** Total throughput delivered to the replication-subscriber (bytes/s). */
+    @Deprecated
     double getMsgThroughputOut();
 
+    /** Total number of bytes sent to the remote cluster. */
+    long getBytesOutCount();
+
     /** Total rate of messages expired (msg/s). */
+    @Deprecated
     double getMsgRateExpired();
+
+    /** Total number of messages expired. */
+    long getMsgExpiredCount();
 
     /** Number of messages pending to be replicated to remote cluster. */
     long getReplicationBacklog();
@@ -58,4 +78,34 @@ public interface ReplicatorStats {
 
     /** Timestamp of outbound connection establishment time. */
     String getOutboundConnectedSince();
+
+    /** Outbound replicator lifecycle state. */
+    default String getReplicatorState() {
+        return null;
+    }
+
+    /** State of the outbound producer. */
+    default String getProducerState() {
+        return null;
+    }
+
+    /** Health of the outbound replicator, or null while its progress is still unknown. */
+    default ReplicatorHealth getReplicatorHealth() {
+        return null;
+    }
+
+    /** Unix time in milliseconds when the cursor started its latest read of available entries. */
+    default Long getLastCursorReadStartedAt() {
+        return null;
+    }
+
+    /** Unix time in milliseconds of the most recent send submission. */
+    default Long getLastSendStartedAt() {
+        return null;
+    }
+
+    /** Unix time in milliseconds of the last send callback that requested a cursor delete. */
+    default Long getLastReplicationSucceededAt() {
+        return null;
+    }
 }

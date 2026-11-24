@@ -19,14 +19,18 @@
 package org.apache.pulsar.tests.integration.compaction;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.awaitility.Awaitility.await;
 import static org.testng.Assert.assertEquals;
-
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
+import org.apache.pulsar.client.admin.LongRunningProcessStatus;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageRouter;
@@ -35,18 +39,23 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TopicMetadata;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
-import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.testng.annotations.Test;
 import org.testng.collections.Maps;
 
 /**
  * Test cases for compaction.
  */
-@Slf4j
+@CustomLog
 public class TestCompaction extends PulsarTestSuite {
 
-    @Test(dataProvider = "ServiceUrls", timeOut=300_000)
+    @Override
+    protected boolean isClusterShared() {
+        return true;
+    }
+
+    @Test(dataProvider = "ServiceUrls", timeOut = 300_000)
     public void testPublishCompactAndConsumeCLI(Supplier<String> serviceUrl) throws Exception {
 
         final String tenant = "compaction-test-cli-" + randomName(4);
@@ -60,7 +69,7 @@ public class TestCompaction extends PulsarTestSuite {
         try (PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl.get()).build()) {
             client.newConsumer().topic(topic).subscriptionName("sub1").subscribe().close();
 
-            try(Producer<String> producer = client.newProducer(Schema.STRING)
+            try (Producer<String> producer = client.newProducer(Schema.STRING)
                 .topic(topic).create()) {
                 producer.newMessage()
                     .key("key0")
@@ -100,7 +109,7 @@ public class TestCompaction extends PulsarTestSuite {
         }
     }
 
-    @Test(dataProvider = "ServiceUrls", timeOut=300_000)
+    @Test(dataProvider = "ServiceUrls", timeOut = 300_000)
     public void testPublishCompactAndConsumeRest(Supplier<String> serviceUrl) throws Exception {
 
         final String tenant = "compaction-test-rest-" + randomName(4);
@@ -111,13 +120,10 @@ public class TestCompaction extends PulsarTestSuite {
 
         this.createNamespace(namespace);
 
-        pulsarCluster.runAdminCommandOnAnyBroker("namespaces",
-                "set-clusters", "--clusters", pulsarCluster.getClusterName(), namespace);
-
         try (PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl.get()).build()) {
             client.newConsumer().topic(topic).subscriptionName("sub1").subscribe().close();
 
-            try(Producer<String> producer = client.newProducer(Schema.STRING).topic(topic).create()) {
+            try (Producer<String> producer = client.newProducer(Schema.STRING).topic(topic).create()) {
                 producer.newMessage()
                     .key("key0")
                     .value("content0")
@@ -153,7 +159,7 @@ public class TestCompaction extends PulsarTestSuite {
         }
     }
 
-    @Test(dataProvider = "ServiceUrls", timeOut=300_000)
+    @Test(dataProvider = "ServiceUrls", timeOut = 300_000)
     public void testPublishCompactAndConsumePartitionedTopics(Supplier<String> serviceUrl) throws Exception {
 
         final String tenant = "compaction-test-partitioned-topic-" + randomName(4);
@@ -167,9 +173,6 @@ public class TestCompaction extends PulsarTestSuite {
 
         this.createNamespace(namespace);
 
-        pulsarCluster.runAdminCommandOnAnyBroker("namespaces",
-                "set-clusters", "--clusters", pulsarCluster.getClusterName(), namespace);
-
         this.createPartitionedTopic(topic, 2);
 
         try (PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl.get()).build()) {
@@ -177,7 +180,7 @@ public class TestCompaction extends PulsarTestSuite {
             client.newConsumer().topic(topic + "-partition-0").subscriptionName(subscriptionName).subscribe().close();
             client.newConsumer().topic(topic + "-partition-1").subscriptionName(subscriptionName).subscribe().close();
 
-            try(Producer<byte[]> producer = client.newProducer()
+            try (Producer<byte[]> producer = client.newProducer()
                 .topic(topic)
                 .messageRouter(new MessageRouter() {
                     @Override
@@ -194,7 +197,7 @@ public class TestCompaction extends PulsarTestSuite {
                             .value(("key-" + i + "-value-" + j).getBytes(UTF_8))
                             .send();
                     }
-                    log.info("Successfully write {} values for key {}", numValuesPerKey, i);
+                    log.info().attr("write", numValuesPerKey).attr("key", i).log("Successfully write values for key");
                 }
             }
 
@@ -216,19 +219,17 @@ public class TestCompaction extends PulsarTestSuite {
                 0);
 
 
-            pulsarCluster.runAdminCommandOnAnyBroker("topics",
-                "compact", topic + "-partition-0");
-            pulsarCluster.runAdminCommandOnAnyBroker("topics",
-                "compact", topic + "-partition-1");
-
-            // wait for compaction to be completed. we don't need to sleep here, but sleep will reduce
-            // the times of polling compaction-status from brokers
-            Thread.sleep(30000);
-
-            pulsarCluster.runAdminCommandOnAnyBroker("topics",
-                "compaction-status", "-w", topic + "-partition-0");
-            pulsarCluster.runAdminCommandOnAnyBroker("topics",
-                "compaction-status", "-w", topic + "-partition-1");
+            // The partitions are compacted with the admin client: pulsar-admin in a broker container would start a
+            // JVM for every command, and testPublishCompactAndConsumeRest checks the commands
+            List<String> partitions = List.of(topic + "-partition-0", topic + "-partition-1");
+            for (String partition : partitions) {
+                pulsarAdmin.topics().triggerCompaction(partition);
+            }
+            for (String partition : partitions) {
+                await().atMost(30, TimeUnit.SECONDS).untilAsserted(() -> assertEquals(
+                        pulsarAdmin.topics().compactionStatus(partition).status,
+                        LongRunningProcessStatus.Status.SUCCESS));
+            }
 
             Map<Integer, String> compactedData = consumeCompactedTopic(client, topic, subscriptionName, numKeys);
             assertEquals(compactedData.size(), numKeys);
@@ -256,7 +257,7 @@ public class TestCompaction extends PulsarTestSuite {
                     assertEquals("" + key, m.getKey());
                     assertEquals("key-" + key + "-value-" + (startValue + i), new String(m.getValue(), UTF_8));
                 }
-                log.info("Read {} values from key {}", numValuesPerKey, key);
+                log.info().attr("read", numValuesPerKey).attr("key", key).log("Read values from key");
             }
 
         }
@@ -302,7 +303,7 @@ public class TestCompaction extends PulsarTestSuite {
         }
     }
 
-    @Test(dataProvider = "ServiceUrls", timeOut=300_000)
+    @Test(dataProvider = "ServiceUrls", timeOut = 300_000)
     public void testPublishWithAutoCompaction(Supplier<String> serviceUrl) throws Exception {
 
         final String tenant = "compaction-test-auto-" + randomName(4);
@@ -319,7 +320,7 @@ public class TestCompaction extends PulsarTestSuite {
         try (PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl.get()).build()) {
             client.newConsumer(Schema.STRING).topic(topic).subscriptionName("sub1").subscribe().close();
 
-            try(Producer<String> producer = client.newProducer(Schema.STRING).topic(topic).create()) {
+            try (Producer<String> producer = client.newProducer(Schema.STRING).topic(topic).create()) {
                 producer.newMessage()
                     .key("key0")
                     .value("content0")
@@ -332,7 +333,7 @@ public class TestCompaction extends PulsarTestSuite {
 
             waitAndVerifyCompacted(client, topic, "sub1", "key0", "content1");
 
-            try(Producer<String> producer = client.newProducer(Schema.STRING).topic(topic).create()) {
+            try (Producer<String> producer = client.newProducer(Schema.STRING).topic(topic).create()) {
                 producer.newMessage()
                     .key("key0")
                     .value("content2")
@@ -342,35 +343,24 @@ public class TestCompaction extends PulsarTestSuite {
         }
     }
 
-    private ContainerExecResult createTenantName(final String tenantName,
-                                                 final String allowedClusterName,
-                                                 final String adminRoleName) throws Exception {
-        ContainerExecResult result = pulsarCluster.runAdminCommandOnAnyBroker(
-            "tenants", "create", "--allowed-clusters", allowedClusterName,
-            "--admin-roles", adminRoleName, tenantName);
-        assertEquals(0, result.getExitCode());
-        return result;
+    // The tenants, namespaces and partitioned topics are created with the admin client: pulsar-admin in a broker
+    // container would start a JVM for every command
+    private void createTenantName(final String tenantName,
+                                  final String allowedClusterName,
+                                  final String adminRoleName) throws PulsarAdminException {
+        pulsarAdmin.tenants().createTenant(tenantName, TenantInfo.builder()
+                .adminRoles(Set.of(adminRoleName))
+                .allowedClusters(Set.of(allowedClusterName))
+                .build());
     }
 
-    private ContainerExecResult createNamespace(final String Ns) throws Exception {
-        ContainerExecResult result = pulsarCluster.runAdminCommandOnAnyBroker(
-                "namespaces",
-                "create",
-                "--clusters",
-                pulsarCluster.getClusterName(), Ns);
-        assertEquals(0, result.getExitCode());
-        return result;
+    private void createNamespace(final String ns) throws PulsarAdminException {
+        pulsarAdmin.namespaces().createNamespace(ns, Set.of(pulsarCluster.getClusterName()));
     }
 
-    private ContainerExecResult createPartitionedTopic(final String partitionedTopicName, int numPartitions)
-            throws Exception {
-        ContainerExecResult result = pulsarCluster.runAdminCommandOnAnyBroker(
-            "topics",
-            "create-partitioned-topic",
-            "--partitions", "" + numPartitions,
-            partitionedTopicName);
-        assertEquals(0, result.getExitCode());
-        return result;
+    private void createPartitionedTopic(final String partitionedTopicName, int numPartitions)
+            throws PulsarAdminException {
+        pulsarAdmin.topics().createPartitionedTopic(partitionedTopicName, numPartitions);
     }
 
 

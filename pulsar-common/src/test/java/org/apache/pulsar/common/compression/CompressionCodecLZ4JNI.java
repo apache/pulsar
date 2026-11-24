@@ -21,16 +21,16 @@ package org.apache.pulsar.common.compression;
 import io.netty.buffer.ByteBuf;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import net.jpountz.lz4.LZ4Compressor;
 import net.jpountz.lz4.LZ4Factory;
-import net.jpountz.lz4.LZ4FastDecompressor;
+import net.jpountz.lz4.LZ4SafeDecompressor;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 
 /**
  * LZ4 Compression.
  */
-@Slf4j
+@CustomLog
 public class CompressionCodecLZ4JNI implements CompressionCodec {
 
     static {
@@ -38,13 +38,13 @@ public class CompressionCodecLZ4JNI implements CompressionCodec {
             // Force the attempt to load LZ4 JNI
             net.jpountz.util.Native.load();
         } catch (Throwable th) {
-            log.warn("Failed to load native LZ4 implementation: {}", th.getMessage());
+            log.warn().attr("message", th.getMessage()).log("Failed to load native LZ4 implementation");
         }
     }
 
     private static final LZ4Factory lz4Factory = LZ4Factory.fastestInstance();
     private static final LZ4Compressor compressor = lz4Factory.fastCompressor();
-    private static final LZ4FastDecompressor decompressor = lz4Factory.fastDecompressor();
+    private static final LZ4SafeDecompressor decompressor = lz4Factory.safeDecompressor();
 
     @Override
     public ByteBuf encode(ByteBuf source) {
@@ -67,8 +67,8 @@ public class CompressionCodecLZ4JNI implements CompressionCodec {
         ByteBuffer uncompressedNio = uncompressed.nioBuffer(0, uncompressedLength);
 
         ByteBuffer encodedNio = encoded.nioBuffer(encoded.readerIndex(), encoded.readableBytes());
-        decompressor.decompress(encodedNio, encodedNio.position(), uncompressedNio, uncompressedNio.position(),
-                uncompressedNio.remaining());
+        decompressor.decompress(encodedNio, encodedNio.position(), encodedNio.remaining(),
+                uncompressedNio, uncompressedNio.position(), uncompressedNio.remaining());
 
         uncompressed.writerIndex(uncompressedLength);
         return uncompressed;

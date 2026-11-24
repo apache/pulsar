@@ -23,7 +23,8 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
-import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.MultiThreadIoEventLoopGroup;
+import io.netty.channel.nio.NioIoHandler;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.socksx.v5.Socks5CommandRequestDecoder;
@@ -31,20 +32,20 @@ import io.netty.handler.codec.socksx.v5.Socks5InitialRequestDecoder;
 import io.netty.handler.codec.socksx.v5.Socks5PasswordAuthRequestDecoder;
 import io.netty.handler.codec.socksx.v5.Socks5ServerEncoder;
 import io.netty.handler.timeout.IdleStateHandler;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.socks5.config.Socks5Config;
 import org.apache.pulsar.socks5.handler.CommandRequestHandler;
 import org.apache.pulsar.socks5.handler.IdleHandler;
 import org.apache.pulsar.socks5.handler.InitialRequestHandler;
 import org.apache.pulsar.socks5.handler.PasswordAuthRequestHandler;
 
-@Slf4j
+@CustomLog
 public class Socks5Server {
 
     @Getter
-    private EventLoopGroup boss = new NioEventLoopGroup();
-    private EventLoopGroup worker = new NioEventLoopGroup();
+    private EventLoopGroup boss = new MultiThreadIoEventLoopGroup(NioIoHandler.newFactory());
+    private EventLoopGroup worker = new MultiThreadIoEventLoopGroup(NioIoHandler.newFactory());
 
     private final Socks5Config socks5Config;
 
@@ -74,9 +75,7 @@ public class Socks5Server {
                     }
                 });
         ChannelFuture future = bootstrap.bind(socks5Config.getPort()).sync();
-        if (log.isInfoEnabled()) {
-            log.info("bind port : {}", socks5Config.getPort());
-        }
+        log.info().attr("port", socks5Config.getPort()).log("bind port");
         future.channel().closeFuture().sync();
     }
 

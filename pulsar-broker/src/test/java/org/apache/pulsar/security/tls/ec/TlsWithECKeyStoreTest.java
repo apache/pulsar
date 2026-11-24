@@ -21,9 +21,12 @@ package org.apache.pulsar.security.tls.ec;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 import lombok.Cleanup;
 import lombok.SneakyThrows;
-import org.apache.pulsar.security.tls.MockedPulsarStandalone;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -32,13 +35,10 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.auth.AuthenticationKeyStoreTls;
+import org.apache.pulsar.security.MockedPulsarStandalone;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
 
 
 @Test
@@ -84,7 +84,8 @@ public class TlsWithECKeyStoreTest extends MockedPulsarStandalone {
                 .tlsKeyStorePassword(TLS_EC_KS_CLIENT_PASS)
                 .tlsTrustStorePath(TLS_EC_KS_TRUSTED_STORE)
                 .tlsTrustStorePassword(TLS_EC_KS_TRUSTED_STORE_PASS)
-                .authentication(AuthenticationKeyStoreTls.class.getName(), mapper.writeValueAsString(clientAuthParams))
+                .authentication(AuthenticationKeyStoreTls.class.getName(),
+                        MAPPER1.writeValueAsString(clientAuthParams))
                 .serviceHttpUrl(getPulsarService().getWebServiceAddressTls())
                 .build();
         admin.topics().createNonPartitionedTopic(topicName);
@@ -96,7 +97,8 @@ public class TlsWithECKeyStoreTest extends MockedPulsarStandalone {
                 .tlsKeyStorePassword(TLS_EC_KS_CLIENT_PASS)
                 .tlsTrustStorePath(TLS_EC_KS_TRUSTED_STORE)
                 .tlsTrustStorePassword(TLS_EC_KS_TRUSTED_STORE_PASS)
-                .authentication(AuthenticationKeyStoreTls.class.getName(), mapper.writeValueAsString(clientAuthParams))
+                .authentication(AuthenticationKeyStoreTls.class.getName(),
+                        MAPPER1.writeValueAsString(clientAuthParams))
                 .build();
         @Cleanup final Producer<byte[]> producer = client.newProducer()
                 .topic(topicName)

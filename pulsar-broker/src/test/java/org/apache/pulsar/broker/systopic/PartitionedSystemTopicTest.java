@@ -32,12 +32,14 @@ import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
-import org.apache.commons.lang.RandomStringUtils;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.reflect.MethodUtils;
-import org.apache.pulsar.broker.admin.impl.BrokersBase;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
+import org.apache.pulsar.broker.service.HealthChecker;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.TopicPolicyTestUtils;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry;
 import org.apache.pulsar.client.admin.ListTopicsOptions;
@@ -54,7 +56,6 @@ import org.apache.pulsar.common.events.PulsarEvent;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.naming.TopicVersion;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
@@ -64,8 +65,8 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.testng.Assert;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
@@ -73,7 +74,10 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
 
     static final int PARTITIONS = 5;
 
-    @BeforeMethod
+    // The test methods share the broker and use namespaces of their own, except the broker's heartbeat namespace,
+    // where they leave nothing but the health check topic. After a failed method, the next one gets a new broker
+    // (TestRetrySupport).
+    @BeforeClass(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         conf.setAllowAutoTopicCreation(false);
@@ -86,7 +90,7 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         super.baseSetup();
     }
 
-    @AfterMethod(alwaysRun = true)
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -94,12 +98,12 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
 
     @Test
     public void testAutoCreatedPartitionedSystemTopic() throws Exception {
-        final String ns = "prop/ns-test";
+        final String ns = BrokerTestUtil.newUniqueName("prop/ns-test");
         admin.namespaces().createNamespace(ns, 2);
         NamespaceEventsSystemTopicFactory systemTopicFactory = new NamespaceEventsSystemTopicFactory(pulsarClient);
         TopicPoliciesSystemTopicClient systemTopicClientForNamespace = systemTopicFactory
                 .createTopicPoliciesSystemTopicClient(NamespaceName.get(ns));
-        SystemTopicClient.Reader reader = systemTopicClientForNamespace.newReader();
+        SystemTopicClient.Reader<?> reader = systemTopicClientForNamespace.newReader();
 
         int partitions = admin.topics().getPartitionedTopicMetadata(
                 String.format("persistent://%s/%s", ns, SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME)).partitions;
@@ -112,6 +116,7 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         reader.close();
     }
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 1000 * 60)
     public void testConsumerCreationWhenEnablingTopicPolicy() throws Exception {
         String tenant = "tenant-" + RandomStringUtils.randomAlphabetic(4).toLowerCase();
@@ -165,14 +170,15 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
 
     @Test
     public void testHealthCheckTopicNotOffload() throws Exception {
-        NamespaceName namespaceName = NamespaceService.getHeartbeatNamespaceV2(pulsar.getBrokerId(),
+        NamespaceName namespaceName = NamespaceService.getHeartbeatNamespace(pulsar.getBrokerId(),
                 pulsar.getConfig());
-        TopicName topicName = TopicName.get("persistent", namespaceName, BrokersBase.HEALTH_CHECK_TOPIC_SUFFIX);
+        TopicName topicName = TopicName.get("persistent", namespaceName, HealthChecker.HEALTH_CHECK_TOPIC_SUFFIX);
         PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
                 .getTopic(topicName.toString(), true).get().get();
         ManagedLedgerConfig config = persistentTopic.getManagedLedger().getConfig();
+        LedgerOffloader originalLedgerOffloader = config.getLedgerOffloader();
         config.setLedgerOffloader(NullLedgerOffloader.INSTANCE);
-        admin.brokers().healthcheck(TopicVersion.V2);
+        admin.brokers().healthcheck();
         admin.topics().triggerOffload(topicName.toString(), MessageId.earliest);
         Awaitility.await().untilAsserted(() -> {
             Assert.assertEquals(persistentTopic.getManagedLedger().getOffloadedSize(), 0);
@@ -180,12 +186,15 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         LedgerOffloader ledgerOffloader = Mockito.mock(LedgerOffloader.class);
         config.setLedgerOffloader(ledgerOffloader);
         Assert.assertEquals(config.getLedgerOffloader(), ledgerOffloader);
+        // the health check topic stays loaded for the next test methods
+        config.setLedgerOffloader(originalLedgerOffloader);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testSystemNamespaceNotCreateChangeEventsTopic() throws Exception {
-        admin.brokers().healthcheck(TopicVersion.V2);
-        NamespaceName namespaceName = NamespaceService.getHeartbeatNamespaceV2(pulsar.getBrokerId(),
+        admin.brokers().healthcheck();
+        NamespaceName namespaceName = NamespaceService.getHeartbeatNamespace(pulsar.getBrokerId(),
                 pulsar.getConfig());
         TopicName topicName = TopicName.get("persistent", namespaceName, SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME);
         Optional<Topic> optionalTopic = pulsar.getBrokerService()
@@ -193,7 +202,7 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         Assert.assertTrue(optionalTopic.isEmpty());
 
         TopicName heartbeatTopicName = TopicName.get("persistent",
-                namespaceName, BrokersBase.HEALTH_CHECK_TOPIC_SUFFIX);
+                namespaceName, HealthChecker.HEALTH_CHECK_TOPIC_SUFFIX);
         admin.topics().getRetention(heartbeatTopicName.toString());
         optionalTopic = pulsar.getBrokerService()
                 .getTopic(topicName.getPartition(1).toString(), false).join();
@@ -202,25 +211,30 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
 
     @Test
     public void testHeartbeatTopicNotAllowedToSendEvent() throws Exception {
-        admin.brokers().healthcheck(TopicVersion.V2);
-        NamespaceName namespaceName = NamespaceService.getHeartbeatNamespaceV2(pulsar.getBrokerId(),
+        admin.brokers().healthcheck();
+        NamespaceName namespaceName = NamespaceService.getHeartbeatNamespace(pulsar.getBrokerId(),
                 pulsar.getConfig());
         TopicName topicName = TopicName.get("persistent", namespaceName, SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME);
-        for (int partition = 0; partition < PARTITIONS; partition ++) {
+        for (int partition = 0; partition < PARTITIONS; partition++) {
             pulsar.getBrokerService()
                     .getTopic(topicName.getPartition(partition).toString(), true).join();
         }
         Assert.assertThrows(PulsarAdminException.ConflictException.class, () -> {
             admin.topicPolicies().setMaxConsumers(topicName.toString(), 2);
         });
+        // the other heartbeat tests check that the heartbeat namespace has no other topic than the health check one
+        for (int partition = 0; partition < PARTITIONS; partition++) {
+            pulsar.getBrokerService().deleteTopic(topicName.getPartition(partition).toString(), true).join();
+        }
     }
 
     @Test
     public void testHeartbeatTopicBeDeleted() throws Exception {
-        admin.brokers().healthcheck(TopicVersion.V2);
-        NamespaceName namespaceName = NamespaceService.getHeartbeatNamespaceV2(pulsar.getBrokerId(),
+        admin.brokers().healthcheck();
+        NamespaceName namespaceName = NamespaceService.getHeartbeatNamespace(pulsar.getBrokerId(),
                 pulsar.getConfig());
-        TopicName heartbeatTopicName = TopicName.get("persistent", namespaceName, BrokersBase.HEALTH_CHECK_TOPIC_SUFFIX);
+        TopicName heartbeatTopicName = TopicName.get("persistent", namespaceName,
+                HealthChecker.HEALTH_CHECK_TOPIC_SUFFIX);
 
         List<String> topics = getPulsar().getNamespaceService().getListOfPersistentTopics(namespaceName).join();
         Assert.assertEquals(topics.size(), 1);
@@ -233,8 +247,8 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
 
     @Test
     public void testHeartbeatNamespaceNotCreateTransactionInternalTopic() throws Exception {
-        admin.brokers().healthcheck(TopicVersion.V2);
-        NamespaceName namespaceName = NamespaceService.getHeartbeatNamespaceV2(pulsar.getBrokerId(),
+        admin.brokers().healthcheck();
+        NamespaceName namespaceName = NamespaceService.getHeartbeatNamespace(pulsar.getBrokerId(),
                 pulsar.getConfig());
         TopicName topicName = TopicName.get("persistent",
                 namespaceName, SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT);
@@ -245,13 +259,13 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         List<String> topics = getPulsar().getNamespaceService().getListOfPersistentTopics(namespaceName).join();
         Assert.assertEquals(topics.size(), 1);
         TopicName heartbeatTopicName = TopicName.get("persistent",
-                namespaceName, BrokersBase.HEALTH_CHECK_TOPIC_SUFFIX);
+                namespaceName, HealthChecker.HEALTH_CHECK_TOPIC_SUFFIX);
         Assert.assertEquals(topics.get(0), heartbeatTopicName.toString());
     }
 
     @Test
     public void testSetBacklogCausedCreatingProducerFailure() throws Exception {
-        final String ns = "prop/ns-test";
+        final String ns = BrokerTestUtil.newUniqueName("prop/ns-test");
         final String topic = ns + "/topic-1";
 
         admin.namespaces().createNamespace(ns, 2);
@@ -284,6 +298,7 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         producer.send(msg1);
         Thread.sleep(3 * 1000);
 
+        @Cleanup
         Consumer<String> consumer2 = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topic)
                 .subscriptionName("sub-1")
@@ -313,7 +328,7 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
 
     @Test
     public void testSystemTopicNotCheckExceed() throws Exception {
-        final String ns = "prop/ns-test";
+        final String ns = BrokerTestUtil.newUniqueName("prop/ns-test");
         final String topic = ns + "/topic-1";
 
         admin.namespaces().createNamespace(ns, 2);
@@ -325,32 +340,41 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         NamespaceEventsSystemTopicFactory systemTopicFactory = new NamespaceEventsSystemTopicFactory(pulsarClient);
         TopicPoliciesSystemTopicClient systemTopicClientForNamespace = systemTopicFactory
                 .createTopicPoliciesSystemTopicClient(NamespaceName.get(ns));
-        SystemTopicClient.Reader reader1 = systemTopicClientForNamespace.newReader();
-        SystemTopicClient.Reader reader2 = systemTopicClientForNamespace.newReader();
+        SystemTopicClient.Reader<?> reader1 = systemTopicClientForNamespace.newReader();
+        SystemTopicClient.Reader<?> reader2 = systemTopicClientForNamespace.newReader();
 
         conf.setMaxSameAddressProducersPerTopic(1);
         admin.namespaces().setMaxProducersPerTopic(ns, 1);
         admin.topicPolicies().setMaxProducers(topic, 1);
-        CompletableFuture<SystemTopicClient.Writer<PulsarEvent>> writer1 = systemTopicClientForNamespace.newWriterAsync();
-        CompletableFuture<SystemTopicClient.Writer<PulsarEvent>> writer2 = systemTopicClientForNamespace.newWriterAsync();
+        CompletableFuture<SystemTopicClient.Writer<PulsarEvent>> writer1 =
+                systemTopicClientForNamespace.newWriterAsync();
+        CompletableFuture<SystemTopicClient.Writer<PulsarEvent>> writer2 =
+                systemTopicClientForNamespace.newWriterAsync();
         CompletableFuture<Void> f1 = admin.topicPolicies().setCompactionThresholdAsync(topic, 1L);
 
         FutureUtil.waitForAll(List.of(writer1, writer2, f1)).join();
         Assert.assertTrue(reader1.hasMoreEvents());
-        Assert.assertNotNull(reader1.readNext());
+        Message<?> message = reader1.readNext();
+        Assert.assertNotNull(message);
+        message.release();
         Assert.assertTrue(reader2.hasMoreEvents());
+        message = reader2.readNext();
         Assert.assertNotNull(reader2.readNext());
+        message.release();
         reader1.close();
         reader2.close();
         writer1.get().close();
         writer2.get().close();
+        // the test methods share the broker (a failed method gets a new one)
+        conf.setMaxSameAddressConsumersPerTopic(0);
+        conf.setMaxSameAddressProducersPerTopic(0);
     }
 
     @Test
     public void testDeleteTopicSchemaAndPolicyWhenTopicIsNotLoaded() throws Exception {
-        final String ns = "prop/ns-test";
+        final String ns = BrokerTestUtil.newUniqueName("prop/ns-test");
         admin.namespaces().createNamespace(ns, 2);
-        final String topicName = "persistent://prop/ns-test/testDeleteTopicSchemaAndPolicyWhenTopicIsNotLoaded";
+        final String topicName = "persistent://" + ns + "/testDeleteTopicSchemaAndPolicyWhenTopicIsNotLoaded";
         admin.topics().createNonPartitionedTopic(topicName);
         pulsarClient.newProducer(Schema.STRING).topic(topicName).create().close();
         admin.topicPolicies().setMaxConsumers(topicName, 2);
@@ -359,7 +383,8 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         PersistentTopic persistentTopic = (PersistentTopic) topic.join().get();
         persistentTopic.close();
         admin.topics().delete(topicName);
-        TopicPolicies topicPolicies = pulsar.getTopicPoliciesService().getTopicPoliciesIfExists(TopicName.get(topicName));
+        TopicPolicies topicPolicies = TopicPolicyTestUtils.getTopicPolicies(pulsar.getTopicPoliciesService(),
+                TopicName.get(topicName));
         assertNull(topicPolicies);
         String base = TopicName.get(topicName).getPartitionedTopicName();
         String id = TopicName.get(base).getSchemaName();

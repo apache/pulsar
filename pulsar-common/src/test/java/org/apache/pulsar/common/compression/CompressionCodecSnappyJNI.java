@@ -22,13 +22,13 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.xerial.snappy.Snappy;
 
 /**
  * Snappy Compression.
  */
-@Slf4j
+@CustomLog
 public class CompressionCodecSnappyJNI implements CompressionCodec {
 
     @Override
@@ -45,7 +45,7 @@ public class CompressionCodecSnappyJNI implements CompressionCodec {
         try {
             compressedLength = Snappy.compress(sourceNio, targetNio);
         } catch (IOException e) {
-            log.error("Failed to compress to Snappy: {}", e.getMessage());
+            log.error().attr("message", e.getMessage()).log("Failed to compress to Snappy");
         }
         target.writerIndex(compressedLength);
         return target;

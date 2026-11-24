@@ -1,0 +1,63 @@
+{
+  "Timestamp": {
+    "$resolver": "timestamp",
+    "pattern": {
+      "format": "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+      "timeZone": "UTC"
+    }
+  },
+  "SeverityText": {
+    "$resolver": "level",
+    "field": "name"
+  },
+  "Body": {
+    "$resolver": "message",
+    "stringified": true
+  },
+  "TraceId": {
+    "$resolver": "mdc",
+    "key": "trace_id"
+  },
+  "SpanId": {
+    "$resolver": "mdc",
+    "key": "span_id"
+  },
+  "TraceFlags": {
+    "$resolver": "mdc",
+    "key": "trace_flags"
+  },
+  "Attributes": {
+    "thread.name": {
+      "$resolver": "thread",
+      "field": "name"
+    },
+    "thread.id": {
+      "$resolver": "thread",
+      "field": "id"
+    },
+    "code.namespace": {
+      "$resolver": "logger",
+      "field": "name"
+    },
+    "exception.type": {
+      "$resolver": "exception",
+      "field": "className"
+    },
+    "exception.message": {
+      "$resolver": "exception",
+      "field": "message"
+    },
+    "exception.stacktrace": {
+      "$resolver": "exception",
+      "field": "stackTrace",
+      "stackTrace": {
+        "stringified": true
+      }
+    },
+    "mdc": {
+      "$resolver": "mdc",
+      "flatten": true,
+      "stringified": true
+    }
+  }
+}

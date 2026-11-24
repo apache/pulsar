@@ -40,4 +40,5 @@ public class ProducerConfig {
     private CryptoConfig cryptoConfig;
     private String batchBuilder;
     private CompressionType compressionType;
+    private BatchingConfig batchingConfig;
 }

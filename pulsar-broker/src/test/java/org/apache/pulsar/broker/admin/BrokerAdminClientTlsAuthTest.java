@@ -23,7 +23,7 @@ import java.lang.reflect.Method;
 import java.util.Optional;
 import java.util.Set;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -38,7 +38,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-admin")
 public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
     protected String methodName;
@@ -102,7 +102,7 @@ public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
      */
     @Test
     public void testPersistentList() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("test", methodName).log("Starting test");
 
         /***** Start Broker 2 ******/
         ServiceConfiguration conf = new ServiceConfiguration();

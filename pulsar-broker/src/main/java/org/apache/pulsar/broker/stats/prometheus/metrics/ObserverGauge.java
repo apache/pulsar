@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.stats.prometheus.metrics;
 
 import io.prometheus.client.Collector;
+import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.GaugeMetricFamily;
 import io.prometheus.client.SimpleCollector;
 import java.util.ArrayList;
@@ -39,9 +40,11 @@ public class ObserverGauge extends SimpleCollector<ObserverGauge.Child> implemen
             return this;
         }
 
-        public ObserverGauge register() {
+        public ObserverGauge register(CollectorRegistry registry) {
             try {
-                return super.register();
+                ObserverGauge instance = super.register(registry);
+                instance.setRegistry(registry);
+                return instance;
             } catch (Exception e) {
                 // Handle double registration errors in tests
                 return create();
@@ -71,6 +74,7 @@ public class ObserverGauge extends SimpleCollector<ObserverGauge.Child> implemen
     }
 
     private final Supplier<Number> supplier;
+    private volatile CollectorRegistry registry;
 
     private ObserverGauge(Builder builder) {
         super(builder);
@@ -98,5 +102,16 @@ public class ObserverGauge extends SimpleCollector<ObserverGauge.Child> implemen
     @Override
     public List<MetricFamilySamples> describe() {
         return Collections.singletonList(new GaugeMetricFamily(fullname, help, labelNames));
+    }
+
+    protected void setRegistry(CollectorRegistry registry) {
+        this.registry = registry;
+    }
+
+    public void unregister() {
+        if (registry != null) {
+            registry.unregister(this);
+            registry = null;
+        }
     }
 }

@@ -19,12 +19,12 @@
 package org.apache.pulsar.io.batchdatagenerator;
 
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
 
-@Slf4j
+@CustomLog
 public class BatchDataGeneratorPrintSink implements Sink<Person> {
 
     @Override
@@ -34,7 +34,7 @@ public class BatchDataGeneratorPrintSink implements Sink<Person> {
 
     @Override
     public void write(Record<Person> record) {
-        log.info("RECV: {}", record.getValue());
+        log.info().attr("value", record.getValue()).log("RECV");
         record.ack();
     }
 

@@ -46,6 +46,9 @@ public interface ProducerInterceptor extends AutoCloseable {
 
     /**
      * Close the interceptor.
+     *
+     * <p>This method is called once when the producer that this interceptor is attached to is closed. An interceptor
+     * instance that is attached to several producers is closed once for each of them.
      */
     void close();
 
@@ -55,7 +58,7 @@ public interface ProducerInterceptor extends AutoCloseable {
      * @param message message to send
      * @return whether the interceptor can be applied to this particular message.
      */
-    boolean eligible(Message message);
+    boolean eligible(Message<?> message);
 
     /**
      * This is called from {@link Producer#send(Object)} and {@link
@@ -80,7 +83,7 @@ public interface ProducerInterceptor extends AutoCloseable {
      * @param message message to send
      * @return the intercepted message
      */
-    Message beforeSend(Producer producer, Message message);
+    Message<?> beforeSend(Producer<?> producer, Message<?> message);
 
     /**
      * This method is called when the message sent to the broker has been
@@ -100,7 +103,7 @@ public interface ProducerInterceptor extends AutoCloseable {
      * @param exception the exception on sending messages, null indicates send has succeed.
      */
     void onSendAcknowledgement(
-            Producer producer, Message message, MessageId msgId, Throwable exception);
+            Producer<?> producer, Message<?> message, MessageId msgId, Throwable exception);
 
     /**
      * This method is called when partitions of the topic (partitioned-topic) changes.

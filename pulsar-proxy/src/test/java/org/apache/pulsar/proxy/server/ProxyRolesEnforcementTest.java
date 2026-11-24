@@ -27,7 +27,10 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import javax.naming.AuthenticationException;
+import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
@@ -35,20 +38,19 @@ import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
+import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.policies.data.AuthAction;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@CustomLog
 public class ProxyRolesEnforcementTest extends ProducerConsumerBase {
-    private static final Logger log = LoggerFactory.getLogger(ProxyRolesEnforcementTest.class);
     private static final String CLUSTER_NAME = "test";
 
     public static class BasicAuthenticationData implements AuthenticationDataProvider {
@@ -92,6 +94,7 @@ public class ProxyRolesEnforcementTest extends ProducerConsumerBase {
             return "BasicAuthentication";
         }
 
+        @SuppressWarnings("deprecation")
         @Override
         public AuthenticationDataProvider getAuthData() throws PulsarClientException {
             try {
@@ -101,6 +104,7 @@ public class ProxyRolesEnforcementTest extends ProducerConsumerBase {
             }
         }
 
+        @SuppressWarnings("deprecation")
         @Override
         public void configure(Map<String, String> authParams) {
             this.authParam = authParams.get("authParam");
@@ -118,6 +122,7 @@ public class ProxyRolesEnforcementTest extends ProducerConsumerBase {
         public void close() throws IOException {
         }
 
+        @SuppressWarnings("deprecation")
         @Override
         public void initialize(ServiceConfiguration config) throws IOException {
         }
@@ -127,6 +132,7 @@ public class ProxyRolesEnforcementTest extends ProducerConsumerBase {
             return "BasicAuthentication";
         }
 
+        @SuppressWarnings("deprecation")
         @Override
         public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
             if (authData.hasDataFromCommand()) {
@@ -174,7 +180,9 @@ public class ProxyRolesEnforcementTest extends ProducerConsumerBase {
 
     @Test
     public void testIncorrectRoles() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info()
+                .attr("methodName", methodName)
+                .log("-- Starting test --");
 
         // Step 1: Create Admin Client
         createAdminClient();
@@ -193,7 +201,7 @@ public class ProxyRolesEnforcementTest extends ProducerConsumerBase {
 
         boolean exceptionOccurred = false;
         // Step 2: Try to use proxy Client as a normal Client - expect exception
-        try (PulsarClient proxyClient = createPulsarClient(pulsar.getBrokerServiceUrl(), proxyAuthParams)) {
+        try (PulsarClient proxyClient = createRejectedPulsarClient(pulsar.getBrokerServiceUrl(), proxyAuthParams)) {
             try {
                 proxyClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).subscribe();
             } catch (Exception ex) {
@@ -219,13 +227,19 @@ public class ProxyRolesEnforcementTest extends ProducerConsumerBase {
         providers.add(BasicAuthenticationProvider.class.getName());
         proxyConfig.setAuthenticationProviders(providers);
 
+        @Cleanup
+        final Authentication proxyClientAuthentication =
+                AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+                proxyConfig.getBrokerClientAuthenticationParameters());
+        proxyClientAuthentication.start();
+
         try (ProxyService proxyService = new ProxyService(proxyConfig,
                 new AuthenticationService(
-                        PulsarConfigurationLoader.convertFrom(proxyConfig)))) {
+                        PulsarConfigurationLoader.convertFrom(proxyConfig)), proxyClientAuthentication)) {
             proxyService.start();
 
 
-            try (PulsarClient proxyClient = createPulsarClient(proxyService.getServiceUrl(), proxyAuthParams)) {
+            try (PulsarClient proxyClient = createRejectedPulsarClient(proxyService.getServiceUrl(), proxyAuthParams)) {
                 exceptionOccurred = false;
                 try {
                     proxyClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).subscribe();
@@ -253,5 +267,14 @@ public class ProxyRolesEnforcementTest extends ProducerConsumerBase {
     private PulsarClient createPulsarClient(String proxyServiceUrl, String authParams) throws PulsarClientException {
         return PulsarClient.builder().serviceUrl(proxyServiceUrl).authentication(BasicAuthentication.class.getName(),
                 authParams).build();
+    }
+
+    // The broker rejects this client's handshake, and the client retries the lookup until its operation times out
+    private PulsarClient createRejectedPulsarClient(String serviceUrl, String authParams)
+            throws PulsarClientException {
+        return PulsarClient.builder().serviceUrl(serviceUrl)
+                .authentication(BasicAuthentication.class.getName(), authParams)
+                .operationTimeout(2, TimeUnit.SECONDS)
+                .build();
     }
 }

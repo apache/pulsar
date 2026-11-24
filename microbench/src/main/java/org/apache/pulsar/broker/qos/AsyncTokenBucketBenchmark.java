@@ -30,18 +30,22 @@ import org.openjdk.jmh.annotations.OutputTimeUnit;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
-import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
+import org.openjdk.jmh.infra.Blackhole;
 
+/**
+ * On MacOS, the performance of System.nanoTime() is not great. Running benchmarks on Linux is recommended due
+ * to the bottleneck of System.nanoTime() implementation on MacOS.
+ */
 @Fork(3)
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.SECONDS)
 @State(Scope.Thread)
 public class AsyncTokenBucketBenchmark {
     private AsyncTokenBucket asyncTokenBucket;
-    private DefaultMonotonicSnapshotClock monotonicSnapshotClock =
-            new DefaultMonotonicSnapshotClock(TimeUnit.MILLISECONDS.toNanos(8), System::nanoTime);
+    private DefaultMonotonicClock monotonicSnapshotClock =
+            new DefaultMonotonicClock();
 
     @Setup(Level.Iteration)
     public void setup() {
@@ -50,32 +54,33 @@ public class AsyncTokenBucketBenchmark {
                 .initialTokens(2 * ratePerSecond).capacity(2 * ratePerSecond).build();
     }
 
-    @TearDown(Level.Iteration)
-    public void teardown() {
-        monotonicSnapshotClock.close();
-    }
-
     @Threads(1)
     @Benchmark
     @Measurement(time = 10, timeUnit = TimeUnit.SECONDS, iterations = 1)
     @Warmup(time = 10, timeUnit = TimeUnit.SECONDS, iterations = 1)
-    public void consumeTokensBenchmark001Threads() {
-        asyncTokenBucket.consumeTokens(1);
+    public void consumeTokensBenchmark001Threads(Blackhole blackhole) {
+        consumeTokenAndGetTokens(blackhole);
     }
 
     @Threads(10)
     @Benchmark
     @Measurement(time = 10, timeUnit = TimeUnit.SECONDS, iterations = 1)
     @Warmup(time = 10, timeUnit = TimeUnit.SECONDS, iterations = 1)
-    public void consumeTokensBenchmark010Threads() {
-        asyncTokenBucket.consumeTokens(1);
+    public void consumeTokensBenchmark010Threads(Blackhole blackhole) {
+        consumeTokenAndGetTokens(blackhole);
     }
 
     @Threads(100)
     @Benchmark
     @Measurement(time = 10, timeUnit = TimeUnit.SECONDS, iterations = 1)
     @Warmup(time = 10, timeUnit = TimeUnit.SECONDS, iterations = 1)
-    public void consumeTokensBenchmark100Threads() {
+    public void consumeTokensBenchmark100Threads(Blackhole blackhole) {
+        consumeTokenAndGetTokens(blackhole);
+    }
+
+    private void consumeTokenAndGetTokens(Blackhole blackhole) {
         asyncTokenBucket.consumeTokens(1);
+        // blackhole is used to ensure that the compiler doesn't do dead code elimination
+        blackhole.consume(asyncTokenBucket.getTokens());
     }
 }

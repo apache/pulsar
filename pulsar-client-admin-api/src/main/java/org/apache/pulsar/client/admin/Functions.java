@@ -797,6 +797,9 @@ public interface Functions {
      * Deprecated in favor of getting sources and sinks for their own APIs.
      * <p/>
      * Fetches a list of supported Pulsar IO connectors currently running in cluster mode
+     * <p/>
+     * When authorization is enabled, this requires super-user access. Use {@link Sources#getBuiltInSources()} and
+     * {@link Sinks#getBuiltInSinks()} instead.
      *
      * @throws PulsarAdminException
      *             Unexpected error
@@ -809,6 +812,9 @@ public interface Functions {
      * Deprecated in favor of getting sources and sinks for their own APIs.
      * <p/>
      * Fetches a list of supported Pulsar IO sources currently running in cluster mode
+     * <p/>
+     * When authorization is enabled, this requires super-user access. Use {@link Sources#getBuiltInSources()} and
+     * {@link Sinks#getBuiltInSinks()} instead.
      *
      * @throws PulsarAdminException
      *             Unexpected error
@@ -821,6 +827,9 @@ public interface Functions {
      * Deprecated in favor of getting sources and sinks for their own APIs.
      * <p/>
      * Fetches a list of supported Pulsar IO sinks currently running in cluster mode
+     * <p/>
+     * When authorization is enabled, this requires super-user access. Use {@link Sources#getBuiltInSources()} and
+     * {@link Sinks#getBuiltInSinks()} instead.
      *
      * @throws PulsarAdminException
      *             Unexpected error

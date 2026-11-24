@@ -18,19 +18,23 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.defaultConfig;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-
+import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedger;
-import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerNotFoundException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.ReadOnlyCursor;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.testng.annotations.Test;
@@ -40,7 +44,7 @@ public class ReadOnlyCursorTest extends MockedBookKeeperTestCase {
     @Test
     void notFound() throws Exception {
         try {
-            factory.openReadOnlyCursor("notFound", PositionImpl.EARLIEST, new ManagedLedgerConfig());
+            factory.openReadOnlyCursor("notFound", PositionFactory.EARLIEST, defaultConfig());
             fail("Should have failed");
         } catch (ManagedLedgerNotFoundException e) {
             // Expected
@@ -51,21 +55,22 @@ public class ReadOnlyCursorTest extends MockedBookKeeperTestCase {
 
     @Test
     void simple() throws Exception {
-        ManagedLedger ledger = factory.open("simple", new ManagedLedgerConfig().setRetentionTime(1, TimeUnit.HOURS));
+        ManagedLedger ledger = factory.open("simple", defaultConfig().setRetentionTime(1, TimeUnit.HOURS));
 
-        int N = 10;
+        int num = 10;
 
-        for (int i = 0; i < N; i++) {
+        for (int i = 0; i < num; i++) {
             ledger.addEntry(("entry-" + i).getBytes());
         }
 
-        ReadOnlyCursor cursor = factory.openReadOnlyCursor("simple", PositionImpl.EARLIEST, new ManagedLedgerConfig());
+        ReadOnlyCursor cursor = factory.openReadOnlyCursor("simple", PositionFactory.EARLIEST,
+                defaultConfig());
 
-        assertEquals(cursor.getNumberOfEntries(), N);
+        assertEquals(cursor.getNumberOfEntries(), num);
         assertTrue(cursor.hasMoreEntries());
 
-        List<Entry> entries = cursor.readEntries(N);
-        assertEquals(entries.size(), N);
+        List<Entry> entries = cursor.readEntries(num);
+        assertEquals(entries.size(), num);
 
         assertEquals(cursor.getNumberOfEntries(), 0);
         assertFalse(cursor.hasMoreEntries());
@@ -73,25 +78,25 @@ public class ReadOnlyCursorTest extends MockedBookKeeperTestCase {
         cursor.close();
 
         // Ensure we can still write to ledger
-        for (int i = 0; i < N; i++) {
+        for (int i = 0; i < num; i++) {
             ledger.addEntry(("entry-" + i).getBytes());
         }
 
         // Open a new cursor
-        cursor = factory.openReadOnlyCursor("simple", PositionImpl.EARLIEST, new ManagedLedgerConfig());
+        cursor = factory.openReadOnlyCursor("simple", PositionFactory.EARLIEST, defaultConfig());
 
-        assertEquals(cursor.getNumberOfEntries(), 2 * N);
+        assertEquals(cursor.getNumberOfEntries(), 2 * num);
         assertTrue(cursor.hasMoreEntries());
 
-        entries = cursor.readEntries(N);
-        assertEquals(entries.size(), N);
+        entries = cursor.readEntries(num);
+        assertEquals(entries.size(), num);
 
-        assertEquals(cursor.getNumberOfEntries(), N);
+        assertEquals(cursor.getNumberOfEntries(), num);
         assertTrue(cursor.hasMoreEntries());
         entries.forEach(Entry::release);
 
-        entries = cursor.readEntries(N);
-        assertEquals(entries.size(), N);
+        entries = cursor.readEntries(num);
+        assertEquals(entries.size(), num);
 
         assertEquals(cursor.getNumberOfEntries(), 0);
         assertFalse(cursor.hasMoreEntries());
@@ -103,25 +108,25 @@ public class ReadOnlyCursorTest extends MockedBookKeeperTestCase {
     @Test
     void skip() throws Exception {
         ManagedLedger ledger = factory.open("skip",
-                new ManagedLedgerConfig()
+                defaultConfig()
                         .setMaxEntriesPerLedger(2)
                         .setRetentionTime(1, TimeUnit.HOURS)
                         .setRetentionSizeInMB(-1));
 
-        int N = 10;
+        int num = 10;
 
-        for (int i = 0; i < N; i++) {
+        for (int i = 0; i < num; i++) {
             ledger.addEntry(("entry-" + i).getBytes());
         }
 
-        ReadOnlyCursor cursor = factory.openReadOnlyCursor("skip", PositionImpl.EARLIEST, new ManagedLedgerConfig());
+        ReadOnlyCursor cursor = factory.openReadOnlyCursor("skip", PositionFactory.EARLIEST, defaultConfig());
 
-        assertEquals(cursor.getNumberOfEntries(), N);
+        assertEquals(cursor.getNumberOfEntries(), num);
         assertTrue(cursor.hasMoreEntries());
 
         cursor.skipEntries(5);
 
-        assertEquals(cursor.getNumberOfEntries(), N - 5);
+        assertEquals(cursor.getNumberOfEntries(), num - 5);
         assertTrue(cursor.hasMoreEntries());
 
         cursor.close();
@@ -130,21 +135,21 @@ public class ReadOnlyCursorTest extends MockedBookKeeperTestCase {
     @Test
     void skipAll() throws Exception {
         ManagedLedger ledger = factory.open("skip-all",
-                new ManagedLedgerConfig().setMaxEntriesPerLedger(7).setRetentionTime(1, TimeUnit.HOURS));
+                defaultConfig().setMaxEntriesPerLedger(7).setRetentionTime(1, TimeUnit.HOURS));
 
-        int N = 10;
+        int num = 10;
 
-        for (int i = 0; i < N; i++) {
+        for (int i = 0; i < num; i++) {
             ledger.addEntry(("entry-" + i).getBytes());
         }
 
-        ReadOnlyCursor cursor = factory.openReadOnlyCursor("skip-all", PositionImpl.EARLIEST,
-                new ManagedLedgerConfig());
+        ReadOnlyCursor cursor = factory.openReadOnlyCursor("skip-all", PositionFactory.EARLIEST,
+                defaultConfig());
 
-        assertEquals(cursor.getNumberOfEntries(), N);
+        assertEquals(cursor.getNumberOfEntries(), num);
         assertTrue(cursor.hasMoreEntries());
 
-        cursor.skipEntries(N);
+        cursor.skipEntries(num);
 
         assertEquals(cursor.getNumberOfEntries(), 0);
         assertFalse(cursor.hasMoreEntries());
@@ -155,20 +160,20 @@ public class ReadOnlyCursorTest extends MockedBookKeeperTestCase {
     @Test
     void skipMultiple() throws Exception {
         ManagedLedger ledger = factory.open("skip",
-                new ManagedLedgerConfig()
+                defaultConfig()
                         .setMaxEntriesPerLedger(7)
                         .setRetentionTime(1, TimeUnit.HOURS)
                         .setRetentionSizeInMB(-1));
 
-        int N = 30;
+        int num = 30;
 
-        for (int i = 0; i < N; i++) {
+        for (int i = 0; i < num; i++) {
             ledger.addEntry(("entry-" + i).getBytes());
         }
 
-        ReadOnlyCursor cursor = factory.openReadOnlyCursor("skip", PositionImpl.EARLIEST, new ManagedLedgerConfig());
+        ReadOnlyCursor cursor = factory.openReadOnlyCursor("skip", PositionFactory.EARLIEST, defaultConfig());
 
-        assertEquals(cursor.getNumberOfEntries(), N);
+        assertEquals(cursor.getNumberOfEntries(), num);
         assertTrue(cursor.hasMoreEntries());
 
         cursor.skipEntries(25);
@@ -186,9 +191,10 @@ public class ReadOnlyCursorTest extends MockedBookKeeperTestCase {
 
     @Test
     void empty() throws Exception {
-        factory.open("empty", new ManagedLedgerConfig().setRetentionTime(1, TimeUnit.HOURS));
+        factory.open("empty", defaultConfig().setRetentionTime(1, TimeUnit.HOURS));
 
-        ReadOnlyCursor cursor = factory.openReadOnlyCursor("empty", PositionImpl.EARLIEST, new ManagedLedgerConfig());
+        ReadOnlyCursor cursor = factory.openReadOnlyCursor("empty", PositionFactory.EARLIEST,
+                defaultConfig());
 
         assertEquals(cursor.getNumberOfEntries(), 0);
         assertFalse(cursor.hasMoreEntries());
@@ -198,32 +204,66 @@ public class ReadOnlyCursorTest extends MockedBookKeeperTestCase {
 
     @Test
     void specifyStartPosition() throws Exception {
-        ManagedLedger ledger = factory.open("simple", new ManagedLedgerConfig().setRetentionTime(1, TimeUnit.HOURS));
+        ManagedLedger ledger = factory.open("simple", defaultConfig().setRetentionTime(1, TimeUnit.HOURS));
 
-        int N = 10;
+        int num = 10;
 
-        for (int i = 0; i < N; i++) {
+        for (int i = 0; i < num; i++) {
             ledger.addEntry(("entry-" + i).getBytes());
         }
 
-        ReadOnlyCursor cursor = factory.openReadOnlyCursor("simple", PositionImpl.EARLIEST, new ManagedLedgerConfig());
+        ReadOnlyCursor cursor = factory.openReadOnlyCursor("simple", PositionFactory.EARLIEST,
+                defaultConfig());
 
-        assertEquals(cursor.getNumberOfEntries(), N);
+        assertEquals(cursor.getNumberOfEntries(), num);
         assertTrue(cursor.hasMoreEntries());
 
         Position readPosition = cursor.getReadPosition();
-        cursor = factory.openReadOnlyCursor("simple", readPosition, new ManagedLedgerConfig());
+        cursor = factory.openReadOnlyCursor("simple", readPosition, defaultConfig());
 
-        assertEquals(cursor.getNumberOfEntries(), N);
+        assertEquals(cursor.getNumberOfEntries(), num);
         assertTrue(cursor.hasMoreEntries());
 
         cursor.skipEntries(5);
 
         Position newReadPosition = cursor.getReadPosition();
-        cursor = factory.openReadOnlyCursor("simple", newReadPosition, new ManagedLedgerConfig());
+        cursor = factory.openReadOnlyCursor("simple", newReadPosition, defaultConfig());
 
-        assertEquals(cursor.getNumberOfEntries(), N - 5);
+        assertEquals(cursor.getNumberOfEntries(), num - 5);
         assertTrue(cursor.hasMoreEntries());
     }
 
+    @Test
+    void asyncReadEntriesWithSizeAndBytes() throws Exception {
+        ManagedLedger ledger = factory.open("simple", defaultConfig().setRetentionTime(1, TimeUnit.HOURS));
+
+        int numberOfEntries = 10;
+        List<byte[]> payloads = new ArrayList<>();
+
+        for (int i = 0; i < numberOfEntries; i++) {
+            byte[] payload = ("entry-" + i).getBytes();
+            ledger.addEntry(payload);
+            payloads.add(payload);
+        }
+
+        ReadOnlyCursor cursor = factory.openReadOnlyCursor("simple", PositionFactory.EARLIEST,
+                defaultConfig());
+
+        int numberOfEntriesToRead = 8;
+        CompletableFuture<List<Entry>> future = new CompletableFuture<>();
+        cursor.asyncReadEntries(numberOfEntriesToRead, Long.MAX_VALUE, new AsyncCallbacks.ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                future.complete(entries);
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                future.completeExceptionally(exception);
+            }
+        }, null, PositionFactory.LATEST);
+        List<Entry> entries = future.get(5, TimeUnit.SECONDS);
+        assertThat(entries).hasSize(numberOfEntriesToRead);
+        entries.forEach(Entry::release);
+    }
 }

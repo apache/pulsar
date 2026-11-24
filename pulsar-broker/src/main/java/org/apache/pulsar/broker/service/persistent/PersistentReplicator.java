@@ -18,22 +18,38 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.pulsar.broker.service.AbstractReplicator.State.Disconnected;
+import static org.apache.pulsar.broker.service.AbstractReplicator.State.Started;
+import static org.apache.pulsar.broker.service.AbstractReplicator.State.Starting;
+import static org.apache.pulsar.broker.service.AbstractReplicator.State.Terminated;
+import static org.apache.pulsar.broker.service.AbstractReplicator.State.Terminating;
 import static org.apache.pulsar.broker.service.persistent.PersistentTopic.MESSAGE_RATE_BACKOFF_MS;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.util.concurrent.ExecutionError;
+import io.github.merlimat.slog.Logger;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Locale;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import lombok.Data;
+import lombok.Getter;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
-import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesWithStartCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -42,90 +58,118 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorAlreadyClosedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.AbstractReplicator;
 import org.apache.pulsar.broker.service.BrokerService;
-import org.apache.pulsar.broker.service.BrokerServiceException.TopicBusyException;
+import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.MessageExpirer;
 import org.apache.pulsar.broker.service.Replicator;
-import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.Type;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.impl.Backoff;
+import org.apache.pulsar.client.impl.GeoReplicationProducerImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.client.impl.OpSendMsgStats;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.SendCallback;
 import org.apache.pulsar.common.api.proto.MarkerType;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.ReplicatorHealth;
+import org.apache.pulsar.common.policies.data.ReplicatorInternalStats;
+import org.apache.pulsar.common.policies.data.ReplicatorInternalStats.Failure;
+import org.apache.pulsar.common.policies.data.ReplicatorInternalStats.ProducerRetry;
+import org.apache.pulsar.common.policies.data.ReplicatorInternalStats.ReadTask;
 import org.apache.pulsar.common.policies.data.stats.ReplicatorStatsImpl;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.stats.Rate;
+import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.common.util.Codec;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.pulsar.common.util.FutureUtil;
 
 public abstract class PersistentReplicator extends AbstractReplicator
-        implements Replicator, ReadEntriesCallback, DeleteCallback, MessageExpirer {
+        implements Replicator, ReadEntriesWithStartCallback, DeleteCallback, MessageExpirer {
+
+    private static final Logger LOG = Logger.get(PersistentReplicator.class);
+    protected final Logger log;
+
+    private final ReplicationDiagnostics diagnostics;
 
     protected final PersistentTopic topic;
     protected final ManagedCursor cursor;
+    protected final String localSchemaTopicName;
 
     protected Optional<DispatchRateLimiter> dispatchRateLimiter = Optional.empty();
     private final Object dispatchRateLimiterLock = new Object();
 
-    private int readBatchSize;
+    private volatile int readBatchSize;
     private final int readMaxSizeBytes;
+    private final int maxReadProcessingStepsPerTurn;
 
     private final int producerQueueThreshold;
-
-    protected static final AtomicIntegerFieldUpdater<PersistentReplicator> PENDING_MESSAGES_UPDATER =
-            AtomicIntegerFieldUpdater
-                    .newUpdater(PersistentReplicator.class, "pendingMessages");
-    private volatile int pendingMessages = 0;
-
-    private static final int FALSE = 0;
-    private static final int TRUE = 1;
-
-    private static final AtomicIntegerFieldUpdater<PersistentReplicator> HAVE_PENDING_READ_UPDATER =
-            AtomicIntegerFieldUpdater
-                    .newUpdater(PersistentReplicator.class, "havePendingRead");
-    private volatile int havePendingRead = FALSE;
 
     protected final Rate msgOut = new Rate();
     protected final Rate msgExpired = new Rate();
 
     protected int messageTTLInSeconds = 0;
 
-    private final Backoff readFailureBackoff = new Backoff(1, TimeUnit.SECONDS,
-            1, TimeUnit.MINUTES, 0, TimeUnit.MILLISECONDS);
+    private final Backoff readFailureBackoff = Backoff.builder()
+            .initialDelay(Duration.ofSeconds(1))
+            .maxBackoff(Duration.ofMinutes(1))
+            .build();
 
     private final PersistentMessageExpiryMonitor expiryMonitor;
     // for connected subscriptions, message expiry will be checked if the backlog is greater than this threshold
     private static final int MINIMUM_BACKLOG_FOR_EXPIRY_CHECK = 1000;
 
-    private final ReplicatorStatsImpl stats = new ReplicatorStatsImpl();
+    @Getter
+    protected final ReplicatorStatsImpl stats = new ReplicatorStatsImpl();
 
-    protected volatile boolean fetchSchemaInProgress = false;
+    protected volatile int waitForCursorRewindingRefCnf = 0;
+
+    protected enum ReasonOfWaitForCursorRewinding {
+        Failed_Publishing,
+        Fetching_Schema,
+        Disconnecting,
+        Terminating;
+    }
+    protected ReasonOfWaitForCursorRewinding reasonOfWaitForCursorRewinding = null;
+
+    protected final LinkedList<InFlightTask> inFlightTasks = new LinkedList<>();
+
+    // Guarded by inFlightTasks. Ownership spans cursor invocation and complete batch submission,
+    // including synchronous callbacks. ACKs and read completions only publish work to the owner.
+    private boolean processingReads;
+    private boolean readRequested;
+    private boolean cancelReadRequested;
+    private boolean rewindRequested;
+    private boolean readRetryScheduled;
 
     public PersistentReplicator(String localCluster, PersistentTopic localTopic, ManagedCursor cursor,
-                                   String remoteCluster, String remoteTopic,
-                                   BrokerService brokerService, PulsarClientImpl replicationClient)
+                                String remoteCluster, String remoteTopic,
+                                BrokerService brokerService, PulsarClientImpl replicationClient,
+                                PulsarAdmin replicationAdmin)
             throws PulsarServerException {
         super(localCluster, localTopic, remoteCluster, remoteTopic, localTopic.getReplicatorPrefix(),
-                brokerService, replicationClient);
+                brokerService, replicationClient, replicationAdmin);
+        this.log = LOG.with().ctx(super.log).build();
         this.topic = localTopic;
-        this.cursor = cursor;
+        this.localSchemaTopicName = TopicName.getPartitionedTopicName(localTopicName).toString();
+        this.cursor = Objects.requireNonNull(cursor);
+        this.diagnostics = new ReplicationDiagnostics();
         this.expiryMonitor = new PersistentMessageExpiryMonitor(localTopic,
                 Codec.decode(cursor.getName()), cursor, null);
-        HAVE_PENDING_READ_UPDATER.set(this, FALSE);
-        PENDING_MESSAGES_UPDATER.set(this, 0);
 
-        readBatchSize = Math.min(
-                producerQueueSize,
-                localTopic.getBrokerService().pulsar().getConfiguration().getDispatcherMaxReadBatchSize());
-        readMaxSizeBytes = localTopic.getBrokerService().pulsar().getConfiguration().getDispatcherMaxReadSizeBytes();
+        readBatchSize = getMaxReadBatchSize();
+        readMaxSizeBytes = brokerService.pulsar().getConfiguration().getDispatcherMaxReadSizeBytes();
+        maxReadProcessingStepsPerTurn =
+                brokerService.pulsar().getConfiguration().getReplicationMaxReadProcessingStepsPerTurn();
+        checkArgument(maxReadProcessingStepsPerTurn > 0,
+                "replicationMaxReadProcessingStepsPerTurn must be at least 1");
         producerQueueThreshold = (int) (producerQueueSize * 0.9);
 
         this.initializeDispatchRateLimiterIfNeeded();
@@ -133,31 +177,52 @@ public abstract class PersistentReplicator extends AbstractReplicator
         startProducer();
     }
 
+    private int getMaxReadBatchSize() {
+        return Math.min(producerQueueSize, brokerService.pulsar().getConfiguration().getDispatcherMaxReadBatchSize());
+    }
+
     @Override
-    protected void readEntries(Producer<byte[]> producer) {
-        // Rewind the cursor to be sure to read again all non-acked messages sent while restarting
-        cursor.rewind();
-
-        cursor.cancelPendingReadRequest();
-        HAVE_PENDING_READ_UPDATER.set(this, FALSE);
-        this.producer = (ProducerImpl) producer;
-
-        if (STATE_UPDATER.compareAndSet(this, State.Starting, State.Started)) {
-            log.info("[{}] Created replicator producer", replicatorId);
+    protected void setProducerAndTriggerReadEntries(Producer<byte[]> producer) {
+        /**
+         * 1. Set the producer before changing the state to {@link Started}: {@link #terminate()} and
+         *    {@link #closeProducerAsync(boolean)} change the state from {@link Started} and then close the producer
+         *    they read, so another thread must not get a null value producer when the state is {@link Started}.
+         * 2. Try change state to {@link Started}. Clear the producer and close it if change the state fail.
+         */
+        ProducerImpl producerImpl = producer instanceof ProducerImpl ? (ProducerImpl) producer : null;
+        this.producer = producerImpl;
+        Pair<Boolean, State> changeStateRes;
+        changeStateRes = compareSetAndGetState(Starting, Started);
+        if (changeStateRes.getLeft()) {
+            if (producerImpl == null) {
+                log.error("The partitions count between two clusters is not the same, "
+                        + "the replicator can not be created successfully");
+                doCloseProducerAsync(producer, () -> {});
+                throw new ClassCastException(producer.getClass().getName() + " can not be cast to ProducerImpl");
+            }
+            diagnostics.producerStarted(producerImpl);
+            log.info("Created replicator producer");
             backOff.reset();
-            // activate cursor: so, entries can be cached
+            // activate cursor: so, entries can be cached.
             this.cursor.setActive();
+
             // read entries
             readMoreEntries();
         } else {
-            log.info(
-                    "[{}] Replicator was stopped while creating the producer."
-                            + " Closing it. Replicator state: {}",
-                    replicatorId, STATE_UPDATER.get(this));
-            STATE_UPDATER.set(this, State.Stopping);
-            closeProducerAsync();
+            if (changeStateRes.getRight() == Started) {
+                // Since only one task can call "producerBuilder.createAsync()", this scenario is not expected.
+                // So print a warn log.
+                log.warn("Replicator was already started by another thread while creating the producer, "
+                        + "closing the newly created producer");
+            } else if (changeStateRes.getRight() == Terminating || changeStateRes.getRight() == Terminated) {
+                log.info("Replicator was terminated, closing the producer");
+            } else {
+                log.error("Replicator state is not expected, closing the producer");
+            }
+            // Clear the producer set above and close it if change the state fail.
+            this.producer = null;
+            doCloseProducerAsync(producer, () -> {});
         }
-
     }
 
     @Override
@@ -171,155 +236,428 @@ public abstract class PersistentReplicator extends AbstractReplicator
     }
 
     @Override
+    public boolean hasBacklog() {
+        return cursor.hasBacklog();
+    }
+
+    public long getMessageExpiredCount() {
+        return expiryMonitor.getTotalMessageExpired();
+    }
+
+    @Override
     protected void disableReplicatorRead() {
-        if (this.cursor != null) {
-            // deactivate cursor after successfully close the producer
-            this.cursor.setInactive();
+        // deactivate cursor after successfully close the producer
+        this.cursor.setInactive();
+    }
+
+    private record ReadLimits(int messages, long bytes) {
+        public boolean isReadable() {
+            return messages > 0 && bytes > 0;
         }
     }
 
     /**
-     * Calculate available permits for read entries.
-     *
-     * @return
-     *   0:  Producer queue is full, no permits.
-     *  -1:  Rate Limiter reaches limit.
-     *  >0:  available permits for read entries.
+     * Calculate read limits for a read operation. Takes the rate limiter into account if it's enabled.
+     * Also limits to current readBatchSize and readMaxSizeBytes.
      */
-    private int getAvailablePermits() {
-        int availablePermits = producerQueueSize - PENDING_MESSAGES_UPDATER.get(this);
+    private ReadLimits getReadLimits(int permits) {
 
         // return 0, if Producer queue is full, it will pause read entries.
-        if (availablePermits <= 0) {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Producer queue is full, availablePermits: {}, pause reading",
-                        replicatorId, availablePermits);
-            }
-            return 0;
+        if (permits <= 0) {
+            log.debug()
+                    .attr("permits", permits)
+                    .log("Producer queue is full, pausing reads");
+            return new ReadLimits(0, 0);
         }
+
+        long readLimitOnMsg;
+        long readLimitOnByte;
 
         // handle rate limit
         if (dispatchRateLimiter.isPresent() && dispatchRateLimiter.get().isDispatchRateLimitingEnabled()) {
             DispatchRateLimiter rateLimiter = dispatchRateLimiter.get();
-            // if dispatch-rate is in msg then read only msg according to available permit
-            long availablePermitsOnMsg = rateLimiter.getAvailableDispatchRateLimitOnMsg();
-            long availablePermitsOnByte = rateLimiter.getAvailableDispatchRateLimitOnByte();
-            // no permits from rate limit
-            if (availablePermitsOnByte == 0 || availablePermitsOnMsg == 0) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] message-read exceeded topic replicator message-rate {}/{},"
-                                    + " schedule after a {}",
-                            replicatorId,
-                            rateLimiter.getDispatchRateOnMsg(),
-                            rateLimiter.getDispatchRateOnByte(),
-                            MESSAGE_RATE_BACKOFF_MS);
-                }
-                return -1;
+            // rateLimiter returns -1 if there is no rate limit configured
+            readLimitOnMsg = rateLimiter.getAvailableDispatchRateLimitOnMsg();
+            readLimitOnByte = rateLimiter.getAvailableDispatchRateLimitOnByte();
+            // no permits from rate limit when either limit is 0
+            if (readLimitOnByte == 0 || readLimitOnMsg == 0) {
+                log.debug()
+                        .attr("dispatchRateOnMsg", rateLimiter.getDispatchRateOnMsg())
+                        .attr("dispatchRateOnByte", rateLimiter.getDispatchRateOnByte())
+                        .attr("readLimitOnMsg", readLimitOnMsg)
+                        .attr("readLimitOnByte", readLimitOnByte)
+                        .log("Message-read exceeded topic replicator rate limit");
+                diagnostics.setWaitingForDispatchRate(true);
+                return new ReadLimits(-1, -1);
             }
-            if (availablePermitsOnMsg > 0) {
-                availablePermits = Math.min(availablePermits, (int) availablePermitsOnMsg);
-            }
+            // use given permits if no rate limit configured, otherwise limit to returned rate limiter permits
+            readLimitOnMsg = readLimitOnMsg == -1 ? permits : Math.min(permits, readLimitOnMsg);
+            // use readMaxSizeBytes if no rate limit configured, otherwise limit to returned rate limiter permits
+            readLimitOnByte = readLimitOnByte == -1 ? readMaxSizeBytes : Math.min(readMaxSizeBytes, readLimitOnByte);
+        } else {
+            readLimitOnMsg = permits;
+            readLimitOnByte = readMaxSizeBytes;
         }
 
-        return availablePermits;
+        // Limit messages by the adaptive batch size and the current dynamic maximum.
+        int maxReadBatchSize = Math.min(readBatchSize, getMaxReadBatchSize());
+        readLimitOnMsg = Math.min(readLimitOnMsg, maxReadBatchSize);
+
+        diagnostics.setWaitingForDispatchRate(false);
+        return new ReadLimits((int) readLimitOnMsg, readLimitOnByte);
+    }
+
+    public void disconnectIfNoTrafficAndBacklog() {
+        // Disabled the feature.
+        int threshold = brokerService.getPulsar().getConfig().getBrokerReplicationInactiveThresholdSeconds();
+        if (threshold <= 0) {
+            return;
+        }
+        // Has backlog.
+        long backlog = getNumberOfEntriesInBacklog();
+        if (backlog > 0) {
+            return;
+        }
+        // Already disconnected.
+        if (state != Started) {
+            return;
+        }
+
+        // Disconnect if no backlog and no traffic for a long time.
+        if (System.currentTimeMillis() - latestPublishTime > threshold * 1000L) {
+            log.info().attr("brokerReplicationInactiveThresholdSeconds", threshold)
+                    .log("Disconnecting replication producers since no producer is active for a long time.");
+            disconnect();
+        }
     }
 
     protected void readMoreEntries() {
-        if (fetchSchemaInProgress) {
-            log.info("[{}] Skip the reading due to new detected schema", replicatorId);
-            return;
+        requestReadProcessing(true);
+    }
+
+    private void requestReadProcessing(boolean requestRead) {
+        requestReadProcessing(requestRead, false);
+    }
+
+    private void requestReadProcessing(boolean requestRead, boolean runAsync) {
+        synchronized (inFlightTasks) {
+            readRequested |= requestRead;
+            if (processingReads) {
+                return;
+            }
+            if (runAsync && !cancelReadRequested && !rewindRequested && hasPendingRead()) {
+                // The pending read's completion will claim the owner and consume this demand. Do not queue
+                // a turn per ACK just to discover that the result is not available yet.
+                return;
+            }
+            processingReads = true;
         }
-        int availablePermits = getAvailablePermits();
-
-        if (availablePermits > 0) {
-            int messagesToRead = Math.min(availablePermits, readBatchSize);
-            if (!isWritable()) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Throttling replication traffic because producer is not writable", replicatorId);
-                }
-                // Minimize the read size if the producer is disconnected or the window is already full
-                messagesToRead = 1;
-            }
-
-            // If messagesToRead is 0 or less, correct it to 1 to prevent IllegalArgumentException
-            messagesToRead = Math.max(messagesToRead, 1);
-
-            // Schedule read
-            if (HAVE_PENDING_READ_UPDATER.compareAndSet(this, FALSE, TRUE)) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Schedule read of {} messages", replicatorId, messagesToRead);
-                }
-                cursor.asyncReadEntriesOrWait(messagesToRead, readMaxSizeBytes, this,
-                        null, topic.getMaxReadPosition());
-            } else {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Not scheduling read due to pending read. Messages To Read {}",
-                            replicatorId, messagesToRead);
+        if (runAsync) {
+            try {
+                // ACKs may hold the geo producer monitor on its IO thread. Retain ownership while queued,
+                // so concurrent callbacks only publish work rather than starting another drain.
+                brokerService.executor().execute(this::processReads);
+            } catch (Throwable e) {
+                log.error().exception(e).log("Failed to schedule replication read processing");
+                // Retain ownership through termination: its cleanup request must not start an inline drain
+                // on the ACK thread either. A late read callback will settle any still-pending result.
+                try {
+                    terminateAfterReadProcessingFailure();
+                } finally {
+                    // Even if a termination hook fails, this owner must settle its ready read results.
+                    discardPendingReadResults();
                 }
             }
-        } else if (availablePermits == -1) {
-            // no permits from rate limit
-            topic.getBrokerService().executor().schedule(
-                () -> readMoreEntries(), MESSAGE_RATE_BACKOFF_MS, TimeUnit.MILLISECONDS);
         } else {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] No Permits for reading. availablePermits: {}",
-                        replicatorId, availablePermits);
+            processReads();
+        }
+    }
+
+    private void processReads() {
+        try {
+            for (int i = 0; i < maxReadProcessingStepsPerTurn; i++) {
+                if (!processRead()) {
+                    return;
+                }
             }
+            // Keep ownership while yielding, so another callback cannot start a second drain.
+            brokerService.executor().execute(this::processReads);
+        } catch (Throwable t) {
+            log.error().exception(t).log("Unexpected failure processing replication reads");
+            boolean terminated;
+            synchronized (inFlightTasks) {
+                terminated = state == Terminating || state == Terminated;
+                if (!terminated) {
+                    // Publish recovery before releasing ownership. A concurrent ACK can then
+                    // resume this work without reading past an incomplete rewind.
+                    inFlightTasks.forEach(task -> task.skipReadResultDueToCursorRewind = true);
+                    cancelReadRequested = true;
+                    rewindRequested = true;
+                    processingReads = false;
+                }
+            }
+            if (terminated) {
+                discardPendingReadResults();
+                return;
+            }
+            // No immediate drain here: a repeatedly failing rewind must not recurse.
+            delayReadRetry();
+        }
+    }
+
+    /** Finish terminal cleanup without invoking a cursor operation that may have just failed. */
+    private void discardPendingReadResults() {
+        while (true) {
+            List<Entry> entries = null;
+            synchronized (inFlightTasks) {
+                for (InFlightTask task : inFlightTasks) {
+                    if (!task.submissionComplete && task.entries != null) {
+                        entries = task.entries;
+                        task.entries = Collections.emptyList();
+                        task.submissionComplete = true;
+                        break;
+                    }
+                }
+                if (entries == null) {
+                    processingReads = false;
+                    return;
+                }
+            }
+            entries.forEach(entry -> discardEntry(entry, null));
+        }
+    }
+
+    private void handleReadRetrySchedulingFailure(Throwable exception) {
+        // Ownership may already have been released. Never clear a newer owner's state here.
+        log.error().exception(exception).log("Failed to schedule replication read retry");
+        // A failed retry submission has no wakeup left if there are no producer ACKs in flight.
+        // Do not leave the replicator apparently Started but unable to make progress.
+        terminateAfterReadProcessingFailure();
+    }
+
+    private void terminateAfterReadProcessingFailure() {
+        try {
+            terminate();
+        } catch (Throwable terminationFailure) {
+            // Do not enter an old owner's cleanup or prevent the ACK callback from recycling its message.
+            // A failed hook can leave Terminating before producer close; later terminate calls do not retry it.
+            log.error().exception(terminationFailure)
+                    .log("Failed to terminate replication after read processing failure");
+        }
+    }
+
+    /** Processes one read, result or recovery transition, with no callback invoked under the state lock. */
+    private boolean processRead() {
+        InFlightTask task;
+        ReadLimits limits = null;
+        boolean cancel;
+        boolean rewind = false;
+        long retryDelayMillis = 0;
+        synchronized (inFlightTasks) {
+            task = null;
+            for (InFlightTask candidate : inFlightTasks) {
+                if (!candidate.submissionComplete) {
+                    task = candidate;
+                    break;
+                }
+            }
+            cancel = cancelReadRequested;
+            cancelReadRequested = false;
+            if (cancel) {
+                // Cancellation belongs to the owner: a concurrent request may have arrived between
+                // registering a read and actually invoking the cursor.
+            } else if (task != null) {
+                if (task.entries == null) {
+                    processingReads = false;
+                    return false;
+                }
+                if (!task.skipReadResultDueToCursorRewind && task.readException == null
+                        && state != Started && state != Terminating && state != Terminated) {
+                    retryDelayMillis = Math.max(100, estimatedTimeStampProducerConnected
+                            - System.currentTimeMillis() + 100);
+                }
+            } else if (rewindRequested) {
+                rewindRequested = false;
+                rewind = state != Terminating && state != Terminated;
+            } else if (!readRequested || state == Terminating || state == Terminated
+                    || waitForCursorRewindingRefCnf > 0) {
+                processingReads = false;
+                return false;
+            } else if (state != Started) {
+                retryDelayMillis = MESSAGE_RATE_BACKOFF_MS;
+            } else {
+                int permits = getPermitsIfNoPendingRead();
+                if (permits > 0) {
+                    limits = getReadLimits(isWritable() ? permits : 1);
+                }
+                if (limits == null || !limits.isReadable()) {
+                    retryDelayMillis = MESSAGE_RATE_BACKOFF_MS;
+                } else {
+                    readRequested = false;
+                    task = createOrRecycleInFlightTaskIntoQueue(cursor.getReadPosition(), limits.messages);
+                }
+            }
+            if (retryDelayMillis > 0) {
+                processingReads = false;
+            }
+        }
+        if (retryDelayMillis > 0) {
+            try {
+                scheduleReadRetry(retryDelayMillis);
+            } catch (Throwable e) {
+                // Ownership was already released: a new owner might be running now. Do not let
+                // this failure reach the owner cleanup in processReads and clear its ownership.
+                handleReadRetrySchedulingFailure(e);
+                return false;
+            }
+            if (state == Disconnected) {
+                try {
+                    startProducer();
+                } catch (Throwable e) {
+                    // The read-retry timer was accepted; this is not a timer scheduling failure.
+                    log.error().exception(e).log("Failed to restart replication producer; retry remains scheduled");
+                }
+            }
+            return false;
+        }
+        if (cancel) {
+            if (task != null && task.entries == null && cursor.cancelPendingReadRequest()) {
+                synchronized (inFlightTasks) {
+                    task.entries = Collections.emptyList();
+                    task.submissionComplete = true;
+                }
+            }
+        } else if (rewind) {
+            cursor.rewind();
+        } else if (limits != null) {
+            try {
+                diagnostics.readRequested();
+                cursor.asyncReadEntriesOrWait(task.readingEntries, limits.bytes, this, task,
+                        topic.getMaxReadPosition());
+            } catch (Throwable e) {
+                // An unusual cursor implementation may complete its callback and then throw.
+                // Keep an already published result and its ownership in that case.
+                synchronized (inFlightTasks) {
+                    if (task.entries == null) {
+                        recordReadFailure(task, failureCause(e), ManagedLedgerException.getManagedLedgerException(e));
+                    }
+                }
+            }
+        } else if (task != null) {
+            processReadResult(task);
+        }
+        return true;
+    }
+
+    private void scheduleReadRetry(long delayMillis) {
+        synchronized (inFlightTasks) {
+            if (readRetryScheduled || state == Terminating || state == Terminated) {
+                return;
+            }
+            readRetryScheduled = true;
+        }
+        try {
+            brokerService.executor().schedule(() -> {
+                synchronized (inFlightTasks) {
+                    readRetryScheduled = false;
+                }
+                readMoreEntries();
+            }, delayMillis, TimeUnit.MILLISECONDS);
+        } catch (Throwable e) {
+            synchronized (inFlightTasks) {
+                readRetryScheduled = false;
+            }
+            throw e;
         }
     }
 
     @Override
+    public void readEntriesStarted(Object ctx) {
+        diagnostics.readStarted();
+    }
+
+    @Override
     public void readEntriesComplete(List<Entry> entries, Object ctx) {
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] Read entries complete of {} messages", replicatorId, entries.size());
+        synchronized (inFlightTasks) {
+            diagnostics.readCompleted();
+            ((InFlightTask) ctx).entries = entries;
         }
+        requestReadProcessing(false);
+    }
 
-        int maxReadBatchSize = topic.getBrokerService().pulsar().getConfiguration().getDispatcherMaxReadBatchSize();
-        if (readBatchSize < maxReadBatchSize) {
-            int newReadBatchSize = Math.min(readBatchSize * 2, maxReadBatchSize);
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Increasing read batch size from {} to {}", replicatorId, readBatchSize,
-                        newReadBatchSize);
+    private void processReadResult(InFlightTask task) {
+        try {
+            if (task.readException != null) {
+                handleReadFailure(task.readException, task);
+                return;
             }
-
-            readBatchSize = newReadBatchSize;
-        }
-
-        readFailureBackoff.reduceToHalf();
-
-        boolean atLeastOneMessageSentForReplication = replicateEntries(entries);
-
-        HAVE_PENDING_READ_UPDATER.set(this, FALSE);
-
-        if (atLeastOneMessageSentForReplication && !isWritable()) {
-            // Don't read any more entries until the current pending entries are persisted
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Pausing replication traffic. at-least-one: {} is-writable: {}", replicatorId,
-                        atLeastOneMessageSentForReplication, isWritable());
+            latestPublishTime = System.currentTimeMillis();
+            if (state == Terminated || state == Terminating || task.skipReadResultDueToCursorRewind) {
+                task.entries.forEach(entry -> discardEntry(entry, null));
+                synchronized (inFlightTasks) {
+                    // Even a stale read may have advanced the cursor after recovery was requested.
+                    // Keep admission closed until the owner has discarded it and rewound the cursor.
+                    rewindRequested |= state != Terminated && state != Terminating;
+                    task.entries = Collections.emptyList();
+                }
+                return;
             }
-        } else {
-            readMoreEntries();
+            readBatchSize = Math.min(readBatchSize * 2, getMaxReadBatchSize());
+            synchronized (inFlightTasks) {
+                readFailureBackoff.reduceToHalf();
+            }
+            boolean sent = replicateEntries(task.entries, task);
+            synchronized (inFlightTasks) {
+                // Recovery decides when to resume. In particular, an immediately failed schema
+                // lookup must not turn this callback into another attempt in the same drain.
+                if (!task.skipReadResultDueToCursorRewind) {
+                    readRequested |= !sent || isWritable();
+                }
+            }
+        } finally {
+            synchronized (inFlightTasks) {
+                // A final ACK can arrive before sendAsync returns. It must not make this task
+                // recyclable while the submission loop still has a reference to it.
+                task.submissionComplete = true;
+            }
         }
     }
 
-    protected abstract boolean replicateEntries(List<Entry> entries);
-
-    protected CompletableFuture<SchemaInfo> getSchemaInfo(MessageImpl msg) throws ExecutionException {
-        if (msg.getSchemaVersion() == null || msg.getSchemaVersion().length == 0) {
-            return CompletableFuture.completedFuture(null);
+    /** Settle locally owned entries independently so one cleanup failure cannot strand the remaining batch. */
+    protected void discardEntry(Entry entry, MessageImpl<?> message) {
+        try {
+            entry.release();
+        } catch (Throwable e) {
+            log.error().exception(e).log("Failed to release discarded replication entry");
         }
-        return client.getSchemaProviderLoadingCache().get(localTopicName)
-                .getSchemaByVersion(msg.getSchemaVersion());
+        if (message != null) {
+            try {
+                message.recycle();
+            } catch (Throwable e) {
+                log.error().exception(e).log("Failed to recycle discarded replication message");
+            }
+        }
+    }
+
+    protected abstract boolean replicateEntries(List<Entry> entries, InFlightTask inFlightTask);
+
+    protected CompletableFuture<SchemaInfo> getSchemaInfo(MessageImpl msg) {
+        try {
+            if (msg.getSchemaVersion() == null || msg.getSchemaVersion().length == 0) {
+                return CompletableFuture.completedFuture(null);
+            }
+            return client.getSchemaProviderLoadingCache().get(localSchemaTopicName)
+                    .getSchemaByVersion(msg.getSchemaVersion());
+        } catch (ExecutionException | RuntimeException | ExecutionError e) {
+            return CompletableFuture.failedFuture(e);
+        }
     }
 
     public void updateCursorState() {
-        if (this.cursor != null) {
-            if (producer != null && producer.isConnected()) {
-                this.cursor.setActive();
-            } else {
-                this.cursor.setInactive();
-            }
+        if (isConnected()) {
+            cursor.setActive();
+        } else {
+            cursor.setInactive();
         }
     }
 
@@ -327,40 +665,65 @@ public abstract class PersistentReplicator extends AbstractReplicator
         private PersistentReplicator replicator;
         private Entry entry;
         private MessageImpl msg;
+        private InFlightTask inFlightTask;
 
         @Override
-        public void sendComplete(Exception exception) {
-            if (exception != null && !(exception instanceof PulsarClientException.InvalidMessageException)) {
-                log.error("[{}] Error producing on remote broker", replicator.replicatorId, exception);
-                // cursor should be rewinded since it was incremented when readMoreEntries
-                replicator.cursor.rewind();
-            } else {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Message persisted on remote broker", replicator.replicatorId, exception);
+        public void sendComplete(Throwable exception, OpSendMsgStats opSendMsgStats) {
+            boolean failed = exception != null && !(exception instanceof PulsarClientException.InvalidMessageException);
+            if (failed) {
+                replicator.recordPublishFailure(exception);
+                int inFlightTaskCount;
+                synchronized (replicator.inFlightTasks) {
+                    // Unlike asynchronous schema lookup, this recovery has no outstanding stage to wait for.
+                    // Publish cancellation and rewind together, leaving cursor work to the owner.
+                    replicator.inFlightTasks.forEach(task -> task.skipReadResultDueToCursorRewind = true);
+                    replicator.cancelReadRequested = true;
+                    replicator.rewindRequested = true;
+                    inFlightTaskCount = replicator.inFlightTasks.size();
                 }
+                replicator.log.error()
+                        .attr("inFlightTaskCount", inFlightTaskCount)
+                        .attr("pendingQueueSize", replicator.producer.getPendingQueueSize())
+                        .exception(exception)
+                        .log("Error producing on remote broker");
+                // The failed send has completed from the producer queue perspective. The cursor rewind
+                // makes the entry readable again, so this in-flight task must release its permit.
+                inFlightTask.incCompletedEntries();
+            } else {
+                replicator.log.debug()
+                        .exception(exception)
+                        .log("Message persisted on remote broker");
+                inFlightTask.incCompletedEntries();
+                replicator.diagnostics.sendCompleted(exception == null);
                 replicator.cursor.asyncDelete(entry.getPosition(), replicator, entry.getPosition());
             }
             entry.release();
 
-            int pending = PENDING_MESSAGES_UPDATER.decrementAndGet(replicator);
-
-            // In general, we schedule a new batch read operation when the occupied queue size gets smaller than half
-            // the max size, unless another read operation is already in progress.
+            // Preserve ACK-driven demand even while a read is pending. The owner still admits only
+            // one read, but can use this demand if that read fails before the retry timer fires.
+            // Otherwise resume when the occupied queue falls below the configured threshold.
             // If the producer is not currently writable (disconnected or TCP window full), we want to defer the reads
             // until we have emptied the whole queue, and at that point we will read a batch of 1 single message if the
             // producer is still not "writable".
-            if (pending < replicator.producerQueueThreshold //
-                    && HAVE_PENDING_READ_UPDATER.get(replicator) == FALSE //
-            ) {
-                if (pending == 0 || replicator.producer.isWritable()) {
-                    replicator.readMoreEntries();
+            boolean pendingRead;
+            int permits;
+            synchronized (replicator.inFlightTasks) {
+                pendingRead = replicator.hasPendingRead();
+                permits = pendingRead ? 0 : replicator.getPermitsIfNoPendingRead();
+            }
+            boolean requestRead = pendingRead;
+            if (!pendingRead && replicator.producerQueueSize - permits < replicator.producerQueueThreshold) {
+                if (replicator.producerQueueSize == permits || replicator.producer.isWritable()) {
+                    requestRead = true;
                 } else {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] Not resuming reads. pending: {} is-writable: {}",
-                                replicator.replicatorId, pending,
-                                replicator.producer.isWritable());
-                    }
+                    replicator.log.debug()
+                            .attr("pending", replicator.producerQueueSize - permits)
+                            .attr("isWritable", replicator.producer.isWritable())
+                            .log("Not resuming reads");
                 }
+            }
+            if (requestRead || failed) {
+                replicator.requestReadProcessing(requestRead, true);
             }
 
             recycle();
@@ -372,15 +735,18 @@ public abstract class PersistentReplicator extends AbstractReplicator
             this.recyclerHandle = recyclerHandle;
         }
 
-        static ProducerSendCallback create(PersistentReplicator replicator, Entry entry, MessageImpl msg) {
+        static ProducerSendCallback create(PersistentReplicator replicator, Entry entry, MessageImpl msg,
+                                           InFlightTask inFlightTask) {
             ProducerSendCallback sendCallback = RECYCLER.get();
             sendCallback.replicator = replicator;
             sendCallback.entry = entry;
             sendCallback.msg = msg;
+            sendCallback.inFlightTask = inFlightTask;
             return sendCallback;
         }
 
         private void recycle() {
+            inFlightTask = null;
             replicator = null;
             entry = null; //already released and recycled on sendComplete
             if (msg != null) {
@@ -420,61 +786,80 @@ public abstract class PersistentReplicator extends AbstractReplicator
 
     @Override
     public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-        if (STATE_UPDATER.get(this) != State.Started) {
-            log.info("[{}] Replicator was stopped while reading entries."
-                            + " Stop reading. Replicator state: {}",
-                    replicatorId, STATE_UPDATER.get(this));
-            return;
+        synchronized (inFlightTasks) {
+            recordReadFailure((InFlightTask) ctx, exception, exception);
         }
+        requestReadProcessing(false);
+    }
 
-        // Reduce read batch size to avoid flooding bookies with retries
-        readBatchSize = topic.getBrokerService().pulsar().getConfiguration().getDispatcherMinReadBatchSize();
+    // Called under the task queue lock, before a retry can recycle this batch.
+    private void recordReadFailure(InFlightTask task, Throwable cause, ManagedLedgerException exception) {
+        task.readException = exception;
+        task.readFailureMessage = diagnostics.readFailed(task.readPos, cause);
+        task.entries = Collections.emptyList();
+    }
 
-        long waitTimeMillis = readFailureBackoff.next();
-
-        if (exception instanceof CursorAlreadyClosedException) {
-            log.error("[{}] Error reading entries because replicator is"
-                            + " already deleted and cursor is already closed {}, ({})",
-                    replicatorId, ctx, exception.getMessage(), exception);
-            // replicator is already deleted and cursor is already closed so, producer should also be stopped
-            closeProducerAsync();
-            return;
-        } else if (!(exception instanceof TooManyRequestsException)) {
-            log.error("[{}] Error reading entries at {}. Retrying to read in {}s. ({})",
-                    replicatorId, ctx, waitTimeMillis / 1000.0, exception.getMessage(), exception);
-        } else {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Throttled by bookies while reading at {}. Retrying to read in {}s. ({})",
-                        replicatorId, ctx, waitTimeMillis / 1000.0, exception.getMessage(),
-                        exception);
+    private void handleReadFailure(ManagedLedgerException exception, InFlightTask task) {
+        if (exception.getCause() instanceof RejectedExecutionException) {
+            synchronized (inFlightTasks) {
+                // Completion may be rejected after advancing the cursor but before transferring entries.
+                // Only this owner can restore the position before it admits another read.
+                rewindRequested = true;
             }
         }
+        if (state != Started) {
+            return;
+        }
+        if (exception instanceof CursorAlreadyClosedException) {
+            log.warn().exception(exception).log("Cursor closed while reading replication entries");
+            terminate();
+            return;
+        }
+        readBatchSize = brokerService.pulsar().getConfiguration().getDispatcherMinReadBatchSize();
+        long waitTimeMillis = delayReadRetry();
+        if (!(exception instanceof TooManyRequestsException)) {
+            log.error().attr("task", task).attr("waitTimeMillis", waitTimeMillis).exception(exception)
+                    .log("Error reading entries, retrying");
+        }
+    }
 
-        HAVE_PENDING_READ_UPDATER.set(this, FALSE);
-        brokerService.executor().schedule(this::readMoreEntries, waitTimeMillis, TimeUnit.MILLISECONDS);
+    /**
+     * Arrange a fallback retry without generating immediate read demand. Producer acknowledgements
+     * can still resume reads before the timer, preserving progress under transient read throttling.
+     */
+    protected long delayReadRetry() {
+        long waitTimeMillis;
+        synchronized (inFlightTasks) {
+            waitTimeMillis = readFailureBackoff.next().toMillis();
+        }
+        try {
+            scheduleReadRetry(waitTimeMillis);
+        } catch (Throwable e) {
+            // A failed timer must not interrupt the caller's unsent-entry cleanup or schema rewind.
+            handleReadRetrySchedulingFailure(e);
+        }
+        return waitTimeMillis;
     }
 
     public CompletableFuture<Void> clearBacklog() {
         CompletableFuture<Void> future = new CompletableFuture<>();
 
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] Backlog size before clearing: {}", replicatorId,
-                    cursor.getNumberOfEntriesInBacklog(false));
-        }
+        log.debug()
+                .attr("backlog", cursor.getNumberOfEntriesInBacklog(false))
+                .log("Backlog size before clearing");
 
         cursor.asyncClearBacklog(new ClearBacklogCallback() {
             @Override
             public void clearBacklogComplete(Object ctx) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Backlog size after clearing: {}", replicatorId,
-                            cursor.getNumberOfEntriesInBacklog(false));
-                }
+                log.debug()
+                        .attr("backlog", cursor.getNumberOfEntriesInBacklog(false))
+                        .log("Backlog size after clearing");
                 future.complete(null);
             }
 
             @Override
             public void clearBacklogFailed(ManagedLedgerException exception, Object ctx) {
-                log.error("[{}] Failed to clear backlog", replicatorId, exception);
+                log.error().exception(exception).log("Failed to clear backlog");
                 future.completeExceptionally(exception);
             }
         }, null);
@@ -485,25 +870,27 @@ public abstract class PersistentReplicator extends AbstractReplicator
     public CompletableFuture<Void> skipMessages(int numMessagesToSkip) {
         CompletableFuture<Void> future = new CompletableFuture<>();
 
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] Skipping {} messages, current backlog {}", replicatorId,
-                    numMessagesToSkip, cursor.getNumberOfEntriesInBacklog(false));
-        }
+        log.debug()
+                .attr("numMessagesToSkip", numMessagesToSkip)
+                .attr("backlog", cursor.getNumberOfEntriesInBacklog(false))
+                .log("Skipping messages");
         cursor.asyncSkipEntries(numMessagesToSkip, IndividualDeletedEntries.Exclude,
                 new AsyncCallbacks.SkipEntriesCallback() {
                     @Override
                     public void skipEntriesComplete(Object ctx) {
-                        if (log.isDebugEnabled()) {
-                            log.debug("[{}] Skipped {} messages, new backlog {}", replicatorId,
-                                    numMessagesToSkip, cursor.getNumberOfEntriesInBacklog(false));
-                        }
+                        log.debug()
+                                .attr("numMessagesToSkip", numMessagesToSkip)
+                                .attr("backlog", cursor.getNumberOfEntriesInBacklog(false))
+                                .log("Skipped messages");
                         future.complete(null);
                     }
 
                     @Override
                     public void skipEntriesFailed(ManagedLedgerException exception, Object ctx) {
-                        log.error("[{}] Failed to skip {} messages", replicatorId,
-                                numMessagesToSkip, exception);
+                        log.error()
+                                .attr("numMessagesToSkip", numMessagesToSkip)
+                                .exception(exception)
+                                .log("Failed to skip messages");
                         future.completeExceptionally(exception);
                     }
                 }, null);
@@ -514,10 +901,9 @@ public abstract class PersistentReplicator extends AbstractReplicator
     public CompletableFuture<Entry> peekNthMessage(int messagePosition) {
         CompletableFuture<Entry> future = new CompletableFuture<>();
 
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] Getting message at position {}", replicatorId,
-                    messagePosition);
-        }
+        log.debug()
+                .attr("messagePosition", messagePosition)
+                .log("Getting message at position");
 
         cursor.asyncGetNthEntry(messagePosition, IndividualDeletedEntries.Exclude, new ReadEntryCallback() {
 
@@ -543,27 +929,30 @@ public abstract class PersistentReplicator extends AbstractReplicator
 
     @Override
     public void deleteComplete(Object ctx) {
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] Deleted message at {}", replicatorId, ctx);
-        }
+        log.debug().attr("ctx", ctx).log("Deleted message");
     }
 
     @Override
     public void deleteFailed(ManagedLedgerException exception, Object ctx) {
-        log.error("[{}] Failed to delete message at {}: {}", replicatorId, ctx,
-                exception.getMessage(), exception);
+        log.error()
+                .attr("ctx", ctx)
+                .exception(exception)
+                .log("Failed to delete message");
         if (exception instanceof CursorAlreadyClosedException) {
-            log.error("[{}] Asynchronous ack failure because replicator is already deleted and cursor is already"
-                            + " closed {}, ({})", replicatorId, ctx, exception.getMessage(), exception);
-            // replicator is already deleted and cursor is already closed so, producer should also be stopped
-            closeProducerAsync();
+            log.warn()
+                    .attr("ctx", ctx)
+                    .exception(exception)
+                    .log("Asynchronous ack failure because replicator is already deleted "
+                            + "and cursor is already closed");
+            // replicator is already deleted and cursor is already closed so, producer should also be disconnected.
+            terminate();
             return;
         }
-        if (ctx instanceof PositionImpl) {
-            PositionImpl deletedEntry = (PositionImpl) ctx;
-            if (deletedEntry.compareTo((PositionImpl) cursor.getMarkDeletedPosition()) > 0) {
+        if (ctx instanceof Position) {
+            Position deletedEntry = (Position) ctx;
+            if (deletedEntry.compareTo(cursor.getMarkDeletedPosition()) > 0) {
                 brokerService.getPulsar().getExecutor().schedule(
-                        () -> cursor.asyncDelete(deletedEntry, (PersistentReplicator) this, deletedEntry), 10,
+                        () -> cursor.asyncDelete(deletedEntry, this, deletedEntry), 10,
                         TimeUnit.SECONDS);
             }
         }
@@ -579,10 +968,61 @@ public abstract class PersistentReplicator extends AbstractReplicator
         stats.msgRateExpired = msgExpired.getRate() + expiryMonitor.getMessageExpiryRate();
     }
 
-    public ReplicatorStatsImpl getStats() {
-        stats.replicationBacklog = cursor != null ? cursor.getNumberOfEntriesInBacklog(false) : 0;
-        stats.connected = producer != null && producer.isConnected();
-        stats.replicationDelayInSeconds = getReplicationDelayInSeconds();
+    /** Carries an action authored by the local broker while preserving the reported exception type. */
+    protected static final class TargetMetadataFailure extends CompletionException {
+        final String action;
+
+        private TargetMetadataFailure(String action) {
+            super(new PulsarServerException(action));
+            this.action = action;
+        }
+
+        static TargetMetadataFailure missingTopic(int partitions) {
+            String type = partitions == 0 ? "non-partitioned topic" : "partitioned topic with " + partitions
+                    + " partitions";
+            return new TargetMetadataFailure("Target topic does not exist. Create a " + type
+                    + " on the target or enable createTopicToRemoteClusterForReplication on the source.");
+        }
+
+        static TargetMetadataFailure partitionMismatch(int source, int target) {
+            return new TargetMetadataFailure("Partition count mismatch (source=" + source + ", target=" + target
+                    + "). Check partitioned topic metadata on both clusters.");
+        }
+    }
+
+    @Override
+    protected void producerStartFailed(Throwable error, boolean preparingTopic) {
+        diagnostics.producerStartFailed(error, preparingTopic);
+    }
+
+    protected final void recordSendStarted() {
+        diagnostics.sendStarted();
+    }
+
+    protected void recordPublishFailure(Throwable error) {
+        diagnostics.publishFailed(error);
+    }
+
+    private static Throwable failureCause(Throwable error) {
+        return Objects.requireNonNullElse(FutureUtil.unwrapCompletionException(error), error);
+    }
+
+    void entryPersisted(Position position) {
+        diagnostics.entryPersisted(position);
+    }
+
+    ReplicatorInternalStats internalStats() {
+        return diagnostics.internalStats();
+    }
+
+    void updateReplicationDiagnostics(ReplicatorStatsImpl row) {
+        diagnostics.updateStats(row);
+    }
+
+    public ReplicatorStatsImpl computeStats() {
+        stats.replicationBacklog = cursor.getNumberOfEntriesInBacklog(false);
+        stats.connected = isConnected();
+        stats.replicationDelayInSeconds = TimeUnit.MILLISECONDS.toSeconds(getReplicationDelayMs());
 
         ProducerImpl producer = this.producer;
         if (producer != null) {
@@ -600,23 +1040,33 @@ public abstract class PersistentReplicator extends AbstractReplicator
         this.messageTTLInSeconds = messageTTLInSeconds;
     }
 
-    private long getReplicationDelayInSeconds() {
-        if (producer != null) {
-            return TimeUnit.MILLISECONDS.toSeconds(producer.getDelayInMillis());
-        }
-        return 0L;
-    }
-
     @Override
     public boolean expireMessages(int messageTTLInSeconds) {
-        if ((cursor.getNumberOfEntriesInBacklog(false) == 0)
-                || (cursor.getNumberOfEntriesInBacklog(false) < MINIMUM_BACKLOG_FOR_EXPIRY_CHECK
+        long backlog = cursor.getNumberOfEntriesInBacklog(false);
+        if ((backlog == 0) || (backlog < MINIMUM_BACKLOG_FOR_EXPIRY_CHECK
                         && !topic.isOldestMessageExpired(cursor, messageTTLInSeconds))) {
             // don't do anything for almost caught-up connected subscriptions
             return false;
         }
 
         return expiryMonitor.expireMessages(messageTTLInSeconds);
+    }
+
+    @Override
+    public CompletableFuture<Boolean> expireMessagesAsync(int messageTTLInSeconds) {
+        long backlog = cursor.getNumberOfEntriesInBacklog(false);
+        if (backlog == 0) {
+            return CompletableFuture.completedFuture(false);
+        } else if (backlog < MINIMUM_BACKLOG_FOR_EXPIRY_CHECK) {
+            return topic.isOldestMessageExpiredAsync(cursor, messageTTLInSeconds).thenCompose(oldestMsgExpired -> {
+                if (oldestMsgExpired) {
+                    return expiryMonitor.expireMessagesAsync(messageTTLInSeconds);
+                } else {
+                    return CompletableFuture.completedFuture(false);
+                }
+            });
+        }
+        return expiryMonitor.expireMessagesAsync(messageTTLInSeconds);
     }
 
     @Override
@@ -635,7 +1085,8 @@ public abstract class PersistentReplicator extends AbstractReplicator
             if (!dispatchRateLimiter.isPresent()
                     && DispatchRateLimiter.isDispatchRateEnabled(topic.getReplicatorDispatchRate())) {
                 this.dispatchRateLimiter = Optional.of(
-                        new DispatchRateLimiter(topic, Codec.decode(cursor.getName()), Type.REPLICATOR));
+                        topic.getBrokerService().getDispatchRateLimiterFactory()
+                                .createReplicatorDispatchRateLimiter(topic, Codec.decode(cursor.getName())));
             }
         }
     }
@@ -676,39 +1127,421 @@ public abstract class PersistentReplicator extends AbstractReplicator
     }
 
     @Override
-    public CompletableFuture<Void> disconnect() {
-        return disconnect(false);
+    protected void doReleaseResources() {
+        dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
     }
-
-    @Override
-    public synchronized CompletableFuture<Void> disconnect(boolean failIfHasBacklog) {
-        final CompletableFuture<Void> future = new CompletableFuture<>();
-
-        super.disconnect(failIfHasBacklog).thenRun(() -> {
-            dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
-            future.complete(null);
-        }).exceptionally(ex -> {
-            Throwable t = (ex instanceof CompletionException ? ex.getCause() : ex);
-            if (!(t instanceof TopicBusyException)) {
-                log.error("[{}] Failed to close dispatch rate limiter: {}", replicatorId, ex.getMessage());
-            }
-            future.completeExceptionally(t);
-            return null;
-        });
-
-        return future;
-    }
-
-    @Override
-    public boolean isConnected() {
-        ProducerImpl<?> producer = this.producer;
-        return producer != null && producer.isConnected();
-    }
-
-    private static final Logger log = LoggerFactory.getLogger(PersistentReplicator.class);
-
     @VisibleForTesting
     public ManagedCursor getCursor() {
         return cursor;
+    }
+
+    @Data
+    protected static class InFlightTask {
+        Position readPos;
+        int readingEntries;
+        volatile List<Entry> entries;
+        volatile int completedEntries;
+        volatile boolean submissionComplete;
+        ManagedLedgerException readException;
+        String readFailureMessage;
+        volatile boolean skipReadResultDueToCursorRewind;
+        final String replicatorId;
+
+        public synchronized void incCompletedEntries() {
+            if (!CollectionUtils.isEmpty(entries) && completedEntries < entries.size()) {
+                completedEntries++;
+            } else {
+                LOG.error()
+                        .attr("replicatorId", replicatorId)
+                        .attr("value", this.toString())
+                        .log("Unexpected calling of increase completed entries");
+            }
+        }
+
+        synchronized void recycle(Position readStart, int readingEntries) {
+            this.readPos = readStart;
+            this.readingEntries = readingEntries;
+            this.entries = null;
+            this.completedEntries = 0;
+            this.submissionComplete = false;
+            this.readException = null;
+            this.readFailureMessage = null;
+            this.skipReadResultDueToCursorRewind = false;
+        }
+
+        public InFlightTask(Position readPos, int readingEntries, String replicatorId) {
+            this.readPos = readPos;
+            this.readingEntries = readingEntries;
+            this.replicatorId = replicatorId;
+        }
+
+        public boolean isDone() {
+            if (!submissionComplete || entries == null) {
+                return false;
+            }
+            if (entries.isEmpty()) {
+                return true;
+            }
+            return completedEntries >= entries.size();
+        }
+
+        @Override
+        public String toString() {
+            return "Replicator InFlightTask "
+                + "{replicatorId=" + replicatorId
+                + ", readPos=" + readPos
+                + ", readingEntries=" + readingEntries
+                + ", readoutEntries=" + (entries == null ? "-1" : entries.size())
+                + ", completedEntries=" + completedEntries
+                + ", skipReadResultDueToCursorRewound=" + skipReadResultDueToCursorRewind
+                + "}";
+        }
+    }
+
+    @VisibleForTesting
+    InFlightTask createOrRecycleInFlightTaskIntoQueue(Position readPos, int readingEntries) {
+        synchronized (inFlightTasks) {
+            // Reuse projects that has done.
+            if (!inFlightTasks.isEmpty()) {
+                InFlightTask first = inFlightTasks.peek();
+                if (first.isDone()) {
+                    // Remove from the first index, and add to the latest index.
+                    inFlightTasks.poll();
+                    first.recycle(readPos, readingEntries);
+                    inFlightTasks.add(first);
+                    return first;
+                }
+            }
+            // New project if nothing can be reused.
+            InFlightTask task = new InFlightTask(readPos, readingEntries, replicatorId);
+            inFlightTasks.add(task);
+            return task;
+        }
+    }
+
+    protected int getPermitsIfNoPendingRead() {
+        synchronized (inFlightTasks) {
+            for (InFlightTask task : inFlightTasks) {
+                boolean hasPendingCursorRead = task.readPos != null && task.entries == null;
+                if (hasPendingCursorRead) {
+                    // Skip the current reading if there is a pending cursor reading.
+                    return 0;
+                }
+            }
+            return producerQueueSize - getInflightMessagesCount();
+        }
+    }
+
+    protected int getInflightMessagesCount() {
+        int inFlight = 0;
+        synchronized (inFlightTasks) {
+            for (InFlightTask task : inFlightTasks) {
+                if (task.isDone()) {
+                    continue;
+                }
+                if (task.entries == null) {
+                    inFlight += task.readingEntries;
+                    continue;
+                }
+                inFlight += Math.max(task.entries.size() - task.completedEntries, 0);
+            }
+        }
+        return inFlight;
+    }
+
+    protected CompletableFuture<Void> beforeDisconnect() {
+        // Ensure no in-flight task.
+        synchronized (inFlightTasks) {
+            for (PersistentReplicator.InFlightTask task : inFlightTasks) {
+                if (!task.isDone() && task.readPos.compareTo(cursor.getManagedLedger().getLastConfirmedEntry()) < 0) {
+                    return CompletableFuture.failedFuture(new BrokerServiceException
+                            .TopicBusyException("Cannot close a replicator with backlog"));
+                }
+            }
+            return CompletableFuture.completedFuture(null);
+        }
+    }
+
+    protected void beforeTerminateOrCursorRewinding(ReasonOfWaitForCursorRewinding reason) {
+        synchronized (inFlightTasks) {
+            reasonOfWaitForCursorRewinding = reason;
+            waitForCursorRewindingRefCnf++;
+            for (InFlightTask task : inFlightTasks) {
+                task.skipReadResultDueToCursorRewind = true;
+            }
+            cancelReadRequested = true;
+        }
+        requestReadProcessing(false);
+    }
+
+    protected void doRewindCursor(boolean triggerReadMoreEntries) {
+        synchronized (inFlightTasks) {
+            rewindRequested = true;
+            waitForCursorRewindingRefCnf--;
+            reasonOfWaitForCursorRewinding = null;
+        }
+        requestReadProcessing(triggerReadMoreEntries);
+    }
+
+    @Override
+    public void beforeTerminate() {
+        beforeTerminateOrCursorRewinding(ReasonOfWaitForCursorRewinding.Terminating);
+    }
+
+    /** Whether a cursor read is reserved; its completion may still need the producer ACK's read demand. */
+    protected boolean hasPendingRead() {
+        synchronized (inFlightTasks) {
+            for (InFlightTask task : inFlightTasks) {
+                // The purpose of calling "getReadPos" instead of calling "readPos" is to make the test
+                // "testReplicationTaskStoppedAfterTopicClosed" can counter the calling times of "readMoreEntries".
+                if (task.getReadPos() != null && task.entries == null) {
+                    // Skip the current reading if there is a pending cursor reading.
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    @VisibleForTesting
+    String getReplicatorId() {
+        return  replicatorId;
+    }
+
+    /** Diagnostic history follows the replicator across producer reconnects. */
+    private final class ReplicationDiagnostics {
+        private static final long HEALTH_WINDOW_MS = TimeUnit.MINUTES.toMillis(1);
+        private static final ReplicatorHealth HEALTHY = new ReplicatorHealth(true, null);
+        private final long createdAt = System.currentTimeMillis();
+        private volatile long pendingSince;
+        private volatile long lastCursorReadStartedAt;
+        private volatile long lastSendStartedAt;
+        private volatile long lastReplicationSucceededAt;
+        private volatile long lastAcknowledgedAt;
+        private volatile Failure lastProducerStartFailure;
+        private volatile Failure lastReadFailure;
+        private volatile Failure lastPublishFailure;
+        private volatile ProducerRetry lastProducerRetry;
+        private volatile ReplicatorHealth startupFailureHealth;
+        private volatile ReplicatorHealth retryingReadHealth;
+        private volatile boolean waitingForDispatchRate;
+
+        private ReplicationDiagnostics() {
+            if (cursor.hasBacklog()) {
+                pendingSince = createdAt;
+            }
+        }
+
+        private void producerStarted(ProducerImpl<?> current) {
+            startupFailureHealth = null;
+            if (current instanceof GeoReplicationProducerImpl geo) {
+                geo.setRetryListener((reason, position) -> {
+                    if (producer == geo) {
+                        lastProducerRetry = new ProducerRetry(System.currentTimeMillis(), reason, position);
+                    }
+                });
+            }
+        }
+
+        private void setWaitingForDispatchRate(boolean waiting) {
+            if (waiting && pendingSince == 0 && cursor.hasBacklog()) {
+                pendingSince = System.currentTimeMillis();
+            }
+            waitingForDispatchRate = waiting;
+        }
+
+        private void readRequested() {
+            lastCursorReadStartedAt = 0;
+        }
+
+        private void readStarted() {
+            long now = System.currentTimeMillis();
+            lastCursorReadStartedAt = now;
+            // A publish may race insertion of a newly constructed replicator into the topic's map.
+            if (pendingSince == 0) {
+                pendingSince = now;
+            }
+        }
+
+        private void readCompleted() {
+            retryingReadHealth = null;
+        }
+
+        /** Records the failure and returns the error text for the in-flight batch. */
+        private String readFailed(Position readPos, Throwable cause) {
+            String type = cause.getClass().getSimpleName();
+            String detail = cause.getMessage();
+            boolean noDetail = detail == null || detail.isBlank();
+            String summary = noDetail ? type + " (no exception message)" : type;
+            String message = noDetail ? summary : type + ": " + detail;
+            if (readPos != null) {
+                message = "readPos=" + readPos + " " + message;
+            }
+            long timestamp = System.currentTimeMillis();
+            lastReadFailure = new Failure(timestamp, message);
+            String batch = readPos == null ? "a batch" : "the batch starting at " + readPos;
+            retryingReadHealth = new ReplicatorHealth(false, "Retrying the source cursor read for " + batch
+                    + " after " + summary + ". Check lastReadFailure in stats-internal and the source broker log at "
+                    + timestamp + ".");
+            return Objects.requireNonNullElse(detail, type);
+        }
+
+        private void sendStarted() {
+            lastSendStartedAt = System.currentTimeMillis();
+        }
+
+        private void sendCompleted(boolean acknowledged) {
+            long now = System.currentTimeMillis();
+            lastReplicationSucceededAt = now;
+            // Skipping an invalid message requests a cursor delete without a target ACK.
+            if (acknowledged) {
+                lastAcknowledgedAt = now;
+            }
+        }
+
+        private void producerStartFailed(Throwable error, boolean preparingTopic) {
+            Throwable cause = failureCause(error);
+            String action;
+            if (error instanceof TargetMetadataFailure metadataFailure) {
+                action = metadataFailure.action;
+            } else if (preparingTopic && cause instanceof PulsarAdminException.NotAuthorizedException) {
+                action = "Topic preparation was denied. Verify the replication credentials "
+                        + "and topic metadata permissions.";
+            } else if (preparingTopic) {
+                action = "Topic preparation failed. Check both clusters' topic metadata, "
+                        + "partition counts and Admin URLs.";
+            } else if (cause instanceof PulsarClientException.AuthorizationException) {
+                action = "Producer creation was denied. Check the replication identity's "
+                        + "publish permission on the target.";
+            } else {
+                action = "Producer creation failed. Check the target broker connection and replication credentials.";
+            }
+            lastProducerStartFailure = new Failure(System.currentTimeMillis(), cause.getClass().getSimpleName()
+                    + ": " + action);
+            startupFailureHealth = new ReplicatorHealth(false, action + " See lastProducerStartFailure "
+                    + "in stats-internal and the source broker log at its timestamp.");
+        }
+
+        private void publishFailed(Throwable error) {
+            Throwable cause = failureCause(error);
+            if (!(cause instanceof PulsarClientException.InvalidMessageException)) {
+                lastPublishFailure = new Failure(System.currentTimeMillis(), cause.getClass().getSimpleName());
+            }
+        }
+
+        private void entryPersisted(Position position) {
+            // The first entry after the mark starts a new observation window even after a long idle period.
+            Position mark = cursor.getMarkDeletedPosition();
+            if (mark != null && position.compareTo(mark) > 0 && (pendingSince == 0
+                    || (position.getLedgerId() == mark.getLedgerId() && position.getEntryId() == mark.getEntryId() + 1)
+                    || (position.getEntryId() == 0 && cursor.getManagedLedger().getPreviousPosition(position)
+                            .compareTo(mark) <= 0))) {
+                pendingSince = System.currentTimeMillis();
+            }
+        }
+
+        private ReplicatorInternalStats internalStats() {
+            var current = producer;
+            var geo = current instanceof GeoReplicationProducerImpl p ? p : null;
+            Integer queueSize = geo == null ? null : geo.getPendingEntryCount();
+            Boolean compatible = geo == null ? null : geo.getSendingMessageSchemaCompatible();
+            List<ReadTask> tasks = new ArrayList<>();
+            synchronized (inFlightTasks) {
+                for (InFlightTask task : inFlightTasks) {
+                    if (!task.isDone()) {
+                        tasks.add(new ReadTask(Objects.toString(task.readPos, null), task.readingEntries,
+                                task.entries == null ? null : task.entries.size(), task.completedEntries,
+                                task.skipReadResultDueToCursorRewind, task.readFailureMessage));
+                    }
+                }
+            }
+            return new ReplicatorInternalStats(queueSize, producerQueueSize, compatible,
+                    lastProducerStartFailure, lastReadFailure, lastPublishFailure, lastProducerRetry, tasks);
+        }
+
+        private void updateStats(ReplicatorStatsImpl row) {
+            State lifecycle = state;
+            var current = producer;
+            var geo = current instanceof GeoReplicationProducerImpl p ? p : null;
+            row.replicatorState = lifecycle.name().toUpperCase(Locale.ROOT);
+            row.producerState = geo == null ? null : geo.getReplicationProducerState();
+            long read = lastCursorReadStartedAt;
+            row.lastCursorReadStartedAt = read != 0 && cursor.hasMoreEntries()
+                    && cursor.getReadPosition().compareTo(topic.getMaxReadPosition()) <= 0 ? read : null;
+            long send = lastSendStartedAt;
+            row.lastSendStartedAt = send == 0 ? null : send;
+            long success = lastReplicationSucceededAt;
+            row.lastReplicationSucceededAt = success == 0 ? null : success;
+            row.replicatorHealth = health(row, lifecycle, geo);
+        }
+
+        private ReplicatorHealth health(ReplicatorStatsImpl row, State lifecycle, GeoReplicationProducerImpl geo) {
+            if (lifecycle == Terminated || lifecycle == Terminating) {
+                return null;
+            }
+            ReplicatorHealth startup = startupFailureHealth;
+            if (startup != null) {
+                return startup;
+            }
+            int queueSize = geo == null ? 0 : geo.getPendingQueueSize();
+            if (row.replicationBacklog == 0 && queueSize == 0) {
+                return HEALTHY;
+            }
+            long cutoff = System.currentTimeMillis() - HEALTH_WINDOW_MS;
+            long markAdvanced = cursor.getLastMarkDeleteAdvancedAt();
+            if (lastAcknowledgedAt >= cutoff || (markAdvanced >= createdAt && markAdvanced >= cutoff)) {
+                return HEALTHY;
+            }
+            long start = pendingSince;
+            if (start == 0 || start > cutoff) {
+                return null;
+            }
+            if ("TERMINATED".equals(row.producerState)) {
+                return new ReplicatorHealth(false, "The target topic is terminated and cannot accept "
+                        + "replicated messages. Check lastPublishFailure in stats-internal.");
+            }
+            if (geo != null && Boolean.FALSE.equals(geo.getSendingMessageSchemaCompatible())) {
+                return new ReplicatorHealth(false, "The target rejected the schema of the next message to replicate. "
+                        + "Compare the source and target topic schemas and check the target schema "
+                        + "compatibility policy.");
+            }
+            if ("REGISTERING_SCHEMA".equals(row.producerState)) {
+                return new ReplicatorHealth(false, "Schema registration on the target is pending. "
+                        + "Check the target broker logs for the registration request.");
+            }
+            if (queueSize > 0) {
+                ProducerRetry retry = lastProducerRetry;
+                if (retry != null && GeoReplicationProducerImpl.DEDUPLICATION_UNDECIDED.equals(retry.reason())
+                        && geo.isQueueHeadAt(retry.sourcePosition())) {
+                    return new ReplicatorHealth(false, "The target could not determine whether source entry "
+                            + retry.sourcePosition() + " was already persisted. Check lastProducerRetry "
+                            + "in stats-internal and outstanding writes on the target.");
+                }
+                String latestRetry = retry == null ? "" : " The latest producer retry was " + retry.reason()
+                        + " at " + retry.timestamp() + ". See lastProducerRetry in stats-internal.";
+                return new ReplicatorHealth(false, "Sends await target acknowledgements." + latestRetry
+                        + " Check producerQueueSize, lastPublishFailure and target storage or connection errors.");
+            }
+            if (waitingForDispatchRate) {
+                return new ReplicatorHealth(false,
+                        "Check the effective replicatorDispatchRate and its available permits.");
+            }
+            ReplicatorHealth failedRead = retryingReadHealth;
+            if (failedRead != null) {
+                return failedRead;
+            }
+            if (row.lastCursorReadStartedAt != null) {
+                return new ReplicatorHealth(false, "Check inFlightTasks and lastReadFailure in stats-internal "
+                        + "for a stalled source cursor read.");
+            }
+            Position next = cursor.getReadPosition();
+            if (next.compareTo(topic.getMaxReadPosition()) > 0
+                    && next.compareTo(cursor.getManagedLedger().getLastConfirmedEntry()) <= 0) {
+                return new ReplicatorHealth(false, "The next cursor entry is beyond the readable position. "
+                        + "Compare readPosition with maxReadPosition in transaction-buffer-stats.");
+            }
+            return new ReplicatorHealth(false, "Check inFlightTasks, the replication cursor and lastPublishFailure "
+                    + "in stats-internal.");
+        }
     }
 }

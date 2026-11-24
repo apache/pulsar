@@ -21,17 +21,15 @@ package org.apache.pulsar.tests.integration.plugins;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
+import lombok.CustomLog;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 
+@CustomLog
 public class TestProtocolHandlers extends PulsarTestSuite {
-
-    private static final Logger LOG = LoggerFactory.getLogger(TestProtocolHandlers.class);
 
     private static final int PORT = 55000;
     private static final String PREFIX = "PULSAR_PREFIX_";
@@ -52,13 +50,13 @@ public class TestProtocolHandlers extends PulsarTestSuite {
         String host = broker.getHost();
         String data = randomName(DATA_LENGTH);
         int mappedPort = broker.getMappedPort(PORT);
-        LOG.debug("Sending data to {}:{}", host, mappedPort);
+        log.debug().attr("to", host).attr("port", mappedPort).log("Sending data to");
         try (Socket client = new Socket(host, mappedPort);
              OutputStream out = client.getOutputStream();
              InputStream in = client.getInputStream()) {
-            LOG.debug("Connection established");
+            log.debug("Connection established");
             out.write(data.getBytes());
-            LOG.debug("Data sent");
+            log.debug("Data sent");
             byte[] response = in.readNBytes(DATA_LENGTH);
             Assert.assertEquals(new String(response), data);
         }

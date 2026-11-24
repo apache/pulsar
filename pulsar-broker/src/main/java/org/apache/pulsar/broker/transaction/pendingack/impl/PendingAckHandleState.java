@@ -59,8 +59,13 @@ public abstract class PendingAckHandleState {
         STATE_UPDATER.set(this, State.Close);
     }
 
+    protected boolean changeToNoneStateIfNotClosed() {
+        return STATE_UPDATER.updateAndGet(this, current -> current == State.Close ? current : State.None)
+                != State.Close;
+    }
+
     protected void changeToErrorState() {
-        STATE_UPDATER.set(this, State.Error);
+        STATE_UPDATER.updateAndGet(this, current -> current == State.Close ? current : State.Error);
     }
 
     public boolean checkIfReady() {

@@ -25,6 +25,7 @@ import lombok.Getter;
  */
 @Getter
 public class InterceptException extends Exception {
+    private static final long serialVersionUID = 1L;
 
     private final int errorCode;
 

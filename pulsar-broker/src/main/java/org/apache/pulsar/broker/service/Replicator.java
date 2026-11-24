@@ -25,13 +25,11 @@ import org.apache.pulsar.common.policies.data.stats.ReplicatorStatsImpl;
 
 public interface Replicator {
 
-    void startProducer();
+    Topic getLocalTopic();
 
-    ReplicatorStatsImpl getStats();
+    ReplicatorStatsImpl computeStats();
 
-    CompletableFuture<Void> disconnect();
-
-    CompletableFuture<Void> disconnect(boolean b);
+    CompletableFuture<Void> terminate();
 
     void updateRates();
 
@@ -51,4 +49,12 @@ public interface Replicator {
     boolean isConnected();
 
     long getNumberOfEntriesInBacklog();
+
+    default boolean hasBacklog() {
+        return getNumberOfEntriesInBacklog() > 0;
+    }
+
+    boolean isTerminated();
+
+    ReplicatorStatsImpl getStats();
 }

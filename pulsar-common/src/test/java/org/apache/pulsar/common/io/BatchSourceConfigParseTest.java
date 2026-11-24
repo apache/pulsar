@@ -20,34 +20,34 @@ package org.apache.pulsar.common.io;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
-
-import org.testng.annotations.Test;
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.testng.annotations.Test;
 
 public class BatchSourceConfigParseTest {
-	
-	private ObjectMapper objectMapper = new ObjectMapper();
 
-	@Test
-	public final void ImmediateTriggererTest() throws JsonMappingException, JsonProcessingException {
-		String json = "{ \"discoveryTriggererClassName\" : \"org.apache.pulsar.io.batchdiscovery.ImmediateTriggerer\" }";
-		BatchSourceConfig config = objectMapper.readValue(json, BatchSourceConfig.class);
-		assertNotNull(config);
-		assertEquals(config.getDiscoveryTriggererClassName(), "org.apache.pulsar.io.batchdiscovery.ImmediateTriggerer");
-	}
-	
-	@Test
-	public final void CronTriggererTest() throws JsonMappingException, JsonProcessingException {
-		String json = "{ \"discoveryTriggererClassName\" : \"org.apache.pulsar.io.batchdiscovery.CronTriggerer\","
-				+ "\"discoveryTriggererConfig\": {\"cron\": \"5 0 0 0 0 *\"} }";
-		BatchSourceConfig config = objectMapper.readValue(json, BatchSourceConfig.class);
-		assertNotNull(config);
-		assertEquals(config.getDiscoveryTriggererClassName(), "org.apache.pulsar.io.batchdiscovery.CronTriggerer");
-		assertNotNull(config.getDiscoveryTriggererConfig());
-		assertEquals(config.getDiscoveryTriggererConfig().size(), 1);
-		assertEquals(config.getDiscoveryTriggererConfig().get("cron"), "5 0 0 0 0 *");
-	}
+    private ObjectMapper objectMapper = new ObjectMapper();
+
+    @Test
+    public final void immediateTriggererTest() throws JsonMappingException, JsonProcessingException {
+        String json =
+                 "{ \"discoveryTriggererClassName\" : \"org.apache.pulsar.io.batchdiscovery.ImmediateTriggerer\" }";
+        BatchSourceConfig config = objectMapper.readValue(json, BatchSourceConfig.class);
+        assertNotNull(config);
+        assertEquals(config.getDiscoveryTriggererClassName(),
+                "org.apache.pulsar.io.batchdiscovery.ImmediateTriggerer");
+    }
+
+    @Test
+    public final void cronTriggererTest() throws JsonMappingException, JsonProcessingException {
+        String json = "{ \"discoveryTriggererClassName\" : \"org.apache.pulsar.io.batchdiscovery.CronTriggerer\","
+                + "\"discoveryTriggererConfig\": {\"cron\": \"5 0 0 0 0 *\"} }";
+        BatchSourceConfig config = objectMapper.readValue(json, BatchSourceConfig.class);
+        assertNotNull(config);
+        assertEquals(config.getDiscoveryTriggererClassName(), "org.apache.pulsar.io.batchdiscovery.CronTriggerer");
+        assertNotNull(config.getDiscoveryTriggererConfig());
+        assertEquals(config.getDiscoveryTriggererConfig().size(), 1);
+        assertEquals(config.getDiscoveryTriggererConfig().get("cron"), "5 0 0 0 0 *");
+    }
 }

@@ -22,7 +22,6 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -54,16 +53,16 @@ public interface PendingAckStore {
      * @param positions {@link List} the list of position and batch size.
      * @return a future represents the result of this operation
      */
-    CompletableFuture<Void> appendIndividualAck(TxnID txnID, List<MutablePair<PositionImpl, Integer>> positions);
+    CompletableFuture<Void> appendIndividualAck(TxnID txnID, List<MutablePair<Position, Integer>> positions);
 
     /**
      * Append the cumulative pending ack operation to the ack persistent store.
      *
      * @param txnID {@link TxnID} transaction id.
-     * @param position {@link PositionImpl} the pending ack position.
+     * @param position {@link Position} the pending ack position.
      * @return a future represents the result of this operation
      */
-    CompletableFuture<Void> appendCumulativeAck(TxnID txnID, PositionImpl position);
+    CompletableFuture<Void> appendCumulativeAck(TxnID txnID, Position position);
 
     /**
      * Append the pending ack commit mark to the ack persistent store.

@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.testng.AssertJUnit.assertEquals;
+import static org.testng.AssertJUnit.assertTrue;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.client.api.BookKeeper;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
@@ -26,8 +30,6 @@ import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
-import static org.testng.AssertJUnit.assertEquals;
-import static org.testng.AssertJUnit.assertTrue;
 import org.testng.annotations.Test;
 
 /**
@@ -51,9 +53,14 @@ public class OpportunisticStripingTest extends BkEnsemblesTestBase {
         config.setManagedLedgerDefaultAckQuorum(2);
 
         config.setBrokerDeleteInactiveTopicsEnabled(false);
+        // The test reads the metadata of every ledger it lists, so keep them all: with the default zero retention,
+        // trimming deletes each ledger the topic, which has no subscription, rolls over from
+        config.setDefaultRetentionTimeInMinutes(-1);
+        config.setDefaultRetentionSizeInMB(-1);
         config.getProperties().setProperty("bookkeeper_opportunisticStriping", "true");
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testOpportunisticStriping() throws Exception {
 
@@ -62,7 +69,7 @@ public class OpportunisticStripingTest extends BkEnsemblesTestBase {
                 .statsInterval(0, TimeUnit.SECONDS)
                 .build();) {
 
-            final String ns1 = "prop/usc/opportunistic1";
+            final String ns1 = "prop/opportunistic1";
             admin.namespaces().createNamespace(ns1);
 
             final String topic1 = "persistent://" + ns1 + "/my-topic";
@@ -78,17 +85,20 @@ public class OpportunisticStripingTest extends BkEnsemblesTestBase {
             clientConfiguration.setZkServers("localhost:" + this.bkEnsemble.getZookeeperPort());
 
             try (BookKeeper bkAdmin = BookKeeper.newBuilder(clientConfiguration).build()) {
+                List<Long> ledgerIds = new ArrayList<>();
                 try (ListLedgersResult list = bkAdmin.newListLedgersOp().execute().get();) {
-                    int count = 0;
-                    for (long ledgerId : list.toIterable()) {
-                        LedgerMetadata ledgerMetadata = bkAdmin.getLedgerMetadata(ledgerId).get();
-                        assertEquals(2, ledgerMetadata.getEnsembleSize());
-                        assertEquals(2, ledgerMetadata.getWriteQuorumSize());
-                        assertEquals(2, ledgerMetadata.getAckQuorumSize());
-                        count++;
-                    }
-                    assertTrue(count > 0);
+                    list.toIterable().forEach(ledgerIds::add);
                 }
+                // Run the trimming that each ledger rollover starts in the background: it must not delete a listed
+                // ledger before its metadata is read
+                admin.topics().trimTopic(topic1);
+                for (long ledgerId : ledgerIds) {
+                    LedgerMetadata ledgerMetadata = bkAdmin.getLedgerMetadata(ledgerId).get();
+                    assertEquals(2, ledgerMetadata.getEnsembleSize());
+                    assertEquals(2, ledgerMetadata.getWriteQuorumSize());
+                    assertEquals(2, ledgerMetadata.getAckQuorumSize());
+                }
+                assertTrue(ledgerIds.size() > 0);
             }
         }
     }

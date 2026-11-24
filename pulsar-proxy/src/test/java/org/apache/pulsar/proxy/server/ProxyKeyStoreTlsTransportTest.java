@@ -21,9 +21,11 @@ package org.apache.pulsar.proxy.server;
 import static org.mockito.Mockito.doReturn;
 import java.util.Optional;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
+import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -35,11 +37,12 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "proxy")
 public class ProxyKeyStoreTlsTransportTest extends MockedPulsarServiceBaseTest {
     private ProxyService proxyService;
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
+    private Authentication proxyClientAuthentication;
 
     @Override
     @BeforeMethod
@@ -58,6 +61,7 @@ public class ProxyKeyStoreTlsTransportTest extends MockedPulsarServiceBaseTest {
         conf.setTlsRequireTrustedClientCertOnConnect(true);
 
         internalSetup();
+        setupDefaultTenantAndNamespace();
 
         // proxy with JKS
         proxyConfig.setServicePort(Optional.of(0));
@@ -65,6 +69,12 @@ public class ProxyKeyStoreTlsTransportTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setServicePortTls(Optional.of(0));
         proxyConfig.setWebServicePort(Optional.of(0));
         proxyConfig.setWebServicePortTls(Optional.of(0));
+        // Advertise over loopback so the proxy service URL host (localhost) matches the keystore server
+        // certificate's SubjectAltName. TLS hostname verification is on by default (PIP-478),
+        // and the default advertised address resolves to the machine's canonical hostname, which is not
+        // in the cert SAN. This keeps hostname verification genuinely enabled. (The broker already
+        // advertises localhost via the base test config, so the proxy->broker TLS connection matches too.)
+        proxyConfig.setAdvertisedAddress("localhost");
         proxyConfig.setTlsEnabledWithBroker(true);
         proxyConfig.setTlsEnabledWithKeyStore(true);
 
@@ -87,10 +97,14 @@ public class ProxyKeyStoreTlsTransportTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setBrokerClientTlsTrustStore(BROKER_TRUSTSTORE_FILE_PATH);
         proxyConfig.setBrokerClientTlsTrustStorePassword(BROKER_TRUSTSTORE_PW);
 
-        proxyService = Mockito.spy(new ProxyService(proxyConfig,
-                                                    new AuthenticationService(
-                                                            PulsarConfigurationLoader.convertFrom(proxyConfig))));
-        doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeper))).when(proxyService).createLocalMetadataStore();
+        proxyClientAuthentication = AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+                proxyConfig.getBrokerClientAuthenticationParameters());
+        proxyClientAuthentication.start();
+
+        proxyService = Mockito.spy(new ProxyService(proxyConfig, new AuthenticationService(
+                PulsarConfigurationLoader.convertFrom(proxyConfig)), proxyClientAuthentication));
+        doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeper)))
+                .when(proxyService).createLocalMetadataStore();
         doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeperGlobal))).when(proxyService)
                 .createConfigurationMetadataStore();
 
@@ -103,6 +117,9 @@ public class ProxyKeyStoreTlsTransportTest extends MockedPulsarServiceBaseTest {
         internalCleanup();
 
         proxyService.close();
+        if (proxyClientAuthentication != null) {
+            proxyClientAuthentication.close();
+        }
     }
 
     protected PulsarClient newClient() throws Exception {
@@ -123,7 +140,7 @@ public class ProxyKeyStoreTlsTransportTest extends MockedPulsarServiceBaseTest {
         PulsarClient client = newClient();
         @Cleanup
         Producer<byte[]> producer = client.newProducer(Schema.BYTES)
-                .topic("persistent://sample/test/local/topic" + System.currentTimeMillis())
+                .topic("persistent://public/default/topic" + System.currentTimeMillis())
                 .create();
 
         for (int i = 0; i < 10; i++) {

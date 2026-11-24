@@ -27,11 +27,12 @@ import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.EncryptionKeyInfo;
 
 /**
- * Example function that provide a constructor with map<string, object> argument
+ * Example function that provide a constructor with {@code map<string, object>} argument
  * to initialize the CryptoKeyReader class used by pulsar function.
  */
 @Data
 public class RawFileKeyReader implements CryptoKeyReader {
+    private static final long serialVersionUID = 1L;
 
     private final String publicKeyFile;
     private final String privateKeyFile;

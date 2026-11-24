@@ -21,35 +21,35 @@ package org.apache.pulsar.broker.transaction.buffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClient;
-import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.naming.TopicName;
 import org.awaitility.Awaitility;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
  * Transaction buffer close test.
  */
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class TransactionBufferCloseTest extends TransactionTestBase {
 
-    @BeforeMethod
+    @BeforeClass(alwaysRun = true)
     protected void setup() throws Exception {
         setUpBase(1, 16, null, 0);
-        Awaitility.await().until(() -> ((PulsarClientImpl) pulsarClient)
-                .getTcClient().getState() == TransactionCoordinatorClient.State.READY);
+        Awaitility.await().until(() -> pulsarClient
+                                           .getTransactionCoordinatorClient()
+                                           .getState() == TransactionCoordinatorClient.State.READY);
     }
 
-    @AfterMethod(alwaysRun = true)
+    @AfterClass(alwaysRun = true)
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }
@@ -99,6 +99,7 @@ public class TransactionBufferCloseTest extends TransactionTestBase {
         }
     }
 
+    @SuppressWarnings("deprecation")
     private List<TopicName> createAndLoadTopics(boolean isPartition, int partitionCount)
             throws PulsarAdminException, PulsarClientException {
         String namespace = TENANT + "/ns-" + RandomStringUtils.randomAlphabetic(5);

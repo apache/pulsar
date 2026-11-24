@@ -24,30 +24,38 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import org.HdrHistogram.Recorder;
-import org.eclipse.jetty.websocket.api.RemoteEndpoint;
+import org.eclipse.jetty.websocket.api.Callback;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.annotations.OnWebSocketClose;
-import org.eclipse.jetty.websocket.api.annotations.OnWebSocketConnect;
 import org.eclipse.jetty.websocket.api.annotations.OnWebSocketMessage;
+import org.eclipse.jetty.websocket.api.annotations.OnWebSocketOpen;
 import org.eclipse.jetty.websocket.api.annotations.WebSocket;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-@WebSocket(maxTextMessageSize = 64 * 1024)
+@WebSocket
+@CustomLog
 public class SimpleTestProducerSocket {
-    public static Recorder recorder = new Recorder(TimeUnit.SECONDS.toMillis(120000), 5);
+    // Latencies are recorded in microseconds; values above this ceiling are clamped rather than
+    // rejected, since HdrHistogram throws on an out-of-range value. Package-private so that
+    // PerformanceClient, which owns the shared Recorder, can size it consistently.
+    static final long MAX_LATENCY_MICROS = TimeUnit.HOURS.toMicros(1);
+
+    // Shared by every socket of one PerformanceClient run so that latencies aggregate.
+    private final Recorder recorder;
 
     private final CountDownLatch closeLatch;
     private volatile Session session;
     private ConcurrentHashMap<String, Long> startTimeMap = new ConcurrentHashMap<>();
     private static final String CONTEXT = "context";
 
-    public SimpleTestProducerSocket() {
+    public SimpleTestProducerSocket(Recorder recorder) {
+        this.recorder = recorder;
         this.closeLatch = new CountDownLatch(2);
     }
 
@@ -57,12 +65,12 @@ public class SimpleTestProducerSocket {
 
     @OnWebSocketClose
     public void onClose(int statusCode, String reason) {
-        log.info("Connection closed: {} - {}", statusCode, reason);
+        log.info().attr("closed", statusCode).attr("reason", reason).log("Connection closed");
         this.session.close();
         this.closeLatch.countDown();
     }
 
-    @OnWebSocketConnect
+    @OnWebSocketOpen
     public void onConnect(Session session) throws InterruptedException, IOException, JsonParseException {
         log.info("Got conneceted to the proxy");
         this.session = session;
@@ -77,11 +85,7 @@ public class SimpleTestProducerSocket {
             startTime = startTimeMap.get(json.get(CONTEXT).getAsString());
         }
         long latencyNs = endTimeNs - startTime;
-        recorder.recordValue(NANOSECONDS.toMicros(latencyNs));
-    }
-
-    public RemoteEndpoint getRemote() {
-        return this.session.getRemote();
+        recorder.recordValue(Math.min(NANOSECONDS.toMicros(latencyNs), MAX_LATENCY_MICROS));
     }
 
     public Session getSession() {
@@ -93,14 +97,15 @@ public class SimpleTestProducerSocket {
         String message = getEncoder().encodeToString(payloadData);
         String timeStamp = "{\"payload\": \"" + message + "\",\"context\": \"" + context + "\"}";
         String sampleMsg = new Gson().fromJson(timeStamp, JsonObject.class).toString();
-        if (this.session != null && this.session.isOpen() && this.session.getRemote() != null) {
+        if (this.session != null && this.session.isOpen()) {
             startTimeMap.put(context, System.nanoTime());
-            this.session.getRemote().sendStringByFuture(sampleMsg).get();
+            CompletableFuture<Void> sendFuture = new CompletableFuture<>();
+            Callback callback = Callback.from(() -> sendFuture.complete(null), sendFuture::completeExceptionally);
+            this.session.sendText(sampleMsg, callback);
+            sendFuture.get();
         } else {
             log.error("Session is already closed");
         }
     }
-
-    private static final Logger log = LoggerFactory.getLogger(SimpleTestProducerSocket.class);
 
 }

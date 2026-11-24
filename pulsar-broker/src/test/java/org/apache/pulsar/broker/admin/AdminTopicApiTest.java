@@ -19,10 +19,24 @@
 package org.apache.pulsar.broker.admin;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.AdditionalAnswers.delegatesTo;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.ws.rs.container.AsyncResponse;
+import jakarta.ws.rs.core.Response;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -32,53 +46,141 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import lombok.CustomLog;
+import org.apache.pulsar.broker.admin.v2.PersistentTopics;
+import org.apache.pulsar.broker.resources.NamespaceResources;
+import org.apache.pulsar.broker.resources.NamespaceResources.PartitionedTopicResources;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
+import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.TopicDomain;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentTopicStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyClosedException;
+import org.awaitility.Awaitility;
+import org.mockito.ArgumentCaptor;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+@CustomLog
 @Test(groups = "broker-admin")
-public class AdminTopicApiTest extends ProducerConsumerBase {
-    private static final Logger log = LoggerFactory.getLogger(AdminTopicApiTest.class);
+public class AdminTopicApiTest extends SharedPulsarBaseTest {
 
-    @Override
-    @BeforeClass(alwaysRun = true)
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
+    @Test
+    public void testCreatePartitionedTopicReportsMetadataStoreFailure() {
+        TopicName topicName = TopicName.get(newTopicName());
+        NamespaceResources sharedNamespaceResources = getPulsar().getPulsarResources().getNamespaceResources();
+        NamespaceResources namespaceResources = mock(NamespaceResources.class, delegatesTo(sharedNamespaceResources));
+        PartitionedTopicResources partitionedTopicResources = mock(PartitionedTopicResources.class,
+                delegatesTo(sharedNamespaceResources.getPartitionedTopicResources()));
+        doReturn(partitionedTopicResources).when(namespaceResources).getPartitionedTopicResources();
+        AlreadyClosedException alreadyClosedException = new AlreadyClosedException("Metadata store is getting closed");
+        doReturn(CompletableFuture.failedFuture(alreadyClosedException)).when(partitionedTopicResources)
+                .createPartitionedTopicAsync(eq(topicName), any());
+
+        PersistentTopics persistentTopics = new PersistentTopics() {
+            @Override
+            protected NamespaceResources namespaceResources() {
+                return namespaceResources;
+            }
+
+            @Override
+            protected String domain() {
+                return TopicDomain.persistent.value();
+            }
+        };
+        persistentTopics.setPulsar(getPulsar());
+        persistentTopics.setHttpRequest(mock(HttpServletRequest.class));
+        AsyncResponse asyncResponse = mock(AsyncResponse.class);
+        persistentTopics.createPartitionedTopic(asyncResponse, topicName.getTenant(), topicName.getNamespacePortion(),
+                topicName.getEncodedLocalName(), 2, false);
+
+        ArgumentCaptor<RestException> argumentCaptor = ArgumentCaptor.forClass(RestException.class);
+        verify(asyncResponse, timeout(5000)).resume(argumentCaptor.capture());
+        Response response = argumentCaptor.getValue().getResponse();
+        assertThat(response.getStatus()).as("partitioned topic creation status")
+                .isEqualTo(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode());
+        assertThat(((ErrorData) response.getEntity()).reason).as("partitioned topic creation error")
+                .contains(alreadyClosedException.getMessage());
     }
 
-    @Override
-    @AfterClass(alwaysRun = true)
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
+    @Test
+    public void testDeleteNonExistTopic() throws Exception {
+        // Case 1: call delete for a partitioned topic.
+        final String topic1 = newTopicName();
+        admin.topics().createPartitionedTopic(topic1, 2);
+        admin.schemas().createSchemaAsync(topic1, Schema.STRING.getSchemaInfo());
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(admin.schemas().getAllSchemas(topic1).size(), 1);
+        });
+        try {
+            admin.topics().delete(topic1);
+            fail("expected a 409 error");
+        } catch (Exception ex) {
+            assertTrue(ex.getMessage().contains("please call delete-partitioned-topic"));
+        }
+        Awaitility.await().pollDelay(Duration.ofSeconds(2)).untilAsserted(() -> {
+            assertEquals(admin.schemas().getAllSchemas(topic1).size(), 1);
+        });
+        // cleanup.
+        admin.topics().deletePartitionedTopic(topic1, false);
+
+        // Case 2: call delete-partitioned-topic for a non-partitioned topic.
+        final String topic2 = newTopicName();
+        admin.topics().createNonPartitionedTopic(topic2);
+        admin.schemas().createSchemaAsync(topic2, Schema.STRING.getSchemaInfo());
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(admin.schemas().getAllSchemas(topic2).size(), 1);
+        });
+        try {
+            admin.topics().deletePartitionedTopic(topic2);
+            fail("expected a 409 error");
+        } catch (Exception ex) {
+            assertTrue(ex.getMessage().contains("Instead of calling delete-partitioned-topic please call delete"));
+        }
+        Awaitility.await().pollDelay(Duration.ofSeconds(2)).untilAsserted(() -> {
+            assertEquals(admin.schemas().getAllSchemas(topic2).size(), 1);
+        });
+        // cleanup.
+        admin.topics().delete(topic2, false);
+
+        // Case 3: delete topic does not exist.
+        final String topic3 = newTopicName();
+        try {
+            admin.topics().delete(topic3);
+            fail("expected a 404 error");
+        } catch (Exception ex) {
+            assertTrue(ex.getMessage().contains("not found"));
+        }
+        try {
+            admin.topics().deletePartitionedTopic(topic3);
+            fail("expected a 404 error");
+        } catch (Exception ex) {
+            assertTrue(ex.getMessage().contains("not found"));
+        }
     }
 
     @Test
     public void testPeekMessages() throws Exception {
         @Cleanup
         PulsarClient newPulsarClient = PulsarClient.builder()
-            .serviceUrl(lookupUrl.toString())
+            .serviceUrl(getBrokerServiceUrl())
             .build();
 
-        final String topic = "persistent://my-property/my-ns/test-publish-timestamp";
+        final String topic = newTopicName();
 
         @Cleanup
         Consumer<byte[]> consumer = newPulsarClient.newConsumer()
@@ -105,7 +207,7 @@ public class AdminTopicApiTest extends ProducerConsumerBase {
 
         for (int i = 0; i < numMessages; i++) {
             Message<byte[]> msg = consumer.receive();
-            log.info("Received message '{}'.", new String(msg.getValue(), UTF_8));
+            log.info().attr("message", new String(msg.getValue(), UTF_8)).log("Received message");
         }
         List<Message<byte[]>> messages = admin.topics().peekMessages(topic, "my-sub", 5);
         Assert.assertEquals(new String(messages.get(0).getValue(), UTF_8), "value-0");
@@ -118,22 +220,19 @@ public class AdminTopicApiTest extends ProducerConsumerBase {
     @DataProvider
     public Object[] getStatsDataProvider() {
         return new Object[]{
-                // v1 topic
-                TopicDomain.persistent + "://my-property/test/my-ns/" + UUID.randomUUID(),
-                TopicDomain.non_persistent+ "://my-property/test/my-ns/" + UUID.randomUUID(),
-                //v2 topic
-                TopicDomain.persistent+ "://my-property/my-ns/" + UUID.randomUUID(),
-                TopicDomain.non_persistent+ "://my-property/my-ns/" + UUID.randomUUID(),
+                TopicDomain.persistent.value(),
+                TopicDomain.non_persistent.value(),
         };
     }
 
     @Test(dataProvider = "getStatsDataProvider")
-    public void testGetStats(String topic) throws Exception {
+    public void testGetStats(String domain) throws Exception {
+        String topic = domain + "://" + getNamespace() + "/" + UUID.randomUUID();
         admin.topics().createNonPartitionedTopic(topic);
 
         @Cleanup
         PulsarClient newPulsarClient = PulsarClient.builder()
-                .serviceUrl(lookupUrl.toString())
+                .serviceUrl(getBrokerServiceUrl())
                 .build();
 
         final String subscriptionName = "my-sub";
@@ -151,6 +250,28 @@ public class AdminTopicApiTest extends ProducerConsumerBase {
             assertTrue(stats instanceof TopicStatsImpl);
         }
         assertTrue(stats.getSubscriptions().containsKey(subscriptionName));
+    }
+
+    @Test
+    public void testGetLastMessageIdForDeletedPartition() throws Exception {
+        String topic = newTopicName();
+        String partition = TopicName.get(topic).getPartition(0).toString();
+        admin.topics().createPartitionedTopic(topic, 1);
+
+        try (Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(partition).enableBatching(false).create()) {
+            MessageIdImpl lastMessageId = (MessageIdImpl) producer.send("message");
+            assertThat(admin.topics().getLastMessageId(partition)).isEqualTo(
+                    new MessageIdImpl(lastMessageId.getLedgerId(), lastMessageId.getEntryId(), 0));
+        }
+
+        admin.topics().delete(partition);
+        assertThat(admin.topics().getPartitionedTopicMetadata(topic).partitions).isEqualTo(1);
+        assertThat(admin.topics().getList(getNamespace())).doesNotContain(partition);
+
+        assertThatThrownBy(() -> admin.topics().getLastMessageId(partition))
+                .isInstanceOf(PulsarAdminException.NotFoundException.class)
+                .hasMessageContaining("Topic " + partition + " not found");
     }
 
     @Test

@@ -19,9 +19,9 @@
 
 package org.apache.pulsar.tests;
 
-import com.google.common.base.Charsets;
 import com.google.common.io.Files;
 import java.io.File;
+import java.nio.charset.StandardCharsets;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import org.testng.IExecutionListener;
@@ -68,7 +68,7 @@ public class TraceTestResourceCleanupListener implements IExecutionListener {
         try {
             String threadDump = ThreadDumpUtil.buildThreadDiagnosticString();
             File threaddumpFile = new File(DUMP_DIR, "threaddump" + datetimePart + ".txt");
-            Files.asCharSink(threaddumpFile, Charsets.UTF_8).write(threadDump);
+            Files.asCharSink(threaddumpFile, StandardCharsets.UTF_8).write(threadDump);
         } catch (Throwable t) {
             System.err.println("Error dumping threads");
             t.printStackTrace(System.err);
@@ -77,7 +77,7 @@ public class TraceTestResourceCleanupListener implements IExecutionListener {
         try {
             String heapHistogram = HeapHistogramUtil.buildHeapHistogram();
             File heapHistogramFile = new File(DUMP_DIR, "heaphistogram" + datetimePart + ".txt");
-            Files.asCharSink(heapHistogramFile, Charsets.UTF_8).write(heapHistogram);
+            Files.asCharSink(heapHistogramFile, StandardCharsets.UTF_8).write(heapHistogram);
         } catch (Throwable t) {
             System.err.println("Error dumping heap histogram");
             t.printStackTrace(System.err);

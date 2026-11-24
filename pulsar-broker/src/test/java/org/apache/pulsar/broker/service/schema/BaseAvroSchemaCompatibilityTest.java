@@ -18,71 +18,70 @@
  */
 package org.apache.pulsar.broker.service.schema;
 
+import java.util.Arrays;
+import java.util.Collections;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import java.util.Arrays;
-import java.util.Collections;
-
 public abstract class BaseAvroSchemaCompatibilityTest {
 
     SchemaCompatibilityCheck schemaCompatibilityCheck;
 
     private static final String schemaJson1 =
-            "{\"type\":\"record\",\"name\":\"DefaultTest\",\"namespace\":\"org.apache.pulsar.broker.service.schema" +
-                    ".AvroSchemaCompatibilityCheckTest\",\"fields\":[{\"name\":\"field1\",\"type\":\"string\"}]}";
+            "{\"type\":\"record\",\"name\":\"DefaultTest\",\"namespace\":\"org.apache.pulsar.broker.service.schema"
+                    + ".AvroSchemaCompatibilityCheckTest\",\"fields\":[{\"name\":\"field1\",\"type\":\"string\"}]}";
     private static final SchemaData schemaData1 = getSchemaData(schemaJson1);
 
     private static final String schemaJson2 =
-            "{\"type\":\"record\",\"name\":\"DefaultTest\",\"namespace\":\"org.apache.pulsar.broker.service.schema" +
-                    ".AvroSchemaCompatibilityCheckTest\",\"fields\":[{\"name\":\"field1\",\"type\":\"string\"}," +
-                    "{\"name\":\"field2\",\"type\":\"string\",\"default\":\"foo\"}]}";
+            "{\"type\":\"record\",\"name\":\"DefaultTest\",\"namespace\":\"org.apache.pulsar.broker.service.schema"
+                    + ".AvroSchemaCompatibilityCheckTest\",\"fields\":[{\"name\":\"field1\",\"type\":\"string\"},"
+                    + "{\"name\":\"field2\",\"type\":\"string\",\"default\":\"foo\"}]}";
     private static final SchemaData schemaData2 = getSchemaData(schemaJson2);
 
     private static final String schemaJson3 =
-            "{\"type\":\"record\",\"name\":\"DefaultTest\",\"namespace\":\"org" +
-                    ".apache.pulsar.broker.service.schema.AvroSchemaCompatibilityCheckTest\"," +
-                    "\"fields\":[{\"name\":\"field1\",\"type\":\"string\"},{\"name\":\"field2\",\"type\":\"string\"}]}";
+            "{\"type\":\"record\",\"name\":\"DefaultTest\",\"namespace\":\"org"
+                    + ".apache.pulsar.broker.service.schema.AvroSchemaCompatibilityCheckTest\",\"fields"
+                    + "\":[{\"name\":\"field1\",\"type\":\"string\"},{\"name\":\"field2\",\"type\":\"string\"}]}";
     private static final SchemaData schemaData3 = getSchemaData(schemaJson3);
 
     private static final String schemaJson4 =
-            "{\"type\":\"record\",\"name\":\"DefaultTest\",\"namespace\":\"org.apache.pulsar.broker.service.schema" +
-                    ".AvroSchemaCompatibilityCheckTest\",\"fields\":[{\"name\":\"field1_v2\",\"type\":\"string\"," +
-                    "\"aliases\":[\"field1\"]}]}";
+            "{\"type\":\"record\",\"name\":\"DefaultTest\",\"namespace\":\"org.apache.pulsar.broker.service.schema"
+                    + ".AvroSchemaCompatibilityCheckTest\",\"fields\":[{\"name\":\"field1_v2\",\"type\":\"string\","
+                    + "\"aliases\":[\"field1\"]}]}";
     private static final SchemaData schemaData4 = getSchemaData(schemaJson4);
 
     private static final String schemaJson5 =
-            "{\"type\":\"record\",\"name\":\"DefaultTest\",\"namespace\":\"org.apache.pulsar.broker.service.schema" +
-                    ".AvroSchemaCompatibilityCheckTest\",\"fields\":[{\"name\":\"field1\",\"type\":[\"null\"," +
-                    "\"string\"]}]}";
+            "{\"type\":\"record\",\"name\":\"DefaultTest\",\"namespace\":\"org.apache.pulsar.broker.service.schema"
+                    + ".AvroSchemaCompatibilityCheckTest\",\"fields\":[{\"name\":\"field1\",\"type\":[\"null\","
+                    + "\"string\"]}]}";
     private static final SchemaData schemaData5 = getSchemaData(schemaJson5);
 
     private static final String schemaJson6 =
-            "{\"type\":\"record\",\"name\":\"DefaultTest\",\"namespace\":\"org.apache.pulsar.broker.service.schema" +
-                    ".AvroSchemaCompatibilityCheckTest\",\"fields\":[{\"name\":\"field1\",\"type\":[\"null\"," +
-                    "\"string\",\"int\"]}]}";
+            "{\"type\":\"record\",\"name\":\"DefaultTest\",\"namespace\":\"org.apache.pulsar.broker.service.schema"
+                    + ".AvroSchemaCompatibilityCheckTest\",\"fields\":[{\"name\":\"field1\",\"type\":[\"null\","
+                    + "\"string\",\"int\"]}]}";
     private static final SchemaData schemaData6 = getSchemaData(schemaJson6);
 
     private static final String schemaJson7 =
-            "{\"type\":\"record\",\"name\":\"DefaultTest\",\"namespace\":\"org.apache.pulsar.broker.service.schema" +
-                    ".AvroSchemaCompatibilityCheckTest\",\"fields\":[{\"name\":\"field1\",\"type\":\"string\"}," +
-                    "{\"name\":\"field2\",\"type\":\"string\",\"default\":\"foo\"},{\"name\":\"field3\"," +
-                    "\"type\":\"string\",\"default\":\"bar\"}]}";
+            "{\"type\":\"record\",\"name\":\"DefaultTest\",\"namespace\":\"org.apache.pulsar.broker.service.schema"
+                    + ".AvroSchemaCompatibilityCheckTest\",\"fields\":[{\"name\":\"field1\",\"type\":\"string\"},"
+                    + "{\"name\":\"field2\",\"type\":\"string\",\"default\":\"foo\"},{\"name\":\"field3\","
+                    + "\"type\":\"string\",\"default\":\"bar\"}]}";
     private static final SchemaData schemaData7 = getSchemaData(schemaJson7);
 
     private static final String schemaJson8 =
-            "{\"type\":\"record\",\"name\":\"DefaultTest\",\"namespace\":\"org.apache.pulsar.broker.service.schema" +
-                    ".AvroSchemaCompatibilityCheckTest\",\"fields\":[{\"name\":\"field1\",\"type\":\"string\"}," +
-                    "{\"name\":\"field2\",\"type\":\"string\"}]}";
+            "{\"type\":\"record\",\"name\":\"DefaultTest\",\"namespace\":\"org.apache.pulsar.broker.service.schema"
+                    + ".AvroSchemaCompatibilityCheckTest\",\"fields\":[{\"name\":\"field1\",\"type\":\"string\"},"
+                    + "{\"name\":\"field2\",\"type\":\"string\"}]}";
     private static final SchemaData schemaData8 = getSchemaData(schemaJson8);
 
     public abstract SchemaCompatibilityCheck getSchemaCheck();
 
     /**
-     * make sure new schema is backwards compatible with latest
+     * make sure new schema is backwards compatible with latest.
      */
     @Test
     public void testBackwardCompatibility() {
@@ -119,7 +118,7 @@ public abstract class BaseAvroSchemaCompatibilityTest {
     }
 
     /**
-     * Check to make sure the last schema version is forward-compatible with new schemas
+     * Check to make sure the last schema version is forward-compatible with new schemas.
      */
     @Test
     public void testForwardCompatibility() {
@@ -150,8 +149,29 @@ public abstract class BaseAvroSchemaCompatibilityTest {
     }
 
     /**
-     * Make sure the new schema is forward- and backward-compatible from the latest to newest and from the newest to latest.
+     * Make sure the new schema is forward- and
+     * backward-compatible from the latest to newest and from the newest to latest.
      */
+    @Test
+    public void testLegacyNamedTypeReferenceForm() {
+        // Avro 1.12.2 rejects named type references written as {"type": "name"} (AVRO-4176); schemas stored in
+        // that form must remain compatible with the same schema written with bare names
+        String colorEnum = "{\"type\":\"enum\",\"name\":\"Color\",\"namespace\":\"org.example.shapes\","
+                + "\"symbols\":[\"RED\",\"BLUE\"]}";
+        String legacyForm = "{\"type\":\"record\",\"name\":\"Drawing\",\"namespace\":\"org.example.shapes\","
+                + "\"fields\":[{\"name\":\"background\",\"type\":" + colorEnum + "},"
+                + "{\"name\":\"outline\",\"type\":{\"type\":\"org.example.shapes.Color\"}}]}";
+        String bareNameForm = legacyForm.replace("{\"type\":\"org.example.shapes.Color\"}",
+                "\"org.example.shapes.Color\"");
+        SchemaCompatibilityCheck schemaCompatibilityCheck = getSchemaCheck();
+        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(getSchemaData(legacyForm),
+                        getSchemaData(bareNameForm), SchemaCompatibilityStrategy.FULL),
+                "the legacy and the bare name form of a schema are the same schema");
+        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(getSchemaData(bareNameForm),
+                        getSchemaData(legacyForm), SchemaCompatibilityStrategy.FULL),
+                "the legacy and the bare name form of a schema are the same schema");
+    }
+
     @Test
     public void testFullCompatibility() {
         SchemaCompatibilityCheck schemaCompatibilityCheck = getSchemaCheck();

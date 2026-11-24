@@ -18,18 +18,27 @@
  */
 package org.apache.pulsar.broker.service;
 
-import org.apache.pulsar.common.topics.TopicList;
-import org.apache.pulsar.metadata.api.NotificationType;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
-import org.testng.Assert;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import com.google.common.util.concurrent.MoreExecutors;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.regex.Pattern;
+import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.topics.TopicList;
+import org.apache.pulsar.common.topics.TopicsPattern;
+import org.apache.pulsar.common.topics.TopicsPatternFactory;
+import org.apache.pulsar.metadata.api.NotificationType;
+import org.apache.pulsar.metadata.api.extended.SessionEvent;
+import org.testng.Assert;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
 public class TopicListWatcherTest {
 
@@ -40,7 +49,8 @@ public class TopicListWatcherTest {
     );
 
     private static final long ID = 7;
-    private static final Pattern PATTERN = Pattern.compile("persistent://tenant/ns/topic\\d+");
+    private static final TopicsPattern PATTERN =
+            TopicsPatternFactory.create("tenant/ns/topic\\d+", TopicsPattern.RegexImplementation.RE2J);
 
 
     private TopicListService topicListService;
@@ -51,7 +61,10 @@ public class TopicListWatcherTest {
     @BeforeMethod(alwaysRun = true)
     public void setup() {
         topicListService = mock(TopicListService.class);
-        watcher = new TopicListService.TopicListWatcher(topicListService, ID, PATTERN, INITIAL_TOPIC_LIST);
+        watcher = new TopicListService.TopicListWatcher(topicListService, ID, NamespaceName.get("tenant", "ns"),
+                PATTERN, MoreExecutors.directExecutor(), 9);
+        watcher.initializeMatchingTopics(INITIAL_TOPIC_LIST);
+        watcher.sendingCompleted();
     }
 
     @Test
@@ -64,13 +77,13 @@ public class TopicListWatcherTest {
     @Test
     public void testAcceptSendsNotificationAndRemembersTopic() {
         String newTopic = "persistent://tenant/ns/topic3";
-        watcher.accept(newTopic, NotificationType.Created);
+        watcher.onTopicEvent(newTopic, NotificationType.Created);
 
         List<String> allMatchingTopics = Arrays.asList(
                 "persistent://tenant/ns/topic1", "persistent://tenant/ns/topic2", newTopic);
         String hash = TopicList.calculateHash(allMatchingTopics);
-        verify(topicListService).sendTopicListUpdate(ID, hash, Collections.emptyList(),
-                Collections.singletonList(newTopic));
+        verify(topicListService).sendTopicListUpdate(eq(ID), eq(hash), eq(Collections.emptyList()),
+                eq(Collections.singletonList(newTopic)), any(), any());
         Assert.assertEquals(
                 allMatchingTopics,
                 watcher.getMatchingTopics());
@@ -79,12 +92,12 @@ public class TopicListWatcherTest {
     @Test
     public void testAcceptSendsNotificationAndForgetsTopic() {
         String deletedTopic = "persistent://tenant/ns/topic1";
-        watcher.accept(deletedTopic, NotificationType.Deleted);
+        watcher.onTopicEvent(deletedTopic, NotificationType.Deleted);
 
         List<String> allMatchingTopics = Collections.singletonList("persistent://tenant/ns/topic2");
         String hash = TopicList.calculateHash(allMatchingTopics);
-        verify(topicListService).sendTopicListUpdate(ID, hash,
-                Collections.singletonList(deletedTopic), Collections.emptyList());
+        verify(topicListService).sendTopicListUpdate(eq(ID), eq(hash),
+                eq(Collections.singletonList(deletedTopic)), eq(Collections.emptyList()), any(), any());
         Assert.assertEquals(
                 allMatchingTopics,
                 watcher.getMatchingTopics());
@@ -92,11 +105,33 @@ public class TopicListWatcherTest {
 
     @Test
     public void testAcceptIgnoresNonMatching() {
-        watcher.accept("persistent://tenant/ns/mytopic", NotificationType.Created);
+        watcher.onTopicEvent("persistent://tenant/ns/mytopic", NotificationType.Created);
         verifyNoInteractions(topicListService);
         Assert.assertEquals(
                 Arrays.asList("persistent://tenant/ns/topic1", "persistent://tenant/ns/topic2"),
                 watcher.getMatchingTopics());
     }
 
+    @Test
+    public void testSessionEventWhileListingIsHandledOnceTheTopicsAreListed() {
+        TopicListService.TopicListWatcher listingWatcher = new TopicListService.TopicListWatcher(topicListService,
+                ID, NamespaceName.get("tenant", "ns"), PATTERN, MoreExecutors.directExecutor(), 9);
+        listingWatcher.onSessionEvent(SessionEvent.ConnectionLost);
+        // the initial listing would overwrite the topics of an update started now
+        Assert.assertFalse(listingWatcher.isUpdatingTopics());
+
+        listingWatcher.initializeMatchingTopics(INITIAL_TOPIC_LIST);
+        Assert.assertTrue(listingWatcher.isUpdatingTopics());
+    }
+
+    @Test
+    public void testUpdateQueueOverFlowPerformsFullUpdate() {
+        for (int i = 10; i <= 20; i++) {
+            String newTopic = "persistent://tenant/ns/topic" + i;
+            watcher.onTopicEvent(newTopic, NotificationType.Created);
+        }
+        verify(topicListService).sendTopicListUpdate(anyLong(), anyString(), any(), any(), any(), any());
+        verify(topicListService).updateTopicListWatcher(any());
+        verifyNoMoreInteractions(topicListService);
+    }
 }

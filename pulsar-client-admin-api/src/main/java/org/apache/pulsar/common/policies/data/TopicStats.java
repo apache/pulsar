@@ -121,4 +121,23 @@ public interface TopicStats {
     String getOwnerBroker();
 
     long getDelayedMessageIndexSizeInBytes();
+
+    /**
+     * Get the topic creation timestamp in epoch milliseconds.
+     * This value represents when the topic was first durably created in the metadata store.
+     * This value is immutable for the lifetime of the topic.
+     *
+     * @return the topic creation timestamp in epoch milliseconds, or 0 if not available
+     */
+    long getTopicCreationTimeStamp();
+
+    /**
+     * Get the last publish timestamp in epoch milliseconds.
+     * This value represents the publish_time field of the last message successfully persisted by the broker
+     * for this topic.
+     * If no message has ever been published to the topic, this field will return 0.
+     *
+     * @return the last publish timestamp in epoch milliseconds, or 0 if no messages have been published
+     */
+    long getLastPublishTimeStamp();
 }

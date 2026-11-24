@@ -20,8 +20,8 @@ package org.apache.pulsar.client.admin.internal;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import jakarta.ws.rs.client.WebTarget;
 import java.util.concurrent.CompletableFuture;
-import javax.ws.rs.client.WebTarget;
 import org.apache.pulsar.client.admin.BrokerStats;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
@@ -35,86 +35,154 @@ import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
  */
 public class BrokerStatsImpl extends BaseResource implements BrokerStats {
 
-    private final WebTarget adminBrokerStats;
     private final WebTarget adminV2BrokerStats;
 
-    public BrokerStatsImpl(WebTarget target, Authentication auth, long readTimeoutMs) {
-        super(auth, readTimeoutMs);
-        adminBrokerStats = target.path("/admin/broker-stats");
+    public BrokerStatsImpl(WebTarget target, Authentication auth, long requestTimeoutMs) {
+        super(auth, requestTimeoutMs);
         adminV2BrokerStats = target.path("/admin/v2/broker-stats");
     }
 
     @Override
     public String getMetrics() throws PulsarAdminException {
-        return sync(this::getMetricsAsync);
+        return getMetrics(null);
     }
 
     @Override
     public CompletableFuture<String> getMetricsAsync() {
-        WebTarget path = adminV2BrokerStats.path("/metrics");
+        return getMetricsAsync(null);
+    }
+
+    @Override
+    public String getMetrics(String brokerId) throws PulsarAdminException {
+        return sync(() -> getMetricsAsync(brokerId));
+    }
+
+    @Override
+    public CompletableFuture<String> getMetricsAsync(String brokerId) {
+        WebTarget path = brokerStats(brokerId).path("/metrics");
         return asyncGetRequest(path, new FutureCallback<String>(){});
     }
 
     @Override
     public AllocatorStats getAllocatorStats(String allocatorName) throws PulsarAdminException {
-        return sync(() -> getAllocatorStatsAsync(allocatorName));
+        return getAllocatorStats(null, allocatorName);
     }
 
     @Override
     public CompletableFuture<AllocatorStats> getAllocatorStatsAsync(String allocatorName) {
-        WebTarget path = adminV2BrokerStats.path("/allocator-stats").path(allocatorName);
+        return getAllocatorStatsAsync(null, allocatorName);
+    }
+
+    @Override
+    public AllocatorStats getAllocatorStats(String brokerId, String allocatorName) throws PulsarAdminException {
+        return sync(() -> getAllocatorStatsAsync(brokerId, allocatorName));
+    }
+
+    @Override
+    public CompletableFuture<AllocatorStats> getAllocatorStatsAsync(String brokerId, String allocatorName) {
+        WebTarget path = brokerStats(brokerId).path("/allocator-stats").path(allocatorName);
         return asyncGetRequest(path, new FutureCallback<AllocatorStats>(){});
     }
 
     @Override
     public String getMBeans() throws PulsarAdminException {
-        return sync(this::getMBeansAsync);
+        return getMBeans(null);
     }
 
     @Override
     public CompletableFuture<String> getMBeansAsync() {
-        WebTarget path = adminV2BrokerStats.path("/mbeans");
+        return getMBeansAsync(null);
+    }
+
+    @Override
+    public String getMBeans(String brokerId) throws PulsarAdminException {
+        return sync(() -> getMBeansAsync(brokerId));
+    }
+
+    @Override
+    public CompletableFuture<String> getMBeansAsync(String brokerId) {
+        WebTarget path = brokerStats(brokerId).path("/mbeans");
         return asyncGetRequest(path, new FutureCallback<String>(){});
     }
 
     @Override
     public String getTopics() throws PulsarAdminException {
-        return sync(this::getTopicsAsync);
+        return getTopics(null);
     }
 
     @Override
     public CompletableFuture<String> getTopicsAsync() {
-        WebTarget path = adminV2BrokerStats.path("/topics");
+        return getTopicsAsync(null);
+    }
+
+    @Override
+    public String getTopics(String brokerId) throws PulsarAdminException {
+        return sync(() -> getTopicsAsync(brokerId));
+    }
+
+    @Override
+    public CompletableFuture<String> getTopicsAsync(String brokerId) {
+        WebTarget path = brokerStats(brokerId).path("/topics");
         return asyncGetRequest(path, new FutureCallback<String>(){});
     }
 
     @Override
     public LoadManagerReport getLoadReport() throws PulsarAdminException {
-        return sync(this::getLoadReportAsync);
+        return getLoadReport(null);
     }
 
     @Override
     public CompletableFuture<LoadManagerReport> getLoadReportAsync() {
-        WebTarget path = adminV2BrokerStats.path("/load-report");
+        return getLoadReportAsync(null);
+    }
+
+    @Override
+    public LoadManagerReport getLoadReport(String brokerId) throws PulsarAdminException {
+        return sync(() -> getLoadReportAsync(brokerId));
+    }
+
+    @Override
+    public CompletableFuture<LoadManagerReport> getLoadReportAsync(String brokerId) {
+        WebTarget path = brokerStats(brokerId).path("/load-report");
         return asyncGetRequest(path, new FutureCallback<LoadManagerReport>(){});
     }
 
     @Override
     public String getPendingBookieOpsStats() throws PulsarAdminException {
-        return sync(this::getPendingBookieOpsStatsAsync);
+        return getPendingBookieOpsStats(null);
     }
 
     @Override
     public CompletableFuture<String> getPendingBookieOpsStatsAsync() {
-        WebTarget path = adminV2BrokerStats.path("/bookieops");
+        return getPendingBookieOpsStatsAsync(null);
+    }
+
+    @Override
+    public String getPendingBookieOpsStats(String brokerId) throws PulsarAdminException {
+        return sync(() -> getPendingBookieOpsStatsAsync(brokerId));
+    }
+
+    @Override
+    public CompletableFuture<String> getPendingBookieOpsStatsAsync(String brokerId) {
+        WebTarget path = brokerStats(brokerId).path("/bookieops");
         return asyncGetRequest(path, new FutureCallback<String>(){});
+    }
+
+    /**
+     * Explicit broker selection uses the broker-specific route, so a broker that doesn't support it fails
+     * the request (404) instead of returning its own stats.
+     */
+    private WebTarget brokerStats(String brokerId) {
+        return brokerId == null || brokerId.isEmpty()
+                ? adminV2BrokerStats
+                : adminV2BrokerStats.path("brokers").path(brokerId);
     }
 
     public JsonObject getBrokerResourceAvailability(String namespace) throws PulsarAdminException {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
-            WebTarget admin = ns.isV2() ? adminV2BrokerStats : adminBrokerStats;
-            String json = request(admin.path("/broker-resource-availability").path(ns.toString())).get(String.class);
+            String json = request(adminV2BrokerStats.path("/broker-resource-availability").path(ns.toString()))
+                    .get(String.class);
             return new Gson().fromJson(json, JsonObject.class);
         } catch (Exception e) {
             throw getApiException(e);

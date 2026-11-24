@@ -1,0 +1,365 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+import io.swagger.v3.plugins.gradle.tasks.ResolveTask
+
+plugins {
+    id("pulsar.public-java-library-conventions")
+    id("pulsar.test-certs-conventions")
+    alias(libs.plugins.protobuf)
+    alias(libs.plugins.lightproto)
+    // Only the plugin's ResolveTask is used (registered below). Applying the plugin would only add an
+    // unused `resolve` task and a `swaggerDeps` configuration created with the deprecated
+    // Configuration.setVisible(boolean), so the build declares that configuration itself.
+    alias(libs.plugins.swagger) apply false
+}
+
+dependencies {
+    api(libs.slog)
+    api(project(":managed-ledger"))
+    api(project(":pulsar-broker-common"))
+    api(project(":pulsar-client-original"))
+    implementation(project(":pulsar-client-admin-original"))
+    // PIP-478: PulsarChannelInitializer / WebService use the TLS factory SPI directly (private tlsFactory
+    // fields); it is not exposed on the broker's ABI, so `implementation`.
+    implementation(project(":pulsar-tls-factory-api"))
+    api(project(":pulsar-websocket"))
+    implementation(project(":pulsar-cli-utils"))
+    implementation(project(":pulsar-transaction:pulsar-transaction-common"))
+    api(project(":pulsar-transaction:pulsar-transaction-coordinator"))
+    api(project(":pulsar-opentelemetry"))
+    implementation(project(":pulsar-client-messagecrypto-bc"))
+    api(project(":pulsar-functions:pulsar-functions-worker"))
+    implementation(project(":pulsar-docs-tools")) {
+        exclude(group = "io.swagger.core.v3")
+    }
+    api(project(":pulsar-package-management:pulsar-package-core"))
+    implementation(project(":pulsar-package-management:pulsar-package-filesystem-storage"))
+
+    implementation(libs.commons.codec)
+    implementation(libs.commons.collections4)
+    api(libs.commons.lang3)
+    api(libs.netty.transport)
+    implementation(libs.protobuf.java)
+    implementation(libs.fastutil)
+    implementation(libs.curator.recipes)
+    implementation(libs.bookkeeper.stream.storage.server) {
+        exclude(group = "org.apache.bookkeeper")
+        exclude(group = "org.apache.distributedlog")
+        exclude(group = "io.grpc")
+    }
+    implementation(libs.bookkeeper.tools.framework)
+    implementation(libs.dropwizardmetrics.core)
+    implementation(libs.snappy.java)
+    implementation(libs.jetty.server)
+    implementation(libs.jetty.alpn.conscrypt.server)
+    api(libs.jetty.ee10.servlet)
+    implementation(libs.jetty.ee10.servlets)
+    implementation(libs.jersey.server)
+    implementation(libs.jersey.container.servlet.core)
+    implementation(libs.jersey.container.servlet)
+    implementation(libs.jersey.media.json.jackson)
+    implementation(libs.jersey.hk2)
+    implementation(libs.jakarta.activation.api)
+    implementation(libs.jackson.jakarta.rs.json.provider)
+    implementation(libs.jackson.module.jsonSchema)
+    implementation(libs.jcl.over.slf4j)
+    api(libs.guava)
+    api(libs.jspecify)
+    api(libs.picocli)
+    api(libs.simpleclient)
+    implementation(libs.prometheus.metrics.core)
+    // PulsarBrokerStarter hands an in-process bookie's stats provider its own PrometheusRegistry.
+    implementation(libs.prometheus.metrics.model)
+    implementation(libs.prometheus.metrics.instrumentation.jvm)
+    implementation(libs.prometheus.metrics.instrumentation.caffeine)
+    implementation(libs.hdrHistogram)
+    implementation(libs.gson)
+    api(libs.java.semver)
+    api(libs.avro)
+    api(libs.hppc)
+    api(libs.roaringbitmap)
+    implementation(libs.oshi.core)
+    implementation(libs.jakarta.xml.bind.api)
+    implementation(libs.angus.activation)
+    api(libs.bookkeeper.server)
+    implementation(libs.bookkeeper.circe.checksum)
+    api(libs.caffeine)
+    implementation(libs.datasketches.java)
+    api(libs.netty.codec.haproxy)
+    api(libs.opentelemetry.sdk.extension.autoconfigure)
+    api(libs.jetty.ee10.websocket.jetty.server)
+    api(libs.jersey.media.multipart)
+    implementation(libs.bookkeeper.stream.storage.java.client)
+    implementation(libs.bookkeeper.stream.storage.service.api)
+    implementation(libs.bookkeeper.stream.storage.service.impl)
+    implementation(libs.jjwt.api)
+    implementation(libs.jjwt.impl)
+    implementation(project(":pulsar-functions:pulsar-functions-proto"))
+
+    compileOnly(libs.swagger.annotations)
+    testCompileOnly(libs.swagger.annotations)
+    compileOnly(libs.jsr305)
+
+    testImplementation(project(":testmocks"))
+    // PulsarBrokerStarterTest starts the bookie stats provider the way the broker does with -rb.
+    testImplementation(project(":pulsar-bookkeeper-prometheus-metrics-provider"))
+    testImplementation(testJar(":pulsar-broker-common"))
+    testImplementation(testJar(":managed-ledger"))
+    testImplementation(testJar(":pulsar-metadata"))
+    testImplementation(testJar(":pulsar-package-management:pulsar-package-core"))
+    testImplementation(libs.bookkeeper.common) { artifact { classifier = "tests" } }
+    testImplementation(libs.zookeeper) { artifact { classifier = "tests" } }
+    testImplementation(project(":pulsar-client-v5"))
+    testImplementation(project(":pulsar-client-api-v5"))
+    testImplementation(project(":pulsar-functions:pulsar-functions-local-runner-original"))
+    testImplementation(project(":pulsar-functions:pulsar-functions-api-examples"))
+    testImplementation(project(":pulsar-io:pulsar-io-batch-discovery-triggerers"))
+    testImplementation(libs.zt.zip)
+    testImplementation(libs.re2j)
+    testImplementation(libs.asynchttpclient)
+    testImplementation(libs.bcprov.jdk18on)
+    testImplementation(libs.commons.math3)
+    // Tests register AdditionalServlet plugins written against the legacy javax.servlet API
+    testImplementation(libs.javax.servlet.api)
+    testImplementation(libs.okhttp3)
+    testImplementation(libs.vertx.core)
+    testImplementation(libs.wiremock)
+    testImplementation(libs.consolecaptor)
+    testImplementation(libs.awaitility)
+    testImplementation(libs.restassured)
+    testImplementation(libs.jersey.test.framework.core)
+    testImplementation(libs.jersey.test.framework.grizzly2)
+    testImplementation(libs.jetty.ee10.proxy)
+    testImplementation(libs.jetty.websocket.jetty.client)
+    testImplementation(libs.opentelemetry.sdk.testing)
+    testImplementation(libs.oxia.testcontainers)
+    testRuntimeOnly(libs.avro.protobuf) {
+        exclude(group = "com.google.protobuf")
+    }
+}
+
+// NAR/JAR files needed by broker tests (mirrors Maven's maven-dependency-plugin config).
+val testNars = projectNars("testNars",
+    ":pulsar-functions:pulsar-functions-api-examples-builtin",
+    ":pulsar-io:pulsar-io-data-generator",
+    ":pulsar-io:pulsar-io-batch-data-generator")
+val testExamplesJar = projectJars("testExamplesJar", ":pulsar-functions:pulsar-functions-api-examples")
+
+tasks.withType<Test>().configureEach {
+    // Use ZooKeeper's Netty client socket. The default NIO one sleeps 100 ms whenever it closes its
+    // connection (ZOOKEEPER-4184), so every ZooKeeper client close in the tests that start a real
+    // ZooKeeper takes 100 ms longer.
+    systemProperty("zookeeper.clientCnxnSocket", "org.apache.zookeeper.ClientCnxnSocketNetty")
+    // Inputs, which builds the archives before the tests run, and passed to the tests as system properties
+    inputs.files(testNars.files).withPropertyName("testNars").withPathSensitivity(PathSensitivity.NONE)
+    inputs.files(testExamplesJar.files).withPropertyName("testExamplesJar").withPathSensitivity(PathSensitivity.NONE)
+    jvmArgumentProviders.add(TestArchivePaths(
+        testNars.files.flatMap { it.incoming.artifacts.resolvedArtifacts },
+        testExamplesJar.files.flatMap { it.incoming.artifacts.resolvedArtifacts },
+        mapOf(
+            "pulsar-functions-api-examples.nar.path" to ":pulsar-functions:pulsar-functions-api-examples-builtin",
+            "pulsar-io-data-generator.nar.path" to ":pulsar-io:pulsar-io-data-generator",
+            "pulsar-io-batch-data-generator.nar.path" to ":pulsar-io:pulsar-io-batch-data-generator",
+        ),
+        // A valid jar that is not a valid nar — used for invalid-nar tests
+        listOf("pulsar-functions-api-examples.jar.path", "pulsar-io-invalid.nar.path"),
+    ))
+}
+
+protobuf {
+    protoc {
+        val protocVersion = providers.gradleProperty("protobufVersion").getOrElse(libs.versions.protobuf.get())
+        artifact = "com.google.protobuf:protoc:$protocVersion"
+    }
+}
+
+// Align the protobuf plugin's resolvable proto-path classpaths with the enforced version platform.
+// The protobuf-gradle-plugin creates `<sourceSet>ProtoPath` configurations that resolve the proto
+// closure of the project's dependencies. They are build-time only and never published, but the
+// GitHub dependency-submission resolves every resolvable configuration, and without the alignment
+// bucket these report transitive versions that diverge from the version catalog (e.g.
+// netty-codec-http2, commons-configuration2), which Dependabot then flags. Extending the
+// non-consumable `internalPlatform` bucket (see pulsar.java-conventions) keeps them consistent
+// with the catalog without affecting any published metadata.
+configurations.matching { it.name.endsWith("ProtoPath") }.configureEach {
+    extendsFrom(configurations["internalPlatform"])
+}
+
+// All main proto files now use lightproto. Only test protos use standard protobuf.
+sourceSets["main"].proto {
+    exclude("TransactionPendingAck.proto")
+    exclude("ResourceUsage.proto")
+    exclude("DelayedMessageIndexBucketSegment.proto")
+    exclude("SchemaRegistryFormat.proto")
+    exclude("SchemaStorageFormat.proto")
+    exclude("DelayedMessageIndexBucketMetadata.proto")
+}
+
+lightproto {
+    // Test protos that need standard protobuf (GeneratedMessageV3), not lightproto
+    excludes.addAll(
+        "ProtobufSchemaTest.proto", "DataRecord.proto", "NativeEditionJavaUtf8.proto",
+        "NativeUtf8Checked.proto", "NativeUtf8Unchecked.proto", "NativeLegacyEnum.proto", "NativeOpenEnum.proto"
+    )
+    // TransactionPendingAck.proto imports PulsarApi.proto from pulsar-common
+    extraProtoPaths.from(rootProject.layout.projectDirectory)
+}
+
+// ── OpenAPI (Swagger) REST API documentation ────────────────────────────────
+// Mirrors the Maven build's `swagger` profile (kongchen swagger-maven-plugin, Swagger 1.x),
+// ported to the official Swagger Core v3 gradle plugin. Run on demand:
+//   ./gradlew :pulsar-broker:generateOpenApiSpecs   (outputs to pulsar-broker/build/openapi/)
+// The ResolveTask's build classpath: the plugin's default resolver dependencies target
+// javax.ws.rs, so these declare the jakarta variants.
+val swaggerDeps = configurations.dependencyScope("swaggerDeps")
+val swaggerClasspath = configurations.resolvable("swaggerClasspath") {
+    extendsFrom(swaggerDeps.get())
+}
+dependencies {
+    // The component metadata rule in pulsar.java-conventions replaces
+    // com.sun.activation:jakarta.activation with versionless jakarta.activation-api/
+    // angus-activation deps, so swaggerDeps needs the platform to pin their versions.
+    "swaggerDeps"(enforcedPlatform(project(":pulsar-dependencies")))
+    "swaggerDeps"(libs.commons.lang3)
+    "swaggerDeps"(libs.swagger.jaxrs2)
+    "swaggerDeps"(libs.jakarta.ws.rs.api)
+    "swaggerDeps"(libs.jakarta.servlet.api)
+}
+
+// Swagger model converters for the ResolveTasks below (src/openapi/java). They are built against
+// Swagger Core, which the broker's runtime doesn't include, so they live in a source set of their
+// own that only the ResolveTasks and the broker tests put on their classpath.
+val openapi = sourceSets.create("openapi")
+configurations.named(openapi.compileClasspathConfigurationName) {
+    extendsFrom(configurations["internalPlatform"], swaggerDeps.get())
+}
+// Not used by the ResolveTasks, which take the main runtime classpath, but aligned like the other
+// resolvable classpaths because the GitHub dependency submission resolves it too.
+configurations.named(openapi.runtimeClasspathConfigurationName) {
+    extendsFrom(configurations["internalPlatform"])
+}
+// The converters' tests run in the broker's test task. Their dependencies extend the test classpaths
+// directly instead of testImplementation, which testJarElements extends, so that the modules that use
+// testJar(":pulsar-broker") don't get Swagger.
+val openapiTestDeps = configurations.dependencyScope("openapiTestDeps")
+configurations.named("testCompileClasspath") { extendsFrom(openapiTestDeps.get()) }
+configurations.named("testRuntimeClasspath") { extendsFrom(openapiTestDeps.get()) }
+dependencies {
+    "openapiImplementation"(project(":pulsar-common"))
+    "openapiTestDeps"(openapi.output)
+    "openapiTestDeps"(libs.swagger.jaxrs2)
+}
+// The conventions clear the Checkstyle classpath, so that checkstyle compiles nothing, before this
+// source set exists, and the Checkstyle plugin then sets it for this source set's task: clear it again.
+// The module's quickCheck otherwise covers only checkstyleMain and checkstyleTest.
+val checkstyleOpenapi = tasks.named<Checkstyle>(openapi.getTaskName("checkstyle", null)) {
+    classpath = files()
+}
+tasks.named("quickCheck") {
+    dependsOn(checkstyleOpenapi)
+}
+
+fun registerSwaggerTask(
+    name: String,
+    fileName: String,
+    baseInfoFile: String,
+    configure: ResolveTask.() -> Unit,
+) = tasks.register<ResolveTask>(name) {
+    group = "documentation"
+    description = "Generates $fileName.json OpenAPI documentation"
+    buildClasspath.setFrom(swaggerClasspath)
+    classpath.setFrom(sourceSets["main"].runtimeClasspath, openapi.output)
+    // Describe interface-typed values with the implementations ObjectMapperFactory maps them to.
+    modelConverterClasses.set(setOf("org.apache.pulsar.broker.openapi.AbstractTypeMappingModelConverter"))
+    outputDir.set(layout.buildDirectory.dir("swagger/$name"))
+    outputFileName.set(fileName)
+    outputFormat.set(ResolveTask.Format.JSON)
+    openApiFile.set(file("src/main/openapi/$baseInfoFile"))
+    prettyPrint.set(true)
+    sortOutput.set(true)
+    readAllResources.set(true)
+    configure()
+}
+
+registerSwaggerTask("swaggerAdminV2", "swagger", "admin-v2.json") {
+    resourceClasses.set(setOf(
+        "org.apache.pulsar.broker.admin.v2.Bookies",
+        "org.apache.pulsar.broker.admin.v2.BrokerStats",
+        "org.apache.pulsar.broker.admin.v2.Brokers",
+        "org.apache.pulsar.broker.admin.v2.Clusters",
+        "org.apache.pulsar.broker.admin.v2.Functions",
+        "org.apache.pulsar.broker.admin.v2.MetadataMigration",
+        "org.apache.pulsar.broker.admin.v2.Namespaces",
+        "org.apache.pulsar.broker.admin.v2.NonPersistentTopics",
+        "org.apache.pulsar.broker.admin.v2.PersistentTopics",
+        "org.apache.pulsar.broker.admin.v2.ResourceGroups",
+        "org.apache.pulsar.broker.admin.v2.ResourceQuotas",
+        "org.apache.pulsar.broker.admin.v2.ScalableTopicPolicies",
+        "org.apache.pulsar.broker.admin.v2.ScalableTopics",
+        "org.apache.pulsar.broker.admin.v2.SchemasResource",
+        "org.apache.pulsar.broker.admin.v2.Segments",
+        "org.apache.pulsar.broker.admin.v2.Tenants",
+        "org.apache.pulsar.broker.admin.v2.Worker",
+        "org.apache.pulsar.broker.admin.v2.WorkerStats",
+    ))
+}
+
+registerSwaggerTask("swaggerLookup", "swaggerlookup", "lookup-v2.json") {
+    resourcePackages.set(setOf("org.apache.pulsar.broker.lookup.v2"))
+}
+
+registerSwaggerTask("swaggerFunctions", "swaggerfunctions", "functions-v3.json") {
+    resourceClasses.set(setOf("org.apache.pulsar.broker.admin.v3.Functions"))
+}
+
+registerSwaggerTask("swaggerTransactions", "swaggertransactions", "transactions-v3.json") {
+    resourceClasses.set(setOf("org.apache.pulsar.broker.admin.v3.Transactions"))
+}
+
+registerSwaggerTask("swaggerSource", "swaggersource", "source-v3.json") {
+    resourceClasses.set(setOf("org.apache.pulsar.broker.admin.v3.Sources"))
+}
+
+registerSwaggerTask("swaggerSink", "swaggersink", "sink-v3.json") {
+    resourceClasses.set(setOf("org.apache.pulsar.broker.admin.v3.Sinks"))
+}
+
+registerSwaggerTask("swaggerPackages", "swaggerpackages", "packages-v3.json") {
+    resourceClasses.set(setOf("org.apache.pulsar.broker.admin.v3.Packages"))
+}
+
+// Assemble the documentation set in the layout published on pulsar.apache.org (see e.g.
+// pulsar-site static/swagger/<version>/): all files flat, plus v2/ and v3/ subdirectory copies
+// grouped by REST API version.
+tasks.register<Sync>("generateOpenApiSpecs") {
+    group = "documentation"
+    description = "Generates all OpenAPI REST API documentation files to build/openapi"
+    into(layout.buildDirectory.dir("openapi"))
+    val v2Tasks = listOf("swaggerAdminV2", "swaggerLookup")
+    val v3Tasks = listOf("swaggerFunctions", "swaggerTransactions", "swaggerSource", "swaggerSink", "swaggerPackages")
+    v2Tasks.forEach { t ->
+        from(tasks.named(t))
+        from(tasks.named(t)) { into("v2") }
+    }
+    v3Tasks.forEach { t ->
+        from(tasks.named(t))
+        from(tasks.named(t)) { into("v3") }
+    }
+}

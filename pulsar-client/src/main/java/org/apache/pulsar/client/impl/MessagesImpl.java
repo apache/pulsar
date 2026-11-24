@@ -22,7 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import net.jcip.annotations.NotThreadSafe;
+import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Messages;
 

@@ -117,6 +117,6 @@ public class SchemaInfoImpl implements SchemaInfo {
 
     @Override
     public String toString() {
-        return SchemaUtils.jsonifySchemaInfo(this);
+        return SchemaUtils.jsonifySchemaInfo(this, true);
     }
 }

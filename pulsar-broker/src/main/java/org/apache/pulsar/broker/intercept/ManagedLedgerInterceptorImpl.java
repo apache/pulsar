@@ -23,25 +23,22 @@ import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import org.apache.bookkeeper.client.LedgerHandle;
-import org.apache.bookkeeper.client.api.LedgerEntry;
-import org.apache.bookkeeper.mledger.impl.OpAddEntry;
+import lombok.CustomLog;
+import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
 import org.apache.pulsar.common.intercept.ManagedLedgerPayloadProcessor;
 import org.apache.pulsar.common.protocol.Commands;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.jspecify.annotations.Nullable;
 
+@CustomLog
 public class ManagedLedgerInterceptorImpl implements ManagedLedgerInterceptor {
-    private static final Logger log = LoggerFactory.getLogger(ManagedLedgerInterceptorImpl.class);
     private static final String INDEX = "index";
     private final Set<BrokerEntryMetadataInterceptor> brokerEntryMetadataInterceptors;
 
-    private final AppendIndexMetadataInterceptor appendIndexMetadataInterceptor;
+    private final @Nullable AppendIndexMetadataInterceptor appendIndexMetadataInterceptor;
     private final Set<ManagedLedgerPayloadProcessor.Processor> inputProcessors;
     private final Set<ManagedLedgerPayloadProcessor.Processor> outputProcessors;
 
@@ -85,12 +82,11 @@ public class ManagedLedgerInterceptorImpl implements ManagedLedgerInterceptor {
     }
 
     @Override
-    public OpAddEntry beforeAddEntry(OpAddEntry op, int numberOfMessages) {
+    public void beforeAddEntry(AddEntryOperation op, int numberOfMessages) {
        if (op == null || numberOfMessages <= 0) {
-           return op;
+           return;
        }
         op.setData(Commands.addBrokerEntryMetadata(op.getData(), brokerEntryMetadataInterceptors, numberOfMessages));
-        return op;
     }
 
     @Override
@@ -115,43 +111,26 @@ public class ManagedLedgerInterceptorImpl implements ManagedLedgerInterceptor {
     }
 
     @Override
-    public CompletableFuture<Void> onManagedLedgerLastLedgerInitialize(String name, LedgerHandle lh) {
-        CompletableFuture<Void> promise = new CompletableFuture<>();
-        boolean hasAppendIndexMetadataInterceptor = appendIndexMetadataInterceptor != null;
-        if (hasAppendIndexMetadataInterceptor && lh.getLastAddConfirmed() >= 0) {
-            lh.readAsync(lh.getLastAddConfirmed(), lh.getLastAddConfirmed()).whenComplete((entries, ex) -> {
-                if (ex != null) {
-                    log.error("[{}] Read last entry error.", name, ex);
-                    promise.completeExceptionally(ex);
-                } else {
-                    if (entries != null) {
-                        try {
-                            LedgerEntry ledgerEntry = entries.getEntry(lh.getLastAddConfirmed());
-                            if (ledgerEntry != null) {
-                                BrokerEntryMetadata brokerEntryMetadata =
-                                        Commands.parseBrokerEntryMetadataIfExist(ledgerEntry.getEntryBuffer());
-                                if (brokerEntryMetadata != null && brokerEntryMetadata.hasIndex()) {
-                                    appendIndexMetadataInterceptor.recoveryIndexGenerator(
-                                            brokerEntryMetadata.getIndex());
-                                }
-                            }
-                            entries.close();
-                            promise.complete(null);
-                        } catch (Exception e) {
-                            entries.close();
-                            log.error("[{}] Failed to recover the index generator from the last add confirmed entry.",
-                                    name, e);
-                            promise.completeExceptionally(e);
-                        }
-                    } else {
-                        promise.complete(null);
-                    }
-                }
-            });
-        } else {
-            promise.complete(null);
+    public CompletableFuture<Void> onManagedLedgerLastLedgerInitialize(String name, LastEntryHandle lh) {
+        if (appendIndexMetadataInterceptor == null) {
+            // there's no index generator to recover when the AppendIndexMetadataInterceptor isn't configured,
+            // so reading the last entry would be pointless
+            return CompletableFuture.completedFuture(null);
         }
-        return promise;
+        return lh.readLastEntryAsync().thenAccept(lastEntryOptional -> {
+            if (lastEntryOptional.isPresent()) {
+                Entry lastEntry = lastEntryOptional.get();
+                try {
+                    Commands.peekBrokerEntryMetadataAndConsume(lastEntry.getDataBuffer(), brokerEntryMetadata -> {
+                        if (brokerEntryMetadata != null && brokerEntryMetadata.hasIndex()) {
+                            appendIndexMetadataInterceptor.recoveryIndexGenerator(brokerEntryMetadata.getIndex());
+                        }
+                    });
+                } finally {
+                    lastEntry.release();
+                }
+            }
+        });
     }
 
     @Override
@@ -189,11 +168,11 @@ public class ManagedLedgerInterceptorImpl implements ManagedLedgerInterceptor {
         };
     }
     @Override
-    public PayloadProcessorHandle processPayloadBeforeLedgerWrite(OpAddEntry op, ByteBuf ledgerData) {
+    public PayloadProcessorHandle processPayloadBeforeLedgerWrite(Object ctx, ByteBuf ledgerData) {
         if (this.inputProcessors == null || this.inputProcessors.size() == 0) {
             return null;
         }
-        return processPayload(this.inputProcessors, op.getCtx(), ledgerData);
+        return processPayload(this.inputProcessors, ctx, ledgerData);
     }
 
     @Override

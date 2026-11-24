@@ -18,20 +18,19 @@
  */
 package org.apache.pulsar.tests.integration.offload;
 
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.tests.integration.docker.ContainerExecException;
-import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
-import org.testng.annotations.Test;
-
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
+import lombok.CustomLog;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.tests.integration.docker.ContainerExecException;
+import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
+import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class TestOffloadDeletionFS extends TestBaseOffload {
 
     @Override
@@ -68,7 +67,8 @@ public class TestOffloadDeletionFS extends TestBaseOffload {
     }
 
     @Test(dataProvider =  "ServiceAndAdminUrls")
-    public void testDeleteOffloadedPartitionedTopic(Supplier<String> serviceUrl, Supplier<String> adminUrl) throws Exception {
+    public void testDeleteOffloadedPartitionedTopic(Supplier<String> serviceUrl, Supplier<String> adminUrl)
+            throws Exception {
         super.testDeleteOffloadedTopic(serviceUrl.get(), adminUrl.get(), false, 3);
     }
 
@@ -103,8 +103,11 @@ public class TestOffloadDeletionFS extends TestBaseOffload {
 
     @Override
     protected boolean offloadedLedgerExists(String topic, int partitionNum, long ledger) {
-        log.info("offloadedLedgerExists(topic = {}, partitionNum={},ledger={})",
-                topic, partitionNum, ledger);
+        log.info()
+                .attr("topic", topic)
+                .attr("partitionNum", partitionNum)
+                .attr("ledger", ledger)
+                .log("offloadedLedgerExists(topic = , partitionNum= ,ledger= )");
         if (partitionNum > -1) {
             topic = topic + "-partition-" + partitionNum;
         }
@@ -121,14 +124,20 @@ public class TestOffloadDeletionFS extends TestBaseOffload {
         pulsarCluster.getBrokers().forEach(broker -> {
             try {
                 ContainerExecResult res = broker.execCmd(cmds);
-                log.info("offloadedLedgerExists broker {} 'ls -1 {}' got {}",
-                        broker.getContainerName(), dirPath, res.getStdout());
+                log.info()
+                        .attr("broker", broker.getContainerName())
+                        .attr("path", dirPath)
+                        .attr("got", res.getStdout())
+                        .log("offloadedLedgerExists broker 'ls -1 ' got");
                 Arrays.stream(res.getStdout().split("\n"))
                         .filter(x -> x.startsWith(ledger + "-"))
                         .forEach(x -> result.add(x));
             } catch (ContainerExecException ce) {
-                log.info("offloadedLedgerExists broker {} 'ls -1 {}' got error code {}",
-                        broker.getContainerName(), dirPath, ce.getResult().getExitCode());
+                log.info()
+                        .attr("broker", broker.getContainerName())
+                        .attr("path", dirPath)
+                        .attr("code", ce.getResult().getExitCode())
+                        .log("offloadedLedgerExists broker 'ls -1 ' got error code");
                 // ignore 2 (No such file or directory)
                 if (ce.getResult().getExitCode() != 2) {
                     throw new RuntimeException(ce);

@@ -36,9 +36,10 @@ import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.net.CachedDNSToSwitchMapping;
 import org.apache.bookkeeper.stats.StatsLogger;
-import org.apache.commons.configuration.ConfigurationException;
+import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.bookie.rackawareness.BookieRackAffinityMapping;
+import org.apache.pulsar.bookie.rackawareness.IsolatedBookieEnsemblePlacementPolicy;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.zookeeper.ZkIsolatedBookieEnsemblePlacementPolicy;
@@ -172,6 +173,27 @@ public class BookKeeperClientFactoryImplTest {
     }
 
     @Test
+    public void testSetEnsemblePlacementPolicyUsesBrokerIsolationGroups() {
+        ClientConfiguration bkConf = new ClientConfiguration();
+        ServiceConfiguration conf = new ServiceConfiguration();
+        MetadataStore store = mock(MetadataStore.class);
+
+        BookKeeperClientFactoryImpl.setEnsemblePlacementPolicy(bkConf, conf, store,
+                IsolatedBookieEnsemblePlacementPolicy.class);
+        assertNull(bkConf.getProperty(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS));
+        assertNull(bkConf.getProperty(IsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS));
+
+        conf.setBookkeeperClientIsolationGroups("broker-primary");
+        conf.setBookkeeperClientSecondaryIsolationGroups("broker-secondary");
+        BookKeeperClientFactoryImpl.setEnsemblePlacementPolicy(bkConf, conf, store,
+                IsolatedBookieEnsemblePlacementPolicy.class);
+        assertEquals(bkConf.getProperty(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS),
+                "broker-primary");
+        assertEquals(bkConf.getProperty(IsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS),
+                "broker-secondary");
+    }
+
+    @Test
     public void testSetDiskWeightBasedPlacementEnabled() {
         BookKeeperClientFactoryImpl factory = new BookKeeperClientFactoryImpl();
         ServiceConfiguration conf = new ServiceConfiguration();
@@ -188,7 +210,8 @@ public class BookKeeperClientFactoryImplTest {
         BookKeeperClientFactoryImpl factory = new BookKeeperClientFactoryImpl();
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setMetadataStoreUrl("zk:localhost:2181");
-        assertEquals(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf).getExplictLacInterval(),
+        assertEquals(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
+                        .getExplictLacInterval(),
                 0);
         conf.setBookkeeperExplicitLacIntervalInMills(5);
         assertEquals(
@@ -277,6 +300,13 @@ public class BookKeeperClientFactoryImplTest {
                         .getMetadataServiceUri(), expectedUri);
 
             }
+            {
+                String uri = "metadata-store:oxia://oxia-server:6648/bookkeeper"
+                        + "?batchingMaxDelayMillis=10&batchingMaxSizeKb=256&numSerDesThreads=4";
+                conf.setBookkeeperMetadataServiceUri(uri);
+                assertEquals(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
+                        .getMetadataServiceUri(), uri);
+            }
         } catch (ConfigurationException e) {
             e.printStackTrace();
             fail("Get metadata service uri should be successful", e);
@@ -311,11 +341,11 @@ public class BookKeeperClientFactoryImplTest {
         EventLoopGroup eventLoopGroup = mock(EventLoopGroup.class);
         BookKeeper.Builder builder = factory.getBookKeeperBuilder(conf, eventLoopGroup,
                 mock(StatsLogger.class), mock(ClientConfiguration.class));
-        assertEquals(FieldUtils.readField(builder, "eventLoopGroup", true), eventLoopGroup);
-        conf.setBookkeeperClientSeparatedIoThreadsEnabled(true);
+        assertNull(FieldUtils.readField(builder, "eventLoopGroup", true));
+        conf.setBookkeeperClientSeparatedIoThreadsEnabled(false);
         builder = factory.getBookKeeperBuilder(conf, eventLoopGroup,
                 mock(StatsLogger.class), mock(ClientConfiguration.class));
-        assertNull(FieldUtils.readField(builder, "eventLoopGroup", true));
+        assertEquals(FieldUtils.readField(builder, "eventLoopGroup", true), eventLoopGroup);
     }
 
     @Test

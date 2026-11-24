@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.metadata.impl;
 
-import static org.apache.pulsar.metadata.impl.EtcdMetadataStore.ETCD_SCHEME_IDENTIFIER;
 import static org.apache.pulsar.metadata.impl.LocalMemoryMetadataStore.MEMORY_SCHEME_IDENTIFIER;
 import static org.apache.pulsar.metadata.impl.RocksdbMetadataStore.ROCKSDB_SCHEME_IDENTIFIER;
 import static org.apache.pulsar.metadata.impl.ZKMetadataStore.ZK_SCHEME_IDENTIFIER;
@@ -26,7 +25,7 @@ import static org.apache.pulsar.metadata.impl.oxia.OxiaMetadataStoreProvider.OXI
 import com.google.common.base.Splitter;
 import java.util.HashMap;
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
@@ -34,7 +33,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreProvider;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.impl.oxia.OxiaMetadataStoreProvider;
 
-@Slf4j
+@CustomLog
 public class MetadataStoreFactoryImpl {
 
     public static final String METADATASTORE_PROVIDERS_PROPERTY = "pulsar.metadatastore.providers";
@@ -63,11 +62,11 @@ public class MetadataStoreFactoryImpl {
         return provider.create(metadataURL, metadataStoreConfig, enableSessionWatcher);
     }
 
+    @SuppressWarnings("auxiliaryclass")
     static Map<String, MetadataStoreProvider> loadProviders() {
         Map<String, MetadataStoreProvider> providers = new HashMap<>();
         providers.put(MEMORY_SCHEME_IDENTIFIER, new MemoryMetadataStoreProvider());
         providers.put(ROCKSDB_SCHEME_IDENTIFIER, new RocksdbMetadataStoreProvider());
-        providers.put(ETCD_SCHEME_IDENTIFIER, new EtcdMetadataStoreProvider());
         providers.put(OXIA_SCHEME_IDENTIFIER, new OxiaMetadataStoreProvider());
         providers.put(ZK_SCHEME_IDENTIFIER, new ZkMetadataStoreProvider());
 
@@ -75,19 +74,26 @@ public class MetadataStoreFactoryImpl {
 
         for (String className : Splitter.on(',').trimResults().omitEmptyStrings().split(factoryClasses)) {
             try {
+                @SuppressWarnings("unchecked")
                 Class<? extends MetadataStoreProvider> clazz =
                         (Class<? extends MetadataStoreProvider>) Class.forName(className);
                 MetadataStoreProvider provider = clazz.getConstructor().newInstance();
                 String scheme = provider.urlScheme();
                 providers.put(scheme + ":", provider);
             } catch (Exception e) {
-                log.warn("Failed to load metadata store provider class for name '{}'", className, e);
+                log.warn().attr("className", className).exception(e)
+                        .log("Failed to load metadata store provider class");
             }
         }
         return providers;
     }
 
     private static MetadataStoreProvider findProvider(String metadataURL) {
+        if (metadataURL.startsWith("etcd:")) {
+            throw new IllegalArgumentException(
+                    "Etcd metadata store backend has been removed in Pulsar 5.0 (PIP-462). "
+                            + "Please use ZooKeeper (zk:) or Oxia (oxia:) as your metadata store.");
+        }
         Map<String, MetadataStoreProvider> providers = loadProviders();
         for (Map.Entry<String, MetadataStoreProvider> entry : providers.entrySet()) {
             if (metadataURL.startsWith(entry.getKey())) {
@@ -101,7 +107,6 @@ public class MetadataStoreFactoryImpl {
      * Removes the identifier from the full metadata url.
      *
      * zk:my-zk:3000 -> my-zk:3000
-     * etcd:my-etcd:3000 -> my-etcd:3000
      * my-default-zk:3000 -> my-default-zk:3000
      * @param metadataURL
      * @return

@@ -26,6 +26,11 @@ import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -34,13 +39,14 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
@@ -57,13 +63,15 @@ import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
 
 
 /**
  * Integration tests for Pulsar ExtensibleLoadManagerImpl.
  */
-@Slf4j
+@CustomLog
 public class ExtensibleLoadManagerTest extends TestRetrySupport {
 
     private static final int NUM_BROKERS = 3;
@@ -71,13 +79,30 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
     private static final String DEFAULT_NAMESPACE = DEFAULT_TENANT + "/my-namespace";
     private static final String nsSuffix = "-anti-affinity-enabled";
 
-    private final String clusterName = "MultiLoadManagerTest-" + UUID.randomUUID();
+    // Container names are "<cluster>-<hostname>", and Docker's DNS gives no reverse lookup answer for a name longer
+    // than a DNS label (63 characters). The ZooKeeper client in every container looks up the server's name from its
+    // address before it connects, and would wait 5 s per connection for that lookup to time out.
+    private final String clusterName = "MultiLoadManagerTest-" + UUID.randomUUID().toString().substring(0, 8);
     private final PulsarClusterSpec spec = PulsarClusterSpec.builder()
             .clusterName(clusterName)
             .numBrokers(NUM_BROKERS).build();
     private PulsarCluster pulsarCluster = null;
     private String hosts;
     private PulsarAdmin admin;
+    protected String serviceUnitStateTableViewClassName;
+
+    @Factory(dataProvider = "serviceUnitStateTableViewClassName")
+    public ExtensibleLoadManagerTest(String serviceUnitStateTableViewClassName) {
+        this.serviceUnitStateTableViewClassName = serviceUnitStateTableViewClassName;
+    }
+
+    @DataProvider(name = "serviceUnitStateTableViewClassName")
+    public static Object[][] serviceUnitStateTableViewClassName() {
+        return new Object[][]{
+                {"org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateMetadataStoreTableViewImpl"},
+                {"org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateTableViewImpl"}
+        };
+    }
 
     @BeforeClass(alwaysRun = true)
     public void setup() throws Exception {
@@ -87,9 +112,10 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
                 "org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl");
         brokerEnvs.put("loadBalancerLoadSheddingStrategy",
                 "org.apache.pulsar.broker.loadbalance.extensions.scheduler.TransferShedder");
+        brokerEnvs.put("loadManagerServiceUnitStateTableViewClassName",
+                serviceUnitStateTableViewClassName);
         brokerEnvs.put("forceDeleteNamespaceAllowed", "true");
         brokerEnvs.put("loadBalancerDebugModeEnabled", "true");
-        brokerEnvs.put("PULSAR_MEM", "-Xmx512M");
         spec.brokerEnvs(brokerEnvs);
         pulsarCluster = PulsarCluster.forSpec(spec);
         pulsarCluster.start();
@@ -117,33 +143,67 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
     }
 
     @BeforeMethod(alwaysRun = true)
-    public void startBroker() {
-        if (pulsarCluster != null) {
-            pulsarCluster.getBrokers().forEach(brokerContainer -> {
-                if (!brokerContainer.isRunning()) {
-                    brokerContainer.start();
-                }
-            });
-            String topicName = "persistent://" + DEFAULT_NAMESPACE + "/startBrokerCheck";
-            Awaitility.await().atMost(120, TimeUnit.SECONDS).ignoreExceptions().until(
+    public void startBroker() throws Exception {
+        if (pulsarCluster == null) {
+            return;
+        }
+        List<BrokerContainer> brokers = new ArrayList<>(pulsarCluster.getBrokers());
+        // Restart the brokers that the previous test method stopped, in parallel. allOf completes only once every
+        // restart has finished, so when one fails, the cluster cleanup that follows can't overlap a restart still
+        // in progress.
+        CompletableFuture.allOf(brokers.stream()
+                .filter(brokerContainer -> !brokerContainer.isRunning())
+                .map(brokerContainer -> CompletableFuture.runAsync(brokerContainer::start))
+                .toArray(CompletableFuture<?>[]::new)).get();
+        // Build admin clients once and reuse across poll iterations to avoid the per-tick
+        // connection churn (3 brokers x N polls of admin builder/close). Connection setup
+        // contends with brokers that are still warming up after a stop/restart.
+        // A restarted broker registers itself, and so counts in getActiveBrokers, before its
+        // ServiceUnitStateChannel reaches Started, and until then a lookup that reaches it fails fast
+        // with "Invalid channel state:LeaderElectionServiceStarted". The test methods look up topics
+        // through the proxy, which can route to any broker, so also wait for each broker's
+        // /admin/v2/brokers/ready, which answers 200 only once the broker has finished starting,
+        // channel included.
+        HttpClient httpClient = HttpClient.newHttpClient();
+        List<PulsarAdmin> brokerAdmins = new ArrayList<>(brokers.size());
+        try {
+            for (BrokerContainer brokerContainer : brokers) {
+                brokerAdmins.add(PulsarAdmin.builder()
+                        .serviceHttpUrl(brokerContainer.getHttpServiceUrl()).build());
+            }
+            Awaitility.await().atMost(180, TimeUnit.SECONDS).until(
                     () -> {
-                        for (BrokerContainer brokerContainer : pulsarCluster.getBrokers()) {
-                            try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(
-                                    brokerContainer.getHttpServiceUrl()).build()) {
-                                if (admin.brokers().getActiveBrokers(clusterName).size() != NUM_BROKERS) {
+                        for (int i = 0; i < brokers.size(); i++) {
+                            BrokerContainer brokerContainer = brokers.get(i);
+                            PulsarAdmin brokerAdmin = brokerAdmins.get(i);
+                            try {
+                                if (!isReady(httpClient, brokerContainer)) {
+                                    log.info()
+                                            .attr("broker", brokerContainer.getHostName())
+                                            .log("Broker has not finished starting yet");
                                     return false;
                                 }
-                                try {
-                                    admin.topics().createPartitionedTopic(topicName, 10);
-                                } catch (PulsarAdminException.ConflictException e) {
-                                    // expected
+                                if (brokerAdmin.brokers().getActiveBrokers(clusterName).size() != NUM_BROKERS) {
+                                    log.info()
+                                            .attr("broker", brokerContainer.getHostName())
+                                            .attr("see", NUM_BROKERS)
+                                            .log("Broker does not see active brokers yet");
+                                    return false;
                                 }
-                                admin.lookups().lookupPartitionedTopic(topicName);
+                            } catch (Exception e) {
+                                log.warn()
+                                        .attr("broker", brokerContainer.getHostName())
+                                        .attr("yet", e.getMessage())
+                                        .log("Broker is not ready yet");
+                                return false;
                             }
                         }
                         return true;
                     }
             );
+        } finally {
+            brokerAdmins.forEach(PulsarAdmin::close);
+            httpClient.close();
         }
     }
 
@@ -162,12 +222,12 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
 
         CountDownLatch latch = new CountDownLatch(admins.size());
         List<Map<String, String>> result = new CopyOnWriteArrayList<>();
-        for(var admin : admins) {
+        for (var admin : admins) {
             executor.execute(() -> {
                 try {
                     result.add(admin.lookups().lookupPartitionedTopic(topicName));
                 } catch (PulsarAdminException e) {
-                    log.error("Lookup partitioned topic failed.", e);
+                    log.error().exception(e).log("Lookup partitioned topic failed.");
                 }
                 latch.countDown();
             });
@@ -217,7 +277,7 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
         String topicName = "persistent://" + DEFAULT_NAMESPACE + "/testSplitBundleAdminApi";
         createNonPartitionedTopicAndRetry(topicName);
         String broker = admin.lookups().lookupTopic(topicName);
-        log.info("The topic: {} owned by {}", topicName, broker);
+        log.info().attr("topic", topicName).attr("by", broker).log("The topic: owned by");
         BundlesData bundles = admin.namespaces().getBundles(DEFAULT_NAMESPACE);
         int numBundles = bundles.getNumBundles();
         var bundleRanges = bundles.getBoundaries().stream().map(Long::decode).sorted().toList();
@@ -226,17 +286,17 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
         long mid = bundleRanges.get(0) + (bundleRanges.get(1) - bundleRanges.get(0)) / 2;
         Awaitility.waitAtMost(10, TimeUnit.SECONDS).pollDelay(100, TimeUnit.MILLISECONDS)
                 .untilAsserted(
-                () -> {
-                    BundlesData bundlesData = admin.namespaces().getBundles(DEFAULT_NAMESPACE);
-                    assertEquals(bundlesData.getNumBundles(), numBundles + 1);
-                    String lowBundle = String.format("0x%08x", bundleRanges.get(0));
-                    String midBundle = String.format("0x%08x", mid);
-                    String highBundle = String.format("0x%08x", bundleRanges.get(1));
-                    assertTrue(bundlesData.getBoundaries().contains(lowBundle));
-                    assertTrue(bundlesData.getBoundaries().contains(midBundle));
-                    assertTrue(bundlesData.getBoundaries().contains(highBundle));
-                }
-        );
+                        () -> {
+                            BundlesData bundlesData = admin.namespaces().getBundles(DEFAULT_NAMESPACE);
+                            assertEquals(bundlesData.getNumBundles(), numBundles + 1);
+                            String lowBundle = String.format("0x%08x", bundleRanges.get(0));
+                            String midBundle = String.format("0x%08x", mid);
+                            String highBundle = String.format("0x%08x", bundleRanges.get(1));
+                            assertTrue(bundlesData.getBoundaries().contains(lowBundle));
+                            assertTrue(bundlesData.getBoundaries().contains(midBundle));
+                            assertTrue(bundlesData.getBoundaries().contains(highBundle));
+                        }
+                );
 
 
         // Test split bundle with invalid bundle range.
@@ -253,11 +313,11 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
         String namespace = DEFAULT_TENANT + "/test-delete-namespace";
         String topicName = "persistent://" + namespace + "/test-delete-namespace-topic";
         admin.namespaces().createNamespace(namespace);
-        admin.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(clusterName));
+        admin.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(clusterName), false);
         assertTrue(admin.namespaces().getNamespaces(DEFAULT_TENANT).contains(namespace));
         admin.topics().createPartitionedTopic(topicName, 2);
         String broker = admin.lookups().lookupTopic(topicName);
-        log.info("The topic: {} owned by: {}", topicName, broker);
+        log.info().attr("topic", topicName).attr("by", broker).log("The topic: owned by");
         admin.namespaces().deleteNamespace(namespace, true);
         assertFalse(admin.namespaces().getNamespaces(DEFAULT_TENANT).contains(namespace));
     }
@@ -268,7 +328,7 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
 
         createNonPartitionedTopicAndRetry(topicName);
         String broker = admin.lookups().lookupTopic(topicName);
-        log.info("The topic: {} owned by: {}", topicName, broker);
+        log.info().attr("topic", topicName).attr("by", broker).log("The topic: owned by");
 
         int idx = extractBrokerIndex(broker);
         for (BrokerContainer container : pulsarCluster.getBrokers()) {
@@ -286,7 +346,7 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
     }
 
     @Test(timeOut = 80 * 1000)
-    public void testAntiaffinityPolicy() throws PulsarAdminException {
+    public void testAntiAffinityPolicy() throws PulsarAdminException {
         final String namespaceAntiAffinityGroup = "my-anti-affinity-filter";
         final String antiAffinityEnabledNameSpace = DEFAULT_TENANT + "/my-ns-filter" + nsSuffix;
         final int numPartition = 20;
@@ -295,17 +355,28 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
 
         assertEquals(activeBrokers.size(), NUM_BROKERS);
 
+        Set<String> antiAffinityEnabledNameSpacesReq = new HashSet<>();
         for (int i = 0; i < activeBrokers.size(); i++) {
             String namespace = antiAffinityEnabledNameSpace + "-" + i;
-            admin.namespaces().createNamespace(namespace, 10);
+            antiAffinityEnabledNameSpacesReq.add(namespace);
+            admin.namespaces().createNamespace(namespace, 1);
             admin.namespaces().setNamespaceAntiAffinityGroup(namespace, namespaceAntiAffinityGroup);
             admin.clusters().createFailureDomain(clusterName, namespaceAntiAffinityGroup, FailureDomain.builder()
                     .brokers(Set.of(activeBrokers.get(i))).build());
+            String namespaceAntiAffinityGroupResp = admin.namespaces().getNamespaceAntiAffinityGroup(namespace);
+            assertEquals(namespaceAntiAffinityGroupResp, namespaceAntiAffinityGroup);
+            FailureDomain failureDomainResp =
+                    admin.clusters().getFailureDomain(clusterName, namespaceAntiAffinityGroup);
+            assertEquals(failureDomainResp.getBrokers(), Set.of(activeBrokers.get(i)));
         }
+
+        List<String> antiAffinityNamespacesResp =
+                admin.namespaces().getAntiAffinityNamespaces(DEFAULT_TENANT, clusterName, namespaceAntiAffinityGroup);
+        assertEquals(new HashSet<>(antiAffinityNamespacesResp), antiAffinityEnabledNameSpacesReq);
 
         Set<String> result = new HashSet<>();
         for (int i = 0; i < activeBrokers.size(); i++) {
-            final String topic = "persistent://" + antiAffinityEnabledNameSpace + "-" + i +"/topic";
+            final String topic = "persistent://" + antiAffinityEnabledNameSpace + "-" + i + "/topic";
             admin.topics().createPartitionedTopic(topic, numPartition);
 
             Map<String, String> topicToBroker = admin.lookups().lookupPartitionedTopic(topic);
@@ -316,7 +387,7 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
 
             assertEquals(brokers.size(), 1);
             result.add(brokers.iterator().next());
-            log.info("Topic: {}, lookup result: {}", topic, brokers.iterator().next());
+            log.info().attr("topic", topic).attr("result", brokers.iterator().next()).log("Topic: , lookup result");
         }
 
         assertEquals(result.size(), NUM_BROKERS);
@@ -393,23 +464,32 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
         }
 
         Awaitility.await().atMost(60, TimeUnit.SECONDS).ignoreExceptions().untilAsserted(
-            () -> {
-                List<String> activeBrokers = admin.brokers().getActiveBrokersAsync().get(5, TimeUnit.SECONDS);
-                assertEquals(activeBrokers.size(), 1);
-            }
+                () -> {
+                    List<String> activeBrokers = admin.brokers().getActiveBrokersAsync().get(5, TimeUnit.SECONDS);
+                    assertEquals(activeBrokers.size(), 1);
+                }
         );
 
         Awaitility.await().atMost(60, TimeUnit.SECONDS).ignoreExceptions().untilAsserted(
                 () -> {
                     try {
                         admin.lookups().lookupTopicAsync(topic).get(5, TimeUnit.SECONDS);
+                        fail();
                     } catch (Exception ex) {
-                        log.error("Failed to lookup topic: ", ex);
-                        assertThat(ex.getMessage()).contains("Failed to select the new owner broker for bundle");
+                        log.error().exception(ex).log("Failed to lookup topic");
+                        assertThat(ex.getMessage()).contains("Service Unavailable");
                     }
                 }
         );
 
+    }
+
+    private static boolean isReady(HttpClient httpClient, BrokerContainer brokerContainer) throws Exception {
+        HttpRequest request = HttpRequest.newBuilder(
+                        URI.create(brokerContainer.getHttpServiceUrl() + "/admin/v2/brokers/ready"))
+                .timeout(Duration.ofSeconds(10))
+                .build();
+        return httpClient.send(request, HttpResponse.BodyHandlers.discarding()).statusCode() == 200;
     }
 
     private void createNonPartitionedTopicAndRetry(String topicName) throws Exception {
@@ -421,7 +501,7 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
                 return true;
                 //expected when retried
             } catch (Exception e) {
-                log.error("Failed to create topic: ", e);
+                log.error().exception(e).log("Failed to create topic");
                 return false;
             }
         });

@@ -53,10 +53,6 @@ public class CompactorMXBeanImpl implements CompactorMXBean {
         return compactionRecordOps.keySet();
     }
 
-    public void reset() {
-        compactionRecordOps.values().forEach(CompactionRecord::reset);
-    }
-
     public void addCompactionReadOp(String topic, long readableBytes) {
         compactionRecordOps.computeIfAbsent(topic, k -> new CompactionRecord()).addCompactionReadOp(readableBytes);
     }

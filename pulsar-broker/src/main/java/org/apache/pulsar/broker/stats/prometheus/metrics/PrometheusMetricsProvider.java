@@ -31,8 +31,8 @@ import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.stats.CachingStatsProvider;
 import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.bookkeeper.stats.StatsProvider;
-import org.apache.commons.configuration.Configuration;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.configuration2.Configuration;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.util.ExecutorProvider;
 
 /**

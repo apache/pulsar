@@ -78,7 +78,7 @@ public interface SchemaDefinitionBuilder<T> {
      *
      * @return schema definition builder
      */
-    SchemaDefinitionBuilder<T> withPojo(Class pojo);
+    SchemaDefinitionBuilder<T> withPojo(Class<?> pojo);
 
     /**
      * Set schema of pojo classLoader.

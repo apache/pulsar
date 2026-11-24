@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentPartitionedTopicStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentPublisherStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentReplicatorStatsImpl;
@@ -25,14 +27,12 @@ import org.apache.pulsar.common.policies.data.stats.NonPersistentSubscriptionSta
 import org.apache.pulsar.common.policies.data.stats.NonPersistentTopicStatsImpl;
 import org.testng.annotations.Test;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-
 public class NonPersistentPartitionedTopicStatsTest {
 
     @Test
     public void testPartitionedTopicStats() {
-        NonPersistentPartitionedTopicStatsImpl nonPersistentPartitionedTopicStats = new NonPersistentPartitionedTopicStatsImpl();
+        NonPersistentPartitionedTopicStatsImpl nonPersistentPartitionedTopicStats =
+                new NonPersistentPartitionedTopicStatsImpl();
         nonPersistentPartitionedTopicStats.msgRateIn = 1;
         nonPersistentPartitionedTopicStats.msgThroughputIn = 1;
         nonPersistentPartitionedTopicStats.msgRateOut = 1;

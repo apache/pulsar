@@ -18,9 +18,14 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
-
+import com.fasterxml.jackson.core.JsonGenerationException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -28,17 +33,40 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
-
+import org.apache.pulsar.client.admin.internal.data.AuthPoliciesImpl;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import com.fasterxml.jackson.core.JsonGenerationException;
-import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-
 public class PoliciesDataTest {
+
+    @DataProvider(name = "authPoliciesTypes")
+    public Object[][] authPoliciesTypes() {
+        return new Object[][] {{AuthPolicies.class}, {AuthPoliciesImpl.class}};
+    }
+
+    @Test(dataProvider = "authPoliciesTypes")
+    public void authPoliciesJsonNames(Class<? extends AuthPolicies> type) throws IOException {
+        ObjectMapper jsonMapper = ObjectMapperFactory.create();
+        AuthPolicies authPolicies = AuthPolicies.builder()
+                .namespaceAuthentication(Map.of("namespace-role", Set.of(AuthAction.consume)))
+                .topicAuthentication(Map.of("persistent://tenant/ns/topic",
+                        Map.of("topic-role", Set.of(AuthAction.produce))))
+                .subscriptionAuthentication(Map.of("subscription", Set.of("subscription-role")))
+                .build();
+        JsonNode expected = jsonMapper.readTree("""
+                {
+                  "namespace_auth": {"namespace-role": ["consume"]},
+                  "destination_auth": {"persistent://tenant/ns/topic": {"topic-role": ["produce"]}},
+                  "subscription_auth_roles": {"subscription": ["subscription-role"]}
+                }
+                """);
+
+        JsonNode actual = jsonMapper.readTree(jsonMapper.writerFor(type).writeValueAsString(authPolicies));
+        assertThat(actual).as("JSON fields serialized from %s", type.getSimpleName()).isEqualTo(expected);
+        assertThat(jsonMapper.treeToValue(expected, type))
+                .as("JSON deserialized as %s", type.getSimpleName()).isEqualTo(authPolicies);
+    }
 
     @Test
     public void policies() {
@@ -74,18 +102,20 @@ public class PoliciesDataTest {
         assertNotEquals(TenantInfo.builder().build(), pa1);
         assertNotEquals(TenantInfo.builder().adminRoles(Sets.newHashSet("role1", "role3"))
                 .allowedClusters(Sets.newHashSet("usc")).build(), pa1);
-        assertEquals(pa1.getAdminRoles(), Lists.newArrayList("role1", "role2"));
+        assertThat(pa1.getAdminRoles()).containsExactlyInAnyOrder("role1", "role2");
     }
 
     @Test
     public void bundlesPolicies() throws JsonGenerationException, JsonMappingException, IOException {
         ObjectMapper jsonMapper = ObjectMapperFactory.create();
-        String oldJsonPolicy = "{\"auth_policies\":{\"namespace_auth\":{},\"destination_auth\":{}},\"replication_clusters\":[],"
-                + "\"backlog_quota_map\":{},\"persistence\":null,\"latency_stats_sample_rate\":{},\"message_ttl_in_seconds\":null}";
+        String oldJsonPolicy = "{\"auth_policies\":{\"namespace_auth\":{},\"destination_auth\":{}},"
+                + "\"replication_clusters\":[],\"backlog_quota_map\":{},\"persistence\":null,"
+                + "\"latency_stats_sample_rate\":{},\"message_ttl_in_seconds\":null}";
         Policies policies = jsonMapper.readValue(oldJsonPolicy.getBytes(), Policies.class);
         assertEquals(policies, new Policies());
-        String newJsonPolicy = "{\"auth_policies\":{\"namespace_auth\":{},\"destination_auth\":{}},\"replication_clusters\":[],\"bundles\":null,"
-                + "\"backlog_quota_map\":{},\"persistence\":null,\"latency_stats_sample_rate\":{},\"message_ttl_in_seconds\":null}";
+        String newJsonPolicy = "{\"auth_policies\":{\"namespace_auth\":{},\"destination_auth\":{}},"
+                + "\"replication_clusters\":[],\"bundles\":null,\"backlog_quota_map\":{},\"persistence\":null,"
+                + "\"latency_stats_sample_rate\":{},\"message_ttl_in_seconds\":null}";
         OldPolicies oldPolicies = jsonMapper.readValue(newJsonPolicy.getBytes(), OldPolicies.class);
         assertEquals(oldPolicies, new OldPolicies());
     }
@@ -93,7 +123,9 @@ public class PoliciesDataTest {
     @Test
     public void bundlesData() throws IOException {
         ObjectMapper jsonMapper = ObjectMapperFactory.create();
-        String newJsonPolicy = "{\"auth_policies\":{\"namespace_auth\":{},\"destination_auth\":{}},\"replication_clusters\":[],\"bundles\":{\"boundaries\":[\"0x00000000\",\"0xffffffff\"]},\"backlog_quota_map\":{},\"persistence\":null,\"latency_stats_sample_rate\":{}}";
+        String newJsonPolicy = "{\"auth_policies\":{\"namespace_auth\":{},\"destination_auth\":{}},"
+                + "\"replication_clusters\":[],\"bundles\":{\"boundaries\":[\"0x00000000\",\"0xffffffff\"]},"
+                + "\"backlog_quota_map\":{},\"persistence\":null,\"latency_stats_sample_rate\":{}}";
 
         List<String> bundleSet = new ArrayList<>();
         bundleSet.add("0x00000000");
