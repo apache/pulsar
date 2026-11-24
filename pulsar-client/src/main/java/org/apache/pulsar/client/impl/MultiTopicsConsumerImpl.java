@@ -1601,8 +1601,18 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                             // Only advance the partition counts once the schema is ready. If the
                             // lookup fails, the counts stay put so the next refresh sees the
                             // growth again and retries instead of skipping the new partition.
+                            // The topic may have been unsubscribed while the lookup was in
+                            // flight, so only advance when the entry still holds the partition
+                            // number this refresh started from. An unconditional put would
+                            // resurrect a removed topic and subscribe its new partition.
+                            if (!partitionedTopics.replace(topicName, oldPartitionNumber,
+                                    currentPartitionNumber)) {
+                                log.debug().attr("topic", topicName)
+                                        .log("Topic was removed while preparing the schema for its"
+                                                + " new partitions, skipping");
+                                return CompletableFuture.completedFuture(null);
+                            }
                             allTopicPartitionsNumber.addAndGet(currentPartitionNumber - oldPartitionNumber);
-                            partitionedTopics.put(topicName, currentPartitionNumber);
                             // subscribe new added partitions
                             List<CompletableFuture<Consumer<T>>> futureList = newPartitions
                                 .stream()
