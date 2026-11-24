@@ -125,6 +125,7 @@ import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerWrapper;
+import org.apache.pulsar.broker.lookup.LookupResult;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.namespace.TopicExistsInfo;
 import org.apache.pulsar.broker.resources.ClusterResources;
@@ -172,6 +173,7 @@ import org.apache.pulsar.common.api.proto.CommandGetSchemaResponse;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespaceResponse;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
+import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse.LookupType;
 import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadataResponse;
 import org.apache.pulsar.common.api.proto.CommandPing;
 import org.apache.pulsar.common.api.proto.CommandProducerSuccess;
@@ -1140,6 +1142,84 @@ public class ServerCnxTest {
         assertEquals(serverCnx.getState(), State.Failed);
         assertFalse(serverCnx.isActive());
         channel.finish();
+    }
+
+    @DataProvider
+    public Object[][] lookupAuthorizationRoles() {
+        String denied = "Client is not authorized to Lookup";
+        return new Object[][]{
+                {"pass.pass", null, null},
+                {"pass.fail", null, denied},
+                {"pass.error", null, "Exception occurred while trying to authorize lookup"},
+                {"pass.proxy", "pass.pass", null},
+                {"pass.fail", "pass.pass", denied},
+                {"pass.proxy", "pass.fail", denied}
+        };
+    }
+
+    @Test(dataProvider = "lookupAuthorizationRoles")
+    public void testLookupAuthorizesEachRoleOnce(String role, String originalRole, String errorMessage)
+            throws Exception {
+        AuthenticationProvider authenticationProvider = new MockAuthenticationProvider();
+        String authMethod = authenticationProvider.getAuthMethodName();
+        AuthenticationService authenticationService = mock(AuthenticationService.class);
+        when(authenticationService.getAuthenticationProvider(authMethod)).thenReturn(authenticationProvider);
+        when(brokerService.getAuthenticationService()).thenReturn(authenticationService);
+        svcConfig.setAuthenticationEnabled(true);
+        svcConfig.setAuthenticateOriginalAuthData(true);
+        if (originalRole != null) {
+            svcConfig.setProxyRoles(Set.of(role));
+        }
+        svcConfig.setAuthorizationEnabled(true);
+        svcConfig.setAuthorizationProvider(MockAuthorizationProvider.class.getName());
+        MockAuthorizationProvider provider;
+        try (var construction = Mockito.mockConstruction(MockAuthorizationProvider.class,
+                Mockito.withSettings().defaultAnswer(CALLS_REAL_METHODS))) {
+            AuthorizationService authorizationService = new AuthorizationService(svcConfig,
+                    pulsarTestContext.getPulsarResources());
+            doReturn(authorizationService).when(brokerService).getAuthorizationService();
+            provider = ownMock(construction.constructed().get(0));
+        }
+
+        TopicName topic = TopicName.get(successTopicName);
+        doReturn(CompletableFuture.completedFuture(true)).when(provider)
+                .allowTopicOperationAsync(eq(topic), eq("pass.proxy"), eq(TopicOperation.LOOKUP), any());
+        Policies policies = new Policies();
+        policies.replication_clusters.add(svcConfig.getClusterName());
+        pulsarTestContext.getPulsarResources().getNamespaceResources().createPolicies(topic.getNamespaceObject(),
+                policies);
+        LookupResult owner = LookupResult.builder().type(LookupResult.Type.BrokerUrl)
+                .brokerServiceUrl("pulsar://owner:6650").build();
+        doReturn(CompletableFuture.completedFuture(Optional.of(owner))).when(namespaceService)
+                .getBrokerServiceUrlAsync(eq(topic), any());
+
+        resetChannel();
+        channel.writeInbound(originalRole == null
+                ? Commands.newConnect(authMethod, role, "test")
+                : Commands.newConnect(authMethod, role, "test", "localhost", originalRole, originalRole, authMethod));
+        assertThat(getResponse()).isInstanceOf(CommandConnected.class);
+        var lookupSemaphore = brokerService.getLookupRequestSemaphore();
+        int permits = lookupSemaphore.availablePermits();
+        channel.writeInbound(Commands.newLookup(topic.toString(), false, 123));
+        CommandLookupTopicResponse response = (CommandLookupTopicResponse) getResponse();
+        assertThat(response.getRequestId()).isEqualTo(123L);
+        Awaitility.await().untilAsserted(() -> assertThat(lookupSemaphore.availablePermits()).isEqualTo(permits));
+        if (errorMessage == null) {
+            assertThat(response.getResponse()).isEqualTo(LookupType.Connect);
+            assertThat(response.getBrokerServiceUrl()).isEqualTo("pulsar://owner:6650");
+            assertThat(response.hasError()).isFalse();
+        } else {
+            assertThat(response.getResponse()).isEqualTo(LookupType.Failed);
+            assertThat(response.getError()).isEqualTo(ServerError.AuthorizationError);
+            assertThat(response.getMessage()).isEqualTo(errorMessage);
+            verify(namespaceService, never()).getBrokerServiceUrlAsync(eq(topic), any());
+        }
+        verify(provider, times(originalRole == null ? 1 : 2)).allowTopicOperationAsync(any(), any(), any(), any());
+        verify(provider).allowTopicOperationAsync(topic, role, TopicOperation.LOOKUP, serverCnx.getAuthData());
+        if (originalRole != null) {
+            verify(provider).allowTopicOperationAsync(topic, originalRole, TopicOperation.LOOKUP,
+                    serverCnx.getOriginalAuthData());
+        }
     }
 
     // This test used to be in the ServerCnxAuthorizationTest class, but it was migrated here because the mocking

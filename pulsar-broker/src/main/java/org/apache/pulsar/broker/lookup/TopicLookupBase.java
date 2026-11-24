@@ -203,7 +203,7 @@ public class TopicLookupBase extends PulsarWebResource {
      */
     public static CompletableFuture<ByteBuf> lookupTopicAsync(PulsarService pulsarService, TopicName topicName,
                                                               boolean authoritative, String clientAppId,
-                                                              String originalPrinciple,
+                                                              String originalPrincipal,
                                                               AuthenticationDataSource authenticationData,
                                                               AuthenticationDataSource originalAuthenticationData,
                                                               long requestId, final String advertisedListenerName,
@@ -217,19 +217,27 @@ public class TopicLookupBase extends PulsarWebResource {
         final CompletableFuture<ByteBuf> validationFuture = new CompletableFuture<>();
         final CompletableFuture<ByteBuf> lookupfuture = new CompletableFuture<>();
 
-        // (1) authorize client
-        checkAuthorizationAsync(pulsarService, topicName, clientAppId, originalPrinciple,
-                authenticationData, originalAuthenticationData).thenRun(() -> {
-                    // (2) validate global namespace
-                    // It is necessary for system topic operations because system topics are used to store metadata
-                    // and other vital information. Even after namespace starting deletion,
-                    // we need to access the metadata of system topics to create readers and clean up topic data.
-                    // If we don't do this, it can prevent namespace deletion due to inaccessible readers.
-                    checkLocalOrGetPeerReplicationCluster(pulsarService,
-                            topicName.getNamespaceObject(), SystemTopicNames.isSystemTopic(topicName))
+        CompletableFuture<Boolean> authorization = pulsarService.getConfiguration().isAuthorizationEnabled()
+                ? FutureUtil.supplySafely(() -> pulsarService.getBrokerService().getAuthorizationService()
+                        .allowTopicOperationAsync(topicName, TopicOperation.LOOKUP, originalPrincipal, clientAppId,
+                                originalAuthenticationData, authenticationData))
+                : CompletableFuture.completedFuture(true);
+        authorization
+                .thenAccept(allowed -> {
+                    if (!allowed) {
+                        String msg = "Client is not authorized to Lookup";
+                        LOG.warn().attr("principal", originalPrincipal != null ? originalPrincipal : clientAppId)
+                                .attr("topic", topicName).log(msg);
+                        validationFuture.complete(newLookupErrorResponse(ServerError.AuthorizationError,
+                                msg, requestId));
+                        return;
+                    }
+                    // Namespace deletion still needs access to system topics to clean up topic data.
+                    FutureUtil.supplySafely(() -> checkLocalOrGetPeerReplicationCluster(pulsarService,
+                            topicName.getNamespaceObject(), SystemTopicNames.isSystemTopic(topicName)))
                             .thenAccept(peerClusterData -> {
                                 if (peerClusterData == null) {
-                                    // (3) all validation passed: initiate lookup
+                                    // All validation passed: initiate lookup
                                     validationFuture.complete(null);
                                     return;
                                 }
@@ -264,21 +272,9 @@ public class TopicLookupBase extends PulsarWebResource {
                             });
                 })
                 .exceptionally(e -> {
-                    Throwable throwable = FutureUtil.unwrapCompletionException(e);
-                    if (throwable instanceof RestException) {
-                        LOG.warn()
-                                .attr("authorized", clientAppId)
-                                .attr("topic", topicName)
-                                .log("Failed to authorized on topic");
-                        validationFuture.complete(newLookupErrorResponse(ServerError.AuthorizationError,
-                                throwable.getMessage(), requestId));
-                    } else {
-                        LOG.warn()
-                                .attr("authorizing", clientAppId)
-                                .attr("topic", topicName)
-                                .log("Unknown error while authorizing on topic");
-                        validationFuture.completeExceptionally(throwable);
-                    }
+                    String msg = "Exception occurred while trying to authorize lookup";
+                    LOG.warn().attr("topic", topicName).exception(FutureUtil.unwrapCompletionException(e)).log(msg);
+                    validationFuture.complete(newLookupErrorResponse(ServerError.AuthorizationError, msg, requestId));
                     return null;
                 });
 
