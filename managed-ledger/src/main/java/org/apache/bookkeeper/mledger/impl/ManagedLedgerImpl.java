@@ -917,7 +917,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     }
                     uninitializedCursors.remove(cursorName);
                 }
-                // Release the local handle and leave the persisted cursor for the next owner.
+                // Release the local recovery handle without changing the persisted cursor.
                 cursor.closeReadOnlyCursorLedger();
                 cursorRecoveryFuture.completeExceptionally(registrationFailure);
             }
@@ -1838,16 +1838,16 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         LedgerHandle ledgerToClose = null;
         boolean recoverLedger = false;
         synchronized (this) {
-            if (state == State.Closed) {
-                result = CompletableFuture.failedFuture(
-                        new ManagedLedgerAlreadyClosedException("Managed ledger is closed"));
-            } else if (state.isFenced()) {
+            if (state.isFenced()) {
                 result = CompletableFuture.failedFuture(new ManagedLedgerFencedException());
             } else if (state == State.Terminated && terminationFuture == null) {
                 // The terminated position was recovered from metadata, so no persistence is in flight.
                 result = CompletableFuture.completedFuture(lastConfirmedEntry);
             } else if (terminationFuture != null && !terminationFuture.isCompletedExceptionally()) {
                 result = terminationFuture;
+            } else if (state == State.Closed) {
+                result = CompletableFuture.failedFuture(
+                        new ManagedLedgerAlreadyClosedException("Managed ledger is closed"));
             } else {
                 // A failed attempt can be retried, but keep rejecting writes while closing and persisting again.
                 result = terminationFuture = new CompletableFuture<>();

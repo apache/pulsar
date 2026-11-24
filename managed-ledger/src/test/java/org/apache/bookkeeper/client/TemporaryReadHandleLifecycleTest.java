@@ -634,7 +634,8 @@ public class TemporaryReadHandleLifecycleTest extends MockedBookKeeperTestCase {
         ledger.close();
 
         delayedReadLedgerId = cursorLedgerId;
-        ManagedLedger previousOwner = factory.open(ledger.getName(), config.setLazyCursorRecovery(true));
+        ManagedLedgerImpl previousOwner = (ManagedLedgerImpl) factory.open(ledger.getName(),
+                config.setLazyCursorRecovery(true));
         CompletableFuture<Void> resumeRead = new CompletableFuture<>();
         resumeRead.thenRun(delayedRead.get(5, TimeUnit.SECONDS));
         LedgerHandle handle = openedHandles.stream().filter(h -> h.getId() == cursorLedgerId).findFirst().orElseThrow();
@@ -673,6 +674,7 @@ public class TemporaryReadHandleLifecycleTest extends MockedBookKeeperTestCase {
                     .hasCauseInstanceOf(ManagedLedgerAlreadyClosedException.class);
             assertThatThrownBy(() -> ManagedLedgerUtils.openCursor(previousOwner, "cursor").get(5, TimeUnit.SECONDS))
                     .hasCauseInstanceOf(ManagedLedgerException.class);
+            assertThat(previousOwner.getState()).isEqualTo(ManagedLedgerImpl.State.Closed);
             assertListenerReleased(handle, listener);
             assertThat(closing).isNotDone();
             assertCursorMetadataUnchanged(cursorPath, cursorMetadata, cursorLedgerId);

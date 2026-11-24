@@ -347,6 +347,46 @@ public class ManagedLedgerTerminationTest extends MockedBookKeeperTestCase {
     }
 
     @Test(timeOut = 20000)
+    public void duplicateTerminateAfterCloseSharesExistingAttempt() throws Exception {
+        String ledgerName = "duplicate-terminate-after-close";
+        String ledgerPath = "/managed-ledgers/" + ledgerName;
+        FaultInjectionMetadataStore spyStore = spy(metadataStore);
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl spyStoreFactory = new ManagedLedgerFactoryImpl(spyStore, bkc);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) spyStoreFactory.open(ledgerName,
+                initManagedLedgerConfig(defaultConfig()));
+        Position lastPosition = ledger.addEntry(new byte[] {1});
+
+        CompletableFuture<Void> updateStarted = new CompletableFuture<>();
+        CompletableFuture<Void> releaseUpdate = new CompletableFuture<>();
+        AtomicInteger writes = new AtomicInteger();
+        doAnswer(invocation -> {
+            writes.incrementAndGet();
+            byte[] value = invocation.getArgument(1);
+            Optional<Long> expectedVersion = invocation.getArgument(2);
+            updateStarted.complete(null);
+            return releaseUpdate.thenCompose(ignored -> metadataStore.put(ledgerPath, value, expectedVersion));
+        }).when(spyStore).put(eq(ledgerPath), any(byte[].class), any());
+
+        CompletableFuture<Position> termination = terminateAsync(ledger);
+        CompletableFuture<Position> pendingDuplicate;
+        try {
+            updateStarted.get(5, TimeUnit.SECONDS);
+            ledger.close();
+            pendingDuplicate = terminateAsync(ledger);
+            assertThat(pendingDuplicate).isNotDone();
+        } finally {
+            releaseUpdate.complete(null);
+        }
+
+        assertThat(termination.get(5, TimeUnit.SECONDS)).isEqualTo(lastPosition);
+        assertThat(pendingDuplicate.get(5, TimeUnit.SECONDS)).isEqualTo(lastPosition);
+        assertThat(terminateAsync(ledger).get(5, TimeUnit.SECONDS)).isEqualTo(lastPosition);
+        assertThat(ledger.getState()).isEqualTo(ManagedLedgerImpl.State.Closed);
+        assertThat(writes).hasValue(1);
+    }
+
+    @Test(timeOut = 20000)
     public void duplicateTerminateSharesLedgerCloseFailureAndRecoversOnRetry() throws Exception {
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my_test_ledger",
                 initManagedLedgerConfig(defaultConfig()));
