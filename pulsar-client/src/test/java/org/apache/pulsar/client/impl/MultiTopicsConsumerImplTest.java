@@ -66,6 +66,7 @@ import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
@@ -428,6 +429,45 @@ public class MultiTopicsConsumerImplTest {
         assertTrue(impl.getUnAckedMessageTracker().remove(otherTopicMessageId));
         verify(partitionConsumer0).closeAsync();
         verify(partitionConsumer1).closeAsync();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testNewPartitionConsumerGetsPreProcessedSchema() {
+        String topicName = "persistent://public/default/auto-consume-topic";
+        String topicPartition0 = topicName + "-partition-0";
+        String topicPartition1 = topicName + "-partition-1";
+
+        ConsumerConfigurationData<GenericRecord> consumerConfData = new ConsumerConfigurationData<>();
+        consumerConfData.setSubscriptionName("subscriptionName");
+        consumerConfData.setAutoUpdatePartitions(true);
+        consumerConfData.setAutoUpdatePartitionsIntervalSeconds(60);
+
+        PulsarClientImpl clientMock = createPulsarClientMockWithMockedClientCnx(executorProvider, internalExecutor);
+        when(clientMock.getPartitionedTopicMetadata(any(), anyBoolean(), anyBoolean()))
+                .thenReturn(CompletableFuture.completedFuture(new PartitionedTopicMetadata()));
+        Schema<GenericRecord> schema = Schema.AUTO_CONSUME();
+
+        MultiTopicsConsumerImpl<GenericRecord> impl = new MultiTopicsConsumerImpl<>(
+                clientMock, consumerConfData, executorProvider,
+                new CompletableFuture<>(), schema, null, true);
+
+        impl.partitionedTopics.put(topicName, 1);
+        impl.allTopicPartitionsNumber.set(1);
+
+        when(clientMock.getPartitionsForTopic(topicName, false)).thenReturn(CompletableFuture.completedFuture(
+                Arrays.asList(topicPartition0, topicPartition1)));
+
+        PartitionsChangedListener listener = impl.topicsPartitionChangedListener;
+        listener.onTopicsExtended(Collections.singleton(topicName)).join();
+
+        // The new partition must be subscribed with the pre-processed schema, i.e. the expansion
+        // path must run the same schema pre-processing as the initial subscription path.
+        // On master this fails: the expansion path never calls preProcessSchemaBeforeSubscribe,
+        // so the new partition consumer gets the raw AUTO_CONSUME schema without a
+        // SchemaInfoProvider and decoding its messages fails.
+        verify(clientMock, times(1)).preProcessSchemaBeforeSubscribe(any(), any(), any());
+        assertTrue(impl.consumers.containsKey(topicPartition1));
     }
 
     @DataProvider

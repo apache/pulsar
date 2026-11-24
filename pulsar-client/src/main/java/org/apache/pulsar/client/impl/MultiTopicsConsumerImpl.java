@@ -1594,26 +1594,34 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 allTopicPartitionsNumber.addAndGet(currentPartitionNumber - oldPartitionNumber);
                 partitionedTopics.put(topicName, currentPartitionNumber);
                 List<String> newPartitions = list.subList(oldPartitionNumber, currentPartitionNumber);
-                // subscribe new added partitions
-                List<CompletableFuture<Consumer<T>>> futureList = newPartitions
-                    .stream()
-                    .map(partitionName -> {
-                        int partitionIndex = TopicName.getPartitionIndex(partitionName);
-                        return addNewConsumerIfNotExists(partitionName,
-                                () -> createInternalConsumer(getInternalConsumerConfig(topicName), partitionName,
-                                        partitionIndex, new CompletableFuture<>(), true, schema));
-                    })
-                    .collect(Collectors.toList());
-                // call interceptor
-                onPartitionsChange(topicName, currentPartitionNumber);
-                // wait for all partitions subscribe future complete, then startReceivingMessages
-                return FutureUtil.waitForAll(futureList)
-                    .thenAccept(finalFuture -> {
-                        List<ConsumerImpl<T>> newConsumerList = newPartitions.stream()
-                            .map(partitionTopic -> consumers.get(partitionTopic))
-                            .collect(Collectors.toList());
-                        startReceivingMessages(newConsumerList);
-                    });
+                // Pre-process the schema first, mirroring the initial subscription path, so that
+                // new partitions get a SchemaInfoProvider for versioned schemas such as AUTO_CONSUME.
+                // Otherwise the new partition consumers are created with the raw schema and decoding
+                // their messages fails with "SchemaInfoProvider is not set yet".
+                return client.preProcessSchemaBeforeSubscribe(client, schema, topicName)
+                        .thenCompose(processedSchema -> {
+                            // subscribe new added partitions
+                            List<CompletableFuture<Consumer<T>>> futureList = newPartitions
+                                .stream()
+                                .map(partitionName -> {
+                                    int partitionIndex = TopicName.getPartitionIndex(partitionName);
+                                    return addNewConsumerIfNotExists(partitionName,
+                                            () -> createInternalConsumer(getInternalConsumerConfig(topicName),
+                                                    partitionName, partitionIndex, new CompletableFuture<>(), true,
+                                                    processedSchema));
+                                })
+                                .collect(Collectors.toList());
+                            // call interceptor
+                            onPartitionsChange(topicName, currentPartitionNumber);
+                            // wait for all partitions subscribe future complete, then startReceivingMessages
+                            return FutureUtil.waitForAll(futureList)
+                                .thenAccept(finalFuture -> {
+                                    List<ConsumerImpl<T>> newConsumerList = newPartitions.stream()
+                                        .map(partitionTopic -> consumers.get(partitionTopic))
+                                        .collect(Collectors.toList());
+                                    startReceivingMessages(newConsumerList);
+                                });
+                        });
             } else {
                 log.error().attr("topic", topicName)
                         .attr("old", oldPartitionNumber)
