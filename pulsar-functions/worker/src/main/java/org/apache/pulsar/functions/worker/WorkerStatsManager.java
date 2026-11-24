@@ -126,11 +126,13 @@ public class WorkerStatsManager implements AutoCloseable {
     metricsLabels = new String[]{workerConfig.getPulsarFunctionsCluster()};
     this.openTelemetryWorkerStats = new OpenTelemetryWorkerStats(meter);
 
+    // Nothing exports exemplars, so the metrics skip the sampling that 1.x metrics do by default.
     statWorkerStartupTime = Summary.builder()
       .name(PULSAR_FUNCTION_WORKER_METRICS_PREFIX + START_UP_TIME)
       .help("Worker service startup time in milliseconds.")
       .labelNames(metricsLabelNames)
       .maxAgeSeconds(QUANTILE_WINDOW_SECONDS)
+      .withoutExemplars()
       .register(registry);
     statWorkerStartupTimeChild = statWorkerStartupTime.labelValues(metricsLabels);
 
@@ -138,6 +140,7 @@ public class WorkerStatsManager implements AutoCloseable {
       .name(PULSAR_FUNCTION_WORKER_METRICS_PREFIX + INSTANCE_COUNT)
       .help("Number of instances run by this worker.")
       .labelNames(metricsLabelNames)
+      .withoutExemplars()
       .register(registry);
     statNumInstancesChild = statNumInstances.labelValues(metricsLabels);
 
@@ -199,6 +202,7 @@ public class WorkerStatsManager implements AutoCloseable {
       .quantile(0.9, 0.01)
       .quantile(1, 0.01)
       .maxAgeSeconds(QUANTILE_WINDOW_SECONDS)
+      .withoutExemplars()
       .register(registry);
   }
 

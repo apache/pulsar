@@ -607,6 +607,7 @@ public class PrometheusMetricsProvider implements MetricsProvider {
                     .builder()
                     .name(name)
                     .help(name)
+                    .withoutExemplars()
                     .register(collectorRegistry);
         }
 
@@ -643,6 +644,7 @@ public class PrometheusMetricsProvider implements MetricsProvider {
                     .builder()
                     .name(name)
                     .help(name)
+                    .withoutExemplars()
                     .labelNames(LABELS)
                     .register(collectorRegistry);
         }

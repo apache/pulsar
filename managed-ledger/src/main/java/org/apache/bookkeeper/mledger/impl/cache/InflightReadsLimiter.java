@@ -47,6 +47,7 @@ public class InflightReadsLimiter implements AutoCloseable {
             "pulsar.broker.managed_ledger.inflight.read.limit";
     private final ObservableLongCounter inflightReadsLimitCounter;
 
+    // Nothing exports exemplars, so the gauges skip the sampling that 1.x gauges do by default.
     @PulsarDeprecatedMetric(newMetricName = INFLIGHT_READS_LIMITER_LIMIT_METRIC_NAME)
     @Deprecated
     @VisibleForTesting
@@ -54,6 +55,7 @@ public class InflightReadsLimiter implements AutoCloseable {
             .builder()
             .name("pulsar_ml_reads_inflight_bytes")
             .help("Estimated number of bytes retained by data read from storage or cache")
+            .withoutExemplars()
             .register();
 
     public static final String INFLIGHT_READS_LIMITER_USAGE_METRIC_NAME =
@@ -77,6 +79,7 @@ public class InflightReadsLimiter implements AutoCloseable {
             .builder()
             .name("pulsar_ml_reads_available_inflight_bytes")
             .help("Available space for inflight data read from storage or cache")
+            .withoutExemplars()
             .register();
 
     private final long maxReadsInFlightSize;

@@ -89,12 +89,12 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
         this.offloadError = owned(Counter.builder().name("brk_ledgeroffloader_offload_error").help("-")
                 .labelNames(labels).withoutExemplars().register());
         this.offloadRate = owned(Gauge.builder().name("brk_ledgeroffloader_offload_rate").help("-")
-                .labelNames(labels).register());
+                .labelNames(labels).withoutExemplars().register());
 
         this.readOffloadError = owned(Counter.builder().name("brk_ledgeroffloader_read_offload_error").help("-")
                 .labelNames(labels).withoutExemplars().register());
         this.readOffloadRate = owned(Gauge.builder().name("brk_ledgeroffloader_read_offload_rate").help("-")
-                .labelNames(labels).register());
+                .labelNames(labels).withoutExemplars().register());
         this.readOffloadBytes = owned(Counter.builder().name("brk_ledgeroffloader_read_bytes").help("-")
                 .labelNames(labels).withoutExemplars().register());
         this.writeStorageError = owned(Counter.builder().name("brk_ledgeroffloader_write_storage_error").help("-")
