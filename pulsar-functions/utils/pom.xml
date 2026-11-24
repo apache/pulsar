@@ -101,7 +101,6 @@
     <dependency>
       <groupId>org.zeroturnaround</groupId>
       <artifactId>zt-zip</artifactId>
-      <version>1.17</version>
     </dependency>
 
     <dependency>
