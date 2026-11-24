@@ -66,10 +66,13 @@ public class FunctionsMetricsResourceTest {
 
     @BeforeClass
     public void startStandaloneWorkerStats() {
-        // A standalone worker registers the Netty direct memory gauges for the life of the JVM, so this class
-        // creates its stats manager once.
-        standaloneWorkerStats = new WorkerStatsManager(new WorkerConfig().setPulsarFunctionsCluster("test-cluster"),
-                true);
+        // A standalone worker registers the Netty direct memory gauges for the life of the JVM, and registering
+        // them a second time fails. A later run of this class in the same JVM therefore reuses the first run's.
+        if (!isInTheDefaultRegistry("jvm_memory_direct_bytes_max")
+                && !isInTheDefaultRegistry("jvm_memory_direct_bytes_used")) {
+            standaloneWorkerStats = new WorkerStatsManager(
+                    new WorkerConfig().setPulsarFunctionsCluster("test-cluster"), true);
+        }
     }
 
     @AfterClass(alwaysRun = true)
@@ -163,5 +166,9 @@ public class FunctionsMetricsResourceTest {
             values.add(Double.parseDouble(sample.group(1)));
         }
         return values;
+    }
+
+    private static boolean isInTheDefaultRegistry(String name) {
+        return PrometheusRegistry.defaultRegistry.scrape(name::equals).size() > 0;
     }
 }

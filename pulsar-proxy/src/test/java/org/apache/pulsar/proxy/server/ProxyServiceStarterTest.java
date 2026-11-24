@@ -147,6 +147,7 @@ public class ProxyServiceStarterTest extends MockedPulsarServiceBaseTest {
         // register its own. A proxy that registered them on another registry would show each of them twice.
         @Cleanup
         Client httpClient = ClientBuilder.newClient();
+        @Cleanup
         Response response = httpClient.target(serviceStarter.getServer().getServiceUri()).path("/metrics")
                 .request().get();
         assertThat(response.getStatus()).as("status of the proxy /metrics").isEqualTo(200);
