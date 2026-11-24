@@ -139,7 +139,7 @@ public class ConsumerListenerSchedulingTest {
             });
             consumer = new ConsumerImpl<>(client, "non-persistent://tenant/ns/listener-scheduling", conf,
                     executorProvider, -1, false, false, new CompletableFuture<>(), null, 0, Schema.BYTES,
-                    null, true) {
+                    null, true, 0) {
                 @Override
                 protected Message<byte[]> internalReceive(long timeout, TimeUnit unit) {
                     // Keep the real listener drain and scheduler, without message decoding or broker state.

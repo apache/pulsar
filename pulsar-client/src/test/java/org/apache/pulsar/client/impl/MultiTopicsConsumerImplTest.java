@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl;
 import static org.apache.pulsar.client.impl.ClientTestFixtures.createDelayedCompletedFuture;
 import static org.apache.pulsar.client.impl.ClientTestFixtures.createExceptionFuture;
 import static org.apache.pulsar.client.impl.ClientTestFixtures.createPulsarClientMockWithMockedClientCnx;
+import static org.apache.pulsar.client.impl.ClientTestFixtures.mockClientCnx;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -70,6 +71,7 @@ import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.awaitility.Awaitility;
@@ -428,6 +430,58 @@ public class MultiTopicsConsumerImplTest {
         assertTrue(impl.getUnAckedMessageTracker().remove(otherTopicMessageId));
         verify(partitionConsumer0).closeAsync();
         verify(partitionConsumer1).closeAsync();
+    }
+
+    @Test
+    public void testNewPartitionConsumerInheritsParentEpochAfterRedeliver() {
+        String topicName = "persistent://public/default/epoch-inherit-topic";
+        String topicPartition0 = topicName + "-partition-0";
+        String topicPartition1 = topicName + "-partition-1";
+
+        ConsumerConfigurationData<byte[]> consumerConfData = new ConsumerConfigurationData<>();
+        consumerConfData.setSubscriptionName("subscriptionName");
+        consumerConfData.setAutoUpdatePartitions(true);
+        consumerConfData.setAutoUpdatePartitionsIntervalSeconds(60);
+
+        // The mocked connection reports protocol version 0 by default, which makes the child
+        // redeliver bail out before bumping its epoch. Report a modern broker instead.
+        ClientCnx clientCnxMock = mockClientCnx();
+        when(clientCnxMock.getRemoteEndpointProtocolVersion()).thenReturn(ProtocolVersion.v12_VALUE);
+        PulsarClientImpl clientMock = createPulsarClientMockWithMockedClientCnx(executorProvider, internalExecutor,
+                clientCnxMock);
+        when(clientMock.getPartitionedTopicMetadata(any(), anyBoolean(), anyBoolean()))
+                .thenReturn(CompletableFuture.completedFuture(new PartitionedTopicMetadata()));
+        Schema<byte[]> schema = Schema.BYTES;
+
+        MultiTopicsConsumerImpl<byte[]> impl = new MultiTopicsConsumerImpl<>(
+                clientMock, consumerConfData, executorProvider,
+                new CompletableFuture<>(), schema, null, true);
+
+        impl.partitionedTopics.put(topicName, 0);
+        impl.allTopicPartitionsNumber.set(0);
+
+        when(clientMock.getPartitionsForTopic(topicName, false)).thenReturn(CompletableFuture.completedFuture(
+                Collections.singletonList(topicPartition0)));
+
+        PartitionsChangedListener listener = impl.topicsPartitionChangedListener;
+        listener.onTopicsExtended(Collections.singleton(topicName)).join();
+        assertTrue(impl.consumers.containsKey(topicPartition0));
+
+        // Redeliver once: the parent epoch moves 0 -> 1 and the existing child follows.
+        impl.redeliverUnacknowledgedMessages();
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(impl.consumers.get(topicPartition0).getConsumerEpoch(), 1));
+
+        when(clientMock.getPartitionsForTopic(topicName, false)).thenReturn(CompletableFuture.completedFuture(
+                Arrays.asList(topicPartition0, topicPartition1)));
+
+        listener.onTopicsExtended(Collections.singleton(topicName)).join();
+
+        // The new partition must start from the parent's current epoch, otherwise the parent
+        // drops its messages as stale: it checks incoming messages against its own epoch.
+        // On master this fails, the new child starts at epoch 0 while the parent is at 1.
+        assertTrue(impl.consumers.containsKey(topicPartition1));
+        assertEquals(impl.consumers.get(topicPartition1).getConsumerEpoch(), 1);
     }
 
     @DataProvider

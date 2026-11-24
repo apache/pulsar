@@ -312,17 +312,36 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                                ConsumerInterceptors<T> interceptors,
                                                boolean createTopicIfDoesNotExist,
                                                long startMessageRollbackDurationInSec) {
+        return newConsumerImpl(client, topic, conf, executorProvider, partitionIndex, hasParentConsumer,
+                parentConsumerHasListener, subscribeFuture, startMessageId, schema, interceptors,
+                createTopicIfDoesNotExist, startMessageRollbackDurationInSec, 0);
+    }
+
+    static <T> ConsumerImpl<T> newConsumerImpl(PulsarClientImpl client,
+                                               String topic,
+                                               ConsumerConfigurationData<T> conf,
+                                               ExecutorProvider executorProvider,
+                                               int partitionIndex,
+                                               boolean hasParentConsumer,
+                                               boolean parentConsumerHasListener,
+                                               CompletableFuture<Consumer<T>> subscribeFuture,
+                                               MessageId startMessageId,
+                                               Schema<T> schema,
+                                               ConsumerInterceptors<T> interceptors,
+                                               boolean createTopicIfDoesNotExist,
+                                               long startMessageRollbackDurationInSec,
+                                               long initialConsumerEpoch) {
         if (conf.getReceiverQueueSize() == 0) {
             return new ZeroQueueConsumerImpl<>(client, topic, conf, executorProvider, partitionIndex, hasParentConsumer,
                     subscribeFuture,
                     startMessageId, schema, interceptors,
-                    createTopicIfDoesNotExist);
+                    createTopicIfDoesNotExist, initialConsumerEpoch);
         } else {
             return new ConsumerImpl<>(client, topic, conf, executorProvider, partitionIndex, hasParentConsumer,
                     parentConsumerHasListener,
                     subscribeFuture, startMessageId,
                     startMessageRollbackDurationInSec /* rollback time in sec to start msgId */,
-                    schema, interceptors, createTopicIfDoesNotExist);
+                    schema, interceptors, createTopicIfDoesNotExist, initialConsumerEpoch);
         }
     }
 
@@ -332,7 +351,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                            MessageId startMessageId,
                            long startMessageRollbackDurationInSec, Schema<T> schema,
                            ConsumerInterceptors<T> interceptors,
-                           boolean createTopicIfDoesNotExist) {
+                           boolean createTopicIfDoesNotExist, long initialConsumerEpoch) {
         super(client, topic, conf, conf.getReceiverQueueSize(), executorProvider, subscribeFuture, schema,
                 interceptors);
         this.consumerId = client.newConsumerId();
@@ -496,6 +515,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 "The number of negatively acknowledged messages", topic, attrs);
         consumerDlqMessagesCounter = ip.newCounter("pulsar.client.consumer.message.dlq", Unit.Messages,
                 "The number of messages sent to DLQ", topic, attrs);
+        // A child of a multi-topics consumer must start from the parent's epoch: after the parent
+        // redelivered, a new partition's messages are stamped with the parent's epoch, and the parent
+        // drops anything stamped with an older one. Set it here, before grabCnx() can subscribe.
+        CONSUMER_EPOCH.set(this, initialConsumerEpoch);
+
         grabCnx();
 
         consumersOpenedCounter.increment();

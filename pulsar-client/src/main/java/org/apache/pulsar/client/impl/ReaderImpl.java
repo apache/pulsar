@@ -171,7 +171,7 @@ public class ReaderImpl<T> implements Reader<T> {
         consumer = new ConsumerImpl<>(client, readerConfiguration.getTopicName(), consumerConfiguration,
                 executorProvider, partitionIdx, false, false, consumerFuture,
                 readerConfiguration.getStartMessageId(), readerConfiguration.getStartMessageFromRollbackDurationInSec(),
-                schema, consumerInterceptors, true /* createTopicIfDoesNotExist */);
+                schema, consumerInterceptors, true /* createTopicIfDoesNotExist */, 0 /* initialConsumerEpoch */);
         this.log = LOG.with()
                 .attr("topic", () -> getTopic())
                 .attr("subscription", () -> getConsumer().getSubscription())
