@@ -98,10 +98,6 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
 
     @Override
     public synchronized CompletableFuture<Void> release() {
-        return sequencer.sequential(this::releaseAfterPendingOperations);
-    }
-
-    private synchronized CompletableFuture<Void> releaseAfterPendingOperations() {
         if (state == State.Released) {
             return CompletableFuture.completedFuture(null);
         }
@@ -334,6 +330,12 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
                     }
 
                     synchronized (ResourceLockImpl.this) {
+                        if (!newValue.equals(existingValue) && !res.getStat().isCreatedBySelf()) {
+                            // Another session holds the lock. Report it even if release started, so that a
+                            // validation in flight expires this handle before release can delete that lock.
+                            return FutureUtils.exception(
+                                    new LockBusyException("Resource at " + path + " is already locked"));
+                        }
                         if (state != State.Valid && state != State.Init) {
                             // The metadata read may finish after release started. In particular,
                             // recognizing our old session's value must not revive a released lock.
@@ -366,15 +368,8 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
                             }
                         }
 
-                        // At this point we have an existing lock with a value different to what we
-                        // expect. If our session is the owner, we can recreate, otherwise the
-                        // lock has been acquired by someone else and we give up.
-
-                        if (!res.getStat().isCreatedBySelf()) {
-                            return FutureUtils.exception(
-                                    new LockBusyException("Resource at " + path + " is already locked"));
-                        }
-
+                        // At this point our session holds the lock with a value different to what we
+                        // expect, so we can recreate it.
                         return store.delete(path, Optional.of(res.getStat().getVersion()))
                                 .thenRun(() ->
                                     // Reset the expectation that the key is not there anymore
