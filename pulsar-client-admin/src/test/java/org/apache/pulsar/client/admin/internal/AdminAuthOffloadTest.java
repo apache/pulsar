@@ -18,10 +18,18 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import com.github.tomakehurst.wiremock.WireMockServer;
+import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import jakarta.ws.rs.client.Client;
 import jakarta.ws.rs.client.ClientBuilder;
+import jakarta.ws.rs.client.InvocationCallback;
 import jakarta.ws.rs.client.WebTarget;
+import jakarta.ws.rs.core.Response;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.net.URI;
@@ -41,7 +49,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException.GettingAuthenticationDataException;
+import org.apache.pulsar.client.admin.internal.http.AsyncHttpRequestExecutor;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -53,6 +64,9 @@ import org.apache.pulsar.client.api.v5.auth.HttpAuthHeadersProvider;
 import org.apache.pulsar.client.impl.auth.v5.AsyncHttpAuthenticationProvider;
 import org.apache.pulsar.client.impl.auth.v5.HttpAuthenticationDriver;
 import org.apache.pulsar.client.impl.auth.v5.HttpChallengeTransport;
+import org.apache.pulsar.common.functions.FunctionConfig;
+import org.asynchttpclient.AsyncHandler;
+import org.asynchttpclient.Request;
 import org.asynchttpclient.RequestBuilder;
 import org.testng.annotations.Test;
 
@@ -217,6 +231,15 @@ public class AdminAuthOffloadTest {
     private static final class TestComponentResource extends ComponentResource {
         TestComponentResource(Authentication auth) {
             super(auth, 30_000L);
+        }
+    }
+
+    /** A plugin whose credential resolution always fails, for the error-propagation checks. */
+    private static final class FailingAuthentication extends ThreadRecordingAuthentication {
+        @Override
+        @Deprecated
+        public AuthenticationDataProvider getAuthData() {
+            throw new IllegalStateException("credential refresh failed");
         }
     }
 
@@ -440,6 +463,102 @@ public class AdminAuthOffloadTest {
         } finally {
             client.close();
             ioLoop.shutdownNow();
+        }
+    }
+
+    /**
+     * The Jersey-backed {@code *Async} helpers used to reach the warmup through the blocking
+     * {@link BaseResource#request(WebTarget)}. Jersey's response callback is invoked straight from the
+     * AsyncHttpClient callback with no executor hop, so a caller chaining one admin operation onto
+     * another's future ran that wait on the connector's IO thread — the loop the warmup itself needs.
+     * They compose on {@code requestAsync} now, so the wait is gone and only the blocking builder that
+     * the synchronous APIs use is left.
+     */
+    @Test
+    public void theJerseyAsyncHelpersNeverWaitForTheWarmupOnTheCallingThread() throws Exception {
+        WireMockServer server = new WireMockServer(WireMockConfiguration.wireMockConfig().port(0));
+        server.start();
+        ExecutorService ioLoop = Executors.newSingleThreadExecutor(r -> new Thread(r, "ahc-io-1"));
+        Client client = ClientBuilder.newClient();
+        try {
+            server.stubFor(get(urlEqualTo("/admin/v2/clusters"))
+                    .willReturn(aResponse().withStatus(200)
+                            .withHeader("Content-Type", "application/json").withBody("[]")));
+            WebTarget target = client.target("http://localhost:" + server.port() + "/admin/v2/clusters");
+            TestResource resource = new TestResource(new ChallengeAuthentication());
+            AtomicInteger rounds = new AtomicInteger();
+            resource.setChallengeTransport((uri, requestHeaders, timeout) -> CompletableFuture.supplyAsync(
+                    () -> rounds.incrementAndGet() == 1
+                            ? new HttpChallengeTransport.Result(401, HttpAuthHeaders.of("server-state", "negotiate"))
+                            : new HttpChallengeTransport.Result(200, HttpAuthHeaders.of("role-token", "RT")),
+                    ioLoop));
+
+            CompletableFuture<String> body = new CompletableFuture<>();
+            ioLoop.execute(() -> resource.asyncGetRequest(target, new InvocationCallback<Response>() {
+                @Override
+                public void completed(Response response) {
+                    body.complete(response.readEntity(String.class));
+                }
+
+                @Override
+                public void failed(Throwable throwable) {
+                    body.completeExceptionally(throwable);
+                }
+            }));
+
+            assertThat(body.get(30, TimeUnit.SECONDS))
+                    .as("the warmup must be able to use the loop the admin call was issued from")
+                    .isEqualTo("[]");
+            assertThat(rounds.get()).isEqualTo(2);
+        } finally {
+            client.close();
+            ioLoop.shutdownNow();
+            server.stop();
+        }
+    }
+
+    /**
+     * A credential failure reached the caller as {@code GettingAuthenticationDataException} while the
+     * composition was synchronous and the exception was thrown inside the operation's {@code try}. Now that
+     * it travels through a future, the dependent stage relays a {@code CompletionException}, which
+     * {@code getApiException} does not unwrap, so each terminal handler unwraps once before mapping. Both
+     * shapes are covered: a raw AsyncHttpClient operation and a Jersey-backed one.
+     */
+    @Test
+    public void aCredentialFailureStillReachesTheCallerAsTheAuthenticationSubtype() throws Exception {
+        AtomicInteger requestsSent = new AtomicInteger();
+        Client client = ClientBuilder.newClient();
+        try {
+            AsyncHttpRequestExecutor executor = new AsyncHttpRequestExecutor() {
+                @Override
+                public CompletableFuture<org.asynchttpclient.Response> executeRequest(Request request) {
+                    requestsSent.incrementAndGet();
+                    return new CompletableFuture<>();
+                }
+
+                @Override
+                public CompletableFuture<org.asynchttpclient.Response> executeRequest(Request request,
+                        Supplier<AsyncHandler<org.asynchttpclient.Response>> handlerSupplier) {
+                    requestsSent.incrementAndGet();
+                    return new CompletableFuture<>();
+                }
+            };
+            FunctionsImpl functions = new FunctionsImpl(client.target("http://broker.example:8080"),
+                    new FailingAuthentication(), executor, 30_000L);
+            FunctionConfig config = FunctionConfig.builder().tenant("t").namespace("ns").name("fn").build();
+
+            // The raw path: the headers are composed before the multipart request is submitted.
+            assertThatThrownBy(() -> functions.createFunctionAsync(config, null).get(30, TimeUnit.SECONDS))
+                    .cause()
+                    .isInstanceOf(GettingAuthenticationDataException.class);
+            // The Jersey path, through the shared withAuthentication helper.
+            assertThatThrownBy(() -> functions.deleteFunctionAsync("t", "ns", "fn").get(30, TimeUnit.SECONDS))
+                    .cause()
+                    .isInstanceOf(GettingAuthenticationDataException.class);
+            assertThat(requestsSent.get()).as("no request may be sent when the credential cannot be built")
+                    .isZero();
+        } finally {
+            client.close();
         }
     }
 }

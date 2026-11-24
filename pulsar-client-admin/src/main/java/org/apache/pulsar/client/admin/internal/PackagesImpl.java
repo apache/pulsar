@@ -38,6 +38,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.internal.http.AsyncHttpRequestExecutor;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.packages.management.core.common.PackageMetadata;
 import org.apache.pulsar.packages.management.core.common.PackageName;
 import org.asynchttpclient.AsyncCompletionHandlerBase;
@@ -111,7 +112,7 @@ public class PackagesImpl extends ComponentResource implements Packages {
                     }
                 })
                 .exceptionally(throwable -> {
-                    future.completeExceptionally(getApiException(throwable));
+                    future.completeExceptionally(getApiException(FutureUtil.unwrapCompletionException(throwable)));
                     return null;
                 });
         } catch (Exception e) {
@@ -169,7 +170,7 @@ public class PackagesImpl extends ComponentResource implements Packages {
                     }
                 })
                 .exceptionally(throwable -> {
-                    future.completeExceptionally(getApiException(throwable));
+                    future.completeExceptionally(getApiException(FutureUtil.unwrapCompletionException(throwable)));
                     return null;
                 });
         } catch (Exception e) {

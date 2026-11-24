@@ -40,6 +40,7 @@ import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.policies.data.SourceStatus;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.asynchttpclient.RequestBuilder;
 import org.asynchttpclient.request.body.multipart.FilePart;
 import org.asynchttpclient.request.body.multipart.StringPart;
@@ -139,7 +140,7 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
                         }
                     })
                     .exceptionally(throwable -> {
-                        future.completeExceptionally(getApiException(throwable));
+                        future.completeExceptionally(getApiException(FutureUtil.unwrapCompletionException(throwable)));
                         return null;
                     });
         } catch (Exception e) {
@@ -217,7 +218,7 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
                         }
                     })
                     .exceptionally(throwable -> {
-                        future.completeExceptionally(getApiException(throwable));
+                        future.completeExceptionally(getApiException(FutureUtil.unwrapCompletionException(throwable)));
                         return null;
                     });
         } catch (Exception e) {

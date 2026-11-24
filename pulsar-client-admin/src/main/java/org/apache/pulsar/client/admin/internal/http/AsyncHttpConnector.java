@@ -454,7 +454,8 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
                 if (timeout != null && !timeout.isNegative() && !timeout.isZero()) {
                     builder.setRequestTimeout(timeout);
                 }
-                executeRequest(builder.build()).whenComplete((response, t) -> {
+                CompletableFuture<Response> requestFuture = executeRequest(builder.build());
+                requestFuture.whenComplete((response, t) -> {
                     if (t != null) {
                         resultFuture.completeExceptionally(t);
                         return;
@@ -463,6 +464,10 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
                     response.getHeaders().forEach(entry -> headers.put(entry.getKey(), entry.getValue()));
                     resultFuture.complete(new Result(response.getStatusCode(), HttpAuthHeaders.of(headers)));
                 });
+                // The driver bounds the whole exchange with orTimeout, and the per-host reducer this now
+                // queues behind only skips a job whose future was cancelled. Without this the caller sees the
+                // authentication timeout while the obsolete round is still sent once a permit frees up.
+                resultFuture.whenComplete((result, t) -> requestFuture.cancel(false));
             } catch (Throwable t) {
                 resultFuture.completeExceptionally(t);
             }

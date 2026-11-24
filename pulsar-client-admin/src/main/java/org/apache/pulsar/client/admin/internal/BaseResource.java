@@ -42,6 +42,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import lombok.CustomLog;
@@ -142,6 +143,56 @@ public abstract class BaseResource {
         } catch (Exception e) {
             throw new GettingAuthenticationDataException(e);
         }
+    }
+
+    /**
+     * Run {@code action} on the authenticated request builder without waiting for the authentication
+     * exchange on the calling thread, failing {@code future} if it cannot be built.
+     *
+     * <p>The blocking {@link #request(WebTarget)} is kept for the synchronous APIs, but an {@code *Async}
+     * method must not use it: a v5 SASL warmup goes over the same connector that completes these requests,
+     * and {@code AsyncHttpConnector} invokes Jersey's response callback straight from the AsyncHttpClient
+     * callback, with no executor hop. A caller chaining one admin operation onto another's future therefore
+     * runs here on the connector's IO thread, where waiting holds the very loop the warmup needs.
+     */
+    protected void withAuthentication(final WebTarget target, final CompletableFuture<?> future,
+                                      final Consumer<Builder> action) {
+        requestAsync(target).whenComplete((builder, ex) -> {
+            if (ex != null) {
+                future.completeExceptionally(authenticationFailure(ex));
+                return;
+            }
+            try {
+                action.accept(builder);
+            } catch (Throwable t) {
+                future.completeExceptionally(getApiException(t));
+            }
+        });
+    }
+
+    /**
+     * The {@link InvocationCallback} counterpart of
+     * {@link #withAuthentication(WebTarget, CompletableFuture, Consumer)}, for the helpers that report
+     * through a callback rather than a future.
+     */
+    protected <T> void withAuthentication(final WebTarget target, final InvocationCallback<T> callback,
+                                          final Consumer<Builder> action) {
+        requestAsync(target).whenComplete((builder, ex) -> {
+            if (ex != null) {
+                callback.failed(authenticationFailure(ex));
+                return;
+            }
+            try {
+                action.accept(builder);
+            } catch (Throwable t) {
+                callback.failed(getApiException(t));
+            }
+        });
+    }
+
+    private static PulsarAdminException authenticationFailure(Throwable ex) {
+        Throwable cause = unwrapCompletion(ex);
+        return (cause instanceof PulsarAdminException pae) ? pae : new GettingAuthenticationDataException(cause);
     }
 
     // do the authentication stage, and once authentication completed return a Builder
@@ -270,8 +321,8 @@ public abstract class BaseResource {
 
     public <T> CompletableFuture<Void> asyncPutRequest(final WebTarget target, Entity<T> entity) {
         final CompletableFuture<Void> future = new CompletableFuture<>();
-        try {
-            request(target).async().put(entity, new InvocationCallback<ErrorData>() {
+        withAuthentication(target, future, builder -> builder.async().put(entity,
+                new InvocationCallback<ErrorData>() {
 
                 @Override
                 public void completed(ErrorData response) {
@@ -286,26 +337,19 @@ public abstract class BaseResource {
                     future.completeExceptionally(getApiException(throwable.getCause()));
                 }
 
-            });
-        } catch (PulsarAdminException cae) {
-            future.completeExceptionally(cae);
-        }
+            }));
         return future;
     }
 
     public <T, R> void asyncPostRequestWithResponse(final WebTarget target, Entity<T> entity,
                                                                     InvocationCallback<R> callback) {
-        try {
-            request(target).async().post(entity, callback);
-        } catch (PulsarAdminException cae) {
-            callback.failed(cae);
-        }
+        withAuthentication(target, callback, builder -> builder.async().post(entity, callback));
     }
 
     public <T> CompletableFuture<Void> asyncPostRequest(final WebTarget target, Entity<T> entity) {
         final CompletableFuture<Void> future = new CompletableFuture<>();
-        try {
-            request(target).async().post(entity, new InvocationCallback<ErrorData>() {
+        withAuthentication(target, future, builder -> builder.async().post(entity,
+                new InvocationCallback<ErrorData>() {
 
                 @Override
                 public void completed(ErrorData response) {
@@ -320,19 +364,12 @@ public abstract class BaseResource {
                     future.completeExceptionally(getApiException(throwable.getCause()));
                 }
 
-            });
-        } catch (PulsarAdminException cae) {
-            future.completeExceptionally(cae);
-        }
+            }));
         return future;
     }
 
     public <T> void asyncGetRequest(final WebTarget target, InvocationCallback<T> callback) {
-        try {
-            request(target).async().get(callback);
-        } catch (PulsarAdminException cae) {
-            callback.failed(cae);
-        }
+        withAuthentication(target, callback, builder -> builder.async().get(callback));
     }
 
     public <T> CompletableFuture<T> asyncGetRequest(final WebTarget target, FutureCallback<T> callback) {
@@ -383,8 +420,8 @@ public abstract class BaseResource {
 
     public CompletableFuture<Void> asyncDeleteRequest(final WebTarget target) {
         final CompletableFuture<Void> future = new CompletableFuture<>();
-        try {
-            request(target).async().delete(new InvocationCallback<ErrorData>() {
+        withAuthentication(target, future, builder -> builder.async().delete(
+                new InvocationCallback<ErrorData>() {
 
                 @Override
                 public void completed(ErrorData response) {
@@ -398,19 +435,12 @@ public abstract class BaseResource {
                             .log("Failed to perform http delete request");
                     future.completeExceptionally(getApiException(throwable.getCause()));
                 }
-            });
-        } catch (PulsarAdminException cae) {
-            future.completeExceptionally(cae);
-        }
+            }));
         return future;
     }
 
     public <T> void asyncDeleteRequest(final WebTarget target, InvocationCallback<T> callback) {
-        try {
-            request(target).async().delete(callback);
-        } catch (PulsarAdminException cae) {
-            callback.failed(cae);
-        }
+        withAuthentication(target, callback, builder -> builder.async().delete(callback));
     }
 
     public static PulsarAdminException getApiException(Throwable e) {

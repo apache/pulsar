@@ -41,6 +41,7 @@ import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.policies.data.SinkStatus;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.asynchttpclient.RequestBuilder;
 import org.asynchttpclient.request.body.multipart.FilePart;
 import org.asynchttpclient.request.body.multipart.StringPart;
@@ -160,7 +161,7 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
                         }
                     })
                     .exceptionally(throwable -> {
-                        future.completeExceptionally(getApiException(throwable));
+                        future.completeExceptionally(getApiException(FutureUtil.unwrapCompletionException(throwable)));
                         return null;
                     });
         } catch (Exception e) {
@@ -248,7 +249,7 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
                         }
                     })
                     .exceptionally(throwable -> {
-                        future.completeExceptionally(getApiException(throwable));
+                        future.completeExceptionally(getApiException(FutureUtil.unwrapCompletionException(throwable)));
                         return null;
                     });
         } catch (Exception e) {

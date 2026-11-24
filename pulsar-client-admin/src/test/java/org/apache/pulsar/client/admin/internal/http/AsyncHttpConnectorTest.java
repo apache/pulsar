@@ -596,6 +596,45 @@ public class AsyncHttpConnectorTest {
                 .withHeader("SASL-Token", equalTo("initial")));
     }
 
+    /**
+     * Submitting the warmup through {@code executeRequest} also puts it in the per-host
+     * {@code ConcurrencyReducer} queue, which the direct {@code httpClient} call bypassed. The driver bounds
+     * the exchange with {@code orTimeout} on the future this returns, and the reducer drops a queued job only
+     * when its own future is cancelled, so that expiry has to reach the request: otherwise the caller sees the
+     * authentication timeout and the obsolete round is still sent once a permit frees up.
+     */
+    @Test
+    public void testAnExpiredChallengeRoundIsNotSentAfterAPermitFrees() throws Exception {
+        server.stubFor(get(urlEqualTo("/slow"))
+                .willReturn(aResponse().withStatus(200).withFixedDelay(2000)));
+        server.stubFor(get(urlEqualTo("/admin/v2/clusters"))
+                .willReturn(aResponse().withStatus(401).withHeader("SASL-State", "negotiate")));
+
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setServiceUrl("http://localhost:" + server.port());
+        conf.setConnectionsPerBroker(1);
+
+        @Cleanup
+        AsyncHttpConnector connector = new AsyncHttpConnector(5000, 5000,
+                5000, 0, conf, false, null);
+
+        // Occupy the single per-host permit.
+        CompletableFuture<Response> inFlight = connector.executeRequest(request("/slow"));
+
+        CompletableFuture<HttpChallengeTransport.Result> warmup = connector.getChallengeTransport()
+                .get(URI.create("http://localhost:" + server.port() + "/admin/v2/clusters"),
+                        HttpAuthHeaders.of("SASL-Token", "initial"), Duration.ofSeconds(10));
+
+        // The driver's budget expires while the round is still queued behind the upload.
+        warmup.cancel(false);
+
+        inFlight.get(30, TimeUnit.SECONDS);
+        Thread.sleep(500);
+
+        assertEquals(server.findAll(getRequestedFor(urlEqualTo("/admin/v2/clusters"))).size(), 0,
+                "the expired challenge round must not be sent once the permit frees up");
+    }
+
     private Request request(String path) {
         return new RequestBuilder("GET").setUrl("http://localhost:" + server.port() + path).build();
     }

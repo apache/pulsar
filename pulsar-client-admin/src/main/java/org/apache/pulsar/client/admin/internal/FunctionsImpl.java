@@ -54,6 +54,7 @@ import org.apache.pulsar.common.policies.data.FunctionInstanceStatsDataImpl;
 import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.common.policies.data.FunctionStatsImpl;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.asynchttpclient.AsyncCompletionHandlerBase;
 import org.asynchttpclient.HttpResponseBodyPart;
 import org.asynchttpclient.RequestBuilder;
@@ -185,7 +186,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                         }
                     })
                     .exceptionally(throwable -> {
-                        future.completeExceptionally(getApiException(throwable));
+                        future.completeExceptionally(getApiException(FutureUtil.unwrapCompletionException(throwable)));
                         return null;
                     });
 
@@ -277,7 +278,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                         }
                     })
                     .exceptionally(throwable -> {
-                        future.completeExceptionally(getApiException(throwable));
+                        future.completeExceptionally(getApiException(FutureUtil.unwrapCompletionException(throwable)));
                         return null;
                     });
         } catch (Exception e) {
@@ -356,8 +357,8 @@ public class FunctionsImpl extends ComponentResource implements Functions {
         WebTarget path = functions.path(tenant).path(namespace).path(function).path("trigger");
 
         final CompletableFuture<String> future = new CompletableFuture<>();
-        try {
-            request(path).async().post(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA),
+        withAuthentication(path, future, builder -> builder.async()
+                .post(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA),
                     new InvocationCallback<String>() {
                         @Override
                         public void completed(String response) {
@@ -371,10 +372,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                                     .log("Failed to perform http post request");
                             future.completeExceptionally(getApiException(throwable.getCause()));
                         }
-                    });
-        } catch (PulsarAdminException cae) {
-            future.completeExceptionally(cae);
-        }
+                    }));
         return future;
     }
 
@@ -479,7 +477,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                         }
                     })
                     .exceptionally(throwable -> {
-                        future.completeExceptionally(getApiException(throwable));
+                        future.completeExceptionally(getApiException(FutureUtil.unwrapCompletionException(throwable)));
                         return null;
                     });
         } catch (Exception e) {
@@ -578,7 +576,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                         }
                     })
                     .exceptionally(throwable -> {
-                        future.completeExceptionally(getApiException(throwable));
+                        future.completeExceptionally(getApiException(FutureUtil.unwrapCompletionException(throwable)));
                         return null;
                     });
         } catch (Exception e) {
@@ -695,7 +693,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                         }
                     })
                     .exceptionally(throwable -> {
-                        future.completeExceptionally(getApiException(throwable));
+                        future.completeExceptionally(getApiException(FutureUtil.unwrapCompletionException(throwable)));
                         return null;
                     });
 
@@ -737,7 +735,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                         }
                     })
                     .exceptionally(throwable -> {
-                        future.completeExceptionally(getApiException(throwable));
+                        future.completeExceptionally(getApiException(FutureUtil.unwrapCompletionException(throwable)));
                         return null;
                     });
 
