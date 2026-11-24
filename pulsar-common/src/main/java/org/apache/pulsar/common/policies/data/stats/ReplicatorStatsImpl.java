@@ -19,10 +19,12 @@
 package org.apache.pulsar.common.policies.data.stats;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Objects;
 import java.util.concurrent.atomic.LongAdder;
 import lombok.Data;
+import org.apache.pulsar.common.policies.data.ReplicatorHealth;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
 
 /**
@@ -79,6 +81,24 @@ public class ReplicatorStatsImpl implements ReplicatorStats {
 
     /** Timestamp of outbound connection establishment time. */
     public String outboundConnectedSince;
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public String replicatorState;
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public String producerState;
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public ReplicatorHealth replicatorHealth;
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public Long lastCursorReadStartedAt;
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public Long lastSendStartedAt;
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public Long lastReplicationSucceededAt;
 
     public ReplicatorStatsImpl add(ReplicatorStatsImpl stats) {
         Objects.requireNonNull(stats);

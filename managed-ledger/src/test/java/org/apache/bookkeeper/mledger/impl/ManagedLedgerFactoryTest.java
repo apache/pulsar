@@ -31,6 +31,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import java.time.Duration;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -58,6 +59,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.ReadOnlyManagedLedger;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.ManagedLedgerInitializeLedgerCallback;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
@@ -108,6 +110,21 @@ public class ManagedLedgerFactoryTest extends MockedBookKeeperTestCase {
         assertEquals(mri.from.entryId, -1);
         assertEquals(mri.to.ledgerId, p2.getLedgerId());
         assertEquals(mri.to.entryId, 0);
+    }
+
+    /** The properties of a cursor, read from its metadata without opening the managed ledger. */
+    @Test(timeOut = 20000)
+    public void testGetCursorProperties() throws Exception {
+        ManagedLedger ledger = factory.open("testGetCursorProperties", defaultConfig());
+        ledger.openCursor("with-properties", InitialPosition.Earliest, Map.of(), Map.of("a", "1", "b", "2"));
+        ledger.openCursor("without-properties");
+        ledger.close();
+
+        assertThat(factory.getCursorPropertiesAsync("testGetCursorProperties", "with-properties").get())
+                .isEqualTo(Map.of("a", "1", "b", "2"));
+        assertThat(factory.getCursorPropertiesAsync("testGetCursorProperties", "without-properties").get())
+                .isEmpty();
+        assertThat(factory.getCursorPropertiesAsync("testGetCursorProperties", "missing").get()).isEmpty();
     }
 
     @Test(timeOut = 30000)

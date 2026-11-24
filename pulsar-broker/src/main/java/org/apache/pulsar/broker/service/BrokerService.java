@@ -48,9 +48,9 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.util.concurrent.GlobalEventExecutor;
 import io.opentelemetry.api.metrics.LongCounter;
 import io.opentelemetry.api.metrics.ObservableLongUpDownCounter;
-import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Gauge;
 import io.prometheus.client.Histogram;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import java.io.Closeable;
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -467,7 +467,7 @@ public class BrokerService implements Closeable {
                 new Semaphore(pulsar.getConfiguration().getMaxConcurrentLookupRequest(), false));
         // Initialize topic list memory limiter
         this.maxTopicListInFlightLimiter = new TopicListMemoryLimiter(
-                CollectorRegistry.defaultRegistry, "pulsar_broker_", pulsar.getOpenTelemetry().getMeter(),
+                PrometheusRegistry.defaultRegistry, "pulsar_broker_", pulsar.getOpenTelemetry().getMeter(),
                 pulsar.getConfiguration().getMaxTopicListInFlightHeapMemSizeMB() * 1024L * 1024L,
                 pulsar.getConfiguration().getMaxTopicListInFlightHeapMemSizePermitsAcquireQueueSize(),
                 pulsar.getConfiguration().getMaxTopicListInFlightHeapMemSizePermitsAcquireTimeoutMillis(),
@@ -1137,6 +1137,8 @@ public class BrokerService implements Closeable {
                                 scalableTopicMetrics.close();
                                 pendingTopicLoadOperationsCounter.close();
                                 pendingLookupOperationsCounter.close();
+                                pendingTopicLoadOperationsLimitCounter.close();
+                                pendingLookupOperationsLimitCounter.close();
                                 try {
                                     delayedDeliveryTrackerFactory.close();
                                     if (fallbackDelayedDeliveryTrackerFactory != null) {
@@ -3139,7 +3141,11 @@ public class BrokerService implements Closeable {
     }
 
     public void checkReplicationPolicies() {
-        forEachTopic(Topic::checkReplication);
+        forEachTopic(topic -> topic.checkReplication().whenComplete((ignored, error) -> {
+            if (error != null) {
+                log.warn().attr("topic", topic.getName()).exception(error).log("Failed to check replication policies");
+            }
+        }));
     }
 
     public void checkCompaction() {

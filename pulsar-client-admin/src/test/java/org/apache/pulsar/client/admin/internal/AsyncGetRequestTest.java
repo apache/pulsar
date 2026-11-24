@@ -24,6 +24,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
 import com.github.tomakehurst.wiremock.WireMockServer;
+import com.github.tomakehurst.wiremock.client.ResponseDefinitionBuilder;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
@@ -33,6 +34,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class AsyncGetRequestTest {
@@ -164,5 +166,66 @@ public class AsyncGetRequestTest {
         assertThat(getRequest).succeedsWithin(3, TimeUnit.SECONDS);
 
         server.verify(getRequestedFor(urlEqualTo("/200-empty")));
+    }
+
+    @DataProvider
+    public Object[][] unsetNamespaceStringValues() {
+        return new Object[][] {
+                {"antiAffinity"},
+                {"resourcegroup"},
+                {"configversion"},
+        };
+    }
+
+    @Test(dataProvider = "unsetNamespaceStringValues")
+    public void testUnsetNamespaceStringValueMapsToNull(String part) throws Exception {
+        String namespace = "t/ns-" + part;
+        String url = "/admin/v2/namespaces/" + namespace + "/" + part;
+
+        @Cleanup
+        PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(adminUrl).build();
+
+        // An async JAX-RS resource that resumes with null answers 200 with an empty body
+        server.stubFor(get(urlEqualTo(url)).willReturn(aResponse().withStatus(200).withBody("")));
+        assertThat(getNamespaceStringValue(admin, part, namespace)).isNull();
+
+        server.stubFor(get(urlEqualTo(url)).willReturn(aResponse().withStatus(204)));
+        assertThat(getNamespaceStringValue(admin, part, namespace)).isNull();
+
+        server.stubFor(get(urlEqualTo(url)).willReturn(stringBody("my-value")));
+        assertThat(getNamespaceStringValue(admin, part, namespace)).isEqualTo("my-value");
+    }
+
+    @Test
+    public void testEmptyBodyIsNotMappedToNullForOtherStringGetters() throws Exception {
+        // The empty -> null mapping is per method, not a rule of the shared FutureCallback
+        server.stubFor(get(urlEqualTo("/admin/v2/brokers/version"))
+                .willReturn(aResponse().withStatus(200).withBody("")));
+
+        @Cleanup
+        PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(adminUrl).build();
+
+        assertThat(admin.brokers().getVersion()).isEmpty();
+    }
+
+    private static ResponseDefinitionBuilder stringBody(String value) {
+        return aResponse()
+                .withStatus(200)
+                .withHeader("Content-Type", "application/json")
+                .withBody(value);
+    }
+
+    private static String getNamespaceStringValue(PulsarAdmin admin, String part, String namespace)
+            throws PulsarAdminException {
+        switch (part) {
+            case "antiAffinity":
+                return admin.namespaces().getNamespaceAntiAffinityGroup(namespace);
+            case "resourcegroup":
+                return admin.namespaces().getNamespaceResourceGroup(namespace);
+            case "configversion":
+                return admin.namespaces().getReplicationConfigVersion(namespace);
+            default:
+                throw new IllegalArgumentException(part);
+        }
     }
 }

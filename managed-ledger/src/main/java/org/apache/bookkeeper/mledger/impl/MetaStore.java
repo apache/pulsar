@@ -129,6 +129,9 @@ public interface MetaStore {
      *            the name of the ManagedLedger
      * @param cursorName
      * @param info
+     *            the cursor data for this write. If its publication ID is empty, this method assigns a new one.
+     *            Retry with the same data, publication ID and expected version. Clear the old ID when
+     *            copying a persisted record for a new write.
      * @param stat
      * @param callback
      *            the callback
