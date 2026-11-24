@@ -20,6 +20,7 @@ package org.apache.pulsar.functions.worker.rest;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.opentelemetry.api.OpenTelemetry;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import jakarta.servlet.DispatcherType;
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -83,6 +84,7 @@ public class WorkerServer {
     private static final String MATCH_ALL = "/*";
     private final WebExecutorThreadPool webServerExecutor;
     private Server server;
+    private JettyStatisticsCollector jettyStatisticsCollector;
 
     private ServerConnector httpConnector;
     private ServerConnector httpsConnector;
@@ -163,7 +165,8 @@ public class WorkerServer {
         StatisticsHandler stats = new StatisticsHandler();
         stats.setHandler(handlerCollection);
         try {
-            new JettyStatisticsCollector(stats).register();
+            jettyStatisticsCollector = new JettyStatisticsCollector(stats);
+            PrometheusRegistry.defaultRegistry.register(jettyStatisticsCollector);
         } catch (IllegalArgumentException e) {
             // Already registered. Eg: in unit tests
         }
@@ -284,6 +287,11 @@ public class WorkerServer {
             } catch (Exception e) {
                 log.error().exception(e).log("Failed to stop function web-server");
             }
+        }
+        // Registered, the collector keeps the StatisticsHandler and the server reachable after shutdown.
+        if (this.jettyStatisticsCollector != null) {
+            PrometheusRegistry.defaultRegistry.unregister(this.jettyStatisticsCollector);
+            this.jettyStatisticsCollector = null;
         }
         if (this.webServerExecutor != null && this.webServerExecutor.isRunning()) {
             try {

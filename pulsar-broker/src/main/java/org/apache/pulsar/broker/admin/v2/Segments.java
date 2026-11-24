@@ -39,6 +39,7 @@ import jakarta.ws.rs.container.Suspended;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import lombok.CustomLog;
@@ -189,7 +190,7 @@ public class Segments extends AdminResource {
     @PUT
     @Path("/{tenant}/{namespace}/{topic}/{descriptor}/subscription/{subscription}")
     @Operation(summary = "Create a subscription cursor on the segment topic at the earliest"
-            + " position. Super-user only.")
+            + " position, with the given subscription properties. Super-user only.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "Subscription cursor created (or already existed)"),
             @ApiResponse(responseCode = "401", description = "This operation requires super-user access"),
@@ -208,7 +209,10 @@ public class Segments extends AdminResource {
             @Parameter(description = "Subscription name", required = true)
             @PathParam("subscription") String subscription,
             @Parameter(description = "Whether leader broker redirected this call to this broker.")
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @RequestBody(description = "Properties of a subscription that doesn't exist yet; an existing"
+                    + " subscription keeps its own")
+            Map<String, String> subscriptionProperties) {
         validateNamespaceName(tenant, namespace);
         TopicName segmentTopic = segmentTopicName(tenant, namespace, encodedTopic, descriptor);
 
@@ -216,7 +220,7 @@ public class Segments extends AdminResource {
                 .thenCompose(__ -> validateTopicOwnershipAsync(segmentTopic, authoritative))
                 .thenCompose(__ -> pulsar().getBrokerService().getOrCreateTopic(segmentTopic.toString()))
                 .thenCompose(topic -> topic.createSubscription(subscription,
-                        CommandSubscribe.InitialPosition.Earliest, false, null))
+                        CommandSubscribe.InitialPosition.Earliest, false, subscriptionProperties))
                 .thenAccept(__ -> {
                     log.info().attr("clientAppId", clientAppId()).attr("segment", segmentTopic)
                             .attr("subscription", subscription)

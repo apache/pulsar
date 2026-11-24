@@ -3764,6 +3764,55 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertTrue(reopened.getLedgersInfo().size() < ledgerIds.size());
     }
 
+    @Test(timeOut = 20000)
+    public void testConcurrentOpenCursorSharesFailedLazyRecoveryRetry() throws Exception {
+        ManagedLedgerConfig config = initManagedLedgerConfig(defaultConfig());
+        ManagedLedger ledger = factory.open("concurrent-failed-lazy-recovery-retry", config);
+        ManagedCursor cursor = ledger.openCursor("cursor");
+        Position markDeletePosition = cursor.getMarkDeletedPosition();
+        ledger.addEntry(new byte[] {1});
+        ledger.close();
+
+        Map<String, CompletableFuture<Void>> recoveryGates = spy(new ConcurrentHashMap<>());
+        recoveryGates.put("cursor", CompletableFuture.failedFuture(new Exception("initial recovery failed")));
+        CompletableFuture<Void> retryGate = new CompletableFuture<>();
+        ManagedLedgerFactoryImpl factory2 = createFactoryWithGatedCursorRecovery(recoveryGates);
+        try {
+            ManagedLedger reopened = factory2.open(ledger.getName(),
+                    initManagedLedgerConfig(defaultConfig()).setLazyCursorRecovery(true));
+            verify(recoveryGates).get("cursor");
+            recoveryGates.put("cursor", retryGate);
+            List<CompletableFuture<ManagedCursor>> openings = List.of(
+                    new CompletableFuture<>(), new CompletableFuture<>());
+            for (CompletableFuture<ManagedCursor> opening : openings) {
+                reopened.asyncOpenCursor("cursor", new OpenCursorCallback() {
+                    @Override
+                    public void openCursorComplete(ManagedCursor recovered, Object ctx) {
+                        opening.complete(recovered);
+                    }
+
+                    @Override
+                    public void openCursorFailed(ManagedLedgerException exception, Object ctx) {
+                        opening.completeExceptionally(exception);
+                    }
+                }, null);
+                assertThat(opening).as("the retry must remain gated until both opens have joined").isNotDone();
+                // The gate lookup records one initial failure and one shared retry.
+                verify(recoveryGates, times(2)).get("cursor");
+            }
+
+            retryGate.complete(null);
+            ManagedCursor recovered = openings.get(0).get(5, TimeUnit.SECONDS);
+            assertThat(openings.get(1).get(5, TimeUnit.SECONDS)).isSameAs(recovered);
+            assertThat(recovered.getMarkDeletedPosition()).isEqualTo(markDeletePosition);
+            assertThat(recovered.getNumberOfEntriesInBacklog(false)).isEqualTo(1);
+            verify(recoveryGates, times(2)).get("cursor");
+        } finally {
+            retryGate.complete(null);
+            factory2.shutdownAsync().get(5, TimeUnit.SECONDS);
+        }
+    }
+
     @Test
     public void testLazyCursorRecoveryBacklogWithEntriesAddedBeforeRecovery() throws Exception {
         ManagedLedgerConfig config = initManagedLedgerConfig(defaultConfig());
@@ -7194,14 +7243,15 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         // 3. Add Entry 2. Triggers second rollover process.
         // This implicitly calls maybeUpdateCursorBeforeTrimmingConsumedLedger due to rollover
-        Position p = ledger.addEntry("entry-2".getBytes(Encoding));
+        ledger.addEntry("entry-2".getBytes(Encoding));
 
         // Wait for background tasks (metadata callback and trim) to complete.
         // We expect only one ledger (Rollover and trim happened).
         Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> ledger.getLedgersInfo().size() == 1);
-        // All ledgers are trimmed, left one empty ledger, trim process moves markDeletedPosition to p.getLedgerId():0
-        assertEquals(cursor.getMarkDeletedPosition(), PositionFactory.create(p.getLedgerId(), 0));
-        assertEquals(cursor.getPersistentMarkDeletedPosition(), PositionFactory.create(p.getLedgerId(), 0));
+        long emptyLedgerId = ledger.getLedgersInfo().lastEntry().getValue().getLedgerId();
+        // All ledgers are trimmed, left one empty ledger, trim process moves markDeletedPosition to emptyLedgerId:-1.
+        assertEquals(cursor.getMarkDeletedPosition(), PositionFactory.create(emptyLedgerId, -1));
+        assertEquals(cursor.getPersistentMarkDeletedPosition(), PositionFactory.create(emptyLedgerId, -1));
 
         // Verify properties are preserved after cursor reset
         assertEquals(cursor.getProperties(), properties);
@@ -7326,7 +7376,13 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         nonDurableCursorsMarkDeleteCompletedLatch.countDown();
 
         assertTrue(advanceCursorsMarkDeleteCompletedLatch.await(5, TimeUnit.SECONDS));
-        assertEquals(nonDurableCursor.getMarkDeletedPosition(), pos2);
+        // The ledger of pos2 is fully consumed, so the mark-delete moves to nextLedgerId:-1 if the rollover
+        // already added the next ledger.
+        Position markDeletedPosition = nonDurableCursor.getMarkDeletedPosition();
+        Long nextLedgerId = ledger.getNextValidLedger(pos2.getLedgerId());
+        if (nextLedgerId == null || !markDeletedPosition.equals(PositionFactory.create(nextLedgerId, -1))) {
+            assertEquals(markDeletedPosition, pos2);
+        }
         assertEquals(nonDurableCursor.getProperties(), properties);
     }
 

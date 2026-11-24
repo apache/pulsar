@@ -19,7 +19,7 @@
 package org.apache.pulsar.broker.topiclistlimit;
 
 import io.opentelemetry.api.OpenTelemetry;
-import io.prometheus.client.CollectorRegistry;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
 import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter.AsyncDualMemoryLimiterPermit;
@@ -59,7 +59,7 @@ public class TopicListMemoryLimiterBenchmark {
     @Setup
     public void setup() {
         // broker defaults, the OpenTelemetry SDK is disabled by default
-        limiter = new TopicListMemoryLimiter(new CollectorRegistry(), "pulsar_broker_",
+        limiter = new TopicListMemoryLimiter(new PrometheusRegistry(), "pulsar_broker_",
                 OpenTelemetry.noop().getMeter("benchmark"), MAX_MEMORY, 10_000, 25_000, MAX_MEMORY, 10_000, 25_000);
     }
 
