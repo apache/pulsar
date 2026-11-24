@@ -381,6 +381,14 @@ public class DualMetadataStore implements MetadataStoreExtended {
     }
 
     @Override
+    public CompletableFuture<Void> sync(String path) {
+        return switch (migrationState.getPhase()) {
+            case NOT_STARTED, PREPARATION, COPYING, FAILED -> sourceStore.sync(path);
+            case COMPLETED -> targetStore.sync(path);
+        };
+    }
+
+    @Override
     public CompletableFuture<Optional<GetResult>> get(String path, Set<Option> opts) {
         return switch (migrationState.getPhase()) {
             case NOT_STARTED, PREPARATION, COPYING, FAILED -> sourceStore.get(path, opts);
@@ -604,7 +612,7 @@ public class DualMetadataStore implements MetadataStoreExtended {
             return sourceStore.delete(path, sourceVersion);
         });
         return cleanup.whenComplete((ignored, error) -> {
-            Throwable cause = error == null ? null : FutureUtil.unwrapCompletionException(error);
+            Throwable cause = FutureUtil.unwrapCompletionException(error);
             if (sourceVersion.isPresent() && cause != null
                     && !(cause instanceof MetadataStoreException.NotFoundException)) {
                 // Preparation after a failed delete must still recreate the surviving source acquisition.

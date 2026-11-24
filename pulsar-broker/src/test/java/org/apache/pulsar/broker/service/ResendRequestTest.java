@@ -69,6 +69,7 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
         HashSet<String> messageDataHashSet = new HashSet<>();
 
         // 1. producer connect
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
@@ -79,6 +80,7 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
         assertEquals(topicRef.getProducers().size(), 1);
 
         // 2. Create consumer
+        @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
                 .receiverQueueSize(7).subscribe();
 
@@ -164,6 +166,7 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
         final String messagePredicate = "my-message-";
         final int totalMessages = 10;
         // 1. producer connect
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
@@ -173,6 +176,7 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
         assertEquals(topicRef.getProducers().size(), 1);
 
         // 2. Create consumer
+        @Cleanup
         Consumer<byte[]> consumer1 = pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName(subscriptionName).receiverQueueSize(totalMessages / 2)
                 .subscriptionType(SubscriptionType.Shared).subscribe();
@@ -250,6 +254,7 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
         final String messagePredicate = "my-message-";
         final int totalMessages = 10;
         // 1. producer connect
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
@@ -276,7 +281,9 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName(subscriptionName).receiverQueueSize(10).subscriptionType(SubscriptionType.Failover)
                 .acknowledgmentGroupTime(0, TimeUnit.SECONDS).consumerEventListener(listener);
+        @Cleanup
         Consumer<byte[]> consumerA = consumerBuilder.clone().consumerName("consumer-a").subscribe();
+        @Cleanup
         Consumer<byte[]> consumerB = consumerBuilder.clone().consumerName("consumer-b").subscribe();
 
         // Wait until the active consumer is assigned (becameActive has been called at least once)
@@ -365,6 +372,7 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
         final int totalMessages = 10;
 
         // 1. producer connect
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
@@ -375,6 +383,7 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
         assertEquals(topicRef.getProducers().size(), 1);
 
         // 2. Create consumer
+        @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
                 .receiverQueueSize(7).subscribe();
 
@@ -423,12 +432,14 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
         admin.topics().createPartitionedTopic(topicName, numberOfPartitions);
 
         // 1. producer connect
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.RoundRobinPartition)
             .create();
 
         // 2. Create consumer
+        @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
                 .receiverQueueSize(7).subscribe();
 
@@ -585,6 +596,7 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
         Random rn = new Random();
 
         // 1. producer connect
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.RoundRobinPartition)
@@ -593,7 +605,9 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
         // 2. Create consumer
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName(subscriptionName).receiverQueueSize(7).subscriptionType(SubscriptionType.Failover);
+        @Cleanup
         Consumer<byte[]> consumer1 = consumerBuilder.clone().consumerName("Consumer-1").subscribe();
+        @Cleanup
         Consumer<byte[]> consumer2 = consumerBuilder.clone().consumerName("Consumer-2").subscribe();
 
         Thread.sleep(1000);
@@ -668,6 +682,7 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
         final String messagePredicate = "my-message-";
         final int totalMessages = 10;
         // 1. producer connect
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
@@ -679,7 +694,9 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
         // 2. Create consumer
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName(subscriptionName).receiverQueueSize(10).subscriptionType(SubscriptionType.Failover);
+        @Cleanup
         Consumer<byte[]> consumer1 = consumerBuilder.clone().consumerName("Consumer-1").subscribe();
+        @Cleanup
         Consumer<byte[]> consumer2 = consumerBuilder.clone().consumerName("Consumer-2").subscribe();
 
         // 3. Producer publishes messages

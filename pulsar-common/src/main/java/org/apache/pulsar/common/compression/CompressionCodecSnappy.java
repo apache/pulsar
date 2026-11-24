@@ -76,27 +76,34 @@ public class CompressionCodecSnappy implements CompressionCodec {
         int maxLength = SnappyRawCompressor.maxCompressedLength(uncompressedLength);
 
         ByteBuf target = allocator.buffer(maxLength, maxLength);
-        int compressedLength;
-
-        if (source.hasMemoryAddress() && target.hasMemoryAddress()) {
-            compressedLength = SnappyRawCompressor.compress(
-                    null,
-                    source.memoryAddress() + source.readerIndex(),
-                    source.memoryAddress() + source.writerIndex(),
-                    null,
-                    target.memoryAddress(),
-                    target.memoryAddress() + maxLength,
-                    SNAPPY_TABLE.get());
-        } else {
-            ByteBuffer sourceNio = source.nioBuffer(source.readerIndex(), source.readableBytes());
-            ByteBuffer targetNio = target.nioBuffer(0, maxLength);
-
-            SNAPPY_COMPRESSOR.get().compress(sourceNio, targetNio);
-            compressedLength = targetNio.position();
-        }
-
+        int compressedLength = compress(source, target, uncompressedLength, maxLength);
         target.writerIndex(compressedLength);
         return target;
+    }
+
+    private static int compress(ByteBuf source, ByteBuf target, int uncompressedLength, int maxLength) {
+        if (source.hasMemoryAddress() && target.hasMemoryAddress()) {
+            return compressRaw(null, source.memoryAddress() + source.readerIndex(), uncompressedLength,
+                    target, maxLength);
+        }
+
+        long arrayBaseOffset = AirliftUtils.heapArrayBaseOffset();
+        if (arrayBaseOffset >= 0 && source.hasArray() && target.hasMemoryAddress()) {
+            long inputOffset = arrayBaseOffset + source.arrayOffset() + source.readerIndex();
+            return compressRaw(source.array(), inputOffset, uncompressedLength, target, maxLength);
+        }
+
+        ByteBuffer sourceNio = source.nioBuffer(source.readerIndex(), uncompressedLength);
+        ByteBuffer targetNio = target.nioBuffer(0, maxLength);
+        SNAPPY_COMPRESSOR.get().compress(sourceNio, targetNio);
+        return targetNio.position();
+    }
+
+    private static int compressRaw(Object inputBase, long inputOffset, int inputLength, ByteBuf target,
+                                   int maxLength) {
+        long outputAddress = target.memoryAddress();
+        return SnappyRawCompressor.compress(inputBase, inputOffset, inputOffset + inputLength, null,
+                outputAddress, outputAddress + maxLength, SNAPPY_TABLE.get());
     }
 
     @Override

@@ -60,6 +60,13 @@ public class MultiBrokerLeaderElectionTest extends MultiBrokerTestZKBaseTest {
         return 9;
     }
 
+    /**
+     * The number of topics that the lookup tests look up, each one through all the brokers at once.
+     */
+    protected int numberOfLookupTopics() {
+        return 500;
+    }
+
     @Test
     public void shouldElectOneLeader() {
         int leaders = 0;
@@ -105,7 +112,7 @@ public class MultiBrokerLeaderElectionTest extends MultiBrokerTestZKBaseTest {
         String namespace = "public/ns" + UUID.randomUUID();
         admin.namespaces().createNamespace(namespace, 256);
         String topicNameBase = "persistent://" + namespace + "/lookuptest-";
-        List<String> topicNames = IntStream.range(0, 500).mapToObj(i -> topicNameBase + i)
+        List<String> topicNames = IntStream.range(0, numberOfLookupTopics()).mapToObj(i -> topicNameBase + i)
                 .collect(Collectors.toList());
         List<PulsarAdmin> allAdmins = getAllAdmins();
         @Cleanup("shutdownNow")
@@ -148,7 +155,7 @@ public class MultiBrokerLeaderElectionTest extends MultiBrokerTestZKBaseTest {
         String namespace = "public/ns" + UUID.randomUUID();
         admin.namespaces().createNamespace(namespace, 256);
         String topicNameBase = "persistent://" + namespace + "/lookuptest-";
-        List<String> topicNames = IntStream.range(0, 500).mapToObj(i -> topicNameBase + i)
+        List<String> topicNames = IntStream.range(0, numberOfLookupTopics()).mapToObj(i -> topicNameBase + i)
                 .collect(Collectors.toList());
         List<PulsarClient> allClients = getAllClients();
         @Cleanup("shutdownNow")

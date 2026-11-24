@@ -58,6 +58,14 @@ public abstract class CliCommand implements Callable<Integer> {
         return topicName.toString();
     }
 
+    static String validatePersistentOrScalableTopic(String topic) {
+        TopicName topicName = TopicName.get(topic);
+        if (topicName.getDomain() != TopicDomain.persistent && topicName.getDomain() != TopicDomain.topic) {
+            throw new IllegalArgumentException("Need to provide a persistent or scalable (topic://) topic name");
+        }
+        return topicName.toString();
+    }
+
     static String validateNonPersistentTopic(String topic) {
         TopicName topicName = TopicName.get(topic);
         if (topicName.getDomain() != TopicDomain.non_persistent) {

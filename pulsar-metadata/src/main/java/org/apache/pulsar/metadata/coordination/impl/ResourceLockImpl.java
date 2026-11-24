@@ -107,6 +107,21 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
             revalidateTask.cancel(true);
         }
 
+        // Delete after the update or revalidation in flight completes: the store may have applied it already, and
+        // the delete has to expect the version it produced.
+        return sequencer.sequential(() -> {
+            synchronized (ResourceLockImpl.this) {
+                if (state == State.Released) {
+                    return CompletableFuture.completedFuture(null);
+                }
+                // The operation that completed may have marked the lock valid again
+                state = State.Releasing;
+                return deleteLock();
+            }
+        });
+    }
+
+    private CompletableFuture<Void> deleteLock() {
         CompletableFuture<Void> result = new CompletableFuture<>();
 
         store.delete(path, Optional.of(version))
@@ -290,13 +305,20 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
                     }
 
                     synchronized (ResourceLockImpl.this) {
+                        if (state != State.Valid && state != State.Init) {
+                            // The metadata read may finish after release started. In particular,
+                            // recognizing our old session's value must not revive a released lock.
+                            return CompletableFuture.failedFuture(
+                                    new IllegalStateException("Lock was not in valid state: " + state));
+                        }
                         if (newValue.equals(existingValue)) {
                             // The lock value is still the same, that means that we're the
                             // logical "owners" of the lock.
 
                             if (res.getStat().isCreatedBySelf()) {
                                 // If the new lock belongs to the same session, there's no
-                                // need to recreate it.
+                                // need to recreate it. A fresh local handle still starts in Init.
+                                state = State.Valid;
                                 version = res.getStat().getVersion();
                                 value = newValue;
                                 return CompletableFuture.completedFuture(null);

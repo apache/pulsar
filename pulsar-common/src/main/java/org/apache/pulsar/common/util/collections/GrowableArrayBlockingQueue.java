@@ -20,6 +20,7 @@ package org.apache.pulsar.common.util.collections;
 
 import java.util.AbstractQueue;
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -356,6 +357,51 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
         }
 
         SIZE_UPDATER.decrementAndGet(this);
+    }
+
+    /**
+     * Removes the items that match the filter, keeping the order of the other items.
+     *
+     * <p>The filter is called once for each item, with the queue locked. If it throws, the queue is left unchanged.
+     */
+    @Override
+    public boolean removeIf(Predicate<? super T> filter) {
+        Objects.requireNonNull(filter);
+        long stamp = tailLock.writeLock();
+        headLock.lock();
+
+        try {
+            int size = SIZE_UPDATER.get(this);
+            int mask = data.length - 1;
+            BitSet removed = new BitSet(size);
+            for (int i = 0, index = headIndex.value; i < size; i++, index = (index + 1) & mask) {
+                if (filter.test(data[index])) {
+                    removed.set(i);
+                }
+            }
+            if (removed.isEmpty()) {
+                return false;
+            }
+
+            // Move the kept items towards the head, then clear the slots left behind them
+            int writeIndex = headIndex.value;
+            for (int i = 0, index = headIndex.value; i < size; i++, index = (index + 1) & mask) {
+                if (!removed.get(i)) {
+                    data[writeIndex] = data[index];
+                    writeIndex = (writeIndex + 1) & mask;
+                }
+            }
+            int removedCount = removed.cardinality();
+            for (int i = 0, index = writeIndex; i < removedCount; i++, index = (index + 1) & mask) {
+                data[index] = null;
+            }
+            tailIndex.value = writeIndex;
+            SIZE_UPDATER.addAndGet(this, -removedCount);
+            return true;
+        } finally {
+            headLock.unlock();
+            tailLock.unlockWrite(stamp);
+        }
     }
 
     @Override

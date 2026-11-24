@@ -638,8 +638,10 @@ public class SharedDispatcherPermitAccountingTest extends SharedPulsarBaseTest {
         metadata.setProducerName("producer")
                 .setSequenceId(0)
                 .setPublishTime(System.currentTimeMillis());
+        // a batch payload takes at least 4 bytes per message, so size it to keep the batch size valid
+        int payloadSize = metadata.hasNumMessagesInBatch() ? Math.max(0, metadata.getNumMessagesInBatch() * 4) : 0;
         ByteBuf entry = Commands.serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, metadata,
-                Unpooled.EMPTY_BUFFER);
+                Unpooled.wrappedBuffer(new byte[payloadSize]));
         try {
             return ByteBufUtil.getBytes(entry);
         } finally {

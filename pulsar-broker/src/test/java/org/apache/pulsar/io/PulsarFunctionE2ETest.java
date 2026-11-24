@@ -388,16 +388,16 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
             SubscriptionStats subStats = admin.topics().getStats(sourceTopic).getSubscriptions().get(subscriptionName);
             assertEquals(subStats.getUnackedMessages(), 0);
         });
-        int count = 0;
-        while (true) {
+        for (int i = 0; i < cntMsg; i++) {
             Message<String> message = consumer.receive(10, TimeUnit.SECONDS);
-            if (message == null) {
-                break;
-            }
+            assertNotNull(message);
             consumer.acknowledge(message);
-            count++;
         }
-        Assert.assertEquals(count, cntMsg);
+        // The function acknowledges an input once its output is stored: when it has acknowledged them all, the
+        // output topic has every message the function will publish
+        Awaitility.await().untilAsserted(() -> assertEquals(
+                admin.topics().getStats(sourceTopic).getSubscriptions().get(subscriptionName).getMsgBacklog(), 0));
+        assertEquals(admin.topics().getStats(sinkTopic).getMsgInCounter(), cntMsg);
 
         String prometheusMetrics = TestPulsarFunctionUtils.getPrometheusMetrics(pulsar.getListenPortHTTP().get());
         log.info().attr("prometheusMetrics", prometheusMetrics).log("prometheus metrics");

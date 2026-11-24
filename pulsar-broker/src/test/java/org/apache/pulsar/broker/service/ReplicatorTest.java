@@ -1057,10 +1057,13 @@ public class ReplicatorTest extends ReplicatorTestBase {
         });
         Optional<Topic> topic = pulsar2.getBrokerService().getTopicReference(topicName);
         assertTrue(topic.isPresent());
-        Set<String> remoteClusters = topic.get().getProducers().values().stream()
-                .map(org.apache.pulsar.broker.service.Producer::getRemoteCluster)
-                .collect(Collectors.toSet());
-        assertTrue(remoteClusters.contains("r1"));
+        // r1's replicator creates the topic on r2 through the admin API before it creates its producer.
+        Awaitility.await().untilAsserted(() -> {
+            Set<String> remoteClusters = topic.get().getProducers().values().stream()
+                    .map(org.apache.pulsar.broker.service.Producer::getRemoteCluster)
+                    .collect(Collectors.toSet());
+            assertTrue(remoteClusters.contains("r1"));
+        });
     }
 
     @DataProvider(name = "retentionPolicies")

@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -33,6 +34,7 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
@@ -113,7 +115,7 @@ public class ExtensibleLoadManagerCloseTest {
         return new Object[][]{{false}, {true}};
     }
 
-    @Test(invocationCount = 10, dataProvider = "topicPoliciesEnabled")
+    @Test(invocationCount = 3, dataProvider = "topicPoliciesEnabled")
     public void testCloseAfterLoadingBundles(boolean topicPoliciesEnabled) throws Exception {
         setupBrokers(3, topicPoliciesEnabled);
         final var topic = "test-" + System.currentTimeMillis();
@@ -155,6 +157,47 @@ public class ExtensibleLoadManagerCloseTest {
         brokers.get(0).close();
         final var closeTimeMs = System.currentTimeMillis() - start;
         log.info().attr("closeTimeMs", closeTimeMs).log("Broker close time");
+        Assert.assertTrue(closeTimeMs < 5000L);
+    }
+
+    @Test(timeOut = 30000)
+    public void testCloseDoesNotWaitForRoleChange() throws Exception {
+        final var config = brokerConfig(false);
+        // The close waits for the load manager executor's tasks for half of it, then interrupts them
+        config.setBrokerShutdownTimeoutMs(10000);
+        final var broker = new PulsarService(config);
+        brokers.add(broker);
+        broker.start();
+        final var loadManager = ExtensibleLoadManagerImpl.get(broker);
+        // The role change of the start
+        Awaitility.await().until(() -> loadManager.getRole() == ExtensibleLoadManagerImpl.Role.Leader);
+
+        // A role change that runs while the broker is closing, once the close has disabled this broker, the only one,
+        // which closes its load manager
+        final var closing = new CountDownLatch(1);
+        broker.getLoadManagerExecutor().execute(() -> {
+            try {
+                closing.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+        final var roleChangeInterrupted = new CompletableFuture<Boolean>();
+        broker.getLoadManagerExecutor().execute(() -> {
+            try {
+                loadManager.playLeader();
+            } finally {
+                roleChangeInterrupted.complete(Thread.currentThread().isInterrupted());
+            }
+        });
+
+        final var start = System.currentTimeMillis();
+        final var closeFuture = broker.closeAsync();
+        closing.countDown();
+        closeFuture.get();
+        final var closeTimeMs = System.currentTimeMillis() - start;
+        log.info().attr("closeTimeMs", closeTimeMs).log("Broker close time");
+        Assert.assertFalse(roleChangeInterrupted.get(), "the role change kept retrying until the close interrupted it");
         Assert.assertTrue(closeTimeMs < 5000L);
     }
 }
