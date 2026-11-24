@@ -1534,6 +1534,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 new CommandPartitionedTopicMetadata().copyFrom(partitionMetadataParam);
 
         final long requestId = partitionMetadata.getRequestId();
+        // Measured up to the response for the request duration metric.
+        final long startedAtNanos = System.nanoTime();
         log.debug()
                 .attr("topic", partitionMetadata.getTopic())
                 .attr("requestId", requestId)
@@ -1541,6 +1543,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         TopicName topicName = validateTopicName(partitionMetadata.getTopic(), requestId, partitionMetadata);
         if (topicName == null) {
+            recordPartitionedMetadataRequestFailure(startedAtNanos, ServerError.InvalidTopicName);
             return;
         }
 
@@ -1550,6 +1553,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     .attr("requestId", requestId)
                     .attr("state", service.getPulsar().getState())
                     .log("Failed PartitionMetadataLookup due to pulsar service is not ready");
+            recordPartitionedMetadataRequestFailure(startedAtNanos, ServerError.ServiceNotReady);
             writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.ServiceNotReady,
                     "Failed due to pulsar service is not ready", requestId));
             return;
@@ -1564,9 +1568,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     Throwable actEx = FutureUtil.unwrapCompletionException(ex);
                     if (actEx instanceof WebApplicationException restException
                             && restException.getResponse().getStatus() == NOT_FOUND.getStatusCode()) {
+                        recordPartitionedMetadataRequestFailure(startedAtNanos, ServerError.TopicNotFound);
                         writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.TopicNotFound,
                                 "Tenant or namespace or topic does not exist: " + topicName.getNamespace(), requestId));
                     } else {
+                        recordPartitionedMetadataRequestFailure(startedAtNanos, ServerError.AuthorizationError);
                         writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.AuthorizationError,
                                 "Exception occurred while trying to authorize get Partition Metadata", requestId));
                     }
@@ -1578,6 +1584,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             .attr("principal", getPrincipal())
                             .attr("topic", topicName)
                             .log(msg);
+                    recordPartitionedMetadataRequestFailure(startedAtNanos, ServerError.AuthorizationError);
                     writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.AuthorizationError,
                             msg, requestId));
                 }
@@ -1586,7 +1593,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 if (!isAuthorized) {
                     return CompletableFuture.completedFuture(null);
                 }
-                return lookupPartitionMetadata(topicName, requestId, partitionMetadata.isMetadataAutoCreationEnabled());
+                return lookupPartitionMetadata(topicName, requestId, startedAtNanos,
+                        partitionMetadata.isMetadataAutoCreationEnabled());
             }).whenComplete((ignored, ex) -> {
                 // All branches, including their response handling and cleanup, finish before releasing the permit.
                 lookupSemaphore.release();
@@ -1603,43 +1611,57 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             log.debug()
                     .attr("topic", topicName)
                     .log("Failed Partition-Metadata lookup due to too many lookup-requests");
+            recordPartitionedMetadataRequestFailure(startedAtNanos, ServerError.TooManyRequests);
             commandSender.sendPartitionMetadataResponse(ServerError.TooManyRequests,
                     "Failed due to too many pending lookup requests", requestId);
         }
     }
 
+    private void recordPartitionedMetadataRequestLatency(long startedAtNanos) {
+        service.getPulsarStats().recordPartitionedMetadataRequestLatency(System.nanoTime() - startedAtNanos);
+    }
+
+    private void recordPartitionedMetadataRequestFailure(long startedAtNanos, ServerError error) {
+        service.getPulsarStats().recordPartitionedMetadataRequestFailure(System.nanoTime() - startedAtNanos, error);
+    }
+
     private CompletableFuture<Void> lookupPartitionMetadata(TopicName topicName, long requestId,
+                                                             long startedAtNanos,
                                                              boolean metadataAutoCreationEnabled) {
         if (!metadataAutoCreationEnabled) {
-            return lookupExistingTopicMetadata(topicName, requestId);
+            return lookupExistingTopicMetadata(topicName, requestId, startedAtNanos);
         }
         // The authorization provider is only consulted later, if the topic turns out not to exist.
         return FutureUtil.supplySafely(() -> getBrokerService().isAllowAutoTopicCreationAsync(topicName))
                 .<CompletableFuture<Void>>handle((brokerAllowAutoCreate, ex) -> {
                     if (ex != null) {
-                        sendPartitionMetadataLookupError(topicName, requestId, ex);
+                        sendPartitionMetadataLookupError(topicName, requestId, startedAtNanos, ex);
                         return CompletableFuture.completedFuture(null);
                     }
                     if (brokerAllowAutoCreate) {
-                        return lookupOrCreatePartitionMetadata(topicName, requestId);
+                        return lookupOrCreatePartitionMetadata(topicName, requestId, startedAtNanos);
                     }
-                    return lookupExistingTopicMetadata(topicName, requestId);
+                    return lookupExistingTopicMetadata(topicName, requestId, startedAtNanos);
                 }).thenCompose(future -> future);
     }
 
-    private CompletableFuture<Void> lookupExistingTopicMetadata(TopicName topicName, long requestId) {
+    private CompletableFuture<Void> lookupExistingTopicMetadata(TopicName topicName, long requestId,
+                                                                long startedAtNanos) {
         return FutureUtil.supplySafely(() -> getBrokerService().getPulsar().getNamespaceService()
                 .checkTopicExistsAsync(topicName)).handle((topicExistsInfo, ex) -> {
             if (ex != null) {
-                sendPartitionMetadataLookupError(topicName, requestId, ex);
+                sendPartitionMetadataLookupError(topicName, requestId, startedAtNanos, ex);
                 return null;
             }
             try {
                 if (!topicExistsInfo.isExists()) {
+                    recordPartitionedMetadataRequestFailure(startedAtNanos, ServerError.TopicNotFound);
                     writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.TopicNotFound, "", requestId));
                 } else if (topicExistsInfo.getTopicType().equals(TopicType.PARTITIONED)) {
+                    recordPartitionedMetadataRequestLatency(startedAtNanos);
                     commandSender.sendPartitionMetadataResponse(topicExistsInfo.getPartitions(), requestId);
                 } else {
+                    recordPartitionedMetadataRequestLatency(startedAtNanos);
                     commandSender.sendPartitionMetadataResponse(0, requestId);
                 }
             } finally {
@@ -1649,7 +1671,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         });
     }
 
-    private void sendPartitionMetadataLookupError(TopicName topicName, long requestId, Throwable ex) {
+    private void sendPartitionMetadataLookupError(TopicName topicName, long requestId, long startedAtNanos,
+                                                  Throwable ex) {
         Throwable actEx = FutureUtil.unwrapCompletionException(ex);
         if (actEx instanceof WebApplicationException restException
                 && restException.getResponse().getStatus() == NOT_FOUND.getStatusCode()) {
@@ -1663,11 +1686,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     .exception(ex)
                     .log("Failed to get partition metadata");
         }
+        recordPartitionedMetadataRequestFailure(startedAtNanos, ServerError.MetadataError);
         writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.MetadataError,
                 "Failed to get partition metadata", requestId));
     }
 
-    private CompletableFuture<Void> lookupOrCreatePartitionMetadata(TopicName topicName, long requestId) {
+    private CompletableFuture<Void> lookupOrCreatePartitionMetadata(TopicName topicName, long requestId,
+                                                                    long startedAtNanos) {
         Supplier<CompletableFuture<Boolean>> newTopicCheck = newTopicCheck(topicName);
         AtomicBoolean creationRefused = new AtomicBoolean();
         AtomicBoolean creationCheckFailed = new AtomicBoolean();
@@ -1685,9 +1710,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         if (creationRefused.get()) {
                             // The topic does not exist and this client may not create it, as when the auto topic
                             // creation settings forbid it.
+                            recordPartitionedMetadataRequestFailure(startedAtNanos, ServerError.TopicNotFound);
                             writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.TopicNotFound, "",
                                     requestId));
                         } else {
+                            recordPartitionedMetadataRequestLatency(startedAtNanos);
                             commandSender.sendPartitionMetadataResponse(metadata.partitions, requestId);
                         }
                         return null;
@@ -1697,6 +1724,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         // As when checking a topic operation fails.
                         logAuthException(remoteAddress, "partition-metadata", getPrincipal(), Optional.of(topicName),
                                 actEx);
+                        recordPartitionedMetadataRequestFailure(startedAtNanos, ServerError.AuthorizationError);
                         commandSender.sendPartitionMetadataResponse(ServerError.AuthorizationError,
                                 "Exception occurred while checking whether the client may auto-create the topic",
                                 requestId);
@@ -1708,6 +1736,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                 .attr("topic", topicName)
                                 .exceptionMessage(actEx)
                                 .log("Failed to authorize on topic");
+                        recordPartitionedMetadataRequestFailure(startedAtNanos, ServerError.AuthorizationError);
                         commandSender.sendPartitionMetadataResponse(ServerError.AuthorizationError,
                                 actEx.getMessage(), requestId);
                         return null;
@@ -1738,6 +1767,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                 .exception(actEx)
                                 .log("Failed to get Partitioned Metadata");
                     }
+                    recordPartitionedMetadataRequestFailure(startedAtNanos, error);
                     commandSender.sendPartitionMetadataResponse(error, actEx.getMessage(), requestId);
                     return null;
                 });

@@ -304,6 +304,14 @@ public class PulsarStats implements Closeable {
         brokerOperabilityMetrics.recordProducerCreateFailure(error);
     }
 
+    public void recordPartitionedMetadataRequestLatency(long latencyNanos) {
+        brokerOperabilityMetrics.recordPartitionedMetadataRequestLatency(latencyNanos);
+    }
+
+    public void recordPartitionedMetadataRequestFailure(long latencyNanos, ServerError error) {
+        brokerOperabilityMetrics.recordPartitionedMetadataRequestFailure(latencyNanos, error);
+    }
+
     public void recordPublishLatency(long latency, TimeUnit unit) {
         brokerOperabilityMetrics.recordPublishLatency(latency, unit);
     }

@@ -68,6 +68,7 @@ import org.apache.pulsar.common.intercept.InterceptException;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes.ConnectionCreateStatus;
+import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes.PartitionedMetadataResponse;
 import org.assertj.core.api.Assertions;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -180,6 +181,28 @@ public class OpenTelemetryBrokerOperabilityStatsTest extends BrokerTestBase {
                     Assertions.assertThat(metric.tags).containsEntry("error", "IncompatibleSchema");
                     Assertions.assertThat(metric.value).isEqualTo(1);
                 });
+    }
+
+    @Test
+    public void testPartitionedMetadataRequestMetrics() throws Exception {
+        var topicName = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/partitioned-metadata-metrics");
+        admin.topics().createPartitionedTopic(topicName, 3);
+        @Cleanup
+        var producer = pulsarClient.newProducer(Schema.STRING).topic(topicName).create();
+
+        var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
+        // The client resolves the partitions of the topic before it connects to any of them.
+        assertMetricHistogramValue(metrics,
+                BrokerOperabilityMetrics.PARTITIONED_METADATA_REQUEST_DURATION_METRIC_NAME,
+                PartitionedMetadataResponse.SUCCESS.attributes,
+                count -> assertThat(count).isGreaterThanOrEqualTo(1),
+                sum -> assertThat(sum).isGreaterThanOrEqualTo(0.0));
+        // The cluster is a resource attribute of the metric, not an attribute of the requests.
+        Assertions.assertThat(metrics).filteredOn(metric -> metric.getName().equals(
+                        BrokerOperabilityMetrics.PARTITIONED_METADATA_REQUEST_DURATION_METRIC_NAME))
+                .singleElement().satisfies(metric -> Assertions.assertThat(metric.getResource()
+                        .getAttribute(OpenTelemetryAttributes.PULSAR_CLUSTER))
+                        .isEqualTo(pulsar.getConfiguration().getClusterName()));
     }
 
     @DataProvider
