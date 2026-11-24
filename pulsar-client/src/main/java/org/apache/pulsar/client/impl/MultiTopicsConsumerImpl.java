@@ -92,6 +92,12 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     // Map <topic, numPartitions>, store partition number for each topic
     protected final ConcurrentHashMap<String, Integer> partitionedTopics;
 
+    // Topics whose per-topic unsubscribe is still waiting on its child RPCs. While a topic is
+    // marked, re-subscribing it is rejected and partition refreshes skip it, so a subscribe that
+    // lands mid-unsubscribe cannot reuse a child that cleanup is about to remove. The entry is
+    // kept until cleanup finishes and cleared once the children are gone.
+    private final Set<String> unsubscribingTopics = ConcurrentHashMap.newKeySet();
+
     // Queue of partition consumers on which we have stopped calling receiveAsync() because the
     // shared incoming queue was full
     protected final ConcurrentLinkedQueue<ConsumerImpl<T>> pausedConsumers;
@@ -1124,7 +1130,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         }
         String fullTopicName = topicNameInstance.toString();
         if (consumers.containsKey(fullTopicName)
-                || partitionedTopics.containsKey(topicNameInstance.getPartitionedTopicName())) {
+                || partitionedTopics.containsKey(topicNameInstance.getPartitionedTopicName())
+                || unsubscribingTopics.contains(topicNameInstance.getPartitionedTopicName())) {
             return FutureUtil.failedFuture(
                     new PulsarClientException.AlreadyClosedException("Already subscribed to " + topicName));
         }
@@ -1202,7 +1209,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                     new PulsarClientException.AlreadyClosedException("Already subscribed to " + topicName));
         }
         if (!topicNameInstance.isPartitioned()
-                && partitionedTopics.containsKey(topicNameInstance.getPartitionedTopicName())) {
+                && (partitionedTopics.containsKey(topicNameInstance.getPartitionedTopicName())
+                || unsubscribingTopics.contains(topicNameInstance.getPartitionedTopicName()))) {
             return FutureUtil.failedFuture(
                     new PulsarClientException.AlreadyClosedException("Already subscribed to " + topicName));
         }
@@ -1442,15 +1450,16 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         CompletableFuture<Void> unsubscribeFuture = new CompletableFuture<>();
         String topicPartName = TopicName.get(topicName).getPartitionedTopicName();
 
+        // Mark the topic before taking the child snapshot: a re-subscribe or a partition
+        // refresh that lands while the child RPCs are still in flight must not resurrect it.
+        // The reservation is kept until cleanup finishes.
+        unsubscribingTopics.add(topicPartName);
+
         List<ConsumerImpl<T>> consumersToUnsub = consumers.values().stream()
             .filter(consumer -> {
                 String consumerTopicName = consumer.getTopic();
                 return TopicName.get(consumerTopicName).getPartitionedTopicName().equals(topicPartName);
             }).collect(Collectors.toList());
-
-        // Drop the topic from the refresh set before unsubscribing the children: a schema lookup
-        // that completes while the child RPCs are still in flight must not resurrect the topic.
-        removeTopic(topicName);
 
         List<CompletableFuture<Void>> futureList = consumersToUnsub.stream()
             .map(ConsumerImpl::unsubscribeAsync).collect(Collectors.toList());
@@ -1464,13 +1473,19 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         allTopicPartitionsNumber.decrementAndGet();
                     });
 
+                    removeTopic(topicName);
                     removeTopicMessagesFromUnackedTracker(topicName);
+                    // Cleanup is finished: only now may the topic be subscribed again.
+                    unsubscribingTopics.remove(topicPartName);
 
                     unsubscribeFuture.complete(null);
                     log.info().attr("topic", topicName)
                             .attr("allTopicPartitionsNumber", allTopicPartitionsNumber)
                             .log("Unsubscribed Topics Consumer");
                 } else {
+                    // The topic stays subscribed, so drop the marker; the failure already puts
+                    // the consumer into Failed state.
+                    unsubscribingTopics.remove(topicPartName);
                     unsubscribeFuture.completeExceptionally(ex);
                     setState(State.Failed);
                     log.error().attr("topic", topicName)
@@ -1561,6 +1576,12 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     // subscribe increased partitions for a given topic
     private CompletableFuture<Void> subscribeIncreasedTopicPartitions(String topicName) {
+        // A topic whose unsubscribe is still in flight must not gain partitions: a refresh
+        // that started before the unsubscribe may complete after it.
+        if (unsubscribingTopics.contains(topicName)) {
+            return CompletableFuture.completedFuture(null);
+        }
+
         int oldPartitionNumber = partitionedTopics.get(topicName);
 
         return client.getPartitionsForTopic(topicName, false).thenCompose(list -> {
@@ -1626,6 +1647,16 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                                 closeUnusedSchema(processedSchema);
                                 log.debug().attr("topic", topicName)
                                         .log("Topics consumer is no longer ready, skipping new partitions");
+                                return CompletableFuture.completedFuture(null);
+                            }
+                            // The topic may have been unsubscribed while the lookup was in
+                            // flight. Only subscribe new partitions while it is not being
+                            // unsubscribed; otherwise the new child would be removed by the
+                            // pending cleanup right after creation.
+                            if (unsubscribingTopics.contains(topicName)) {
+                                closeUnusedSchema(processedSchema);
+                                log.debug().attr("topic", topicName)
+                                        .log("Topic is being unsubscribed, skipping new partitions");
                                 return CompletableFuture.completedFuture(null);
                             }
                             // Only advance the partition counts once the schema is ready. If the

@@ -630,23 +630,85 @@ public class MultiTopicsConsumerImplTest {
         // The application unsubscribes the topic; the child unsubscribe RPC is still pending.
         CompletableFuture<Void> unsubscribe = impl.unsubscribeAsync(topicName);
         assertFalse(unsubscribe.isDone());
-        assertFalse(impl.partitionedTopics.containsKey(topicName));
+        // The topic stays registered until cleanup finishes; the marker is what keeps a
+        // re-subscribe or a refresh from resurrecting it in the meantime.
+        assertTrue(impl.partitionedTopics.containsKey(topicName));
 
         // The late lookup must not bring the removed topic back, even though the child
         // unsubscribe has not finished yet.
         pausedLookup.complete(schema);
         refresh.join();
 
-        assertFalse(impl.partitionedTopics.containsKey(topicName));
+        // The refresh skipped the marked topic: no new partition was subscribed, and the
+        // entry is still there until the child unsubscribe finishes.
+        assertTrue(impl.partitionedTopics.containsKey(topicName));
         assertEquals(impl.allTopicPartitionsNumber.get(), 1);
         assertFalse(impl.consumers.containsKey(topicPartition1));
 
         // Once the child unsubscribe finishes, the topic is fully gone.
         pendingChildUnsubscribe.complete(null);
         unsubscribe.join();
+        assertFalse(impl.partitionedTopics.containsKey(topicName));
         assertEquals(impl.allTopicPartitionsNumber.get(), 0);
         assertFalse(impl.consumers.containsKey(topicPartition0));
         verify(partitionConsumer0).unsubscribeAsync();
+    }
+
+    @Test(timeOut = 30000)
+    @SuppressWarnings("unchecked")
+    public void testResubscribeDuringChildUnsubscribeIsRejected() throws Exception {
+        String topicName = "persistent://public/default/resubscribe-topic";
+        String topicPartition0 = topicName + "-partition-0";
+
+        ConsumerConfigurationData<byte[]> consumerConfData = new ConsumerConfigurationData<>();
+        consumerConfData.setSubscriptionName("subscriptionName");
+        consumerConfData.setAutoUpdatePartitions(true);
+        consumerConfData.setAutoUpdatePartitionsIntervalSeconds(60);
+
+        PulsarClientImpl clientMock = createPulsarClientMockWithMockedClientCnx(executorProvider, internalExecutor);
+        when(clientMock.getPartitionedTopicMetadata(any(), anyBoolean(), anyBoolean()))
+                .thenReturn(CompletableFuture.completedFuture(new PartitionedTopicMetadata(1)));
+        Schema<byte[]> schema = Schema.BYTES;
+
+        MultiTopicsConsumerImpl<byte[]> impl = new MultiTopicsConsumerImpl<>(
+                clientMock, consumerConfData, executorProvider,
+                new CompletableFuture<>(), schema, null, true);
+        impl.changeToReadyState();
+
+        impl.partitionedTopics.put(topicName, 1);
+        impl.allTopicPartitionsNumber.set(1);
+        ConsumerImpl<byte[]> partitionConsumer0 = mock(ConsumerImpl.class);
+        when(partitionConsumer0.getTopic()).thenReturn(topicPartition0);
+        CompletableFuture<Void> pendingChildUnsubscribe = new CompletableFuture<>();
+        when(partitionConsumer0.unsubscribeAsync()).thenReturn(pendingChildUnsubscribe);
+        impl.consumers.put(topicPartition0, partitionConsumer0);
+
+        // The application unsubscribes the topic; the child unsubscribe RPC is still pending.
+        CompletableFuture<Void> unsubscribe = impl.unsubscribeAsync(topicName);
+        assertFalse(unsubscribe.isDone());
+
+        // A re-subscribe while the child unsubscribe is still pending must fail: the old
+        // child is about to be removed, so reusing it would leave the topic registered
+        // with no consumer behind it.
+        CompletionException ex = expectThrows(CompletionException.class,
+                () -> impl.subscribeAsync(topicName, true).join());
+        assertTrue(ex.getCause() instanceof PulsarClientException.AlreadyClosedException);
+
+        // Once the child unsubscribe finishes, the topic is fully gone.
+        pendingChildUnsubscribe.complete(null);
+        unsubscribe.join();
+        assertFalse(impl.partitionedTopics.containsKey(topicName));
+        assertFalse(impl.consumers.containsKey(topicPartition0));
+        assertEquals(impl.allTopicPartitionsNumber.get(), 0);
+        verify(partitionConsumer0).unsubscribeAsync();
+
+        // And the topic can be subscribed again with a fresh child.
+        impl.subscribeAsync(topicName, true).join();
+        assertTrue(impl.partitionedTopics.containsKey(topicName));
+        assertEquals(impl.partitionedTopics.get(topicName), Integer.valueOf(1));
+        assertTrue(impl.consumers.containsKey(topicPartition0));
+        assertTrue(impl.consumers.get(topicPartition0) != partitionConsumer0);
+        assertEquals(impl.allTopicPartitionsNumber.get(), 1);
     }
 
     @Test(timeOut = 30000)
