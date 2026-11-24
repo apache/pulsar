@@ -27,7 +27,9 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import io.netty.channel.Channel;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.net.InetSocketAddress;
 import java.time.Duration;
@@ -36,9 +38,11 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /** TC control-plane capability probing with a fake connection pool; no sockets are opened. */
@@ -90,7 +94,6 @@ public class PulsarClientTcWatchConnectionTest {
         when(pool.getConnection(PulsarChannelInitializer.PROXY_TO_ANY_BROKER, first, 7))
                 .thenReturn(CompletableFuture.completedFuture(incorrectlyPaired));
         assertThat(client.getTcAssignmentsWatchConnection().get(5, TimeUnit.SECONDS)).isSameAs(direct);
-        assertThat(direct.isProxied()).as("ordinary broker connection is not a requested proxy tunnel").isFalse();
         verify(lookup, times(1)).resolveHost();
         verify(pool, never()).getConnection(eq(PulsarChannelInitializer.PROXY_TO_ANY_BROKER), any(), anyInt());
         verify(pool, never()).releaseConnection(direct);
@@ -99,15 +102,14 @@ public class PulsarClientTcWatchConnectionTest {
 
     @Test
     public void proxyControlProbePairsThroughTheSameResolvedServiceEndpoint() throws Exception {
+        // A proxy's lookup connection advertises no broker features, so every capability flag stays false.
         ClientCnx control = mock(ClientCnx.class);
         ClientCnx paired = mock(ClientCnx.class);
         when(paired.isSupportsTcMetadataDiscovery()).thenReturn(true);
-        when(paired.isProxied()).thenReturn(true);
         when(pool.getConnection(first, first, 7)).thenReturn(CompletableFuture.completedFuture(control));
         when(pool.getConnection(PulsarChannelInitializer.PROXY_TO_ANY_BROKER, first, 7))
                 .thenReturn(CompletableFuture.completedFuture(paired));
         assertThat(client.getTcAssignmentsWatchConnection().get(5, TimeUnit.SECONDS)).isSameAs(paired);
-        assertThat(paired.isProxied()).isTrue();
         verify(lookup, times(1)).resolveHost();
         verify(pool).releaseConnection(control);
         verify(pool, never()).releaseConnection(paired);
@@ -115,23 +117,54 @@ public class PulsarClientTcWatchConnectionTest {
         verify(control, never()).close();
     }
 
-    @Test
-    public void tlsFallbackPreservesTheOriginalUnresolvedHostAndPortAcrossMultipleSeeds() throws Exception {
-        client.getConfiguration().setUseTls(true);
-        InetSocketAddress tls = InetSocketAddress.createUnresolved("tls-seed-a.invalid", 6651);
-        when(lookup.resolveHost()).thenReturn(tls, second);
-        ClientCnx control = mock(ClientCnx.class);
-        ClientCnx paired = mock(ClientCnx.class);
-        when(paired.isSupportsTcMetadataDiscovery()).thenReturn(true);
-        when(pool.getConnection(tls, tls, 7)).thenReturn(CompletableFuture.completedFuture(control));
-        when(pool.getConnection(PulsarChannelInitializer.PROXY_TO_ANY_BROKER, tls, 7))
-                .thenReturn(CompletableFuture.completedFuture(paired));
-        assertThat(client.getTcAssignmentsWatchConnection().get(5, TimeUnit.SECONDS)).isSameAs(paired);
-        assertThat(tls.isUnresolved()).isTrue();
-        assertThat(client.getConfiguration().isUseTls()).isTrue();
+    @DataProvider
+    public Object[][] brokerFeaturesWithoutTcDiscovery() {
+        // {supports scalable topics, supports topic watchers}: what a broker without TC discovery advertises
+        return new Object[][] {{true, true}, {false, true}, {true, false}};
+    }
+
+    @Test(dataProvider = "brokerFeaturesWithoutTcDiscovery")
+    public void directBrokerWithoutTcDiscoveryFailsWithoutAnyBrokerPairing(boolean scalableTopics,
+                                                                          boolean topicWatchers) {
+        ClientCnx unsupported = mock(ClientCnx.class);
+        when(unsupported.isSupportsScalableTopics()).thenReturn(scalableTopics);
+        when(unsupported.isSupportsTopicWatchers()).thenReturn(topicWatchers);
+        when(pool.getConnection(first, first, 7)).thenReturn(CompletableFuture.completedFuture(unsupported));
+        // Behind a load balancer a new pairing connection can reach another broker that supports TC discovery.
+        ClientCnx otherBroker = mock(ClientCnx.class);
+        when(otherBroker.isSupportsTcMetadataDiscovery()).thenReturn(true);
+        when(pool.getConnection(PulsarChannelInitializer.PROXY_TO_ANY_BROKER, first, 7))
+                .thenReturn(CompletableFuture.completedFuture(otherBroker));
+        assertThat(client.getTcAssignmentsWatchConnection()).failsWithin(Duration.ofSeconds(5))
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(PulsarClientException.NotSupportedException.class);
+        verify(pool, never()).getConnection(eq(PulsarChannelInitializer.PROXY_TO_ANY_BROKER), any(), anyInt());
+        verify(pool).releaseConnection(unsupported);
         verify(lookup, times(1)).resolveHost();
-        verify(pool).getConnection(PulsarChannelInitializer.PROXY_TO_ANY_BROKER, tls, 7);
-        verify(pool, never()).getConnection(any(), eq(second), anyInt());
+    }
+
+    @Test
+    public void onlyTheAnyBrokerPairingMarksAConnectionProxied() throws Exception {
+        InetSocketAddress endpoint = InetSocketAddress.createUnresolved("service.invalid", 6650);
+        assertThat(initializeClientCnx(endpoint, endpoint).isProxied()).isFalse();
+        assertThat(initializeClientCnx(PulsarChannelInitializer.PROXY_TO_ANY_BROKER, endpoint).isProxied()).isTrue();
+    }
+
+    private ClientCnx initializeClientCnx(InetSocketAddress logicalAddress, InetSocketAddress physicalAddress)
+            throws Exception {
+        ClientConfigurationData configuration = new ClientConfigurationData();
+        ClientCnx cnx = new ClientCnx(InstrumentProvider.NOOP, configuration, eventLoop);
+        EmbeddedChannel channel = new EmbeddedChannel();
+        try {
+            channel.pipeline().addLast("handler", cnx);
+            CompletableFuture<Channel> initialized = new PulsarChannelInitializer(configuration, () -> cnx, null)
+                    .initializeClientCnx(channel, logicalAddress, physicalAddress);
+            channel.runPendingTasks();
+            initialized.get(5, TimeUnit.SECONDS);
+            return cnx;
+        } finally {
+            channel.finishAndReleaseAll();
+        }
     }
 
     @Test

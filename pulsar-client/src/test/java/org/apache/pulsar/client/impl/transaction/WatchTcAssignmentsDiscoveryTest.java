@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl.transaction;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -56,16 +55,23 @@ public class WatchTcAssignmentsDiscoveryTest {
 
     @DataProvider
     public Object[][] watchRoutes() {
-        return new Object[][] {{false, false}, {false, true}, {true, false}, {true, true}};
+        // {watch connection is proxied, client uses TLS, client's listener name}
+        return new Object[][] {
+                {false, false, null}, {false, true, null}, {true, false, null}, {true, true, null},
+                // The snapshot carries each leader's internal-listener URL, which such a client may not reach.
+                {false, false, "external"}, {true, false, "external"}};
     }
 
     @Test(dataProvider = "watchRoutes")
-    public void testAssignmentLeaderUsesTheDiscoveredDirectOrProxyRoute(boolean proxy, boolean tls) throws Exception {
+    public void testAssignmentLeaderUsesTheDiscoveredDirectOrProxyRoute(boolean proxy, boolean tls,
+                                                                        String listenerName) throws Exception {
         PulsarClientImpl client = spy((PulsarClientImpl) PulsarClient.builder()
                 .serviceUrl("pulsar://service.invalid:6650").build());
         WatchTcAssignmentsDiscovery discovery = new WatchTcAssignmentsDiscovery(client);
         try {
             client.getConfiguration().setUseTls(tls);
+            client.getConfiguration().setListenerName(listenerName);
+            boolean viaServiceUrl = proxy || listenerName != null;
             InetSocketAddress service = InetSocketAddress.createUnresolved("service.invalid", tls ? 6651 : 6650);
             InetSocketAddress elected = InetSocketAddress.createUnresolved("elected.invalid", tls ? 6651 : 6650);
             LookupService lookup = mock(LookupService.class);
@@ -110,8 +116,8 @@ public class WatchTcAssignmentsDiscoveryTest {
                     "pulsar://elected.invalid:6650", "pulsar+ssl://elected.invalid:6651"}));
             started.get(5, TimeUnit.SECONDS);
             Awaitility.await().atMost(Duration.ofSeconds(5)).untilAsserted(() ->
-                    verify(client).getConnection(eq(elected), eq(proxy ? service : elected), anyInt()));
-            if (proxy) {
+                    verify(client).getConnection(eq(elected), eq(viaServiceUrl ? service : elected), anyInt()));
+            if (viaServiceUrl) {
                 verify(client).getProxyConnection(eq(elected), anyInt());
             } else {
                 verify(client, never()).getProxyConnection(any(), anyInt());
@@ -130,19 +136,20 @@ public class WatchTcAssignmentsDiscoveryTest {
     @Test
     public void testUnsupportedBrokerFailsWithoutRetrying() {
         PulsarClientImpl client = mock(PulsarClientImpl.class);
-        ClientCnx cnx = mock(ClientCnx.class);
         when(client.getConfiguration()).thenReturn(new ClientConfigurationData());
-        when(client.getTcAssignmentsWatchConnection()).thenReturn(CompletableFuture.completedFuture(cnx));
+        // The connection helper fails rather than returning a connection without TC discovery.
+        when(client.getTcAssignmentsWatchConnection()).thenReturn(CompletableFuture.failedFuture(
+                new PulsarClientException.NotSupportedException(
+                        "Broker does not support scalable-topics transactions")));
         WatchTcAssignmentsDiscovery discovery = new WatchTcAssignmentsDiscovery(client);
         try {
             CompletableFuture<Void> start = discovery.start();
             assertThat(start).isCompletedExceptionally();
-            assertThatThrownBy(start::join)
-                    .hasCauseInstanceOf(PulsarClientException.NotSupportedException.class)
+            // Like the other initial-open failures, the future fails with the client exception itself.
+            assertThat(start.handle((__, failure) -> failure).join())
+                    .isInstanceOf(PulsarClientException.NotSupportedException.class)
                     .hasMessageContaining("Broker does not support scalable-topics transactions");
             verify(client, never()).timer();
-            verify(cnx, never()).registerTcAssignmentsWatcher(anyLong(), any());
-            verify(cnx, never()).ctx();
         } finally {
             discovery.close();
         }
