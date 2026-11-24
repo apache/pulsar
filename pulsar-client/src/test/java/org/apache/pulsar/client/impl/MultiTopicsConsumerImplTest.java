@@ -26,7 +26,9 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -59,6 +61,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import lombok.Cleanup;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -480,6 +483,71 @@ public class MultiTopicsConsumerImplTest {
         // The new partition must start from the parent's current epoch, otherwise the parent
         // drops its messages as stale: it checks incoming messages against its own epoch.
         // On master this fails, the new child starts at epoch 0 while the parent is at 1.
+        assertTrue(impl.consumers.containsKey(topicPartition1));
+        assertEquals(impl.consumers.get(topicPartition1).getConsumerEpoch(), 1);
+    }
+
+    @Test(timeOut = 20000)
+    public void testNewPartitionConsumerEpochSurvivesOverlappingRedeliver() throws Exception {
+        String topicName = "persistent://public/default/epoch-overlap-topic";
+        String topicPartition0 = topicName + "-partition-0";
+        String topicPartition1 = topicName + "-partition-1";
+
+        ConsumerConfigurationData<byte[]> consumerConfData = new ConsumerConfigurationData<>();
+        consumerConfData.setSubscriptionName("subscriptionName");
+        consumerConfData.setAutoUpdatePartitions(true);
+        consumerConfData.setAutoUpdatePartitionsIntervalSeconds(60);
+
+        // The mocked connection reports protocol version 0 by default, which makes the child
+        // redeliver bail out before bumping its epoch. Report a modern broker instead.
+        ClientCnx clientCnxMock = mockClientCnx();
+        when(clientCnxMock.getRemoteEndpointProtocolVersion()).thenReturn(ProtocolVersion.v12_VALUE);
+        PulsarClientImpl clientMock = createPulsarClientMockWithMockedClientCnx(executorProvider, internalExecutor,
+                clientCnxMock);
+        when(clientMock.getPartitionedTopicMetadata(any(), anyBoolean(), anyBoolean()))
+                .thenReturn(CompletableFuture.completedFuture(new PartitionedTopicMetadata()));
+        Schema<byte[]> schema = Schema.BYTES;
+
+        MultiTopicsConsumerImpl<byte[]> impl = new MultiTopicsConsumerImpl<>(
+                clientMock, consumerConfData, executorProvider,
+                new CompletableFuture<>(), schema, null, true);
+
+        impl.partitionedTopics.put(topicName, 0);
+        impl.allTopicPartitionsNumber.set(0);
+
+        when(clientMock.getPartitionsForTopic(topicName, false)).thenReturn(CompletableFuture.completedFuture(
+                Collections.singletonList(topicPartition0)));
+
+        PartitionsChangedListener listener = impl.topicsPartitionChangedListener;
+        listener.onTopicsExtended(Collections.singleton(topicName)).join();
+        assertTrue(impl.consumers.containsKey(topicPartition0));
+
+        // Stall the new child's construction inside grabCnx, after it read the parent epoch (0)
+        // but before it is published in consumers. A redeliver in that window bumps the parent to 1
+        // and fans out without the child; the child must still end up at epoch 1.
+        CountDownLatch enteredConnection = new CountDownLatch(1);
+        CountDownLatch releaseConnection = new CountDownLatch(1);
+        doAnswer(invocation -> {
+            enteredConnection.countDown();
+            assertTrue(releaseConnection.await(15, TimeUnit.SECONDS));
+            return CompletableFuture.completedFuture(Pair.of(clientCnxMock, false));
+        }).when(clientMock).getConnection(anyString(), anyInt());
+
+        when(clientMock.getPartitionsForTopic(topicName, false)).thenReturn(CompletableFuture.completedFuture(
+                Arrays.asList(topicPartition0, topicPartition1)));
+
+        CompletableFuture<Void> growth = CompletableFuture.runAsync(() ->
+                listener.onTopicsExtended(Collections.singleton(topicName)).join());
+        assertTrue(enteredConnection.await(15, TimeUnit.SECONDS));
+
+        // Redeliver while the new child is stuck mid-construction: the parent moves to 1.
+        impl.redeliverUnacknowledgedMessages();
+
+        releaseConnection.countDown();
+        growth.get(15, TimeUnit.SECONDS);
+        // Let the redelivery fan-out (and, on the fixed code, the creation task ahead of it) drain.
+        impl.internalPinnedExecutor.submit(() -> { }).get(15, TimeUnit.SECONDS);
+
         assertTrue(impl.consumers.containsKey(topicPartition1));
         assertEquals(impl.consumers.get(topicPartition1).getConsumerEpoch(), 1);
     }

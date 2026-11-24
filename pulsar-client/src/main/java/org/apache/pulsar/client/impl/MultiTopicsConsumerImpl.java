@@ -1295,21 +1295,30 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             CompletableFuture<Consumer<T>> subscribeFuture = new CompletableFuture<>();
             subscribeAllPartitionsFuture = subscribeFuture.thenAccept(__ -> {});
 
-            ConsumerImpl<T> consumer = consumers.compute(topicName, (key, existingValue) -> {
-                if (existingValue != null) {
-                    String errorMessage =
-                            String.format("[%s] Failed to subscribe for topic [%s] in topics consumer. "
-                            + "Topic is already being subscribed for in other thread.", topic, topicName);
-                    log.warn(errorMessage);
-                    subscribeResult.completeExceptionally(new PulsarClientException(errorMessage));
-                    return existingValue;
-                } else {
-                    ConsumerImpl<T> newConsumer = createInternalConsumer(internalConfig, topicName,
-                            -1, subscribeFuture, createIfDoesNotExist, schema);
-                    return newConsumer;
+            // Create and publish on the same executor the redelivery fan-out runs on, so a concurrent
+            // redeliver cannot slip between the epoch read in createInternalConsumer and publication.
+            // See addNewConsumerIfNotExists for the full reasoning.
+            internalPinnedExecutor.execute(() -> {
+                try {
+                    ConsumerImpl<T> consumer = consumers.compute(topicName, (key, existingValue) -> {
+                        if (existingValue != null) {
+                            String errorMessage =
+                                    String.format("[%s] Failed to subscribe for topic [%s] in topics consumer. "
+                                    + "Topic is already being subscribed for in other thread.", topic, topicName);
+                            log.warn(errorMessage);
+                            subscribeResult.completeExceptionally(new PulsarClientException(errorMessage));
+                            return existingValue;
+                        } else {
+                            ConsumerImpl<T> newConsumer = createInternalConsumer(internalConfig, topicName,
+                                    -1, subscribeFuture, createIfDoesNotExist, schema);
+                            return newConsumer;
+                        }
+                    });
+                    synchronizeConsumerPauseState(consumer);
+                } catch (Throwable t) {
+                    subscribeFuture.completeExceptionally(t);
                 }
             });
-            synchronizeConsumerPauseState(consumer);
         }
 
         subscribeAllPartitionsFuture.thenAccept(finalFuture -> {
@@ -1631,29 +1640,44 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     private CompletableFuture<Consumer<T>> addNewConsumerIfNotExists(String internalTopicName,
                                                                      Supplier<ConsumerImpl<T>> newConsumerSupplier) {
-        ConsumerImpl<T> consumer = consumers.compute(internalTopicName, (__, existingConsumer) -> {
-            if (existingConsumer != null) {
-                if (existingConsumer.subscribeFuture().isCompletedExceptionally()) {
+        // Create and publish the child on the same executor the redelivery fan-out runs on.
+        // The supplier reads the parent epoch when it constructs the child, so creating it on any
+        // other thread leaves a window where a redeliver bumps the parent epoch and fans out before
+        // the child is published: the child then keeps the stale epoch and the parent drops its
+        // messages as stale. On this executor the creation task is ordered against the fan-out task,
+        // so the child either joins the fan-out and is bumped with the rest, or reads the bumped
+        // epoch. The epoch itself is still seeded in the constructor, before grabCnx() subscribes.
+        CompletableFuture<ConsumerImpl<T>> createdFuture = new CompletableFuture<>();
+        internalPinnedExecutor.execute(() -> {
+            try {
+                ConsumerImpl<T> consumer = consumers.compute(internalTopicName, (__, existingConsumer) -> {
+                    if (existingConsumer != null) {
+                        if (existingConsumer.subscribeFuture().isCompletedExceptionally()) {
+                                log.debug().attr("internalTopicName", internalTopicName)
+                                        .log("Closing and replacing existing consumer"
+                                                + " that wasn't completed successfully"
+                                                + " for");
+                            existingConsumer.closeAsync();
+                        } else {
+                                log.debug().attr("internalTopicName", internalTopicName)
+                                        .log("Reusing existing consumer for");
+                            return existingConsumer;
+                        }
+                    }
+                    // create the new consumer
                         log.debug().attr("internalTopicName", internalTopicName)
-                                .log("Closing and replacing existing consumer"
-                                        + " that wasn't completed successfully"
-                                        + " for");
-                    existingConsumer.closeAsync();
-                } else {
-                        log.debug().attr("internalTopicName", internalTopicName)
-                                .log("Reusing existing consumer for");
-                    return existingConsumer;
-                }
+                                .log("Creating consumer for");
+                    return newConsumerSupplier.get();
+                });
+                // Reconcile after compute publishes the child, without holding a map lock together with pauseMutex.
+                synchronizeConsumerPauseState(consumer);
+                createdFuture.complete(consumer);
+            } catch (Throwable t) {
+                createdFuture.completeExceptionally(t);
             }
-            // create the new consumer
-                log.debug().attr("internalTopicName", internalTopicName)
-                        .log("Creating consumer for");
-            return newConsumerSupplier.get();
         });
-        // Reconcile after compute publishes the child, without holding a map lock together with pauseMutex.
-        synchronizeConsumerPauseState(consumer);
         // return the subscribe future
-        return consumer.subscribeFuture();
+        return createdFuture.thenCompose(ConsumerImpl::subscribeFuture);
     }
 
     private TimerTask partitionsAutoUpdateTimerTask = new TimerTask() {
