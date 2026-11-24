@@ -72,6 +72,7 @@ import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
@@ -467,6 +468,57 @@ public class MultiTopicsConsumerImplTest {
         // so the new partition consumer gets the raw AUTO_CONSUME schema without a
         // SchemaInfoProvider and decoding its messages fails.
         verify(clientMock, times(1)).preProcessSchemaBeforeSubscribe(any(), any(), any());
+        assertTrue(impl.consumers.containsKey(topicPartition1));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testNewPartitionConsumerRetriesAfterSchemaLookupFailure() {
+        String topicName = "persistent://public/default/auto-consume-topic";
+        String topicPartition0 = topicName + "-partition-0";
+        String topicPartition1 = topicName + "-partition-1";
+
+        ConsumerConfigurationData<GenericRecord> consumerConfData = new ConsumerConfigurationData<>();
+        consumerConfData.setSubscriptionName("subscriptionName");
+        consumerConfData.setAutoUpdatePartitions(true);
+        consumerConfData.setAutoUpdatePartitionsIntervalSeconds(60);
+
+        PulsarClientImpl clientMock = createPulsarClientMockWithMockedClientCnx(executorProvider, internalExecutor);
+        when(clientMock.getPartitionedTopicMetadata(any(), anyBoolean(), anyBoolean()))
+                .thenReturn(CompletableFuture.completedFuture(new PartitionedTopicMetadata()));
+        Schema<GenericRecord> schema = Schema.AUTO_CONSUME();
+
+        MultiTopicsConsumerImpl<GenericRecord> impl = new MultiTopicsConsumerImpl<>(
+                clientMock, consumerConfData, executorProvider,
+                new CompletableFuture<>(), schema, null, true);
+
+        impl.partitionedTopics.put(topicName, 1);
+        impl.allTopicPartitionsNumber.set(1);
+
+        when(clientMock.getPartitionsForTopic(topicName, false)).thenReturn(CompletableFuture.completedFuture(
+                Arrays.asList(topicPartition0, topicPartition1)));
+
+        // The first schema lookup fails, the next one succeeds.
+        AtomicInteger lookupCount = new AtomicInteger();
+        when(clientMock.preProcessSchemaBeforeSubscribe(any(), any(), any()))
+                .thenAnswer(invocation -> lookupCount.getAndIncrement() == 0
+                        ? FutureUtil.failedFuture(new PulsarClientException("schema lookup failed"))
+                        : CompletableFuture.completedFuture(invocation.getArgument(1)));
+
+        PartitionsChangedListener listener = impl.topicsPartitionChangedListener;
+        listener.onTopicsExtended(Collections.singleton(topicName)).join();
+
+        // A failed schema lookup must not advance the partition counts, otherwise the
+        // next refresh sees no growth and the new partition is skipped for good.
+        // On the PR head this fails: the counts advance from 1 to 2 even though no
+        // new consumer was created.
+        assertEquals(impl.partitionedTopics.get(topicName), Integer.valueOf(1));
+        assertEquals(impl.allTopicPartitionsNumber.get(), 1);
+        assertFalse(impl.consumers.containsKey(topicPartition1));
+
+        // The next refresh retries the lookup and subscribes the new partition.
+        listener.onTopicsExtended(Collections.singleton(topicName)).join();
+        verify(clientMock, times(2)).preProcessSchemaBeforeSubscribe(any(), any(), any());
         assertTrue(impl.consumers.containsKey(topicPartition1));
     }
 

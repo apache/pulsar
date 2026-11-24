@@ -1591,8 +1591,6 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 return FutureUtil.waitForAll(futures)
                         .thenRun(() -> removeTopicMessagesFromUnackedTracker(topicName));
             } else if (oldPartitionNumber < currentPartitionNumber) {
-                allTopicPartitionsNumber.addAndGet(currentPartitionNumber - oldPartitionNumber);
-                partitionedTopics.put(topicName, currentPartitionNumber);
                 List<String> newPartitions = list.subList(oldPartitionNumber, currentPartitionNumber);
                 // Pre-process the schema first, mirroring the initial subscription path, so that
                 // new partitions get a SchemaInfoProvider for versioned schemas such as AUTO_CONSUME.
@@ -1600,6 +1598,11 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 // their messages fails with "SchemaInfoProvider is not set yet".
                 return client.preProcessSchemaBeforeSubscribe(client, schema, topicName)
                         .thenCompose(processedSchema -> {
+                            // Only advance the partition counts once the schema is ready. If the
+                            // lookup fails, the counts stay put so the next refresh sees the
+                            // growth again and retries instead of skipping the new partition.
+                            allTopicPartitionsNumber.addAndGet(currentPartitionNumber - oldPartitionNumber);
+                            partitionedTopics.put(topicName, currentPartitionNumber);
                             // subscribe new added partitions
                             List<CompletableFuture<Consumer<T>>> futureList = newPartitions
                                 .stream()
