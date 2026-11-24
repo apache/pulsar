@@ -151,6 +151,9 @@ public abstract class AbstractMetadataDriver implements Closeable {
         if (metadataStoreUrl != null) {
             message += " (metadata store URL '" + metadataStoreUrl + "')";
         }
+        if (cause.getMessage() != null) {
+            message += ": " + cause.getMessage();
+        }
         return new MetadataException(Code.METADATA_SERVICE_ERROR, message, cause);
     }
 

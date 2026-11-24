@@ -71,6 +71,9 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
      */
     public static final String METADATA_STORE_LISTENER_CLEANUP = "METADATA_STORE_LISTENER_CLEANUP";
 
+    // BookKeeper's AbstractConfiguration#getZkTimeout default.
+    private static final int DEFAULT_ZK_TIMEOUT_MILLIS = 10_000;
+
     private MetadataCache<BookiesRackConfiguration> bookieMappingCache = null;
     private volatile ITopologyAwareEnsemblePlacementPolicy<BookieNode> rackawarePolicy = null;
     private List<BookieId> bookieAddressListLastTime = new ArrayList<>();
@@ -90,7 +93,9 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
         } else {
             String metadataServiceUri = ConfigurationStringUtil.castToString(conf.getProperty("metadataServiceUri"));
             if (StringUtils.isNotBlank(metadataServiceUri)) {
-                int zkTimeout = Integer.parseInt((String) conf.getProperty("zkTimeout"));
+                // A configuration may set only the URI, with sessionTimeoutMillis in its query string; BookKeeper's
+                // own default applies then.
+                int zkTimeout = conf.getInt("zkTimeout", DEFAULT_ZK_TIMEOUT_MILLIS);
                 // Parsed as the BookKeeper metadata drivers parse it, so that MetadataStoreConfig parameters in the
                 // query string, such as configFilePath, configure the store rather than end up in its URL.
                 store = AbstractMetadataDriver.createMetadataStore(metadataServiceUri, zkTimeout);
