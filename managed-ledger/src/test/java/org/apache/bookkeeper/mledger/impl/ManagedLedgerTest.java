@@ -7672,6 +7672,62 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     }
 
     @Test
+    public void testSuccessDeliveryJumpsIndividuallyDeletedEntries() throws Exception {
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory
+                .open("testSuccessDeliveryJumpsIndividuallyDeletedEntries");
+        @Cleanup
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("test-cursor");
+        for (int i = 0; i < 10; i++) {
+            ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
+        }
+
+        Object readCtx = new Object();
+        RecordingReadEntriesCallback recording = new RecordingReadEntriesCallback();
+        OpReadEntry opReadEntry = OpReadEntry.create(cursor, cursor.readPosition, 10, -1, recording,
+                readCtx, ledger.lastConfirmedEntry, position -> false, true);
+
+        long ledgerId = ledger.currentLedger.getId();
+        // The scan skips entry 4, whose single-entry hole is merged into one range read [0..9]
+        List<LongLongPair> ranges = List.of(LongLongPair.of(0L, 9L));
+        LongPredicate shouldSkipEntry =
+                entryId -> entryId == 4 || cursor.isMessageDeleted(ledgerId, entryId);
+        ManagedLedgerImpl.BatchReadEntriesCallback callback = new ManagedLedgerImpl.BatchReadEntriesCallback(
+                ranges, 9, opReadEntry, PositionFactory.create(ledgerId, 9), readCtx, shouldSkipEntry);
+
+        // Entry 7 was not skipped by the scan but is individually deleted while the range read is in
+        // flight: it is dropped and released on arrival, the prefix walk jumps over it together with
+        // the merged hole, and the tail of the window is still delivered.
+        cursor.delete(PositionFactory.create(ledgerId, 7));
+
+        List<Entry> readEntries = new ArrayList<>();
+        EntryImpl holeEntry = null;
+        EntryImpl deletedInFlightEntry = null;
+        for (int i = 0; i <= 9; i++) {
+            EntryImpl entry = EntryImpl.create(ledgerId, i, ("dummy-entry-" + i).getBytes(Encoding));
+            if (i == 4) {
+                holeEntry = entry;
+            } else if (i == 7) {
+                deletedInFlightEntry = entry;
+            }
+            readEntries.add(entry);
+        }
+        callback.onRangeSubmitted();
+        callback.readEntriesComplete(readEntries, ranges.get(0));
+        callback.submissionFinished();
+
+        assertTrue(recording.await());
+        assertEquals(recording.failure.get(), null);
+        List<Long> deliveredEntryIds = new ArrayList<>();
+        for (Entry entry : recording.entries) {
+            deliveredEntryIds.add(entry.getEntryId());
+        }
+        assertEquals(deliveredEntryIds, List.of(0L, 1L, 2L, 3L, 5L, 6L, 8L, 9L));
+        assertEquals(holeEntry.refCnt(), 0, "the merged hole entry must be released");
+        assertEquals(deletedInFlightEntry.refCnt(), 0, "the entry deleted in flight must be released");
+        assertEquals(cursor.getReadPosition().getEntryId(), 10);
+    }
+
+    @Test
     public void testReadEntriesFromDifferentLedgersWithSkipCondition() throws Exception {
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setMaxEntriesPerLedger(5);
