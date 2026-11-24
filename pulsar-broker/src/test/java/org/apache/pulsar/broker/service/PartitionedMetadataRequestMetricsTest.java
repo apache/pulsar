@@ -23,7 +23,7 @@ import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
@@ -38,7 +38,6 @@ import jakarta.ws.rs.core.Response;
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -48,6 +47,7 @@ import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
+import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.namespace.TopicExistsInfo;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
@@ -56,6 +56,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadataResponse;
 import org.apache.pulsar.common.api.proto.ServerError;
+import org.apache.pulsar.common.intercept.InterceptException;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -81,6 +82,7 @@ public class PartitionedMetadataRequestMetricsTest {
     private BrokerService brokerService;
     private NamespaceService namespaceService;
     private PulsarStats pulsarStats;
+    private BrokerInterceptor interceptor;
     private EmbeddedChannel channel;
     private String topicName;
     private TopicName topic;
@@ -94,10 +96,14 @@ public class PartitionedMetadataRequestMetricsTest {
         config.setClusterName("test");
         config.setBrokerShutdownTimeoutMs(0L);
         config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0));
+        interceptor = mock(BrokerInterceptor.class, CALLS_REAL_METHODS);
+        ownedMocks.add(interceptor);
         context = PulsarTestContext.builderForNonStartableContext()
                 .config(config).spyByDefault().build();
         pulsar = context.getPulsarService();
         brokerService = context.getBrokerService();
+        // A broker that is never started does not get its interceptor from the Pulsar service.
+        brokerService.setInterceptor(interceptor);
         namespaceService = pulsar.getNamespaceService();
         pulsarStats = mock(PulsarStats.class);
         ownedMocks.add(pulsarStats);
@@ -120,11 +126,20 @@ public class PartitionedMetadataRequestMetricsTest {
         }
         ownedMocks.forEach(mock -> Mockito.framework().clearInlineMock(mock));
         ownedMocks.clear();
+        // TestNG keeps this test instance until the run ends.
+        context = null;
+        pulsar = null;
+        brokerService = null;
+        namespaceService = null;
+        pulsarStats = null;
+        interceptor = null;
+        channel = null;
+        lastExistingTopicInfo = null;
     }
 
     @Test
     public void invalidTopicNameIsCounted() {
-        request("xx://xx/xx/" + UUID.randomUUID(), 1);
+        request("xx://xx/xx/invalid", 1);
         assertError(1, ServerError.InvalidTopicName);
         assertFailureRecorded(ServerError.InvalidTopicName);
     }
@@ -282,19 +297,39 @@ public class PartitionedMetadataRequestMetricsTest {
         assertSuccessRecorded();
     }
 
+    @DataProvider
+    public Object[][] interceptorErrorCodes() {
+        return new Object[][] {
+                {ServerError.NotAllowedError.getValue(), ServerError.NotAllowedError},
+                {Integer.MAX_VALUE, ServerError.UnknownError}
+        };
+    }
+
+    /** A request that a broker interceptor rejects fails before it reaches the handler, which never times it. */
+    @Test(dataProvider = "interceptorErrorCodes")
+    public void interceptorRejectionIsCounted(int errorCode, ServerError error) throws Exception {
+        doThrow(new InterceptException(errorCode, "rejected by interceptor")).when(interceptor)
+                .onPulsarCommand(any(), any());
+        request(1);
+        assertError(1, error);
+        verify(pulsarStats).recordPartitionedMetadataRequestFailure(eq(0L), eq(error));
+        verify(pulsarStats, never()).recordPartitionedMetadataRequestDuration(anyLong());
+    }
+
     private void request(long requestId) {
         request(topicName, requestId);
     }
 
-    /** Sends a request, forgetting the reports of the earlier ones so that each request is checked on its own. */
     private void request(String topic, long requestId) {
-        clearInvocations(pulsarStats);
         channel.writeInbound(Commands.newPartitionMetadataRequest(topic, requestId, true));
     }
 
     private CommandPartitionedTopicMetadataResponse response() {
         BaseCommand command = readResponse();
         assertThat(command.getType()).isEqualTo(BaseCommand.Type.PARTITIONED_METADATA_RESPONSE);
+        // Tasks queued behind the response, such as a second response to the same request, run before it is
+        // counted.
+        channel.runPendingTasks();
         assertThat(channel.outboundMessages()).as("a request gets exactly one response").isEmpty();
         return command.getPartitionMetadataResponse();
     }
@@ -315,12 +350,12 @@ public class PartitionedMetadataRequestMetricsTest {
     /** The request is reported as one failure with the error, and as nothing else. */
     private void assertFailureRecorded(ServerError error) {
         verify(pulsarStats).recordPartitionedMetadataRequestFailure(anyLong(), eq(error));
-        verify(pulsarStats, never()).recordPartitionedMetadataRequestLatency(anyLong());
+        verify(pulsarStats, never()).recordPartitionedMetadataRequestDuration(anyLong());
     }
 
-    /** The request is reported as one latency sample, and as no failure. */
+    /** The request is reported as one duration sample, and as no failure. */
     private void assertSuccessRecorded() {
-        verify(pulsarStats).recordPartitionedMetadataRequestLatency(anyLong());
+        verify(pulsarStats).recordPartitionedMetadataRequestDuration(anyLong());
         verify(pulsarStats, never()).recordPartitionedMetadataRequestFailure(anyLong(), any());
     }
 

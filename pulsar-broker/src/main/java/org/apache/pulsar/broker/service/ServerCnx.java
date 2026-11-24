@@ -1617,8 +1617,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }
     }
 
-    private void recordPartitionedMetadataRequestLatency(long startedAtNanos) {
-        service.getPulsarStats().recordPartitionedMetadataRequestLatency(System.nanoTime() - startedAtNanos);
+    private void recordPartitionedMetadataRequestSuccess(long startedAtNanos) {
+        service.getPulsarStats().recordPartitionedMetadataRequestDuration(System.nanoTime() - startedAtNanos);
     }
 
     private void recordPartitionedMetadataRequestFailure(long startedAtNanos, ServerError error) {
@@ -1658,10 +1658,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     recordPartitionedMetadataRequestFailure(startedAtNanos, ServerError.TopicNotFound);
                     writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.TopicNotFound, "", requestId));
                 } else if (topicExistsInfo.getTopicType().equals(TopicType.PARTITIONED)) {
-                    recordPartitionedMetadataRequestLatency(startedAtNanos);
+                    recordPartitionedMetadataRequestSuccess(startedAtNanos);
                     commandSender.sendPartitionMetadataResponse(topicExistsInfo.getPartitions(), requestId);
                 } else {
-                    recordPartitionedMetadataRequestLatency(startedAtNanos);
+                    recordPartitionedMetadataRequestSuccess(startedAtNanos);
                     commandSender.sendPartitionMetadataResponse(0, requestId);
                 }
             } finally {
@@ -1714,7 +1714,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.TopicNotFound, "",
                                     requestId));
                         } else {
-                            recordPartitionedMetadataRequestLatency(startedAtNanos);
+                            recordPartitionedMetadataRequestSuccess(startedAtNanos);
                             commandSender.sendPartitionMetadataResponse(metadata.partitions, requestId);
                         }
                         return null;
@@ -4888,6 +4888,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 if (command.getType() == BaseCommand.Type.PRODUCER) {
                     ServerError error = ServerError.valueOf(e.getErrorCode());
                     service.getPulsarStats().recordProducerCreateFailure(
+                            error == null ? ServerError.UnknownError : error);
+                } else if (command.getType() == BaseCommand.Type.PARTITIONED_METADATA) {
+                    // The request was rejected before it was processed, so it has no duration.
+                    ServerError error = ServerError.valueOf(e.getErrorCode());
+                    service.getPulsarStats().recordPartitionedMetadataRequestFailure(0,
                             error == null ? ServerError.UnknownError : error);
                 }
                 throw e;
