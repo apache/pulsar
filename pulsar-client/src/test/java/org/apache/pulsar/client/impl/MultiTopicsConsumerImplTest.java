@@ -616,6 +616,81 @@ public class MultiTopicsConsumerImplTest {
         assertFalse(impl.consumers.containsKey(topicPartition1));
     }
 
+    @Test(timeOut = 30000)
+    public void testQueuedChildCreationFailsOnExecutorShutdownNow() throws Exception {
+        String topicName = "persistent://public/default/epoch-shutdown-topic";
+        String topicPartition0 = topicName + "-partition-0";
+        String topicPartition1 = topicName + "-partition-1";
+
+        ConsumerConfigurationData<byte[]> consumerConfData = new ConsumerConfigurationData<>();
+        consumerConfData.setSubscriptionName("subscriptionName");
+        consumerConfData.setAutoUpdatePartitions(true);
+        consumerConfData.setAutoUpdatePartitionsIntervalSeconds(60);
+
+        ClientCnx clientCnxMock = mockClientCnx();
+        when(clientCnxMock.getRemoteEndpointProtocolVersion()).thenReturn(ProtocolVersion.v12_VALUE);
+        PulsarClientImpl clientMock = createPulsarClientMockWithMockedClientCnx(executorProvider, internalExecutor,
+                clientCnxMock);
+        when(clientMock.getPartitionedTopicMetadata(any(), anyBoolean(), anyBoolean()))
+                .thenReturn(CompletableFuture.completedFuture(new PartitionedTopicMetadata()));
+        Schema<byte[]> schema = Schema.BYTES;
+
+        MultiTopicsConsumerImpl<byte[]> impl = new MultiTopicsConsumerImpl<>(
+                clientMock, consumerConfData, executorProvider,
+                new CompletableFuture<>(), schema, null, true);
+
+        impl.partitionedTopics.put(topicName, 0);
+        impl.allTopicPartitionsNumber.set(0);
+
+        when(clientMock.getPartitionsForTopic(topicName, false)).thenReturn(CompletableFuture.completedFuture(
+                Collections.singletonList(topicPartition0)));
+
+        PartitionsChangedListener listener = impl.topicsPartitionChangedListener;
+        listener.onTopicsExtended(Collections.singleton(topicName)).join();
+        assertTrue(impl.consumers.containsKey(topicPartition0));
+
+        when(clientMock.getPartitionsForTopic(topicName, false)).thenReturn(CompletableFuture.completedFuture(
+                Arrays.asList(topicPartition0, topicPartition1)));
+
+        // Occupy the pinned executor, then trigger growth: the creation task is queued but has
+        // not started when the parent closes.
+        CountDownLatch occupierRunning = new CountDownLatch(1);
+        CountDownLatch releaseOccupier = new CountDownLatch(1);
+        impl.internalPinnedExecutor.execute(() -> {
+            occupierRunning.countDown();
+            try {
+                releaseOccupier.await(15, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+        assertTrue(occupierRunning.await(15, TimeUnit.SECONDS));
+
+        CompletableFuture<Void> growth = listener.onTopicsExtended(Collections.singleton(topicName));
+        impl.closeAsync();
+
+        // Shut the executor down while the creation task is still queued: shutdownNow()
+        // discards it from the queue, then runs it as a CleanupTask on this thread once the
+        // executor terminates, where the pre-check fails the creation future. Without the
+        // CleanupTask the future would never complete and the growth below would hang.
+        // The parent close future is intentionally not joined here: its finalization step is
+        // a plain task queued behind the creation task, so shutdownNow() discards it too.
+        Thread shutdownThread = new Thread(() -> executorProvider.shutdownNow(), "test-shutdown");
+        shutdownThread.start();
+        releaseOccupier.countDown();
+        shutdownThread.join(15_000);
+        assertFalse(shutdownThread.isAlive());
+
+        ExecutionException thrown = expectThrows(ExecutionException.class,
+                () -> growth.get(15, TimeUnit.SECONDS));
+        Throwable cause = thrown.getCause();
+        while (cause instanceof CompletionException && cause.getCause() != null) {
+            cause = cause.getCause();
+        }
+        assertTrue(cause instanceof PulsarClientException.AlreadyClosedException);
+        assertFalse(impl.consumers.containsKey(topicPartition1));
+    }
+
     @DataProvider
     public static Object[][] seekByFunction() {
         return new Object[][] {{false}, {true}};

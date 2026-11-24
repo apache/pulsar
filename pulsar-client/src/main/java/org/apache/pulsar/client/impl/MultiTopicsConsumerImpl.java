@@ -72,6 +72,7 @@ import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.util.ExecutorProvider;
+import org.apache.pulsar.client.util.ExecutorProvider.CleanupTask;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.naming.TopicName;
@@ -1316,8 +1317,12 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             // Create and publish on the same executor the redelivery fan-out runs on, so a concurrent
             // redeliver cannot slip between the epoch read in createInternalConsumer and publication.
             // See addNewConsumerIfNotExists for the full reasoning.
+            // Submitted as a CleanupTask: if this is still queued when the client shuts the
+            // internal executor down, shutdownNow() runs it on the shutdown thread instead of
+            // discarding it, so the pre-check below fails the futures instead of leaving the
+            // subscribe caller hanging forever.
             try {
-                internalPinnedExecutor.execute(() -> {
+                internalPinnedExecutor.execute((CleanupTask) () -> {
                     try {
                         if (getState() == State.Closing || getState() == State.Closed) {
                             // The parent started closing before this task ran: fail without creating a
@@ -1712,9 +1717,13 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         // and the child seeds from the epoch the last completed fan-out applied, so it either joins
         // the fan-out and is bumped with the rest, or reads the already-applied epoch. The epoch
         // itself is still seeded in the constructor, before grabCnx() subscribes.
+        // Submitted as a CleanupTask: if this is still queued when the client shuts the
+        // internal executor down, shutdownNow() runs it on the shutdown thread instead of
+        // discarding it, so the pre-check below fails the future instead of leaving the
+        // subscribe caller hanging forever.
         CompletableFuture<ConsumerImpl<T>> createdFuture = new CompletableFuture<>();
         try {
-            internalPinnedExecutor.execute(() -> {
+            internalPinnedExecutor.execute((CleanupTask) () -> {
                 try {
                     if (getState() == State.Closing || getState() == State.Closed) {
                         // The parent started closing before this task ran: fail without creating a
