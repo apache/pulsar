@@ -45,9 +45,7 @@ dependencies {
     //     DefaultClientAuthenticationServices are referenced by pulsar-client-admin.
     api(project(":pulsar-tls-factory-api"))
     api(project(":pulsar-http-client-api"))
-    api(project(":pulsar-common")) {
-        exclude(group = "io.prometheus", module = "simpleclient_caffeine")
-    }
+    api(project(":pulsar-common"))
     // Non-FIPS BouncyCastle JCA provider, needed at runtime by pulsar-client-messagecrypto-bc.
     implementation(libs.bcprov.jdk18on)
     implementation(libs.bcpkix.jdk18on)
@@ -64,6 +62,8 @@ dependencies {
     api(libs.guava)
     implementation(libs.bookkeeper.circe.checksum) {
         exclude(group = "io.netty")
+        // BookKeeper declares an older slog; keep only libs.slog in the published POM
+        exclude(group = "io.github.merlimat.slog", module = "slog")
     }
     implementation(libs.commons.lang3)
     api(libs.asynchttpclient)
@@ -84,6 +84,7 @@ dependencies {
     implementation(libs.fastutil)
 
     compileOnly(libs.swagger.annotations)
+    testCompileOnly(libs.swagger.annotations)
     compileOnly(libs.protobuf.java)
     compileOnly(libs.joda.time)
     compileOnly(libs.spotbugs.annotations)
@@ -101,6 +102,8 @@ dependencies {
     testImplementation(libs.opentelemetry.sdk)
     testImplementation(libs.opentelemetry.sdk.testing)
     testImplementation(libs.joda.time)
+    // Captures slog output, which goes to its Log4j2 backend, to assert on what a test logged.
+    testImplementation(libs.log4j.core)
     testImplementation(project(":pulsar-client-messagecrypto-bc"))
     testImplementation(project(":pulsar-functions:pulsar-functions-proto"))
 }
@@ -124,31 +127,37 @@ configurations.matching { it.name.endsWith("ProtoPath") }.configureEach {
     extendsFrom(configurations["internalPlatform"])
 }
 
-// Generate Avro test classes from .avsc schema files
-val avroTools = configurations.create("avroTools") {
+// Generate Avro test classes from .avsc schema files, with avro-tools declared in avroTools and
+// resolved in avroToolsClasspath (see ProjectArtifacts.kt)
+val avroTools = runtimeJars("avroToolsClasspath", "avroTools")
+avroTools.files.configure {
     // Align the avro-tools codegen classpath with the enforced version platform so its transitive
     // dependencies (commons-*, jetty-util, ...) match the version catalog instead of avro-tools'
     // own older transitives. Build-time only, never published.
     extendsFrom(configurations["internalPlatform"])
 }
 dependencies {
-    avroTools("org.apache.avro:avro-tools:${libs.versions.avro.get()}") {
+    avroTools.dependencies(libs.tooling.avro.tools) {
         exclude(group = "org.eclipse.jetty", module = "jetty-server")
     }
 }
 
 val generateTestAvro = tasks.register<JavaExec>("generateTestAvro") {
-    val avscDir = file("src/test/resources/avro")
+    group = "build"
+    description = "Generates the Java classes of the Avro schemas that the tests use"
+    val avscDir = layout.projectDirectory.dir("src/test/resources/avro")
     val outputDir = layout.buildDirectory.dir("generated-sources/avro-test")
-    inputs.dir(avscDir)
-    outputs.dir(outputDir)
-    classpath = avroTools
+    inputs.dir(avscDir).withPropertyName("schemas").withPathSensitivity(PathSensitivity.RELATIVE)
+    outputs.dir(outputDir).withPropertyName("generatedSources")
+    classpath = files(avroTools.files)
     mainClass.set("org.apache.avro.tool.Main")
-    args("compile", "schema", avscDir.absolutePath, outputDir.get().asFile.absolutePath)
+    argumentProviders.add(CommandLineArgumentProvider {
+        listOf("compile", "schema", avscDir.asFile.absolutePath, outputDir.get().asFile.absolutePath)
+    })
 }
 
-sourceSets["test"].java.srcDir(generateTestAvro.map { layout.buildDirectory.dir("generated-sources/avro-test").get() })
-tasks.named("compileTestJava") { dependsOn(generateTestAvro) }
+// The task's output directory, which also makes compiling the tests generate the classes first
+sourceSets["test"].java.srcDir(generateTestAvro)
 
 // ---------------------------------------------------------------------------
 // Publish-time dependency replacement: in the PUBLISHED POM and Gradle Module Metadata only,

@@ -113,7 +113,7 @@ public class MaxUnackedMessagesTest extends SharedPulsarBaseTest {
             }
 
             // client must receive number of messages = unAckedMessagesBufferSize rather all produced messages
-            assertEquals(unackMsgAllowed, messages.size(), receiverQueueSize * 3);
+            assertEquals(messages.size(), unackMsgAllowed, receiverQueueSize * 3);
 
             // start acknowledging messages
             messages.forEach((m, c) -> {

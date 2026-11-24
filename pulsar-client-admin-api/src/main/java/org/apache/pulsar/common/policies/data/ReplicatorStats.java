@@ -78,4 +78,34 @@ public interface ReplicatorStats {
 
     /** Timestamp of outbound connection establishment time. */
     String getOutboundConnectedSince();
+
+    /** Outbound replicator lifecycle state. */
+    default String getReplicatorState() {
+        return null;
+    }
+
+    /** State of the outbound producer. */
+    default String getProducerState() {
+        return null;
+    }
+
+    /** Health of the outbound replicator, or null while its progress is still unknown. */
+    default ReplicatorHealth getReplicatorHealth() {
+        return null;
+    }
+
+    /** Unix time in milliseconds when the cursor started its latest read of available entries. */
+    default Long getLastCursorReadStartedAt() {
+        return null;
+    }
+
+    /** Unix time in milliseconds of the most recent send submission. */
+    default Long getLastSendStartedAt() {
+        return null;
+    }
+
+    /** Unix time in milliseconds of the last send callback that requested a cursor delete. */
+    default Long getLastReplicationSucceededAt() {
+        return null;
+    }
 }

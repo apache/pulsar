@@ -20,12 +20,14 @@ package org.apache.bookkeeper.mledger;
 
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.collect.Range;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
@@ -37,6 +39,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.SkipEntriesCallback;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
+import org.apache.pulsar.common.util.FutureUtil;
 
 /**
  * A ManagedCursor is a persisted cursor inside a ManagedLedger.
@@ -89,6 +92,16 @@ public interface ManagedCursor {
     void updateLastActive();
 
     /**
+     * Mark the cursor as idle, e.g. because its subscription has no consumers anymore. A cursor that is already idle
+     * stays idle since the same time. The last active time of an idle cursor is the time since which it is idle: unlike
+     * the last active time of a cursor in use, it is persisted with the cursor position and kept when the cursor is
+     * recovered, until {@link #updateLastActive()} is called again.
+     */
+    default void markIdle() {
+        updateLastActive();
+    }
+
+    /**
      * Return any properties that were associated with the last stored position.
      */
     Map<String, Long> getProperties();
@@ -129,6 +142,54 @@ public interface ManagedCursor {
      * @return a handle to the result of the operation
      */
     CompletableFuture<Void> removeCursorProperty(String key);
+
+    /**
+     * Modify the cursor properties with a read-modify-write function. The function receives a
+     * copy of the current properties and returns the complete new map; the read it observes and
+     * the write it produces are applied against the same snapshot, so a concurrent write that
+     * changed the state the function observed cannot be overwritten by this update. The returned
+     * map must not be {@code null} and must not contain {@code null} keys or values; a violation
+     * fails the returned future with the original exception and leaves the properties untouched.
+     * If the returned map equals the snapshot the function read, no write is issued.
+     *
+     * Note: like the other property operations, {@link ManagedLedgerException.BadVersionException}
+     * will be set in this {@link CompletableFuture} if there are concurrent modifications — a
+     * retry against a snapshot refreshed by a writer on this cursor re-applies the function, so
+     * the function must be side-effect free and must not retain the passed map.
+     *
+     * The default implementation is a best-effort, non-atomic fallback that applies the per-key
+     * differences through the individual property operations; implementations with an atomic
+     * variant should override it.
+     *
+     * @param updateFunction the read-modify-write function
+     * @return a handle to the result of the operation
+     */
+    default CompletableFuture<Void> updateCursorProperties(
+            Function<Map<String, String>, Map<String, String>> updateFunction) {
+        // The diff baseline is the snapshot the closure read: an implementation can return a live
+        // map, and diffing against it would turn another writer's concurrent change into a stale
+        // overwrite even when the closure changed nothing.
+        final Map<String, String> baseline =
+                getCursorProperties() == null ? Map.of() : Map.copyOf(getCursorProperties());
+        final Map<String, String> modified;
+        try {
+            modified = Map.copyOf(updateFunction.apply(new HashMap<>(baseline)));
+        } catch (Exception e) {
+            return FutureUtil.failedFuture(e);
+        }
+        CompletableFuture<Void> result = CompletableFuture.completedFuture(null);
+        for (Map.Entry<String, String> entry : modified.entrySet()) {
+            if (!entry.getValue().equals(baseline.get(entry.getKey()))) {
+                result = result.thenCompose(__ -> putCursorProperty(entry.getKey(), entry.getValue()));
+            }
+        }
+        for (String key : baseline.keySet()) {
+            if (!modified.containsKey(key)) {
+                result = result.thenCompose(__ -> removeCursorProperty(key));
+            }
+        }
+        return result;
+    }
 
     /**
      * Add a property associated with the last stored position.
@@ -536,6 +597,11 @@ public interface ManagedCursor {
      * @return the mark deleted position
      */
     Position getMarkDeletedPosition();
+
+    /** Local Unix time in milliseconds of the latest forward mark-delete movement, or zero if unobserved. */
+    default long getLastMarkDeleteAdvancedAt() {
+        return 0;
+    }
 
     /**
      * Get the persistent newest mark deleted position on this cursor.

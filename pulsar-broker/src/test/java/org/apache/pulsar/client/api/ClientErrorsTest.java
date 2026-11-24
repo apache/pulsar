@@ -218,14 +218,15 @@ public class ClientErrorsTest {
                 .operationTimeout(1, TimeUnit.SECONDS).build();
         final AtomicInteger producerCounter = new AtomicInteger(0);
         final AtomicInteger closeProducerCounter = new AtomicInteger(0);
+        final AtomicReference<Runnable> triggerReconnect = new AtomicReference<>();
 
         mockBrokerService.setHandleProducer((ctx, producer) -> {
             int producerCount = producerCounter.incrementAndGet();
             if (producerCount == 1) {
+                long producerId = producer.getProducerId();
+                triggerReconnect.set(() -> ctx.writeAndFlush(Commands.newCloseProducer(producerId, -1)));
                 ctx.writeAndFlush(Commands.newProducerSuccess(producer.getRequestId(), "producer1",
                         SchemaVersion.Empty));
-                // Trigger reconnect
-                ctx.writeAndFlush(Commands.newCloseProducer(producer.getProducerId(), -1));
             } else if (producerCount != 2) {
                 // Respond to subsequent requests to prevent timeouts
                 ctx.writeAndFlush(Commands.newProducerSuccess(producer.getRequestId(), "producer1",
@@ -239,10 +240,12 @@ public class ClientErrorsTest {
             ctx.writeAndFlush(Commands.newSuccess(closeProducer.getRequestId()));
         });
 
-        // Create producer should succeed then upon closure, it should reattempt creation. The first request will
-        // time out, which triggers CloseProducer. The client might send the third Producer command before the
-        // below assertion, so we pass with 2 or 3.
+        // Finish initial creation before triggering reconnect. Closing with the first success can supersede the
+        // queued resend task and make initial creation time out instead of testing a reconnect timeout.
         client.newProducer().topic(topic).create();
+        triggerReconnect.get().run();
+        // The reconnect request times out and triggers CloseProducer. The third Producer command may arrive
+        // before the assertion, so either 2 or 3 requests is valid.
         Awaitility.await().until(() -> closeProducerCounter.get() == 1);
         Awaitility.await().until(() -> producerCounter.get() == 2 || producerCounter.get() == 3);
         mockBrokerService.resetHandleProducer();

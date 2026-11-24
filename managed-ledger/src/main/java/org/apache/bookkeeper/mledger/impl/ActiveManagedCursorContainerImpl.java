@@ -870,6 +870,29 @@ public class ActiveManagedCursorContainerImpl implements ActiveManagedCursorCont
         }
     }
 
+    @Override
+    public int getNumberOfCursorsAtPositionOrBefore(ManagedCursor from, Position position) {
+        long stamp = rwLock.writeLock();
+        try {
+            processPendingPositions();
+            // The nodes are sorted by position, and the nodes at the same position share the count of the cursors at
+            // their position or before: walk from the given cursor's node when it's at the position or before it,
+            // usually past few nodes, instead of from the head
+            Node start = from != null ? cursors.get(from.getName()) : null;
+            if (start == null || start.position == null || start.position.compareTo(position) > 0) {
+                start = head;
+            }
+            int count = 0;
+            for (Node current = start; current != null && current.position.compareTo(position) <= 0;
+                 current = current.next) {
+                count = current.numberOfCursorsAtSamePositionOrBefore.intValue();
+            }
+            return count;
+        } finally {
+            rwLock.unlockWrite(stamp);
+        }
+    }
+
     @VisibleForTesting
     int getPendingPositionUpdatesCount() {
         long stamp = rwLock.readLock();

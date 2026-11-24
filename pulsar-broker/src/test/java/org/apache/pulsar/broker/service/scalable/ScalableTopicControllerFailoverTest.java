@@ -18,18 +18,28 @@
  */
 package org.apache.pulsar.broker.service.scalable;
 
+import static org.apache.pulsar.broker.service.scalable.PrometheusSamples.getSampleValue;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.sdk.metrics.SdkMeterProvider;
+import io.opentelemetry.sdk.metrics.data.MetricData;
+import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -40,8 +50,17 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BooleanSupplier;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.resources.NamespaceResources;
+import org.apache.pulsar.broker.resources.PulsarResources;
+import org.apache.pulsar.broker.resources.ScalableTopicMetadata;
+import org.apache.pulsar.broker.resources.ScalableTopicMetadata.PendingLayoutTransition;
 import org.apache.pulsar.broker.resources.ScalableTopicResources;
+import org.apache.pulsar.broker.resources.TopicResources;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.TransportCnx;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -53,6 +72,7 @@ import org.apache.pulsar.metadata.TestZKServer;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.coordination.CoordinationService;
+import org.apache.pulsar.metadata.api.coordination.LeaderElectionState;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.metadata.coordination.impl.CoordinationServiceImpl;
@@ -66,6 +86,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
@@ -128,6 +149,8 @@ public class ScalableTopicControllerFailoverTest {
         ScalableTopicController follower = broker2.newController();
         follower.initialize().get();
         assertThat(follower.isLeader()).as("broker 2, following broker 1").isFalse();
+        assertThat(leader.consumerStats()).isEqualTo(new SubscriptionCoordinator.ConsumerStats(1, 0, 0, 0));
+        assertThat(follower.consumerStats()).isEqualTo(SubscriptionCoordinator.ConsumerStats.EMPTY);
         // The layout changes after the follower loaded it.
         leader.splitSegment(1).get();
 
@@ -135,6 +158,8 @@ public class ScalableTopicControllerFailoverTest {
 
         Awaitility.await().untilAsserted(() -> assertThat(follower.isLeader())
                 .as("broker 2, whose election took the controller lock over").isTrue());
+        assertThat(leader.consumerStats()).isEqualTo(SubscriptionCoordinator.ConsumerStats.EMPTY);
+        assertThat(follower.consumerStats()).isEqualTo(new SubscriptionCoordinator.ConsumerStats(0, 0, 1, 0));
         assertThat(follower.getLayout().get().getAllSegments())
                 .as("segments of the layout the new leader serves")
                 .hasSize(SEGMENTS + 2);
@@ -171,6 +196,219 @@ public class ScalableTopicControllerFailoverTest {
                 .hasMessageContaining("not the leader");
     }
 
+    @DataProvider
+    public Object[][] takeoverInterruptions() {
+        return new Object[][]{
+                {"close", false}, {"close", true},
+                {"leadership_loss", false}, {"leadership_loss", true},
+                {"superseded", false}, {"superseded", true}
+        };
+    }
+
+    @Test(dataProvider = "takeoverInterruptions", timeOut = 30_000)
+    public void testInterruptedTakeoverIsNotFailure(String interruption, boolean restoreFails) throws Exception {
+        ScalableTopicResources heldResources = spy(broker1.resources);
+        CompletableFuture<List<String>> restore = new CompletableFuture<>();
+        CompletableFuture<Void> entered = new CompletableFuture<>();
+        AtomicInteger restores = new AtomicInteger();
+        doAnswer(invocation -> {
+            if (restores.getAndIncrement() == 0) {
+                entered.complete(null);
+                return restore;
+            }
+            return CompletableFuture.completedFuture(List.of());
+        }).when(heldResources).listSubscriptionsAsync(topic);
+        ScalableTopicController first = new ScalableTopicController(topic, heldResources,
+                broker1.brokerService, broker1.coordinationService);
+        broker1.controllers.add(first);
+        PrometheusRegistry registry = new PrometheusRegistry();
+        var reader = InMemoryMetricReader.create();
+        try (var sdk = SdkMeterProvider.builder().registerMetricReader(reader).build();
+             var metrics = new ScalableTopicControllerMetrics(sdk.get("interrupted-takeover"), "test-cluster",
+                     first::metricCounts, registry)) {
+            first.setMetrics(metrics);
+            CompletableFuture<Void> initialization = first.initialize();
+            entered.get(5, TimeUnit.SECONDS);
+            assertThat(first.isLeader()).as("the old attempt has not started serving").isFalse();
+            if ("close".equals(interruption)) {
+                first.close().get(5, TimeUnit.SECONDS);
+            } else {
+                ScalableTopicController second = broker2.newController();
+                second.initialize().get(5, TimeUnit.SECONDS);
+                broker2.takeOverControllerLock();
+                Awaitility.await().atMost(Duration.ofSeconds(5)).until(() -> second.isLeader()
+                        && first.getLeaderState() == LeaderElectionState.Following);
+                if ("superseded".equals(interruption)) {
+                    broker1.takeOverControllerLock();
+                    Awaitility.await().atMost(Duration.ofSeconds(5))
+                            .until(() -> first.isLeader() && !second.isLeader());
+                }
+            }
+            if (restoreFails) {
+                restore.completeExceptionally(new IllegalStateException("obsolete restoration failed"));
+            } else {
+                restore.complete(List.of());
+            }
+            // An obsolete initialization may finish normally or exceptionally; neither is a takeover failure.
+            initialization.handle((__, ex) -> null).get(5, TimeUnit.SECONDS);
+            assertThat(getSampleValue(registry,
+                    "pulsar_scalable_topic_controller_takeover_duration_seconds_count",
+                    new String[]{"cluster", "operation_status"}, new String[]{"test-cluster", "failure"})).isNull();
+            Collection<MetricData> collected = reader.collectAllMetrics();
+            if ("superseded".equals(interruption)) {
+                assertThat(scalableMetric(collected, "controller.takeover.duration").getHistogramData().getPoints())
+                        .singleElement().satisfies(point -> {
+                            assertThat(point.getCount()).isEqualTo(1);
+                            assertThat(point.getAttributes()).isEqualTo(Attributes.builder()
+                                    .put("pulsar.scalable_topic.operation.status", "success").build());
+                        });
+                assertThat(getSampleValue(registry,
+                        "pulsar_scalable_topic_controller_takeover_duration_seconds_count",
+                        new String[]{"cluster", "operation_status"}, new String[]{"test-cluster", "success"}))
+                        .isEqualTo(1);
+            } else {
+                assertThat(collected).noneSatisfy(metric -> assertThat(metric.getName())
+                        .isEqualTo("pulsar.broker.scalable_topic.controller.takeover.duration"));
+                assertThat(getSampleValue(registry,
+                        "pulsar_scalable_topic_controller_takeover_duration_seconds_count",
+                        new String[]{"cluster", "operation_status"}, new String[]{"test-cluster", "success"}))
+                        .isNull();
+            }
+        } finally {
+            restore.completeExceptionally(new IllegalStateException("release held restoration during cleanup"));
+        }
+    }
+
+    @DataProvider
+    public Object[][] layoutOperationOutcomes() {
+        return new Object[][]{
+                {"split", false}, {"split", true},
+                {"merge", false}, {"merge", true},
+                {"rebucket", false}, {"rebucket", true}
+        };
+    }
+
+    @Test(dataProvider = "layoutOperationOutcomes", timeOut = 30_000)
+    public void testLayoutOutcomeRetainedAfterLeadershipLoss(String operation, boolean succeeds) throws Exception {
+        ScalableTopicResources heldResources = spy(broker1.resources);
+        CompletableFuture<Void> updateRequested = new CompletableFuture<>();
+        CompletableFuture<Void> resumeCommit = new CompletableFuture<>();
+        doAnswer(invocation -> {
+            PendingLayoutTransition plan = invocation.getArgument(1);
+            long sealedAtMs = invocation.getArgument(2);
+            BooleanSupplier currentTerm = invocation.getArgument(3);
+            // A successful write is already durable before leadership is lost; only its
+            // acknowledgement is delayed. An uncommitted old term must never write later.
+            CompletableFuture<Void> commit = succeeds
+                    ? broker1.resources.commitLayoutTransitionAsync(topic, plan, sealedAtMs, currentTerm)
+                    : CompletableFuture.completedFuture(null);
+            return commit.thenCompose(__ -> {
+                updateRequested.complete(null);
+                return resumeCommit;
+            });
+        }).when(heldResources).commitLayoutTransitionAsync(eq(topic), any(), anyLong(), any());
+
+        ScalableTopicController first = new ScalableTopicController(topic, heldResources,
+                broker1.brokerService, broker1.coordinationService);
+        broker1.controllers.add(first);
+        ScalableTopicController second = broker2.newController();
+        PrometheusRegistry registry = new PrometheusRegistry();
+        var reader = InMemoryMetricReader.create();
+        try (var sdk = SdkMeterProvider.builder().registerMetricReader(reader).build();
+             var metrics = new ScalableTopicControllerMetrics(sdk.get("deposed-controller"), "test-cluster",
+                     first::metricCounts, registry)) {
+            first.setMetrics(metrics);
+            first.initialize().get(5, TimeUnit.SECONDS);
+            second.initialize().get(5, TimeUnit.SECONDS);
+            CompletableFuture<SegmentLayout> pending = startLayoutOperation(first, operation);
+            updateRequested.get(5, TimeUnit.SECONDS);
+            assertThat(pending).as("the layout commit is still pending after sealing").isNotDone();
+
+            broker2.takeOverControllerLock();
+            Awaitility.await().atMost(Duration.ofSeconds(5)).until(() -> second.isLeader() && !first.isLeader());
+            ScalableTopicControllerMetrics.Counts newLeaderCounts = second.metricCounts();
+            assertThat(newLeaderCounts.controllers()).isEqualTo(1);
+            assertThat(first.metricCounts()).isEqualTo(new ScalableTopicControllerMetrics.Counts(0, 0, 0));
+
+            if (succeeds) {
+                resumeCommit.complete(null);
+                pending.get(5, TimeUnit.SECONDS);
+            } else {
+                IllegalStateException failure = new IllegalStateException("layout commit failed after leadership loss");
+                resumeCommit.completeExceptionally(failure);
+                assertThatThrownBy(() -> pending.get(5, TimeUnit.SECONDS)).hasCause(failure);
+            }
+            // Requests rejected before starting as leader must not add another outcome.
+            assertThatThrownBy(() -> startLayoutOperation(first, operation).get(5, TimeUnit.SECONDS))
+                    .hasRootCauseInstanceOf(IllegalStateException.class);
+
+            String status = succeeds ? "success" : "partial";
+            assertThat(getSampleValue(registry, "pulsar_scalable_topic_layout_operation_total",
+                    new String[]{"cluster", "operation", "operation_trigger", "operation_status"},
+                    new String[]{"test-cluster", operation, "manual", status})).isEqualTo(1);
+            Collection<MetricData> collected = reader.collectAllMetrics();
+            assertThat(scalableMetric(collected, "layout.operation.count").getLongSumData().getPoints())
+                    .singleElement().satisfies(point -> {
+                        assertThat(point.getValue()).isEqualTo(1);
+                        assertThat(point.getAttributes()).isEqualTo(Attributes.builder()
+                                .put("pulsar.scalable_topic.operation", operation)
+                                .put("pulsar.scalable_topic.operation.trigger", "manual")
+                                .put("pulsar.scalable_topic.operation.status", status).build());
+                    });
+            assertThat(scalableMetric(collected, "layout.operation.duration").getHistogramData().getPoints())
+                    .singleElement().satisfies(point -> {
+                        assertThat(point.getCount()).isEqualTo(1);
+                        assertThat(point.getAttributes()).isEqualTo(Attributes.builder()
+                                .put("pulsar.scalable_topic.operation", operation)
+                                .put("pulsar.scalable_topic.operation.status", status).build());
+                        assertThat(getSampleValue(registry,
+                                "pulsar_scalable_topic_layout_operation_duration_seconds_count",
+                                new String[]{"cluster", "operation", "operation_status"},
+                                new String[]{"test-cluster", operation, status})).isEqualTo(point.getCount());
+                    });
+            if (succeeds) {
+                assertThat(scalableMetric(collected, "layout.seal.duration").getHistogramData().getPoints())
+                        .singleElement().satisfies(point -> {
+                            assertThat(point.getCount()).isEqualTo(1);
+                            assertThat(point.getAttributes()).isEqualTo(Attributes.builder()
+                                    .put("pulsar.scalable_topic.operation", operation).build());
+                            assertThat(getSampleValue(registry,
+                                    "pulsar_scalable_topic_layout_seal_duration_seconds_count",
+                                    new String[]{"cluster", "operation"}, new String[]{"test-cluster", operation}))
+                                    .isEqualTo(1);
+                        });
+            } else {
+                assertThat(collected).noneSatisfy(metric -> assertThat(metric.getName())
+                        .isEqualTo("pulsar.broker.scalable_topic.layout.seal.duration"));
+                assertThat(getSampleValue(registry, "pulsar_scalable_topic_layout_seal_duration_seconds_count",
+                        new String[]{"cluster", "operation"}, new String[]{"test-cluster", operation})).isNull();
+            }
+            assertThat(getSampleValue(registry, "pulsar_scalable_topic_controller_count",
+                    new String[]{"cluster"}, new String[]{"test-cluster"})).isZero();
+            assertThat(scalableMetric(collected, "controller.count").getLongSumData().getPoints())
+                    .singleElement().satisfies(point -> assertThat(point.getValue()).isZero());
+            assertThat(first.metricCounts()).isEqualTo(new ScalableTopicControllerMetrics.Counts(0, 0, 0));
+            assertThat(second.metricCounts()).isEqualTo(newLeaderCounts);
+        } finally {
+            resumeCommit.completeExceptionally(new IllegalStateException("release held update during cleanup"));
+        }
+    }
+
+    private static CompletableFuture<SegmentLayout> startLayoutOperation(ScalableTopicController controller,
+                                                                       String operation) {
+        return switch (operation) {
+            case "split" -> controller.splitSegment(0);
+            case "merge" -> controller.mergeSegments(0, 1);
+            case "rebucket" -> controller.rebucketSegment(0, 4);
+            default -> throw new IllegalArgumentException(operation);
+        };
+    }
+
+    private static MetricData scalableMetric(Collection<MetricData> metrics, String name) {
+        return metrics.stream().filter(metric -> metric.getName().equals("pulsar.broker.scalable_topic." + name))
+                .findFirst().orElseThrow();
+    }
+
     /**
      * A leader deposed by its election closes the election, as a follower does once elected: the
      * election would otherwise take the lock back by itself once the new leader releases it, and for
@@ -188,7 +426,7 @@ public class ScalableTopicControllerFailoverTest {
 
         String lockPath = broker1.resources.controllerLockPath(topic);
         List<NotificationType> lockEvents = new CopyOnWriteArrayList<>();
-        broker1.store.registerListener(notification -> {
+        broker1.store.registerCancellableListener(notification -> {
             if (notification.getPath().equals(lockPath)) {
                 lockEvents.add(notification.getType());
             }
@@ -277,6 +515,63 @@ public class ScalableTopicControllerFailoverTest {
                 .as("registered consumers").containsExactly("consumer-1");
     }
 
+    @Test(timeOut = 30_000)
+    public void testOldAutoEvaluationCannotBlockOrClearTheReacquiredTerm() throws Exception {
+        ServiceConfiguration config = new ServiceConfiguration();
+        config.setScalableTopicAutoScaleEnabled(false);
+        config.setScalableTopicAutoScaleIntervalSeconds(3600);
+        PulsarService pulsar = broker1.brokerService.getPulsar();
+        when(pulsar.getConfig()).thenReturn(config);
+        NamespaceResources namespaceResources = mock(NamespaceResources.class);
+        when(broker1.pulsarResources.getNamespaceResources()).thenReturn(namespaceResources);
+        when(namespaceResources.getPoliciesAsync(any()))
+                .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
+        ScalableTopicResources heldResources = spy(broker1.resources);
+        BlockingQueue<CompletableFuture<Optional<ScalableTopicMetadata>>> requested = new LinkedBlockingQueue<>();
+        List<CompletableFuture<Optional<ScalableTopicMetadata>>> reads = new CopyOnWriteArrayList<>();
+        doAnswer(invocation -> {
+            CompletableFuture<Optional<ScalableTopicMetadata>> read = new CompletableFuture<>();
+            reads.add(read);
+            requested.add(read);
+            return read;
+        }).when(heldResources).getScalableTopicMetadataAsync(topic);
+        ScalableTopicController controller = new ScalableTopicController(topic, heldResources,
+                broker1.brokerService, broker1.coordinationService);
+        broker1.controllers.add(controller);
+        try {
+            controller.initialize().get(5, TimeUnit.SECONDS);
+            broker2.newController().initialize().get(5, TimeUnit.SECONDS);
+            Optional<ScalableTopicMetadata> metadata = broker1.resources.getScalableTopicMetadataAsync(topic, true)
+                    .get(5, TimeUnit.SECONDS);
+            CompletableFuture<Void> oldEvaluation = controller.evaluateAutoScaleForTest();
+            CompletableFuture<Optional<ScalableTopicMetadata>> oldRead = requested.poll(5, TimeUnit.SECONDS);
+            assertThat(oldRead).as("the first term's auto policy read is held").isNotNull();
+            assertThat(controller.isAutoScaleEvaluationInFlight()).isTrue();
+
+            broker2.takeOverControllerLock();
+            Awaitility.await().atMost(Duration.ofSeconds(5)).until(() -> !controller.isLeader());
+            broker1.takeOverControllerLock();
+            Awaitility.await().atMost(Duration.ofSeconds(5)).until(controller::isLeader);
+
+            CompletableFuture<Void> currentEvaluation = controller.evaluateAutoScaleForTest();
+            CompletableFuture<Optional<ScalableTopicMetadata>> currentRead = requested.poll(5, TimeUnit.SECONDS);
+            assertThat(currentRead).as("the new term evaluates before the old future resolves").isNotNull();
+            assertThat(currentEvaluation).isNotDone();
+            oldRead.complete(metadata);
+            oldEvaluation.get(5, TimeUnit.SECONDS);
+            assertThat(controller.isAutoScaleEvaluationInFlight())
+                    .as("the old completion must not clear the new term's in-flight flag").isTrue();
+            assertThat(currentEvaluation).isNotDone();
+
+            currentRead.complete(metadata);
+            currentEvaluation.get(5, TimeUnit.SECONDS);
+            assertThat(controller.isAutoScaleEvaluationInFlight()).isFalse();
+            assertThat(requested).as("the old term must not request a coalesced evaluation in the new term").isEmpty();
+        } finally {
+            reads.forEach(read -> read.completeExceptionally(new IllegalStateException("release held policy read")));
+        }
+    }
+
     /**
      * A released controller's leader election takes no part in elections, not even when the
      * metadata session reconnects: the controller created again on the broker leads.
@@ -287,7 +582,7 @@ public class ScalableTopicControllerFailoverTest {
         released.initialize().get();
         released.close().get();
         BlockingQueue<SessionEvent> sessionEvents = new LinkedBlockingQueue<>();
-        broker1.store.registerSessionListener(sessionEvents::add);
+        broker1.store.registerCancellableSessionListener(sessionEvents::add);
 
         zks.stop();
         zks.start();
@@ -331,6 +626,8 @@ public class ScalableTopicControllerFailoverTest {
         private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
         private final BrokerService brokerService = mock(BrokerService.class);
         private final List<ScalableTopicController> controllers = new ArrayList<>();
+        private final PulsarResources pulsarResources = mock(PulsarResources.class);
+        private final TopicResources topicResources = mock(TopicResources.class);
 
         Broker(String brokerId) throws Exception {
             this.brokerId = brokerId;
@@ -353,6 +650,11 @@ public class ScalableTopicControllerFailoverTest {
             // No segment ever drains.
             when(scalableTopics.getSegmentSubscriptionBacklogAsync(anyString(), anyString()))
                     .thenReturn(CompletableFuture.completedFuture(1L));
+            // No segment has a subscription of its own.
+            when(pulsar.getPulsarResources()).thenReturn(pulsarResources);
+            when(pulsarResources.getTopicResources()).thenReturn(topicResources);
+            when(topicResources.getManagedLedgerCursorsFromStoreAsync(any(TopicName.class)))
+                    .thenReturn(CompletableFuture.completedFuture(Optional.of(List.of())));
         }
 
         ScalableTopicController newController() {

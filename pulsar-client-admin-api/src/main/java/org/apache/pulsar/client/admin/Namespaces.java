@@ -1145,6 +1145,7 @@ public interface Namespaces {
      *
      * @param namespace
      *            Namespace name
+     * @return the anti-affinity group name, or {@code null} if none is set
      *
      * @throws NotAuthorizedException
      *             Don't have admin permission
@@ -1166,6 +1167,7 @@ public interface Namespaces {
      *
      * @param namespace
      *            Namespace name
+     * @return the anti-affinity group name, or {@code null} if none is set
      */
     CompletableFuture<String> getNamespaceAntiAffinityGroupAsync(String namespace);
 
@@ -2232,7 +2234,7 @@ public interface Namespaces {
      * Get the replication configuration version for a given namespace.
      *
      * @param namespace
-     * @return Replication configuration version
+     * @return Replication configuration version, or {@code null} if none is set
      * @throws PulsarAdminException
      *             Unexpected error
      */
@@ -2242,7 +2244,7 @@ public interface Namespaces {
      * Get the replication configuration version for a given namespace asynchronously.
      *
      * @param namespace
-     * @return Replication configuration version
+     * @return Replication configuration version, or {@code null} if none is set
      */
     CompletableFuture<String> getReplicationConfigVersionAsync(String namespace);
 
@@ -4676,7 +4678,7 @@ public interface Namespaces {
      *             Namespace does not exist
      * @throws PulsarAdminException
      *             Unexpected error
-     * @return
+     * @return the resource group name, or {@code null} if none is set
      */
     String getNamespaceResourceGroup(String namespace) throws PulsarAdminException;
 
@@ -4691,6 +4693,7 @@ public interface Namespaces {
      *
      * @param namespace
      *            Namespace name
+     * @return the resource group name, or {@code null} if none is set
      */
     CompletableFuture<String> getNamespaceResourceGroupAsync(String namespace);
 

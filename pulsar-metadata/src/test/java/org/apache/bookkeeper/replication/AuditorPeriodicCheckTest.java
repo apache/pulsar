@@ -43,6 +43,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.bookkeeper.bookie.Bookie;
 import org.apache.bookkeeper.bookie.BookieAccessor;
@@ -126,14 +127,15 @@ public class AuditorPeriodicCheckTest extends BookKeeperClusterTestCase {
     @AfterMethod
     @Override
     public void tearDown() throws Exception {
-        if (null != driver) {
-            driver.close();
-        }
-
-        for (AuditorElector e : auditorElectors.values()) {
-            e.shutdown();
-        }
-        super.tearDown();
+        ParallelAuditorShutdown.cleanup(
+                () -> {
+                    if (null != driver) {
+                        driver.close();
+                    }
+                },
+                () -> ParallelAuditorShutdown.shutdown(auditorElectors.values()),
+                auditorElectors::clear,
+                () -> super.tearDown());
     }
 
     /**
@@ -240,6 +242,7 @@ public class AuditorPeriodicCheckTest extends BookKeeperClusterTestCase {
     @Test
     public void testPeriodicCheckWhenDisabled() throws Exception {
         LedgerManagerFactory mFactory = driver.getLedgerManagerFactory();
+        @Cleanup
         final LedgerUnderreplicationManager underReplicationManager = mFactory.newLedgerUnderreplicationManager();
         final int numLedgers = 10;
         final int numMsgs = 2;
@@ -317,6 +320,9 @@ public class AuditorPeriodicCheckTest extends BookKeeperClusterTestCase {
                 .log("Ledgers underreplicated");
         assertTrue("All should be underreplicated",
                 numUnderreplicated <= numLedgers && numUnderreplicated > 0);
+
+        // An auditor waiting for the replication to be enabled would wait 30 seconds to stop
+        underReplicationManager.enableLedgerReplication();
     }
 
     /**
@@ -325,7 +331,7 @@ public class AuditorPeriodicCheckTest extends BookKeeperClusterTestCase {
     @Test
     public void testPeriodicCheckWhenLedgerDeleted() throws Exception {
         for (AuditorElector e : auditorElectors.values()) {
-            e.shutdown();
+            shutdownAuditorElector(e);
         }
 
         final int numLedgers = 10;
@@ -374,7 +380,7 @@ public class AuditorPeriodicCheckTest extends BookKeeperClusterTestCase {
         // write ledgers into bookkeeper cluster
         try {
             for (AuditorElector e : auditorElectors.values()) {
-                e.shutdown();
+                shutdownAuditorElector(e);
             }
 
             for (int i = 0; i < numberLedgers; ++i) {
@@ -397,6 +403,7 @@ public class AuditorPeriodicCheckTest extends BookKeeperClusterTestCase {
         TestStatsLogger statsLogger = statsProvider.getStatsLogger(AUDITOR_SCOPE);
         Counter numLedgersChecked = statsLogger
                 .getCounter(ReplicationStats.NUM_LEDGERS_CHECKED);
+        @Cleanup
         Auditor auditor = new Auditor(BookieImpl.getBookieId(configuration).toString(),
                 configuration, statsLogger);
 
@@ -406,13 +413,15 @@ public class AuditorPeriodicCheckTest extends BookKeeperClusterTestCase {
         } catch (Exception e) {
             log.error().exception(e).log("Caught exception while checking all ledgers");
             fail();
+        } finally {
+            auditor.close();
         }
     }
 
     @Test
     public void testInitialDelayOfCheckAllLedgers() throws Exception {
         for (AuditorElector e : auditorElectors.values()) {
-            e.shutdown();
+            shutdownAuditorElector(e);
         }
 
         final int numLedgers = 10;
@@ -507,7 +516,7 @@ public class AuditorPeriodicCheckTest extends BookKeeperClusterTestCase {
     @Test
     public void testInitialDelayOfPlacementPolicyCheck() throws Exception {
         for (AuditorElector e : auditorElectors.values()) {
-            e.shutdown();
+            shutdownAuditorElector(e);
         }
 
         final int numLedgers = 10;
@@ -602,7 +611,7 @@ public class AuditorPeriodicCheckTest extends BookKeeperClusterTestCase {
     @Test
     public void testInitialDelayOfReplicasCheck() throws Exception {
         for (AuditorElector e : auditorElectors.values()) {
-            e.shutdown();
+            shutdownAuditorElector(e);
         }
 
         LedgerHandle lh = bkc.createLedger(3, 2, DigestType.CRC32, "passwd".getBytes());
@@ -707,7 +716,7 @@ public class AuditorPeriodicCheckTest extends BookKeeperClusterTestCase {
     @Test
     public void testDelayBookieAuditOfCheckAllLedgers() throws Exception {
         for (AuditorElector e : auditorElectors.values()) {
-            e.shutdown();
+            shutdownAuditorElector(e);
         }
 
         final int numLedgers = 10;
@@ -763,13 +772,15 @@ public class AuditorPeriodicCheckTest extends BookKeeperClusterTestCase {
                 0,
                 underReplicatedLedgerTotalSizeStatsLogger.getSuccessCount());
 
+        // The auditor executor runs its delayed tasks after a shutdown, and would wait 30 seconds for this one
+        auditTask.cancel(false);
         auditor.close();
     }
 
     @Test
     public void testDelayBookieAuditOfPlacementPolicy() throws Exception {
         for (AuditorElector e : auditorElectors.values()) {
-            e.shutdown();
+            shutdownAuditorElector(e);
         }
 
         final int numLedgers = 10;
@@ -824,13 +835,15 @@ public class AuditorPeriodicCheckTest extends BookKeeperClusterTestCase {
         // wrong successCount is > 0, right successCount is = 0
         assertEquals("PLACEMENT_POLICY_CHECK_TIME", 0, placementPolicyCheckTime.getSuccessCount());
 
+        // The auditor executor runs its delayed tasks after a shutdown, and would wait 30 seconds for this one
+        auditTask.cancel(false);
         auditor.close();
     }
 
     @Test
     public void testDelayBookieAuditOfReplicasCheck() throws Exception {
         for (AuditorElector e : auditorElectors.values()) {
-            e.shutdown();
+            shutdownAuditorElector(e);
         }
 
         final int numLedgers = 10;
@@ -886,6 +899,8 @@ public class AuditorPeriodicCheckTest extends BookKeeperClusterTestCase {
         // wrong successCount is > 0, right successCount is = 0
         assertEquals("REPLICAS_CHECK_TIME", 0, replicasCheckTime.getSuccessCount());
 
+        // The auditor executor runs its delayed tasks after a shutdown, and would wait 30 seconds for this one
+        auditTask.cancel(false);
         auditor.close();
     }
 
@@ -1059,7 +1074,9 @@ public class AuditorPeriodicCheckTest extends BookKeeperClusterTestCase {
         underReplicationManager.close();
 
         // Wait for ensemble to change after replication
-        Thread.sleep(3000);
+        Awaitility.await().atMost(30, TimeUnit.SECONDS).until(() -> bkc.getLedgerManager()
+                .readLedgerMetadata(lh.getId()).get().getValue().getAllEnsembles().values().stream()
+                .noneMatch(ensemble -> ensemble.contains(replacedBookie)));
         for (ReplicationWorker rw : l) {
             rw.shutdown();
         }

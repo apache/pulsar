@@ -165,6 +165,12 @@ public class OneWayReplicatorUsingGlobalPartitionedTest extends OneWayReplicator
 
     @Override
     @Test(enabled = false)
+    public void testNamespaceLevelReplicationRemoteConflictTopicExist() throws Exception {
+        super.testNamespaceLevelReplicationRemoteConflictTopicExist();
+    }
+
+    @Override
+    @Test(enabled = false)
     public void testConcurrencyOfUnloadBundleAndRecreateProducer2() throws Exception {
         super.testConcurrencyOfUnloadBundleAndRecreateProducer2();
     }

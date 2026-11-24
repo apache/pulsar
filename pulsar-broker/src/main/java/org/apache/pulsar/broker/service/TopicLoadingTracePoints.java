@@ -35,6 +35,7 @@ public final class TopicLoadingTracePoints {
     public static final String CHECK_TOPIC_ALREADY_MIGRATED = "check-topic-already-migrated";
     public static final String VALIDATE_TOPIC_CONSISTENCY = "validate-topic-consistency";
     public static final String ML_CONFIG = "ml-config";
+    public static final String OWNERSHIP_BEFORE_OPEN_ML = "ownership-before-open-ml";
     public static final String OPEN_ML = "open-ml";
     public static final String INIT = "init";
     public static final String PRE_CREATE_COMPACTED_SUB = "pre-create-compacted-sub";

@@ -298,7 +298,7 @@ final class ScalableTopicsWatcher implements ScalableTopicsWatcherSession, AutoC
                 .log("WatchScalableTopics rejected");
         if (!initialSnapshotFuture.isDone()) {
             initialSnapshotFuture.completeExceptionally(
-                    new PulsarClientException("WatchScalableTopics failed: " + error
+                    ClientCnx.getPulsarClientException(error, "WatchScalableTopics failed: " + error
                             + (message != null ? " - " + message : "")));
         }
     }

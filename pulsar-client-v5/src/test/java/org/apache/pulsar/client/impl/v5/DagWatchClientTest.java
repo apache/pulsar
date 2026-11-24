@@ -30,11 +30,14 @@ import io.netty.util.Timer;
 import io.netty.util.TimerTask;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.api.proto.ScalableTopicDAG;
+import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.naming.TopicName;
 import org.testng.annotations.Test;
 
@@ -140,6 +143,29 @@ public class DagWatchClientTest {
         watch.onUpdate(new ScalableTopicDAG().setEpoch(3L), TOPIC);
 
         assertThat(changes).containsExactly("1->2", "2->3");
+    }
+
+    @Test
+    public void testRejectedLookupFailsStartWithItsErrorCategory() {
+        assertThat(startFailure(ServerError.TopicNotFound))
+                .hasCauseInstanceOf(PulsarClientException.NotFoundException.class);
+        assertThat(startFailure(ServerError.AuthorizationError))
+                .hasCauseInstanceOf(PulsarClientException.AuthorizationException.class);
+        assertThat(startFailure(ServerError.AuthenticationError))
+                .hasCauseInstanceOf(PulsarClientException.AuthenticationException.class);
+    }
+
+    /** How {@link DagWatchClient#start} fails when the broker rejects the lookup with {@code error}. */
+    private static Throwable startFailure(ServerError error) {
+        PulsarClientImpl v4Client = mock(PulsarClientImpl.class);
+        // The broker's answer is fed in by the test: the connection never opens.
+        when(v4Client.getConnection(TOPIC)).thenReturn(new CompletableFuture<>());
+        DagWatchClient watch = new DagWatchClient(v4Client, TopicName.get(TOPIC));
+        CompletableFuture<ClientSegmentLayout> start = watch.start();
+
+        watch.onError(error, "rejected");
+
+        return catchThrowable(start::join);
     }
 
     private static void awaitUninterruptibly(CountDownLatch latch) {

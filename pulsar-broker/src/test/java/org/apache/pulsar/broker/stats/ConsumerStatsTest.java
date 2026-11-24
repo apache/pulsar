@@ -27,21 +27,27 @@ import static org.assertj.core.api.InstanceOfAssertFactories.INTEGER;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 import static org.testng.AssertJUnit.assertEquals;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 import java.io.ByteArrayOutputStream;
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadInfo;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -51,6 +57,10 @@ import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.CustomLog;
 import lombok.SneakyThrows;
+import org.apache.bookkeeper.client.BKException;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.PrometheusMetricsTestUtil;
 import org.apache.pulsar.broker.BrokerTestUtil;
@@ -61,14 +71,18 @@ import org.apache.pulsar.broker.service.StickyKeyDispatcher;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
+import org.apache.pulsar.broker.service.persistent.PersistentMessageExpiryMonitor;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.plugin.EntryFilter;
 import org.apache.pulsar.broker.service.plugin.EntryFilterProducerTest;
 import org.apache.pulsar.broker.service.plugin.EntryFilterWithClassLoader;
+import org.apache.pulsar.client.admin.GetStatsOptions;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
@@ -88,9 +102,8 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.assertj.core.groups.Tuple;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
-import org.testng.SkipException;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -98,7 +111,9 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class ConsumerStatsTest extends ProducerConsumerBase {
 
-    @BeforeMethod
+    // The test methods share the broker and use topics of their own. After a failed method, the next one gets a new
+    // broker (TestRetrySupport).
+    @BeforeClass(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
@@ -113,10 +128,13 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
         // wait for shutdown of the broker, this prevents flakiness which could be caused by metrics being
         // unregistered asynchronously. This impacts the execution of the next test method if this would be happening.
         conf.setBrokerShutdownTimeoutMs(5000L);
+        // only the tests update the rates, so the periodic stats task can't reset the rates they check
+        conf.setStatsUpdateInitialDelayInSecs(100000000);
+        conf.setStatsUpdateFrequencyInSecs(100000000);
         return conf;
     }
 
-    @AfterMethod(alwaysRun = true)
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -187,12 +205,14 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
             PulsarClientException, InterruptedException {
         final String topic = "persistent://my-property/my-ns/testAckStatsOnPartitionedTopicForExclusiveSubscription";
         admin.topics().createPartitionedTopic(topic, 3);
+        @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic(topic)
                 .subscriptionType(SubscriptionType.Exclusive)
                 .subscriptionName("sub")
                 .subscribe();
 
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(topic)
                 .create();
@@ -225,7 +245,8 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
     @Test
     public void testUpdateStatsForActiveConsumerAndSubscription() throws Exception {
         final String topicName = "persistent://public/default/testUpdateStatsForActiveConsumerAndSubscription";
-        pulsarClient.newConsumer()
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic(topicName)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscriptionName("my-subscription")
@@ -257,9 +278,6 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
 
     @Test(dataProvider = "sharedSubscriptionTypes")
     public void testConsumerStatsOutput(SubscriptionType subscriptionType) throws Exception {
-        if (this instanceof AuthenticatedConsumerStatsTest) {
-            throw new SkipException("Skip test for AuthenticatedConsumerStatsTest");
-        }
         Set<String> expectedFields = Sets.newHashSet(
                 "msgRateOut",
                 "msgThroughputOut",
@@ -310,6 +328,32 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
         ObjectMapper mapper = ObjectMapperFactory.create();
         JsonNode node = mapper.readTree(topicStatsJson).get("subscriptions").get(subName).get("consumers").get(0);
         assertThat(node.fieldNames()).toIterable().containsExactlyInAnyOrderElementsOf(expectedFields);
+    }
+
+    @Test
+    public void testKeySharedStatsWithoutConsumersDontComputeKeyHashRanges() throws Exception {
+        final String topicName = newUniqueName("persistent://my-property/my-ns/testKeySharedStatsWithoutConsumers");
+        final String subName = "my-subscription";
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscriptionName(subName)
+                .subscribe();
+
+        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
+        org.apache.pulsar.broker.service.Consumer brokerConsumer =
+                topicRef.getSubscription(subName).getConsumers().get(0);
+        TopicStats withoutConsumers = admin.topics().getStats(topicName,
+                GetStatsOptions.builder().excludeConsumers(true).build());
+        assertThat(withoutConsumers.getSubscriptions().get(subName).getConsumers()).isEmpty();
+        // the consumer's stats, which only the stats with the consumers show, didn't get the key hash ranges
+        assertThat(brokerConsumer.getStats().keyHashRangeArrays).isNull();
+
+        TopicStats withConsumers = admin.topics().getStats(topicName);
+        assertThat(withConsumers.getSubscriptions().get(subName).getConsumers().get(0).getKeyHashRangeArrays())
+                .isNotEmpty();
     }
 
     @Test
@@ -436,6 +480,44 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
     }
 
     @Test
+    public void testNewConsumerRateIsNotInflatedByItsInitialBurst() throws Exception {
+        final String topicName = newUniqueName("persistent://my-property/my-ns/new-consumer-rate");
+        final int messages = 100;
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .enableBatching(false)
+                .create();
+        for (int i = 0; i < messages; i++) {
+            producer.send(new byte[1024]);
+        }
+        admin.topics().createSubscription(topicName, "sub", MessageId.earliest);
+        // reload the topic, so that it is as young as the consumer
+        admin.topics().unload(topicName);
+
+        // like the compaction reader, a new consumer receives a burst as soon as it sends its flow permits
+        long consumerCreationLowerBound = System.nanoTime();
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName("sub")
+                .subscribe();
+        org.apache.pulsar.broker.service.Consumer brokerConsumer = pulsar.getBrokerService()
+                .getTopicReference(topicName).orElseThrow().getSubscription("sub").getConsumers().get(0);
+        Awaitility.await().until(() -> brokerConsumer.getMsgOutCounter() == messages);
+        pulsar.getBrokerService().updateRates();
+        double maxPeriodSeconds = Math.max((System.nanoTime() - consumerCreationLowerBound) / 1e9, 1);
+
+        // a per-second rate can't exceed what the consumer received during the period
+        long bytes = brokerConsumer.getBytesOutCounter();
+        ConsumerStatsImpl stats = brokerConsumer.getStats();
+        assertThat(stats.msgRateOut).as("msgRateOut")
+                .isBetween(messages / maxPeriodSeconds, (double) messages);
+        assertThat(stats.msgThroughputOut).as("msgThroughputOut")
+                .isBetween(bytes / maxPeriodSeconds, (double) bytes);
+    }
+
+    @Test
     public void testAvgMessagesPerEntry() throws Exception {
         conf.setAllowOverrideEntryFilters(true);
         final String topic = "persistent://public/default/testFilterState";
@@ -493,19 +575,17 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
                 .subscriptionName(subName).subscriptionInitialPosition(
                         SubscriptionInitialPosition.Earliest).subscribe();
 
-        int counter = 0;
-        while (true) {
+        for (int i = 0; i < 40; i++) {
             Message<String> message = consumer.receive(10, TimeUnit.SECONDS);
-            if (message != null) {
-                counter++;
-                assertNotEquals(message.getValue(), "producer2-message");
-                consumer.acknowledge(message);
-            } else {
-                break;
-            }
+            assertNotNull(message);
+            assertNotEquals(message.getValue(), "producer2-message");
+            consumer.acknowledge(message);
         }
-
-        assertEquals(40, counter);
+        // The filter reschedules producer2's message each time it reads it. Once it was read again, after the
+        // reschedule delay, nothing more comes.
+        Awaitility.await().untilAsserted(() -> assertThat(admin.topics().getStats(topic).getSubscriptions()
+                .get(subName).getFilterRescheduledMsgCount()).isGreaterThanOrEqualTo(2));
+        assertNull(consumer.receive(200, TimeUnit.MILLISECONDS));
 
         ConsumerStats consumerStats =
                 admin.topics().getStats(topic).getSubscriptions().get(subName).getConsumers().get(0);
@@ -518,6 +598,8 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
         // Average of "messages per batch" is "Math.round(1 * 0.9 + 20 * 0.1) = 2.9 ～ 3".
         int avgMessagesPerEntry = consumerStats.getAvgMessagesPerEntry();
         assertEquals(3, avgMessagesPerEntry);
+        // the test methods share the broker (a failed method gets a new one)
+        conf.setAllowOverrideEntryFilters(false);
     }
 
     @Test()
@@ -764,6 +846,121 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
                 assertEquals(numMessages, svcConsumer.getUnackedMessages()));
 
         expireAndVerifyUnackedDrained(topic, sub, producer, consumer, svcConsumer);
+    }
+
+    /**
+     * The cursor can invoke the expiry mark-delete failure callback while holding its pending mark-delete lock, and
+     * dispatch holds the dispatcher's lock while acknowledging rejected entries on the cursor. The pending acks
+     * cleanup takes the dispatcher's lock, so it must not run inside that cursor callback, or the two paths can
+     * deadlock. The test holds the dispatcher's lock itself and checks the thread that waits for it.
+     */
+    @Test(dataProvider = "subscriptionTypes")
+    public void testExpiryFailureCleanupDoesNotWaitForDispatcherInsideCursorCallback(SubscriptionType subType)
+            throws Exception {
+        String topic = newTopicName();
+        String sub = "sub";
+        int numMessages = 10;
+
+        @Cleanup Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic).enableBatching(false).create();
+        @Cleanup Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topic).subscriptionName(sub)
+                .subscriptionType(subType)
+                .subscribe();
+
+        // see testPendingAcksReleasedWhenPersistingExpiryMarkDeleteFails for why the last message isn't expired
+        MessageIdAdv expiredMessageId = null;
+        for (int i = 0; i < numMessages; i++) {
+            MessageId messageId = producer.send(("msg-" + i).getBytes());
+            if (i == numMessages - 2) {
+                expiredMessageId = (MessageIdAdv) messageId;
+            }
+        }
+
+        org.apache.pulsar.broker.service.Consumer svcConsumer = getTheUniqueServiceConsumer(topic, sub);
+        Awaitility.await().untilAsserted(() -> assertEquals(numMessages, svcConsumer.getUnackedMessages()));
+
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).get();
+        PersistentSubscription subscription = persistentTopic.getSubscription(sub);
+        Position expiredPosition =
+                PositionFactory.create(expiredMessageId.getLedgerId(), expiredMessageId.getEntryId());
+        Object dispatcherMonitor = subscription.getDispatcher();
+        long testThreadId = Thread.currentThread().threadId();
+
+        ThreadInfo cleanupThread;
+        synchronized (dispatcherMonitor) {
+            pulsarTestContext.getMockBookKeeper().failNow(BKException.Code.BookieHandleNotAvailableException);
+            subscription.getExpiryMonitor().findEntryComplete(expiredPosition, null);
+
+            // the cleanup blocks on the dispatcher's lock held here, whichever thread runs it
+            cleanupThread = Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() ->
+                    Arrays.stream(ManagementFactory.getThreadMXBean().dumpAllThreads(true, false))
+                            .filter(threadInfo -> threadInfo.getLockOwnerId() == testThreadId)
+                            .filter(threadInfo -> Arrays.stream(threadInfo.getStackTrace()).anyMatch(frame ->
+                                    frame.getClassName().startsWith(PersistentMessageExpiryMonitor.class.getName())))
+                            .findFirst()
+                            .orElse(null), Objects::nonNull);
+        }
+
+        assertThat(cleanupThread.getStackTrace())
+                .as("stack of thread %s waiting for the dispatcher's lock", cleanupThread.getThreadName())
+                .noneMatch(frame -> frame.getClassName().startsWith(ManagedCursorImpl.class.getName()));
+        assertThat(cleanupThread.getLockedMonitors())
+                .as("monitors held by thread %s waiting for the dispatcher's lock", cleanupThread.getThreadName())
+                .noneMatch(monitor -> monitor.getClassName().equals(ArrayDeque.class.getName()));
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
+            assertThat(svcConsumer.getPendingAcks().size()).isOne();
+            assertThat(svcConsumer.getUnackedMessages()).isOne();
+        });
+    }
+
+    /**
+     * The cursor moves its mark-delete position in memory before persisting it and keeps that position when persisting
+     * fails, and later expiry checks for the same position return early. The failure callback must therefore release
+     * the pending acks up to that position.
+     */
+    @Test(dataProvider = "subscriptionTypes")
+    public void testPendingAcksReleasedWhenPersistingExpiryMarkDeleteFails(SubscriptionType subType) throws Exception {
+        String topic = newTopicName();
+        String sub = "sub";
+        int numMessages = 10;
+
+        @Cleanup Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic).enableBatching(false).create();
+        @Cleanup Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topic).subscriptionName(sub)
+                .subscriptionType(subType)
+                .subscribe();
+
+        // the last message stays unexpired: the cursor persists a position without later messages to the metadata
+        // store when it has no metadata ledger, and that wouldn't fail below
+        MessageIdAdv expiredMessageId = null;
+        for (int i = 0; i < numMessages; i++) {
+            MessageId messageId = producer.send(("msg-" + i).getBytes());
+            if (i == numMessages - 2) {
+                expiredMessageId = (MessageIdAdv) messageId;
+            }
+        }
+
+        org.apache.pulsar.broker.service.Consumer svcConsumer = getTheUniqueServiceConsumer(topic, sub);
+        Awaitility.await().untilAsserted(() -> assertEquals(numMessages, svcConsumer.getUnackedMessages()));
+
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).get();
+        PersistentSubscription subscription = persistentTopic.getSubscription(sub);
+        Position expiredPosition =
+                PositionFactory.create(expiredMessageId.getLedgerId(), expiredMessageId.getEntryId());
+
+        // the cursor has no metadata ledger yet, so the mark-delete below fails when creating it fails
+        pulsarTestContext.getMockBookKeeper().failNow(BKException.Code.BookieHandleNotAvailableException);
+        subscription.getExpiryMonitor().findEntryComplete(expiredPosition, null);
+
+        assertThat(subscription.getCursor().getMarkDeletedPosition()).isEqualTo(expiredPosition);
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
+            assertThat(svcConsumer.getPendingAcks().size()).isOne();
+            assertThat(svcConsumer.getUnackedMessages()).isOne();
+        });
+        // the success callback records expired messages, so this shows that the failure callback ran instead
+        assertThat(subscription.getExpiryMonitor().getTotalMessageExpired()).isZero();
     }
 
     /**

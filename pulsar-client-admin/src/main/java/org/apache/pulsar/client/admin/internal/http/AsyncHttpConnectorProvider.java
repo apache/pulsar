@@ -60,7 +60,7 @@ public class AsyncHttpConnectorProvider implements ConnectorProvider {
     @Override
     public Connector getConnector(Client client, Configuration runtimeConfig) {
         if (connector == null) {
-            connector = new AsyncHttpConnector(client, conf, autoCertRefreshTimeSeconds, acceptGzipCompression,
+            connector = new AsyncHttpConnector(conf, autoCertRefreshTimeSeconds, acceptGzipCompression,
                     sharedTlsFactory());
             connector.setFollowRedirects(followRedirects);
         }

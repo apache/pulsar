@@ -99,6 +99,47 @@ Pulsar relies heavily on `CompletableFuture`; prefer it over `ListenableFuture` 
   - **`org.apache.pulsar.common.semaphore.AsyncSemaphoreImpl`** — a non-blocking semaphore with a
     per-operation cost that queues callers instead of failing when the limit is reached. Preferred over
     `ConcurrencyReducer` for request-driven cases that need a timeout on permit acquisition.
+- **A task given to `CompletableFuture.delayedExecutor()` cannot be taken back.** It sits in the JDK's
+  delayer queue until its delay elapses and keeps everything its lambda captured (typically `this`)
+  reachable until then; cancelling a future built on it (`runAsync(task, delayedExecutor(...))`) only
+  skips the run. A `ScheduledThreadPoolExecutor` configured with `setRemoveOnCancelPolicy(true)` does
+  drop a cancelled task, but a task queued there is discarded without notice by `shutdownNow()`, so
+  neither is right for every timer. When using the delayer: check a stop flag when the task runs, keep
+  the delay or the captured state small, and when the retention matters, capture a reference that the
+  stop can clear instead of the object itself.
+
+### Exception wrapping and unwrapping
+
+- **Unwrap before type checks.** Use `FutureUtil.unwrapCompletionException(error)` to remove
+  async wrappers while keeping the business exception and its cause. Do not assume `getCause()`
+  returns the business exception.
+
+- **Forward failures directly.** Pass the original error, including an existing
+  `CompletionException`, to `completeExceptionally(error)` or
+  `CompletableFuture.failedFuture(error)`. Do not wrap the error before forwarding it.
+
+  ```java
+  // Avoid: extra wrapping can break callers' exception type checks
+  future.completeExceptionally(new RuntimeException(error));
+  // Prefer
+  future.completeExceptionally(error);
+  ```
+
+- **Wrap only when needed.** When a callback must rethrow a `Throwable` or a checked exception,
+  use `throw FutureUtil.wrapToCompletionException(error)` so an existing `CompletionException`
+  is not wrapped again.
+
+For example, ignore a missing node when deleting metadata, and propagate other failures:
+
+```java
+return store.delete(path, Optional.empty()).exceptionally(error -> {
+    Throwable cause = FutureUtil.unwrapCompletionException(error);
+    if (cause instanceof MetadataStoreException.NotFoundException) {
+        return null;
+    }
+    throw FutureUtil.wrapToCompletionException(error);
+});
+```
 
 ## Testing conventions
 

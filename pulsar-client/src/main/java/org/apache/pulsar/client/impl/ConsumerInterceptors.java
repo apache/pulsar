@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl;
 
 import java.io.Closeable;
-import java.io.IOException;
 import java.util.List;
 import java.util.Set;
 import lombok.CustomLog;
@@ -46,7 +45,7 @@ public class ConsumerInterceptors<T> implements Closeable {
     /**
      * This method is called when a message arrives in the consumer.
      * <p>
-     * This method calls {@link ConsumerInterceptor#onArrival(Consumer, Message) method for each
+     * This method calls {@link ConsumerInterceptor#onArrival(Consumer, Message)} method for each
      * interceptor.
      * <p>
      * This method does not throw exceptions. If any of the interceptors in the chain throws an exception, it gets
@@ -213,7 +212,7 @@ public class ConsumerInterceptors<T> implements Closeable {
     }
 
     @Override
-    public void close() throws IOException {
+    public void close() {
         for (int i = 0, interceptorsSize = interceptors.size(); i < interceptorsSize; i++) {
             try {
                 interceptors.get(i).close();

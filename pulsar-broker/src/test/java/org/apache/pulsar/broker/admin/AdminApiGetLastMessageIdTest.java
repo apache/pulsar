@@ -47,6 +47,7 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -85,6 +86,12 @@ public class AdminApiGetLastMessageIdTest extends MockedPulsarServiceBaseTest {
     @AfterMethod(alwaysRun = true)
     protected void cleanup() throws Exception {
         super.internalCleanup();
+        // The spy's recorded invocations reference it again, so Mockito's inline mock maker would keep it, and the
+        // closed broker it references, until the JVM exits; TestNG keeps this test instance until the run ends.
+        if (persistentTopics != null) {
+            Mockito.framework().clearInlineMock(persistentTopics);
+            persistentTopics = null;
+        }
     }
 
     @Test

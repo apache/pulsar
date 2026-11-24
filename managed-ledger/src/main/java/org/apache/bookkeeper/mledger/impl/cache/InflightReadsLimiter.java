@@ -22,7 +22,7 @@ import com.google.common.annotations.VisibleForTesting;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.metrics.LongCounter;
 import io.opentelemetry.api.metrics.ObservableLongCounter;
-import io.prometheus.client.Gauge;
+import io.prometheus.metrics.core.metrics.Gauge;
 import java.util.ArrayDeque;
 import java.util.Optional;
 import java.util.Queue;
@@ -38,6 +38,12 @@ import org.apache.pulsar.opentelemetry.annotations.PulsarDeprecatedMetric;
 @CustomLog
 public class InflightReadsLimiter implements AutoCloseable {
 
+    /**
+     * The highest fraction of the limit that may be in use after {@link #tryAcquireWhenBelowUtilizationThreshold(long)}
+     * acquires permits. The rest of the limit is left for {@link #acquire(long, Consumer)}.
+     */
+    static final double TRY_ACQUIRE_UTILIZATION_THRESHOLD = 0.7;
+
     public static final String INFLIGHT_READS_LIMITER_LIMIT_METRIC_NAME =
             "pulsar.broker.managed_ledger.inflight.read.limit";
     private final ObservableLongCounter inflightReadsLimitCounter;
@@ -46,7 +52,7 @@ public class InflightReadsLimiter implements AutoCloseable {
     @Deprecated
     @VisibleForTesting
     static final Gauge PULSAR_ML_READS_BUFFER_SIZE = Gauge
-            .build()
+            .builder()
             .name("pulsar_ml_reads_inflight_bytes")
             .help("Estimated number of bytes retained by data read from storage or cache")
             .register();
@@ -69,12 +75,13 @@ public class InflightReadsLimiter implements AutoCloseable {
     @Deprecated
     @VisibleForTesting
     static final Gauge PULSAR_ML_READS_AVAILABLE_BUFFER_SIZE = Gauge
-            .build()
+            .builder()
             .name("pulsar_ml_reads_available_inflight_bytes")
             .help("Available space for inflight data read from storage or cache")
             .register();
 
     private final long maxReadsInFlightSize;
+    private final long utilizationThresholdBytes;
     private long remainingBytes;
     private final long acquireTimeoutMillis;
     private final ScheduledExecutorService timeOutExecutor;
@@ -93,6 +100,7 @@ public class InflightReadsLimiter implements AutoCloseable {
                                 long acquireTimeoutMillis, ScheduledExecutorService timeOutExecutor,
                                 OpenTelemetry openTelemetry) {
         this.maxReadsInFlightSize = maxReadsInFlightSize;
+        this.utilizationThresholdBytes = (long) (maxReadsInFlightSize * TRY_ACQUIRE_UTILIZATION_THRESHOLD);
         this.remainingBytes = maxReadsInFlightSize;
         this.acquireTimeoutMillis = acquireTimeoutMillis;
         this.timeOutExecutor = timeOutExecutor;
@@ -183,6 +191,19 @@ public class InflightReadsLimiter implements AutoCloseable {
     }
 
     /**
+     * Acquires permits only if they are available right away, no acquire is waiting for permits, and the permits in
+     * use after them stay within {@link #TRY_ACQUIRE_UTILIZATION_THRESHOLD} of the limit. It's meant for reads that
+     * the caller can skip, so that they never delay or queue ahead of the acquires that wait, nor take the permits that
+     * the next acquires need. Returns an empty optional when the permits weren't acquired; nothing is queued then.
+     */
+    public Optional<Handle> tryAcquireWhenBelowUtilizationThreshold(long permits) {
+        if (isDisabled()) {
+            return DISABLED_OPTIONAL;
+        }
+        return internalTryAcquire(permits);
+    }
+
+    /**
      * Non-queueing acquire for reads that must not wait for permits (the later ranges of a batched
      * skip-read: the permits they would wait for can be held by the same batch's buffered entries).
      * Returns a successful handle when the permits are immediately available (or when the request
@@ -199,10 +220,20 @@ public class InflightReadsLimiter implements AutoCloseable {
         if (isDisabled()) {
             return DISABLED_OPTIONAL;
         }
-        return internalTryAcquire(permits);
+        return internalTryAcquireWithoutQueueing(permits);
     }
 
     private synchronized Optional<Handle> internalTryAcquire(long permits) {
+        if (!queuedHandles.isEmpty() || maxReadsInFlightSize - remainingBytes + permits > utilizationThresholdBytes) {
+            return Optional.empty();
+        }
+        remainingBytes -= permits;
+        inflightReadsAcquireCountCounter.add(1);
+        updateMetrics();
+        return Optional.of(new Handle(permits, System.currentTimeMillis(), true));
+    }
+
+    private synchronized Optional<Handle> internalTryAcquireWithoutQueueing(long permits) {
         if (!queuedHandles.isEmpty()) {
             return Optional.empty();
         }

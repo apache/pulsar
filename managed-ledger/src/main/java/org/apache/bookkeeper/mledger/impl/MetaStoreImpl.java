@@ -26,6 +26,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
@@ -50,6 +52,7 @@ import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
+import org.apache.pulsar.metadata.api.Option.VerifyPublication;
 import org.apache.pulsar.metadata.api.Stat;
 
 @CustomLog
@@ -60,6 +63,7 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
 
     private final MetadataStore store;
     private final OrderedExecutor executor;
+    private final Runnable cancelListener;
 
     private static final int MAGIC_MANAGED_INFO_METADATA = 0x4778; // 0100 0111 0111 1000
     private final MetadataCompressionConfig ledgerInfoCompressionConfig;
@@ -81,9 +85,7 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
         this.ledgerInfoCompressionConfig = MetadataCompressionConfig.noCompression;
         this.cursorInfoCompressionConfig = MetadataCompressionConfig.noCompression;
         managedLedgerInfoUpdateCallbackMap = new ConcurrentHashMap<>();
-        if (store != null) {
-            store.registerListener(this);
-        }
+        cancelListener = store != null ? store.registerCancellableListener(this) : () -> { };
     }
 
     public MetaStoreImpl(MetadataStore store, OrderedExecutor executor,
@@ -94,9 +96,12 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
         this.ledgerInfoCompressionConfig = ledgerInfoCompressionConfig;
         this.cursorInfoCompressionConfig = cursorInfoCompressionConfig;
         managedLedgerInfoUpdateCallbackMap = new ConcurrentHashMap<>();
-        if (store != null) {
-            store.registerListener(this);
-        }
+        cancelListener = store != null ? store.registerCancellableListener(this) : () -> { };
+    }
+
+    @Override
+    public void close() {
+        cancelListener.run();
     }
 
     @Override
@@ -265,7 +270,12 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
                 .log("Updating cursor info");
 
         String path = PREFIX + ledgerName + "/" + cursorName;
-        byte[] content = compressCursorInfo(info);
+        // The metadata store retries with the original bytes. Callers retrying this write after an error must
+        // likewise reuse its publication ID, payload and expected version. If the first attempt committed,
+        // the version check prevents a second update, and matching bytes at the expected next version confirm success.
+        if (info.getPublication().isEmpty()) {
+            info.setPublication(UUID.randomUUID().toString());
+        }
 
         long expectedVersion;
 
@@ -282,7 +292,8 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
                     .attr("info", info)
                     .log("Updating consumer on meta-data store");
         }
-        store.put(path, content, Optional.of(expectedVersion))
+        FutureUtil.supplySafely(() -> store.put(path, compressCursorInfo(info), Optional.of(expectedVersion),
+                        Set.of(VerifyPublication.INSTANCE)))
                 .thenAcceptAsync(optStat -> callback.operationComplete(null, optStat), executor
                         .chooseThread(ledgerName))
                 .exceptionally(ex -> {
@@ -355,8 +366,8 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
     }
 
     @Override
-    public void unwatchManagedLedgerInfo(String ledgerName) {
-        managedLedgerInfoUpdateCallbackMap.remove(PREFIX + ledgerName);
+    public void unwatchManagedLedgerInfo(String ledgerName, UpdateCallback<ManagedLedgerInfo> callback) {
+        managedLedgerInfoUpdateCallbackMap.remove(PREFIX + ledgerName, callback);
     }
 
     @Override
@@ -516,6 +527,7 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
                 try {
                     ManagedCursorInfo info = new ManagedCursorInfo();
                     info.parseFrom(uncompressed, uncompressed.readableBytes());
+                    info.materialize();
                     return info;
                 } finally {
                     uncompressed.release();

@@ -38,6 +38,9 @@ public interface ConsumerInterceptor<T> extends AutoCloseable {
 
     /**
      * Close the interceptor.
+     *
+     * <p>This method is called once when the consumer that this interceptor is attached to is closed. An interceptor
+     * instance that is attached to several consumers is closed once for each of them.
      */
     void close();
 
@@ -152,10 +155,15 @@ public interface ConsumerInterceptor<T> extends AutoCloseable {
     /**
      * This method will be called when a redelivery from an acknowledge timeout occurs.
      *
+     * <p>A Shared or Key_Shared consumer redelivers only the messages that timed out. An Exclusive or Failover
+     * consumer cannot redeliver single messages, so it redelivers all of its unacknowledged messages, and
+     * {@code messageIds} holds all of them, including the ones that did not time out yet and, with an
+     * {@code ackTimeoutRedeliveryBackoff}, the ones whose backoff delay did not elapse yet.
+     *
      * <p>Any exception thrown by this method will be ignored by the caller.
      *
      * @param consumer the consumer which contains the interceptor
-     * @param messageIds message to ack, null if acknowledge fail.
+     * @param messageIds the ids of the messages that are redelivered
      */
     void onAckTimeoutSend(Consumer<T> consumer, Set<MessageId> messageIds);
 

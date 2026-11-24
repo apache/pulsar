@@ -83,10 +83,11 @@ public interface MetaStore {
     void watchManagedLedgerInfo(String ledgerName, UpdateCallback<ManagedLedgerInfo> callback);
 
     /**
-     * Unwatch the metadata changes for ledgerName.
+     * Unwatch the metadata changes for ledgerName, if the callback is still the one watching them.
      * @param ledgerName
+     * @param callback the callback that was passed to {@link #watchManagedLedgerInfo(String, UpdateCallback)}
      */
-    void unwatchManagedLedgerInfo(String ledgerName);
+    void unwatchManagedLedgerInfo(String ledgerName, UpdateCallback<ManagedLedgerInfo> callback);
 
     /**
      *
@@ -128,6 +129,9 @@ public interface MetaStore {
      *            the name of the ManagedLedger
      * @param cursorName
      * @param info
+     *            the cursor data for this write. If its publication ID is empty, this method assigns a new one.
+     *            Retry with the same data, publication ID and expected version. Clear the old ID when
+     *            copying a persisted record for a new write.
      * @param stat
      * @param callback
      *            the callback
@@ -184,4 +188,10 @@ public interface MetaStore {
      * @return a future represents the result of the operation.
      */
     CompletableFuture<Map<String, String>> getManagedLedgerPropertiesAsync(String name);
+
+    /**
+     * Close the store: it stops following the changes of the metadata store. The metadata store isn't closed.
+     */
+    default void close() {
+    }
 }
