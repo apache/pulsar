@@ -63,6 +63,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -201,6 +202,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     @VisibleForTesting
     final AtomicReference<SeekStatus> seekStatus;
     private volatile CompletableFuture<Void> seekFuture;
+    // The number of seeks that the broker confirmed. Updated on the connection's thread, which receives the messages in
+    // order with the seek response: each message records the count when it arrives, so a message that arrived before
+    // a seek can be told apart from one that arrived after it, wherever it is when the seek completes.
+    private final AtomicLong seekCount = new AtomicLong();
 
     private final MessageIdAdv initialStartMessageId;
 
@@ -1466,7 +1471,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             return;
         }
 
-        externalPinnedExecutor.execute(() -> {
+        externalPinnedExecutor.get().execute(() -> {
             if (isActive) {
                 consumerEventListener.becameActive(this, partitionIndex);
             } else {
@@ -1576,12 +1581,16 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         // Enqueue the message so that it can be retrieved when application calls receive()
         // if the conf.getReceiverQueueSize() is 0 then discard message if no one is waiting for it.
         // if asyncReceive is waiting then notify callback without adding to incomingMessages queue
+        final long seekCountOnArrival = seekCount.get();
         internalPinnedExecutor.execute(() -> {
             if (!isValidConsumerEpoch(message)) {
                 increaseAvailablePermits(cnx());
                 return;
             }
             Message<T> interceptMsg = onArrival(message);
+            if (interceptMsg instanceof MessageImpl) {
+                ((MessageImpl<T>) interceptMsg).setConsumerSeekCount(seekCountOnArrival);
+            }
             if (hasNextPendingReceive()) {
                 notifyPendingReceivedCallback(interceptMsg, null);
             } else if (enqueueMessageAndCheckBatchReceive(interceptMsg) && hasPendingBatchReceive()) {
@@ -3020,6 +3029,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 .build();
 
         if (!seekStatus.compareAndSet(SeekStatus.NOT_STARTED, SeekStatus.IN_PROGRESS)) {
+            seek.release();
             final String message = String.format(
                     "[%s][%s] attempting to seek operation that is already in progress (seek by %s)",
                     topic, subscription, seekBy);
@@ -3050,6 +3060,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
                 lastDequeuedMessageId = MessageId.earliest;
 
+                seekCount.incrementAndGet();
                 clearIncomingMessages();
                 CompletableFuture<Void> future = null;
                 synchronized (this) {
@@ -3080,6 +3091,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         } else {
             long nextDelay = Math.min(backoff.next().toMillis(), remainingTime.get());
             if (nextDelay <= 0) {
+                seek.release();
                 failSeek(
                         new PulsarClientException.TimeoutException(
                                 String.format("The subscription %s of the topic %s could not seek "
@@ -3087,13 +3099,20 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 return;
             }
 
-            ((ScheduledExecutorService) client.getScheduledExecutorProvider().getExecutor()).schedule(() -> {
-                log.warn().attr("handler", getHandlerName())
-                        .attr("nextDelay", nextDelay)
-                        .log("Could not get connection while seek -- Will try again in ms");
-                remainingTime.addAndGet(-nextDelay);
-                seekAsyncInternal(requestId, seek, seekId, seekTimestamp, seekBy, backoff, remainingTime);
-            }, nextDelay, TimeUnit.MILLISECONDS);
+            try {
+                ((ScheduledExecutorService) client.getScheduledExecutorProvider().getExecutor()).schedule(() -> {
+                    log.warn().attr("handler", getHandlerName())
+                            .attr("nextDelay", nextDelay)
+                            .log("Could not get connection while seek -- Will try again in ms");
+                    remainingTime.addAndGet(-nextDelay);
+                    seekAsyncInternal(requestId, seek, seekId, seekTimestamp, seekBy, backoff, remainingTime);
+                }, nextDelay, TimeUnit.MILLISECONDS);
+            } catch (RejectedExecutionException e) {
+                seek.release();
+                failSeek(new PulsarClientException(
+                        String.format("Seek retry for subscription %s of topic %s was rejected",
+                                subscription, topicName.toString()), e));
+            }
         }
     }
 
@@ -3102,6 +3121,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (seekStatus.compareAndSet(SeekStatus.IN_PROGRESS, SeekStatus.NOT_STARTED)) {
             seekFuture.completeExceptionally(throwable);
         }
+    }
+
+    long getSeekCount() {
+        return seekCount.get();
     }
 
     @Override

@@ -286,8 +286,13 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             }
             // Process the message, add to the queue and trigger listener or async callback
             messages.forEach(msg -> {
-                final boolean skipDueToSeek = seekingConsumers.contains(consumer);
                 MessageImpl<T> msgImpl = (MessageImpl<T>) msg;
+                // Drop a message from before a seek of its consumer. It can reach here after the seek completed: it
+                // may still be on its way through the consumer then, in a task of its executor or in the receive that
+                // hands it over. The consumer counts the seek before the seek completes, so checking for a seek in
+                // progress first leaves no gap between the two checks.
+                final boolean skipDueToSeek = seekingConsumers.contains(consumer)
+                        || msgImpl.getConsumerSeekCount() != consumer.getSeekCount();
                 ClientCnx cnx = msgImpl.getCnx();
                 boolean isValidEpoch = isValidConsumerEpoch(msgImpl);
                 if (isValidEpoch && !skipDueToSeek) {
@@ -380,7 +385,15 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     private void resumeReceivingFromPausedConsumersIfNeeded() {
-        if (incomingMessages.size() <= getCurrentReceiverQueueSize() / 2 && !pausedConsumers.isEmpty()) {
+        if (pausedConsumers.isEmpty()) {
+            return;
+        }
+        int size = incomingMessages.size();
+        int maxReceiverQueueSize = getCurrentReceiverQueueSize();
+        // A batch receive waits for more messages than the queue holds, and nothing takes from the queue until it
+        // completes: without a resume below the full queue, a batch larger than half of the queue would wait for
+        // its timeout, or forever without one.
+        if (size <= maxReceiverQueueSize / 2 || (size < maxReceiverQueueSize && hasPendingBatchReceive())) {
             while (true) {
                 ConsumerImpl<T> consumer = pausedConsumers.poll();
                 if (consumer == null) {

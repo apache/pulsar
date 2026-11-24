@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.Queues;
 import io.github.merlimat.slog.Logger;
 import io.netty.util.Timeout;
@@ -41,6 +42,7 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Supplier;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.commons.lang3.RandomStringUtils;
@@ -90,7 +92,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected final ConsumerEventListener consumerEventListener;
     protected final ExecutorProvider executorProvider;
     protected final MessageListenerExecutor messageListenerExecutor;
-    protected final ExecutorService externalPinnedExecutor;
+    protected final Supplier<ExecutorService> externalPinnedExecutor;
     protected final ExecutorService internalPinnedExecutor;
     private final ListenerTaskScheduler listenerTaskScheduler;
     protected final UnAckedMessageTracker unAckedMessageTracker;
@@ -164,7 +166,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                    ? this::executeKeySharedMessageListener
                    : this::executeMessageListener)
                 : conf.getMessageListenerExecutor();
-        this.externalPinnedExecutor = executorProvider.getExecutor();
+        this.externalPinnedExecutor = Suppliers.memoize(executorProvider::getExecutor);
         this.internalPinnedExecutor = client.getInternalExecutorService();
         this.listenerTaskScheduler = listener == null
                 ? null : new ListenerTaskScheduler(internalPinnedExecutor, this::drainListener);
@@ -1021,14 +1023,19 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         try {
             if (canEnqueueMessage(message)) {
                 INCOMING_MESSAGES_SIZE_UPDATER.addAndGet(this, messageSize);
+                // Reserve before the message becomes visible: a receive() takes it without incomingQueueLock and
+                // releases its size, which must not run ahead of the reservation and drop the shared usage below
+                // what the queues hold.
+                Optional<MemoryLimitController> memoryLimitController = getMemoryLimitController();
+                memoryLimitController.ifPresent(limiter -> limiter.forceReserveMemory(messageSize));
                 if (incomingMessages.offer(message)) {
                     // After we have enqueued the messages on `incomingMessages` queue, we cannot touch the message
                     // instance anymore, since for pooled messages, this instance was possibly already been released
                     // and recycled.
-                    getMemoryLimitController().ifPresent(limiter -> limiter.forceReserveMemory(messageSize));
                     updateAutoScaleReceiverQueueHint();
                 } else {
                     INCOMING_MESSAGES_SIZE_UPDATER.addAndGet(this, -messageSize);
+                    memoryLimitController.ifPresent(limiter -> limiter.releaseMemory(messageSize));
                 }
             }
         } finally {
@@ -1437,8 +1444,8 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         ConsumerImpl<?> receivedConsumer = (msg instanceof TopicMessageImpl<?>)
                 ? ((TopicMessageImpl<?>) msg).receivedByconsumer : null;
         ExecutorService executor = receivedConsumer != null && receivedConsumer.externalPinnedExecutor != null
-                ? receivedConsumer.externalPinnedExecutor
-                : externalPinnedExecutor;
+                ? receivedConsumer.externalPinnedExecutor.get()
+                : externalPinnedExecutor.get();
         return executor;
     }
 

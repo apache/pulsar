@@ -1254,6 +1254,9 @@ public class ClientCnx extends PulsarHandler {
             break;
         default:
             // don't close this ctx, otherwise it will close all consumers and producers which use this ctx
+            if (producer instanceof GeoReplicationProducerImpl geo) {
+                geo.recordReconnectRetry(this, sendError);
+            }
             producer.connectionClosed(this, Optional.empty(), Optional.empty());
         }
     }

@@ -54,7 +54,6 @@ import io.netty.channel.Channel;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.BufferedReader;
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.lang.reflect.Array;
@@ -99,6 +98,7 @@ import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.broker.service.PulsarMetadataEventSynchronizer.State;
@@ -149,6 +149,7 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.compaction.Compactor;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.MockZooKeeper;
 import org.awaitility.Awaitility;
@@ -163,6 +164,8 @@ import org.testng.annotations.Test;
 @CustomLog
 @Test(groups = "broker")
 public class BrokerServiceTest extends BrokerTestBase {
+
+    private volatile PulsarResources migrationTestResources;
 
     @Test
     public void testTopicLoadTimeoutReason() {
@@ -301,6 +304,35 @@ public class BrokerServiceTest extends BrokerTestBase {
         assertEquals(context.getTopicLoadFailureReason(), TopicLoadFailureReason.FAILED_CHECK_OWNERSHIP);
         assertFalse(pulsar.getDefaultManagedLedgerFactory().getManagedLedgers()
                 .containsKey(topicName.getPersistenceNamingEncoding()));
+    }
+
+    @Test
+    public void testPersistentTopicReloadPropagatesMigrationPolicyFailure() throws Exception {
+        String topicName = newTopicName();
+        admin.topics().createNonPartitionedTopic(topicName);
+        admin.topics().unload(topicName);
+
+        var pulsarResources = spy(pulsar.getPulsarResources());
+        var clusterResources = spy(pulsarResources.getClusterResources());
+        var clusterPoliciesResources = spy(clusterResources.getClusterPoliciesResources());
+        doReturn(clusterResources).when(pulsarResources).getClusterResources();
+        doReturn(clusterPoliciesResources).when(clusterResources).getClusterPoliciesResources();
+        var policyReadFailure = new MetadataStoreException("Failed to read cluster migration policy");
+        doReturn(CompletableFuture.failedFuture(policyReadFailure))
+                .when(clusterPoliciesResources).getClusterPoliciesAsync(conf.getClusterName());
+
+        migrationTestResources = pulsarResources;
+        try {
+            var topicLoadFuture = pulsar.getBrokerService().getTopic(topicName, false);
+            long topicLoadTimeoutSeconds = pulsar.getConfiguration().getTopicLoadTimeoutSeconds();
+            ExecutionException topicLoadException = expectThrows(ExecutionException.class,
+                    () -> topicLoadFuture.get(topicLoadTimeoutSeconds + 5, TimeUnit.SECONDS));
+            assertThat(topicLoadException.getCause())
+                    .as("cause of persistent topic reload failure")
+                    .isSameAs(policyReadFailure);
+        } finally {
+            migrationTestResources = null;
+        }
     }
 
     @Test
@@ -449,6 +481,16 @@ public class BrokerServiceTest extends BrokerTestBase {
         super.baseSetup();
     }
 
+    @Override
+    protected void beforePulsarStart(PulsarService pulsar) throws Exception {
+        super.beforePulsarStart(pulsar);
+        // Install the stub before broker threads can call the shared PulsarService spy.
+        doAnswer(invocation -> {
+            PulsarResources pulsarResources = migrationTestResources;
+            return pulsarResources != null ? pulsarResources : invocation.callRealMethod();
+        }).when(pulsar).getPulsarResources();
+    }
+
     @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
@@ -571,6 +613,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         // storage stats
         assertEquals(stats.getOffloadedStorageSize(), 0);
 
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
 
@@ -658,6 +701,8 @@ public class BrokerServiceTest extends BrokerTestBase {
         assertTrue(System.currentTimeMillis() - startTime < 20 * 1000);
         cleanClient(clients);
         clients.clear();
+
+        resetState();
     }
 
     @Test
@@ -755,6 +800,7 @@ public class BrokerServiceTest extends BrokerTestBase {
     @Test
     public void testStatsOfStorageSizeWithSubscription() throws Exception {
         final String topicName = "persistent://prop/ns-abc/no-subscription";
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
 
@@ -795,6 +841,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         assertEquals(subStats.getMsgBacklog(), 0);
         assertEquals(subStats.getConsumers().size(), 1);
 
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
 
@@ -869,6 +916,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName).subscribe();
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
 
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
 
@@ -977,6 +1025,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         conf.setAuthenticationEnabled(false);
         restartBroker();
+        assertNull(brokerUrlTls);
 
         // Case 1: Access without TLS
         try {
@@ -993,7 +1042,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         // Case 2: Access with TLS
         try {
-            pulsarClient = PulsarClient.builder().serviceUrl(brokerUrlTls.toString()).enableTls(true)
+            pulsarClient = PulsarClient.builder().serviceUrl("https://" + brokerUrl.getAuthority()).enableTls(true)
                     .statsInterval(0, TimeUnit.SECONDS)
                     .operationTimeout(1000, TimeUnit.MILLISECONDS).build();
 
@@ -1089,6 +1138,8 @@ public class BrokerServiceTest extends BrokerTestBase {
         } finally {
             pulsarClient.close();
         }
+
+        resetState();
     }
     @SuppressWarnings("deprecation")
 
@@ -1188,6 +1239,8 @@ public class BrokerServiceTest extends BrokerTestBase {
         } finally {
             pulsarClient.close();
         }
+
+        resetState();
     }
 
     @SuppressWarnings("deprecation")
@@ -1250,6 +1303,8 @@ public class BrokerServiceTest extends BrokerTestBase {
         } finally {
             pulsarClient.close();
         }
+
+        resetState();
     }
 
     @SuppressWarnings("deprecation")
@@ -1311,6 +1366,8 @@ public class BrokerServiceTest extends BrokerTestBase {
         } finally {
             pulsarClient.close();
         }
+
+        resetState();
     }
 
     /**
@@ -1617,6 +1674,8 @@ public class BrokerServiceTest extends BrokerTestBase {
                 }
             }
         }
+
+        resetState();
     }
 
     @Test
@@ -1679,6 +1738,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         // check if the subscription exist.
         assertNotNull(topic.getSubscription(Compactor.COMPACTION_SUBSCRIPTION));
 
+        resetState();
     }
 
     @Test
@@ -2054,7 +2114,6 @@ public class BrokerServiceTest extends BrokerTestBase {
      * @throws Exception
      */
     @Test
-    @SuppressWarnings("unchecked")
     public void testStuckTopicUnloading() throws Exception {
         final String namespace = "prop/ns-abc";
         final String topicName = "persistent://" + namespace + "/unoadTopic";
@@ -2066,53 +2125,63 @@ public class BrokerServiceTest extends BrokerTestBase {
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topicName).sendTimeout(5,
                 TimeUnit.SECONDS);
 
+        @Cleanup
         Producer<byte[]> producer = producerBuilder.create();
 
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
 
-        ManagedLedgerFactoryImpl mlFactory = (ManagedLedgerFactoryImpl) pulsar.getDefaultManagedLedgerFactory();
-        Field ledgersField = ManagedLedgerFactoryImpl.class.getDeclaredField("ledgers");
-        ledgersField.setAccessible(true);
-        ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>> ledgers =
-                (ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>>) ledgersField.get(mlFactory);
-        assertNotNull(ledgers.get(topicMlName));
+        ManagedLedgerFactory mlFactory = pulsar.getDefaultManagedLedgerFactory();
+        assertNotNull(mlFactory.getManagedLedgers().get(topicMlName));
 
         org.apache.pulsar.broker.service.Producer prod =
                 (org.apache.pulsar.broker.service.Producer) spy(topic.producers.values().toArray()[0]);
         topic.producers.clear();
         topic.producers.put(prod.getProducerName(), prod);
-        CompletableFuture<Void> waitFuture = new CompletableFuture<Void>();
-        doReturn(waitFuture).when(prod).disconnect();
-        Set<NamespaceBundle> bundles = pulsar.getNamespaceService().getOwnedServiceUnits();
-        for (NamespaceBundle bundle : bundles) {
-            String ns = bundle.getNamespaceObject().toString();
-            System.out.println();
-            if (namespace.equals(ns)) {
-                pulsar.getNamespaceService().unloadNamespaceBundle(bundle, 2, TimeUnit.SECONDS);
-            }
+        CompletableFuture<Void> disconnectRequested = new CompletableFuture<>();
+        CompletableFuture<Void> waitFuture = new CompletableFuture<>();
+        doAnswer(invocation -> {
+            disconnectRequested.complete(null);
+            return waitFuture;
+        }).when(prod).disconnect(any());
+        NamespaceBundle bundle = pulsar.getNamespaceService().getBundle(TopicName.get(topicName));
+        try {
+            CompletableFuture<Void> unloadFuture =
+                    pulsar.getNamespaceService().unloadNamespaceBundle(bundle, 2, TimeUnit.SECONDS);
+            disconnectRequested.get(10, TimeUnit.SECONDS);
+            topic.getCloseFuture().get(10, TimeUnit.SECONDS);
+            unloadFuture.get(10, TimeUnit.SECONDS);
+
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+                assertNull(mlFactory.getManagedLedgers().get(topicMlName));
+                assertTrue(pulsar.getBrokerService()
+                        .getTopicReference(topicName).isEmpty());
+            });
+        } finally {
+            waitFuture.complete(null);
         }
-        assertNull(ledgers.get(topicMlName));
     }
 
     @Test
-    public void testMetricsProvider() throws IOException {
+    public void testMetricsProvider() throws Exception {
         PrometheusRawMetricsProvider rawMetricsProvider = stream -> stream.write("test_metrics{label1=\"xyz\"} 10 \n");
         getPulsar().addPrometheusRawMetricsProvider(rawMetricsProvider);
-        @Cleanup
-        CloseableHttpClient httpClient = HttpClientBuilder.create().build();
-        final String metricsEndPoint = getPulsar().getWebServiceAddress() + "/metrics";
-        HttpResponse response = httpClient.execute(new HttpGet(metricsEndPoint));
-        assertEquals(response.getEntity().getContentType().getValue(),
-                PrometheusMetricsServlet.PROMETHEUS_CONTENT_TYPE_004);
-        InputStream inputStream = response.getEntity().getContent();
-        InputStreamReader isReader = new InputStreamReader(inputStream);
-        BufferedReader reader = new BufferedReader(isReader);
-        StringBuffer sb = new StringBuffer();
-        String str;
-        while ((str = reader.readLine()) != null){
-            sb.append(str);
+        try (CloseableHttpClient httpClient = HttpClientBuilder.create().build()) {
+            final String metricsEndPoint = getPulsar().getWebServiceAddress() + "/metrics";
+            HttpResponse response = httpClient.execute(new HttpGet(metricsEndPoint));
+            assertEquals(response.getEntity().getContentType().getValue(),
+                    PrometheusMetricsServlet.PROMETHEUS_CONTENT_TYPE_004);
+            InputStream inputStream = response.getEntity().getContent();
+            InputStreamReader isReader = new InputStreamReader(inputStream);
+            BufferedReader reader = new BufferedReader(isReader);
+            StringBuffer sb = new StringBuffer();
+            String str;
+            while ((str = reader.readLine()) != null) {
+                sb.append(str);
+            }
+            Assert.assertTrue(sb.toString().contains("test_metrics"));
         }
-        Assert.assertTrue(sb.toString().contains("test_metrics"));
+
+        resetState();
     }
 
     @Test
@@ -2206,6 +2275,8 @@ public class BrokerServiceTest extends BrokerTestBase {
         Awaitility.await().untilAsserted(()->{
             assertTrue(conf.isForceDeleteNamespaceAllowed());
         });
+
+        resetState();
     }
 
     @Test
@@ -2218,6 +2289,8 @@ public class BrokerServiceTest extends BrokerTestBase {
         Awaitility.await().untilAsserted(()->{
             assertTrue(conf.isForceDeleteTenantAllowed());
         });
+
+        resetState();
     }
 
     @Test
@@ -2728,6 +2801,9 @@ public class BrokerServiceTest extends BrokerTestBase {
         sync.client = (PulsarClientImpl) pulsarClient;
         retryStrategically((test) -> sync.getProducer() != null, 1000, 10);
         assertNotNull(sync.getProducer());
+
+        sync.closeAsync().get(10, TimeUnit.SECONDS);
+        resetState();
     }
 
     @Test

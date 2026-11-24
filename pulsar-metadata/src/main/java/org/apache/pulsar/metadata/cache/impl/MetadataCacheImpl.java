@@ -394,8 +394,12 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                 cacheOwner.unregisterMetadataCache(this);
             }
             invalidateAll();
-            CacheMetricsCollector.removeCache(cacheName, objCache);
+            unregisterMetrics();
         }
+    }
+
+    public void unregisterMetrics() {
+        CacheMetricsCollector.removeCache(cacheName, objCache);
     }
 
     @Override

@@ -2106,6 +2106,58 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testPeekMessageOnSubscriptionStartingWithReplicatorPrefix() throws Exception {
+        // A subscription whose name merely starts with the replicator prefix (default "pulsar.repl") is an
+        // ordinary subscription, not a replicator cursor, so peeking it must read the subscription rather
+        // than route to the replicator lookup (which returns 404 and surfaces as an empty backlog).
+        String topicName = "persistent://" + testTenant + "/" + testNamespaceLocal
+                + "/testPeekReplicatorPrefixSibling";
+        admin.topics().createNonPartitionedTopic(topicName);
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).enableBatching(false).create();
+        producer.send("replay-message".getBytes());
+
+        List<Message<byte[]>> peeked = admin.topics().peekMessages(topicName, "pulsar.replay", 1);
+        assertEquals(peeked.size(), 1);
+        assertEquals(new String(peeked.get(0).getData()), "replay-message");
+    }
+
+    @Test
+    public void testSubscriptionStartingWithReplicatorPrefixIsAdmittedAndSurvivesReload() throws Exception {
+        // A consumer subscription whose name merely starts with the replicator prefix (default "pulsar.repl")
+        // is an ordinary subscription: it must be admitted on persistent and non-persistent topics and survive a
+        // persistent-topic reload. This exercises the admission and reload sites the peek-path test does not.
+        final String persistentTopic = "persistent://" + testTenant + "/" + testNamespaceLocal
+                + "/testReplicatorPrefixSiblingAdmission";
+        admin.topics().createNonPartitionedTopic(persistentTopic);
+
+        // Admission on a persistent topic (PersistentTopic.subscribe); a bare-prefix check would throw here.
+        Consumer<byte[]> persistentConsumer = pulsarClient.newConsumer()
+                .topic(persistentTopic)
+                .subscriptionName("pulsar.replay")
+                .subscribe();
+        assertTrue(admin.topics().getSubscriptions(persistentTopic).contains("pulsar.replay"));
+
+        // Reload: close the consumer, unload the topic, and assert the durable subscription is restored by the
+        // reload path (createPersistentSubscriptions) before any reconnect, so a fresh subscribe cannot mask it.
+        persistentConsumer.close();
+        admin.topics().unload(persistentTopic);
+        Awaitility.await().untilAsserted(() ->
+                assertTrue(admin.topics().getSubscriptions(persistentTopic).contains("pulsar.replay")));
+
+        // Admission on a non-persistent topic (NonPersistentTopic.subscribe).
+        final String nonPersistentTopicName = "non-persistent://" + testTenant + "/" + testNamespaceLocal
+                + "/testReplicatorPrefixSiblingNonPersistent";
+        @Cleanup
+        Consumer<byte[]> nonPersistentConsumer = pulsarClient.newConsumer()
+                .topic(nonPersistentTopicName)
+                .subscriptionName("pulsar.replay")
+                .subscribe();
+        assertTrue(admin.topics().getSubscriptions(nonPersistentTopicName).contains("pulsar.replay"));
+    }
+
+    @Test
     public void testPeekMessageWithProperties() throws Exception {
         String topicName = "persistent://" + testTenant + "/" + testNamespaceLocal + "/testPeekMessageWithProperties";
         admin.topics().createNonPartitionedTopic(topicName);

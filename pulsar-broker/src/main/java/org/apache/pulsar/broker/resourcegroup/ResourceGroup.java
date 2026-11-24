@@ -19,7 +19,7 @@
 package org.apache.pulsar.broker.resourcegroup;
 
 import com.google.common.annotations.VisibleForTesting;
-import io.prometheus.client.Counter;
+import io.prometheus.metrics.core.metrics.Counter;
 import java.util.HashMap;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -406,17 +406,17 @@ public class ResourceGroup {
 
     // Visibility for unit testing
     protected static double getRgRemoteUsageByteCount (String rgName, String monClassName, String brokerName) {
-        return rgRemoteUsageReportsBytes.labels(rgName, monClassName, brokerName).get();
+        return rgRemoteUsageReportsBytes.labelValues(rgName, monClassName, brokerName).get();
     }
 
     // Visibility for unit testing
     protected static double getRgRemoteUsageMessageCount (String rgName, String monClassName, String brokerName) {
-        return rgRemoteUsageReportsMessages.labels(rgName, monClassName, brokerName).get();
+        return rgRemoteUsageReportsMessages.labelValues(rgName, monClassName, brokerName).get();
     }
 
     // Visibility for unit testing
     protected static long getRgUsageReportedCount (String rgName, String monClassName) {
-        return (long) rgLocalUsageReportCount.labels(rgName, monClassName).get();
+        return rgLocalUsageReportCount.labelValues(rgName, monClassName).getLongValue();
     }
 
     // Visibility for unit testing
@@ -480,7 +480,7 @@ public class ResourceGroup {
 
         final String rgName = this.ruPublisher != null ? this.ruPublisher.getID() : this.resourceGroupName;
         double sentCount = sendReport ? 1 : 0;
-        rgLocalUsageReportCount.labels(rgName, monClass.name()).inc(sentCount);
+        rgLocalUsageReportCount.labelValues(rgName, monClass.name()).inc(sentCount);
         if (sendReport) {
                 log.debug()
                         .attr("resourceGroup", rgName)
@@ -525,8 +525,9 @@ public class ResourceGroup {
         } finally {
             monEntity.usageFromOtherBrokersLock.unlock();
         }
-        rgRemoteUsageReportsBytes.labels(this.ruConsumer.getID(), monClass.name(), broker).inc(newByteCount);
-        rgRemoteUsageReportsMessages.labels(this.ruConsumer.getID(), monClass.name(), broker).inc(newMessageCount);
+        rgRemoteUsageReportsBytes.labelValues(this.ruConsumer.getID(), monClass.name(), broker).inc(newByteCount);
+        rgRemoteUsageReportsMessages.labelValues(this.ruConsumer.getID(), monClass.name(), broker)
+                .inc(newMessageCount);
 
         oldByteCount = oldMessageCount = -1;
         if (oldUsageStats != null) {
@@ -632,18 +633,18 @@ public class ResourceGroup {
     private static final String[] resourceGroupMontoringclassRemotebrokerLabels =
                                                     {"ResourceGroup", "MonitoringClass", "RemoteBroker"};
 
-    private static final Counter rgRemoteUsageReportsBytes = Counter.build()
+    private static final Counter rgRemoteUsageReportsBytes = Counter.builder()
             .name("pulsar_resource_group_remote_usage_bytes_used")
             .help("Bytes used reported about this <RG, monitoring class> from a remote broker")
             .labelNames(resourceGroupMontoringclassRemotebrokerLabels)
             .register();
-    private static final Counter rgRemoteUsageReportsMessages = Counter.build()
+    private static final Counter rgRemoteUsageReportsMessages = Counter.builder()
             .name("pulsar_resource_group_remote_usage_messages_used")
             .help("Messages used reported about this <RG, monitoring class> from a remote broker")
             .labelNames(resourceGroupMontoringclassRemotebrokerLabels)
             .register();
 
-    private static final Counter rgLocalUsageReportCount = Counter.build()
+    private static final Counter rgLocalUsageReportCount = Counter.builder()
             .name("pulsar_resource_group_local_usage_reported")
             .help("Number of times local usage was reported (vs. suppressed due to negligible change)")
             .labelNames(resourceGroupMontoringclassLabels)
