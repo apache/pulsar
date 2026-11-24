@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.delayed;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import java.lang.reflect.Field;
 import java.time.Duration;
 import java.util.List;
@@ -621,5 +622,34 @@ public class DelayedDeliveryTrackerFactoryTest extends ProducerConsumerBase {
         } finally {
             consumer.close();
         }
+    }
+
+    @Test
+    public void testCleanResidualSnapshotsKeepsReplacementPublishedDuringDelete() throws Exception {
+        // A save that publishes a replacement ledger under the same bucket key while the residual
+        // cleanup's delete is still in flight must not lose its only durable reference: the
+        // removal is conditional on the value the cleanup observed.
+        BucketDelayedDeliveryTrackerFactory factory = new BucketDelayedDeliveryTrackerFactory();
+        CompletableFuture<Void> gatedDelete = new CompletableFuture<>();
+        factory.bucketSnapshotStorage = new MockBucketSnapshotStorage() {
+            @Override
+            public CompletableFuture<Void> deleteBucketSnapshot(long bucketId) {
+                return gatedDelete;
+            }
+        };
+        String bucketKey = BucketDelayedDeliveryTracker.DELAYED_BUCKET_KEY_PREFIX + ".test";
+        MockManagedCursor cursor = new MockManagedCursor("residual-cleanup-cursor");
+        cursor.putCursorProperty(bucketKey, "10").get(5, TimeUnit.SECONDS);
+
+        CompletableFuture<Void> cleanup = factory.cleanResidualSnapshots(cursor);
+        assertThat(cleanup).isNotDone();
+
+        // The replacement is published while the delete is in flight.
+        cursor.putCursorProperty(bucketKey, "11").get(5, TimeUnit.SECONDS);
+
+        gatedDelete.complete(null);
+        assertThat(cleanup).succeedsWithin(5, TimeUnit.SECONDS);
+
+        assertThat(cursor.getCursorProperties()).containsEntry(bucketKey, "11");
     }
 }
