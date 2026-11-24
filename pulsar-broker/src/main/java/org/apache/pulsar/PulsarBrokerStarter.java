@@ -39,10 +39,8 @@ import java.util.concurrent.CompletableFuture;
 import lombok.CustomLog;
 import org.apache.bookkeeper.common.component.ComponentStarter;
 import org.apache.bookkeeper.common.component.LifecycleComponent;
-import org.apache.bookkeeper.common.util.ReflectionUtils;
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.replication.AutoRecoveryMain;
-import org.apache.bookkeeper.server.conf.BookieConfiguration;
 import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.apache.logging.log4j.LogManager;
@@ -59,6 +57,7 @@ import org.apache.pulsar.docs.tools.CmdGenerateDocs;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.service.WorkerServiceLoader;
+import org.apache.pulsar.metadata.bookkeeper.BookieStatsProviders;
 import picocli.CommandLine;
 import picocli.CommandLine.ArgGroup;
 import picocli.CommandLine.Command;
@@ -235,8 +234,7 @@ public class PulsarBrokerStarter {
                 final String filepath = Path.of(starterArguments.bookieConfigFile)
                         .toAbsolutePath().normalize().toString();
                 bookieConfig = readBookieConfFile(filepath);
-                Class<? extends StatsProvider> statsProviderClass = bookieConfig.getStatsProviderClass();
-                bookieStatsProvider = ReflectionUtils.newInstance(statsProviderClass);
+                bookieStatsProvider = BookieStatsProviders.create(bookieConfig);
             } else {
                 bookieConfig = null;
                 bookieStatsProvider = null;
@@ -246,8 +244,7 @@ public class PulsarBrokerStarter {
             if (starterArguments.runBookie) {
                 Objects.requireNonNull(bookieConfig, "No ServerConfiguration for Bookie");
                 Objects.requireNonNull(bookieStatsProvider, "No Stats Provider for Bookie");
-                bookieServer = org.apache.bookkeeper.server.Main
-                        .buildBookieServer(new BookieConfiguration(bookieConfig));
+                bookieServer = BookieStatsProviders.buildBookieServer(bookieConfig, bookieStatsProvider);
             } else {
                 bookieServer = null;
             }
@@ -308,13 +305,17 @@ public class PulsarBrokerStarter {
                 log.info("Shut down broker service successfully.");
             }
 
-            if (bookieStatsProvider != null) {
-                bookieStatsProvider.stop();
-                log.info("Shut down bookieStatsProvider successfully.");
-            }
-            if (bookieServer != null) {
-                bookieServer.close();
-                log.info("Shut down bookieServer successfully.");
+            try {
+                if (bookieServer != null) {
+                    bookieServer.close();
+                    log.info("Shut down bookieServer successfully.");
+                }
+            } finally {
+                // The starter owns the provider: stop it after the bookie, also when closing the bookie fails.
+                if (bookieStatsProvider != null) {
+                    bookieStatsProvider.stop();
+                    log.info("Shut down bookieStatsProvider successfully.");
+                }
             }
             if (autoRecoveryMain != null) {
                 autoRecoveryMain.shutdown();

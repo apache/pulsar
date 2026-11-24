@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.service.scalable;
 
+import static org.apache.pulsar.broker.service.scalable.PrometheusSamples.families;
+import static org.apache.pulsar.broker.service.scalable.PrometheusSamples.getSampleValue;
 import static org.assertj.core.api.Assertions.assertThat;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.Meter;
@@ -25,22 +27,23 @@ import io.opentelemetry.api.metrics.MeterProvider;
 import io.opentelemetry.sdk.metrics.SdkMeterProvider;
 import io.opentelemetry.sdk.metrics.data.MetricData;
 import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
-import io.prometheus.client.Collector;
-import io.prometheus.client.Collector.MetricFamilySamples;
-import io.prometheus.client.CollectorRegistry;
-import io.prometheus.client.Counter;
-import io.prometheus.client.Gauge;
-import io.prometheus.client.Histogram;
-import io.prometheus.client.Summary;
+import io.prometheus.metrics.core.metrics.Counter;
+import io.prometheus.metrics.core.metrics.Gauge;
+import io.prometheus.metrics.core.metrics.Histogram;
+import io.prometheus.metrics.core.metrics.Summary;
+import io.prometheus.metrics.model.registry.Collector;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import java.io.ByteArrayOutputStream;
 import java.util.Collection;
-import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
+import org.apache.pulsar.broker.service.scalable.PrometheusSamples.Family;
+import org.apache.pulsar.broker.service.scalable.PrometheusSamples.Sample;
 import org.apache.pulsar.broker.service.scalable.ScalableTopicMetrics.RequestType;
 import org.apache.pulsar.broker.service.scalable.ScalableTopicMetrics.WatchType;
 import org.apache.pulsar.broker.stats.BrokerOperabilityMetrics;
@@ -68,41 +71,42 @@ public class ScalableTopicControllerMetricsIsolationTest {
 
     @DataProvider
     public Object[][] registries() {
-        return new Object[][]{{new CollectorRegistry()}, {CollectorRegistry.defaultRegistry}};
+        return new Object[][]{{new PrometheusRegistry()}, {PrometheusRegistry.defaultRegistry}};
     }
 
     @Test(dataProvider = "registries")
-    public void testExistingPrometheusCollectorsRemainUnchanged(CollectorRegistry registry) {
-        Counter counter = Counter.build(PREFIX + "counter_total", "Existing counter")
+    public void testExistingPrometheusCollectorsRemainUnchanged(PrometheusRegistry registry) {
+        // Declared without "_total": the exposition appends it, so the sample is still PREFIX + "counter_total".
+        Counter counter = Counter.builder().name(PREFIX + "counter").help("Existing counter")
                 .labelNames("cluster", "topic").register(registry);
-        Gauge gauge = Gauge.build(PREFIX + "gauge", "Existing gauge")
+        Gauge gauge = Gauge.builder().name(PREFIX + "gauge").help("Existing gauge")
                 .labelNames("cluster", "topic").register(registry);
-        Histogram histogram = Histogram.build(PREFIX + "histogram_seconds", "Existing histogram")
-                .labelNames("cluster", "topic").buckets(0.01, 0.1, 1).register(registry);
-        Summary summary = Summary.build(PREFIX + "summary_seconds", "Existing summary")
+        Histogram histogram = Histogram.builder().name(PREFIX + "histogram_seconds").help("Existing histogram")
+                .labelNames("cluster", "topic").classicOnly().classicUpperBounds(0.01, 0.1, 1).register(registry);
+        Summary summary = Summary.builder().name(PREFIX + "summary_seconds").help("Existing summary")
                 .labelNames("cluster", "topic").quantile(0.5, 0.01).register(registry);
         List<Collector> existing = List.of(counter, gauge, histogram, summary);
         try (var sdk = SdkMeterProvider.builder().build()) {
             Meter meter = sdk.get("shared-broker-meter");
-            counter.labels(CLUSTER, "persistent://tenant/ns/topic").inc(7);
-            gauge.labels(CLUSTER, "persistent://tenant/ns/topic").set(3);
-            histogram.labels(CLUSTER, "persistent://tenant/ns/topic").observe(0.05);
-            summary.labels(CLUSTER, "persistent://tenant/ns/topic").observe(0.02);
-            List<MetricFamilySamples> before = existingPrometheus(registry);
+            counter.labelValues(CLUSTER, "persistent://tenant/ns/topic").inc(7);
+            gauge.labelValues(CLUSTER, "persistent://tenant/ns/topic").set(3);
+            histogram.labelValues(CLUSTER, "persistent://tenant/ns/topic").observe(0.05);
+            summary.labelValues(CLUSTER, "persistent://tenant/ns/topic").observe(0.02);
+            List<Family> before = existingPrometheus(registry);
             assertThat(before).hasSize(4);
             try (var added = new ScalableTopicControllerMetrics(meter, CLUSTER, () -> COUNTS, registry)) {
                 recordAllMetrics(added);
                 assertThat(existingPrometheus(registry)).containsExactlyInAnyOrderElementsOf(before);
                 assertThat(existingPrometheus(registry)).containsExactlyInAnyOrderElementsOf(before);
-                counter.labels(CLUSTER, "persistent://tenant/ns/topic").inc(2);
-                gauge.labels(CLUSTER, "persistent://tenant/ns/topic").dec();
-                histogram.labels(CLUSTER, "persistent://tenant/ns/topic").observe(0.5);
-                summary.labels(CLUSTER, "persistent://tenant/ns/topic").observe(0.2);
+                counter.labelValues(CLUSTER, "persistent://tenant/ns/topic").inc(2);
+                gauge.labelValues(CLUSTER, "persistent://tenant/ns/topic").dec();
+                histogram.labelValues(CLUSTER, "persistent://tenant/ns/topic").observe(0.5);
+                summary.labelValues(CLUSTER, "persistent://tenant/ns/topic").observe(0.2);
             }
-            List<MetricFamilySamples> after = existingPrometheus(registry);
+            List<Family> after = existingPrometheus(registry);
             assertThat(after).isNotEqualTo(before);
-            assertThat(counter.labels(CLUSTER, "persistent://tenant/ns/topic").get()).isEqualTo(9);
-            assertThat(gauge.labels(CLUSTER, "persistent://tenant/ns/topic").get()).isEqualTo(2);
+            assertThat(counter.labelValues(CLUSTER, "persistent://tenant/ns/topic").get()).isEqualTo(9);
+            assertThat(gauge.labelValues(CLUSTER, "persistent://tenant/ns/topic").get()).isEqualTo(2);
             try (var replacement = new ScalableTopicControllerMetrics(meter, CLUSTER, () -> COUNTS, registry)) {
                 recordAllMetrics(replacement);
                 assertThat(existingPrometheus(registry)).containsExactlyInAnyOrderElementsOf(after);
@@ -136,7 +140,7 @@ public class ScalableTopicControllerMetricsIsolationTest {
                 assertThat(before).hasSize(3);
                 Map<String, Object> updated;
                 try (var added = new ScalableTopicControllerMetrics(
-                        meter, CLUSTER, () -> COUNTS, new CollectorRegistry())) {
+                        meter, CLUSTER, () -> COUNTS, new PrometheusRegistry())) {
                     recordAllMetrics(added);
                     assertThat(existingOpenTelemetry(reader.collectAllMetrics())).isEqualTo(before);
                     assertThat(existingOpenTelemetry(reader.collectAllMetrics())).isEqualTo(before);
@@ -148,7 +152,7 @@ public class ScalableTopicControllerMetricsIsolationTest {
                 }
                 assertThat(existingOpenTelemetry(reader.collectAllMetrics())).isEqualTo(updated);
                 try (var replacement = new ScalableTopicControllerMetrics(
-                        meter, CLUSTER, () -> COUNTS, new CollectorRegistry())) {
+                        meter, CLUSTER, () -> COUNTS, new PrometheusRegistry())) {
                     recordAllMetrics(replacement);
                     assertThat(existingOpenTelemetry(reader.collectAllMetrics())).isEqualTo(updated);
                 }
@@ -160,8 +164,8 @@ public class ScalableTopicControllerMetricsIsolationTest {
     @DataProvider
     public Object[][] sessionMetricsModes() {
         return new Object[][]{
-                {true, new CollectorRegistry()}, {true, CollectorRegistry.defaultRegistry},
-                {false, new CollectorRegistry()}, {false, CollectorRegistry.defaultRegistry}
+                {true, new PrometheusRegistry()}, {true, PrometheusRegistry.defaultRegistry},
+                {false, new PrometheusRegistry()}, {false, PrometheusRegistry.defaultRegistry}
         };
     }
 
@@ -172,7 +176,7 @@ public class ScalableTopicControllerMetricsIsolationTest {
 
     @Test(dataProvider = "residentSessionMetricsModes")
     public void testCoexistenceWithResidentSessionProvider(boolean telemetryEnabled) {
-        CollectorRegistry registry = CollectorRegistry.defaultRegistry;
+        PrometheusRegistry registry = PrometheusRegistry.defaultRegistry;
         String residentCluster = "resident-session-" + UUID.randomUUID();
         var reader = InMemoryMetricReader.create();
         try (var sdk = SdkMeterProvider.builder().registerMetricReader(reader).build()) {
@@ -188,13 +192,12 @@ public class ScalableTopicControllerMetricsIsolationTest {
                 };
                 for (int attempt = 0; attempt < 2; attempt++) {
                     assertSessionMetricsSurviveControllerLifecycle(telemetryEnabled, registry, residentActivity);
-                    assertThat(registry.getSampleValue(WATCH_SESSIONS, new String[]{"cluster", "watch_type"},
+                    assertThat(getSampleValue(registry, WATCH_SESSIONS, new String[]{"cluster", "watch_type"},
                             new String[]{residentCluster, "topic"})).isEqualTo(1);
-                    assertThat(registry.getSampleValue(WATCH_UPDATES + "_total",
+                    assertThat(getSampleValue(registry, WATCH_UPDATES + "_total",
                             new String[]{"cluster", "operation_status"}, new String[]{residentCluster, "success"}))
                             .isEqualTo((double) successfulUpdates.get());
-                    assertThat(Collections.list(registry.metricFamilySamples())).extracting(family -> family.name)
-                            .containsAll(SESSION_METRICS);
+                    assertThat(families(registry)).extracting(Family::name).containsAll(SESSION_METRICS);
                     if (telemetryEnabled) {
                         assertThat(reader.collectAllMetrics()).anySatisfy(metric -> {
                             assertThat(metric.getName()).isEqualTo(ScalableTopicMetrics.WATCH_UPDATE_COUNT_METRIC_NAME);
@@ -219,11 +222,11 @@ public class ScalableTopicControllerMetricsIsolationTest {
 
     @Test(dataProvider = "sessionMetricsModes")
     public void testUpstreamSessionMetricsSurviveControllerLifecycle(boolean telemetryEnabled,
-                                                                   CollectorRegistry registry) {
+                                                                   PrometheusRegistry registry) {
         assertSessionMetricsSurviveControllerLifecycle(telemetryEnabled, registry, () -> { });
     }
 
-    private void assertSessionMetricsSurviveControllerLifecycle(boolean telemetryEnabled, CollectorRegistry registry,
+    private void assertSessionMetricsSurviveControllerLifecycle(boolean telemetryEnabled, PrometheusRegistry registry,
                                                               Runnable residentActivity) {
         String cluster = "session-isolation-" + UUID.randomUUID();
         var reader = InMemoryMetricReader.create();
@@ -243,23 +246,24 @@ public class ScalableTopicControllerMetricsIsolationTest {
                 sessions.recordWatchUpdate(true);
                 sessions.recordWatchUpdate(false);
                 SessionMetricsSnapshot before = sessionMetricsSnapshot(registry, reader, cluster);
-                assertThat(before.prometheus()).extracting(family -> family.name)
+                assertThat(before.prometheus()).extracting(Family::name)
                         .containsExactlyInAnyOrderElementsOf(SESSION_METRICS);
-                assertThat(before.prometheus()).filteredOn(family -> family.name.equals(REQUEST_DURATION))
-                        .singleElement().satisfies(family -> assertThat(family.samples)
-                                .filteredOn(sample -> sample.name.equals(REQUEST_DURATION + "_count"))
+                assertThat(before.prometheus()).filteredOn(family -> family.name().equals(REQUEST_DURATION))
+                        .singleElement().satisfies(family -> assertThat(family.samples())
+                                .filteredOn(sample -> sample.name().equals(REQUEST_DURATION + "_count"))
                                 .hasSize(8).allSatisfy(sample -> {
-                                    assertThat(sample.value).isEqualTo(1);
-                                    assertThat(sample.labelNames)
-                                            .containsExactly("cluster", "request_type", "operation_status");
+                                    assertThat(sample.value()).isEqualTo(1);
+                                    // The 1.x client exposes label names sorted alphabetically.
+                                    assertThat(sample.labelNames())
+                                            .containsExactly("cluster", "operation_status", "request_type");
                                 }));
-                assertThat(registry.getSampleValue(WATCH_SESSIONS,
+                assertThat(getSampleValue(registry, WATCH_SESSIONS,
                         new String[]{"cluster", "watch_type"}, new String[]{cluster, "topic"})).isEqualTo(1);
-                assertThat(registry.getSampleValue(WATCH_SESSIONS,
+                assertThat(getSampleValue(registry, WATCH_SESSIONS,
                         new String[]{"cluster", "watch_type"}, new String[]{cluster, "namespace"})).isEqualTo(1);
-                assertThat(registry.getSampleValue(WATCH_UPDATES + "_total",
+                assertThat(getSampleValue(registry, WATCH_UPDATES + "_total",
                         new String[]{"cluster", "operation_status"}, new String[]{cluster, "success"})).isEqualTo(2);
-                assertThat(registry.getSampleValue(WATCH_UPDATES + "_total",
+                assertThat(getSampleValue(registry, WATCH_UPDATES + "_total",
                         new String[]{"cluster", "operation_status"}, new String[]{cluster, "failure"})).isEqualTo(1);
                 if (telemetryEnabled) {
                     assertThat(before.openTelemetry()).containsOnlyKeys(
@@ -323,24 +327,28 @@ public class ScalableTopicControllerMetricsIsolationTest {
         }
     }
 
-    private record SessionMetricsSnapshot(List<MetricFamilySamples> prometheus, Map<String, Object> openTelemetry) { }
+    private record SessionMetricsSnapshot(List<Family> prometheus, Map<String, Object> openTelemetry) { }
 
-    private static SessionMetricsSnapshot sessionMetricsSnapshot(CollectorRegistry registry,
+    private static SessionMetricsSnapshot sessionMetricsSnapshot(PrometheusRegistry registry,
                                                                  InMemoryMetricReader reader, String cluster) {
         // The SDK reader belongs to this fixture; only the Prometheus registry is shared with other brokers.
         return new SessionMetricsSnapshot(sessionPrometheusSnapshot(registry, cluster),
                 existingOpenTelemetry(reader.collectAllMetrics()));
     }
 
-    private static List<MetricFamilySamples> sessionPrometheusSnapshot(CollectorRegistry registry, String cluster) {
-        return Collections.list(registry.metricFamilySamples()).stream()
-                .filter(family -> SESSION_METRICS.contains(family.name))
-                .map(family -> new MetricFamilySamples(family.name, family.unit, family.type, family.help,
-                        family.samples.stream().filter(sample -> {
-                            int index = sample.labelNames.indexOf("cluster");
-                            return index >= 0 && cluster.equals(sample.labelValues.get(index));
-                        }).toList()))
-                .filter(family -> !family.samples.isEmpty())
+    private static List<Family> sessionPrometheusSnapshot(PrometheusRegistry registry, String cluster) {
+        // Snapshot order is not guaranteed by the 1.x registry; sort so snapshots compare by content.
+        Comparator<Sample> sampleOrder = Comparator.comparing(Sample::name)
+                .thenComparing(sample -> String.join("\u0000", sample.labelValues()));
+        return families(registry).stream()
+                .filter(family -> SESSION_METRICS.contains(family.name()))
+                .map(family -> new Family(family.name(), family.type(), family.help(),
+                        family.samples().stream().filter(sample -> {
+                            int index = sample.labelNames().indexOf("cluster");
+                            return index >= 0 && cluster.equals(sample.labelValues().get(index));
+                        }).sorted(sampleOrder).toList()))
+                .filter(family -> !family.samples().isEmpty())
+                .sorted(Comparator.comparing(Family::name))
                 .toList();
     }
 
@@ -352,8 +360,10 @@ public class ScalableTopicControllerMetricsIsolationTest {
     @Test(dataProvider = "brokenStates")
     public void testBrokenNewStateDoesNotBreakExistingMetrics(boolean nullState) throws Exception {
         var reader = InMemoryMetricReader.create();
-        CollectorRegistry registry = CollectorRegistry.defaultRegistry;
-        Counter existing = Counter.build(PREFIX + "scrape_total", "Existing scrape sentinel").register(registry);
+        PrometheusRegistry registry = PrometheusRegistry.defaultRegistry;
+        // Declared without "_total": the exposition appends it, so the sample is still PREFIX + "scrape_total".
+        Counter existing = Counter.builder().name(PREFIX + "scrape").help("Existing scrape sentinel")
+                .register(registry);
         try (var sdk = SdkMeterProvider.builder().registerMetricReader(reader).build()) {
             Meter meter = sdk.get("shared-broker-meter");
             var counter = meter.counterBuilder(BrokerOperabilityMetrics.CONNECTION_COUNTER_METRIC_NAME).build();
@@ -372,7 +382,7 @@ public class ScalableTopicControllerMetricsIsolationTest {
                 ByteArrayOutputStream output = new ByteArrayOutputStream();
                 PrometheusMetricsGeneratorUtils.generate(CLUSTER, output, List.of());
                 assertThat(output.toString()).contains(PREFIX + "scrape_total{cluster=\"" + CLUSTER + "\"} 7.0");
-                assertThat(registry.getSampleValue("pulsar_scalable_topic_controller_count",
+                assertThat(getSampleValue(registry, "pulsar_scalable_topic_controller_count",
                         new String[]{"cluster"}, new String[]{CLUSTER})).isEqualTo(1);
                 Collection<MetricData> collected = reader.collectAllMetrics();
                 assertThat(existingOpenTelemetry(collected)).isEqualTo(before);
@@ -401,9 +411,8 @@ public class ScalableTopicControllerMetricsIsolationTest {
         metrics.recordBlocked("max_segments");
     }
 
-    private static List<MetricFamilySamples> existingPrometheus(CollectorRegistry registry) {
-        return Collections.list(registry.metricFamilySamples()).stream()
-                .filter(metric -> metric.name.startsWith(PREFIX)).toList();
+    private static List<Family> existingPrometheus(PrometheusRegistry registry) {
+        return families(registry).stream().filter(metric -> metric.name().startsWith(PREFIX)).toList();
     }
 
     /**

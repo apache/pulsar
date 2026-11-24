@@ -149,8 +149,9 @@ public interface Dispatcher {
 
     /**
      * This hook is invoked after cursor mark-delete operations triggered by
-     * message removal flows such as expiry, skip, or clear backlog, but not for
-     * regular ack-driven mark-delete operations due to their higher frequency.
+     * message removal flows such as expiry, skip, clear backlog, or a subscription
+     * update received from a remote cluster, but not for regular ack-driven
+     * mark-delete operations due to their higher frequency.
      *
      * <p>Since the cursor ack set may no longer be available after mark-delete,
      * the cleanup logic relies on the remaining unacked count stored in

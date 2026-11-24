@@ -39,6 +39,7 @@ import java.security.PublicKey;
 import java.util.Base64;
 import java.util.Date;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -49,6 +50,7 @@ public class MockOIDCIdentityProvider {
     private final WireMockServer server;
     private final PublicKey publicKey;
     private final String audience;
+    private final AtomicLong nextTokenResponseDelayMillis = new AtomicLong();
     @SuppressWarnings("deprecation")
     public MockOIDCIdentityProvider(String clientSecret, String audience, long tokenTTLMillis) {
         this.audience = audience;
@@ -91,6 +93,13 @@ public class MockOIDCIdentityProvider {
         return server.baseUrl();
     }
 
+    /**
+     * Delays the next token response by the given time after the token is issued, as a slow network would.
+     */
+    public void delayNextTokenResponse(long delayMillis) {
+        nextTokenResponseDelayMillis.set(delayMillis);
+    }
+
     class OAuth2Transformer implements ResponseTransformerV2 {
 
         private final PrivateKey privateKey;
@@ -115,7 +124,8 @@ public class MockOIDCIdentityProvider {
                           "token_type":"Bearer"
                         }
                         """.formatted(generateToken(role),
-                        TimeUnit.MILLISECONDS.toSeconds(tokenTTL))).build();
+                        TimeUnit.MILLISECONDS.toSeconds(tokenTTL)))
+                        .incrementInitialDelay(nextTokenResponseDelayMillis.getAndSet(0)).build();
             } else {
                 return Response.Builder.like(response).but().body("Invalid request").status(400).build();
             }

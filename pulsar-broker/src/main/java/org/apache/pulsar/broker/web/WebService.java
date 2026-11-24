@@ -19,7 +19,7 @@
 package org.apache.pulsar.broker.web;
 
 import com.google.common.annotations.VisibleForTesting;
-import io.prometheus.client.CollectorRegistry;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import jakarta.servlet.DispatcherType;
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
@@ -44,6 +44,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.admin.v2.ScalableTopicPolicies;
 import org.apache.pulsar.broker.admin.v2.ScalableTopics;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.intercept.BrokerInterceptors;
@@ -235,7 +236,8 @@ public class WebService implements AutoCloseable {
         }
         if (!pulsar.getConfiguration().isScalableTopicsEnabled()) {
             config = new ResourceConfig(config.getClasses().stream()
-                    .filter(resource -> resource != ScalableTopics.class).toArray(Class<?>[]::new));
+                    .filter(resource -> resource != ScalableTopics.class && resource != ScalableTopicPolicies.class)
+                    .toArray(Class<?>[]::new));
         }
         addResourceServlet(basePath, requiresAuthentication, attributeMap, config, useSharedJsonMapperProvider);
     }
@@ -474,7 +476,7 @@ public class WebService implements AutoCloseable {
             stats.setHandler(handlerCollection);
             try {
                 jettyStatisticsCollector = new JettyStatisticsCollector(stats);
-                jettyStatisticsCollector.register();
+                PrometheusRegistry.defaultRegistry.register(jettyStatisticsCollector);
             } catch (IllegalArgumentException e) {
                 // Already registered. Eg: in unit tests
             }
@@ -540,11 +542,11 @@ public class WebService implements AutoCloseable {
 
     private void doClose() throws Exception {
         server.stop();
-        // unregister statistics from Prometheus client's default CollectorRegistry singleton
+        // unregister statistics from Prometheus client's default PrometheusRegistry singleton
         // to prevent memory leaks in tests
         if (jettyStatisticsCollector != null) {
             try {
-                CollectorRegistry.defaultRegistry.unregister(jettyStatisticsCollector);
+                PrometheusRegistry.defaultRegistry.unregister(jettyStatisticsCollector);
             } catch (Exception e) {
                 // ignore any exception happening in unregister
                 // exception will be thrown for 2. instance of WebService in tests since
@@ -607,7 +609,7 @@ public class WebService implements AutoCloseable {
             TlsFactorySupport.initializeBlocking(this.tlsFactory, initContext);
             this.reloadableServerTls = JettyTlsFactory.createReloadingServerFactory(this.tlsFactory, TlsPurpose.WEB,
                     pulsar.getExecutor(),
-                    config.getWebServiceTlsProvider(), config.isTlsRequireTrustedClientCertOnConnect(),
+                    config.getWebServiceTlsProvider(), config.resolveTlsClientAuthMode(),
                     config.isTlsAllowInsecureConnection(), config.getTlsCiphers(), config.getTlsProtocols());
             return this.reloadableServerTls.sslContextFactory();
         } catch (Exception e) {

@@ -39,7 +39,7 @@ dependencies {
     implementation(libs.okhttp3)
     implementation(libs.commons.lang3)
     implementation(libs.opentelemetry.api)
-    implementation(libs.simpleclient.caffeine)
+    implementation(libs.prometheus.metrics.instrumentation.caffeine)
 
     testImplementation(libs.wiremock)
     testImplementation(libs.jjwt.api)
@@ -47,7 +47,7 @@ dependencies {
     testImplementation(libs.jjwt.jackson)
 }
 
-tasks.withType<Test> {
+tasks.withType<Test>().configureEach {
     environment("KUBECONFIG_TEMPLATE", "src/test/java/resources/fakeKubeConfig.yaml")
     environment("KUBECONFIG", layout.buildDirectory.file("kubeconfig.yaml").get().asFile.absolutePath)
 }

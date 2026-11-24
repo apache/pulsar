@@ -32,6 +32,7 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLParameters;
 import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.common.tls.TlsClientAuthMode;
 import org.apache.pulsar.common.tls.impl.TlsContexts;
 import org.apache.pulsar.common.util.tls.JcaProviders;
 import org.apache.pulsar.tls.PulsarTlsFactory;
@@ -148,7 +149,7 @@ public final class JettyTlsFactory {
      *                                 {@code SslContextFactory}, or {@code null}/empty for the default. Jetty is
      *                                 handed a pre-built {@code SSLContext}, so it never loads key material
      *                                 itself and takes no PIP-478 {@code jcaProvider}.
-     * @param requireTrustedClientCert whether to require (vs. request) a trusted client certificate
+     * @param clientAuthMode           whether to require, request or not request a client certificate
      * @param allowInsecureConnection  whether an untrusted client cert is accepted under optional client auth
      * @param ciphers                  enabled cipher suites, or {@code null} for defaults
      * @param protocols                enabled protocols, or {@code null} for defaults
@@ -157,7 +158,7 @@ public final class JettyTlsFactory {
     public static ReloadableServerTls createReloadingServerFactory(PulsarTlsFactory factory, TlsPurpose purpose,
                                                                    Executor reloadExecutor,
                                                                    String sslProviderString,
-                                                                   boolean requireTrustedClientCert,
+                                                                   TlsClientAuthMode clientAuthMode,
                                                                    boolean allowInsecureConnection,
                                                                    Set<String> ciphers, Set<String> protocols) {
         // Required, not optional: a null here used to mean inline execution, which is the very thing the
@@ -183,7 +184,7 @@ public final class JettyTlsFactory {
         // companion seeds the coordinator's last-good baseline so a companion-fetch failure on the very first
         // rotation retains it rather than downgrading to consumer defaults.
         SSLParameters initialBaseline = configureServerBaseline(sslContextFactory, factory, purpose,
-                sslProviderString, requireTrustedClientCert, allowInsecureConnection, ciphers, protocols);
+                sslProviderString, clientAuthMode, allowInsecureConnection, ciphers, protocols);
 
         // Each rotation re-requests the companion asynchronously (off the delivery thread) and applies it under
         // a generation guard so an out-of-order companion cannot pin a stale context, retaining the last-good
@@ -194,7 +195,7 @@ public final class JettyTlsFactory {
                     // Re-apply the consumer defaults first so a companion member dropped by this delivery
                     // (notably client-auth) reverts to the consumer default rather than staying stuck from the
                     // previous companion, then overlay the generation-guarded, last-good companion.
-                    applyServerConfig(sslContextFactory, sslProviderString, requireTrustedClientCert,
+                    applyServerConfig(sslContextFactory, sslProviderString, clientAuthMode,
                             allowInsecureConnection, ciphers, protocols);
                     if (baseline != null) {
                         applyServerBaseline(sslContextFactory, baseline);
@@ -308,10 +309,10 @@ public final class JettyTlsFactory {
      */
     private static SSLParameters configureServerBaseline(SslContextFactory.Server sslContextFactory,
                                                          PulsarTlsFactory factory, TlsPurpose purpose,
-                                                         String sslProviderString, boolean requireTrustedClientCert,
+                                                         String sslProviderString, TlsClientAuthMode clientAuthMode,
                                                          boolean allowInsecureConnection, Set<String> ciphers,
                                                          Set<String> protocols) {
-        applyServerConfig(sslContextFactory, sslProviderString, requireTrustedClientCert, allowInsecureConnection,
+        applyServerConfig(sslContextFactory, sslProviderString, clientAuthMode, allowInsecureConnection,
                 ciphers, protocols);
         SSLParameters baseline = resolveBaselineParameters(factory, purpose).orElse(null);
         if (baseline != null) {
@@ -354,7 +355,7 @@ public final class JettyTlsFactory {
     }
 
     private static void applyServerConfig(SslContextFactory.Server sslContextFactory, String sslProviderString,
-                                          boolean requireTrustedClientCertOnConnect, boolean allowInsecureConnection,
+                                          TlsClientAuthMode clientAuthMode, boolean allowInsecureConnection,
                                           Set<String> ciphers, Set<String> protocols) {
         if (ciphers != null && !ciphers.isEmpty()) {
             sslContextFactory.setIncludeCipherSuites(ciphers.toArray(new String[0]));
@@ -377,8 +378,14 @@ public final class JettyTlsFactory {
         if (StringUtils.isNotBlank(sslProviderString)) {
             sslContextFactory.setProvider(sslProviderString);
         }
-        if (requireTrustedClientCertOnConnect) {
+        if (clientAuthMode == TlsClientAuthMode.REQUIRE) {
             sslContextFactory.setNeedClientAuth(true);
+            sslContextFactory.setTrustAll(false);
+        } else if (clientAuthMode == TlsClientAuthMode.NONE) {
+            // No client certificate is requested, so there is none to trust; clear both flags (re-applied on
+            // every reload, like the branch below).
+            sslContextFactory.setNeedClientAuth(false);
+            sslContextFactory.setWantClientAuth(false);
             sslContextFactory.setTrustAll(false);
         } else {
             // PIP-478: optional client auth requests but does not require a client cert. An untrusted

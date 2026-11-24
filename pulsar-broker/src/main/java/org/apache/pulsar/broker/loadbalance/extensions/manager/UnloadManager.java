@@ -24,13 +24,15 @@ import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUni
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Label.Failure;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.Unknown;
 import com.google.common.annotations.VisibleForTesting;
-import io.prometheus.client.Histogram;
+import io.prometheus.metrics.core.metrics.Histogram;
+import io.prometheus.metrics.model.snapshots.Unit;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Supplier;
 import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState;
@@ -45,8 +47,12 @@ import org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision;
 public class UnloadManager implements StateChangeListener {
 
     private final UnloadCounter counter;
-    private final Map<String, CompletableFuture<Void>> inFlightUnloadRequest;
+    private final Map<String, InFlightUnload> inFlightUnloadRequest;
     private final String brokerId;
+
+    // The unload of a bundle that this broker waits for: its events carry the unload's source broker
+    private record InFlightUnload(String sourceBroker, CompletableFuture<Void> future) {
+    }
 
     @VisibleForTesting
     public enum LatencyMetric {
@@ -61,9 +67,10 @@ public class UnloadManager implements StateChangeListener {
             "brk_lb_disconnect_latency", "Time spent in the load balancing disconnected state on source brokers"),
                 true, false);
 
+        // Nothing exports exemplars, so the histograms skip the sampling that 1.x histograms do by default.
         private static Histogram buildHistogram(String name, String help) {
-            return Histogram.build(name, help).unit("ms").labelNames("broker", "metric").
-                    buckets(new double[] {1.0, 10.0, 100.0, 200.0, 1000.0}).register();
+            return Histogram.builder().name(name).help(help).unit(new Unit("ms")).labelNames("broker", "metric")
+                    .classicOnly().classicUpperBounds(1.0, 10.0, 100.0, 200.0, 1000.0).withoutExemplars().register();
         }
         private static final long OP_TIMEOUT_NS = TimeUnit.HOURS.toNanos(1);
 
@@ -89,7 +96,7 @@ public class UnloadManager implements StateChangeListener {
                                 var durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTimeNs);
                                 log.info().attr("operation", this).attr("unit", serviceUnit)
                                         .attr("took", durationMs).log("Operation for service unit took ms");
-                                histogram.labels(brokerId, "bundleUnloading").observe(durationMs);
+                                histogram.labelValues(brokerId, "bundleUnloading").observe(durationMs);
                             }).whenComplete((__, throwable) -> futures.remove(serviceUnit, future));
                     return future;
                 });
@@ -110,7 +117,7 @@ public class UnloadManager implements StateChangeListener {
         inFlightUnloadRequest = new ConcurrentHashMap<>();
     }
 
-    private void complete(String serviceUnit, Throwable ex) {
+    private void complete(String serviceUnit, ServiceUnitStateData data, Throwable ex) {
         LatencyMetric.UNLOAD.endMeasurement(serviceUnit);
         LatencyMetric.DISCONNECT.endMeasurement(serviceUnit);
         if (ex != null) {
@@ -118,8 +125,14 @@ public class UnloadManager implements StateChangeListener {
             LatencyMetric.ASSIGN.endMeasurement(serviceUnit);
         }
 
-        CompletableFuture<Void> future = inFlightUnloadRequest.remove(serviceUnit);
-        if (future == null || future.isDone()) {
+        InFlightUnload request = inFlightUnloadRequest.get(serviceUnit);
+        // The event of another unload, e.g. the transfer that made this broker the owner, doesn't complete this one
+        if (request == null || (data != null && !Objects.equals(data.sourceBroker(), request.sourceBroker()))
+                || !inFlightUnloadRequest.remove(serviceUnit, request)) {
+            return;
+        }
+        CompletableFuture<Void> future = request.future();
+        if (future.isDone()) {
             return;
         }
         if (ex != null) {
@@ -129,24 +142,43 @@ public class UnloadManager implements StateChangeListener {
         }
     }
 
-    public CompletableFuture<Void> waitAsync(CompletableFuture<Void> eventPubFuture,
+    /**
+     * Waits for the unload that {@code eventPublisher} publishes on the channel.
+     *
+     * <p>The request is registered before the event is published: this broker's channel can handle the unload's last
+     * state before the publish future completes. For example, the metadata store table view completes a put only
+     * once it has handled a new read of the service unit, which can already be {@code Owned} or {@code Free}.
+     */
+    public CompletableFuture<Void> waitAsync(Supplier<CompletableFuture<Void>> eventPublisher,
                                              String bundle,
                                              UnloadDecision decision,
                                              long timeout,
                                              TimeUnit timeoutUnit) {
-        return eventPubFuture.thenCompose(__ -> {
-            CompletableFuture<Void> future = inFlightUnloadRequest.computeIfAbsent(bundle, ignore -> {
-                log.debug().attr("bundle", bundle).attr("timeout", timeout).attr("timeoutUnit", timeoutUnit)
-                        .log("Handle unload bundle: , timeout");
-                return new CompletableFuture<Void>().orTimeout(timeout, timeoutUnit);
-            });
-            // Return the dependent stage so callers cannot observe completion before timeout cleanup finishes.
-            return future.whenComplete((v, ex) -> {
-                if (ex instanceof TimeoutException && inFlightUnloadRequest.remove(bundle, future)) {
-                    log.warn().attr("bundle", bundle).exception(ex).log("Failed to wait unload for serviceUnit");
-                }
-            });
-        }).whenComplete((__, ex) -> {
+        InFlightUnload request = inFlightUnloadRequest.computeIfAbsent(bundle, ignore -> {
+            log.debug().attr("bundle", bundle).attr("timeout", timeout).attr("timeoutUnit", timeoutUnit)
+                    .log("Handle unload bundle: , timeout");
+            return new InFlightUnload(decision.getUnload().sourceBroker(),
+                    new CompletableFuture<Void>().orTimeout(timeout, timeoutUnit));
+        });
+        CompletableFuture<Void> future = request.future();
+        // Return the dependent stage so callers cannot observe completion before timeout cleanup finishes.
+        CompletableFuture<Void> unloaded = future.whenComplete((v, ex) -> {
+            if (ex instanceof TimeoutException && inFlightUnloadRequest.remove(bundle, request)) {
+                log.warn().attr("bundle", bundle).exception(ex).log("Failed to wait unload for serviceUnit");
+            }
+        });
+        CompletableFuture<Void> eventPubFuture;
+        try {
+            eventPubFuture = eventPublisher.get();
+        } catch (Throwable e) {
+            eventPubFuture = CompletableFuture.failedFuture(e);
+        }
+        return eventPubFuture.whenComplete((__, ex) -> {
+            // No event will complete the request, which the waiters of the bundle share: fail it
+            if (ex != null && inFlightUnloadRequest.remove(bundle, request)) {
+                future.completeExceptionally(ex);
+            }
+        }).thenCompose(__ -> unloaded).whenComplete((__, ex) -> {
             if (ex != null) {
                 counter.update(Failure, Unknown);
                 log.warn().attr("bundle", bundle).exception(ex).log("Failed to unload bundle");
@@ -184,7 +216,7 @@ public class UnloadManager implements StateChangeListener {
         if (t != null) {
             log.debug().attr("data", data).attr("serviceUnit", serviceUnit).exception(t)
                     .log("Handling service unit with exception");
-            complete(serviceUnit, t);
+            complete(serviceUnit, data, t);
             return;
         }
 
@@ -193,25 +225,25 @@ public class UnloadManager implements StateChangeListener {
         switch (state) {
             case Free -> {
                 if (!data.force()) {
-                    complete(serviceUnit, t);
+                    complete(serviceUnit, data, t);
                 }
             }
             case Init -> {
                 checkArgument(data == null, "Init state must be associated with null data");
-                complete(serviceUnit, t);
+                complete(serviceUnit, data, t);
             }
-            case Owned -> complete(serviceUnit, t);
+            case Owned -> complete(serviceUnit, data, t);
             case Releasing -> LatencyMetric.RELEASE.endMeasurement(serviceUnit);
             case Assigning -> LatencyMetric.ASSIGN.endMeasurement(serviceUnit);
         }
     }
 
     public void close() {
-        inFlightUnloadRequest.forEach((bundle, future) -> {
-            if (inFlightUnloadRequest.remove(bundle, future) && !future.isDone()) {
+        inFlightUnloadRequest.forEach((bundle, request) -> {
+            if (inFlightUnloadRequest.remove(bundle, request) && !request.future().isDone()) {
                 String msg = String.format("Unloading bundle: %s, but the unload manager already closed.", bundle);
                 log.warn(msg);
-                future.completeExceptionally(new IllegalStateException(msg));
+                request.future().completeExceptionally(new IllegalStateException(msg));
             }
         });
     }

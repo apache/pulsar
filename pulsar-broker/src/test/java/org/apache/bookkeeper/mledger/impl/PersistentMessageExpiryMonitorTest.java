@@ -27,13 +27,16 @@ import static org.testng.AssertJUnit.assertEquals;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.CustomLog;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.persistent.PersistentMessageExpiryMonitor;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -162,13 +165,18 @@ public class PersistentMessageExpiryMonitorTest extends ProducerConsumerBase {
         final String cursorName1 = "s1";
         final String cursorName2 = "s2";
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName).create();
-        admin.topics().createSubscriptionAsync(topicName, cursorName1, MessageId.earliest);
-        admin.topics().createSubscriptionAsync(topicName, cursorName2, MessageId.earliest);
+        admin.topics().createSubscription(topicName, cursorName1, MessageId.earliest);
+        admin.topics().createSubscription(topicName, cursorName2, MessageId.earliest);
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
+        ManagedLedgerConfig configBeforeTtlUpdate = ml.getConfig();
         admin.topicPolicies().setMessageTTL(topicName, 1);
+        // Applying the TTL update replaces the managed ledger config, which would drop the settings changed below
         Awaitility.await().untilAsserted(() -> {
             assertEquals(1, persistentTopic.getHierarchyTopicPolicies().getMessageTTLInSeconds().get().intValue());
+            Assert.assertNotSame(ml.getConfig(), configBeforeTtlUpdate);
         });
-        ManagedLedgerImpl ml = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
+        // The TTL update also scheduled an expiry check, which must not run after the messages are published
+        pulsar.getBrokerService().getMessageExpiryMonitor().submit(() -> { }).get();
         ml.getConfig().setMaxEntriesPerLedger(2);
         ml.getConfig().setMinimumRolloverTime(1, TimeUnit.MILLISECONDS);
         long firstLedger = ml.currentLedger.getId();
@@ -178,6 +186,7 @@ public class PersistentMessageExpiryMonitorTest extends ProducerConsumerBase {
             producer.send("" + i);
             Thread.sleep(100);
         }
+        long lastPublishedAt = System.currentTimeMillis();
         System.out.println("maxEntriesPerLedger 2 : " + ml.getConfig().getMaxEntriesPerLedger());
         assertEquals(3, ml.getLedgersInfo().size());
         // Do a injection to count the access of the first ledger.
@@ -192,13 +201,96 @@ public class PersistentMessageExpiryMonitorTest extends ProducerConsumerBase {
             return invocationOnMock.callRealMethod();
         }).when(spyReadHandle).readAsync(anyLong(), anyLong());
         ml.ledgerCache.put(firstLedger, CompletableFuture.completedFuture(spyReadHandle));
+        // Let every message expire, so that the position to expire up to is in the current (open) ledger.
+        Awaitility.await().until(() -> System.currentTimeMillis() - lastPublishedAt > TimeUnit.SECONDS.toMillis(1));
         // Verify: the first ledger will be accessed only once after expiry for two subscriptions.
         persistentTopic.checkMessageExpiry();
-        Thread.sleep(2000);
+        Position lastPosition = ml.getLastConfirmedEntry();
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(lastPosition, ml.getCursors().get(cursorName1).getMarkDeletedPosition());
+            assertEquals(lastPosition, ml.getCursors().get(cursorName2).getMarkDeletedPosition());
+        });
         assertEquals(1, accessedCount.get());
 
         // cleanup.
         producer.close();
         admin.topics().delete(topicName);
+    }
+
+    @Test
+    void testExpireMessagesRaceWithTopicCloseDoesNotMarkDelete() throws Exception {
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://public/default/tp-closing-expiry");
+        final String subName = "closing-expiry-sub";
+        admin.topics().createNonPartitionedTopic(topicName);
+        admin.topics().createSubscription(topicName, subName, MessageId.earliest);
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName).create();
+        for (int i = 0; i < 3; i++) {
+            producer.send("message-" + i);
+        }
+        producer.close();
+
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).join().get();
+        PersistentSubscription subscription = topic.getSubscription(subName);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) subscription.getCursor();
+        Position markDeleteBeforeExpiry = cursor.getMarkDeletedPosition();
+
+        BlockingPersistentMessageExpiryMonitor monitor =
+                new BlockingPersistentMessageExpiryMonitor(topic, subName, cursor, subscription);
+        CompletableFuture<Boolean> expireFuture = CompletableFuture.supplyAsync(() -> monitor.expireMessages(0));
+        try {
+            monitor.awaitBeforeCursorMarkDelete();
+            CompletableFuture<Void> closeFuture;
+            // Hold off subscription.close() so cursor closure cannot mask an unguarded mark-delete.
+            synchronized (subscription) {
+                closeFuture = CompletableFuture.supplyAsync(() -> topic.close(false)).thenCompose(future -> future);
+                Awaitility.await().untilAsserted(() -> Assert.assertTrue(topic.isClosingOrDeleting()));
+                Assert.assertFalse(cursor.isClosed());
+                monitor.allowCursorMarkDelete();
+
+                Assert.assertTrue(expireFuture.get(30, TimeUnit.SECONDS));
+                Awaitility.await().until(() -> !monitor.isExpirationCheckInProgress()
+                        || !cursor.getMarkDeletedPosition().equals(markDeleteBeforeExpiry));
+                assertEquals(cursor.getMarkDeletedPosition(), markDeleteBeforeExpiry);
+                Assert.assertFalse(monitor.isExpirationCheckInProgress());
+                Assert.assertFalse(monitor.expireMessages(0));
+                Assert.assertFalse(monitor.expireMessages(topic.getLastPosition()));
+            }
+            closeFuture.get(30, TimeUnit.SECONDS);
+        } finally {
+            monitor.allowCursorMarkDelete();
+        }
+    }
+
+    private static class BlockingPersistentMessageExpiryMonitor extends PersistentMessageExpiryMonitor {
+        private final CountDownLatch beforeCursorMarkDelete = new CountDownLatch(1);
+        private final CountDownLatch continueCursorMarkDelete = new CountDownLatch(1);
+        private final AtomicBoolean blocked = new AtomicBoolean();
+
+        BlockingPersistentMessageExpiryMonitor(PersistentTopic topic, String subscriptionName, ManagedCursorImpl cursor,
+                                               PersistentSubscription subscription) {
+            super(topic, subscriptionName, cursor, subscription);
+        }
+
+        @Override
+        protected void beforeCursorMarkDelete(Position position) {
+            if (!blocked.compareAndSet(false, true)) {
+                return;
+            }
+            beforeCursorMarkDelete.countDown();
+            try {
+                Assert.assertTrue(continueCursorMarkDelete.await(30, TimeUnit.SECONDS));
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new RuntimeException(e);
+            }
+        }
+
+        void awaitBeforeCursorMarkDelete() throws InterruptedException {
+            Assert.assertTrue(beforeCursorMarkDelete.await(30, TimeUnit.SECONDS));
+        }
+
+        void allowCursorMarkDelete() {
+            continueCursorMarkDelete.countDown();
+        }
     }
 }

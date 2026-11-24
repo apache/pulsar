@@ -209,7 +209,8 @@ public class PatternConsumerBackPressureMultipleConsumersTest extends MockedPuls
                 System.out.println(entry.getKey() + " -> " + entry.getValue());
             }
         });
-        assertEquals(metricsCount.intValue(), 26);
+        // 8 gauges, 2 summaries (4 quantiles, _sum, _count) and 2 counters; no _created series
+        assertEquals(metricsCount.intValue(), 22);
     }
 
     protected String getMetricsPrefix() {

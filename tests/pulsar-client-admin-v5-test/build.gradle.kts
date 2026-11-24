@@ -43,14 +43,11 @@ tasks.named<Test>("test") {
         entries.sortedBy { it.asFile.name }
     })
 }
-val testReversedClasspath = tasks.register<Test>("testReversedClasspath") {
+tasks.register<Test>("testReversedClasspath") {
     group = "verification"
     description = "Tests the v5 client and shaded admin jar in reverse classpath order."
     testClassesDirs = testClasses
     classpath = files(testClasspath.elements.map { entries ->
         entries.sortedByDescending { it.asFile.name }
     })
-}
-tasks.named("check") {
-    dependsOn(testReversedClasspath)
 }
