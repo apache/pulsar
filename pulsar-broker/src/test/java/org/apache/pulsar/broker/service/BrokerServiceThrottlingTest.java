@@ -30,6 +30,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.opentelemetry.sdk.metrics.data.MetricData;
+import io.prometheus.metrics.core.metrics.GaugeWithCallback;
 import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
@@ -78,8 +79,8 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
-        pendingRequestGaugesBelongToThisBroker = !isInTheDefaultRegistry(PENDING_LOOKUPS_GAUGE)
-                && !isInTheDefaultRegistry(PENDING_TOPIC_LOADS_GAUGE);
+        pendingRequestGaugesBelongToThisBroker = isFreeInTheDefaultRegistry(PENDING_LOOKUPS_GAUGE)
+                && isFreeInTheDefaultRegistry(PENDING_TOPIC_LOADS_GAUGE);
         super.baseSetup();
     }
 
@@ -193,8 +194,20 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
         }
     }
 
-    private static boolean isInTheDefaultRegistry(String name) {
-        return PrometheusRegistry.defaultRegistry.scrape(name::equals).size() > 0;
+    /** Tries the registration that a starting broker makes, which reads no metric of another broker. */
+    private static boolean isFreeInTheDefaultRegistry(String gaugeName) {
+        GaugeWithCallback probe = GaugeWithCallback.builder()
+                .name(gaugeName)
+                .help("-")
+                .callback(callback -> callback.call(0))
+                .build();
+        try {
+            PrometheusRegistry.defaultRegistry.register(probe);
+        } catch (IllegalArgumentException nameIsTaken) {
+            return false;
+        }
+        PrometheusRegistry.defaultRegistry.unregister(probe);
+        return true;
     }
 
     /**
