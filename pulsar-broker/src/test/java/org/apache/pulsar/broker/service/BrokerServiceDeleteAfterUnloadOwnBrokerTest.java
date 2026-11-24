@@ -123,9 +123,7 @@ public class BrokerServiceDeleteAfterUnloadOwnBrokerTest extends MultiBrokerBase
             }).when(decorated).asyncClose(any(), any());
             return decorated;
         });
-        Producer<String> producer = null;
-        try {
-            producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+        try (Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create()) {
             producer.send("before unload");
 
             PulsarService formerOwner = getAllBrokers().stream()
@@ -159,13 +157,12 @@ public class BrokerServiceDeleteAfterUnloadOwnBrokerTest extends MultiBrokerBase
             unload.get(30, TimeUnit.SECONDS);
             assertThat(formerOwner.getNamespaceService().getOwnershipCache().getOwnedBundle(bundle))
                     .as("the former owner released the bundle").isNull();
-            Producer<String> reconnected = producer;
             Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
                 assertThat(newOwner.getBrokerService().getTopicReference(topic))
                         .as("the new owner loaded the topic").isPresent();
                 assertThat(newOwner.getBrokerService().getTopicReference(topic).orElseThrow().getProducers())
                         .as("the producer reconnected to the new owner").hasSize(1);
-                assertThat(reconnected.isConnected()).isTrue();
+                assertThat(producer.isConnected()).as("the producer is connected").isTrue();
             });
             producer.sendAsync("on the new owner").get(10, TimeUnit.SECONDS);
             PersistentTopic newTopic =
@@ -219,9 +216,6 @@ public class BrokerServiceDeleteAfterUnloadOwnBrokerTest extends MultiBrokerBase
         } finally {
             releaseClose.complete(null);
             BrokerTestInterceptor.INSTANCE.reset();
-            if (producer != null) {
-                producer.closeAsync();
-            }
         }
     }
 }

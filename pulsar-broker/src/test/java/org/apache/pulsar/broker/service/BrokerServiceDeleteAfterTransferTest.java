@@ -135,9 +135,7 @@ public class BrokerServiceDeleteAfterTransferTest extends MultiBrokerBaseTest {
             }).when(decorated).asyncClose(any(), any());
             return decorated;
         });
-        Producer<String> producer = null;
-        try {
-            producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+        try (Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create()) {
             producer.send("before transfer");
 
             PulsarService formerOwner = getAllBrokers().stream()
@@ -175,13 +173,12 @@ public class BrokerServiceDeleteAfterTransferTest extends MultiBrokerBaseTest {
                 releaseClose.complete(null);
             }
 
-            Producer<String> reconnected = producer;
             Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
                 assertThat(newOwner.getBrokerService().getTopicReference(topic))
                         .as("the new owner loaded the topic").isPresent();
                 assertThat(newOwner.getBrokerService().getTopicReference(topic).orElseThrow().getProducers())
                         .as("the producer reconnected to the new owner").hasSize(1);
-                assertThat(reconnected.isConnected()).isTrue();
+                assertThat(producer.isConnected()).as("the producer is connected").isTrue();
             });
             producer.sendAsync("on the new owner").get(10, TimeUnit.SECONDS);
             PersistentTopic newTopic =
@@ -238,9 +235,6 @@ public class BrokerServiceDeleteAfterTransferTest extends MultiBrokerBaseTest {
         } finally {
             releaseClose.complete(null);
             BrokerTestInterceptor.INSTANCE.reset();
-            if (producer != null) {
-                producer.closeAsync();
-            }
         }
     }
 
@@ -256,8 +250,7 @@ public class BrokerServiceDeleteAfterTransferTest extends MultiBrokerBaseTest {
         String topic = "persistent://public/default/delete-reaching-former-owner-" + UUID.randomUUID();
         TopicName topicName = TopicName.get(topic);
         String schemaPath = "/schemas/" + topicName.getSchemaName();
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
-        try {
+        try (Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create()) {
             producer.send("before transfer");
             PulsarService formerOwner = getAllBrokers().stream()
                     .filter(broker -> broker.getBrokerService().getTopicReference(topic).isPresent())
@@ -319,8 +312,6 @@ public class BrokerServiceDeleteAfterTransferTest extends MultiBrokerBaseTest {
                     .as("the topic cache of %s after the delete", formerOwner.getBrokerId())
                     .doesNotContainKey(topic);
             softly.assertAll();
-        } finally {
-            producer.closeAsync();
         }
     }
 }
