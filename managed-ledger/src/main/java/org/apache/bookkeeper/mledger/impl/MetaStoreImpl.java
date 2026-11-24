@@ -274,12 +274,12 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
     @Override
     public void asyncUpdateCursorInfo(String ledgerName, String cursorName, ManagedCursorInfo info, Stat stat,
             MetaStoreCallback<Void> callback) {
-        asyncUpdateCursorInfo(ledgerName, cursorName, info, stat, null, callback);
+        asyncUpdateCursorInfo(ledgerName, cursorName, info, stat, null, CursorWrite.UPDATE, callback);
     }
 
     @Override
     public void asyncUpdateCursorInfo(String ledgerName, String cursorName, ManagedCursorInfo info, Stat stat,
-            Duration verificationTimeout, MetaStoreCallback<Void> callback) {
+            Duration verificationTimeout, CursorWrite write, MetaStoreCallback<Void> callback) {
         if (log.isDebugEnabled()) {
             log.debug("[{}] [{}] Updating cursor info ledgerId={} mark-delete={}:{} lastActive={}",
                     ledgerName, cursorName, info.getCursorsLedgerId(), info.getMarkDeleteLedgerId(),
@@ -288,18 +288,9 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
 
         String path = PREFIX + ledgerName + "/" + cursorName;
 
-        long expectedVersion;
-
-        if (stat != null) {
-            expectedVersion = stat.getVersion();
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Creating consumer {} on meta-data store with {}", ledgerName, cursorName, info);
-            }
-        } else {
-            expectedVersion = -1;
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Updating consumer {} on meta-data store with {}", ledgerName, cursorName, info);
-            }
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] {} consumer {} on meta-data store with {}", ledgerName,
+                    stat == null ? "Creating" : "Updating", cursorName, info);
         }
         FutureUtil.supplySafely(() -> {
             // Generate an ID only for a new logical write. Caller-initiated retries must preserve this ID,
@@ -307,7 +298,8 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
             if (info.getPublication().isEmpty()) {
                 info.setPublication(UUID.randomUUID().toString());
             }
-            return putCursorInfo(ledgerName, path, compressCursorInfo(info), expectedVersion, verificationTimeout);
+            return putCursorInfo(ledgerName, path, compressCursorInfo(info), stat, verificationTimeout,
+                    write == CursorWrite.SWITCH_LEDGER ? info.getCursorsLedgerId() : -1);
         })
                 .whenComplete((written, error) -> dispatchCursorCallback(ledgerName, () -> {
                     if (error == null) {
@@ -343,40 +335,79 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
         }
     }
 
-    private CompletableFuture<Stat> putCursorInfo(String ledgerName, String path, byte[] content,
-                                                   long expectedVersion, Duration verificationTimeout) {
+    private CompletableFuture<Stat> putCursorInfo(String ledgerName, String path, byte[] content, Stat expected,
+                                                 Duration verificationTimeout, long candidateLedgerId) {
         if (closed.get() || executor.isShutdown()) {
             return CompletableFuture.failedFuture(new MetadataStoreException.AlreadyClosedException());
         }
+        long expectedVersion = expected == null ? -1 : expected.getVersion();
         return FutureUtil.supplySafely(() -> store.put(path, content, Optional.of(expectedVersion)))
                 .exceptionallyCompose(error -> {
                     Throwable cause = FutureUtil.unwrapCompletionException(error);
                     // Other metadata implementations retain their existing error handling.
-                    if (!(store instanceof ZKMetadataStore zkStore)
-                            || !(cause instanceof MetadataStoreException.BadVersionException
-                            || cause.getCause() instanceof KeeperException ke && isUncertainResult(ke.code()))) {
+                    if (!(store instanceof ZKMetadataStore zkStore)) {
                         return CompletableFuture.failedFuture(cause);
                     }
-                    var read = readCursorPublication(ledgerName, path, zkStore.getZkClient(), verificationTimeout);
-                    return read.thenApply(value -> {
-                        GetResult stored = value.orElse(null);
-                        long nextVersion = expectedVersion + 1;
-                        if (stored != null && !stored.getStat().isEphemeral()
-                                && stored.getStat().getVersion() == nextVersion) {
-                            // The unique ID is included in these bytes; equal business fields alone are insufficient.
-                            if (Arrays.equals(content, stored.getValue())) {
-                                // The failed put skipped the store's success-path cache invalidation. Watches may
-                                // have been lost with the response, so invalidate before reporting the write.
-                                zkStore.accept(new Notification(stored.getStat().isFirstVersion()
-                                        ? NotificationType.Created : NotificationType.Modified, path));
-                                return stored.getStat();
-                            }
-                            log.warn("Stored cursor bytes differ from publication at expected version {} for {}",
-                                    nextVersion, path);
-                        }
-                        throw new CompletionException(cause);
-                    });
+                    if (!(cause instanceof MetadataStoreException.BadVersionException
+                            || cause.getCause() instanceof KeeperException ke && isUncertainResult(ke.code()))) {
+                        return CompletableFuture.failedFuture(candidateLedgerId < 0 ? cause
+                                : new CursorPublicationOutcomeUnknownException(getException(cause)));
+                    }
+                    var verification = FutureUtil.supplySafely(() ->
+                            readCursorPublication(ledgerName, path, zkStore.getZkClient(), verificationTimeout))
+                            .thenApply(value -> {
+                                GetResult stored = value.orElse(null);
+                                Stat confirmed = confirmCursorPublication(zkStore, path, expectedVersion,
+                                        content, stored);
+                                if (confirmed == null && candidateLedgerId >= 0
+                                        && !canDeleteCursorLedger(expected, stored, candidateLedgerId)) {
+                                    throw new CompletionException(cause);
+                                }
+                                return confirmed;
+                            });
+                    if (candidateLedgerId >= 0) {
+                        // After put, only a completed verification can establish that deletion is safe.
+                        verification = verification.exceptionallyCompose(ex -> CompletableFuture.failedFuture(
+                                new CursorPublicationOutcomeUnknownException(getException(ex))));
+                    }
+                    return verification.thenCompose(confirmed -> confirmed == null
+                            ? CompletableFuture.failedFuture(cause) : CompletableFuture.completedFuture(confirmed));
                 });
+    }
+
+    private static Stat confirmCursorPublication(ZKMetadataStore store, String path, long expectedVersion,
+                                                 byte[] content, GetResult stored) {
+        if (stored == null || stored.getStat().isEphemeral() || stored.getStat().getVersion() != expectedVersion + 1) {
+            return null;
+        }
+        // The unique publication ID is part of these bytes.
+        if (!Arrays.equals(content, stored.getValue())) {
+            log.warn("Stored cursor bytes differ from publication at expected version {} for {}", expectedVersion + 1,
+                    path);
+            return null;
+        }
+        // A lost write response can also mean we missed the watch. Invalidate caches before reporting success.
+        store.accept(new Notification(stored.getStat().isFirstVersion()
+                ? NotificationType.Created : NotificationType.Modified, path));
+        return stored.getStat();
+    }
+
+    private boolean canDeleteCursorLedger(Stat expected, GetResult stored, long candidateLedgerId) {
+        // A read at the original version can precede a late commit. Require the same persistent node
+        // at an advanced version (which fences the attempted CAS) and a pointer to a different ledger.
+        if (expected == null || expected.isEphemeral() || expected.getCreationTimestamp() <= 0 || stored == null
+                || stored.getStat().isEphemeral()
+                || stored.getStat().getCreationTimestamp() != expected.getCreationTimestamp()
+                || stored.getStat().getVersion() <= expected.getVersion()) {
+            return false;
+        }
+        try {
+            var info = parseManagedCursorInfo(stored.getValue());
+            return info.hasCursorsLedgerId() && info.getCursorsLedgerId() != candidateLedgerId;
+        } catch (Exception e) {
+            log.warn("Could not verify the cursor ledger reference for {}", expected.getPath(), e);
+            return false;
+        }
     }
 
     private static boolean isUncertainResult(Code code) {

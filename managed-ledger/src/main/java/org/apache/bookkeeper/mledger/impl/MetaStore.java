@@ -32,6 +32,18 @@ import org.apache.pulsar.metadata.api.Stat;
  */
 public interface MetaStore {
 
+    /** Whether this write publishes a newly allocated BookKeeper ledger that needs cleanup on failure. */
+    enum CursorWrite {
+        UPDATE, SWITCH_LEDGER
+    }
+
+    /** The store could not establish that the candidate ledger is safe to delete. */
+    class CursorPublicationOutcomeUnknownException extends MetaStoreException {
+        CursorPublicationOutcomeUnknownException(MetaStoreException cause) {
+            super(cause);
+        }
+    }
+
     @SuppressWarnings("checkstyle:javadoctype")
     interface UpdateLedgersIdsCallback {
         void updateLedgersIdsComplete(MetaStoreException status, Stat stat);
@@ -146,11 +158,12 @@ public interface MetaStore {
             MetaStoreCallback<Void> callback);
 
     /**
-     * Bound verification of an ambiguous cursor write during close, including an outstanding read.
-     * A timeout leaves the write outcome unknown. Stores without verification use their normal write path.
+     * During close, {@code verificationTimeout} bounds verification, including an outstanding read.
+     * A store that verifies ledger switches reports {@link CursorPublicationOutcomeUnknownException}
+     * when the newly allocated ledger might still be referenced after a failed write.
      */
     default void asyncUpdateCursorInfo(String ledgerName, String cursorName, ManagedCursorInfo info, Stat stat,
-                                       Duration verificationTimeout, MetaStoreCallback<Void> callback) {
+            Duration verificationTimeout, CursorWrite write, MetaStoreCallback<Void> callback) {
         asyncUpdateCursorInfo(ledgerName, cursorName, info, stat, callback);
     }
 

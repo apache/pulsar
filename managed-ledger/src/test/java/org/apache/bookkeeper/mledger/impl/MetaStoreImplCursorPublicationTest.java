@@ -31,6 +31,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -40,10 +41,13 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
+import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
 import org.apache.bookkeeper.mledger.MetadataCompressionConfig;
+import org.apache.bookkeeper.mledger.impl.MetaStore.CursorPublicationOutcomeUnknownException;
+import org.apache.bookkeeper.mledger.impl.MetaStore.CursorWrite;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
 import org.apache.bookkeeper.mledger.proto.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.util.Futures.CloseFuture;
@@ -85,8 +89,13 @@ public class MetaStoreImplCursorPublicationTest extends MockedBookKeeperTestCase
     }
 
     private static CompletableFuture<Stat> write(MetaStore store, ManagedCursorInfo info, Stat expected) {
+        return write(store, info, expected, CursorWrite.UPDATE);
+    }
+
+    private static CompletableFuture<Stat> write(MetaStore store, ManagedCursorInfo info, Stat expected,
+                                                  CursorWrite write) {
         var result = new CompletableFuture<Stat>();
-        store.asyncUpdateCursorInfo("ledger", "cursor", info, expected, new MetaStoreCallback<>() {
+        store.asyncUpdateCursorInfo("ledger", "cursor", info, expected, null, write, new MetaStoreCallback<>() {
             @Override
             public void operationComplete(Void ignored, Stat stat) {
                 result.complete(stat);
@@ -277,6 +286,141 @@ public class MetaStoreImplCursorPublicationTest extends MockedBookKeeperTestCase
                 }
             }
         }
+    }
+
+    private static CompletableFuture<Void> rollCursorLedger(ManagedCursorImpl cursor) {
+        var result = new CompletableFuture<Void>();
+        cursor.createNewMetadataLedger(new ManagedCursorImpl.VoidCallback() {
+            @Override
+            public void operationComplete() {
+                result.complete(null);
+            }
+
+            @Override
+            public void operationFailed(ManagedLedgerException error) {
+                result.completeExceptionally(error);
+            }
+        });
+        return result;
+    }
+
+    @Test(timeOut = 30_000)
+    public void shutdownDuringRolloverPreservesLedgerAndIndividualAck() throws Exception {
+        var cluster = new ZooKeeperUtil("/ledgers");
+        try {
+            cluster.startCluster();
+            ZooKeeper server = cluster.getZooKeeperClient();
+            ZooKeeper client = mock(ZooKeeper.class, delegatesTo(server));
+            try (var zkStore = new ZKMetadataStore(client)) {
+                var config = new ManagedLedgerConfig().setMaxUnackedRangesToPersistInMetadataStore(0);
+                var first = new ManagedLedgerFactoryImpl(zkStore, bkc);
+                long candidate;
+                try {
+                    var ledger = first.open("ledger", config);
+                    var cursor = (ManagedCursorImpl) ledger.openCursor("cursor");
+                    ledger.addEntry(new byte[]{1});
+                    var individualAck = ledger.addEntry(new byte[]{2});
+                    ledger.addEntry(new byte[]{3});
+                    cursor.delete(individualAck);
+                    long oldLedger = cursor.getCursorLedger();
+                    assertThat(oldLedger).isNotNegative();
+
+                    var verifying = new CompletableFuture<Void>();
+                    doAnswer(inv -> {
+                        verifying.complete(null);
+                        return null; // Hold this verification until the factory shuts down.
+                    }).doAnswer(delegatesTo(server)).when(client)
+                            .getData(eq(PATH), eq(false), any(DataCallback.class), any());
+                    loseNextMultiResponse(client, server);
+                    var rollover = rollCursorLedger(cursor);
+                    verifying.get(5, TimeUnit.SECONDS);
+                    var published = parse(server.getData(PATH, false, null));
+                    candidate = published.getCursorsLedgerId();
+                    assertThat(candidate).isNotNegative().isNotEqualTo(oldLedger);
+                    assertThat(published.getIndividualDeletedMessagesCount()).isZero();
+                    assertThat(cursor.getCursorLedger()).isEqualTo(oldLedger);
+                    assertThat(rollover).isNotDone();
+
+                    first.shutdownAsync().get(5, TimeUnit.SECONDS);
+                    assertThatThrownBy(() -> rollover.get(5, TimeUnit.SECONDS))
+                            .hasRootCauseInstanceOf(MetadataStoreException.AlreadyClosedException.class);
+                    assertThat(parse(server.getData(PATH, false, null)).getCursorsLedgerId())
+                            .isEqualTo(candidate);
+                } finally {
+                    try {
+                        first.shutdown();
+                    } catch (ManagedLedgerException.ManagedLedgerFactoryClosedException alreadyClosed) {
+                        // The factory was closed while the verification was pending.
+                    }
+                }
+
+                boolean ledgerSurvived = bkc.getLedgers().contains(candidate);
+                var reopened = new ManagedLedgerFactoryImpl(zkStore, bkc);
+                try {
+                    var cursor = reopened.open("ledger", config).openCursor("cursor");
+                    var entries = cursor.readEntries(3);
+                    try {
+                        assertThat(entries).extracting(entry -> (int) entry.getData()[0]).containsExactly(1, 3);
+                        assertThat(ledgerSurvived).as("ZooKeeper-referenced ledger %s", candidate).isTrue();
+                    } finally {
+                        entries.forEach(Entry::release);
+                    }
+                } finally {
+                    reopened.shutdown();
+                }
+            }
+        } finally {
+            cluster.killCluster();
+        }
+    }
+
+    @Test(timeOut = 30_000)
+    public void rolloverCleanupRequiresALaterVersionReferencingADifferentLedger() throws Exception {
+        var cluster = new ZooKeeperUtil("/ledgers");
+        try {
+            cluster.startCluster();
+            ZooKeeper server = cluster.getZooKeeperClient();
+            ZooKeeper client = mock(ZooKeeper.class, delegatesTo(server));
+            try (var zkStore = new ZKMetadataStore(client)) {
+                var store = new MetaStoreImpl(zkStore, executor);
+                write(store, publication(1), null).get(5, TimeUnit.SECONDS);
+                Stat expected = zkStore.get(PATH).get(5, TimeUnit.SECONDS).orElseThrow().getStat();
+                var candidate = publication(2);
+                doAnswer(inv -> {
+                    MultiCallback callback = inv.getArgument(1);
+                    callback.processResult(Code.OPERATIONTIMEOUT.intValue(), PATH, null, null);
+                    return null;
+                }).doAnswer(delegatesTo(server)).when(client).multi(any(), any(MultiCallback.class), any());
+
+                // An unchanged version still allows the timed-out CAS to arrive after the verification read.
+                assertThatThrownBy(() -> write(store, candidate, expected, CursorWrite.SWITCH_LEDGER)
+                        .get(5, TimeUnit.SECONDS)).hasCauseInstanceOf(CursorPublicationOutcomeUnknownException.class);
+
+                // Different bytes can still reference the very same ledger.
+                write(store, publication(2), expected).get(5, TimeUnit.SECONDS);
+                assertThatThrownBy(() -> write(store, candidate, expected, CursorWrite.SWITCH_LEDGER)
+                        .get(5, TimeUnit.SECONDS)).hasCauseInstanceOf(CursorPublicationOutcomeUnknownException.class);
+
+                // A later version of the same node now points elsewhere and fences the original request.
+                zkStore.put(PATH, publication(3).toByteArray(), Optional.of(expected.getVersion() + 1))
+                        .get(5, TimeUnit.SECONDS);
+                assertThatThrownBy(() -> write(store, candidate, expected, CursorWrite.SWITCH_LEDGER)
+                        .get(5, TimeUnit.SECONDS)).hasCauseInstanceOf(ManagedLedgerException.BadVersionException.class);
+            }
+        } finally {
+            cluster.killCluster();
+        }
+    }
+
+    @Test(timeOut = 30_000)
+    public void rolloverRejectedBeforePutDeletesCandidate() throws Exception {
+        var ledger = factory.open("ledger");
+        var cursor = (ManagedCursorImpl) ledger.openCursor("cursor");
+        var before = Set.copyOf(bkc.getLedgers());
+        factory.getMetaStore().close();
+        assertThatThrownBy(() -> rollCursorLedger(cursor).get(5, TimeUnit.SECONDS))
+                .hasRootCauseInstanceOf(MetadataStoreException.AlreadyClosedException.class);
+        assertThat(bkc.getLedgers()).isEqualTo(before);
     }
 
     @Test(timeOut = 30_000)

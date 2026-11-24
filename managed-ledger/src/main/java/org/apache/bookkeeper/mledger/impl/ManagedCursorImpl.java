@@ -94,6 +94,8 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionBound;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.ScanOutcome;
+import org.apache.bookkeeper.mledger.impl.MetaStore.CursorPublicationOutcomeUnknownException;
+import org.apache.bookkeeper.mledger.impl.MetaStore.CursorWrite;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
 import org.apache.bookkeeper.mledger.proto.BatchedEntryDeletionIndexInfo;
 import org.apache.bookkeeper.mledger.proto.LongListMap;
@@ -3042,7 +3044,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                             e.getMessage());
                     callback.closeFailed(e, ctx);
                 }
-            }, true, Duration.ofSeconds(getConfig().getMetadataOperationsTimeoutSeconds()));
+            }, true, Duration.ofSeconds(getConfig().getMetadataOperationsTimeoutSeconds()), CursorWrite.UPDATE);
         }
     }
 
@@ -3061,12 +3063,12 @@ public class ManagedCursorImpl implements ManagedCursor {
     private void persistPositionMetaStore(long cursorsLedgerId, Position position, Map<String, Long> properties,
             MetaStoreCallback<Void> callback, boolean persistIndividualDeletedMessageRanges) {
         persistPositionMetaStore(cursorsLedgerId, position, properties, callback, persistIndividualDeletedMessageRanges,
-                null);
+                null, CursorWrite.UPDATE);
     }
 
     private void persistPositionMetaStore(long cursorsLedgerId, Position position, Map<String, Long> properties,
             MetaStoreCallback<Void> callback, boolean persistIndividualDeletedMessageRanges,
-            Duration verificationTimeout) {
+            Duration verificationTimeout, CursorWrite write) {
         if (state == State.Closed) {
             ledger.getExecutor().execute(() -> callback.operationFailed(new MetaStoreException(
                     new CursorAlreadyClosedException(name + " cursor already closed"))));
@@ -3102,7 +3104,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         ManagedCursorInfo cursorInfo = info;
         ledger.getStore().asyncUpdateCursorInfo(ledger.getName(), name, cursorInfo, lastCursorLedgerStat,
-                verificationTimeout, new MetaStoreCallback<Void>() {
+                verificationTimeout, write, new MetaStoreCallback<Void>() {
                     @Override
                     public void operationComplete(Void result, Stat stat) {
                         updateCursorLedgerStat(cursorInfo, stat);
@@ -3112,7 +3114,9 @@ public class ManagedCursorImpl implements ManagedCursor {
 
                     @Override
                     public void operationFailed(MetaStoreException topLevelException) {
-                        if (topLevelException instanceof MetaStoreException.BadVersionException) {
+                        if (topLevelException instanceof MetaStoreException.BadVersionException
+                                || (topLevelException instanceof CursorPublicationOutcomeUnknownException
+                                && topLevelException.getCause() instanceof MetaStoreException.BadVersionException)) {
                             log.warn("[{}] Failed to update cursor metadata for {} due to version conflict {}",
                                     ledger.name, name, topLevelException.getMessage());
                             // it means previous owner of the ml might have updated the version incorrectly. So, check
@@ -3731,12 +3735,17 @@ public class ManagedCursorImpl implements ManagedCursor {
 
             @Override
             public void operationFailed(MetaStoreException e) {
-                log.warn("[{}] Failed to update cursor metadata {}", ledger.getName(), name, e);
-                // it means it failed to switch the newly created ledger so, it should be
-                // deleted to prevent leak
-                deleteLedgerAsync(lh).thenRun(() -> callback.operationFailed(e));
+                if (e instanceof CursorPublicationOutcomeUnknownException) {
+                    // ZooKeeper may already reference this ledger. Close our handle and preserve its ACKs for recovery.
+                    log.warn("[{}][{}] Retaining cursor ledger {} after an unverified switch",
+                            ledger.getName(), name, lh.getId(), e);
+                    lh.asyncClose((rc, handle, ctx) -> callback.operationFailed(e), null);
+                } else {
+                    log.warn("[{}] Failed to update cursor metadata {}", ledger.getName(), name, e);
+                    deleteLedgerAsync(lh).thenRun(() -> callback.operationFailed(e));
+                }
             }
-        }, false);
+        }, false, null, CursorWrite.SWITCH_LEDGER);
     }
 
     /**
