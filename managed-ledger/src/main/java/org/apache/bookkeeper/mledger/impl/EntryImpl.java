@@ -26,6 +26,7 @@ import io.netty.util.Recycler.Handle;
 import io.netty.util.ReferenceCounted;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
+import java.util.Collection;
 import lombok.CustomLog;
 import lombok.Getter;
 import lombok.Setter;
@@ -371,6 +372,21 @@ public final class EntryImpl extends AbstractCASReferenceCounted
             entryImpl.setDecreaseReadCountOnRelease(false);
         }
         entry.release();
+    }
+
+    /**
+     * Releases every entry of the given collection as {@link #releaseDiscarded(Entry) discarded},
+     * ignoring a null or empty collection and the null elements a read may deliver as placeholders.
+     *
+     * @param entries the entries to release
+     */
+    public static void releaseDiscarded(Collection<Entry> entries) {
+        if (entries == null || entries.isEmpty()) {
+            return;
+        }
+        for (Entry entry : entries) {
+            releaseDiscarded(entry);
+        }
     }
 
     public synchronized void initializeMessageMetadataIfNeeded(String managedLedgerName) {

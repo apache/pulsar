@@ -319,6 +319,30 @@ public class AbstractReplicatorTest {
         }
     }
 
+    /**
+     * A name is a replicator cursor only when the replicator prefix is followed by its separator: {@code '.'}
+     * for a regular replicator ({@code <prefix>.<cluster>}) or {@code '-'} for a shadow replicator. A name that
+     * merely starts with the prefix characters, such as {@code pulsar.replication-state}, is an ordinary
+     * subscription and must not be reserved.
+     */
+    @Test
+    public void testIsReplicatorCursorRequiresTheSeparatorAfterThePrefix() {
+        final String replicatorPrefix = "pulsar.repl";
+        // Real replicator cursors: the prefix followed by '.' (regular) or '-' (shadow).
+        Assert.assertTrue(AbstractReplicator.isReplicatorCursor(replicatorPrefix, "pulsar.repl.remoteCluster"));
+        Assert.assertTrue(AbstractReplicator.isReplicatorCursor(replicatorPrefix, "pulsar.repl-remoteCluster"));
+        // Ordinary subscriptions that merely start with the prefix characters.
+        for (String ordinary : new String[]{
+                "pulsar.replay",
+                "pulsar.replica",
+                "pulsar.replication-state",
+                "pulsar.repl",                  // the bare prefix, with no separator
+                "my-subscription"}) {
+            Assert.assertFalse(AbstractReplicator.isReplicatorCursor(replicatorPrefix, ordinary),
+                    "ordinary subscription wrongly reserved as a replicator cursor: " + ordinary);
+        }
+    }
+
     private static BrokerService mockBrokerService() throws Exception {
         final ServiceConfiguration pulsarConfig = new ServiceConfiguration();
         final PulsarService pulsar = mock(PulsarService.class);
