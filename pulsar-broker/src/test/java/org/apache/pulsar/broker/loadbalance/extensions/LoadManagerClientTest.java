@@ -174,14 +174,22 @@ public class LoadManagerClientTest extends SharedPulsarBaseTest {
         assertThat(clientClosedBeforeBrokerClose.get()).isTrue();
     }
 
-    @Test(timeOut = 60_000)
-    public void testClientClosedWhenLoadManagerFailsToStop() throws Exception {
-        try (PulsarTestContext context = newContext(ServiceUnitStateTableViewImpl.class.getName())) {
+    @Test(dataProvider = "stateTableViews", timeOut = 60_000)
+    public void testClientClosedWhenLoadManagerFailsToStop(String stateTableViewClass) throws Exception {
+        try (PulsarTestContext peerContext = newContext(stateTableViewClass);
+             PulsarTestContext context = newContextBuilder(stateTableViewClass)
+                     .reuseMockBookkeeperAndMetadataStores(peerContext).build()) {
             PulsarService broker = context.getPulsarService();
-            PulsarClient client = ExtensibleLoadManagerImpl.get(broker).getClient();
+            ExtensibleLoadManagerImpl extensibleLoadManager = ExtensibleLoadManagerImpl.get(broker);
+            PulsarClient client = extensibleLoadManager.getClient();
+            // Keep a peer registered so unloading does not close the client before stop().
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+                    assertThat(extensibleLoadManager.getBrokerRegistry().getAvailableBrokersAsync()
+                            .get(5, TimeUnit.SECONDS)).contains(peerContext.getPulsarService().getBrokerId()));
             LoadManager original = broker.getLoadManager().get();
             LoadManager loadManager = spy(original);
             doAnswer(invocation -> {
+                assertThat(client.isClosed()).as("client must remain open until stop() begins").isFalse();
                 invocation.callRealMethod();
                 throw new PulsarServerException("Injected load manager stop failure");
             }).when(loadManager).stop();
