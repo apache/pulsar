@@ -44,6 +44,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
@@ -54,6 +55,7 @@ import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -62,6 +64,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Function;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -1882,6 +1885,77 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
             assertThat(storage.createCalls.get()).isEqualTo(1);
             assertThat(ts.tracker.getCtx().cursor().getCursorProperties().get(bucketKey))
                     .isNotEqualTo(String.valueOf(supersededId));
+        } finally {
+            ts.close();
+        }
+    }
+
+    @Test
+    public void testDeleteRemovesCursorPropertyThroughAtomicConditionalUpdate() throws Exception {
+        // The delete path must remove the property through updateCursorProperties: the check that
+        // the property still references the deleted ledger and the removal are one cursor update
+        // (#27703), so a replacement published between the check and the removal cannot be
+        // erased. A check-then-remove in two operations cannot give that guarantee.
+        MockBucketSnapshotStorage storage = new MockBucketSnapshotStorage();
+        storage.start();
+        ManagedLedger mockLedger = mock(ManagedLedger.class);
+        NavigableMap<Long, LedgerInfo> ledgerInfo = new TreeMap<>();
+        ledgerInfo.put(31L, mock(LedgerInfo.class));
+        when(mockLedger.getLedgersInfo()).thenReturn(ledgerInfo);
+        when(mockLedger.getName()).thenReturn("test-ledger");
+
+        List<Function<Map<String, String>, Map<String, String>>> capturedUpdates =
+                new CopyOnWriteArrayList<>();
+        ManagedCursor cursor = new MockManagedCursor("atomic-delete-cursor") {
+            @Override
+            public ManagedLedger getManagedLedger() {
+                return mockLedger;
+            }
+
+            @Override
+            public Position getMarkDeletedPosition() {
+                return PositionFactory.create(31L, -1);
+            }
+
+            @Override
+            public CompletableFuture<Void> updateCursorProperties(
+                    Function<Map<String, String>, Map<String, String>> updateFunction) {
+                capturedUpdates.add(updateFunction);
+                return super.updateCursorProperties(updateFunction);
+            }
+        };
+        AbstractPersistentDispatcherMultipleConsumers disp =
+                mock(AbstractPersistentDispatcherMultipleConsumers.class);
+        Clock mockClock = mock(Clock.class);
+        AtomicLong clockTime = new AtomicLong();
+        when(mockClock.millis()).then(x -> clockTime.get());
+        doReturn(cursor).when(disp).getCursor();
+        doReturn("persistent://public/default/testDelay" + " / " + cursor.getName()).when(disp).getName();
+        BucketDelayedDeliveryTracker tracker = new BucketDelayedDeliveryTracker(disp, mock(Timer.class),
+                100000, mockClock, true, storage, 5, TimeUnit.MILLISECONDS.toMillis(10), -1, 5);
+        TrackerWithStorage ts = new TrackerWithStorage(tracker, storage, clockTime);
+        try {
+            ImmutableBucket bucket = createMergeableBucket(ts, 31L, 35L, List.of(1L));
+            long deletedId = 10L;
+            bucket.setBucketId(deletedId);
+            String bucketKey = bucket.bucketKey();
+            assertThat(cursor.putCursorProperty(bucketKey, String.valueOf(deletedId)))
+                    .succeedsWithin(5, TimeUnit.SECONDS);
+            capturedUpdates.clear();
+
+            assertThat(bucket.asyncDeleteBucketSnapshot(new BucketDelayedMessageIndexStats()))
+                    .succeedsWithin(5, TimeUnit.SECONDS);
+
+            // The removal went through the atomic conditional update, not a bare remove.
+            assertThat(capturedUpdates).hasSize(1);
+            Function<Map<String, String>, Map<String, String>> conditionalRemoval = capturedUpdates.get(0);
+            Map<String, String> matching = new HashMap<>(Map.of(bucketKey, String.valueOf(deletedId)));
+            conditionalRemoval.apply(matching);
+            assertThat(matching).doesNotContainKey(bucketKey);
+            Map<String, String> replaced = new HashMap<>(Map.of(bucketKey, "11"));
+            conditionalRemoval.apply(replaced);
+            assertThat(replaced).containsEntry(bucketKey, "11");
+            assertThat(cursor.getCursorProperties()).doesNotContainKey(bucketKey);
         } finally {
             ts.close();
         }

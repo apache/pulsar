@@ -652,6 +652,9 @@ public class DelayedDeliveryTrackerFactoryTest extends ProducerConsumerBase {
         assertThat(cleanup).succeedsWithin(5, TimeUnit.SECONDS);
 
         assertThat(cursor.getCursorProperties()).containsEntry(bucketKey, "11");
+    }
+
+    @Test
     public void testCleanResidualSnapshotsAccountsMalformedBucketIdInFuture() {
         BucketDelayedDeliveryTrackerFactory factory = new BucketDelayedDeliveryTrackerFactory();
         BucketSnapshotStorage storage = Mockito.mock(BucketSnapshotStorage.class);
@@ -666,12 +669,26 @@ public class DelayedDeliveryTrackerFactoryTest extends ProducerConsumerBase {
         properties.put(validKey, "123");
         properties.put(malformedKey, "not-a-number");
 
-        ManagedCursor cursor = Mockito.mock(ManagedCursor.class);
-        Mockito.doAnswer(invocation -> new LinkedHashMap<>(properties)).when(cursor).getCursorProperties();
-        Mockito.doAnswer(invocation -> {
-            properties.remove(invocation.getArgument(0, String.class));
-            return CompletableFuture.completedFuture(null);
-        }).when(cursor).removeCursorProperty(Mockito.anyString());
+        // MockManagedCursor inherits the interface default of updateCursorProperties, so the
+        // removal goes through the closure and lands in the observable put/remove below.
+        ManagedCursor cursor = new MockManagedCursor("malformed-cleanup-cursor") {
+            @Override
+            public Map<String, String> getCursorProperties() {
+                return new LinkedHashMap<>(properties);
+            }
+
+            @Override
+            public CompletableFuture<Void> putCursorProperty(String key, String value) {
+                properties.put(key, value);
+                return CompletableFuture.completedFuture(null);
+            }
+
+            @Override
+            public CompletableFuture<Void> removeCursorProperty(String key) {
+                properties.remove(key);
+                return CompletableFuture.completedFuture(null);
+            }
+        };
 
         // The parse must stay inside the sequenced supplier: a malformed id fails the cleanup
         // future instead of throwing synchronously.

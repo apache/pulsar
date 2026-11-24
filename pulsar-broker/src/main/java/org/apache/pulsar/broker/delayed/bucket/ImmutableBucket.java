@@ -219,19 +219,19 @@ class ImmutableBucket {
     }
 
     /**
-     * Removes the property only while it still references the deleted ledger, so a delete racing a
-     * later save does not drop the replacement's only durable reference.
+     * Removes the property only while it still references the deleted ledger: the check and the
+     * removal are one cursor update, so a save that publishes a replacement for the same bucket
+     * key while the delete is in flight cannot lose its only durable reference.
      */
     private CompletableFuture<Void> removeBucketCursorPropertyIfStillReferences(String bucketKey,
                                                                                 long bucketId) {
-        return ctx.sequencer().sequential(() -> executeWithRetry(() -> {
-            String currentBucketId = ctx.cursor().getCursorProperties().get(bucketKey);
-            if (currentBucketId == null || !currentBucketId.equals(String.valueOf(bucketId))) {
-                // The property has been replaced by a later snapshot; do not remove it.
-                return CompletableFuture.completedFuture(null);
-            }
-            return ctx.cursor().removeCursorProperty(bucketKey);
-        }, ManagedLedgerException.BadVersionException.class, MaxRetryTimes));
+        return ctx.sequencer().sequential(() -> executeWithRetry(
+                () -> ctx.cursor().updateCursorProperties(properties -> {
+                    if (String.valueOf(bucketId).equals(properties.get(bucketKey))) {
+                        properties.remove(bucketKey);
+                    }
+                    return properties;
+                }), ManagedLedgerException.BadVersionException.class, MaxRetryTimes));
     }
 
     public Optional<List<SnapshotSegment>> getSnapshotSegments() {
