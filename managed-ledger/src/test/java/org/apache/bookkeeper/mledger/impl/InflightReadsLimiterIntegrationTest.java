@@ -477,8 +477,12 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
         factoryConfig.setManagedLedgerMaxReadsInFlightSize(capacity);
         ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConfig);
         try {
+            // Batch reads off, so the scan splits the window at the skipped entries instead of reading
+            // through them: this test is about the second range's fail-fast acquire, not hole merging.
+            ManagedLedgerConfig config = defaultConfig();
+            config.setBatchReadEnabled(false);
             ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open("batched_skip_read_fail_fast",
-                    defaultConfig());
+                    config);
             for (int i = 0; i < 4; i++) {
                 ml.addEntry(new byte[entrySize]);
             }
@@ -533,8 +537,12 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
         factoryConfig.setManagedLedgerMaxReadsInFlightSize(3 * permitsPerEntry);
         ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConfig);
         try {
+            // Batch reads off, so the scan splits the window at the skipped entries instead of reading
+            // through them: this test is about the ranges' permit acquisition, not about hole merging.
+            ManagedLedgerConfig config = defaultConfig();
+            config.setBatchReadEnabled(false);
             ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open("batched_skip_read_first_range_queues",
-                    defaultConfig());
+                    config);
             for (int i = 0; i < 6; i++) {
                 ml.addEntry(new byte[entrySize]);
             }

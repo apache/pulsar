@@ -6741,8 +6741,21 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertTrue(cursorReadPosition.getLedgerId() == expectReadPosition.getLedgerId()
                 && cursorReadPosition.getEntryId() == expectReadPosition.getEntryId());
 
-        assertEquals(readEntries.size(), actualReadEntryIds.size());
-        assertEquals(entries - deletedPositions.size(), actualReadEntryIds.size());
+        // Small holes of deleted entries are read through instead of splitting the range when
+        // batch reads are enabled, so the bookie reads include the deleted entries inside the
+        // merged holes while those entries are filtered out before delivery.
+        assertEquals(entries - deletedPositions.size(), readEntries.size());
+        Set<Long> deliveredEntryIds = new HashSet<>();
+        for (Entry entry : readEntries) {
+            deliveredEntryIds.add(entry.getEntryId());
+        }
+        // no entry is delivered twice
+        assertEquals(readEntries.size(), deliveredEntryIds.size());
+        // every fetched entry is either delivered or a deleted entry read through a merged hole
+        for (long actualReadEntryId : actualReadEntryIds) {
+            assertTrue(deliveredEntryIds.contains(actualReadEntryId)
+                    || deletedPositions.contains(map.get((int) actualReadEntryId)));
+        }
         for (Entry entry : readEntries) {
             long entryId = entry.getEntryId();
             assertTrue(actualReadEntryIds.contains(entryId));
@@ -6821,8 +6834,23 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         f1.get();
 
 
-        assertEquals(actualReadEntryIds.size(), readEntries.size());
-        assertEquals(entries - deletedPositions.size() - skippedPositions.size(), actualReadEntryIds.size());
+        // Small holes of deleted or skipped entries are read through instead of splitting the
+        // range when batch reads are enabled, so the bookie reads include the deleted and
+        // skipped entries inside the merged holes while those entries are filtered out before
+        // delivery.
+        assertEquals(entries - deletedPositions.size() - skippedPositions.size(), readEntries.size());
+        Set<Long> deliveredEntryIds = new HashSet<>();
+        for (Entry entry : readEntries) {
+            deliveredEntryIds.add(entry.getEntryId());
+        }
+        // no entry is delivered twice
+        assertEquals(readEntries.size(), deliveredEntryIds.size());
+        // every fetched entry is delivered or read through a merged hole
+        for (long actualReadEntryId : actualReadEntryIds) {
+            assertTrue(deliveredEntryIds.contains(actualReadEntryId)
+                    || deletedPositions.contains(map.get((int) actualReadEntryId))
+                    || skippedPositions.contains(actualReadEntryId));
+        }
         for (Entry entry : readEntries) {
             long entryId = entry.getEntryId();
             assertTrue(actualReadEntryIds.contains(entryId));

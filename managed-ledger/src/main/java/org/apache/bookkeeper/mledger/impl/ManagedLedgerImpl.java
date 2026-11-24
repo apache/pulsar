@@ -180,6 +180,26 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     @VisibleForTesting
     static final int MAX_BATCHED_READ_RANGES = 4;
 
+    /**
+     * The largest distance between the entries around a skipped run inside a batched skip-read window
+     * for which the scan reads through the skipped entries instead of splitting the read into two
+     * ranges: one request to the bookie reads the merged range, and the entries read in between are
+     * released without being delivered, so the skip condition still holds. The same bounds as the
+     * replay runs of {@link ManagedCursorImpl#replayRuns}, in entries and by the ledger's average
+     * entry size, so that large entries are not read in vain. Only applied when batch reads are
+     * enabled: without them, every entry of a range is a bookie read of its own, and reading through a
+     * hole would only add wasted reads.
+     */
+    @VisibleForTesting
+    static final int MAX_BATCHED_READ_MERGED_HOLE_DISTANCE = 8;
+    @VisibleForTesting
+    static final long MAX_BATCHED_READ_MERGED_HOLE_BYTES = 192 * 1024;
+    // The most entries and bytes, by the ledger's average entry size, that one merged range spans
+    @VisibleForTesting
+    static final int MAX_BATCHED_READ_MERGED_RANGE_ENTRIES = 256;
+    @VisibleForTesting
+    static final long MAX_BATCHED_READ_MERGED_RANGE_BYTES = 1024 * 1024;
+
     protected final BookKeeper bookKeeper;
     /** Whether the BookKeeper client can batch read: the v2 wire protocol with batch reads enabled. */
     private final boolean batchReadSupported;
@@ -3301,8 +3321,23 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         // The scan stops once MAX_BATCHED_READ_RANGES ranges were built; the entries beyond the cap are
         // read by this operation's continuation read (checkReadCompletion), so no entry is skipped.
         List<LongLongPair> ranges = new ArrayList<>();
-        boolean windowCapped = buildRanges(firstEntry, lastEntry, skipEntryTester(ledger, opReadEntry),
-                MAX_BATCHED_READ_RANGES, ranges) != -1;
+        LongPredicate shouldSkipEntry = skipEntryTester(ledger, opReadEntry);
+        // With batch reads, one request to the bookie reads a range through a small hole - by the
+        // bounds of the replay runs - and the entries read in between are released without being
+        // delivered. Without batch reads, every entry of a range is a bookie read of its own, so the
+        // scan splits the read at every skipped entry.
+        long maxMergedHoleDistance = 0;
+        long maxMergedRangeEntries = 0;
+        if (isBatchReadEnabled()) {
+            long averageEntrySize = Math.max(1, getTotalSize() / Math.max(1, getNumberOfEntries()));
+            maxMergedHoleDistance = Math.min(MAX_BATCHED_READ_MERGED_HOLE_DISTANCE,
+                    1 + MAX_BATCHED_READ_MERGED_HOLE_BYTES / averageEntrySize);
+            maxMergedRangeEntries = Math.min(MAX_BATCHED_READ_MERGED_RANGE_ENTRIES,
+                    MAX_BATCHED_READ_MERGED_RANGE_BYTES / averageEntrySize);
+        }
+        long[] mergedHoleEntries = {0};
+        boolean windowCapped = buildRanges(firstEntry, lastEntry, shouldSkipEntry, MAX_BATCHED_READ_RANGES,
+                ranges, maxMergedHoleDistance, maxMergedRangeEntries, mergedHoleEntries) != -1;
 
         if (ranges.isEmpty()) {
             // The whole scan window was skipped. If the last scanned position is individually deleted,
@@ -3314,9 +3349,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return;
         }
 
-        if (ranges.size() == 1 && ranges.get(0).leftLong() == firstEntry && ranges.get(0).rightLong() == lastEntry) {
-            // A single contiguous range covering the whole scan window: nothing was skipped, read it
-            // directly so that the read behaves exactly like a regular sequential read.
+        if (mergedHoleEntries[0] == 0 && ranges.size() == 1
+                && ranges.get(0).leftLong() == firstEntry && ranges.get(0).rightLong() == lastEntry) {
+            // A single contiguous range covering the whole scan window: nothing was skipped or merged,
+            // read it directly so that the read behaves exactly like a regular sequential read.
             readSequentially(ledger, firstEntry, lastEntry, opReadEntry);
             return;
         }
@@ -3335,6 +3371,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         for (LongLongPair range : ranges) {
             expectedCount += range.rightLong() - range.leftLong() + 1;
         }
+        // The entries of the merged holes are read with their range but not delivered
+        expectedCount -= mergedHoleEntries[0];
         log.debug().attr("ledgerId", ledger.getId())
                 .attr("firstEntry", firstEntry)
                 .attr("lastEntry", lastEntry)
@@ -3347,8 +3385,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         final IntSupplier expectedReadCount = opReadEntry.cursor::getNumberOfCursorsAtSamePositionOrBefore;
         final long maxSizeBytes = opReadEntry.maxSizeBytes;
         final Object readCtx = opReadEntry.ctx;
-        BatchReadEntriesCallback callback =
-                new BatchReadEntriesCallback(ranges, expectedCount, opReadEntry, lastReadPosition, readCtx);
+        BatchReadEntriesCallback callback = new BatchReadEntriesCallback(ranges, expectedCount, opReadEntry,
+                lastReadPosition, readCtx, shouldSkipEntry);
         for (int i = 0; i < ranges.size(); i++) {
             if (callback.shouldStopSubmission()) {
                 break;
@@ -3362,8 +3400,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             // entries deallocated, so a later range queueing for them would wait on its own batch.
             // Those ranges fail fast instead and the batch delivers the prefix read so far.
             boolean failFastWhenThrottled = i > 0;
+            // The range itself is the ctx of its read: readEntriesFailed uses it to tell the first
+            // range from the later ones, whose failures must not skip entries of the ranges that are
+            // still being read (see BatchReadEntriesCallback.readEntriesFailed).
             asyncReadEntry(ledger, range.leftLong(), range.rightLong(), maxSizeBytes, expectedReadCount,
-                    callback, readCtx, failFastWhenThrottled);
+                    callback, range, failFastWhenThrottled);
         }
         callback.submissionFinished();
     }
@@ -3445,6 +3486,24 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      */
     static long buildRanges(long firstEntry, long lastEntry, LongPredicate shouldSkipEntry,
                             int maxRanges, List<LongLongPair> ranges) {
+        return buildRanges(firstEntry, lastEntry, shouldSkipEntry, maxRanges, ranges, 0, 0, new long[1]);
+    }
+
+    /**
+     * Scan entry range [firstEntry, lastEntry], skipping entries where {@code shouldSkipEntry} returns
+     * true, and add the contiguous read ranges in ascending order to {@code ranges} until
+     * {@code maxRanges} ranges were built. A skipped run whose distance to the next readable entry is
+     * at most {@code maxMergedHoleDistance} does not split the read when the merged range stays within
+     * {@code maxMergedRangeEntries} entries: the entries in between are read with the range - counted
+     * into {@code mergedHoleEntries} - and released without being delivered. A non-positive
+     * {@code maxMergedHoleDistance} splits the read at every skipped entry.
+     *
+     * @return the entry id where the scan stopped, or -1 when the whole window was scanned; the caller
+     *         reads the entries beyond that point with its continuation read
+     */
+    static long buildRanges(long firstEntry, long lastEntry, LongPredicate shouldSkipEntry,
+                            int maxRanges, List<LongLongPair> ranges, long maxMergedHoleDistance,
+                            long maxMergedRangeEntries, long[] mergedHoleEntries) {
         long rangeStart = -1;
         long rangeEnd = -1;
         for (long entryId = firstEntry; entryId <= lastEntry; entryId++) {
@@ -3454,10 +3513,24 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 return entryId;
             }
             if (shouldSkipEntry.test(entryId)) {
-                if (rangeStart != -1) {
-                    ranges.add(LongLongImmutablePair.of(rangeStart, rangeEnd));
-                    rangeStart = -1;
+                if (rangeStart == -1) {
+                    continue;
                 }
+                // The next readable entry, or the end of the window when the skipped run is trailing
+                long nextEntry = entryId;
+                do {
+                    nextEntry++;
+                } while (nextEntry <= lastEntry && shouldSkipEntry.test(nextEntry));
+                if (nextEntry <= lastEntry && nextEntry - rangeEnd <= maxMergedHoleDistance
+                        && nextEntry - rangeStart < maxMergedRangeEntries) {
+                    // Read through the small hole: the merged range is one request to the bookie, and
+                    // the entries in between are released without being delivered.
+                    mergedHoleEntries[0] += nextEntry - rangeEnd - 1;
+                    entryId = nextEntry - 1;
+                    continue;
+                }
+                ranges.add(LongLongImmutablePair.of(rangeStart, rangeEnd));
+                rangeStart = -1;
                 continue;
             }
             if (rangeStart == -1) {
@@ -3480,6 +3553,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         private volatile boolean completed = false;
         private final Position lastReadPosition;
         private final Object readCtx;
+        // The scan's entry test, for releasing without delivery the entries that a merged hole read
+        // with its range; null when the scan split the read at every skipped entry
+        private final LongPredicate shouldSkipEntry;
         private volatile boolean submissionHalted = false;
         // Guarded by this object's monitor. The monitor is only held while mutating this state;
         // OpReadEntry callbacks are always invoked without holding it.
@@ -3490,18 +3566,25 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         @VisibleForTesting
         public BatchReadEntriesCallback(List<LongLongPair> ranges, long expectedCount, OpReadEntry callback,
                                         Position lastReadPosition, Object readCtx) {
+            this(ranges, expectedCount, callback, lastReadPosition, readCtx, null);
+        }
+
+        public BatchReadEntriesCallback(List<LongLongPair> ranges, long expectedCount, OpReadEntry callback,
+                                        Position lastReadPosition, Object readCtx,
+                                        LongPredicate shouldSkipEntry) {
             this.ranges = ranges;
             this.expectedCount = expectedCount;
             this.entries = new ArrayList<>();
             this.callback = callback;
             this.lastReadPosition = lastReadPosition;
             this.readCtx = readCtx;
+            this.shouldSkipEntry = shouldSkipEntry;
         }
 
         /**
          * Whether the submission loop should stop submitting further ranges: either the batched read
-         * already completed, or a range read was throttled and the already submitted ranges deliver
-         * their contiguous prefix instead.
+         * already completed, or a range read was throttled or failed, and the already submitted ranges
+         * deliver their contiguous prefix instead.
          */
         boolean shouldStopSubmission() {
             return completed || submissionHalted;
@@ -3535,12 +3618,35 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     }
                     return;
                 }
-                entries.addAll(entries0);
+                List<Entry> deliverableEntries = entries0;
+                if (shouldSkipEntry != null && !entries0.isEmpty()) {
+                    // The entries of the holes that the scan merged into this range are read with it:
+                    // release them without delivering, so that the skip condition holds. This also
+                    // releases entries deleted while the range read was in flight.
+                    boolean anySkipped = false;
+                    for (Entry entry : entries0) {
+                        if (shouldSkipEntry.test(entry.getEntryId())) {
+                            anySkipped = true;
+                            break;
+                        }
+                    }
+                    if (anySkipped) {
+                        deliverableEntries = new ArrayList<>(entries0.size() - 1);
+                        for (Entry entry : entries0) {
+                            if (shouldSkipEntry.test(entry.getEntryId())) {
+                                entry.release();
+                            } else {
+                                deliverableEntries.add(entry);
+                            }
+                        }
+                    }
+                }
+                entries.addAll(deliverableEntries);
                 pendingRanges--;
                 // If read empty batch from Bookie, we have to complete the call.
                 // Otherwise, it maybe blocks forever, see: PR 24515.
                 boolean allRangesReported = submissionFinished && pendingRanges == 0;
-                if (!entries0.isEmpty() && entries.size() < expectedCount && !allRangesReported) {
+                if (!deliverableEntries.isEmpty() && entries.size() < expectedCount && !allRangesReported) {
                     return;
                 }
                 action = completeLocked(null);
@@ -3558,13 +3664,22 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     return;
                 }
                 pendingRanges--;
-                if (exception instanceof TooManyRequestsException && (pendingRanges > 0 || !submissionFinished)) {
-                    // A range read was rejected by the inflight read limiter while other range reads are
-                    // still in flight or not all ranges have been submitted yet. Failing the batched
-                    // read now would discard the pending results, and every retry of the same window
-                    // could fail again without advancing the cursor. Stop submitting further ranges and
-                    // wait for the in-flight ones instead, so that their contiguous prefix can still be
-                    // delivered.
+                // A failure of any range other than the first must not finalize the batched read on
+                // its own, exactly like a range read rejected by the inflight read limiter: the ranges
+                // before it may still be in flight or not all ranges have been submitted yet, and
+                // their contiguous prefix can still be delivered. Finalizing with the failure here
+                // would hand an empty prefix to OpReadEntry's failure path, which - with
+                // autoSkipNonRecoverableData enabled and a NonRecoverableLedgerException - skips the
+                // whole window from the read position, including the entries of the earlier ranges
+                // that are still being read and would have been delivered. Instead, stop submitting
+                // further ranges and wait for the in-flight ones; their prefix is delivered with the
+                // failure, and the next read starts at the failed range, so a retry that fails again
+                // skips from the failing entry, as it did before batching. Only a failure of the first
+                // range takes the immediate path: its entries start at the read position, so the skip
+                // starts where the failure is.
+                boolean waitForInflightRanges = ctx != ranges.get(0)
+                        || exception instanceof TooManyRequestsException;
+                if (waitForInflightRanges && (pendingRanges > 0 || !submissionFinished)) {
                     submissionHalted = true;
                     if (firstFailure == null) {
                         firstFailure = exception;
@@ -3672,6 +3787,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             int entryIdx = 0;
             while (entryIdx < entries.size()) {
                 Entry entry = entries.get(entryIdx);
+                // The entries of a merged hole were filtered on arrival: hop over their ids, so that
+                // only a genuinely missing entry ends the prefix.
+                while (shouldSkipEntry != null && expectedEntryId < entry.getEntryId()
+                        && shouldSkipEntry.test(expectedEntryId)) {
+                    expectedEntryId++;
+                }
                 if (entry.getEntryId() != expectedEntryId) {
                     break;
                 }
