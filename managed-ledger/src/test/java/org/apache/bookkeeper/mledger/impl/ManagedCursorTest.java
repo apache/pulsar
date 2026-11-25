@@ -1916,6 +1916,57 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         return infoRef.get();
     }
 
+    @Test(timeOut = 20000)
+    void cursorLedgerSeedAndMetadataUseTheSameCheckpoint() throws Exception {
+        ManagedLedgerConfig config = defaultConfig().setThrottleMarkDelete(0);
+        @Cleanup
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("cursor_ledger_switch_checkpoint", config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("cursor");
+        Position checkpoint = ledger.addEntry("entry-1".getBytes(Encoding));
+        Position next = ledger.addEntry("entry-2".getBytes(Encoding));
+        cursor.markDelete(checkpoint, Map.of("property", 1L));
+
+        Set<Long> existingLedgerIds = Set.copyOf(bkc.getLedgers());
+        CompletableFuture<Void> seedResponse = bkc.addEntryResponseGate();
+        CompletableFuture<Void> queuedMarkDelete = new CompletableFuture<>();
+        try {
+            cursor.startCreatingNewMetadataLedger();
+            Awaitility.await().atMost(Duration.ofSeconds(5)).until(() -> bkc.getLedgerMap().values().stream()
+                    .anyMatch(handle -> !existingLedgerIds.contains(handle.getId())
+                            && handle.getLastAddConfirmed() >= 0));
+            cursor.asyncMarkDelete(next, Map.of("property", 3L), new MarkDeleteCallback() {
+                @Override
+                public void markDeleteComplete(Object ctx) {
+                    queuedMarkDelete.complete(null);
+                }
+
+                @Override
+                public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
+                    queuedMarkDelete.completeExceptionally(exception);
+                }
+            }, null);
+            assertTrue(cursor.putProperty("property", 2L));
+        } finally {
+            seedResponse.complete(null);
+        }
+
+        queuedMarkDelete.get(5, TimeUnit.SECONDS);
+        PositionInfo seed = new PositionInfo();
+        seed.parseFrom(cursor.cursorLedger.readEntries(0, 0).nextElement().getEntry());
+        assertEquals(seed.getLedgerId(), checkpoint.getLedgerId());
+        assertEquals(seed.getEntryId(), checkpoint.getEntryId());
+        assertEquals(seed.getPropertiesCount(), 1);
+        assertEquals(seed.getPropertyAt(0).getValue(), 1L);
+        ManagedCursorInfo metadata = readCursorInfo(ledger, "cursor");
+        assertEquals(metadata.getCursorsLedgerId(), cursor.getCursorLedger());
+        assertEquals(metadata.getMarkDeleteLedgerId(), seed.getLedgerId());
+        assertEquals(metadata.getMarkDeleteEntryId(), seed.getEntryId());
+        assertEquals(metadata.getPropertiesCount(), 1);
+        assertEquals(metadata.getPropertyAt(0).getName(), seed.getPropertyAt(0).getName());
+        assertEquals(metadata.getPropertyAt(0).getValue(), seed.getPropertyAt(0).getValue());
+        assertEquals(cursor.getProperties(), Map.of("property", 3L));
+    }
+
     /**
      * Regression test for https://github.com/apache/pulsar/issues/26483 : when the cursor ledger
      * cannot be opened with a non-recoverable BookKeeper error, the cursor is rebuilt from the
