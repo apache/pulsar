@@ -42,6 +42,7 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
@@ -583,16 +584,20 @@ public class MultiTopicsConsumerImplTest {
         impl.partitionedTopics.put(topicName, 0);
         impl.allTopicPartitionsNumber.set(0);
 
-        when(clientMock.getPartitionsForTopic(topicName, false)).thenReturn(CompletableFuture.completedFuture(
-                Collections.singletonList(topicPartition0)));
+        // Install a single metadata answer before the first child starts: the child's
+        // receive loop calls methods on the shared client mock, so re-stubbing after it
+        // starts can fail inside Mockito before either redelivery is queued.
+        List<String> partitions = new ArrayList<>(Collections.singletonList(topicPartition0));
+        when(clientMock.getPartitionsForTopic(topicName, false))
+                .thenAnswer(invocation -> CompletableFuture.completedFuture(new ArrayList<>(partitions)));
 
         PartitionsChangedListener listener = impl.topicsPartitionChangedListener;
         listener.onTopicsExtended(Collections.singleton(topicName)).join();
         assertTrue(impl.consumers.containsKey(topicPartition0));
 
-        // The second refresh must see the new partition.
-        when(clientMock.getPartitionsForTopic(topicName, false)).thenReturn(CompletableFuture.completedFuture(
-                Arrays.asList(topicPartition0, topicPartition1)));
+        // The second refresh must see the new partition: grow the backing list instead of
+        // re-stubbing, so no Mockito stubbing happens while receives are running.
+        partitions.add(topicPartition1);
 
         // Occupy the pinned executor, then queue redelivery A, partition creation and
         // redelivery B in that order: both redeliveries bump the caller-side counter before
@@ -807,6 +812,83 @@ public class MultiTopicsConsumerImplTest {
         // The creation pre-check fails the futures, and the error handler settles the outward
         // future even though the external executor is stopped: the subscription must fail
         // instead of hanging, and no child may be published.
+        ExecutionException thrown = expectThrows(ExecutionException.class,
+                () -> subscription.get(15, TimeUnit.SECONDS));
+        Throwable cause = thrown.getCause();
+        while (cause instanceof CompletionException && cause.getCause() != null) {
+            cause = cause.getCause();
+        }
+        assertTrue(cause instanceof PulsarClientException.AlreadyClosedException);
+        assertFalse(impl.consumers.containsKey(topicName));
+        assertEquals(impl.allTopicPartitionsNumber.get(), 0);
+    }
+
+    @Test(timeOut = 30000)
+    public void testSubscribeErrorCleanupSurvivesExternalExecutorShutdownNow() throws Exception {
+        String topicName = "persistent://public/default/epoch-external-shutdown-topic";
+
+        ConsumerConfigurationData<byte[]> consumerConfData = new ConsumerConfigurationData<>();
+        consumerConfData.setSubscriptionName("subscriptionName");
+
+        ClientCnx clientCnxMock = mockClientCnx();
+        when(clientCnxMock.getRemoteEndpointProtocolVersion()).thenReturn(ProtocolVersion.v12_VALUE);
+        PulsarClientImpl clientMock = createPulsarClientMockWithMockedClientCnx(executorProvider, internalExecutor,
+                clientCnxMock);
+        Schema<byte[]> schema = Schema.BYTES;
+
+        MultiTopicsConsumerImpl<byte[]> impl = new MultiTopicsConsumerImpl<>(
+                clientMock, consumerConfData, executorProvider,
+                new CompletableFuture<>(), schema, null, true);
+
+        // Hold the external executor's only worker: the error cleanup dispatched after the
+        // failed creation is accepted and queued behind it, instead of being rejected.
+        CountDownLatch externalWorkerRunning = new CountDownLatch(1);
+        CountDownLatch releaseExternalWorker = new CountDownLatch(1);
+        executorProvider.getExecutor().execute(() -> {
+            externalWorkerRunning.countDown();
+            try {
+                releaseExternalWorker.await(15, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+        assertTrue(externalWorkerRunning.await(15, TimeUnit.SECONDS));
+
+        // Occupy the pinned executor, then subscribe: the creation task is queued but has
+        // not started when the client starts shutting down.
+        CountDownLatch occupierRunning = new CountDownLatch(1);
+        CountDownLatch releaseOccupier = new CountDownLatch(1);
+        impl.internalPinnedExecutor.execute(() -> {
+            occupierRunning.countDown();
+            try {
+                releaseOccupier.await(15, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+        assertTrue(occupierRunning.await(15, TimeUnit.SECONDS));
+
+        CompletableFuture<Void> subscription = impl.subscribeAsync(topicName, 0);
+
+        // The client starts shutting down while the parent is still open and creation is queued.
+        when(clientMock.isClosed()).thenReturn(true);
+
+        // Let the creation task run: its pre-check fails the futures, and the error handler
+        // dispatches the cleanup to the external executor, where it queues behind the held
+        // worker. The marker runs after the creation task on the pinned executor, so by the
+        // time it completes the dispatch has happened.
+        releaseOccupier.countDown();
+        impl.internalPinnedExecutor.submit(() -> { }).get(15, TimeUnit.SECONDS);
+
+        // Shut the external provider down while the cleanup is still queued: shutdownNow()
+        // interrupts the held worker, then runs the discarded cleanup as a CleanupTask on
+        // the shutdown thread once the executor terminates. Without the CleanupTask the
+        // outward subscribe future would never complete and the get below would hang.
+        executorProvider.shutdownNow();
+
+        // The cleanup completes the outward future exceptionally even though the external
+        // executor is gone: the subscription must fail instead of hanging, and no child
+        // may be published.
         ExecutionException thrown = expectThrows(ExecutionException.class,
                 () -> subscription.get(15, TimeUnit.SECONDS));
         Throwable cause = thrown.getCause();

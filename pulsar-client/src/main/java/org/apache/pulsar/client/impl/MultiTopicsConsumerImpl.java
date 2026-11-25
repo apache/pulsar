@@ -1468,7 +1468,12 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         log.warn().attr("topic", topicName)
                 .exceptionMessage(error)
                 .log("Failed to subscribe for topic in topics consumer");
-        Runnable cleanup = () -> {
+        // Submitted as a CleanupTask: if this is still queued when the client shuts the
+        // external executor down, shutdownNow() runs it on the shutdown thread instead of
+        // discarding it, so the outward subscribe future completes instead of hanging.
+        // The rejection fallback below stays: it covers a dispatch that arrives after the
+        // executor already stopped accepting tasks.
+        CleanupTask cleanup = () -> {
             AtomicInteger toCloseNum = new AtomicInteger(0);
             List<ConsumerImpl> filterConsumers = consumers.values().stream().filter(consumer1 -> {
                 String consumerTopicName = consumer1.getTopic();
