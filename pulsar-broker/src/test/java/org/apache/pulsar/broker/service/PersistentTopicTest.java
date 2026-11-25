@@ -30,6 +30,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.atLeast;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
@@ -38,6 +39,7 @@ import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.matches;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -863,6 +865,76 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         assertThatThrownBy(() -> subscription.getNow(null)).hasRootCause(fenced);
         Awaitility.await().untilAsserted(() ->
                 assertThat(brokerService.getTopicReference(successTopicName)).isEmpty());
+    }
+
+    @Test
+    public void testManagedLedgerVersionConflictOnLoadRequiresFreshOwnership() throws Exception {
+        final String topic = "persistent://prop/ns-abc/versionConflictTopic";
+        // Another broker updated the managed-ledger metadata while this broker was initializing it.
+        ManagedLedgerException.BadVersionException conflict =
+                new ManagedLedgerException.BadVersionException("another writer updated the managed ledger");
+        failManagedLedgerOpen(topic, new ManagedLedgerException(conflict));
+
+        assertThatThrownBy(() -> brokerService.getOrCreateTopic(topic).get(30, TimeUnit.SECONDS))
+                .hasRootCause(conflict);
+        verify(pulsarTestContext.getPulsarService().getNamespaceService())
+                .requireFreshOwnershipBeforeReadmission(TopicName.get(topic));
+    }
+
+    @Test
+    public void testUnrelatedManagedLedgerFailureOnLoadKeepsCachedOwnership() throws Exception {
+        final String topic = "persistent://prop/ns-abc/bookiesUnavailableTopic";
+        ManagedLedgerException unavailable = new ManagedLedgerException("bookies are unavailable");
+        failManagedLedgerOpen(topic, unavailable);
+
+        assertThatThrownBy(() -> brokerService.getOrCreateTopic(topic).get(30, TimeUnit.SECONDS))
+                .hasRootCause(unavailable);
+        verify(pulsarTestContext.getPulsarService().getNamespaceService(), never())
+                .requireFreshOwnershipBeforeReadmission(any());
+    }
+
+    @Test
+    public void testCompactionCursorFenceDuringLoadRequiresFreshOwnership() throws Exception {
+        pulsarTestContext.getConfig().setBrokerServiceCompactionThresholdInBytes(1);
+        ManagedLedgerFencedException fenced = new ManagedLedgerFencedException("compaction cursor observed fencing");
+        doAnswer(invocation -> {
+            OpenCursorCallback callback = invocation.getArgument(4);
+            callback.openCursorFailed(fenced, invocation.getArgument(5));
+            return null;
+        }).when(ledgerMock).asyncOpenCursor(eq(Codec.encode(Compactor.COMPACTION_SUBSCRIPTION)),
+                any(InitialPosition.class), any(), any(), any(), any());
+
+        assertThatThrownBy(() -> brokerService.getOrCreateTopic(successTopicName).get(30, TimeUnit.SECONDS))
+                .hasRootCause(fenced);
+        verify(pulsarTestContext.getPulsarService().getNamespaceService(), atLeastOnce())
+                .requireFreshOwnershipBeforeReadmission(TopicName.get(successTopicName));
+    }
+
+    @Test
+    public void testDeduplicationCursorFenceDuringLoadRequiresFreshOwnership() throws Exception {
+        pulsarTestContext.getConfig().setBrokerDeduplicationEnabled(true);
+        ManagedLedgerFencedException fenced =
+                new ManagedLedgerFencedException("deduplication cursor observed fencing");
+        doAnswer(invocation -> {
+            OpenCursorCallback callback = invocation.getArgument(1);
+            callback.openCursorFailed(fenced, invocation.getArgument(2));
+            return null;
+        }).when(ledgerMock).asyncOpenCursor(eq(PersistentTopic.DEDUPLICATION_CURSOR_NAME),
+                any(OpenCursorCallback.class), any());
+
+        assertThatThrownBy(() -> brokerService.getOrCreateTopic(successTopicName).get(30, TimeUnit.SECONDS))
+                .hasRootCause(fenced);
+        verify(pulsarTestContext.getPulsarService().getNamespaceService())
+                .requireFreshOwnershipBeforeReadmission(TopicName.get(successTopicName));
+    }
+
+    @SuppressWarnings("unchecked")
+    private void failManagedLedgerOpen(String topic, ManagedLedgerException failure) {
+        doAnswer(invocation -> {
+            ((OpenLedgerCallback) invocation.getArgument(2)).openLedgerFailed(failure, null);
+            return null;
+        }).when(managedLedgerFactory).asyncOpen(eq(TopicName.get(topic).getPersistenceNamingEncoding()),
+                any(ManagedLedgerConfig.class), any(OpenLedgerCallback.class), any(Supplier.class), any());
     }
 
     @Test
