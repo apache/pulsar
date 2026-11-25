@@ -37,12 +37,12 @@ import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import lombok.CustomLog;
 import org.apache.pulsar.PrometheusMetricsTestUtil;
@@ -65,6 +65,7 @@ public class BrokerServicePendingRequestGaugesTest {
     // What the JVM of the brokers observes, in this order
     private static final String FIRST_BROKER_ALONE = "firstBrokerAlone";
     private static final String WHILE_OTHER_BROKERS_START = "whileOtherBrokersStart";
+    private static final String FEWEST_SCRAPES_WHILE_AN_OTHER_BROKER_STARTS = "fewestScrapesWhileAnOtherBrokerStarts";
     private static final String OTHER_BROKER_RUNS = "otherBrokerRuns";
     private static final String OTHER_BROKER_CLOSED = "otherBrokerClosed";
     private static final String FIRST_BROKER_CLOSED = "firstBrokerClosed";
@@ -86,7 +87,8 @@ public class BrokerServicePendingRequestGaugesTest {
             // with a smaller heap: the brokers need less than the tests that run in this JVM
             ManagementFactory.getRuntimeMXBean().getInputArguments().stream()
                     .filter(option -> !option.startsWith("-agentlib:") && !option.startsWith("-agentpath:")
-                            && !option.startsWith("-javaagent:") && !option.startsWith("-Xmx"))
+                            && !option.startsWith("-javaagent:") && !option.startsWith("-Xmx")
+                            && !option.startsWith("-Xms"))
                     .forEach(command::add);
             command.add("-Xmx512m");
             command.add("@" + classPathOption);
@@ -121,6 +123,11 @@ public class BrokerServicePendingRequestGaugesTest {
             assertThat(observed.getProperty(WHILE_OTHER_BROKERS_START))
                     .as("pending request gauges in the scrapes of the registry while other brokers start")
                     .isEqualTo(registeredOnce);
+            // Of 2 scrapes that finished while a broker started, one ran from start to end meanwhile
+            assertThat(Long.parseLong(observed.getProperty(FEWEST_SCRAPES_WHILE_AN_OTHER_BROKER_STARTS)))
+                    .as("scrapes of the registry that finished while another broker started, at the start with"
+                            + " the fewest")
+                    .isGreaterThanOrEqualTo(2);
             assertThat(observed.getProperty(OTHER_BROKER_RUNS))
                     .as("pending lookups/topic loads in the scrape of the first broker while another broker runs")
                     .isEqualTo("3.0/5.0");
@@ -196,41 +203,43 @@ public class BrokerServicePendingRequestGaugesTest {
         }
 
         /**
-         * Starts three other brokers, of which it closes two at once and returns the third. Meanwhile the registry
-         * is scraped again and again: a scrape must not get a gauge of another broker next to the one of the first
-         * broker. A broker that registered a taken name would show such a gauge for an instant only, hence several
-         * brokers.
+         * Starts three other brokers, of which it closes the first two again and returns the third. Meanwhile the
+         * registry is scraped again and again: a scrape must not get a gauge of another broker next to the one of
+         * the first broker. A broker that registered a taken name would show such a gauge for an instant only, hence
+         * several brokers.
          */
         private static PulsarTestContext startOtherBrokers(Properties observed) throws Exception {
             AtomicBoolean otherBrokersStart = new AtomicBoolean(true);
-            CountDownLatch firstScrape = new CountDownLatch(1);
+            AtomicLong scrapeCount = new AtomicLong();
             ExecutorService scraper = Executors.newSingleThreadExecutor();
             try {
                 Future<Set<String>> scrapes = scraper.submit(() -> {
                     Set<String> scraped = new TreeSet<>();
-                    try {
-                        scraped.add(scrapeRegisteredPendingRequestGauges());
-                    } finally {
-                        firstScrape.countDown();
-                    }
                     while (otherBrokersStart.get()) {
                         scraped.add(scrapeRegisteredPendingRequestGauges());
+                        scrapeCount.incrementAndGet();
                     }
                     return scraped;
                 });
-                PulsarTestContext other;
+                PulsarTestContext other = null;
+                long fewestScrapesWhileAnOtherBrokerStarts = Long.MAX_VALUE;
                 try {
-                    // No broker starts before the scraper runs
-                    firstScrape.await();
-                    for (int i = 0; i < 2; i++) {
-                        PulsarTestContext.builder().build().close();
+                    for (int i = 0; i < 3; i++) {
+                        if (other != null) {
+                            other.close();
+                        }
+                        long scrapesBefore = scrapeCount.get();
+                        other = PulsarTestContext.builder().build();
+                        fewestScrapesWhileAnOtherBrokerStarts =
+                                Math.min(fewestScrapesWhileAnOtherBrokerStarts, scrapeCount.get() - scrapesBefore);
                     }
-                    other = PulsarTestContext.builder().build();
                 } finally {
                     otherBrokersStart.set(false);
                 }
                 // Throws if a scrape failed
                 observed.setProperty(WHILE_OTHER_BROKERS_START, String.join(";", scrapes.get(1, TimeUnit.MINUTES)));
+                observed.setProperty(FEWEST_SCRAPES_WHILE_AN_OTHER_BROKER_STARTS,
+                        Long.toString(fewestScrapesWhileAnOtherBrokerStarts));
                 return other;
             } finally {
                 scraper.shutdownNow();
