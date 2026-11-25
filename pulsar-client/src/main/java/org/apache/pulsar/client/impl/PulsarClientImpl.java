@@ -1823,6 +1823,55 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     /**
+     * Open a TC assignment watch without confusing an any-broker pairing request with an actual
+     * proxy route. The future completes with a connection that advertises TC discovery, or fails
+     * with {@link PulsarClientException.NotSupportedException}. A direct broker advertises TC
+     * discovery on an ordinary connection. A proxy's lookup connection advertises no broker features
+     * and must first pair to a supporting broker. Both attempts use the same unresolved service
+     * endpoint, including its TLS/SNI hostname and port.
+     */
+    public CompletableFuture<ClientCnx> getTcAssignmentsWatchConnection() {
+        return FutureUtil.supplySafely(() -> {
+            if (!lookup.isBinaryProtoLookupService()) {
+                return FutureUtil.failedFuture(new PulsarClientException.InvalidServiceURL(
+                        "TC assignment watches require a pulsar:// service URL", null));
+            }
+            InetSocketAddress endpoint = lookup.resolveHost();
+            int key = cnxPool.genRandomKeyToSelectCon();
+            return getConnection(endpoint, endpoint, key).thenCompose(probe -> {
+                if (probe.isSupportsTcMetadataDiscovery()) {
+                    return CompletableFuture.completedFuture(probe);
+                }
+                // The watch doesn't use the probe. releaseConnection closes it only when pooling is
+                // disabled; a pooled connection stays open for its other users.
+                cnxPool.releaseConnection(probe);
+                if (probe.isSupportsScalableTopics() || probe.isSupportsTopicWatchers()) {
+                    // A Pulsar proxy's lookup connection advertises neither feature, so the endpoint
+                    // is a broker without TC discovery. Don't pair: behind a load balancer, the pairing
+                    // could reach another broker that supports it, and the watch would then be
+                    // treated as proxied.
+                    return FutureUtil.failedFuture(newTcDiscoveryNotSupportedException());
+                }
+                return getConnection(PulsarChannelInitializer.PROXY_TO_ANY_BROKER, endpoint, key)
+                        .thenCompose(paired -> {
+                            if (paired.isSupportsTcMetadataDiscovery()) {
+                                return CompletableFuture.completedFuture(paired);
+                            }
+                            // Like the probe, a pooled pairing stays open, so a retry gets the same
+                            // pairing, and the same broker, back.
+                            cnxPool.releaseConnection(paired);
+                            return FutureUtil.failedFuture(newTcDiscoveryNotSupportedException());
+                        });
+            });
+        });
+    }
+
+    private static PulsarClientException.NotSupportedException newTcDiscoveryNotSupportedException() {
+        return new PulsarClientException.NotSupportedException(
+                "Broker does not support scalable-topics transactions (metadata-store TC discovery)");
+    }
+
+    /**
      * Open a connection to the proxy and ask it to pair the connection to any broker it selects
      * (an empty proxyToBrokerUrl). Used for control-plane operations that aren't tied to a specific
      * broker (e.g. scalable-topic subscribe/namespace-watch) when connecting through a proxy.
