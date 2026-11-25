@@ -320,6 +320,12 @@ public class BrokerService implements Closeable {
     private final ObservableLongUpDownCounter pendingTopicLoadOperationsCounter;
     private final ObservableLongUpDownCounter pendingTopicLoadOperationsLimitCounter;
 
+    // The pending request gauges are per broker, but PrometheusRegistry.defaultRegistry is per JVM, so only one
+    // broker of a JVM can have them registered. This has the gauges that the brokers have registered, by name. A
+    // broker looks its names up here instead of letting the registry reject them: register() adds a collector before
+    // it checks the name, so a scrape that runs meanwhile gets two gauges of the same name and fails.
+    private static final Map<String, GaugeWithCallback> REGISTERED_PENDING_REQUEST_GAUGES = new HashMap<>();
+
     public static final String CONNECTION_RATE_LIMIT_COUNT_METRIC_NAME = "pulsar.broker.connection.rate_limit.count";
     private final LongCounter rateLimitedConnectionsCounter;
     // Nothing exports exemplars, so the gauge skips the sampling that 1.x gauges do by default.
@@ -610,13 +616,28 @@ public class BrokerService implements Closeable {
                 .help("-")
                 .callback(callback -> callback.call(currentValue.getAsInt()))
                 .build();
-        try {
-            PrometheusRegistry.defaultRegistry.register(gauge);
-        } catch (IllegalArgumentException nameIsTakenByAnotherBrokerInThisJvm) {
-            log.debug().attr("gauge", name).exceptionMessage(nameIsTakenByAnotherBrokerInThisJvm)
-                    .log("Prometheus gauge is already registered");
+        synchronized (REGISTERED_PENDING_REQUEST_GAUGES) {
+            if (REGISTERED_PENDING_REQUEST_GAUGES.containsKey(name)) {
+                log.debug().attr("gauge", name).log("Prometheus gauge is already registered by another broker");
+                return gauge;
+            }
+            try {
+                PrometheusRegistry.defaultRegistry.register(gauge);
+                REGISTERED_PENDING_REQUEST_GAUGES.put(name, gauge);
+            } catch (IllegalArgumentException nameIsTaken) {
+                log.debug().attr("gauge", name).exceptionMessage(nameIsTaken)
+                        .log("Prometheus gauge is already registered");
+            }
         }
         return gauge;
+    }
+
+    private static void unregisterGaugeIfRegistered(GaugeWithCallback gauge) {
+        synchronized (REGISTERED_PENDING_REQUEST_GAUGES) {
+            if (REGISTERED_PENDING_REQUEST_GAUGES.values().remove(gauge)) {
+                PrometheusRegistry.defaultRegistry.unregister(gauge);
+            }
+        }
     }
 
     public void addTopicEventListener(TopicEventsListener... listeners) {
@@ -1067,8 +1088,8 @@ public class BrokerService implements Closeable {
             }
 
             // unregister non-static metrics collectors
-            PrometheusRegistry.defaultRegistry.unregister(pendingTopicLoadRequests);
-            PrometheusRegistry.defaultRegistry.unregister(pendingLookupRequests);
+            unregisterGaugeIfRegistered(pendingTopicLoadRequests);
+            unregisterGaugeIfRegistered(pendingLookupRequests);
             if (segmentOwnerMetrics != null) {
                 segmentOwnerMetrics.close();
             }
