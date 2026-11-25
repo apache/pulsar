@@ -18,12 +18,18 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Persistent topic internal statistics.
  */
 public class PersistentTopicInternalStats extends ManagedLedgerInternalStats{
+
+    /** Outbound replication targets. A null map value denotes a target whose replicator is not available yet. */
+    @JsonInclude(value = JsonInclude.Include.NON_NULL, content = JsonInclude.Include.ALWAYS)
+    public Map<String, ReplicatorInternalStats> replicators;
 
     public List<LedgerInfo> schemaLedgers;
 

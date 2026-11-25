@@ -271,6 +271,7 @@ public class TopicTerminationTest extends SharedPulsarBaseTest {
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
             .create();
+        @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName("my-sub").subscribe();
 
@@ -312,6 +313,7 @@ public class TopicTerminationTest extends SharedPulsarBaseTest {
 
         CountDownLatch latch = new CountDownLatch(1);
 
+        @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName("my-sub").messageListener(new MessageListener<byte[]>() {
 
@@ -357,6 +359,7 @@ public class TopicTerminationTest extends SharedPulsarBaseTest {
         MessageId lastMessageId = admin.topics().terminateTopicAsync(topicName).get();
         assertEquals(lastMessageId, msgId3);
 
+        @Cleanup
         Reader<byte[]> reader = pulsarClient.newReader().topic(topicName).startMessageId(MessageId.earliest).create();
 
         Message<byte[]> msg1 = reader.readNext();
@@ -384,6 +387,7 @@ public class TopicTerminationTest extends SharedPulsarBaseTest {
 
         CountDownLatch latch = new CountDownLatch(1);
 
+        @Cleanup
         Reader<byte[]> reader = pulsarClient.newReader().topic(topicName).startMessageId(MessageId.latest)
                 .readerListener(new ReaderListener<byte[]>() {
                     @Override
@@ -424,6 +428,7 @@ public class TopicTerminationTest extends SharedPulsarBaseTest {
         MessageId lastMessageId = admin.topics().terminateTopicAsync(topicName).get();
         assertEquals(lastMessageId, msgId2);
 
+        @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName("my-sub").subscribe();
 
@@ -439,6 +444,7 @@ public class TopicTerminationTest extends SharedPulsarBaseTest {
             .create();
         admin.topics().terminateTopicAsync(topicName).get();
 
+        @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName("my-sub").subscribe();
 

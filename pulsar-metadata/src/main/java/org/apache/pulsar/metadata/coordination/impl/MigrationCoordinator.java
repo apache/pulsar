@@ -44,6 +44,7 @@ import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
+import org.apache.pulsar.metadata.impl.DualMetadataStore;
 import org.apache.pulsar.metadata.impl.oxia.OxiaMetadataStoreProvider;
 
 /**
@@ -67,10 +68,13 @@ public class MigrationCoordinator {
     @VisibleForTesting
     public MigrationCoordinator(MetadataStore sourceStore, String targetUrl, Duration preparationTimeout)
             throws MetadataStoreException {
-        this.sourceStore = sourceStore;
+        // Work on the source store directly: a DualMetadataStore rejects writes while the migration is in progress, and
+        // the coordinator has to keep updating the migration state
+        this.sourceStore = sourceStore instanceof DualMetadataStore dualStore
+                ? dualStore.getSourceStore() : sourceStore;
         this.targetUrl = targetUrl;
         this.preparationTimeout = preparationTimeout;
-        this.migrationStateCache = sourceStore.getMetadataCache(MigrationState.class);
+        this.migrationStateCache = this.sourceStore.getMetadataCache(MigrationState.class);
 
         if (!targetUrl.startsWith("oxia://")) {
             throw new MetadataStoreException("Expected target metadata store to be Oxia");

@@ -17,7 +17,7 @@
  * under the License.
  */
 
-/**
+/*
  * This file is derived from IOUtils from Apache BookKeeper
  * http://bookkeeper.apache.org
  */

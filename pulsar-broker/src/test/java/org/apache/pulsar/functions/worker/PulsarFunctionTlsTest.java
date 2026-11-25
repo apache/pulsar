@@ -26,6 +26,7 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -43,6 +44,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.ClassLoaderUtils;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -132,6 +134,9 @@ public class PulsarFunctionTlsTest {
                 "tlsCertFile:" + TLS_CLIENT_CERT_FILE_PATH + ",tlsKeyFile:" + TLS_CLIENT_KEY_FILE_PATH);
             config.setFunctionsWorkerEnabled(true);
             config.setTlsEnabled(true);
+            // The function workers elect their leader through a Failover subscription: don't delay the election by
+            // the default 1 s
+            config.setActiveConsumerFailoverDelayTimeMillis(0);
 
             WorkerConfig workerConfig = PulsarService.initializeWorkerConfigFromBrokerConfig(config, null);
             tempDirectories[i] = PulsarFunctionTestTemporaryDirectory.create(getClass().getSimpleName());
@@ -188,7 +193,15 @@ public class PulsarFunctionTlsTest {
         }
         leaderPulsar = pulsarServices[0];
         leaderAdmin = pulsarAdmins[0];
-        Thread.sleep(1000);
+        // Wait until the worker that won the leader election has finished becoming the leader, which serves the
+        // function updates of both workers
+        Awaitility.await().until(() -> {
+            WorkerInfo leader = ((PulsarWorkerService) fnWorkerServices[0]).getMembershipManager().getLeader();
+            return leader != null && Arrays.stream(fnWorkerServices)
+                    .map(PulsarWorkerService.class::cast)
+                    .anyMatch(worker -> worker.getWorkerConfig().getWorkerId().equals(leader.getWorkerId())
+                            && worker.getLeaderService().isLeader());
+        });
 
         TenantInfo tenantInfo = TenantInfo.builder()
                 .allowedClusters(Collections.singleton(testCluster))

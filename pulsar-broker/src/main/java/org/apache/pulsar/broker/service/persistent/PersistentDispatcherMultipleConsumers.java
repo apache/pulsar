@@ -102,8 +102,14 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     // Set from the first delayed message until the asynchronously created tracker is installed. Dispatch is paused
     // meanwhile, and the delayed messages already read wait in messagesPendingDelayedDeliveryTracker.
     private volatile CompletableFuture<Void> delayedDeliveryTrackerCreateFuture = null;
+    // Both futures below are guarded by this and belong to the current creation and its retries.
+    private CompletableFuture<Void> delayedDeliveryTrackerRecoverySkipFuture;
+    private CompletableFuture<Void> delayedDeliveryTrackerCreateFailureFuture;
     // Guarded by this. A concurrent map only so that stats can read its size without taking the dispatcher lock.
     private final Map<Position, Long> messagesPendingDelayedDeliveryTracker = new ConcurrentHashMap<>();
+    // Guarded by this. True while a backlog clear is running, so positions arriving during the clear
+    // stay pending until the old tracker state has been cleared.
+    private boolean delayedDeliveryTrackerClearPending = false;
     // Whether the last read pass was skipped because the tracker paused all deliveries, i.e. it detected fixed delays
     // and the entries not read yet are delayed too. Volatile so that stats can read it without the dispatcher lock.
     private volatile boolean readPausedByDelayTracker = false;
@@ -118,6 +124,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     protected boolean shouldRewindBeforeReadingOrReplaying = false;
     protected final String name;
     private boolean sendInProgress = false;
+    // Normal and replay reads can both complete while the subscription thread is busy. Guarded by this.
+    private int pendingDispatches;
     protected static final AtomicIntegerFieldUpdater<PersistentDispatcherMultipleConsumers>
             TOTAL_AVAILABLE_PERMITS_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(PersistentDispatcherMultipleConsumers.class,
@@ -208,8 +216,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             return CompletableFuture.completedFuture(null);
         }
         if (consumerList.isEmpty()) {
-            if (havePendingRead || havePendingReplayRead) {
-                // There is a pending read from previous run. We must wait for it to complete and then rewind
+            if (havePendingRead || havePendingReplayRead || isSendInProgress()) {
+                // Wait for reads and queued dispatches from the previous run to be discarded before rewinding.
                 shouldRewindBeforeReadingOrReplaying = true;
             } else {
                 cursor.rewind();
@@ -439,19 +447,26 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                         .attr("consumerCount", consumerList.size())
                         .log("Schedule replay of messages for consumers");
                 havePendingReplayRead = true;
-                updateMinReplayedPosition();
-                onReadStarted(ReadType.Replay);
-                Set<? extends Position> deletedMessages = topic.isDelayedDeliveryEnabled()
-                        ? asyncReplayEntriesInOrder(messagesToReplayNow)
-                        : asyncReplayEntries(messagesToReplayNow);
+                Set<? extends Position> deletedMessages;
+                boolean readStarted = false;
+                try {
+                    updateMinReplayedPosition();
+                    onReadStarted(ReadType.Replay);
+                    readStarted = true;
+                    deletedMessages = topic.isDelayedDeliveryEnabled()
+                            ? asyncReplayEntriesInOrder(messagesToReplayNow)
+                            : asyncReplayEntries(messagesToReplayNow);
+                } catch (Throwable failure) {
+                    // Nothing else would ever clear the flag after this failure (issue #26454).
+                    handleReadSchedulingFailure(failure, ReadType.Replay, readStarted);
+                    return;
+                }
                 // clear already acked positions from replay bucket
                 deletedMessages.forEach(position -> redeliveryMessages.remove(position.getLedgerId(),
                         position.getEntryId()));
-                // if all the entries are acked-entries and cleared up from redeliveryMessages, try to read
-                // next entries as readCompletedEntries-callback was never called
                 if ((messagesToReplayNow.size() - deletedMessages.size()) == 0) {
-                    havePendingReplayRead = false;
-                    onReadEnded(ReadType.Replay);
+                    // The completion of an empty replay goes through the backoff path, because no entry
+                    // was processed; the next read is scheduled here instead, without a delay
                     readMoreEntriesAsync();
                 }
             } else if (BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.get(this) == TRUE) {
@@ -473,18 +488,57 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                         .attr("consumersCount", consumerList.size())
                         .log("Schedule read of messages");
                 havePendingRead = true;
-                updateMinReplayedPosition();
-                onReadStarted(ReadType.Normal);
+                boolean readStarted = false;
+                try {
+                    updateMinReplayedPosition();
+                    onReadStarted(ReadType.Normal);
+                    readStarted = true;
 
-                messagesToRead = Math.min(messagesToRead, getMaxEntriesReadLimit());
-                cursor.asyncReadEntriesWithSkipOrWait(messagesToRead, bytesToRead, this, ReadType.Normal,
-                        topic.getMaxReadPosition(), createReadEntriesSkipConditionForNormalRead());
+                    messagesToRead = Math.min(messagesToRead, getMaxEntriesReadLimit());
+                    cursor.asyncReadEntriesWithSkipOrWait(messagesToRead, bytesToRead, this, ReadType.Normal,
+                            topic.getMaxReadPosition(), createReadEntriesSkipConditionForNormalRead());
+                } catch (Throwable failure) {
+                    // Nothing else would ever clear the flag after this failure (issue #26454).
+                    handleReadSchedulingFailure(failure, ReadType.Normal, readStarted);
+                }
             } else {
                 log.debug("Cannot schedule next read until previous one is done");
             }
         } else {
             log.debug("Consumer buffer is full, pause reading");
         }
+    }
+
+    /**
+     * Handles a failure that happens between setting the pending read flag and the submission of the
+     * read returning, including errors such as {@link OutOfMemoryError} which are not handled
+     * anywhere else on this path. Without this recovery no completion would ever clear the flag and
+     * the dispatcher would stop reading until the topic is unloaded (issue #26454).
+     *
+     * <p>The recovery is best-effort: the failure may also come from inside the managed cursor after
+     * it already took over the read, in which case cursor-side state, such as the pending read
+     * operations counter, can still be left behind. {@code onReadEnded} is only notified when
+     * {@code onReadStarted} was reached, to keep the read-started/read-ended notifications paired.
+     */
+    private void handleReadSchedulingFailure(Throwable failure, ReadType readType, boolean readStarted) {
+        if (readType == ReadType.Normal) {
+            havePendingRead = false;
+            // The failure may have happened after the read was already registered inside the
+            // managed cursor to wait for new entries: cancel it so the cleared flag cannot leave
+            // the cursor waiting.
+            cursor.cancelPendingReadRequest();
+        } else {
+            havePendingReplayRead = false;
+        }
+        if (readStarted) {
+            onReadEnded(readType);
+        }
+        log.error()
+                .attr("readType", readType)
+                .exception(failure)
+                .log("Failed to schedule read of messages");
+        scheduleReadEntriesWithDelay(new ManagedLedgerException(failure), readType,
+                readFailureBackoff.next().toMillis());
     }
 
     protected synchronized Predicate<Position> createReadEntriesSkipConditionForNormalRead() {
@@ -557,6 +611,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
      * with {@code dispatcherDispatchMessagesInSubscriptionThread}.
      */
     protected void onDispatchQueued(ReadType readType) {
+    }
+
+    /** Called under the dispatcher monitor when a queued dispatch is discarded before it starts. */
+    protected void onDispatchDiscarded(ReadType readType) {
+        onReadEnded(readType);
     }
 
     /**
@@ -670,10 +729,16 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     public void markDeletePositionMoveForward() {
         Position markDeletePosition = cursor.getMarkDeletedPosition();
         if (markDeletePosition != null) {
-            redeliveryMessages.removeAllUpTo(markDeletePosition.getLedgerId(), markDeletePosition.getEntryId());
-            for (Consumer consumer : consumerList) {
-                consumer.removePendingAcksUpToPositionAndDecrementUnacked(
-                        markDeletePosition.getLedgerId(), markDeletePosition.getEntryId());
+            synchronized (this) {
+                // Replay positions and sticky-key hash counts must be updated under the dispatcher lock.
+                redeliveryMessages.removeAllUpTo(markDeletePosition.getLedgerId(), markDeletePosition.getEntryId());
+                // removeConsumer debits a removed consumer's unacked messages under the same lock. Holding it here
+                // keeps a consumer that removeConsumer has already debited from being debited again for the same
+                // pending acks: consumerList only holds consumers that are still registered.
+                for (Consumer consumer : consumerList) {
+                    consumer.removePendingAcksUpToPositionAndDecrementUnacked(
+                            markDeletePosition.getLedgerId(), markDeletePosition.getEntryId());
+                }
             }
         }
     }
@@ -695,6 +760,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             this.delayedDeliveryTracker = Optional.empty();
             createFuture = this.delayedDeliveryTrackerCreateFuture;
             this.delayedDeliveryTrackerCreateFuture = null;
+            delayedDeliveryTrackerRecoverySkipFuture = null;
+            delayedDeliveryTrackerCreateFailureFuture = null;
+            delayedDeliveryTrackerClearPending = false;
             messagesPendingDelayedDeliveryTracker.clear();
         }
 
@@ -803,6 +871,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             // in a separate thread, and we want to prevent more reads
             acquireSendInProgress();
             onDispatchQueued(readType);
+            pendingDispatches++;
             dispatchMessagesThread.execute(() -> {
                 handleSendingMessagesAndReadingMore(readType, entries, false, totalBytesSize);
             });
@@ -814,12 +883,30 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     private synchronized void handleSendingMessagesAndReadingMore(ReadType readType, List<Entry> entries,
                                                                   boolean needAcquireSendInProgress,
                                                                   long totalBytesSize) {
-        boolean triggerReadingMore = sendMessagesToConsumers(readType, entries, needAcquireSendInProgress);
+        boolean triggerReadingMore;
+        try {
+            if (shouldRewindBeforeReadingOrReplaying) {
+                // All consumers disconnected after this read queued its dispatch. The rewind will read its entries
+                // again, so don't send them to the replacement consumer as well.
+                entries.forEach(Entry::release);
+                onDispatchDiscarded(readType);
+                releaseSendInProgress();
+                readMoreEntriesAsync();
+                return;
+            }
+            triggerReadingMore = sendMessagesToConsumers(readType, entries, needAcquireSendInProgress);
+        } finally {
+            if (!needAcquireSendInProgress) {
+                pendingDispatches--;
+            }
+            updatePendingBytesToDispatch(-totalBytesSize);
+        }
         int entriesProcessed = lastNumberOfEntriesProcessed;
-        updatePendingBytesToDispatch(-totalBytesSize);
         boolean canReadMoreImmediately = false;
         if (entriesProcessed > 0 || skipNextBackoff) {
-            // Reset the backoff when messages were processed
+            // Reset the backoff when messages were processed or nothing was read: an empty read is
+            // not a failure to retry with a delay - for example the replay of positions that were
+            // all acknowledged meanwhile completes with no entries
             retryBackoff.reset();
             // Reset the possible flag to skip the backoff delay
             skipNextBackoff = false;
@@ -850,7 +937,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     }
 
     protected synchronized boolean isSendInProgress() {
-        return sendInProgress;
+        return sendInProgress || pendingDispatches > 0;
     }
 
     protected final synchronized boolean sendMessagesToConsumers(ReadType readType, List<Entry> entries,
@@ -898,7 +985,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                 entries.set(i, entryAndMetadata);
             }
             if (metadata != null) {
-                remainingMessages += metadata.getNumMessagesInBatch();
+                remainingMessages += getNumMessagesInBatch(metadata, entry.getDataBuffer());
                 if (!hasChunk && metadata.hasUuid()) {
                     hasChunk = true;
                 }
@@ -1091,8 +1178,17 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
 
     @Override
     public synchronized void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-
         ReadType readType = (ReadType) ctx;
+        // Clear the pending read flag before anything that might throw, as readEntriesComplete does:
+        // if this callback dies midway, nothing would ever clear the flag again and the dispatcher
+        // would stall until the topic is unloaded (issue #26454).
+        if (readType == ReadType.Normal) {
+            havePendingRead = false;
+        } else {
+            havePendingReplayRead = false;
+        }
+        onReadEnded(readType);
+
         long waitTimeMillis = readFailureBackoff.next().toMillis();
 
         // Do not keep reading more entries if the cursor is already closed.
@@ -1130,15 +1226,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                     .log("Error reading entries - Retrying to read");
         }
 
-        onReadEnded(readType);
-        if (readType == ReadType.Normal) {
-            havePendingRead = false;
-        } else {
-            havePendingReplayRead = false;
-            if (exception instanceof ManagedLedgerException.InvalidReplayPositionException) {
-                Position markDeletePosition = cursor.getMarkDeletedPosition();
-                redeliveryMessages.removeAllUpTo(markDeletePosition.getLedgerId(), markDeletePosition.getEntryId());
-            }
+        if (readType == ReadType.Replay
+                && exception instanceof ManagedLedgerException.InvalidReplayPositionException) {
+            Position markDeletePosition = cursor.getMarkDeletedPosition();
+            redeliveryMessages.removeAllUpTo(markDeletePosition.getLedgerId(), markDeletePosition.getEntryId());
         }
 
         readBatchSize = serviceConfig.getDispatcherMinReadBatchSize();
@@ -1394,7 +1485,20 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
         }
 
         CompletableFuture<Void> createFuture;
+        CompletableFuture<Void> skipRecovery;
         synchronized (this) {
+            if (delayedDeliveryTrackerClearPending) {
+                if (isClosed()) {
+                    // A closed dispatcher does not buffer; the message stays unacknowledged.
+                    return true;
+                }
+                if (!msgMetadata.hasDeliverAtTime()) {
+                    return false;
+                }
+                messagesPendingDelayedDeliveryTracker.put(PositionFactory.create(ledgerId, entryId),
+                        msgMetadata.getDeliverAtTime());
+                return true;
+            }
             if (delayedDeliveryTracker.isPresent()) {
                 delayedDeliveryTracker.get().resetTickTime(topic.getDelayedDeliveryTickTimeMillis());
                 long deliverAtTime = msgMetadata.hasDeliverAtTime() ? msgMetadata.getDeliverAtTime() : -1L;
@@ -1418,19 +1522,27 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             }
             createFuture = new CompletableFuture<>();
             delayedDeliveryTrackerCreateFuture = createFuture;
+            skipRecovery = new CompletableFuture<>();
+            delayedDeliveryTrackerRecoverySkipFuture = skipRecovery;
+            delayedDeliveryTrackerCreateFailureFuture = new CompletableFuture<>();
         }
-        createDelayedDeliveryTracker(createFuture, false);
+        createDelayedDeliveryTracker(createFuture, skipRecovery, false);
         return true;
     }
 
-    private void createDelayedDeliveryTracker(CompletableFuture<Void> createFuture, boolean retry) {
+    private void createDelayedDeliveryTracker(CompletableFuture<Void> createFuture,
+                                              CompletableFuture<Void> skipRecovery, boolean retry) {
         long startNanos = System.nanoTime();
         log.debug()
                 .attr("pendingDelayedMessages", messagesPendingDelayedDeliveryTracker.size())
                 .log("Creating delayed delivery tracker");
         CompletableFuture<DelayedDeliveryTracker> trackerFuture;
         try {
-            trackerFuture = topic.getBrokerService().getDelayedDeliveryTrackerFactory().newTrackerAsync(this);
+            DelayedDeliveryTrackerFactory factory = topic.getBrokerService().getDelayedDeliveryTrackerFactory();
+            // Preserve async creation overrides in custom factory subclasses.
+            trackerFuture = factory.getClass() == BucketDelayedDeliveryTrackerFactory.class
+                    ? ((BucketDelayedDeliveryTrackerFactory) factory).newTrackerAsync(this, skipRecovery)
+                    : factory.newTrackerAsync(this);
         } catch (Throwable t) {
             trackerFuture = FutureUtil.failedFuture(t);
         }
@@ -1442,7 +1554,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
         }
         trackerFuture
                 .handle((tracker, ex) -> {
-                    delayedDeliveryTrackerCreated(createFuture, tracker, ex, startNanos, resumeDispatch);
+                    delayedDeliveryTrackerCreated(createFuture, skipRecovery, tracker, ex, startNanos, resumeDispatch);
                     return null;
                 })
                 .exceptionally(ex -> {
@@ -1453,7 +1565,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                 });
     }
 
-    private void delayedDeliveryTrackerCreated(CompletableFuture<Void> createFuture, DelayedDeliveryTracker tracker,
+    private void delayedDeliveryTrackerCreated(CompletableFuture<Void> createFuture,
+                                               CompletableFuture<Void> skipRecovery, DelayedDeliveryTracker tracker,
                                                Throwable ex, long startNanos, boolean resumeDispatch) {
         if (ex == null && tracker == null) {
             ex = new IllegalStateException("The delayed delivery tracker factory returned no tracker");
@@ -1461,6 +1574,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
         long durationMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
         boolean installed = false;
         boolean stale = false;
+        CompletableFuture<Void> failedCreation = null;
         long retryDelayMillis = -1;
         int pendingDelayedMessages;
         try {
@@ -1472,8 +1586,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                 } else if (ex != null) {
                     // Keep the messages pending and dispatch paused: delivering them now would ignore their delay
                     retryDelayMillis = delayedDeliveryTrackerCreateBackoff.next().toMillis();
+                    failedCreation = delayedDeliveryTrackerCreateFailureFuture;
                 } else {
                     delayedDeliveryTrackerCreateFuture = null;
+                    delayedDeliveryTrackerRecoverySkipFuture = null;
+                    delayedDeliveryTrackerCreateFailureFuture = null;
                     delayedDeliveryTrackerCreateBackoff.reset();
                     delayedDeliveryTracker = Optional.of(tracker);
                     installed = true;
@@ -1489,6 +1606,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             }
         }
 
+        if (failedCreation != null) {
+            failedCreation.completeExceptionally(ex);
+        }
         if (installed) {
             log.debug()
                     .attr("durationMillis", durationMillis)
@@ -1510,7 +1630,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             try {
                 topic.getBrokerService().executor().schedule(() -> {
                     if (delayedDeliveryTrackerCreateFuture == createFuture) {
-                        createDelayedDeliveryTracker(createFuture, true);
+                        createDelayedDeliveryTracker(createFuture, skipRecovery, true);
                     }
                 }, retryDelayMillis, TimeUnit.MILLISECONDS);
             } catch (RejectedExecutionException e) {
@@ -1521,11 +1641,22 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
 
     private void addPendingMessagesToTracker(DelayedDeliveryTracker tracker) {
         tracker.resetTickTime(topic.getDelayedDeliveryTickTimeMillis());
+        Position markDeletedPosition = cursor.getMarkDeletedPosition();
         try {
             var iterator = messagesPendingDelayedDeliveryTracker.entrySet().iterator();
             while (iterator.hasNext()) {
                 Map.Entry<Position, Long> entry = iterator.next();
                 Position position = entry.getKey();
+                if (markDeletedPosition != null && position.compareTo(markDeletedPosition) <= 0) {
+                    // The cursor moved past this position while the tracker was being created.
+                    iterator.remove();
+                    continue;
+                }
+                if (delayedDeliveryTrackerClearPending) {
+                    // The backlog clear reinstalls these positions after clearing the tracker, so
+                    // do not install or redeliver them here.
+                    continue;
+                }
                 if (!tracker.addMessage(position.getLedgerId(), position.getEntryId(), entry.getValue())) {
                     // The delivery time has already passed
                     redeliveryMessages.add(position.getLedgerId(), position.getEntryId());
@@ -1533,10 +1664,12 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                 iterator.remove();
             }
         } finally {
-            // If the tracker failed, deliver the remaining messages rather than leaving them stuck
-            messagesPendingDelayedDeliveryTracker.keySet().forEach(position ->
-                    redeliveryMessages.add(position.getLedgerId(), position.getEntryId()));
-            messagesPendingDelayedDeliveryTracker.clear();
+            if (!delayedDeliveryTrackerClearPending) {
+                // If the tracker failed, deliver the remaining messages rather than leaving them stuck
+                messagesPendingDelayedDeliveryTracker.keySet().forEach(position ->
+                        redeliveryMessages.add(position.getLedgerId(), position.getEntryId()));
+                messagesPendingDelayedDeliveryTracker.clear();
+            }
         }
     }
 
@@ -1634,6 +1767,111 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     public long getNumberOfDelayedMessages() {
         return delayedDeliveryTracker.map(DelayedDeliveryTracker::getNumberOfDelayedMessages).orElse(0L)
                 + messagesPendingDelayedDeliveryTracker.size();
+    }
+
+    /**
+     * Start buffering delayed entries before an ordinary backlog clear invokes the cursor clear.
+     * Entries published after the clear tail is sampled must not be installed before the cursor and
+     * tracker work settles. Only this dispatcher family tracks delayed messages, so the buffering
+     * gate lives here instead of the {@code Dispatcher} interface.
+     */
+    public void startBufferingDelayedMessagesForBacklogClear() {
+        synchronized (this) {
+            // Arm regardless of the current policy: it is read live and can change while the
+            // clear is in flight, and tracking consults the policy again anyway.
+            delayedDeliveryTrackerClearPending = true;
+        }
+    }
+
+    /**
+     * Stop buffering delayed entries and install the buffered positions. Used when the cursor clear
+     * fails or after the delayed-state cleanup settles. Idempotent.
+     */
+    public void releaseBufferedDelayedMessagesAfterBacklogClear() {
+        installPendingAfterBacklogClear();
+    }
+
+    @Override
+    public CompletableFuture<Void> clearDelayedMessagesAfterBacklogClear() {
+        synchronized (this) {
+            Position markDeletedPosition = cursor.getMarkDeletedPosition();
+            if (markDeletedPosition != null) {
+                messagesPendingDelayedDeliveryTracker.keySet().removeIf(position ->
+                        position.compareTo(markDeletedPosition) <= 0);
+            }
+            // Keep positions arriving during the clear pending until the old tracker state is
+            // cleared, then install them once. The release below runs regardless of the current
+            // delayed-delivery policy: the policy is read live and can change while the clear is
+            // in flight, and an armed gate must not outlive the clear.
+            delayedDeliveryTrackerClearPending = true;
+            CompletableFuture<Void> clearFuture;
+            if (!topic.isDelayedDeliveryEnabled()) {
+                clearFuture = CompletableFuture.completedFuture(null);
+            } else {
+                try {
+                    if (delayedDeliveryTrackerCreateFuture == null) {
+                        clearFuture = clearDelayedMessages();
+                    } else {
+                        clearFuture = delayedDeliveryTrackerCreateFuture
+                                .applyToEither(delayedDeliveryTrackerCreateFailureFuture, result -> result)
+                                .thenCompose(__ -> clearDelayedMessages());
+                    }
+                } catch (RuntimeException e) {
+                    // A synchronous tracker failure must still release the buffered entries, so
+                    // normalize it into the failed future the release handler is attached to.
+                    clearFuture = FutureUtil.failedFuture(e);
+                }
+            }
+            CompletableFuture<Void> skipRecovery = delayedDeliveryTrackerRecoverySkipFuture;
+            CompletableFuture<Void> tracked =
+                    clearFuture.whenComplete((__, clearEx) -> releaseBufferedDelayedMessagesAfterBacklogClear());
+            if (skipRecovery != null) {
+                skipRecovery.complete(null);
+            }
+            return tracked;
+        }
+    }
+
+    private void installPendingAfterBacklogClear() {
+        boolean installedOrStarted = false;
+        synchronized (this) {
+            delayedDeliveryTrackerClearPending = false;
+            if (isClosed()) {
+                // A closed dispatcher must not start a tracker or keep buffered positions.
+                messagesPendingDelayedDeliveryTracker.clear();
+                return;
+            }
+            if (delayedDeliveryTracker.isPresent()) {
+                addPendingMessagesToTracker(delayedDeliveryTracker.get());
+                installedOrStarted = true;
+            } else if (delayedDeliveryTrackerCreateFuture == null
+                    && !messagesPendingDelayedDeliveryTracker.isEmpty()) {
+                startDelayedDeliveryTrackerCreation();
+                installedOrStarted = true;
+            }
+        }
+        if (installedOrStarted) {
+            // Due entries moved to the replay set need a read to be dispatched; the release is not
+            // running inside a read loop, so request one.
+            readMoreEntriesAsync();
+        }
+    }
+
+    private void startDelayedDeliveryTrackerCreation() {
+        CompletableFuture<Void> createFuture;
+        CompletableFuture<Void> skipRecovery;
+        synchronized (this) {
+            if (isClosed() || delayedDeliveryTrackerCreateFuture != null
+                    || messagesPendingDelayedDeliveryTracker.isEmpty()) {
+                return;
+            }
+            createFuture = new CompletableFuture<>();
+            delayedDeliveryTrackerCreateFuture = createFuture;
+            skipRecovery = new CompletableFuture<>();
+            delayedDeliveryTrackerRecoverySkipFuture = skipRecovery;
+            delayedDeliveryTrackerCreateFailureFuture = new CompletableFuture<>();
+        }
+        createDelayedDeliveryTracker(createFuture, skipRecovery, false);
     }
 
     @Override

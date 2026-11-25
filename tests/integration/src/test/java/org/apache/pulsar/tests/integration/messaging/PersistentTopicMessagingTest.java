@@ -25,6 +25,11 @@ import org.testng.annotations.Test;
 @CustomLog
 public class PersistentTopicMessagingTest extends TopicMessagingBase {
 
+    @Override
+    protected boolean isClusterShared() {
+        return true;
+    }
+
     @Test(dataProvider = "ServiceUrls")
     public void testNonPartitionedTopicMessagingWithExclusive(Supplier<String> serviceUrl) throws Exception {
         nonPartitionedTopicSendAndReceiveWithExclusive(serviceUrl.get(), true);

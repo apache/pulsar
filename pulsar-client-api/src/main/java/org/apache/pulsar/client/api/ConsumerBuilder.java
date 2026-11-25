@@ -637,6 +637,8 @@ public interface ConsumerBuilder<T> extends Cloneable {
      *
      * @param interceptors the list of interceptors to intercept the consumer created by this builder.
      */
+    // @SafeVarargs cannot be applied to an abstract method; implementations declare it on their final override.
+    @SuppressWarnings("unchecked")
     ConsumerBuilder<T> intercept(ConsumerInterceptor<T> ...interceptors);
 
     /**

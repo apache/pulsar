@@ -19,8 +19,11 @@
 package org.apache.pulsar.functions.worker.rest.api;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufOutputStream;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.exporter.common.TextFormat;
+import io.prometheus.metrics.expositionformats.PrometheusTextFormatWriter;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
@@ -50,6 +53,9 @@ public class FunctionsMetricsResource extends FunctionApiResource {
         if (workerService.getWorkerConfig().isIncludeStandardPrometheusMetrics()) {
             Writer writer = new BufWriter(buf);
             TextFormat.write004(writer, CollectorRegistry.defaultRegistry.metricFamilySamples());
+            // Metrics registered on the Prometheus Java client 1.x registry (e.g. Caffeine cache metrics).
+            PrometheusTextFormatWriter.create().write(new ByteBufOutputStream(buf),
+                    PrometheusRegistry.defaultRegistry.scrape());
         }
 
         try {

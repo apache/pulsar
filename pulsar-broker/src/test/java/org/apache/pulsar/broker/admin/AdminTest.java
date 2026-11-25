@@ -43,6 +43,7 @@ import jakarta.ws.rs.core.UriInfo;
 import java.lang.reflect.Field;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -99,6 +100,7 @@ import org.apache.zookeeper.KeeperException.Code;
 import org.apache.zookeeper.MockZooKeeper;
 import org.awaitility.Awaitility;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -193,6 +195,22 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
     public void cleanup() throws Exception {
         super.internalCleanup();
         conf.setClusterName(configClusterName);
+        // The spies' recorded invocations reference them again, so Mockito's inline mock maker would keep them, and
+        // the closed broker they reference, until the JVM exits; TestNG keeps this test instance until the run ends.
+        for (Object resource : Arrays.asList(clusters, tenants, namespaces, persistentTopics, brokers, resourceQuotas,
+                brokerStats, schemasResource)) {
+            if (resource != null) {
+                Mockito.framework().clearInlineMock(resource);
+            }
+        }
+        clusters = null;
+        tenants = null;
+        namespaces = null;
+        persistentTopics = null;
+        brokers = null;
+        resourceQuotas = null;
+        brokerStats = null;
+        schemasResource = null;
     }
 
     @SuppressWarnings("deprecation")

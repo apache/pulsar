@@ -59,6 +59,7 @@ import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.resources.ScalableTopicResources;
+import org.apache.pulsar.broker.service.AbstractReplicator;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.Subscription;
@@ -413,6 +414,12 @@ public abstract class NamespacesBase extends AdminResource {
         return null;
     }
 
+    // Cluster service URLs are not validated as strict URIs, so keep URL(String)'s lenient parsing.
+    @SuppressWarnings("deprecation")
+    private static URL parseUrl(String serviceUrl) throws MalformedURLException {
+        return new URL(serviceUrl);
+    }
+
     private boolean isDeletedAlongWithUserCreatedTopic(String topic) {
         // The transaction pending ack topic will be deleted while topic unsubscribe corresponding subscription.
         return topic.endsWith(SystemTopicNames.PENDING_ACK_STORE_SUFFIX);
@@ -455,7 +462,7 @@ public abstract class NamespacesBase extends AdminResource {
     private CompletableFuture<List<String>> listScalableTopicsAsync() {
         ScalableTopicResources resources = pulsar().getPulsarResources().getScalableTopicResources();
         return resources != null
-                ? resources.listScalableTopicsAsync(namespaceName)
+                ? resources.listScalableTopicsWithRecordAsync(namespaceName)
                 : CompletableFuture.completedFuture(List.of());
     }
 
@@ -524,9 +531,9 @@ public abstract class NamespacesBase extends AdminResource {
                                             URL replClusterUrl;
                                             try {
                                                 if (!replClusterData.isBrokerClientTlsEnabled()) {
-                                                    replClusterUrl = new URL(replClusterData.getServiceUrl());
+                                                    replClusterUrl = parseUrl(replClusterData.getServiceUrl());
                                                 } else if (StringUtils.isNotBlank(replClusterData.getServiceUrlTls())) {
-                                                    replClusterUrl = new URL(replClusterData.getServiceUrlTls());
+                                                    replClusterUrl = parseUrl(replClusterData.getServiceUrlTls());
                                                 } else {
                                                     throw new RestException(Status.PRECONDITION_FAILED,
                                                     "The replication cluster does not provide TLS encrypted service");
@@ -1932,18 +1939,18 @@ public abstract class NamespacesBase extends AdminResource {
         validatePoliciesReadOnlyAccess();
 
         try {
-            Policies policies = namespaceResources().getPolicies(namespaceName)
-                    .orElseThrow(() -> new RestException(Status.NOT_FOUND,
-                    "Namespace policies does not exist"));
-            if (!checkQuotas(policies, retention)) {
-                log.warn()
-                        .attr("namespace", namespaceName)
-                        .log("Failed to update retention configuration for namespace: conflicts with backlog quota");
-                throw new RestException(Status.PRECONDITION_FAILED,
-                        "Retention Quota must exceed configured backlog quota for namespace.");
-            }
-            policies.retention_policies = retention;
-            namespaceResources().setPolicies(namespaceName, p -> policies);
+            updatePolicies(namespaceName, policies -> {
+                if (!checkQuotas(policies, retention)) {
+                    log.warn()
+                            .attr("namespace", namespaceName)
+                            .log("Failed to update retention configuration for namespace: "
+                                    + "conflicts with backlog quota");
+                    throw new RestException(Status.PRECONDITION_FAILED,
+                            "Retention Quota must exceed configured backlog quota for namespace.");
+                }
+                policies.retention_policies = retention;
+                return policies;
+            });
             log.info()
                     .attr("namespace", namespaceName)
                     .attr("retention", objectWriter().writeValueAsString(retention))
@@ -2213,13 +2220,16 @@ public abstract class NamespacesBase extends AdminResource {
 
     protected void internalSetPolicies(String fieldName, Object value) {
         try {
-            Policies policies = namespaceResources().getPolicies(namespaceName)
-                    .orElseThrow(() -> new RestException(Status.NOT_FOUND,
-                    "Namespace policies does not exist"));
             Field field = Policies.class.getDeclaredField(fieldName);
             field.setAccessible(true);
-            field.set(policies, value);
-            namespaceResources().setPolicies(namespaceName, p -> policies);
+            updatePolicies(namespaceName, policies -> {
+                try {
+                    field.set(policies, value);
+                } catch (IllegalAccessException e) {
+                    throw new RestException(e);
+                }
+                return policies;
+            });
             log.info()
                     .attr("field", fieldName)
                     .attr("namespace", namespaceName)
@@ -2481,7 +2491,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     private CompletableFuture<Void> unsubscribeAsync(NamespaceBundle bundle, String subscription) {
-        if (subscription.startsWith(pulsar().getConfiguration().getReplicatorPrefix())) {
+        if (AbstractReplicator.isReplicatorCursor(pulsar().getConfiguration().getReplicatorPrefix(), subscription)) {
             return CompletableFuture.failedFuture(
                     new RestException(Status.PRECONDITION_FAILED, "Cannot unsubscribe a replication cursor"));
         }

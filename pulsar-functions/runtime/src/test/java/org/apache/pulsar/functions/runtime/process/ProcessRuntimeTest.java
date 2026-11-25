@@ -331,13 +331,13 @@ public class ProcessRuntimeTest {
                 + " -Dpulsar.functions.instance.classpath=/pulsar/lib/*"
                 + " -Dlog4j.configurationFile=java_instance_log4j2.xml"
                 + " -Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager"
-                + " -Dlog4j2.contextSelector=org.apache.logging.log4j.core.selector.BasicContextSelector "
+                + " -Dlog4j2.contextSelector=org.apache.logging.log4j.core.selector.BasicContextSelector"
+                + " -Dlog4j.shutdownHookEnabled=false "
                 + "-Dpulsar.function.log.dir=" + logDirectory + "/functions/"
                 + FunctionCommon.getFullyQualifiedName(config.getFunctionDetails())
                 + " -Dpulsar.function.log.file=" + config.getFunctionDetails().getName() + "-" + config.getInstanceId()
                 + " -Dio.netty.tryReflectionSetAccessible=true"
                 + " -Dorg.apache.pulsar.shade.io.netty.tryReflectionSetAccessible=true"
-                + " -Dio.grpc.netty.shaded.io.netty.tryReflectionSetAccessible=true"
                 + " --add-opens java.base/java.nio=ALL-UNNAMED"
                 + " --add-opens java.base/jdk.internal.misc=ALL-UNNAMED"
                 + " --add-opens java.base/java.util.zip=ALL-UNNAMED"

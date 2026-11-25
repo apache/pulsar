@@ -23,10 +23,13 @@ import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertTrue;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import lombok.CustomLog;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.pulsar.broker.MultiBrokerBaseTest;
@@ -44,6 +47,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -208,5 +212,25 @@ public class AdminApiMultiBrokersTest extends MultiBrokerBaseTest {
             log.info("trying to create the topic again");
             ((TopicsImpl) admin.topics()).createPartitionedTopicAsync(topic, numPartitions, true, null).get();
         }
+    }
+
+    @Test(timeOut = 30 * 1000)
+    public void testBrokerStatsOfParticularBroker() throws Exception {
+        PulsarAdmin admin0 = getAllAdmins().get(0);
+        Map<String, PulsarService> brokersById = getAllBrokers().stream()
+                .collect(Collectors.toMap(PulsarService::getBrokerId, Function.identity()));
+        List<String> activeBrokers = admin0.brokers().getActiveBrokers();
+        assertEquals(brokersById.keySet(), new HashSet<>(activeBrokers));
+
+        // Every request goes to broker 0; the stats must come from the requested broker.
+        for (String brokerId : activeBrokers) {
+            LoadManagerReport report = admin0.brokerStats().getLoadReport(brokerId);
+            assertEquals(brokersById.get(brokerId).getWebServiceAddress(), report.getWebServiceUrl());
+            Assert.assertNotNull(admin0.brokerStats().getMetrics(brokerId));
+            Assert.assertNotNull(admin0.brokerStats().getAllocatorStats(brokerId, "default"));
+        }
+
+        Assert.assertThrows(PulsarAdminException.NotFoundException.class,
+                () -> admin0.brokerStats().getLoadReport("unknown-broker:8080"));
     }
 }

@@ -18,10 +18,36 @@
  */
 package org.apache.pulsar.common.stats;
 
+import com.github.benmanes.caffeine.cache.AsyncCache;
+import com.github.benmanes.caffeine.cache.Cache;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import lombok.experimental.UtilityClass;
 
 @UtilityClass
 public class CacheMetricsCollector {
-    public static final io.prometheus.client.cache.caffeine.CacheMetricsCollector CAFFEINE =
-        new io.prometheus.client.cache.caffeine.CacheMetricsCollector().register();
+    private static final RemovableCacheMetricsCollector CAFFEINE_COLLECTOR = new RemovableCacheMetricsCollector();
+    public static final io.prometheus.metrics.instrumentation.caffeine.CacheMetricsCollector CAFFEINE =
+        CAFFEINE_COLLECTOR;
+
+    static {
+        PrometheusRegistry.defaultRegistry.register(CAFFEINE_COLLECTOR);
+    }
+
+    /** Remove only this cache's metrics, preserving a newer cache registered with the same name. */
+    public static void removeCache(String name, AsyncCache<?, ?> cache) {
+        CAFFEINE_COLLECTOR.removeCache(name, cache.synchronous());
+    }
+
+    // The collector has the same simple name as this utility class, so its type must be qualified.
+    private static final class RemovableCacheMetricsCollector
+            extends io.prometheus.metrics.instrumentation.caffeine.CacheMetricsCollector {
+        private RemovableCacheMetricsCollector() {
+            // Keep the simpleclient output: eviction weight stays a gauge and the weighted size is not exposed.
+            super(false, false);
+        }
+
+        private void removeCache(String name, Cache<?, ?> cache) {
+            children.computeIfPresent(name, (key, current) -> current == cache ? null : current);
+        }
+    }
 }
