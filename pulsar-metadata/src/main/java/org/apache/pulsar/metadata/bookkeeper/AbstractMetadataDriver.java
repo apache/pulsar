@@ -106,21 +106,39 @@ public abstract class AbstractMetadataDriver implements Closeable {
             this.storeInstanceIsOwned = false;
         } else {
 
-            String metadataServiceUri = null;
-            MetadataStoreUrl metadataStoreUrl;
+            String metadataServiceUri;
             try {
                 metadataServiceUri = conf.getMetadataServiceUri();
-                metadataStoreUrl = MetadataStoreUrl.parse(metadataServiceUri);
             } catch (Exception e) {
-                throw metadataStoreCreationException(metadataServiceUri, null, e);
+                throw metadataStoreCreationException(null, null, e);
             }
-            try {
-                this.store = MetadataStoreExtended.create(metadataStoreUrl.url(),
-                        MetadataStoreConfigQueryParams.createConfig(conf, metadataStoreUrl.configParams()));
-                this.storeInstanceIsOwned = true;
-            } catch (IllegalArgumentException | MetadataStoreException e) {
-                throw metadataStoreCreationException(metadataServiceUri, metadataStoreUrl.url(), e);
-            }
+            this.store = createMetadataStore(metadataServiceUri, conf.getZkTimeout());
+            this.storeInstanceIsOwned = true;
+        }
+    }
+
+    /**
+     * Creates a metadata store for a BookKeeper metadata service URI the way these drivers do: the
+     * {@value #METADATA_STORE_SCHEME} scheme is removed, and the MetadataStoreConfig parameters in the query string,
+     * such as {@code configFilePath}, configure the store rather than becoming part of its URL. The caller owns the
+     * returned store and must close it.
+     *
+     * @throws MetadataException if the URI can't be parsed, a MetadataStoreConfig query parameter is invalid, or the
+     *         store can't be created; the message names the URI and the resolved metadata store URL
+     */
+    public static MetadataStoreExtended createMetadataStore(String metadataServiceUri, int sessionTimeoutMillis)
+            throws MetadataException {
+        MetadataStoreUrl metadataStoreUrl;
+        try {
+            metadataStoreUrl = MetadataStoreUrl.parse(metadataServiceUri);
+        } catch (Exception e) {
+            throw metadataStoreCreationException(metadataServiceUri, null, e);
+        }
+        try {
+            return MetadataStoreExtended.create(metadataStoreUrl.url(),
+                    MetadataStoreConfigQueryParams.createConfig(sessionTimeoutMillis, metadataStoreUrl.configParams()));
+        } catch (IllegalArgumentException | MetadataStoreException e) {
+            throw metadataStoreCreationException(metadataServiceUri, metadataStoreUrl.url(), e);
         }
     }
 
@@ -132,6 +150,9 @@ public abstract class AbstractMetadataDriver implements Closeable {
         }
         if (metadataStoreUrl != null) {
             message += " (metadata store URL '" + metadataStoreUrl + "')";
+        }
+        if (cause.getMessage() != null) {
+            message += ": " + cause.getMessage();
         }
         return new MetadataException(Code.METADATA_SERVICE_ERROR, message, cause);
     }

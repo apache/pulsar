@@ -19,8 +19,13 @@
 package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertThrows;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
+import io.netty.buffer.Unpooled;
 import java.io.IOException;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.testng.annotations.Test;
 
 public class MessageIdSerializationTest {
@@ -57,5 +62,19 @@ public class MessageIdSerializationTest {
     @Test(expectedExceptions = IOException.class)
     void testProtobufSerializationEmpty() throws Exception {
         MessageId.fromByteArray(new byte[0]);
+    }
+
+    @Test
+    public void testNegativeBatchSizeIsRejected() {
+        byte[] serialized = serialize(
+                new MessageIdData().setLedgerId(1).setEntryId(2).setBatchIndex(0).setBatchSize(-1));
+        assertThrows(IOException.class, () -> MessageId.fromByteArray(serialized));
+        assertThrows(IOException.class, () -> MessageId.fromByteArrayWithTopic(serialized, "my-topic"));
+    }
+
+    private static byte[] serialize(MessageIdData idData) {
+        ByteBuf buf = Unpooled.buffer(idData.getSerializedSize());
+        idData.writeTo(buf);
+        return ByteBufUtil.getBytes(buf);
     }
 }

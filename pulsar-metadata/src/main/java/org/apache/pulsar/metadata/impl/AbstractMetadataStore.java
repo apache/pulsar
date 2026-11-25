@@ -337,8 +337,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         MetadataCacheImpl<T> metadataCache =
                 new MetadataCacheImpl<T>(cacheName, this, typeRef, (MetadataCacheConfig<T>) cacheConfig,
                         this.serDesExecutor, this.schedulerExecutor);
-        metadataCaches.add(metadataCache);
-        return metadataCache;
+        return trackMetadataCache(metadataCache);
     }
 
     @SuppressWarnings("unchecked")
@@ -348,8 +347,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         MetadataCacheImpl<T> metadataCache =
                 new MetadataCacheImpl<T>(cacheName, this, typeRef, (MetadataCacheConfig<T>) cacheConfig,
                         this.serDesExecutor, this.schedulerExecutor);
-        metadataCaches.add(metadataCache);
-        return metadataCache;
+        return trackMetadataCache(metadataCache);
     }
 
     @SuppressWarnings("unchecked")
@@ -359,7 +357,15 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         MetadataCacheImpl<T> metadataCache =
                 new MetadataCacheImpl<>(cacheName, this, serde, (MetadataCacheConfig<T>) cacheConfig,
                         this.serDesExecutor, this.schedulerExecutor);
+        return trackMetadataCache(metadataCache);
+    }
+
+    private <T> MetadataCache<T> trackMetadataCache(MetadataCacheImpl<T> metadataCache) {
         metadataCaches.add(metadataCache);
+        boolean alreadyClosed = isClosed();
+        if (alreadyClosed) {
+            metadataCache.unregisterMetrics();
+        }
         return metadataCache;
     }
 
@@ -1006,7 +1012,14 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         MoreExecutors.shutdownAndAwaitTermination(serDesExecutor, 10, TimeUnit.SECONDS);
         MoreExecutors.shutdownAndAwaitTermination(schedulerExecutor, 10, TimeUnit.SECONDS);
         MoreExecutors.shutdownAndAwaitTermination(eventExecutor, 10, TimeUnit.SECONDS);
+        unregisterCacheMetrics();
         this.metadataStoreStats.close();
+    }
+
+    private void unregisterCacheMetrics() {
+        CacheMetricsCollector.removeCache(metadataStoreName + "-children", childrenCache);
+        CacheMetricsCollector.removeCache(metadataStoreName + "-exists", existsCache);
+        metadataCaches.forEach(MetadataCacheImpl::unregisterMetrics);
     }
 
     @VisibleForTesting

@@ -104,6 +104,7 @@ import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.mledger.proto.MessageRange;
 import org.apache.bookkeeper.mledger.proto.OffloadContext;
 import org.apache.bookkeeper.mledger.proto.PositionInfo;
+import org.apache.bookkeeper.mledger.proto.StringProperty;
 import org.apache.bookkeeper.mledger.util.Errors;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.bookkeeper.stats.NullStatsLogger;
@@ -1359,6 +1360,32 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     @Override
     public CompletableFuture<Map<String, String>> getManagedLedgerPropertiesAsync(String name) {
         return store.getManagedLedgerPropertiesAsync(name);
+    }
+
+    @Override
+    public CompletableFuture<Map<String, String>> getCursorPropertiesAsync(String ledgerName, String cursorName) {
+        CompletableFuture<Map<String, String>> future = new CompletableFuture<>();
+        store.asyncGetCursorInfo(ledgerName, cursorName, new MetaStoreCallback<ManagedCursorInfo>() {
+            @Override
+            public void operationComplete(ManagedCursorInfo info, Stat stat) {
+                Map<String, String> properties = new TreeMap<>();
+                for (int i = 0; i < info.getCursorPropertiesCount(); i++) {
+                    StringProperty property = info.getCursorPropertyAt(i);
+                    properties.put(property.getName(), property.getValue());
+                }
+                future.complete(properties);
+            }
+
+            @Override
+            public void operationFailed(MetaStoreException e) {
+                if (e instanceof MetadataNotFoundException) {
+                    future.complete(Map.of());
+                } else {
+                    future.completeExceptionally(e);
+                }
+            }
+        });
+        return future;
     }
 
     public MetaStore getMetaStore() {
