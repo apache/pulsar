@@ -23,7 +23,7 @@ import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.isAckSetEmpt
 import static org.apache.pulsar.broker.service.persistent.PersistentTopic.MESSAGE_RATE_BACKOFF_MS;
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
-import io.prometheus.client.Gauge;
+import io.prometheus.metrics.core.metrics.GaugeWithCallback;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -62,10 +62,12 @@ import org.jspecify.annotations.Nullable;
 @CustomLog
 public abstract class AbstractBaseDispatcher extends EntryFilterSupport implements Dispatcher {
 
-    private static final Gauge PENDING_BYTES_TO_DISPATCH = Gauge
-            .build()
+    // Every dispatcher updates this twice per read batch; a striped adder keeps them off one contended atomic.
+    private static final LongAdder PENDING_BYTES_TO_DISPATCH = new LongAdder();
+    private static final GaugeWithCallback PENDING_BYTES_TO_DISPATCH_GAUGE = GaugeWithCallback.builder()
             .name("pulsar_broker_pending_bytes_to_dispatch")
             .help("Amount of bytes loaded in memory to be dispatched to Consumers")
+            .callback(callback -> callback.call(PENDING_BYTES_TO_DISPATCH.sum()))
             .register();
 
     /**
@@ -612,7 +614,8 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
     public static void checkAndApplyReachedEndOfTopicOrTopicMigration(PersistentTopic topic, List<Consumer> consumers) {
         if (topic.isMigrated()) {
             topic.getMigratedClusterUrlAsync()
-                    .thenAccept(clusterUrl -> consumers.forEach(c -> c.topicMigrated(clusterUrl)))
+                    .thenAccept(clusterUrl -> notifyConsumersSafely(topic, consumers, "topicMigrated",
+                            consumer -> consumer.topicMigrated(clusterUrl)))
                     .whenComplete((ignored, error) -> {
                         if (error != null) {
                             log.warn().attr("topic", topic.getName())
@@ -621,8 +624,29 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                         }
                     });
         } else {
-            consumers.forEach(Consumer::reachedEndOfTopic);
+            notifyConsumersSafely(topic, consumers, "reachedEndOfTopic", Consumer::reachedEndOfTopic);
         }
+    }
+
+    /**
+     * Logs a consumer's notification failure and continues notifying the remaining consumers.
+     * The callback type is qualified to distinguish it from the broker Consumer.
+     */
+    private static void notifyConsumersSafely(PersistentTopic topic, List<Consumer> consumers,
+                                             String notification, java.util.function.Consumer<Consumer> notify) {
+        consumers.forEach(consumer -> {
+            try {
+                notify.accept(consumer);
+            } catch (Throwable e) {
+                Throwable cause = FutureUtil.unwrapCompletionException(e);
+                log.warn().attr("topic", topic.getName())
+                        .attr("notification", notification)
+                        .attr("consumerId", consumer.consumerId())
+                        .attr("consumerName", consumer.consumerName())
+                        .exception(cause)
+                        .log("Failed to notify consumer");
+            }
+        });
     }
 
     @Override
@@ -676,7 +700,7 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
     }
 
     protected final void updatePendingBytesToDispatch(long size) {
-        PENDING_BYTES_TO_DISPATCH.inc(size);
+        PENDING_BYTES_TO_DISPATCH.add(size);
     }
 
     protected int getNumberOfMessagesInBatch(Entry entry) {

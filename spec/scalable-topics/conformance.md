@@ -25,7 +25,7 @@ A conformant client MUST provide all of:
 | # | Requirement | Spec |
 |---|-------------|------|
 | C1 | Resolve a scalable topic and track its layout via the DAG-watch session, applying updates by epoch monotonicity. | [Wire](wire-protocol.md) §4, [Impl](client-behavior.md) §1 |
-| C2 | Producer routing: keyed `Murmur3_32 & 0xFFFF` → covering active segment; keyless round-robin; all-legacy mod-N. | [Impl](client-behavior.md) §2 |
+| C2 | Producer routing: keyed `raw_Murmur3_32(key_utf8) >>> 16` (high 16 bits) → covering active segment; keyless round-robin; all-legacy mod-N. | [Impl](client-behavior.md) §2 |
 | C3 | Per-key publish ordering, preserved across split/merge; async per-segment call-order. | [API](client-api.md) §3.2, [Impl](client-behavior.md) §3 |
 | C4 | Transparent segment-gone retry on producing. | [Impl](client-behavior.md) §4 |
 | C5 | Deduplication via monotonic sequence identifiers; expose last published id. | [API](client-api.md) §3.2 |

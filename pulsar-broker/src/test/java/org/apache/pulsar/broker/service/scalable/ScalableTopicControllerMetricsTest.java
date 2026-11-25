@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.broker.service.scalable;
 
+import static org.apache.pulsar.broker.service.scalable.PrometheusSamples.families;
+import static org.apache.pulsar.broker.service.scalable.PrometheusSamples.getSampleValue;
+import static org.apache.pulsar.broker.service.scalable.PrometheusSamples.registeredFamilies;
+import static org.apache.pulsar.broker.service.scalable.PrometheusSamples.upperBound;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.data.Offset.offset;
@@ -31,17 +35,16 @@ import io.opentelemetry.api.metrics.ObservableMeasurement;
 import io.opentelemetry.sdk.metrics.SdkMeterProvider;
 import io.opentelemetry.sdk.metrics.data.MetricData;
 import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
-import io.prometheus.client.Collector;
-import io.prometheus.client.Collector.MetricFamilySamples;
-import io.prometheus.client.Collector.MetricFamilySamples.Sample;
-import io.prometheus.client.CollectorRegistry;
+import io.prometheus.metrics.model.registry.MetricType;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import org.apache.pulsar.broker.service.scalable.PrometheusSamples.Family;
+import org.apache.pulsar.broker.service.scalable.PrometheusSamples.Sample;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
@@ -59,14 +62,14 @@ public class ScalableTopicControllerMetricsTest {
     private InMemoryMetricReader reader;
     private SdkMeterProvider sdk;
     private Meter meter;
-    private CollectorRegistry registry;
+    private PrometheusRegistry registry;
 
     @BeforeMethod(alwaysRun = true)
     public void setup() {
         reader = InMemoryMetricReader.create();
         sdk = SdkMeterProvider.builder().registerMetricReader(reader).build();
         meter = sdk.get("scalable-topic-metrics-test");
-        registry = new CollectorRegistry();
+        registry = new PrometheusRegistry();
     }
 
     @AfterMethod(alwaysRun = true)
@@ -94,18 +97,18 @@ public class ScalableTopicControllerMetricsTest {
             }
 
             Collection<MetricData> otel = reader.collectAllMetrics();
-            List<MetricFamilySamples> prometheus = Collections.list(registry.metricFamilySamples());
+            List<Family> prometheus = families(registry);
             assertThat(otel).extracting(MetricData::getName).containsExactlyInAnyOrder(
                     OTEL_PREFIX + "controller.count", OTEL_PREFIX + "segment.count",
                     OTEL_PREFIX + "controller.takeover.duration", OTEL_PREFIX + "layout.operation.count",
                     OTEL_PREFIX + "layout.operation.duration", OTEL_PREFIX + "layout.seal.duration",
                     OTEL_PREFIX + "auto_scale.blocked.count");
             assertThat(prometheus).hasSize(7);
-            for (MetricFamilySamples family : prometheus) {
-                assertThat(family.type).isIn(Collector.Type.COUNTER, Collector.Type.GAUGE, Collector.Type.HISTOGRAM);
-                for (Sample sample : family.samples) {
+            for (Family family : prometheus) {
+                assertThat(family.type()).isIn(MetricType.COUNTER, MetricType.GAUGE, MetricType.HISTOGRAM);
+                for (Sample sample : family.samples()) {
                     assertThat(labels(sample)).containsEntry("cluster", CLUSTER);
-                    assertThat(sample.labelNames).doesNotContain("topic", "broker", "namespace", "segment");
+                    assertThat(sample.labelNames()).doesNotContain("topic", "broker", "namespace", "segment");
                 }
             }
             assertCounterParity(otel, prometheus, "layout.operation.count", "layout_operation_total", 5);
@@ -119,9 +122,9 @@ public class ScalableTopicControllerMetricsTest {
             assertThat(sample(prometheus, "layout_operation_total", Map.of("cluster", CLUSTER,
                     "operation", "split", "operation_trigger", "auto", "operation_status", "success")))
                     .isEqualTo(2);
-            assertThat(prometheus.stream().flatMap(family -> family.samples.stream())
-                    .filter(value -> value.name.endsWith("_bucket")))
-                    .allSatisfy(value -> assertThat(value.labelNames).contains("le"));
+            assertThat(prometheus.stream().flatMap(family -> family.samples().stream())
+                    .filter(value -> value.name().endsWith("_bucket")))
+                    .allSatisfy(value -> assertThat(value.labelNames()).contains("le"));
         }
     }
 
@@ -135,10 +138,10 @@ public class ScalableTopicControllerMetricsTest {
         }, registry)) {
             assertThat(reads).hasValue(0);
             counts.set(new ScalableTopicControllerMetrics.Counts(2, 5, 7));
-            assertGauges(reader.collectAllMetrics(), Collections.list(registry.metricFamilySamples()), 2, 5, 7);
+            assertGauges(reader.collectAllMetrics(), families(registry), 2, 5, 7);
             assertThat(reads).hasValue(2);
             counts.set(new ScalableTopicControllerMetrics.Counts(1, 3, 11));
-            assertGauges(reader.collectAllMetrics(), Collections.list(registry.metricFamilySamples()), 1, 3, 11);
+            assertGauges(reader.collectAllMetrics(), families(registry), 1, 3, 11);
             assertThat(reads).hasValue(4);
         }
     }
@@ -159,20 +162,20 @@ public class ScalableTopicControllerMetricsTest {
             first.recordBlocked("max_segments");
             second.recordBlocked("max_segments");
             var otel = reader.collectAllMetrics();
-            var prometheus = Collections.list(registry.metricFamilySamples());
+            var prometheus = families(registry);
             assertGauges(otel, prometheus, 5, 7, 9);
             assertCounterParity(otel, prometheus, "layout.operation.count", "layout_operation_total", 2);
             assertCounterParity(otel, prometheus, "auto_scale.blocked.count", "auto_scale_blocked_total", 3);
             assertHistogramParity(otel, prometheus, "layout.operation.duration",
                     "layout_operation_duration_seconds", 2, 0.015);
-            assertThat(prometheus.stream().flatMap(family -> family.samples.stream())
-                    .filter(value -> value.name.equals(PROM_PREFIX + "layout_operation_total"))).hasSize(1);
+            assertThat(prometheus.stream().flatMap(family -> family.samples().stream())
+                    .filter(value -> value.name().equals(PROM_PREFIX + "layout_operation_total"))).hasSize(1);
 
             first.close();
             first.close();
             int readsBefore = firstReads.get();
             var afterCloseOtel = reader.collectAllMetrics();
-            var afterClosePrometheus = Collections.list(registry.metricFamilySamples());
+            var afterClosePrometheus = families(registry);
             assertGauges(afterCloseOtel, afterClosePrometheus, 4, 5, 6);
             assertThat(firstReads).hasValue(readsBefore);
             // Embedded counters include only live providers, even for OTel's monotonic sum observers.
@@ -184,13 +187,13 @@ public class ScalableTopicControllerMetricsTest {
             assertHistogramParity(afterCloseOtel, afterClosePrometheus,
                     "layout.operation.duration", "layout_operation_duration_seconds", 2, 0.015);
             second.close();
-            assertThat(Collections.list(registry.metricFamilySamples())).isEmpty();
+            assertThat(registeredFamilies(registry)).isEmpty();
             assertThat(reader.collectAllMetrics()).extracting(MetricData::getName)
                     .doesNotContain(OTEL_PREFIX + "controller.count", OTEL_PREFIX + "segment.count",
                             OTEL_PREFIX + "layout.operation.count", OTEL_PREFIX + "auto_scale.blocked.count");
             // SDK synchronous histograms retain their observations; callbacks and Prom collectors do not.
             try (var replacement = new ScalableTopicControllerMetrics(meter, CLUSTER, () -> EMPTY, registry)) {
-                assertGauges(reader.collectAllMetrics(), Collections.list(registry.metricFamilySamples()), 0, 0, 0);
+                assertGauges(reader.collectAllMetrics(), families(registry), 0, 0, 0);
             }
         } finally {
             first.close();
@@ -225,16 +228,16 @@ public class ScalableTopicControllerMetricsTest {
                 failedReads.incrementAndGet();
                 return new ScalableTopicControllerMetrics.Counts(9, 9, 9);
             }, registry)).isSameAs(failure);
-            assertThat(registry.getSampleValue(PROM_PREFIX + "controller_count",
+            assertThat(getSampleValue(registry, PROM_PREFIX + "controller_count",
                     new String[]{"cluster"}, new String[]{failedCluster})).isNull();
             if (healthy != null) {
-                assertGauges(reader.collectAllMetrics(), Collections.list(registry.metricFamilySamples()), 1, 2, 3);
-                assertCounterParity(reader.collectAllMetrics(), Collections.list(registry.metricFamilySamples()),
+                assertGauges(reader.collectAllMetrics(), families(registry), 1, 2, 3);
+                assertCounterParity(reader.collectAllMetrics(), families(registry),
                         "auto_scale.blocked.count", "auto_scale_blocked_total", 1);
-                assertHistogramParity(reader.collectAllMetrics(), Collections.list(registry.metricFamilySamples()),
+                assertHistogramParity(reader.collectAllMetrics(), families(registry),
                         "controller.takeover.duration", "controller_takeover_duration_seconds", 1, 0.005);
             } else {
-                assertThat(Collections.list(registry.metricFamilySamples())).isEmpty();
+                assertThat(registeredFamilies(registry)).isEmpty();
                 assertThat(reader.collectAllMetrics()).extracting(MetricData::getName)
                         .doesNotContain(OTEL_PREFIX + "controller.count");
             }
@@ -246,13 +249,13 @@ public class ScalableTopicControllerMetricsTest {
             // Retry on the same Meter and registry must create a usable callback, without the failed owner.
             try (var retry = new ScalableTopicControllerMetrics(failingMeter, failedCluster,
                     () -> new ScalableTopicControllerMetrics.Counts(4, 5, 6), registry)) {
-                assertThat(registry.getSampleValue(PROM_PREFIX + "controller_count",
+                assertThat(getSampleValue(registry, PROM_PREFIX + "controller_count",
                         new String[]{"cluster"}, new String[]{failedCluster})).isEqualTo(4.0);
                 assertThat(metric(failingReader.collectAllMetrics(), "controller.count")
                         .getLongSumData().getPoints()).singleElement()
                         .satisfies(point -> assertThat(point.getValue()).isEqualTo(4));
             }
-            assertThat(registry.getSampleValue(PROM_PREFIX + "controller_count",
+            assertThat(getSampleValue(registry, PROM_PREFIX + "controller_count",
                     new String[]{"cluster"}, new String[]{failedCluster})).isNull();
             assertThat(failingReader.collectAllMetrics()).extracting(MetricData::getName)
                     .doesNotContain(OTEL_PREFIX + "controller.count", OTEL_PREFIX + "segment.count",
@@ -261,12 +264,12 @@ public class ScalableTopicControllerMetricsTest {
             if (healthy != null) {
                 healthyCounts.set(new ScalableTopicControllerMetrics.Counts(7, 8, 9));
                 healthy.recordBlocked("max_segments");
-                assertGauges(reader.collectAllMetrics(), Collections.list(registry.metricFamilySamples()), 7, 8, 9);
-                assertCounterParity(reader.collectAllMetrics(), Collections.list(registry.metricFamilySamples()),
+                assertGauges(reader.collectAllMetrics(), families(registry), 7, 8, 9);
+                assertCounterParity(reader.collectAllMetrics(), families(registry),
                         "auto_scale.blocked.count", "auto_scale_blocked_total", 2);
             }
         }
-        assertThat(Collections.list(registry.metricFamilySamples())).isEmpty();
+        assertThat(registeredFamilies(registry)).isEmpty();
         assertThat(reader.collectAllMetrics()).extracting(MetricData::getName)
                 .doesNotContain(OTEL_PREFIX + "controller.count", OTEL_PREFIX + "segment.count",
                         OTEL_PREFIX + "layout.operation.count", OTEL_PREFIX + "auto_scale.blocked.count");
@@ -276,16 +279,16 @@ public class ScalableTopicControllerMetricsTest {
     public void testRecreatedServiceKeepsHistogramParity() {
         try (var first = new ScalableTopicControllerMetrics(meter, CLUSTER, () -> EMPTY, registry)) {
             first.recordTakeover(0.005, true);
-            assertHistogramParity(reader.collectAllMetrics(), Collections.list(registry.metricFamilySamples()),
+            assertHistogramParity(reader.collectAllMetrics(), families(registry),
                     "controller.takeover.duration", "controller_takeover_duration_seconds", 1, 0.005);
         }
-        assertThat(Collections.list(registry.metricFamilySamples())).isEmpty();
+        assertThat(registeredFamilies(registry)).isEmpty();
         try (var replacement = new ScalableTopicControllerMetrics(meter, CLUSTER, () -> EMPTY, registry)) {
             replacement.recordTakeover(0.01, true);
-            assertHistogramParity(reader.collectAllMetrics(), Collections.list(registry.metricFamilySamples()),
+            assertHistogramParity(reader.collectAllMetrics(), families(registry),
                     "controller.takeover.duration", "controller_takeover_duration_seconds", 2, 0.015);
         }
-        assertThat(Collections.list(registry.metricFamilySamples())).isEmpty();
+        assertThat(registeredFamilies(registry)).isEmpty();
     }
 
     @Test
@@ -297,11 +300,11 @@ public class ScalableTopicControllerMetricsTest {
                      () -> EMPTY, registry)) {
             first.recordTakeover(0.005, true);
             second.recordTakeover(0.01, true);
-            var before = Collections.list(registry.metricFamilySamples());
+            var before = families(registry);
             assertThat(sample(before, "controller_takeover_duration_seconds_count",
                     Map.of("cluster", CLUSTER, "operation_status", "success"))).isEqualTo(2);
             first.close();
-            assertHistogramParity(otherReader.collectAllMetrics(), Collections.list(registry.metricFamilySamples()),
+            assertHistogramParity(otherReader.collectAllMetrics(), families(registry),
                     "controller.takeover.duration", "controller_takeover_duration_seconds", 1, 0.01);
         }
     }
@@ -313,7 +316,7 @@ public class ScalableTopicControllerMetricsTest {
 
     @Test(dataProvider = "sdkHistogramClusters")
     public void testSharedSdkMeterHistogramHistorySpansRegistriesAndClusters(String otherCluster) {
-        var otherRegistry = new CollectorRegistry();
+        var otherRegistry = new PrometheusRegistry();
         try (var first = new ScalableTopicControllerMetrics(meter, CLUSTER, () -> EMPTY, registry);
              var second = new ScalableTopicControllerMetrics(meter, otherCluster, () -> EMPTY, otherRegistry)) {
             recordHistograms(first, 0.005);
@@ -332,17 +335,17 @@ public class ScalableTopicControllerMetricsTest {
             assertSdkHistogramState(reader.collectAllMetrics(), 2, 0.015);
 
             first.close();
-            assertThat(Collections.list(registry.metricFamilySamples())).isEmpty();
+            assertThat(registeredFamilies(registry)).isEmpty();
             assertHistogramState(otherRegistry, CLUSTER, sameCluster ? 2 : 1, sameCluster ? 0.015 : 0.005);
             assertHistogramState(otherRegistry, otherCluster, sameCluster ? 2 : 1, sameCluster ? 0.015 : 0.01);
             assertSdkHistogramState(reader.collectAllMetrics(), 2, 0.015);
         }
-        assertThat(Collections.list(otherRegistry.metricFamilySamples())).isEmpty();
+        assertThat(registeredFamilies(otherRegistry)).isEmpty();
     }
 
     @Test(dataProvider = "sdkHistogramClusters")
     public void testDistinctSdkMetersIsolateHistogramScopes(String otherCluster) {
-        var otherRegistry = new CollectorRegistry();
+        var otherRegistry = new PrometheusRegistry();
         var otherReader = InMemoryMetricReader.create();
         try (var otherSdk = SdkMeterProvider.builder().registerMetricReader(otherReader).build();
              var first = new ScalableTopicControllerMetrics(meter, CLUSTER, () -> EMPTY, registry);
@@ -361,11 +364,11 @@ public class ScalableTopicControllerMetricsTest {
             }
 
             first.close();
-            assertThat(Collections.list(registry.metricFamilySamples())).isEmpty();
+            assertThat(registeredFamilies(registry)).isEmpty();
             assertHistogramState(otherRegistry, otherCluster, 1, 0.01);
             assertSdkHistogramState(otherReader.collectAllMetrics(), 1, 0.01);
         }
-        assertThat(Collections.list(otherRegistry.metricFamilySamples())).isEmpty();
+        assertThat(registeredFamilies(otherRegistry)).isEmpty();
     }
 
     @Test
@@ -380,10 +383,10 @@ public class ScalableTopicControllerMetricsTest {
             recordHistograms(resident, 0.005);
             for (int attempt = 0; attempt < 2; attempt++) {
                 assertDisabledDefaultRegistryCycle("first-with-survivor", "second-with-survivor");
-                assertHistogramState(CollectorRegistry.defaultRegistry, "resident-default", 1, 0.005);
+                assertHistogramState(PrometheusRegistry.defaultRegistry, "resident-default", 1, 0.005);
             }
         }
-        assertHistogramState(CollectorRegistry.defaultRegistry, "resident-default", 0, 0);
+        assertHistogramState(PrometheusRegistry.defaultRegistry, "resident-default", 0, 0);
     }
 
     private void assertDisabledDefaultRegistryCycle(String firstCluster, String secondCluster) {
@@ -395,7 +398,7 @@ public class ScalableTopicControllerMetricsTest {
             first.recordBlocked("max_segments");
             first.recordTakeover(0.5, true);
             second.recordOperation("merge", "auto", "partial", 1);
-            var samples = Collections.list(CollectorRegistry.defaultRegistry.metricFamilySamples());
+            var samples = families(PrometheusRegistry.defaultRegistry);
             assertThat(sample(samples, "controller_count", Map.of("cluster", firstCluster))).isEqualTo(1);
             assertThat(sample(samples, "controller_count", Map.of("cluster", secondCluster))).isEqualTo(4);
             assertThat(sample(samples, "auto_scale_blocked_total",
@@ -406,8 +409,8 @@ public class ScalableTopicControllerMetricsTest {
                     "operation", "merge", "operation_trigger", "auto", "operation_status", "partial"))).isEqualTo(1);
             assertThat(reader.collectAllMetrics()).isEmpty();
         }
-        assertThat(Collections.list(CollectorRegistry.defaultRegistry.metricFamilySamples()))
-                .flatExtracting(family -> family.samples)
+        assertThat(families(PrometheusRegistry.defaultRegistry))
+                .flatExtracting(Family::samples)
                 .noneSatisfy(value -> assertThat(labels(value)).containsEntry("cluster", firstCluster));
     }
 
@@ -422,7 +425,7 @@ public class ScalableTopicControllerMetricsTest {
         assertThat(OpenTelemetry.noop().getMeter("transient")).isSameAs(disabled);
         String residentCluster = "resident-" + sameCluster + "-" + sameRegistry;
         String transientCluster = sameCluster ? residentCluster : "transient-" + sameRegistry;
-        CollectorRegistry transientRegistry = sameRegistry ? registry : new CollectorRegistry();
+        PrometheusRegistry transientRegistry = sameRegistry ? registry : new PrometheusRegistry();
         try (var resident = new ScalableTopicControllerMetrics(disabled, residentCluster, () -> EMPTY, registry)) {
             recordHistograms(resident, 0.005);
             assertHistogramState(registry, residentCluster, 1, 0.005);
@@ -465,7 +468,7 @@ public class ScalableTopicControllerMetricsTest {
         }
     }
 
-    private static void assertHistogramState(CollectorRegistry registry, String cluster, long count, double sum) {
+    private static void assertHistogramState(PrometheusRegistry registry, String cluster, long count, double sum) {
         Map<String, Map<String, String>> series = Map.of(
                 "controller_takeover_duration_seconds", Map.of("cluster", cluster, "operation_status", "success"),
                 "layout_operation_duration_seconds",
@@ -476,8 +479,8 @@ public class ScalableTopicControllerMetricsTest {
                     .filter(labels::containsKey).toList();
             String[] labelNames = names.toArray(String[]::new);
             String[] labelValues = names.stream().map(labels::get).toArray(String[]::new);
-            Double actualCount = registry.getSampleValue(PROM_PREFIX + name + "_count", labelNames, labelValues);
-            Double actualSum = registry.getSampleValue(PROM_PREFIX + name + "_sum", labelNames, labelValues);
+            Double actualCount = getSampleValue(registry, PROM_PREFIX + name + "_count", labelNames, labelValues);
+            Double actualSum = getSampleValue(registry, PROM_PREFIX + name + "_sum", labelNames, labelValues);
             if (count == 0) {
                 assertThat(actualCount).as("%s count for closed provider %s", name, cluster).isNull();
                 assertThat(actualSum).as("%s sum for closed provider %s", name, cluster).isNull();
@@ -490,19 +493,19 @@ public class ScalableTopicControllerMetricsTest {
 
     @Test
     public void testCountersAreRegistryLocalAndNoopNeverRegisters() {
-        var otherRegistry = new CollectorRegistry();
+        var otherRegistry = new PrometheusRegistry();
         try (var first = new ScalableTopicControllerMetrics(meter, CLUSTER, () -> EMPTY, registry);
              var second = new ScalableTopicControllerMetrics(meter, CLUSTER, () -> EMPTY, otherRegistry)) {
             first.recordBlocked("invalid_policy");
-            assertThat(sample(Collections.list(registry.metricFamilySamples()), "auto_scale_blocked_total",
+            assertThat(sample(families(registry), "auto_scale_blocked_total",
                     Map.of("cluster", CLUSTER, "auto_scale_reason", "invalid_policy"))).isEqualTo(1);
-            assertThat(Collections.list(otherRegistry.metricFamilySamples())).hasSize(2);
+            assertThat(families(otherRegistry)).hasSize(2);
             ScalableTopicControllerMetrics.NOOP.recordBlocked("arbitrary");
             ScalableTopicControllerMetrics.NOOP.recordOperation(null, null, null, Double.NaN);
             ScalableTopicControllerMetrics.NOOP.recordTakeover(Double.NaN, false);
             ScalableTopicControllerMetrics.NOOP.recordSeal(null, Double.NaN);
             ScalableTopicControllerMetrics.NOOP.close();
-            assertThat(Collections.list(otherRegistry.metricFamilySamples())).hasSize(2);
+            assertThat(families(otherRegistry)).hasSize(2);
         }
     }
 
@@ -525,11 +528,11 @@ public class ScalableTopicControllerMetricsTest {
                 assertThatThrownBy(() -> metrics.recordSeal("split", duration))
                         .isInstanceOf(IllegalArgumentException.class);
             }
-            assertThat(Collections.list(registry.metricFamilySamples())).hasSize(2);
+            assertThat(families(registry)).hasSize(2);
         }
     }
 
-    private static void assertCounterParity(Collection<MetricData> otel, List<MetricFamilySamples> prometheus,
+    private static void assertCounterParity(Collection<MetricData> otel, List<Family> prometheus,
                                             String otelName, String prometheusName, long expectedTotal) {
         var data = metric(otel, otelName).getLongSumData();
         assertThat(data.isMonotonic()).isTrue();
@@ -541,7 +544,7 @@ public class ScalableTopicControllerMetricsTest {
         assertThat(total).isEqualTo(expectedTotal);
     }
 
-    private static void assertHistogramParity(Collection<MetricData> otel, List<MetricFamilySamples> prometheus,
+    private static void assertHistogramParity(Collection<MetricData> otel, List<Family> prometheus,
                                               String otelName, String prometheusName, long expectedCount,
                                               double expectedSum) {
         var metric = metric(otel, otelName);
@@ -559,7 +562,7 @@ public class ScalableTopicControllerMetricsTest {
                 cumulative += point.getCounts().get(i);
                 Map<String, String> bucketLabels = new HashMap<>(labels);
                 bucketLabels.put("le", i < point.getBoundaries().size()
-                        ? Collector.doubleToGoString(point.getBoundaries().get(i)) : "+Inf");
+                        ? upperBound(point.getBoundaries().get(i)) : "+Inf");
                 assertThat(sample(prometheus, prometheusName + "_bucket", bucketLabels)).isEqualTo(cumulative);
             }
             totalCount += point.getCount();
@@ -569,7 +572,7 @@ public class ScalableTopicControllerMetricsTest {
         assertThat(totalSum).isCloseTo(expectedSum, offset(0.000001));
     }
 
-    private static void assertGauges(Collection<MetricData> otel, List<MetricFamilySamples> prometheus,
+    private static void assertGauges(Collection<MetricData> otel, List<Family> prometheus,
                                      long controllers, long active, long sealed) {
         var controllerData = metric(otel, "controller.count").getLongSumData();
         assertThat(controllerData.isMonotonic()).isFalse();
@@ -604,15 +607,15 @@ public class ScalableTopicControllerMetricsTest {
 
     private static Map<String, String> labels(Sample sample) {
         Map<String, String> result = new HashMap<>();
-        for (int i = 0; i < sample.labelNames.size(); i++) {
-            result.put(sample.labelNames.get(i), sample.labelValues.get(i));
+        for (int i = 0; i < sample.labelNames().size(); i++) {
+            result.put(sample.labelNames().get(i), sample.labelValues().get(i));
         }
         return result;
     }
 
-    private static double sample(List<MetricFamilySamples> families, String name, Map<String, String> labels) {
-        return families.stream().flatMap(family -> family.samples.stream())
-                .filter(sample -> sample.name.equals(PROM_PREFIX + name) && labels(sample).equals(labels))
-                .mapToDouble(sample -> sample.value).findFirst().orElseThrow();
+    private static double sample(List<Family> families, String name, Map<String, String> labels) {
+        return families.stream().flatMap(family -> family.samples().stream())
+                .filter(sample -> sample.name().equals(PROM_PREFIX + name) && labels(sample).equals(labels))
+                .mapToDouble(Sample::value).findFirst().orElseThrow();
     }
 }
