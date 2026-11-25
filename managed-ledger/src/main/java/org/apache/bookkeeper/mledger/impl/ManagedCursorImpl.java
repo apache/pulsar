@@ -532,12 +532,6 @@ public class ManagedCursorImpl implements ManagedCursor {
             updateCursorPropertiesResult.completeExceptionally(e);
             return updateCursorPropertiesResult;
         }
-        if (newProperties.equals(currentProperties)) {
-            // Nothing changed: skip the version-bumping write, which could collide with the
-            // concurrent writer the update function just chose not to fight.
-            updateCursorPropertiesResult.complete(null);
-            return updateCursorPropertiesResult;
-        }
 
         ManagedCursorInfo copy = new ManagedCursorInfo();
         copy.copyFrom(ManagedCursorImpl.this.managedCursorInfo);

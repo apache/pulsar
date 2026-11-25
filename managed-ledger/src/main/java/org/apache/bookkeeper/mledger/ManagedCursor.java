@@ -150,7 +150,7 @@ public interface ManagedCursor {
      * changed the state the function observed cannot be overwritten by this update. The returned
      * map must not be {@code null} and must not contain {@code null} keys or values; a violation
      * fails the returned future with the original exception and leaves the properties untouched.
-     * If the returned map equals the snapshot the function read, no write is issued.
+     * For a durable cursor, an unchanged result may still cause a metadata write and advance the version.
      *
      * Note: like the other property operations, {@link ManagedLedgerException.BadVersionException}
      * will be set in this {@link CompletableFuture} if there are concurrent modifications — a
