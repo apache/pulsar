@@ -136,33 +136,19 @@ public class ManagedLedgerException extends Exception {
 
     /** An individual ACK was rejected before it could change the cursor. */
     public static class CursorResetInProgressException extends ManagedLedgerException {
-        private final transient CompletionStage<Boolean> resetCompletion;
-        private final long successfulResetGeneration;
+        private final transient CompletionStage<Void> resetCompletion;
 
-        public CursorResetInProgressException(CompletionStage<Boolean> resetCompletion,
-                long successfulResetGeneration) {
+        public CursorResetInProgressException(CompletionStage<Void> resetCompletion) {
             super("Cursor reset in progress");
             this.resetCompletion = resetCompletion;
-            this.successfulResetGeneration = successfulResetGeneration;
         }
 
         /**
-         * Completes with {@code true} if the conflicting reset was applied or {@code false} if it failed
-         * and the cursor is still usable. Completes exceptionally if the cursor closes or is deleted first.
+         * Completes when the conflicting reset ends, regardless of its outcome. Completes exceptionally
+         * if the cursor closes or is deleted first.
          */
-        public CompletionStage<Boolean> getResetCompletion() {
+        public CompletionStage<Void> getResetCompletion() {
             return resetCompletion;
-        }
-
-        public long getSuccessfulResetGeneration() {
-            return successfulResetGeneration;
-        }
-    }
-
-    /** A successful reset superseded an individual ACK before it could be retried. */
-    public static class CursorResetSupersededException extends ManagedLedgerException {
-        public CursorResetSupersededException() {
-            super("A successful cursor reset superseded the individual ACK retry");
         }
     }
 

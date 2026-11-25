@@ -8018,6 +8018,74 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         reopenedLedger.close();
     }
 
+    @Test(timeOut = 30000)
+    public void testResetCursorDrainsQueuedAcknowledgmentAfterReadCountReachesZero() throws Exception {
+        ManagedLedger ledger = factory.open("reset-after-read-count-reaches-zero", defaultConfig());
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");
+        cursor.setInactive();
+        Position resetMarkDelete = ledger.addEntry(new byte[] {0});
+        Position resetRead = ledger.addEntry(new byte[] {1});
+        Position previousMarkDelete = ledger.addEntry(new byte[] {2});
+        Position acknowledged = ledger.addEntry(new byte[] {3});
+        ledger.addEntry(new byte[] {4});
+        cursor.markDelete(previousMarkDelete);
+        long lastCheckpoint = cursor.getCursorLedgerLastEntry();
+
+        CompletableFuture<Void> readStarted = new CompletableFuture<>();
+        CompletableFuture<Void> releaseRead = new CompletableFuture<>();
+        bkc.setReadHandleInterceptor((ledgerId, firstEntry, lastEntry, entries) -> {
+            readStarted.complete(null);
+            return releaseRead.thenApply(ignored -> entries);
+        });
+        CompletableFuture<Void> read = ManagedLedgerUtils.readEntries(cursor, 1, PositionFactory.LATEST)
+                .thenAccept(entries -> entries.forEach(Entry::release));
+        try {
+            readStarted.get(5, TimeUnit.SECONDS);
+            MarkDeleteCallback queuedAck = mock(MarkDeleteCallback.class);
+            cursor.asyncMarkDelete(acknowledged, queuedAck, null);
+            CompletableFuture<Void> reset = new CompletableFuture<>();
+            synchronized (cursor.pendingMarkDeleteOps) {
+                assertEquals(cursor.pendingMarkDeleteOps.size(), 1);
+                // The read decrements its count before taking this monitor to flush the queue.
+                cachedExecutor.execute(() -> releaseRead.complete(null));
+                Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> cursor.getPendingReadOpsCount() == 0);
+                assertEquals(cursor.getState(), "Open");
+                assertEquals(cursor.pendingMarkDeleteOps.size(), 1);
+
+                cursor.internalResetCursor(resetRead, new AsyncCallbacks.ResetCursorCallback() {
+                    @Override
+                    public void resetComplete(Object ctx) {
+                        reset.complete(null);
+                    }
+
+                    @Override
+                    public void resetFailed(ManagedLedgerException exception, Object ctx) {
+                        reset.completeExceptionally(exception);
+                    }
+                });
+                assertTrue(cursor.pendingMarkDeleteOps.isEmpty(), "The read must leave the queued ACK to the reset");
+            }
+            read.get(5, TimeUnit.SECONDS);
+            reset.get(5, TimeUnit.SECONDS);
+            verify(queuedAck).markDeleteComplete(null);
+            Mockito.verifyNoMoreInteractions(queuedAck);
+            assertEquals(cursor.getMarkDeletedPosition(), resetMarkDelete);
+            assertEquals(cursor.getPersistentMarkDeletedPosition(), resetMarkDelete);
+            assertEquals(cursor.getReadPosition(), resetRead);
+            assertFalse(cursor.isMessageDeleted(acknowledged));
+
+            long checkpoint = cursor.getCursorLedgerLastEntry();
+            assertEquals(checkpoint, lastCheckpoint + 1);
+            PositionInfo persisted = new PositionInfo();
+            persisted.parseFrom(cursor.cursorLedger.readEntries(checkpoint, checkpoint).nextElement().getEntry());
+            assertEquals(PositionFactory.create(persisted.getLedgerId(), persisted.getEntryId()), resetMarkDelete);
+        } finally {
+            releaseRead.complete(null);
+            bkc.setReadHandleInterceptor(null);
+            read.handle((ignored, error) -> null).get(5, TimeUnit.SECONDS);
+        }
+    }
+
     @SuppressWarnings("try")
     class TestPulsarMockBookKeeper extends PulsarMockBookKeeper {
         Map<Long, Integer> ledgerErrors = new HashMap<>();

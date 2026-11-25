@@ -63,7 +63,16 @@ public class PendingAckHandleDisabled implements PendingAckHandle {
     }
 
     @Override
-    public void syncBatchPositionAckSetForTransaction(Position position) {
+    public long getOrdinaryAckGeneration() {
+        return 0;
+    }
+
+    @Override
+    public void recordOrdinaryBatchAcks(long generation, List<Position> positions) {
+    }
+
+    @Override
+    public void discardOrdinaryBatchAcks() {
         //no operation
     }
 

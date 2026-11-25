@@ -49,6 +49,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.RejectedExecutionException;
@@ -95,7 +96,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ConcurrentFindCursorPositionException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorAlreadyClosedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorResetInProgressException;
-import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorResetSupersededException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.NoMoreEntriesToReadException;
 import org.apache.bookkeeper.mledger.Position;
@@ -194,9 +194,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     public static final int FALSE = 0;
     public static final int TRUE = 1;
     // Published under pendingMarkDeleteOps. Close may read it without taking that monitor.
-    private volatile CompletableFuture<Boolean> resetCompletion;
-    // Guarded by pendingMarkDeleteOps.
-    private long successfulResetGeneration;
+    private volatile ResetOperation activeReset;
     private static final AtomicIntegerFieldUpdater<ManagedCursorImpl> PENDING_READ_OPS_UPDATER =
         AtomicIntegerFieldUpdater.newUpdater(ManagedCursorImpl.class, "pendingReadOps");
     @SuppressWarnings("unused")
@@ -309,54 +307,63 @@ public class ManagedCursorImpl implements ManagedCursor {
             this.alignAcknowledgeStatusAfterPersisted = alignAcknowledgeStatusAfterPersisted;
         }
 
+        private ResetAcknowledgments resetAcknowledgments() {
+            return alignAcknowledgeStatusAfterPersisted instanceof ResetAcknowledgments reset ? reset : null;
+        }
+
         public void triggerComplete() {
-            // Persistence can complete inline. Callbacks can reenter the dispatcher.
-            if (Thread.holdsLock(pendingMarkDeleteOps)) {
-                dispatchCursorCallback(this::triggerComplete);
-                return;
-            }
-            // Trigger the final callback after having (eventually) triggered the switchin-ledger operation. This
-            // will ensure that no race condition will happen between the next mark-delete and the switching
-            // operation.
-            if (callbackGroup != null) {
-                // Trigger the callback for every request in the group
-                for (MarkDeleteEntry e : callbackGroup) {
-                    try {
-                        e.callback.markDeleteComplete(e.ctx);
-                    } catch (RuntimeException error) {
-                        log.warn().exception(error).log("Mark-delete completion callback failed");
-                    }
-                }
-            } else if (callback != null) {
-                // Only trigger the callback for the current request
-                callback.markDeleteComplete(ctx);
-            }
+            dispatchCallbacks(null);
         }
 
         public void alignAcknowledgeStatus() {
-            this.alignAcknowledgeStatusAfterPersisted.run();
+            alignAcknowledgeStatusAfterPersisted.run();
         }
 
         public void triggerFailed(ManagedLedgerException exception) {
-            if (Thread.holdsLock(pendingMarkDeleteOps)) {
-                dispatchCursorCallback(() -> triggerFailed(exception));
+            dispatchCallbacks(exception);
+        }
+
+        private void dispatchFailure(ManagedLedgerException exception) {
+            dispatchCursorCallback(() -> notifyCallbacks(exception));
+        }
+
+        private void dispatchCallbacks(ManagedLedgerException exception) {
+            if (submittingMarkDelete) {
+                dispatchCursorCallback(() -> notifyCallbacks(exception));
+            } else {
+                notifyCallbacks(exception);
+            }
+        }
+
+        private void notifyCallbacks(ManagedLedgerException exception) {
+            if (callbackGroup == null) {
+                notifyCallback(exception);
                 return;
             }
-            if (callbackGroup != null) {
-                for (MarkDeleteEntry e : callbackGroup) {
-                    try {
-                        e.callback.markDeleteFailed(exception, e.ctx);
-                    } catch (RuntimeException error) {
-                        log.warn().exception(error).log("Mark-delete failure callback failed");
-                    }
+            for (MarkDeleteEntry entry : callbackGroup) {
+                try {
+                    entry.notifyCallback(exception);
+                } catch (RuntimeException error) {
+                    log.warn().exception(error).log("Mark-delete callback failed");
                 }
-            } else if (callback != null) {
+            }
+        }
+
+        private void notifyCallback(ManagedLedgerException exception) {
+            if (callback == null) {
+                return;
+            }
+            if (exception == null) {
+                callback.markDeleteComplete(ctx);
+            } else {
                 callback.markDeleteFailed(exception, ctx);
             }
         }
     }
 
     protected final ArrayDeque<MarkDeleteEntry> pendingMarkDeleteOps = new ArrayDeque<>();
+    // Set under the queue monitor. Storage may complete the current or an earlier write during submission.
+    private volatile boolean submittingMarkDelete;
     private static final AtomicIntegerFieldUpdater<ManagedCursorImpl> PENDING_MARK_DELETED_SUBMITTED_COUNT_UPDATER =
         AtomicIntegerFieldUpdater.newUpdater(ManagedCursorImpl.class, "pendingMarkDeletedSubmittedCount");
     @SuppressWarnings("unused")
@@ -1743,48 +1750,58 @@ public class ManagedCursorImpl implements ManagedCursor {
         return firstLedgerId == null ? null : PositionFactory.create(firstLedgerId, 0);
     }
 
-    protected void internalResetCursor(Position proposedReadPosition,
-                                       AsyncCallbacks.ResetCursorCallback resetCursorCallback) {
-        final Position newReadPosition;
-        if (proposedReadPosition.equals(PositionFactory.EARLIEST)) {
-            newReadPosition = ledger.getFirstPosition();
-        } else if (proposedReadPosition.equals(PositionFactory.LATEST)) {
-            newReadPosition = ledger.getNextValidPosition(ledger.getLastPosition());
-        } else {
-            newReadPosition = proposedReadPosition;
+    private static final class ResetOperation {
+        private final CompletableFuture<Void> result = new CompletableFuture<>();
+        private final CompletableFuture<Void> settled = new CompletableFuture<>();
+        private final CompletionStage<Void> completion = settled.minimalCompletionStage();
+        // Guarded by pendingMarkDeleteOps. Close can cancel a queued reset but must wait for a submitted one.
+        private boolean submitted;
+
+        private ResetOperation(Position position, AsyncCallbacks.ResetCursorCallback callback) {
+            result.whenComplete((ignored, error) -> {
+                // Transaction commits and internal skips can resume even if the seek itself failed.
+                if (error instanceof CursorAlreadyClosedException) {
+                    settled.completeExceptionally(error);
+                } else {
+                    settled.complete(null);
+                }
+                if (error == null) {
+                    callback.resetComplete(position);
+                } else {
+                    callback.resetFailed(getManagedLedgerException(error), position);
+                }
+            });
+        }
+    }
+
+    private final class ResetAcknowledgments implements Runnable {
+        private final ResetOperation operation;
+        private final Position newReadPosition;
+        private final Position newMarkDeletePosition;
+        private final BitSet batchAckSet;
+        private final boolean persistBatchAckSet;
+
+        private ResetAcknowledgments(ResetOperation operation, Position newReadPosition,
+                Position newMarkDeletePosition) {
+            this.operation = operation;
+            this.newReadPosition = newReadPosition;
+            this.newMarkDeletePosition = newMarkDeletePosition;
+            long[] requestedAckSet = batchDeletedIndexes == null ? null
+                    : AckSetStateUtil.getAckSetArrayOrNull(newReadPosition);
+            batchAckSet = requestedAckSet == null ? null : BitSet.valueOf(requestedAckSet);
+            persistBatchAckSet = getConfig().isDeletionAtBatchIndexLevelEnabled()
+                    && getConfig().getMaxBatchDeletedIndexToPersist() > 0;
         }
 
-        log.info()
-                .attr("oldReadPosition", readPosition)
-                .attr("newReadPosition", newReadPosition)
-                .log("Initiate reset readPosition");
-
-        CompletableFuture<Boolean> reset = new CompletableFuture<>();
-        ManagedLedgerException resetFailure = null;
-        synchronized (pendingMarkDeleteOps) {
-            if (isClosed()) {
-                resetFailure = new CursorAlreadyClosedException("Cursor was already closed");
-            } else if (resetCompletion != null) {
-                resetFailure = new ConcurrentFindCursorPositionException("reset already in progress");
-            } else {
-                resetCompletion = reset;
+        private List<BatchedEntryDeletionIndexInfo> batchIndexesToPersist() {
+            if (batchAckSet == null || !persistBatchAckSet) {
+                return Collections.emptyList();
             }
-        }
-        if (resetFailure != null) {
-            resetCursorCallback.resetFailed(resetFailure, newReadPosition);
-            return;
+            return List.of(newBatchEntryDeletionIndexInfo(newReadPosition, batchAckSet.toLongArray()));
         }
 
-        final AsyncCallbacks.ResetCursorCallback callback = resetCursorCallback;
-
-        final Position newMarkDeletePosition;
-        if (isCompactionCursor()) {
-            newMarkDeletePosition = markDeletePosition;
-        } else {
-            newMarkDeletePosition = ledger.getPreviousPosition(newReadPosition);
-        }
-
-        Runnable alignAcknowledgeStatusAfterPersisted = () -> {
+        @Override
+        public void run() {
             // Correct the variable "messagesConsumedCounter".
             // BTW, no need to change "messagesConsumedCounter" if new "markDeletePosition" is the same as the
             // old one.
@@ -1811,17 +1828,21 @@ public class ManagedCursorImpl implements ManagedCursor {
             MSG_CONSUMED_COUNTER_UPDATER.addAndGet(ManagedCursorImpl.this,
                     -ackedEntriesAfterMdPosition.get().longValue());
             markDeletePosition = newMarkDeletePosition;
-            lastMarkDeleteEntry = new MarkDeleteEntry(newMarkDeletePosition, isCompactionCursor()
-                    ? getProperties() : Collections.emptyMap(), null, null);
+            if (isCompactionCursor()) {
+                // Compaction keeps the mark-delete properties, including changes made during the write.
+                LAST_MARK_DELETE_ENTRY_UPDATER.updateAndGet(ManagedCursorImpl.this, last ->
+                        new MarkDeleteEntry(newMarkDeletePosition,
+                                last == null ? Collections.emptyMap() : last.properties, null, null));
+            } else {
+                lastMarkDeleteEntry = new MarkDeleteEntry(newMarkDeletePosition, Collections.emptyMap(), null, null);
+            }
             individualDeletedMessages.clear();
+            individualDeletedMessagesSerializedSize = 0;
             if (batchDeletedIndexes != null) {
                 batchDeletedIndexes.clear();
-                AckSetStateUtil.maybeGetAckSetState(newReadPosition).ifPresent(ackSetState -> {
-                    long[] resetWords = ackSetState.getAckSet();
-                    if (resetWords != null) {
-                        batchDeletedIndexes.put(newReadPosition, BitSet.valueOf(resetWords));
-                    }
-                });
+                if (batchAckSet != null) {
+                    batchDeletedIndexes.put(newReadPosition, (BitSet) batchAckSet.clone());
+                }
             }
 
             Position oldReadPosition = readPosition;
@@ -1838,31 +1859,72 @@ public class ManagedCursorImpl implements ManagedCursor {
             }
             readPosition = newReadPosition;
             persistentMarkDeletePosition = newMarkDeletePosition;
-        };
+        }
+    }
 
-        VoidCallback finalCallback = new VoidCallback() {
+    protected void internalResetCursor(Position proposedReadPosition,
+                                       AsyncCallbacks.ResetCursorCallback resetCursorCallback) {
+        final Position newReadPosition;
+        if (proposedReadPosition.equals(PositionFactory.EARLIEST)) {
+            newReadPosition = ledger.getFirstPosition();
+        } else if (proposedReadPosition.equals(PositionFactory.LATEST)) {
+            newReadPosition = ledger.getNextValidPosition(ledger.getLastPosition());
+        } else {
+            newReadPosition = proposedReadPosition;
+        }
+
+        log.info()
+                .attr("oldReadPosition", readPosition)
+                .attr("newReadPosition", newReadPosition)
+                .log("Initiate reset readPosition");
+
+        ResetOperation reset = new ResetOperation(newReadPosition, resetCursorCallback);
+        ManagedLedgerException resetFailure = null;
+        synchronized (pendingMarkDeleteOps) {
+            if (isClosed()) {
+                resetFailure = new CursorAlreadyClosedException("Cursor was already closed");
+            } else if (activeReset != null) {
+                resetFailure = new ConcurrentFindCursorPositionException("reset already in progress");
+            } else {
+                activeReset = reset;
+            }
+        }
+        if (resetFailure != null) {
+            resetCursorCallback.resetFailed(resetFailure, newReadPosition);
+            return;
+        }
+
+        final Position newMarkDeletePosition;
+        if (isCompactionCursor()) {
+            newMarkDeletePosition = markDeletePosition;
+        } else {
+            newMarkDeletePosition = ledger.getPreviousPosition(newReadPosition);
+        }
+
+        ResetAcknowledgments resetAcknowledgments = new ResetAcknowledgments(reset, newReadPosition,
+                newMarkDeletePosition);
+
+        MarkDeleteCallback resetPersistenceCallback = new MarkDeleteCallback() {
             @Override
-            public void operationComplete() {
-
+            public void markDeleteComplete(Object ctx) {
                 // modify mark delete and read position since we are able to persist new position for cursor
                 lock.writeLock().lock();
                 try {
-                    ledger.onCursorReadPositionUpdated(ManagedCursorImpl.this, newReadPosition);
+                    if (!isClosed()) {
+                        ledger.onCursorReadPositionUpdated(ManagedCursorImpl.this, newReadPosition);
+                    }
                 } finally {
                     lock.writeLock().unlock();
                 }
                 updateLastActive();
-                if (finishReset(reset, true)) {
-                    callback.resetComplete(newReadPosition);
-                }
+                finishReset(reset, null);
             }
 
             @Override
-            public void operationFailed(ManagedLedgerException exception) {
-                if (finishReset(reset, false)) {
-                    callback.resetFailed(new ManagedLedgerException.InvalidCursorPositionException(
-                            "unable to persist readPosition for cursor reset " + newReadPosition), newReadPosition);
-                }
+            public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
+                finishReset(reset, exception instanceof CursorAlreadyClosedException ? exception
+                        : new ManagedLedgerException.InvalidCursorPositionException(
+                                "unable to persist readPosition for cursor reset " + newReadPosition));
             }
         };
 
@@ -1870,51 +1932,48 @@ public class ManagedCursorImpl implements ManagedCursor {
         inProgressMarkDeletePersistPosition = null;
         try {
             internalAsyncMarkDelete(newMarkDeletePosition, isCompactionCursor() ? null : Collections.emptyMap(),
-                    new MarkDeleteCallback() {
-                        @Override
-                        public void markDeleteComplete(Object ctx) {
-                            finalCallback.operationComplete();
-                        }
-
-                        @Override
-                        public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
-                            finalCallback.operationFailed(exception);
-                        }
-                    }, null, alignAcknowledgeStatusAfterPersisted);
+                    resetPersistenceCallback, null, resetAcknowledgments);
         } catch (RuntimeException e) {
-            finalCallback.operationFailed(getManagedLedgerException(e));
+            resetPersistenceCallback.markDeleteFailed(getManagedLedgerException(e), null);
         }
     }
 
-    private boolean finishReset(CompletableFuture<Boolean> reset, boolean applied) {
+    private void finishReset(ResetOperation reset, ManagedLedgerException failure) {
         synchronized (pendingMarkDeleteOps) {
-            if (resetCompletion != reset) {
-                return false;
+            if (activeReset != reset) {
+                return;
             }
-            if (applied) {
-                successfulResetGeneration++;
-            }
-            resetCompletion = null;
+            activeReset = null;
         }
-        if (isClosed()) {
-            reset.completeExceptionally(new CursorAlreadyClosedException("Cursor was already closed"));
+        State current = state;
+        if (current.isClosed()) {
+            CursorAlreadyClosedException closed = new CursorAlreadyClosedException("Cursor was already closed");
+            reset.settled.completeExceptionally(closed);
+            if (failure != null || (current != State.Closing && current != State.Closed)) {
+                failure = closed;
+            }
+        }
+        if (failure != null) {
+            reset.result.completeExceptionally(failure);
         } else {
-            reset.complete(applied);
+            reset.result.complete(null);
         }
-        return true;
     }
 
-    private void failResetWaitersOnClose() {
-        CompletableFuture<Boolean> reset = resetCompletion;
-        if (reset != null) {
-            Runnable fail = () -> reset.completeExceptionally(
-                    new CursorAlreadyClosedException("Cursor was already closed"));
-            if (Thread.holdsLock(ledger) || Thread.holdsLock(pendingMarkDeleteOps)) {
-                dispatchCursorCallback(fail);
-            } else {
-                fail.run();
-            }
+    private void failPendingMarkDeletesOnClose() {
+        List<MarkDeleteEntry> pending;
+        ResetOperation reset;
+        synchronized (pendingMarkDeleteOps) {
+            pending = new ArrayList<>(pendingMarkDeleteOps);
+            pendingMarkDeleteOps.clear();
+            reset = activeReset;
+            activeReset = null;
         }
+        CursorAlreadyClosedException failure = new CursorAlreadyClosedException("Cursor was already closed");
+        if (reset != null) {
+            reset.result.completeExceptionally(failure);
+        }
+        pending.forEach(entry -> entry.dispatchFailure(failure));
     }
 
     private void dispatchCursorCallback(Runnable callback) {
@@ -2720,46 +2779,40 @@ public class ManagedCursorImpl implements ManagedCursor {
     public void asyncMarkDelete(final Position position, Map<String, Long> properties,
             final MarkDeleteCallback callback, final Object ctx) {
         requireNonNull(position);
-        asyncAcknowledge(() -> applyMarkDelete(position), properties, callback, ctx, position, null);
+        asyncAcknowledge(() -> applyMarkDelete(position), properties, callback, ctx, position);
     }
 
     @FunctionalInterface
-    private interface AckPositionSupplier {
+    private interface AckUpdate {
         Position apply() throws ManagedLedgerException;
     }
 
-    private void asyncAcknowledge(AckPositionSupplier applyAck, Map<String, Long> properties,
-            MarkDeleteCallback callback, Object ctx, Position cumulativePosition,
-            CursorResetInProgressException retryConflict) {
+    private void asyncAcknowledge(AckUpdate applyAck, Map<String, Long> properties,
+            MarkDeleteCallback callback, Object ctx, Position cumulativePosition) {
         boolean durable = isDurable();
-        Position position;
+        Position checkpointPosition;
         try {
             // Order changes to ACK state and their persistence together with reset admission and queue flushing.
             synchronized (pendingMarkDeleteOps) {
                 if (isClosed()) {
                     throw new CursorAlreadyClosedException("Cursor was already closed");
                 }
-                if (retryConflict != null
-                        && retryConflict.getSuccessfulResetGeneration() != successfulResetGeneration) {
-                    throw new CursorResetSupersededException();
-                }
-                if (resetCompletion != null) {
+                if (activeReset != null) {
                     if (cumulativePosition != null) {
                         throw new ManagedLedgerException("Reset cursor in progress - unable to mark delete position "
                                 + cumulativePosition);
                     }
                     if (durable) {
-                        throw new CursorResetInProgressException(resetCompletion.minimalCompletionStage(),
-                                successfulResetGeneration);
+                        throw new CursorResetInProgressException(activeReset.completion);
                     }
                 }
-                position = applyAck.apply();
-                if (position != null && markDeleteLimiter != null && !markDeleteLimiter.tryAcquire()) {
-                    markDeleteDirty(position, properties);
-                    position = null;
+                checkpointPosition = applyAck.apply();
+                if (checkpointPosition != null && markDeleteLimiter != null && !markDeleteLimiter.tryAcquire()) {
+                    markDeleteDirty(checkpointPosition, properties);
+                    checkpointPosition = null;
                 }
-                if (position != null && durable) {
-                    internalAsyncMarkDelete(position, properties, callback, ctx, null);
+                if (checkpointPosition != null && durable) {
+                    internalAsyncMarkDelete(checkpointPosition, properties, callback, ctx, null);
                     return;
                 }
             }
@@ -2769,11 +2822,11 @@ public class ManagedCursorImpl implements ManagedCursor {
             return;
         }
 
-        if (position == null) {
+        if (checkpointPosition == null) {
             callback.markDeleteComplete(ctx);
         } else {
             // Non-durable cursors complete inline and have no checkpoint to order with reset.
-            internalAsyncMarkDelete(position, properties, callback, ctx, null);
+            internalAsyncMarkDelete(checkpointPosition, properties, callback, ctx, null);
         }
     }
 
@@ -2863,7 +2916,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             // The state might have changed while we were waiting on the queue mutex
             switch (state) {
             case Closing, Closed, Deleting, Deleted, DeletingFailed:
-                mdEntry.triggerFailed(new CursorAlreadyClosedException("Cursor was already closed"));
+                mdEntry.dispatchFailure(new CursorAlreadyClosedException("Cursor was already closed"));
                 return;
 
             case NoLedger:
@@ -2873,7 +2926,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     startCreatingNewMetadataLedger();
                 } catch (RuntimeException e) {
                     if (pendingMarkDeleteOps.removeLastOccurrence(mdEntry)) {
-                        mdEntry.triggerFailed(getManagedLedgerException(e));
+                        mdEntry.dispatchFailure(getManagedLedgerException(e));
                     }
                 }
                 break;
@@ -2898,13 +2951,23 @@ public class ManagedCursorImpl implements ManagedCursor {
 
             default:
                 log.error().attr("state", state).log("Invalid cursor state");
-                mdEntry.triggerFailed(new ManagedLedgerException("Cursor was in invalid state: " + state));
+                mdEntry.dispatchFailure(new ManagedLedgerException("Cursor was in invalid state: " + state));
                 break;
             }
         }
     }
 
+    // Called with pendingMarkDeleteOps held.
     void internalMarkDelete(final MarkDeleteEntry mdEntry) {
+        ResetAcknowledgments reset = mdEntry.resetAcknowledgments();
+        State submissionState = state;
+        if (reset != null) {
+            if (submissionState.isClosed()) {
+                mdEntry.dispatchFailure(new CursorAlreadyClosedException("Cursor was already closed"));
+                return;
+            }
+            reset.operation.submitted = true;
+        }
         // A cursor reset may move the mark-delete position backward, so it is never skipped in favor of a later
         // position persisted or being persisted by an acknowledgment
         if (!mdEntry.resetsCursor && persistentMarkDeletePosition != null
@@ -2942,14 +3005,12 @@ public class ManagedCursorImpl implements ManagedCursor {
         // ledger is postponed to when the counter goes to 0.
         PENDING_MARK_DELETED_SUBMITTED_COUNT_UPDATER.incrementAndGet(this);
 
-        LAST_MARK_DELETE_ENTRY_UPDATER.updateAndGet(this, last -> {
-            if (last != null && last.newPosition.compareTo(mdEntry.newPosition) > 0) {
-                // keep the current value since it's later then the mdEntry.newPosition
-                return last;
-            } else {
-                return mdEntry;
-            }
-        });
+        if (reset == null) {
+            updateLastMarkDeleteEntry(mdEntry);
+        } else if (isCompactionCursor()) {
+            // A compaction reset keeps the mark-delete position and may inherit properties from a queued ACK.
+            updateLastMarkDeleteEntry(new MarkDeleteEntry(mdEntry.newPosition, mdEntry.properties, null, null));
+        }
 
         VoidCallback cb = new VoidCallback() {
             @Override
@@ -2961,11 +3022,20 @@ public class ManagedCursorImpl implements ManagedCursor {
 
                 // Remove from the individual deleted messages all the entries before the new mark delete
                 // point.
+                boolean resetClosed;
                 lock.writeLock().lock();
                 try {
-                    mdEntry.alignAcknowledgeStatus();
+                    State current = state;
+                    resetClosed = mdEntry.resetsCursor && current.isClosed() && current != State.Closing;
+                    if (!resetClosed) {
+                        mdEntry.alignAcknowledgeStatus();
+                    }
                 } finally {
                     lock.writeLock().unlock();
+                }
+                if (resetClosed) {
+                    operationFailed(new CursorAlreadyClosedException("Cursor was already closed"));
+                    return;
                 }
 
                 ledger.onCursorMarkDeletePositionUpdated(ManagedCursorImpl.this, mdEntry.newPosition);
@@ -2995,8 +3065,11 @@ public class ManagedCursorImpl implements ManagedCursor {
             }
         };
 
+        boolean wasSubmitting = submittingMarkDelete;
+        submittingMarkDelete = true;
         try {
-            if (state == State.NoLedger) {
+            // Close may change the state after admitting a reset. Use the backend available at admission.
+            if ((reset == null ? state : submissionState) == State.NoLedger) {
                 if (ledger.isNoMessagesAfterPos(mdEntry.newPosition)) {
                     log.error("Metadata ledger creation failed, try to persist the position in the metadata store.");
                     persistPositionToMetaStore(mdEntry, cb);
@@ -3009,7 +3082,14 @@ public class ManagedCursorImpl implements ManagedCursor {
         } catch (RuntimeException e) {
             // A synchronous submission failure still belongs to this entry and its callback group.
             cb.operationFailed(getManagedLedgerException(e));
+        } finally {
+            submittingMarkDelete = wasSubmitting;
         }
+    }
+
+    private void updateLastMarkDeleteEntry(MarkDeleteEntry entry) {
+        LAST_MARK_DELETE_ENTRY_UPDATER.updateAndGet(this, last ->
+                last != null && last.newPosition.compareTo(entry.newPosition) > 0 ? last : entry);
     }
 
     @Override
@@ -3106,17 +3186,6 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public void asyncDelete(Iterable<Position> positions, AsyncCallbacks.DeleteCallback callback, Object ctx) {
-        asyncDelete(positions, callback, ctx, null);
-    }
-
-    @Override
-    public void retryDeleteAfterFailedReset(Iterable<Position> positions, CursorResetInProgressException conflict,
-            AsyncCallbacks.DeleteCallback callback, Object ctx) {
-        asyncDelete(positions, callback, ctx, requireNonNull(conflict));
-    }
-
-    private void asyncDelete(Iterable<Position> positions, AsyncCallbacks.DeleteCallback callback, Object ctx,
-            CursorResetInProgressException retryConflict) {
         asyncAcknowledge(() -> applyIndividualDeletes(positions), null, new MarkDeleteCallback() {
             @Override
             public void markDeleteComplete(Object ctx) {
@@ -3127,7 +3196,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
                 callback.deleteFailed(exception, ctx);
             }
-        }, ctx, null, retryConflict);
+        }, ctx, null);
     }
 
     private Position applyIndividualDeletes(Iterable<Position> positions) throws ManagedLedgerException {
@@ -3534,6 +3603,13 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     private void persistPositionMetaStore(long cursorsLedgerId, Position position, Map<String, Long> properties,
             MetaStoreCallback<Void> callback, boolean persistIndividualDeletedMessageRanges) {
+        persistPositionMetaStore(cursorsLedgerId, position, properties, callback, persistIndividualDeletedMessageRanges,
+                null);
+    }
+
+    private void persistPositionMetaStore(long cursorsLedgerId, Position position, Map<String, Long> properties,
+            MetaStoreCallback<Void> callback, boolean persistIndividualDeletedMessageRanges,
+            ResetAcknowledgments reset) {
         if (state == State.Closed) {
             ledger.getExecutor().execute(() -> callback.operationFailed(new MetaStoreException(
                     new CursorAlreadyClosedException(name + " cursor already closed"))));
@@ -3556,7 +3632,9 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         info.addAllProperties(buildPropertiesMap(properties));
         info.addAllCursorProperties(buildStringPropertiesMap(cursorProperties));
-        if (persistIndividualDeletedMessageRanges) {
+        if (reset != null) {
+            info.addAllBatchedEntryDeletionIndexInfos(reset.batchIndexesToPersist());
+        } else if (persistIndividualDeletedMessageRanges) {
             info.addAllIndividualDeletedMessages(buildIndividualDeletedMessageRanges());
             if (getConfig().isDeletionAtBatchIndexLevelEnabled()) {
                 info.addAllBatchedEntryDeletionIndexInfos(buildBatchEntryDeletionIndexInfoList());
@@ -3627,29 +3705,61 @@ public class ManagedCursorImpl implements ManagedCursor {
             callback.closeComplete(ctx);
             return;
         }
-        failResetWaitersOnClose();
         closeWaitingCursor();
         setInactive();
-        persistPositionWhenClosing(lastMarkDeleteEntry.newPosition, lastMarkDeleteEntry.properties,
-                new AsyncCallbacks.CloseCallback(){
+        // Close can be invoked under the ledger monitor. Drain the cursor queue outside that monitor.
+        if (activeReset == null) {
+            dispatchCursorCallback(this::failPendingMarkDeletesOnClose);
+            persistCloseCheckpoint(lastMarkDeleteEntry, callback, ctx);
+        } else {
+            dispatchCursorCallback(() -> closeAfterReset(callback, ctx));
+        }
+    }
 
-                    @Override
-                    public void closeComplete(Object ctx) {
-                        if (!STATE_UPDATER.compareAndSet(ManagedCursorImpl.this, State.Closing, State.Closed)) {
-                            log.warn().attr("state", state).log("State was modified from closing while closing");
-                            state = State.Closed;
+    private void closeAfterReset(AsyncCallbacks.CloseCallback callback, Object ctx) {
+        ResetOperation submittedReset;
+        synchronized (pendingMarkDeleteOps) {
+            submittedReset = activeReset != null && activeReset.submitted ? activeReset : null;
+        }
+        if (submittedReset != null) {
+            // The reset may already own a BookKeeper write or a metadata-store update.
+            submittedReset.settled.completeExceptionally(new CursorAlreadyClosedException("Cursor was already closed"));
+            submittedReset.result.whenComplete((ignored, error) ->
+                    dispatchCursorCallback(() -> persistCloseCheckpoint(lastMarkDeleteEntry, callback, ctx)));
+        } else {
+            try {
+                persistCloseCheckpoint(lastMarkDeleteEntry, callback, ctx);
+            } finally {
+                failPendingMarkDeletesOnClose();
+            }
+        }
+    }
+
+    private void persistCloseCheckpoint(MarkDeleteEntry checkpoint, AsyncCallbacks.CloseCallback callback, Object ctx) {
+        if (state != State.Closing) {
+            callback.closeComplete(ctx);
+            return;
+        }
+        try {
+            persistPositionWhenClosing(checkpoint.newPosition, checkpoint.properties,
+                    new AsyncCallbacks.CloseCallback() {
+                        @Override
+                        public void closeComplete(Object ctx) {
+                            STATE_UPDATER.compareAndSet(ManagedCursorImpl.this, State.Closing, State.Closed);
+                            callback.closeComplete(ctx);
                         }
-                        callback.closeComplete(ctx);
-                    }
 
-                    @Override
-                    public void closeFailed(ManagedLedgerException exception, Object ctx) {
-                        log.warn("Persistent position failure when closing,"
-                                + " the state will remain in state-closing"
-                                + " and will no longer work");
-                        callback.closeFailed(exception, ctx);
-                    }
-                }, ctx);
+                        @Override
+                        public void closeFailed(ManagedLedgerException exception, Object ctx) {
+                            log.warn("Persistent position failure when closing,"
+                                    + " the state will remain in state-closing"
+                                    + " and will no longer work");
+                            callback.closeFailed(exception, ctx);
+                        }
+                    }, ctx);
+        } catch (RuntimeException error) {
+            callback.closeFailed(getManagedLedgerException(error), ctx);
+        }
     }
 
     protected void closeWaitingCursor() {
@@ -3808,6 +3918,9 @@ public class ManagedCursorImpl implements ManagedCursor {
             public void operationFailed(ManagedLedgerException exception) {
                 log.error().attr("error", exception).log("Metadata ledger creation failed");
                 synchronized (pendingMarkDeleteOps) {
+                    if (isClosed()) {
+                        return;
+                    }
                     // At this point we don't have a ledger ready
                     changeStateIfNotClosed(State.NoLedger);
                     // There are two case may cause switch ledger fails.
@@ -3820,7 +3933,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     } else {
                         while (!pendingMarkDeleteOps.isEmpty()) {
                             MarkDeleteEntry entry = pendingMarkDeleteOps.poll();
-                            entry.triggerFailed(exception);
+                            entry.dispatchFailure(exception);
                         }
                     }
                 }
@@ -3838,7 +3951,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     private void flushPendingMarkDeletes() {
-        if (!pendingMarkDeleteOps.isEmpty()) {
+        if (!isClosed() && !pendingMarkDeleteOps.isEmpty()) {
             internalFlushPendingMarkDeletes();
         }
     }
@@ -4028,15 +4141,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             int maxIndexes = getConfig().getMaxBatchDeletedIndexToPersist();
             while (iterator.hasNext() && result.size() < maxIndexes) {
                 final var entry = iterator.next();
-                BatchedEntryDeletionIndexInfo batchDeletedIndexInfo = new BatchedEntryDeletionIndexInfo();
-                batchDeletedIndexInfo.setPosition()
-                        .setLedgerId(entry.getKey().getLedgerId())
-                        .setEntryId(entry.getKey().getEntryId());
-                long[] array = entry.getValue().toLongArray();
-                for (long l : array) {
-                    batchDeletedIndexInfo.addDeleteSet(l);
-                }
-                result.add(batchDeletedIndexInfo);
+                result.add(newBatchEntryDeletionIndexInfo(entry.getKey(), entry.getValue().toLongArray()));
             }
 
             if (iterator.hasNext()) {
@@ -4065,15 +4170,31 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
+    private static BatchedEntryDeletionIndexInfo newBatchEntryDeletionIndexInfo(Position position, long[] words) {
+        BatchedEntryDeletionIndexInfo info = new BatchedEntryDeletionIndexInfo();
+        info.setPosition().setLedgerId(position.getLedgerId()).setEntryId(position.getEntryId());
+        // Recovery ignores records without words. A zero word represents an explicit empty mask.
+        if (words.length == 0) {
+            info.addDeleteSet(0);
+        }
+        for (long word : words) {
+            info.addDeleteSet(word);
+        }
+        return info;
+    }
+
     // Builds and serializes the position info with the reused instance. A cursor's close persists its position
     // concurrently with a mark-delete on another thread, so the instance is used under its monitor. The cursor's
     // state is read before, under the cursor's lock, so that no lock is taken while the monitor is held
-    private byte[] serializePositionInfo(Position position, Map<String, Long> properties, long lastActiveToPersist) {
-        List<BatchedEntryDeletionIndexInfo> batchedEntryDeletionIndexInfos = buildBatchEntryDeletionIndexInfoList();
-        List<LongProperty> propertiesList = buildPropertiesMap(properties);
+    private byte[] serializePositionInfo(MarkDeleteEntry entry, long lastActiveToPersist) {
+        Position position = entry.newPosition;
+        ResetAcknowledgments reset = entry.resetAcknowledgments();
+        List<BatchedEntryDeletionIndexInfo> batchedEntryDeletionIndexInfos = reset == null
+                ? buildBatchEntryDeletionIndexInfoList() : reset.batchIndexesToPersist();
+        List<LongProperty> propertiesList = buildPropertiesMap(entry.properties);
 
         Map<Long, long[]> internalRanges = null;
-        if (getConfig().isPersistIndividualAckAsLongArray()) {
+        if (reset == null && getConfig().isPersistIndividualAckAsLongArray()) {
             lock.readLock().lock();
             try {
                 internalRanges = individualDeletedMessages.toRanges(getConfig().getMaxUnackedRangesToPersist());
@@ -4084,7 +4205,8 @@ public class ManagedCursorImpl implements ManagedCursor {
             }
         }
         boolean persistLongArrays = internalRanges != null && !internalRanges.isEmpty();
-        List<MessageRange> messageRanges = persistLongArrays ? null : buildIndividualDeletedMessageRanges();
+        List<MessageRange> messageRanges = reset == null && !persistLongArrays
+                ? buildIndividualDeletedMessageRanges() : Collections.emptyList();
 
         PositionInfo pi = reusablePositionInfo;
         synchronized (pi) {
@@ -4111,7 +4233,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         Position position = mdEntry.newPosition;
         requireNonNull(lh);
         long lastActiveToPersist = lastActive;
-        byte[] data = serializePositionInfo(position, mdEntry.properties, lastActiveToPersist);
+        byte[] data = serializePositionInfo(mdEntry, lastActiveToPersist);
         log.debug().attr("ledgerId", lh.getId()).attr("position", position).log("Appending to cursor ledger");
         lh.asyncAddEntry(data, (rc, lh1, entryId, ctx) -> {
             if (rc == BKException.Code.OK) {
@@ -4196,7 +4318,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 mbean.persistToZookeeper(false);
                 callback.operationFailed(createManagedLedgerException(e));
             }
-        }, true);
+        }, true, mdEntry.resetAcknowledgments());
     }
 
     boolean shouldCloseLedger(LedgerHandle lh) {
@@ -4460,8 +4582,8 @@ public class ManagedCursorImpl implements ManagedCursor {
             }
             return State.Deleting;
         });
-        if (!previous.isClosed()) {
-            failResetWaitersOnClose();
+        if (!previous.isClosed() || previous == State.Closing) {
+            dispatchCursorCallback(this::failPendingMarkDeletesOnClose);
         }
         return previous;
     }
@@ -4740,7 +4862,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
 
         synchronized (pendingMarkDeleteOps) {
-            if (!isDirty || resetCompletion != null) {
+            if (!isDirty || activeReset != null) {
                 return;
             }
             // Read and submit the checkpoint together so a completed reset cannot make it stale between the two.

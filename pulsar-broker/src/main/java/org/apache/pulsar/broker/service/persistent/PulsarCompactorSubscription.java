@@ -79,6 +79,12 @@ public class PulsarCompactorSubscription extends PersistentSubscription {
     }
 
     @Override
+    public CompletableFuture<Void> acknowledgeIndividualMessagesWithBatchState(List<Position> positions,
+            Map<String, Long> properties, long ordinaryAckGeneration) {
+        return acknowledgeMessageAsync(positions, AckType.Individual, properties);
+    }
+
+    @Override
     public CompletableFuture<Void> acknowledgeMessageAsync(List<Position> positions, AckType ackType,
                                                            Map<String, Long> properties) {
         checkArgument(ackType == AckType.Cumulative);

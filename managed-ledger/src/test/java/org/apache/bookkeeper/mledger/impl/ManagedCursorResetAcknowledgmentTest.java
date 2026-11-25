@@ -22,28 +22,47 @@ import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.defaultCo
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anySet;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.spy;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
+import org.apache.bookkeeper.client.AsyncCallback.AddCallback;
 import org.apache.bookkeeper.client.BKException;
+import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ResetCursorCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorAlreadyClosedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorResetInProgressException;
-import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorResetSupersededException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.InvalidCursorPositionException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.VoidCallback;
+import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
+import org.apache.bookkeeper.mledger.proto.BatchedEntryDeletionIndexInfo;
+import org.apache.bookkeeper.mledger.proto.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MessageRange;
 import org.apache.bookkeeper.mledger.proto.PositionInfo;
+import org.apache.bookkeeper.mledger.util.Futures.CloseFuture;
 import org.apache.bookkeeper.mledger.util.ManagedLedgerUtils;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.Option;
+import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore.OperationType;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -92,14 +111,14 @@ public class ManagedCursorResetAcknowledgmentTest extends MockedBookKeeperTestCa
                 assertThat(cursor.getPendingReadOpsCount()).isEqualTo(1);
             }
 
-            CompletableFuture<Boolean> resetCompletion = rejectDeleteDuringReset(cursor, ackPosition, ackCallbacks)
+            CompletableFuture<Void> resetCompletion = rejectDeleteDuringReset(cursor, ackPosition, ackCallbacks)
                     .getResetCompletion().toCompletableFuture();
             assertThat(resetCompletion).isNotDone();
             assertThat(cursor.isMessageDeleted(ackPosition)).isFalse();
 
             releaseReset.complete(null);
             reset.get(5, TimeUnit.SECONDS);
-            assertThat(resetCompletion.get(5, TimeUnit.SECONDS)).isTrue();
+            resetCompletion.get(5, TimeUnit.SECONDS);
             releaseRead.complete(null);
             read.get(5, TimeUnit.SECONDS);
 
@@ -115,11 +134,11 @@ public class ManagedCursorResetAcknowledgmentTest extends MockedBookKeeperTestCa
             assertThat(cursor.getMarkDeletedPosition()).isEqualTo(resetMarkDelete);
             assertThat(cursor.isMessageDeleted(ackPosition)).isTrue();
             assertThat(ackCallbacks).hasValue(1);
-            PositionInfo retried = readCursorCheckpoint(cursor);
-            assertThat(PositionFactory.create(retried.getLedgerId(), retried.getEntryId()))
+            PositionInfo checkpointAfterAck = readCursorCheckpoint(cursor);
+            assertThat(PositionFactory.create(checkpointAfterAck.getLedgerId(), checkpointAfterAck.getEntryId()))
                     .isEqualTo(resetMarkDelete);
-            assertThat(retried.getIndividualDeletedMessagesCount()).isEqualTo(1);
-            MessageRange ackRange = retried.getIndividualDeletedMessageAt(0);
+            assertThat(checkpointAfterAck.getIndividualDeletedMessagesCount()).isEqualTo(1);
+            MessageRange ackRange = checkpointAfterAck.getIndividualDeletedMessageAt(0);
             assertThat(PositionFactory.create(ackRange.getUpperEndpoint().getLedgerId(),
                     ackRange.getUpperEndpoint().getEntryId())).isEqualTo(ackPosition);
         } finally {
@@ -129,8 +148,156 @@ public class ManagedCursorResetAcknowledgmentTest extends MockedBookKeeperTestCa
         }
     }
 
+    @DataProvider
+    public Object[][] resetCheckpointStorage() {
+        return new Object[][] {{false, false, 0b10L}, {false, true, 0b10L}, {true, false, 0b10L}, {false, false, 0L}};
+    }
+
+    @Test(dataProvider = "resetCheckpointStorage", timeOut = 30000)
+    public void resetCheckpointMatchesAcknowledgmentsAfterSeek(boolean metadataFallback, boolean persistLongRanges,
+            long resetMaskWord) throws Exception {
+        ManagedLedgerConfig config = defaultConfig().setPersistIndividualAckAsLongArray(persistLongRanges);
+        config.setDeletionAtBatchIndexLevelEnabled(true);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("reset-ack-checkpoint", config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("sub");
+        List<Position> positions = new ArrayList<>();
+        for (int i = 0; i < 6; i++) {
+            positions.add(ledger.addEntry(new byte[] {(byte) i}));
+        }
+        Position resetMarkDelete = positions.getFirst();
+        Position readPosition = positions.get(1);
+        Position wholeEntry = positions.get(4);
+        Position oldBatch = positions.get(5);
+        long[] resetMask = resetMaskWord == 0 ? new long[0] : new long[] {resetMaskWord};
+
+        cursor.markDelete(positions.get(2));
+        cursor.delete(List.of(wholeEntry, AckSetStateUtil.createPositionWithAckSet(
+                oldBatch.getLedgerId(), oldBatch.getEntryId(), new long[] {0b01L})));
+        assertThat(cursor.isMessageDeleted(wholeEntry)).isTrue();
+        assertThat(cursor.getBatchPositionAckSet(oldBatch)).containsExactly(0b01L);
+        PositionInfo beforeReset = readCursorCheckpoint(cursor);
+        assertThat(beforeReset.getIndividualDeletedMessagesCount()).isEqualTo(persistLongRanges ? 0 : 1);
+        assertThat(beforeReset.getIndividualDeletedMessageRangesCount()).isEqualTo(persistLongRanges ? 1 : 0);
+        assertThat(beforeReset.getBatchedEntryDeletionIndexInfosCount()).isEqualTo(1);
+
+        if (metadataFallback) {
+            bkc.addEntryFailAfter(0, BKException.Code.WriteException);
+        }
+        Position seek = AckSetStateUtil.createPositionWithAckSet(
+                readPosition.getLedgerId(), readPosition.getEntryId(), resetMask);
+        resetCursor(cursor, seek).get(5, TimeUnit.SECONDS);
+        assertResetAckState(cursor, resetMarkDelete, readPosition, wholeEntry, oldBatch, resetMask);
+
+        // Inspect the reset's record before close can replace it with a fresh snapshot of the in-memory state.
+        BatchedEntryDeletionIndexInfo batchCheckpoint;
+        if (metadataFallback) {
+            ManagedCursorInfo checkpoint = readCursorInfo(ledger, cursor.getName());
+            assertThat(checkpoint.getCursorsLedgerId()).isEqualTo(-1);
+            assertThat(PositionFactory.create(checkpoint.getMarkDeleteLedgerId(), checkpoint.getMarkDeleteEntryId()))
+                    .isEqualTo(resetMarkDelete);
+            assertThat(checkpoint.getIndividualDeletedMessagesCount()).isZero();
+            assertThat(checkpoint.getBatchedEntryDeletionIndexInfosCount()).isEqualTo(1);
+            batchCheckpoint = checkpoint.getBatchedEntryDeletionIndexInfoAt(0);
+        } else {
+            PositionInfo checkpoint = readCursorCheckpoint(cursor);
+            assertThat(PositionFactory.create(checkpoint.getLedgerId(), checkpoint.getEntryId()))
+                    .isEqualTo(resetMarkDelete);
+            assertThat(checkpoint.getIndividualDeletedMessagesCount()).isZero();
+            assertThat(checkpoint.getIndividualDeletedMessageRangesCount()).isZero();
+            assertThat(checkpoint.getBatchedEntryDeletionIndexInfosCount()).isEqualTo(1);
+            batchCheckpoint = checkpoint.getBatchedEntryDeletionIndexInfoAt(0);
+        }
+        assertThat(PositionFactory.create(batchCheckpoint.getPosition().getLedgerId(),
+                batchCheckpoint.getPosition().getEntryId())).isEqualTo(readPosition);
+        assertThat(batchCheckpoint.getDeleteSetsCount()).isEqualTo(1);
+        assertThat(batchCheckpoint.getDeleteSetAt(0)).isEqualTo(resetMaskWord);
+
+        // Recover from the reset checkpoint without closing the writer and rewriting the checkpoint first.
+        ManagedCursorImpl recovered = new ManagedCursorImpl(bkc, ledger, cursor.getName());
+        try {
+            recoverCursor(recovered);
+            assertResetAckState(recovered, resetMarkDelete, readPosition, wholeEntry, oldBatch, resetMask);
+        } finally {
+            recovered.closeReadOnlyCursorLedger();
+        }
+    }
+
+    private static void assertResetAckState(ManagedCursorImpl cursor, Position markDelete, Position readPosition,
+            Position wholeEntry, Position oldBatch, long[] resetMask) {
+        assertThat(cursor.getMarkDeletedPosition()).isEqualTo(markDelete);
+        assertThat(cursor.getReadPosition()).isEqualTo(readPosition);
+        assertThat(cursor.isMessageDeleted(wholeEntry)).isFalse();
+        assertThat(cursor.getBatchPositionAckSet(oldBatch)).isNull();
+        assertThat(cursor.getBatchPositionAckSet(readPosition)).containsExactly(resetMask);
+    }
+
+    @Test(dataProvider = "pendingRead", timeOut = 30000)
+    public void compactionResetKeepsPropertyChangesMadeWhileCheckpointIsInFlight(boolean pendingRead) throws Exception {
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("compaction-reset-properties", defaultConfig());
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("__compaction");
+        cursor.setInactive();
+        Position readPosition = ledger.addEntry(new byte[] {0});
+        Position previousMarkDelete = ledger.addEntry(new byte[] {1});
+        Position markDelete = ledger.addEntry(new byte[] {2});
+
+        Map<String, Long> properties = Map.of("CompactedTopicLedger", 123456L, "removed", 1L);
+        if (pendingRead) {
+            cursor.markDelete(previousMarkDelete, Map.of("CompactedTopicLedger", 123L));
+        } else {
+            cursor.markDelete(markDelete, properties);
+        }
+        long lastCheckpoint = cursor.getCursorLedgerLastEntry();
+        Map<String, Long> updated = Map.of("CompactedTopicLedger", 123456L, "added", 2L);
+
+        CompletableFuture<Void> releaseRead = new CompletableFuture<>();
+        CompletableFuture<Void> releaseReset = bkc.addEntryResponseGate();
+        try {
+            CompletableFuture<Void> read = CompletableFuture.completedFuture(null);
+            CompletableFuture<Void> ack = CompletableFuture.completedFuture(null);
+            if (pendingRead) {
+                CompletableFuture<Void> readStarted = new CompletableFuture<>();
+                bkc.setReadHandleInterceptor((ledgerId, firstEntry, lastEntry, entries) -> {
+                    readStarted.complete(null);
+                    return releaseRead.thenApply(ignored -> entries);
+                });
+                read = ManagedLedgerUtils.readEntries(cursor, 1, PositionFactory.LATEST)
+                        .thenAccept(entries -> entries.forEach(Entry::release));
+                readStarted.get(5, TimeUnit.SECONDS);
+                ack = ManagedLedgerUtils.markDelete(cursor, markDelete, properties);
+                assertThat(ack).isNotDone();
+            }
+            CompletableFuture<Void> reset = resetCursor(cursor, readPosition);
+            if (pendingRead) {
+                ledger.getExecutor().submit(() -> { }).get(5, TimeUnit.SECONDS);
+                releaseRead.complete(null);
+                read.get(5, TimeUnit.SECONDS);
+            }
+            await().atMost(5, TimeUnit.SECONDS).until(() ->
+                    cursor.getCursorLedgerLastEntry() == lastCheckpoint + 1
+                            && releaseReset.getNumberOfDependents() > 0);
+            assertThat(reset).isNotDone();
+            assertThat(cursor.getProperties()).isEqualTo(properties);
+
+            assertThat(cursor.putProperty("added", 2L)).isTrue();
+            assertThat(cursor.removeProperty("removed")).isTrue();
+            assertThat(cursor.getProperties()).isEqualTo(updated);
+
+            releaseReset.complete(null);
+            reset.get(5, TimeUnit.SECONDS);
+            ack.get(5, TimeUnit.SECONDS);
+            assertThat(cursor.getMarkDeletedPosition()).isEqualTo(markDelete);
+            assertThat(cursor.getPersistentMarkDeletedPosition()).isEqualTo(markDelete);
+            assertThat(cursor.getReadPosition()).isEqualTo(readPosition);
+            assertThat(cursor.getProperties()).isEqualTo(updated);
+        } finally {
+            releaseReset.complete(null);
+            releaseRead.complete(null);
+            bkc.setReadHandleInterceptor(null);
+        }
+    }
+
     @Test(timeOut = 30000)
-    public void failedResetAllowsRetryUntilSuccessfulResetSupersedesIt() throws Exception {
+    public void failedResetReopensAckAdmission() throws Exception {
         String ledgerName = "failed-reset-ack";
         String cursorName = "sub";
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(ledgerName, defaultConfig());
@@ -149,44 +316,107 @@ public class ManagedCursorResetAcknowledgmentTest extends MockedBookKeeperTestCa
         CompletableFuture<Void> failResetWrite = bkc.promiseAfter(0);
         BKException failure = BKException.create(BKException.Code.WriteException);
         try {
-            CompletableFuture<Void> reset = resetCursor(cursor, positions.get(2));
+            Position target = positions.getLast();
+            Position seek = AckSetStateUtil.createPositionWithAckSet(target.getLedgerId(), target.getEntryId(),
+                    new long[] {0b10L});
+            CompletableFuture<Void> reset = resetCursor(cursor, seek);
             ledger.getExecutor().submit(() -> { }).get(5, TimeUnit.SECONDS);
             assertThat(reset).isNotDone();
 
             AtomicInteger ackCallbacks = new AtomicInteger();
-            CursorResetInProgressException conflict = rejectDeleteDuringReset(cursor, ackPosition, ackCallbacks);
-            CompletableFuture<Boolean> resetCompletion = conflict.getResetCompletion().toCompletableFuture();
+            CompletableFuture<Void> resetCompletion = rejectDeleteDuringReset(cursor, ackPosition, ackCallbacks)
+                    .getResetCompletion().toCompletableFuture();
             assertThat(resetCompletion).isNotDone();
 
             failResetWrite.completeExceptionally(failure);
             assertThatThrownBy(() -> reset.get(5, TimeUnit.SECONDS))
                     .hasCauseInstanceOf(InvalidCursorPositionException.class);
-            assertThat(resetCompletion.get(5, TimeUnit.SECONDS)).isFalse();
+            resetCompletion.get(5, TimeUnit.SECONDS);
             assertThat(cursor.getMarkDeletedPosition()).isEqualTo(markDelete);
             assertThat(cursor.isMessageDeleted(ackPosition)).isFalse();
-            retryDeleteAfterFailedReset(cursor, ackPosition, conflict).get(5, TimeUnit.SECONDS);
+            cursor.delete(ackPosition);
             assertThat(cursor.isMessageDeleted(ackPosition)).isTrue();
-
-            resetCursor(cursor, positions.get(3)).get(5, TimeUnit.SECONDS);
-            assertThat(cursor.getMarkDeletedPosition()).isEqualTo(positions.get(2));
-            assertThat(cursor.isMessageDeleted(ackPosition)).isFalse();
-            assertThatThrownBy(() -> retryDeleteAfterFailedReset(cursor, ackPosition, conflict)
-                    .get(5, TimeUnit.SECONDS))
-                    .hasCauseInstanceOf(CursorResetSupersededException.class);
-            assertThat(cursor.isMessageDeleted(ackPosition)).isFalse();
+            // The new cursor ledger must start from the last valid checkpoint, even after a forward seek fails.
+            PositionInfo seed = readCursorCheckpoint(cursor, 0);
+            assertThat(PositionFactory.create(seed.getLedgerId(), seed.getEntryId())).isEqualTo(markDelete);
+            assertThat(seed.getBatchedEntryDeletionIndexInfosCount()).isZero();
             assertThat(ackCallbacks).hasValue(1);
         } finally {
             failResetWrite.completeExceptionally(failure);
         }
     }
 
-    @Test(timeOut = 30000)
-    public void closeSettlesResetCompletionWhileReadIsPending() throws Exception {
+    @DataProvider
+    public Object[][] inlinePersistenceCompletion() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    @Test(dataProvider = "inlinePersistenceCompletion", timeOut = 30000)
+    public void ackCompletionKeepsPersistenceThreadUnlessWriteCompletesInline(boolean inline) throws Exception {
+        ManagedLedger ledger = factory.open("ack-persistence-completion-thread", defaultConfig());
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("sub");
+        Position first = ledger.addEntry(new byte[] {0});
+        Position second = ledger.addEntry(new byte[] {1});
+        cursor.markDelete(first);
+
+        LedgerHandle cursorLedger = cursor.cursorLedger;
+        LedgerHandle storage = spy(cursorLedger);
+        CompletableFuture<Runnable> completeWrite = new CompletableFuture<>();
+        doAnswer(invocation -> {
+            long entryId = cursorLedger.addEntry(invocation.getArgument(0, byte[].class));
+            AddCallback callback = invocation.getArgument(1);
+            Object ctx = invocation.getArgument(2);
+            Runnable complete = () -> callback.addComplete(BKException.Code.OK, cursorLedger, entryId, ctx);
+            if (inline) {
+                complete.run();
+            } else {
+                completeWrite.complete(complete);
+            }
+            return null;
+        }).when(storage).asyncAddEntry(any(byte[].class), any(AddCallback.class), any());
+
+        cursor.cursorLedger = storage;
+        try {
+            Thread caller = Thread.currentThread();
+            CompletableFuture<Thread> ack = new CompletableFuture<>();
+            cursor.asyncDelete(second, new DeleteCallback() {
+                @Override
+                public void deleteComplete(Object ctx) {
+                    ack.complete(Thread.currentThread());
+                }
+
+                @Override
+                public void deleteFailed(ManagedLedgerException exception, Object ctx) {
+                    ack.completeExceptionally(exception);
+                }
+            }, null);
+
+            if (inline) {
+                assertThat(ack.get(5, TimeUnit.SECONDS)).isNotSameAs(caller);
+            } else {
+                assertThat(ack).isNotDone();
+                completeWrite.get(5, TimeUnit.SECONDS).run();
+                assertThat(ack.get(5, TimeUnit.SECONDS)).isSameAs(caller);
+            }
+            assertThat(cursor.getPersistentMarkDeletedPosition()).isEqualTo(second);
+        } finally {
+            cursor.cursorLedger = cursorLedger;
+        }
+    }
+
+    @DataProvider
+    public Object[][] cursorDeletion() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    @Test(dataProvider = "cursorDeletion", timeOut = 30000)
+    public void closeSettlesResetCompletionWhileReadIsPending(boolean deleteCursor) throws Exception {
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("close-with-pending-reset", defaultConfig());
         ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("sub");
         cursor.setInactive();
         Position first = ledger.addEntry(new byte[] {0});
         Position second = ledger.addEntry(new byte[] {1});
+        Position third = ledger.addEntry(new byte[] {2});
         cursor.markDelete(first);
 
         CompletableFuture<Void> readStarted = new CompletableFuture<>();
@@ -199,23 +429,290 @@ public class ManagedCursorResetAcknowledgmentTest extends MockedBookKeeperTestCa
                 .thenAccept(entries -> entries.forEach(Entry::release));
         try {
             readStarted.get(5, TimeUnit.SECONDS);
+            CompletableFuture<Void> earlierAck = ManagedLedgerUtils.markDelete(cursor, second, Map.of());
+            assertThat(earlierAck).isNotDone();
             CompletableFuture<Void> reset = resetCursor(cursor, first);
             ledger.getExecutor().submit(() -> { }).get(5, TimeUnit.SECONDS);
             assertThat(reset).isNotDone();
 
             AtomicInteger ackCallbacks = new AtomicInteger();
-            CompletableFuture<Boolean> resetCompletion = rejectDeleteDuringReset(cursor, second, ackCallbacks)
-                    .getResetCompletion().toCompletableFuture();
-            assertThat(resetCompletion).isNotDone();
+            var resetCompletion = rejectDeleteDuringReset(cursor, third, ackCallbacks).getResetCompletion();
+            assertThat(resetCompletion.toCompletableFuture()).isNotDone();
 
-            cursor.close();
-            assertThatThrownBy(() -> resetCompletion.get(5, TimeUnit.SECONDS))
+            if (deleteCursor) {
+                CompletableFuture<Thread> settledOn = resetCompletion
+                        .handle((__, error) -> Thread.currentThread()).toCompletableFuture();
+                ledger.deleteCursor(cursor.getName());
+                assertThat(settledOn.get(5, TimeUnit.SECONDS)).isNotSameAs(Thread.currentThread());
+            } else {
+                cursor.close();
+            }
+            assertThatThrownBy(() -> resetCompletion.toCompletableFuture().get(5, TimeUnit.SECONDS))
                     .hasCauseInstanceOf(CursorAlreadyClosedException.class);
+            assertThatThrownBy(() -> reset.get(5, TimeUnit.SECONDS))
+                    .hasCauseInstanceOf(CursorAlreadyClosedException.class);
+            assertThatThrownBy(() -> earlierAck.get(5, TimeUnit.SECONDS))
+                    .hasCauseInstanceOf(CursorAlreadyClosedException.class);
+            assertThat(releaseRead).isNotDone();
             assertThat(ackCallbacks).hasValue(1);
+            if (!deleteCursor) {
+                ManagedCursorInfo checkpoint = readCursorInfo(ledger, cursor.getName());
+                assertThat(checkpoint.getCursorsLedgerId()).isEqualTo(-1L);
+                Position storedMarkDelete = PositionFactory.create(checkpoint.getMarkDeleteLedgerId(),
+                        checkpoint.getMarkDeleteEntryId());
+                assertThat(storedMarkDelete).isEqualTo(first);
+                assertRecoveredPosition(ledger, cursor.getName(), first, second);
+            }
         } finally {
             releaseRead.complete(null);
             bkc.setReadHandleInterceptor(null);
             read.handle((__, error) -> null).get(5, TimeUnit.SECONDS);
+        }
+    }
+
+    @Test(timeOut = 30000)
+    public void closePersistsSubmittedResetCheckpoint() throws Exception {
+        // Keep both writes in the cursor ledger so their order is observable before recovery.
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("close-with-reset-write-in-flight",
+                defaultConfig().setMaxUnackedRangesToPersistInMetadataStore(-1));
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("sub");
+        Position first = ledger.addEntry(new byte[] {0});
+        Position seekPosition = ledger.addEntry(new byte[] {1});
+        Position markDelete = ledger.addEntry(new byte[] {2});
+        ledger.addEntry(new byte[] {3});
+        cursor.markDelete(markDelete);
+        long lastCheckpoint = cursor.getCursorLedgerLastEntry();
+
+        CompletableFuture<Void> releaseReset = bkc.addEntryResponseGate();
+        CompletableFuture<Void> releaseClose = bkc.addEntryResponseGate();
+        try {
+            CompletableFuture<Void> reset = resetCursor(cursor, seekPosition);
+            await().atMost(5, TimeUnit.SECONDS).until(() ->
+                    cursor.getCursorLedgerLastEntry() == lastCheckpoint + 1
+                            && releaseReset.getNumberOfDependents() > 0);
+            PositionInfo resetCheckpoint = readCursorCheckpoint(cursor, lastCheckpoint + 1);
+            assertThat(PositionFactory.create(resetCheckpoint.getLedgerId(), resetCheckpoint.getEntryId()))
+                    .isEqualTo(first);
+            assertThat(reset).isNotDone();
+
+            CloseFuture close = new CloseFuture();
+            cursor.asyncClose(close, null);
+            ledger.getExecutor().submit(() -> { }).get(5, TimeUnit.SECONDS);
+            assertThat(close).isNotDone();
+            assertThat(reset).isNotDone();
+
+            releaseReset.complete(null);
+            reset.get(5, TimeUnit.SECONDS);
+            await().atMost(5, TimeUnit.SECONDS).until(() ->
+                    cursor.getCursorLedgerLastEntry() == lastCheckpoint + 2
+                            && releaseClose.getNumberOfDependents() > 0);
+            PositionInfo closeCheckpoint = readCursorCheckpoint(cursor, lastCheckpoint + 2);
+            assertThat(PositionFactory.create(closeCheckpoint.getLedgerId(), closeCheckpoint.getEntryId()))
+                    .isEqualTo(first);
+            assertThat(cursor.getMarkDeletedPosition()).isEqualTo(first);
+            assertThat(cursor.getReadPosition()).isEqualTo(seekPosition);
+
+            releaseClose.complete(null);
+            close.get(5, TimeUnit.SECONDS);
+            assertRecoveredPosition(ledger, cursor.getName(), first, seekPosition);
+        } finally {
+            releaseReset.complete(null);
+            releaseClose.complete(null);
+        }
+    }
+
+    @Test(timeOut = 30000)
+    public void deleteCursorWhileCloseWaitsForSubmittedReset() throws Exception {
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("delete-while-close-waits-for-reset",
+                defaultConfig().setMaxUnackedRangesToPersistInMetadataStore(-1));
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("sub");
+        ledger.addEntry(new byte[] {0});
+        Position seekPosition = ledger.addEntry(new byte[] {1});
+        Position priorMarkDelete = ledger.addEntry(new byte[] {2});
+        ledger.addEntry(new byte[] {3});
+        cursor.markDelete(priorMarkDelete);
+        long lastCheckpoint = cursor.getCursorLedgerLastEntry();
+
+        CompletableFuture<Void> releaseReset = bkc.addEntryResponseGate(cursor.getCursorLedger());
+        try {
+            CompletableFuture<Void> reset = resetCursor(cursor, seekPosition);
+            await().atMost(5, TimeUnit.SECONDS).until(() ->
+                    cursor.getCursorLedgerLastEntry() == lastCheckpoint + 1
+                            && releaseReset.getNumberOfDependents() > 0);
+
+            CloseFuture close = new CloseFuture();
+            cursor.asyncClose(close, null);
+            ledger.getExecutor().submit(() -> { }).get(5, TimeUnit.SECONDS);
+            assertThat(close).isNotDone();
+            assertThat(reset).isNotDone();
+
+            ledger.deleteCursor(cursor.getName());
+            assertThatThrownBy(() -> reset.get(5, TimeUnit.SECONDS))
+                    .hasCauseInstanceOf(CursorAlreadyClosedException.class);
+            close.get(5, TimeUnit.SECONDS);
+
+            assertThat(releaseReset).isNotDone();
+            assertThat(cursor.getCursorLedgerLastEntry()).isEqualTo(lastCheckpoint + 1);
+            assertThat(cursor.getMarkDeletedPosition()).isEqualTo(priorMarkDelete);
+            String cursorPath = "/managed-ledgers/" + ledger.getName() + "/" + cursor.getName();
+            assertThat(metadataStore.get(cursorPath).get(5, TimeUnit.SECONDS)).isEmpty();
+        } finally {
+            releaseReset.complete(null);
+        }
+    }
+
+    @Test(timeOut = 30000)
+    public void closeWaitsForResetMetadataFallbackResponse() throws Exception {
+        factory.shutdown();
+        var storage = spy(metadataStore);
+        factory = new ManagedLedgerFactoryImpl(storage, bkc);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("close-with-reset-metadata-fallback",
+                defaultConfig());
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("sub");
+        Position resetMarkDelete = ledger.addEntry(new byte[] {0});
+        Position seekPosition = ledger.addEntry(new byte[] {1});
+        cursor.markDelete(ledger.addEntry(new byte[] {2}));
+        ledger.addEntry(new byte[] {3});
+
+        String path = "/managed-ledgers/" + ledger.getName() + "/" + cursor.getName();
+        CompletableFuture<Stat> fallbackStored = new CompletableFuture<>();
+        CompletableFuture<Void> releaseFallback = new CompletableFuture<>();
+        AtomicInteger metadataWrites = new AtomicInteger();
+        doAnswer(invocation -> {
+            int writeNumber = metadataWrites.incrementAndGet();
+            Set<Option> options = invocation.getArgument(3);
+            CompletableFuture<Stat> write = metadataStore.put(path, invocation.getArgument(1),
+                    invocation.getArgument(2), options);
+            if (writeNumber != 1) {
+                return write;
+            }
+            return write.thenCompose(stat -> {
+                fallbackStored.complete(stat);
+                return releaseFallback.thenApply(ignored -> stat);
+            });
+        }).when(storage).put(eq(path), any(byte[].class), any(), anySet());
+
+        try {
+            bkc.addEntryFailAfter(0, BKException.Code.WriteException);
+            CompletableFuture<Void> reset = resetCursor(cursor, seekPosition);
+            Stat fallback = fallbackStored.get(5, TimeUnit.SECONDS);
+            ManagedCursorInfo checkpoint = readCursorInfo(ledger, cursor.getName());
+            assertThat(checkpoint.getCursorsLedgerId()).isEqualTo(-1L);
+            assertThat(PositionFactory.create(checkpoint.getMarkDeleteLedgerId(), checkpoint.getMarkDeleteEntryId()))
+                    .isEqualTo(resetMarkDelete);
+            assertThat(reset).isNotDone();
+
+            CloseFuture close = new CloseFuture();
+            cursor.asyncClose(close, null);
+            ledger.getExecutor().submit(() -> { }).get(5, TimeUnit.SECONDS);
+            assertThat(close).isNotDone();
+            assertThat(metadataWrites).hasValue(1);
+
+            releaseFallback.complete(null);
+            reset.get(5, TimeUnit.SECONDS);
+            close.get(5, TimeUnit.SECONDS);
+            assertThat(metadataWrites).hasValue(2);
+            Stat closed = metadataStore.get(path).get(5, TimeUnit.SECONDS).orElseThrow().getStat();
+            assertThat(closed.getVersion()).isEqualTo(fallback.getVersion() + 1);
+            assertRecoveredPosition(ledger, cursor.getName(), resetMarkDelete, seekPosition);
+        } finally {
+            releaseFallback.complete(null);
+        }
+    }
+
+    @Test(timeOut = 30000)
+    public void closeWaitsForResetSubmittedAfterCursorLedgerSwitch() throws Exception {
+        CompletableFuture<Void> submittingReset = new CompletableFuture<>();
+        CompletableFuture<Void> allowResetAppend = new CompletableFuture<>();
+        factory.shutdown();
+        factory = new ManagedLedgerFactoryImpl(metadataStore, bkc) {
+            @Override
+            protected ManagedLedgerImpl createManagedLedger(BookKeeper bookKeeper, MetaStore store, String name,
+                    ManagedLedgerConfig config, Supplier<CompletableFuture<Boolean>> ownershipChecker) {
+                return new ManagedLedgerImpl(this, bookKeeper, store, config, scheduledExecutor, name,
+                        ownershipChecker) {
+                    @Override
+                    protected ManagedCursorImpl createCursor(BookKeeper cursorBookKeeper, String cursorName) {
+                        return new ManagedCursorImpl(cursorBookKeeper, this, cursorName) {
+                            @Override
+                            void persistPositionToLedger(LedgerHandle ledgerHandle, MarkDeleteEntry entry,
+                                    VoidCallback callback, boolean ignoreClosedStateAfterFailure) {
+                                if (entry.resetsCursor) {
+                                    submittingReset.complete(null);
+                                    allowResetAppend.orTimeout(10, TimeUnit.SECONDS).join();
+                                }
+                                super.persistPositionToLedger(ledgerHandle, entry, callback,
+                                        ignoreClosedStateAfterFailure);
+                            }
+                        };
+                    }
+                };
+            }
+        };
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("close-with-reset-after-ledger-switch",
+                defaultConfig());
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("sub");
+        Position resetMarkDelete = ledger.addEntry(new byte[] {0});
+        Position seekPosition = ledger.addEntry(new byte[] {1});
+        Position priorMarkDelete = ledger.addEntry(new byte[] {2});
+        ledger.addEntry(new byte[] {3});
+        cursor.markDelete(priorMarkDelete);
+
+        CompletableFuture<Void> releaseNewLedgerSeed = bkc.addEntryResponseGate();
+        try {
+            cursor.startCreatingNewMetadataLedger();
+            await().atMost(5, TimeUnit.SECONDS).until(() -> releaseNewLedgerSeed.getNumberOfDependents() > 0);
+            CompletableFuture<Void> reset = resetCursor(cursor, seekPosition);
+            ledger.getExecutor().submit(() -> { }).get(5, TimeUnit.SECONDS);
+            assertThat(submittingReset).isNotDone();
+
+            // The metadata switch publishes the new ledger and hands off the queued reset before its append.
+            releaseNewLedgerSeed.complete(null);
+            submittingReset.get(5, TimeUnit.SECONDS);
+            CloseFuture close = new CloseFuture();
+            cursor.asyncClose(close, null);
+            assertThat(close).isNotDone();
+            assertThat(reset).isNotDone();
+
+            allowResetAppend.complete(null);
+            reset.get(5, TimeUnit.SECONDS);
+            close.get(5, TimeUnit.SECONDS);
+            ManagedCursorInfo checkpoint = readCursorInfo(ledger, cursor.getName());
+            assertThat(checkpoint.getCursorsLedgerId()).isEqualTo(-1L);
+            assertThat(PositionFactory.create(checkpoint.getMarkDeleteLedgerId(), checkpoint.getMarkDeleteEntryId()))
+                    .isEqualTo(resetMarkDelete);
+            assertRecoveredPosition(ledger, cursor.getName(), resetMarkDelete, seekPosition);
+        } finally {
+            allowResetAppend.complete(null);
+            releaseNewLedgerSeed.complete(null);
+        }
+    }
+
+    private static void recoverCursor(ManagedCursorImpl recovered) throws Exception {
+        CompletableFuture<Void> recovery = new CompletableFuture<>();
+        recovered.recover(new VoidCallback() {
+            @Override
+            public void operationComplete() {
+                recovery.complete(null);
+            }
+
+            @Override
+            public void operationFailed(ManagedLedgerException exception) {
+                recovery.completeExceptionally(exception);
+            }
+        });
+        recovery.get(5, TimeUnit.SECONDS);
+    }
+
+    private void assertRecoveredPosition(ManagedLedgerImpl ledger, String cursorName, Position markDelete,
+            Position readPosition) throws Exception {
+        ManagedCursorImpl recovered = new ManagedCursorImpl(bkc, ledger, cursorName);
+        try {
+            recoverCursor(recovered);
+            assertThat(recovered.getMarkDeletedPosition()).isEqualTo(markDelete);
+            assertThat(recovered.getReadPosition()).isEqualTo(readPosition);
+        } finally {
+            recovered.closeReadOnlyCursorLedger();
         }
     }
 
@@ -242,23 +739,6 @@ public class ManagedCursorResetAcknowledgmentTest extends MockedBookKeeperTestCa
         return (CursorResetInProgressException) result;
     }
 
-    private static CompletableFuture<Void> retryDeleteAfterFailedReset(ManagedCursorImpl cursor, Position position,
-            CursorResetInProgressException conflict) {
-        CompletableFuture<Void> result = new CompletableFuture<>();
-        cursor.retryDeleteAfterFailedReset(List.of(position), conflict, new DeleteCallback() {
-            @Override
-            public void deleteComplete(Object ctx) {
-                result.complete(null);
-            }
-
-            @Override
-            public void deleteFailed(ManagedLedgerException exception, Object ctx) {
-                result.completeExceptionally(exception);
-            }
-        }, null);
-        return result;
-    }
-
     private static CompletableFuture<Void> resetCursor(ManagedCursorImpl cursor, Position position) {
         CompletableFuture<Void> result = new CompletableFuture<>();
         cursor.asyncResetCursor(position, false, new ResetCursorCallback() {
@@ -275,9 +755,28 @@ public class ManagedCursorResetAcknowledgmentTest extends MockedBookKeeperTestCa
         return result;
     }
 
+    private static ManagedCursorInfo readCursorInfo(ManagedLedgerImpl ledger, String cursorName) throws Exception {
+        CompletableFuture<ManagedCursorInfo> result = new CompletableFuture<>();
+        ledger.getStore().asyncGetCursorInfo(ledger.getName(), cursorName, new MetaStoreCallback<>() {
+            @Override
+            public void operationComplete(ManagedCursorInfo info, Stat stat) {
+                result.complete(info);
+            }
+
+            @Override
+            public void operationFailed(MetaStoreException exception) {
+                result.completeExceptionally(exception);
+            }
+        });
+        return result.get(5, TimeUnit.SECONDS);
+    }
+
     private static PositionInfo readCursorCheckpoint(ManagedCursorImpl cursor) throws Exception {
+        return readCursorCheckpoint(cursor, cursor.getCursorLedgerLastEntry());
+    }
+
+    private static PositionInfo readCursorCheckpoint(ManagedCursorImpl cursor, long entryId) throws Exception {
         CompletableFuture<PositionInfo> result = new CompletableFuture<>();
-        long entryId = cursor.getCursorLedgerLastEntry();
         cursor.cursorLedger.asyncReadEntries(entryId, entryId, (rc, lh, entries, ctx) -> {
             if (rc != BKException.Code.OK) {
                 result.completeExceptionally(BKException.create(rc));

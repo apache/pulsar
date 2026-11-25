@@ -102,12 +102,13 @@ public interface PendingAckHandle {
      */
     CompletableFuture<Void> abortTxn(TxnID txnId, Consumer consumer, long lowWaterMark);
 
-    /**
-     * Sync the position ack set, in order to clean up the cache of this position for pending ack handle.
-     *
-     * @param position {@link Position} which position need to sync and carry it batch size
-     */
-    void syncBatchPositionAckSetForTransaction(Position position);
+    long getOrdinaryAckGeneration();
+
+    /** Track ordinary batch acknowledgments for delivery and transaction conflict checks. */
+    void recordOrdinaryBatchAcks(long generation, List<Position> positions);
+
+    /** Discard ordinary batch acknowledgments after a successful cursor reset. */
+    void discardOrdinaryBatchAcks();
 
     /**
      * Judge the all ack set point have acked by normal ack and transaction pending ack.
