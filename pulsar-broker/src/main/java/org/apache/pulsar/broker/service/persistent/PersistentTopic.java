@@ -2676,35 +2676,38 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             if (sub.getCursor().isDurable() && !isCompactionSubscription(sub.getName())
                     && (additionalSystemCursorNames.isEmpty()
                     || !additionalSystemCursorNames.contains(sub.getName()))) {
-                sub.expireMessagesAsync(messageTtlInSeconds).whenComplete((ignored, error) -> {
-                    if (error != null) {
-                        log.warn()
-                                .attr("subscription", subscriptionName)
-                                .attr("messageTtlInSeconds", messageTtlInSeconds)
-                                .exception(error)
-                                .log("Failed to start message expiry check");
-                    }
-                });
+                FutureUtil.supplySafely(() -> sub.expireMessagesAsync(messageTtlInSeconds))
+                        .whenComplete((ignored, error) -> {
+                            if (error != null) {
+                                log.warn()
+                                        .attr("subscription", subscriptionName)
+                                        .attr("messageTTLInSeconds", messageTtlInSeconds)
+                                        .exception(error)
+                                        .log("Failed to start message expiry check");
+                            }
+                        });
             }
         });
         replicators.forEach((remoteCluster, replicator)
-                -> ((PersistentReplicator) replicator).expireMessagesAsync(messageTtlInSeconds)
+                -> FutureUtil.supplySafely(
+                        () -> ((PersistentReplicator) replicator).expireMessagesAsync(messageTtlInSeconds))
                         .whenComplete((ignored, error) -> {
                             if (error != null) {
                                 log.warn()
                                         .attr("remoteCluster", remoteCluster)
-                                        .attr("messageTtlInSeconds", messageTtlInSeconds)
+                                        .attr("messageTTLInSeconds", messageTtlInSeconds)
                                         .exception(error)
                                         .log("Failed to start message expiry check");
                             }
                         }));
         shadowReplicators.forEach((shadowTopic, replicator)
-                -> ((PersistentReplicator) replicator).expireMessagesAsync(messageTtlInSeconds)
+                -> FutureUtil.supplySafely(
+                        () -> ((PersistentReplicator) replicator).expireMessagesAsync(messageTtlInSeconds))
                         .whenComplete((ignored, error) -> {
                             if (error != null) {
                                 log.warn()
                                         .attr("shadowTopic", shadowTopic)
-                                        .attr("messageTtlInSeconds", messageTtlInSeconds)
+                                        .attr("messageTTLInSeconds", messageTtlInSeconds)
                                         .exception(error)
                                         .log("Failed to start message expiry check");
                             }
