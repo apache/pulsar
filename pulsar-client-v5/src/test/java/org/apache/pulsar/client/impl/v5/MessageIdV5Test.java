@@ -21,12 +21,23 @@ package org.apache.pulsar.client.impl.v5;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
+import io.netty.buffer.Unpooled;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.common.api.proto.MessageIdData;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class MessageIdV5Test {
@@ -239,6 +250,88 @@ public class MessageIdV5Test {
         buf.putInt(Integer.MAX_VALUE);
         assertThrows(java.io.IOException.class,
                 () -> MessageIdV5.fromByteArray(buf.array()));
+    }
+
+    @DataProvider
+    public Object[][] malformedSections() {
+        return new Object[][]{
+                {"negative position count", idFollowedBy(-1)},
+                {"negative cross-topic count", idFollowedBy(0, -1, -2)},
+                {"negative cross-topic name length", idFollowedBy(0, -1, 1, -1)},
+                {"cross-topic name longer than the data", idFollowedBy(0, -1, 1, 100)},
+                {"negative cross-topic position count", idFollowedBy(0, -1, 1, 0, -1)},
+                {"truncated parent-topic length", withoutLastBytes(idFollowedBy(0, -1), 2)},
+                {"parent-topic length below the null sentinel", idFollowedBy(0, -2, -1)},
+                {"parent-topic length of Integer.MIN_VALUE", idFollowedBy(0, Integer.MIN_VALUE, -1)},
+                {"negative batch size in the v4 id", idOf(v4BytesWithBatchSize(-1))}
+        };
+    }
+
+    @Test(dataProvider = "malformedSections")
+    public void testFromByteArrayRejectsMalformedSections(String description, byte[] data) {
+        assertThrows(IOException.class, () -> MessageIdV5.fromByteArray(data));
+    }
+
+    @Test
+    public void testFromByteArrayReadsOlderEncodingsAndRejectsOtherPrefixes() throws Exception {
+        MessageId v4Id = v4(10, 20, 0);
+        Map<Long, MessageId> positions = Map.of(0L, v4(1, 2, 0));
+        String parentTopic = "topic://t";
+        byte[] bytes = new MessageIdV5(v4Id, 1L, positions, parentTopic,
+                Map.of(parentTopic, Map.of(0L, v4(1, 1, 0)))).toByteArray();
+        // An older encoding ends after the v4 id, after the position vector or after the parent topic
+        int afterV4Id = Long.BYTES + Integer.BYTES + v4Id.toByteArray().length;
+        int afterPositions = afterV4Id + Integer.BYTES
+                + Long.BYTES + Integer.BYTES + positions.get(0L).toByteArray().length;
+        int afterParentTopic = afterPositions + Integer.BYTES + parentTopic.getBytes(StandardCharsets.UTF_8).length;
+
+        for (int length = 0; length < bytes.length; length++) {
+            byte[] prefix = Arrays.copyOf(bytes, length);
+            if (length != afterV4Id && length != afterPositions && length != afterParentTopic) {
+                // A prefix that ends anywhere else is malformed
+                try {
+                    MessageIdV5.fromByteArray(prefix);
+                    fail("A prefix of " + length + " bytes was read as an id");
+                } catch (IOException expected) {
+                    // reported as malformed, as the API documents
+                }
+                continue;
+            }
+            MessageIdV5 decoded = MessageIdV5.fromByteArray(prefix);
+            assertEquals(decoded.segmentId(), 1L);
+            assertEquals(decoded.v4MessageId(), v4Id);
+            assertEquals(decoded.positionVector(), length >= afterPositions ? positions : Map.of());
+            assertEquals(decoded.parentTopic(), length >= afterParentTopic ? parentTopic : null);
+            assertNull(decoded.multiTopicVector());
+        }
+    }
+
+    private static byte[] withoutLastBytes(byte[] data, int count) {
+        return Arrays.copyOf(data, data.length - count);
+    }
+
+    /** A serialised id of segment 5 whose sections after the v4 id are the given ints. */
+    private static byte[] idFollowedBy(int... ints) {
+        return idOf(v4(1, 2, 0).toByteArray(), ints);
+    }
+
+    /** A serialised v4 id with the given batch size; the v4 encoder itself never writes a negative one. */
+    private static byte[] v4BytesWithBatchSize(int batchSize) {
+        MessageIdData idData = new MessageIdData()
+                .setLedgerId(1).setEntryId(2).setBatchIndex(0).setBatchSize(batchSize);
+        ByteBuf buf = Unpooled.buffer(idData.getSerializedSize());
+        idData.writeTo(buf);
+        return ByteBufUtil.getBytes(buf);
+    }
+
+    /** A serialised id of segment 5 made of the given v4 id bytes followed by the given ints. */
+    private static byte[] idOf(byte[] v4Bytes, int... ints) {
+        ByteBuffer buf = ByteBuffer.allocate(Long.BYTES + Integer.BYTES + v4Bytes.length + Integer.BYTES * ints.length);
+        buf.putLong(5L).putInt(v4Bytes.length).put(v4Bytes);
+        for (int value : ints) {
+            buf.putInt(value);
+        }
+        return buf.array();
     }
 
     // --- sentinels ---
