@@ -3701,6 +3701,17 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     private void persistPositionAndCompleteClose(AsyncCallbacks.CloseCallback callback, Object ctx) {
         MarkDeleteEntry entry = lastMarkDeleteEntry;
+        // A mark-delete queued while reads were in flight is never flushed once the state moves to
+        // Closing: readOperationCompleted only flushes while Open, and closing persists just the
+        // last mark-delete entry. Fail the leftovers here so their callers (e.g. asyncClearBacklog)
+        // complete instead of hanging forever. The switch paths already drained or failed the
+        // queue when the switch completed, so anything left here is this residual.
+        List<MarkDeleteEntry> queuedMarkDeletes;
+        synchronized (pendingMarkDeleteOps) {
+            queuedMarkDeletes = drainPendingMarkDeletes();
+        }
+        failMarkDeletes(queuedMarkDeletes,
+                new CursorAlreadyClosedException("Cursor closed before queued mark-deletes were persisted"));
         persistPositionWhenClosing(entry.newPosition, entry.properties,
                 new AsyncCallbacks.CloseCallback(){
 
