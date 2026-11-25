@@ -228,11 +228,11 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
     }
 
     private synchronized CompletableFuture<Void> validateOnce() {
-        if (state != State.Valid) {
+        if (state != State.Valid && state != State.Releasing) {
             return CompletableFuture.failedFuture(
                     new IllegalStateException("Lock was not in valid state: " + state));
         }
-        return store.sync(path).thenCompose(__ -> revalidate(value)).whenComplete((__, error) -> {
+        return store.sync(path).thenCompose(__ -> revalidateAfterSync()).whenComplete((__, error) -> {
             if (error != null) {
                 Throwable cause = FutureUtil.unwrapCompletionException(error);
                 if (cause instanceof BadVersionException || cause instanceof LockBusyException) {
@@ -246,6 +246,42 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
                     }
                 }
             }
+        });
+    }
+
+    private synchronized CompletableFuture<Void> revalidateAfterSync() {
+        if (state != State.Releasing) {
+            return revalidate(value);
+        }
+        // release() started while this validation was queued or syncing, and its queued delete still expects this
+        // handle's version. Only check for another session's lease, so that the handle expires and the delete
+        // skips that lease. A lock that is being released is never re-acquired.
+        return checkForeignOwnerWhileReleasing(value);
+    }
+
+    private CompletableFuture<Void> checkForeignOwnerWhileReleasing(T expectedValue) {
+        return store.get(path).thenCompose(optGetResult -> {
+            if (optGetResult.isPresent()) {
+                GetResult res = optGetResult.get();
+                if (!res.getStat().isEphemeral()) {
+                    return FutureUtils.exception(
+                            new LockBusyException("Path " + path + " is already created as non-ephemeral"));
+                }
+                if (!res.getStat().isCreatedBySelf()) {
+                    T existingValue;
+                    try {
+                        existingValue = serde.deserialize(path, res.getValue(), res.getStat());
+                    } catch (Throwable t) {
+                        return FutureUtils.exception(t);
+                    }
+                    if (!expectedValue.equals(existingValue)) {
+                        return FutureUtils.exception(
+                                new LockBusyException("Resource at " + path + " is already locked"));
+                    }
+                }
+            }
+            return CompletableFuture.failedFuture(
+                    new IllegalStateException("Lock was not in valid state: " + State.Releasing));
         });
     }
 

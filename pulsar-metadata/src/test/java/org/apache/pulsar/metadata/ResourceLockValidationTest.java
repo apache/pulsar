@@ -187,6 +187,96 @@ public class ResourceLockValidationTest extends BaseMetadataStoreTest {
     }
 
     @Test(timeOut = 30000)
+    public void foreignValidationExpiresWhenReleaseStartsDuringSync() throws Exception {
+        @Cleanup
+        MetadataStoreExtended storeA = newStore();
+        @Cleanup
+        MetadataStoreExtended storeB = newStore();
+        NotificationGate notifications = new NotificationGate();
+        MetadataStoreExtended observedA = notifications.wrap(storeA);
+        @Cleanup
+        CoordinationService coordinationServiceA = new CoordinationServiceImpl(observedA);
+        @Cleanup
+        CoordinationService coordinationServiceB = new CoordinationServiceImpl(storeB);
+        CompletableFuture<Void> finishSync = new CompletableFuture<>();
+        String path = newKey();
+        try {
+            ResourceLock<String> lockA = coordinationServiceA.getLockManager(String.class)
+                    .acquireLock(path, "owner-a").get(5, TimeUnit.SECONDS);
+            ForeignLease foreign = takeOver(storeA, storeB, coordinationServiceB.getLockManager(String.class),
+                    notifications, path);
+            CompletableFuture<Void> syncStarted = new CompletableFuture<>();
+            doAnswer(invocation -> {
+                syncStarted.complete(null);
+                return finishSync.thenCompose(__ -> storeA.sync(path));
+            }).when(observedA).sync(path);
+
+            CompletableFuture<Void> validation = lockA.validate();
+            syncStarted.get(5, TimeUnit.SECONDS);
+            CompletableFuture<Void> release = lockA.release().thenRun(() ->
+                    assertThat(lockA.getLockExpiredFuture()).as("expiry precedes the queued delete").isDone());
+            assertThat(release).isNotDone();
+
+            finishSync.complete(null);
+            assertThatThrownBy(() -> validation.get(5, TimeUnit.SECONDS)).hasCauseInstanceOf(LockBusyException.class);
+            release.get(5, TimeUnit.SECONDS);
+            verify(observedA, never()).delete(eq(path), any());
+            assertThat(foreign.lock().getLockExpiredFuture()).isNotDone();
+            assertUnchanged(storeB, path, foreign.owner());
+        } finally {
+            finishSync.complete(null);
+            notifications.release();
+        }
+    }
+
+    @Test(timeOut = 30000)
+    public void queuedForeignValidationExpiresWhenReleaseStartsBeforeItRuns() throws Exception {
+        @Cleanup
+        MetadataStoreExtended storeA = newStore();
+        @Cleanup
+        MetadataStoreExtended storeB = newStore();
+        NotificationGate notifications = new NotificationGate();
+        MetadataStoreExtended observedA = notifications.wrap(storeA);
+        @Cleanup
+        CoordinationService coordinationServiceA = new CoordinationServiceImpl(observedA);
+        @Cleanup
+        CoordinationService coordinationServiceB = new CoordinationServiceImpl(storeB);
+        CompletableFuture<Void> finishFirstRead = new CompletableFuture<>();
+        String path = newKey();
+        try {
+            ResourceLock<String> lockA = coordinationServiceA.getLockManager(String.class)
+                    .acquireLock(path, "owner-a").get(5, TimeUnit.SECONDS);
+            // The first validation reads A's own lease and holds that result; the second waits in the queue.
+            CompletableFuture<Void> firstReadStarted = new CompletableFuture<>();
+            doAnswer(invocation -> storeA.get(path).thenCompose(actual -> {
+                firstReadStarted.complete(null);
+                return finishFirstRead.thenApply(__ -> actual);
+            })).when(observedA).get(path);
+            CompletableFuture<Void> first = lockA.validate();
+            firstReadStarted.get(5, TimeUnit.SECONDS);
+            CompletableFuture<Void> queued = lockA.validate();
+            ForeignLease foreign = takeOver(storeA, storeB, coordinationServiceB.getLockManager(String.class),
+                    notifications, path);
+            CompletableFuture<Void> release = lockA.release().thenRun(() ->
+                    assertThat(lockA.getLockExpiredFuture()).as("expiry precedes the queued delete").isDone());
+            assertThat(queued).isNotDone();
+            assertThat(release).isNotDone();
+
+            finishFirstRead.complete(null);
+            assertThatThrownBy(() -> first.get(5, TimeUnit.SECONDS))
+                    .hasCauseInstanceOf(IllegalStateException.class);
+            assertThatThrownBy(() -> queued.get(5, TimeUnit.SECONDS)).hasCauseInstanceOf(LockBusyException.class);
+            release.get(5, TimeUnit.SECONDS);
+            verify(observedA, never()).delete(eq(path), any());
+            assertThat(foreign.lock().getLockExpiredFuture()).isNotDone();
+            assertUnchanged(storeB, path, foreign.owner());
+        } finally {
+            finishFirstRead.complete(null);
+            notifications.release();
+        }
+    }
+
+    @Test(timeOut = 30000)
     public void unavailableOrUnknownReadFailsWithoutExpiringHealthyLocksAndCanBeRetried() throws Exception {
         @Cleanup
         MetadataStoreExtended store = newStore();
@@ -280,6 +370,23 @@ public class ResourceLockValidationTest extends BaseMetadataStoreTest {
 
     private static GetResult read(MetadataStoreExtended store, String path) throws Exception {
         return store.get(path).get(5, TimeUnit.SECONDS).orElseThrow();
+    }
+
+    private record ForeignLease(ResourceLock<String> lock, GetResult owner) { }
+
+    /** Re-creates the lock from B's session while A's notifications stay queued; B reuses A's data version. */
+    private static ForeignLease takeOver(MetadataStoreExtended storeA, MetadataStoreExtended storeB,
+                                         LockManager<String> managerB, NotificationGate notifications,
+                                         String path) throws Exception {
+        GetResult ownerA = read(storeA, path);
+        storeB.delete(path, Optional.empty()).get(5, TimeUnit.SECONDS);
+        ResourceLock<String> lockB = managerB.acquireLock(path, "owner-b").get(5, TimeUnit.SECONDS);
+        GetResult ownerB = read(storeB, path);
+        assertThat(ownerB.getStat().isCreatedBySelf()).isTrue();
+        assertThat(ownerB.getStat().getVersion()).as("the new lease reuses A's old ZooKeeper data version")
+                .isEqualTo(ownerA.getStat().getVersion());
+        notifications.awaitCount(path, NotificationType.Created, 2);
+        return new ForeignLease(lockB, ownerB);
     }
 
     private static void assertUnchanged(MetadataStoreExtended store, String path, GetResult expected) throws Exception {
