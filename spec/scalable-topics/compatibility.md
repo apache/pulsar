@@ -19,8 +19,10 @@ MAY address an existing classic topic through the scalable-topic surface. The br
 - A client targets the wrapped `persistent://` name directly for that segment (producing, subscribing,
   reading).
 - For a **partitioned** classic topic, the synthetic layout presents the partitions as legacy segments;
-  a keyed message routes by `signSafeMod(Murmur3_32(key), N)` over the `N` partitions — **identical to
-  v4 partitioned-topic routing** — so a topic keeps its existing key→partition mapping while migrated.
+  a keyed message routes by `signSafeMod(JavaStringHash(key), N)` over the `N` partitions
+  ([Wire Protocol](wire-protocol.md) §5) — **identical to the routing of a Java v4 partitioned-topic
+  producer with its default hashing scheme** — so such a topic keeps its existing key→partition mapping
+  while migrated.
 
 This bridge exists only for migration. New applications use canonical `topic://` names
 ([Data Model](data-model.md) §1).

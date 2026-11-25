@@ -37,6 +37,7 @@ import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.v5.SegmentRouter.ActiveSegment;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.scalable.HashRange;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class SegmentRouterTest {
@@ -143,25 +144,31 @@ public class SegmentRouterTest {
 
     // --- mod-N routing for synthetic layouts (all legacy segments) ---
 
-    @Test
-    public void testAllLegacySegmentsRouteLikeV4Producer() {
-        // Synthetic layout for a 4-partition regular topic: 4 legacy segments
+    @DataProvider
+    public Object[][] partitionCounts() {
+        // Not only a power of two: for those, clearing the sign bit of the hash does not change the
+        // partition, so they cannot tell a masked hash from a raw String.hashCode()
+        return new Object[][] {{3}, {4}};
+    }
+
+    @Test(dataProvider = "partitionCounts")
+    public void testAllLegacySegmentsRouteLikeV4Producer(int n) {
+        // Synthetic layout for an n-partition regular topic: n legacy segments
         // with segment_id == partition_index. routing must match the partition a v4
         // producer with the default configuration picks for the same key.
         SegmentRouter router = new SegmentRouter();
-        int n = 4;
-        List<ActiveSegment> segments = List.of(
-                legacySeg(0, 0x0000, 0x3FFF, "persistent://t/n/x-partition-0"),
-                legacySeg(1, 0x4000, 0x7FFF, "persistent://t/n/x-partition-1"),
-                legacySeg(2, 0x8000, 0xBFFF, "persistent://t/n/x-partition-2"),
-                legacySeg(3, 0xC000, 0xFFFF, "persistent://t/n/x-partition-3"));
+        List<ActiveSegment> segments = new ArrayList<>();
+        for (int partition = 0; partition < n; partition++) {
+            segments.add(legacySeg(partition, partition * 0x10000 / n, (partition + 1) * 0x10000 / n - 1,
+                    "persistent://t/n/x-partition-" + partition));
+        }
         ProducerConfigurationData v4Conf = new ProducerConfigurationData();
         MessageRouter v4Router = new RoundRobinPartitionMessageRouterImpl(v4Conf.getHashingScheme(), 0,
                 v4Conf.isBatchingEnabled(),
                 TimeUnit.MICROSECONDS.toMillis(v4Conf.batchingPartitionSwitchFrequencyIntervalMicros()));
 
         // For a synthetic layout, the router must NOT use hash ranges — it must do
-        // mod-N over segment_id, exactly as v4 does.
+        // mod-N over segment_id, exactly as v4 does. "customer-1" has a negative String.hashCode().
         List<String> keys = new ArrayList<>(List.of("a", "customer-1", "customer-2", "order-99", "",
                 "cl\u00e9-\u00e9", "\u8ba2\u5355-1", "\uD83D\uDE00"));
         for (int i = 0; i < 100; i++) {

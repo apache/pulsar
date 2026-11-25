@@ -140,7 +140,7 @@ public class V5RegularTopicInteropTest extends V5ClientBaseTest {
         }
         assertEquals(received.size(), n);
         // No straggler messages beyond the n sends.
-        assertNull(v4Consumer.receive(500, java.util.concurrent.TimeUnit.MILLISECONDS));
+        assertNull(v4Consumer.receive(500, TimeUnit.MILLISECONDS));
     }
 
     @Test
