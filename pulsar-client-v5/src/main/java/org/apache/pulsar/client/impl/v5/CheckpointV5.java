@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl.v5;
 
 import java.io.IOException;
+import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.HashMap;
@@ -99,21 +100,32 @@ final class CheckpointV5 implements Checkpoint {
         return switch (type) {
             case TYPE_EARLIEST -> EARLIEST;
             case TYPE_LATEST -> LATEST;
-            case TYPE_REGULAR -> {
-                int numEntries = buf.getInt();
-                Map<Long, org.apache.pulsar.client.api.MessageId> positions = new HashMap<>();
-                for (int i = 0; i < numEntries; i++) {
-                    long segmentId = buf.getLong();
-                    int msgIdLen = buf.getInt();
-                    byte[] msgIdBytes = new byte[msgIdLen];
-                    buf.get(msgIdBytes);
-                    positions.put(segmentId,
-                            org.apache.pulsar.client.api.MessageId.fromByteArray(msgIdBytes));
-                }
-                yield new CheckpointV5(positions);
-            }
+            case TYPE_REGULAR -> readRegular(buf);
             default -> throw new IOException("Unknown checkpoint type: " + type);
         };
+    }
+
+    private static CheckpointV5 readRegular(ByteBuffer buf) throws IOException {
+        try {
+            int numEntries = buf.getInt();
+            if (numEntries < 0) {
+                throw new IOException("Invalid checkpoint data: bad entry count");
+            }
+            Map<Long, MessageId> positions = new HashMap<>();
+            for (int i = 0; i < numEntries; i++) {
+                long segmentId = buf.getLong();
+                int msgIdLen = buf.getInt();
+                if (msgIdLen < 0 || msgIdLen > buf.remaining()) {
+                    throw new IOException("Invalid checkpoint data: bad message id length");
+                }
+                byte[] msgIdBytes = new byte[msgIdLen];
+                buf.get(msgIdBytes);
+                positions.put(segmentId, MessageId.fromByteArray(msgIdBytes));
+            }
+            return new CheckpointV5(positions);
+        } catch (BufferUnderflowException e) {
+            throw new IOException("Invalid checkpoint data: truncated", e);
+        }
     }
 
     /**

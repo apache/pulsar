@@ -45,9 +45,7 @@ dependencies {
     //     DefaultClientAuthenticationServices are referenced by pulsar-client-admin.
     api(project(":pulsar-tls-factory-api"))
     api(project(":pulsar-http-client-api"))
-    api(project(":pulsar-common")) {
-        exclude(group = "io.prometheus", module = "simpleclient_caffeine")
-    }
+    api(project(":pulsar-common"))
     // Non-FIPS BouncyCastle JCA provider, needed at runtime by pulsar-client-messagecrypto-bc.
     implementation(libs.bcprov.jdk18on)
     implementation(libs.bcpkix.jdk18on)
@@ -64,6 +62,8 @@ dependencies {
     api(libs.guava)
     implementation(libs.bookkeeper.circe.checksum) {
         exclude(group = "io.netty")
+        // BookKeeper declares an older slog; keep only libs.slog in the published POM
+        exclude(group = "io.github.merlimat.slog", module = "slog")
     }
     implementation(libs.commons.lang3)
     api(libs.asynchttpclient)

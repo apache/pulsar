@@ -56,6 +56,11 @@ public interface PulsarCommandSender {
 
     void sendSendError(long producerId, long sequenceId, ServerError error, String errorMsg);
 
+    default void sendReplicationSendError(long producerId, long sequenceId, ServerError error, String errorMsg,
+                                          long[] sourcePosition, boolean deduplicationUndecided) {
+        sendSendError(producerId, sequenceId, error, errorMsg);
+    }
+
     CompletableFuture<Void> sendGetTopicsOfNamespaceResponse(List<String> topics, String topicsHash, boolean filtered,
                                                              boolean changed, long requestId,
                                                              Function<Throwable, CompletableFuture<Void>>

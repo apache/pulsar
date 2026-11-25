@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl.v5;
 
 import java.io.IOException;
+import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
@@ -266,7 +267,14 @@ public final class MessageIdV5 implements org.apache.pulsar.client.api.v5.Messag
         if (data == null || data.length < 12) {
             throw new IOException("Invalid MessageIdV5 data: too short");
         }
-        ByteBuffer buf = ByteBuffer.wrap(data);
+        try {
+            return read(ByteBuffer.wrap(data));
+        } catch (BufferUnderflowException e) {
+            throw new IOException("Invalid MessageIdV5 data: truncated", e);
+        }
+    }
+
+    private static MessageIdV5 read(ByteBuffer buf) throws IOException {
         long segmentId = buf.getLong();
         int v4Length = buf.getInt();
         if (v4Length < 0 || v4Length > buf.remaining()) {
@@ -286,6 +294,9 @@ public final class MessageIdV5 implements org.apache.pulsar.client.api.v5.Messag
         String parentTopic = null;
         if (buf.hasRemaining()) {
             int parentLen = buf.getInt();
+            if (parentLen < -1) {
+                throw new IOException("Invalid MessageIdV5 data: bad parent-topic length");
+            }
             if (parentLen >= 0) {
                 if (parentLen > buf.remaining()) {
                     throw new IOException("Invalid MessageIdV5 data: bad parent-topic length");
@@ -300,10 +311,16 @@ public final class MessageIdV5 implements org.apache.pulsar.client.api.v5.Messag
         Map<String, Map<Long, MessageId>> multiTopic = null;
         if (buf.hasRemaining()) {
             int topicCount = buf.getInt();
+            if (topicCount < -1) {
+                throw new IOException("Invalid MessageIdV5 data: bad topic count");
+            }
             if (topicCount >= 0) {
-                multiTopic = new HashMap<>(topicCount);
+                multiTopic = new HashMap<>();
                 for (int i = 0; i < topicCount; i++) {
                     int topicLen = buf.getInt();
+                    if (topicLen < 0 || topicLen > buf.remaining()) {
+                        throw new IOException("Invalid MessageIdV5 data: bad topic length");
+                    }
                     byte[] topicBytes = new byte[topicLen];
                     buf.get(topicBytes);
                     String topic = new String(topicBytes, StandardCharsets.UTF_8);
@@ -318,7 +335,10 @@ public final class MessageIdV5 implements org.apache.pulsar.client.api.v5.Messag
 
     private static Map<Long, MessageId> readSegmentVector(ByteBuffer buf) throws IOException {
         int count = buf.getInt();
-        Map<Long, MessageId> out = new HashMap<>(count);
+        if (count < 0) {
+            throw new IOException("Invalid MessageIdV5 data: bad segment count");
+        }
+        Map<Long, MessageId> out = new HashMap<>();
         for (int i = 0; i < count; i++) {
             long segId = buf.getLong();
             int idLen = buf.getInt();

@@ -22,13 +22,21 @@ import static org.apache.pulsar.common.tls.impl.TlsTestSupport.handshake;
 import static org.apache.pulsar.common.tls.impl.TlsTestSupport.resource;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.awaitility.Awaitility.await;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.handler.ssl.SslContext;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.FutureTask;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import javax.net.ssl.SSLContext;
@@ -310,6 +318,78 @@ public class SslParametersSynthesisTest {
                 .as("the stale out-of-order companion must not regress the retained last-good policy")
                 .containsExactly("TLSv1.3");
         handle.dispose();
+    }
+
+    @Test
+    public void disposeWaitsForAnInFlightCallback() throws Exception {
+        CompanionFactory factory = new CompanionFactory(clientJdkContextTrustOnly(), protocols("TLSv1.2"));
+        AtomicInteger deliveries = new AtomicInteger();
+        CountDownLatch callbackStarted = new CountDownLatch(1);
+        CountDownLatch finishCallback = new CountDownLatch(1);
+        CountDownLatch callbackCompleted = new CountDownLatch(1);
+        TlsHandle<SslContext> handle = TlsContextAcquisition.acquireNettyContext(
+                factory, TlsPurpose.CLIENT_DEFAULT, TlsSynthesisSpec.client(false), ctx -> {
+                    if (deliveries.incrementAndGet() > 1) {
+                        callbackStarted.countDown();
+                        try {
+                            assertThat(finishCallback.await(10, TimeUnit.SECONDS)).isTrue();
+                            callbackCompleted.countDown();
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            throw new AssertionError(e);
+                        }
+                    }
+                }).get(5, TimeUnit.SECONDS).orElseThrow();
+        ExecutorService publisher = Executors.newSingleThreadExecutor(new DefaultThreadFactory("tls-publish-test"));
+        FutureTask<Void> disposal = new FutureTask<>(handle::dispose, null);
+        Thread disposer = new DefaultThreadFactory("tls-dispose-test").newThread(disposal);
+        try {
+            factory.deferCompanionRequests();
+            factory.rotate(clientJdkContextTrustOnly(), null);
+            Future<?> publication = publisher.submit(() -> factory.completePendingCompanion(0, protocols("TLSv1.3")));
+            assertThat(callbackStarted.await(5, TimeUnit.SECONDS)).isTrue();
+            disposer.start();
+            // Wait until disposal either encounters the running callback or incorrectly finishes ahead of it.
+            await().atMost(5, TimeUnit.SECONDS)
+                    .until(() -> disposer.getState() == Thread.State.BLOCKED || disposal.isDone());
+            assertThat(disposal.isDone()).as("dispose must wait for the running callback").isFalse();
+            assertThat(factory.jdkHandleDisposals).hasValue(0);
+
+            finishCallback.countDown();
+            publication.get(5, TimeUnit.SECONDS);
+            disposal.get(5, TimeUnit.SECONDS);
+            assertThat(callbackCompleted.getCount()).as("the callback must have completed normally").isZero();
+            assertThat(deliveries).hasValue(2);
+            assertThat(factory.jdkHandleDisposals).hasValue(1);
+        } finally {
+            finishCallback.countDown();
+            disposer.join(TimeUnit.SECONDS.toMillis(5));
+            publisher.shutdownNow();
+            assertThat(publisher.awaitTermination(5, TimeUnit.SECONDS)).isTrue();
+            assertThat(disposer.isAlive()).isFalse();
+            handle.dispose();
+            factory.close();
+        }
+    }
+
+    @Test
+    public void companionCompletingAfterDisposeDoesNotPublish() throws Exception {
+        CompanionFactory factory = new CompanionFactory(clientJdkContextTrustOnly(), protocols("TLSv1.2"));
+        AtomicInteger deliveries = new AtomicInteger();
+        TlsHandle<SslContext> handle = TlsContextAcquisition.acquireNettyContext(
+                factory, TlsPurpose.CLIENT_DEFAULT, TlsSynthesisSpec.client(false),
+                ctx -> deliveries.incrementAndGet()).get(5, TimeUnit.SECONDS).orElseThrow();
+        try {
+            factory.deferCompanionRequests();
+            factory.rotate(clientJdkContextTrustOnly(), null);
+            handle.dispose();
+
+            factory.completePendingCompanion(0, protocols("TLSv1.3"));
+            assertThat(deliveries).as("the pending rotation must not publish after disposal").hasValue(1);
+        } finally {
+            handle.dispose();
+            factory.close();
+        }
     }
 
     @Test

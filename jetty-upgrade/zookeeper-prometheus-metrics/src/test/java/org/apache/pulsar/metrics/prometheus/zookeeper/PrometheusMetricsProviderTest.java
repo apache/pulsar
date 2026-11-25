@@ -27,12 +27,13 @@ import static org.testng.AssertJUnit.assertSame;
 import static org.testng.AssertJUnit.assertTrue;
 import static org.testng.AssertJUnit.fail;
 import io.prometheus.client.CollectorRegistry;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.lang.reflect.Field;
 import java.net.HttpURLConnection;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -42,6 +43,8 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.servlet.ServletException;
+import javax.servlet.ServletOutputStream;
+import javax.servlet.WriteListener;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.apache.zookeeper.metrics.Counter;
@@ -71,7 +74,7 @@ public class PrometheusMetricsProviderTest {
     @BeforeMethod
     public void setup() throws Exception {
         CollectorRegistry.defaultRegistry.clear();
-        provider = new PrometheusMetricsProvider();
+        provider = new PrometheusMetricsProvider(new PrometheusRegistry());
         Properties configuration = new Properties();
         configuration.setProperty("numWorkerThreads", "0"); // sync behavior for test
         configuration.setProperty("httpHost", "127.0.0.1"); // local host for test
@@ -150,10 +153,11 @@ public class PrometheusMetricsProviderTest {
         validateWithDump(expectedMetricsMap);
 
         // validate with servlet call
-        final List<String> expectedNames = Collections.singletonList(String.format("# TYPE %s count", name));
+        final List<String> expectedNames =
+                Collections.singletonList(String.format("# TYPE %s_total counter", name));
         final List<String> expectedMetrics = new ArrayList<>();
         for (final String key : keys) {
-            expectedMetrics.add(String.format("%s{key=\"%s\",} %s", name, key, count * 3.0));
+            expectedMetrics.add(String.format("%s_total{key=\"%s\"} %s", name, key, count * 3.0));
         }
         validateWithServletCall(expectedNames, expectedMetrics);
 
@@ -195,8 +199,8 @@ public class PrometheusMetricsProviderTest {
         final List<String> expectedNames = new ArrayList<>();
         final List<String> expectedMetrics = new ArrayList<>();
         for (int i = 0; i < length; i++) {
-            expectedNames.add(String.format("# TYPE %s count", names[i]));
-            expectedMetrics.add(String.format("%s{key=\"%s\",} %s", names[i], keys[i], counts[i] * 1.0));
+            expectedNames.add(String.format("# TYPE %s_total counter", names[i]));
+            expectedMetrics.add(String.format("%s_total{key=\"%s\"} %s", names[i], keys[i], counts[i] * 1.0));
         }
         validateWithServletCall(expectedNames, expectedMetrics);
     }
@@ -321,15 +325,13 @@ public class PrometheusMetricsProviderTest {
                         case "cc_sum":
                             assertEquals(20, value);
                             break;
-                        case "cc_created":
-                            break;
                         default:
                             fail("unexpected key " + k);
                             break;
                     }
                 }
         );
-        assertEquals(4, count[0]);
+        assertEquals(3, count[0]);
         count[0] = 0;
 
         // we always must get the same object
@@ -347,8 +349,8 @@ public class PrometheusMetricsProviderTest {
         String res = callServlet();
         assertThat(res).contains("# TYPE cc summary");
         assertThat(res).contains("cc_sum 20.0");
-        assertThat(res).contains("cc_count 2.0");
-        assertThat(res).contains("cc{quantile=\"0.5\",} 10.0");
+        assertThat(res).contains("cc_count 2");
+        assertThat(res).contains("cc{quantile=\"0.5\"} 10.0");
     }
 
     @Test
@@ -378,15 +380,13 @@ public class PrometheusMetricsProviderTest {
                         case "cc_sum":
                             assertEquals(20, value);
                             break;
-                        case "cc_created":
-                            break;
                         default:
                             fail("unexpected key " + k);
                             break;
                     }
                 }
         );
-        assertEquals(6, count[0]);
+        assertEquals(5, count[0]);
         count[0] = 0;
 
         // we always must get the same object
@@ -404,10 +404,10 @@ public class PrometheusMetricsProviderTest {
         String res = callServlet();
         assertThat(res).contains("# TYPE cc summary");
         assertThat(res).contains("cc_sum 20.0");
-        assertThat(res).contains("cc_count 2.0");
-        assertThat(res).contains("cc{quantile=\"0.5\",} 10.0");
-        assertThat(res).contains("cc{quantile=\"0.9\",} 10.0");
-        assertThat(res).contains("cc{quantile=\"0.99\",} 10.0");
+        assertThat(res).contains("cc_count 2");
+        assertThat(res).contains("cc{quantile=\"0.5\"} 10.0");
+        assertThat(res).contains("cc{quantile=\"0.9\"} 10.0");
+        assertThat(res).contains("cc{quantile=\"0.99\"} 10.0");
     }
 
     /**
@@ -437,7 +437,7 @@ public class PrometheusMetricsProviderTest {
 
         PrometheusMetricsProvider metricsProvider = null;
         try {
-            metricsProvider = new PrometheusMetricsProvider();
+            metricsProvider = new PrometheusMetricsProvider(new PrometheusRegistry());
             metricsProvider.configure(config);
             metricsProvider.start();
             final Summary summary =
@@ -482,9 +482,9 @@ public class PrometheusMetricsProviderTest {
         final List<String> expectedNames = Collections.singletonList(String.format("# TYPE %s summary", name));
         final List<String> expectedMetrics = new ArrayList<>();
         for (final String key : keys) {
-            expectedMetrics.add(String.format("%s{key=\"%s\",quantile=\"0.5\",} %s", name, key, 1.0));
-            expectedMetrics.add(String.format("%s_count{key=\"%s\",} %s", name, key, count));
-            expectedMetrics.add(String.format("%s_sum{key=\"%s\",} %s", name, key, count));
+            expectedMetrics.add(String.format("%s{key=\"%s\",quantile=\"0.5\"} %s", name, key, 1.0));
+            expectedMetrics.add(String.format("%s_count{key=\"%s\"} %s", name, key, (long) count));
+            expectedMetrics.add(String.format("%s_sum{key=\"%s\"} %s", name, key, count));
         }
         validateWithServletCall(expectedNames, expectedMetrics);
 
@@ -502,16 +502,101 @@ public class PrometheusMetricsProviderTest {
         }
     }
 
+    /**
+     * conf/log4j2.yaml still configures the simpleclient 0.x Prometheus appender. Its samples
+     * must remain visible in both /metrics and the 4lw dump until that appender is migrated
+     * as part of #27045, without re-exposing the old JVM/process samples.
+     */
+    @Test
+    public void testLegacyCollectorSamplesAreExposed() throws Exception {
+        io.prometheus.client.Counter.build("log4j2_appender_total", "log4j2 appender events")
+                .labelNames("level")
+                .register(CollectorRegistry.defaultRegistry)
+                .labels("error").inc();
+        io.prometheus.client.Gauge.build("jvm_dummy_bytes_used", "legacy jvm sample")
+                .register(CollectorRegistry.defaultRegistry).set(1);
+        io.prometheus.client.Gauge.build("process_dummy_seconds", "legacy process sample")
+                .register(CollectorRegistry.defaultRegistry).set(1);
+
+        String response = callServlet();
+        assertThat(response).contains("log4j2_appender_total{level=\"error\",} 1.0");
+        assertThat(response).doesNotContain("jvm_dummy_bytes_used");
+        assertThat(response).doesNotContain("process_dummy_seconds");
+
+        Map<String, Object> dumped = new HashMap<>();
+        provider.dump(dumped::put);
+        assertThat(dumped).containsEntry("log4j2_appender_total{level=\"error\"}", 1.0);
+        assertThat(dumped.keySet()).noneMatch(key -> key.startsWith("jvm_dummy_")
+                || key.startsWith("process_dummy_"));
+    }
+
+    /**
+     * JvmMetrics exposes an Info snapshot (jvm_runtime_info). The 4lw/AdminServer dump used to
+     * include jvm_info from simpleclient, so Info snapshots have to be dumped as well.
+     */
+    @Test
+    public void testJvmRuntimeInfoIsExposedInServletAndDump() throws Exception {
+        PrometheusMetricsProvider jvmProvider = new PrometheusMetricsProvider(new PrometheusRegistry());
+        try {
+            Properties configuration = new Properties();
+            configuration.setProperty("numWorkerThreads", "0");
+            configuration.setProperty("httpPort", "0");
+            configuration.setProperty("exportJvmInfo", "true");
+            jvmProvider.configure(configuration);
+            jvmProvider.start();
+
+            String response = callServlet(jvmProvider);
+            assertThat(response).contains("# TYPE jvm_runtime_info gauge");
+            assertThat(response).contains("jvm_runtime_info{");
+
+            Map<String, Object> dumped = new HashMap<>();
+            jvmProvider.dump(dumped::put);
+            assertThat(dumped).anySatisfy((key, value) -> {
+                assertThat(key).startsWith("jvm_runtime_info{");
+                assertThat(key).contains("version=");
+                assertThat(value).isEqualTo(1.0);
+            });
+        } finally {
+            jvmProvider.stop();
+        }
+    }
+
+    @Test
+    public void testSummaryQuantileWindowIsPreserved() {
+        // simpleclient 0.16.0 ages quantiles over 10 minutes in 5 buckets; client_java 1.x
+        // defaults to 5 minutes, so the provider overrides the window explicitly.
+        assertEquals(600L, PrometheusMetricsProvider.SUMMARY_MAX_AGE_SECONDS);
+        assertEquals(5, PrometheusMetricsProvider.SUMMARY_AGE_BUCKETS);
+    }
+
     private String callServlet() throws ServletException, IOException {
+        return callServlet(provider);
+    }
+
+    private String callServlet(PrometheusMetricsProvider metricsProvider) throws ServletException, IOException {
         // we are not performing an HTTP request
         // but we are calling directly the servlet
-        StringWriter writer = new StringWriter();
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
         HttpServletResponse response = mock(HttpServletResponse.class);
-        when(response.getWriter()).thenReturn(new PrintWriter(writer));
+        when(response.getOutputStream()).thenReturn(new ServletOutputStream() {
+            @Override
+            public boolean isReady() {
+                return true;
+            }
+
+            @Override
+            public void setWriteListener(WriteListener writeListener) {
+                // no-op
+            }
+
+            @Override
+            public void write(int b) {
+                out.write(b);
+            }
+        });
         HttpServletRequest req = mock(HttpServletRequest.class);
-        provider.getServlet().doGet(req, response);
-        String res = writer.toString();
-        return res;
+        metricsProvider.getServlet().doGet(req, response);
+        return new String(out.toByteArray(), StandardCharsets.UTF_8);
     }
 
     @Test
@@ -540,7 +625,7 @@ public class PrometheusMetricsProviderTest {
         final List<String> expectedNames = Collections.singletonList(String.format("# TYPE %s gauge", name));
         final List<String> expectedMetrics = new ArrayList<>();
         for (int i = 0; i < values.length; i++) {
-            expectedMetrics.add(String.format("%s{key=\"%s\",} %s", name, keys[i], values[i]));
+            expectedMetrics.add(String.format("%s{key=\"%s\"} %s", name, keys[i], values[i]));
         }
         validateWithServletCall(expectedNames, expectedMetrics);
         assertEquals(2, callCount.get());
@@ -593,7 +678,7 @@ public class PrometheusMetricsProviderTest {
         final List<String> expectedMetrics = new ArrayList<>();
         for (int i = 0; i < count; i++) {
             expectedNames.add(String.format("# TYPE %s gauge", names[i]));
-            expectedMetrics.add(String.format("%s{key=\"%s\",} %s", names[i], keys[i], values[i]));
+            expectedMetrics.add(String.format("%s{key=\"%s\"} %s", names[i], keys[i], values[i]));
         }
         validateWithServletCall(expectedNames, expectedMetrics);
         for (int i = 0; i < count; i++) {
@@ -707,8 +792,12 @@ public class PrometheusMetricsProviderTest {
         if (expectedNames.isEmpty() && expectedMetrics.isEmpty()) {
             assertTrue(response.isEmpty());
         } else {
-            expectedNames.forEach(name -> assertThat(response.contains(name)));
-            expectedMetrics.forEach(metric -> assertThat(response.contains(metric)));
+            for (String name : expectedNames) {
+                assertThat(response).contains(name);
+            }
+            for (String metric : expectedMetrics) {
+                assertThat(response).contains(metric);
+            }
         }
     }
 }

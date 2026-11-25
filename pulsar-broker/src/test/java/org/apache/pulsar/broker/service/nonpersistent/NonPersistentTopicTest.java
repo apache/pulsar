@@ -41,6 +41,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionFence
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicMigratedException;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.service.PulsarCommandSender;
+import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.SubscriptionOption;
 import org.apache.pulsar.broker.service.TransportCnx;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -543,6 +544,7 @@ public class NonPersistentTopicTest extends BrokerTestBase {
         NonPersistentTopic topic = (NonPersistentTopic) pulsar.getBrokerService()
                 .getTopicReference(topicName).orElseThrow();
         NonPersistentSubscription subscription = topic.getSubscriptions().get(subName);
+        EventExecutor cnxIoThread = ((ServerCnx) subscription.getConsumers().get(0).cnx()).ctx().executor();
         assertTrue(topic.isActive());
 
         // Hold the broker's IO threads, so that no work the close hands over to them can run before the checks.
@@ -562,6 +564,11 @@ public class NonPersistentTopicTest extends BrokerTestBase {
         } finally {
             releaseIoThreads.countDown();
         }
+        // The close also hands the removal of the consumer from its connection over to the connection's IO thread,
+        // which may still be in its I/O phase without having started the task above. Wait for the removal, or the IO
+        // thread can read the client's CloseConsumer first, close the consumer a second time and fail the client's
+        // close with "Consumer was not connected".
+        cnxIoThread.submit(() -> null).get();
     }
 
     @Test

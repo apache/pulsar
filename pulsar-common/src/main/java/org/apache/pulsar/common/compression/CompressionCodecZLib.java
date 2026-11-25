@@ -24,6 +24,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.zip.DataFormatException;
 import java.util.zip.Deflater;
 import java.util.zip.Inflater;
@@ -71,66 +72,116 @@ public class CompressionCodecZLib implements CompressionCodec {
 
     @Override
     public ByteBuf encode(ByteBuf source) {
-        byte[] array;
         int length = source.readableBytes();
-
-        int sizeEstimate = (int) Math.ceil(source.readableBytes() * 1.001) + 14;
-        ByteBuf compressed = allocator.heapBuffer(sizeEstimate);
-
-        int offset = 0;
-        if (source.hasArray()) {
-            array = source.array();
-            offset = source.arrayOffset() + source.readerIndex();
-        } else {
-            // If it's a direct buffer, we need to copy it
-            array = new byte[length];
-            source.getBytes(source.readerIndex(), array);
-        }
-
+        int sizeEstimate = (int) Math.ceil(length * 1.001) + 14;
         Deflater deflater = this.deflater.get();
-        deflater.reset();
-        deflater.setInput(array, offset, length);
-        while (!deflater.needsInput()) {
-            deflate(deflater, compressed);
+        ByteBuf compressed = allocator.heapBuffer(sizeEstimate);
+        try {
+            if (source.hasArray()) {
+                deflater.setInput(source.array(), source.arrayOffset() + source.readerIndex(), length);
+            } else {
+                int nioBufferCount = source.nioBufferCount();
+                ByteBuffer[] inputs = nioBufferCount > 1 ? inputBuffers(source) : null;
+                if (inputs != null && inputs.length > 1) {
+                    deflate(deflater, inputs, compressed);
+                    return compressed;
+                }
+                deflater.setInput(inputs != null && inputs.length == 1
+                        ? inputs[0] : inputBuffer(source, nioBufferCount));
+            }
+            while (!deflater.needsInput()) {
+                deflate(deflater, compressed, Deflater.SYNC_FLUSH);
+            }
+            return compressed;
+        } catch (Throwable t) {
+            compressed.release();
+            throw t;
+        } finally {
+            // Do not retain the input's NIO view in the thread-local compressor.
+            deflater.reset();
         }
-
-        return compressed;
     }
 
-    private static void deflate(Deflater deflater, ByteBuf out) {
-        int numBytes;
-        do {
+    private static ByteBuffer[] inputBuffers(ByteBuf source) {
+        try {
+            return source.nioBuffers(source.readerIndex(), source.readableBytes());
+        } catch (UnsupportedOperationException e) {
+            // Keep the contiguous-view/copy fallback for custom buffers and non-NIO composite components.
+            return null;
+        }
+    }
+
+    private static ByteBuffer inputBuffer(ByteBuf source, int nioBufferCount) {
+        int readerIndex = source.readerIndex();
+        int length = source.readableBytes();
+        if (nioBufferCount > 0) {
+            try {
+                return source.nioBuffer(readerIndex, length);
+            } catch (UnsupportedOperationException e) {
+                // A custom buffer or a composite component may still reject the requested NIO view.
+            }
+        }
+        byte[] copy = new byte[length];
+        source.getBytes(readerIndex, copy);
+        return ByteBuffer.wrap(copy);
+    }
+
+    private static void deflate(Deflater deflater, ByteBuffer[] inputs, ByteBuf out) {
+        int last = inputs.length - 1;
+        while (last >= 0 && !inputs[last].hasRemaining()) {
+            last--;
+        }
+        for (int i = 0; i <= last; i++) {
+            if (inputs[i].hasRemaining()) {
+                deflater.setInput(inputs[i]);
+                // Preserve one flush boundary for the whole message, regardless of component boundaries.
+                deflate(deflater, out, i == last ? Deflater.SYNC_FLUSH : Deflater.NO_FLUSH);
+            }
+        }
+    }
+
+    private static void deflate(Deflater deflater, ByteBuf out, int flush) {
+        while (true) {
+            // SYNC_FLUSH needs more than six writable bytes to avoid repeatedly emitting flush markers.
+            out.ensureWritable(7);
             int writerIndex = out.writerIndex();
-            numBytes = deflater.deflate(out.array(), out.arrayOffset() + writerIndex, out.writableBytes(),
-                    Deflater.SYNC_FLUSH);
+            int available = out.writableBytes();
+            long bytesRead = deflater.getBytesRead();
+            int numBytes = deflater.deflate(out.array(), out.arrayOffset() + writerIndex, available, flush);
             out.writerIndex(writerIndex + numBytes);
-        } while (numBytes > 0);
+            if (deflater.needsInput() && (flush == Deflater.NO_FLUSH || numBytes < available)) {
+                return;
+            }
+            if (numBytes == 0 && deflater.getBytesRead() == bytesRead) {
+                throw new IllegalStateException("ZLIB compressor made no progress");
+            }
+        }
     }
 
     @Override
     public ByteBuf decode(ByteBuf encoded, int uncompressedLength) throws IOException {
+        Inflater inflater = this.inflater.get();
         ByteBuf uncompressed = allocator.heapBuffer(uncompressedLength, uncompressedLength);
         try {
-            int len = encoded.readableBytes();
-
-            byte[] array;
-            int offset;
-            if (encoded.hasArray()) {
-                array = encoded.array();
-                offset = encoded.arrayOffset() + encoded.readerIndex();
-            } else {
-                array = new byte[len];
-                encoded.getBytes(encoded.readerIndex(), array);
-                offset = 0;
-            }
-
             int resultLength;
-            Inflater inflater = this.inflater.get();
-            inflater.reset();
-            inflater.setInput(array, offset, len);
-
             try {
-                resultLength = inflater.inflate(uncompressed.array(), uncompressed.arrayOffset(), uncompressedLength);
+                if (encoded.hasArray()) {
+                    inflater.setInput(encoded.array(), encoded.arrayOffset() + encoded.readerIndex(),
+                            encoded.readableBytes());
+                    resultLength = inflater.inflate(uncompressed.array(), uncompressed.arrayOffset(),
+                            uncompressedLength);
+                } else {
+                    int nioBufferCount = encoded.nioBufferCount();
+                    ByteBuffer[] inputs = nioBufferCount > 1 ? inputBuffers(encoded) : null;
+                    if (inputs != null && inputs.length > 1) {
+                        resultLength = inflate(inflater, inputs, uncompressed, uncompressedLength);
+                    } else {
+                        inflater.setInput(inputs != null && inputs.length == 1
+                                ? inputs[0] : inputBuffer(encoded, nioBufferCount));
+                        resultLength = inflater.inflate(uncompressed.array(), uncompressed.arrayOffset(),
+                                uncompressedLength);
+                    }
+                }
             } catch (DataFormatException e) {
                 throw new IOException(e);
             }
@@ -144,6 +195,36 @@ public class CompressionCodecZLib implements CompressionCodec {
             // and on a decoded size that differs from the advertised one (IllegalArgumentException) alike.
             uncompressed.release();
             throw t;
+        } finally {
+            // Do not retain the input's NIO view in the thread-local decompressor.
+            inflater.reset();
         }
+    }
+
+    private static int inflate(Inflater inflater, ByteBuffer[] inputs, ByteBuf out, int length)
+            throws DataFormatException {
+        int written = 0;
+        for (ByteBuffer input : inputs) {
+            if (!input.hasRemaining()) {
+                continue;
+            }
+            inflater.setInput(input);
+            while (true) {
+                int position = input.position();
+                int numBytes = inflater.inflate(out.array(), out.arrayOffset() + written, length - written);
+                written += numBytes;
+                if (inflater.finished() || inflater.needsDictionary()) {
+                    return written;
+                }
+                if (inflater.needsInput()) {
+                    // Even with a full output, a following component can contain a checksum that must be validated.
+                    break;
+                }
+                if (written == length || (numBytes == 0 && input.position() == position)) {
+                    return written;
+                }
+            }
+        }
+        return written;
     }
 }

@@ -679,7 +679,6 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         consumer.close();
 
         Awaitility.await()
-                .pollDelay(3, TimeUnit.SECONDS)
                 .until(() -> {
             TopicStats topicStats = admin.topics().getStats(topic);
             System.out.println("subscriptions size: " + topicStats.getSubscriptions().size());

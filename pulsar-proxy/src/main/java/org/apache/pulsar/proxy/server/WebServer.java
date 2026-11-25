@@ -21,6 +21,7 @@ package org.apache.pulsar.proxy.server;
 import static org.apache.pulsar.proxy.server.AdminProxyHandler.INIT_PARAM_REQUEST_BUFFER_SIZE;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.opentelemetry.api.OpenTelemetry;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import jakarta.servlet.DispatcherType;
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
@@ -102,6 +103,7 @@ public class WebServer {
 
     private ServerConnector connector;
     private ServerConnector connectorTls;
+    private JettyStatisticsCollector jettyStatisticsCollector;
 
     private ScheduledExecutorService sslRefreshScheduledExecutor;
     // PIP-478 TLS SPI factory (the only server TLS path since the PIP-337 removal).
@@ -343,7 +345,8 @@ public class WebServer {
         StatisticsHandler stats = new StatisticsHandler();
         stats.setHandler(handlerCollection);
         try {
-            new JettyStatisticsCollector(stats).register();
+            jettyStatisticsCollector = new JettyStatisticsCollector(stats);
+            PrometheusRegistry.defaultRegistry.register(jettyStatisticsCollector);
         } catch (IllegalArgumentException e) {
             // Already registered. Eg: in unit tests
         }
@@ -390,7 +393,15 @@ public class WebServer {
     public void stop() throws Exception {
         // PIP-478: dispose the TLS factory subscription and close the factory, if the new path was used.
         releaseTlsResources();
-        server.stop();
+        try {
+            server.stop();
+        } finally {
+            // Registered, the collector keeps the StatisticsHandler and the server reachable after shutdown.
+            if (jettyStatisticsCollector != null) {
+                PrometheusRegistry.defaultRegistry.unregister(jettyStatisticsCollector);
+                jettyStatisticsCollector = null;
+            }
+        }
         webServiceExecutor.stop();
         log.info("Server stopped successfully");
     }

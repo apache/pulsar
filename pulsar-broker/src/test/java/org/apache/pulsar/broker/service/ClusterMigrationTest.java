@@ -20,6 +20,8 @@ package org.apache.pulsar.broker.service;
 
 import static java.lang.Thread.sleep;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
@@ -32,6 +34,8 @@ import java.net.URL;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.CustomLog;
@@ -40,6 +44,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
+import org.apache.pulsar.broker.service.BrokerServiceException.TopicMigratedException;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.ClientBuilder;
@@ -284,6 +289,30 @@ public class ClusterMigrationTest extends TestRetrySupport {
     @BeforeMethod(alwaysRun = true)
     public void beforeMethod(Method m) throws Exception {
         methodName = m.getName();
+    }
+
+    @Test
+    public void testPersistentTopicReloadHonorsClusterMigration() throws Exception {
+        String sourceNamespaceName = BrokerTestUtil.newUniqueName("pulsar/reload");
+        admin1.namespaces().createNamespace(sourceNamespaceName, Set.of("r1"));
+        String topicName = "persistent://" + sourceNamespaceName + "/topic";
+        admin1.topics().createNonPartitionedTopic(topicName);
+        admin1.topics().unload(topicName);
+        BrokerService sourceBrokerService = pulsar1.getBrokerService();
+        assertThat(sourceBrokerService.getTopic(topicName, false).get(10, TimeUnit.SECONDS))
+                .as("topic %s should reload before cluster migration", topicName)
+                .isPresent();
+
+        admin1.topics().unload(topicName);
+        ClusterUrl destinationClusterUrl = new ClusterUrl(url2.toString(), null, pulsar2.getBrokerServiceUrl(), null);
+        admin1.clusters().updateClusterMigration("r1", true, destinationClusterUrl);
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> admin1.clusters().getClusterMigration("r1")
+                .isMigrated());
+        assertThatThrownBy(
+                () -> sourceBrokerService.getTopic(topicName, false).get(10, TimeUnit.SECONDS),
+                "reload of topic %s should be rejected after cluster migration", topicName)
+                .isInstanceOf(ExecutionException.class)
+                .hasCauseInstanceOf(TopicMigratedException.class);
     }
 
     /**

@@ -19,6 +19,7 @@
 package org.apache.pulsar.functions.worker;
 
 import com.google.common.annotations.VisibleForTesting;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -37,6 +38,8 @@ import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 import lombok.CustomLog;
 import lombok.Getter;
@@ -120,6 +123,12 @@ public class FunctionRuntimeManager implements AutoCloseable {
     // qualified function name: this worker terminates them, which deletes their subscriptions, once it reads the delete
     // of their last instance
     final Map<String, FunctionRuntimeInfo> stoppedDeletedFunctions = new HashMap<>();
+
+    // Deletes the subscriptions of terminated functions. The deletes retry while an instance on another worker still
+    // uses a subscription, so they run on their own thread, not on the threads that process assignments while holding
+    // this manager's lock.
+    private final ExecutorService terminatedFunctionCleanupExecutor =
+            Executors.newSingleThreadExecutor(new DefaultThreadFactory("function-terminate-cleanup", true));
 
     @Getter
     final WorkerConfig workerConfig;
@@ -978,6 +987,8 @@ public class FunctionRuntimeManager implements AutoCloseable {
 
         stopAllOwnedFunctions();
 
+        terminatedFunctionCleanupExecutor.shutdown();
+
         if (runtimeFactory != null) {
             runtimeFactory.close();
         }
@@ -1055,6 +1066,26 @@ public class FunctionRuntimeManager implements AutoCloseable {
             workerStatsManager.startInstanceProcessTimeStart();
             this.functionActioner.terminateFunction(functionRuntimeInfo);
             workerStatsManager.startInstanceProcessTimeEnd();
+
+            FunctionActioner actioner = this.functionActioner;
+            FunctionDetails details = functionRuntimeInfo.getFunctionInstance().getFunctionMetaData()
+                    .getFunctionDetails();
+            terminatedFunctionCleanupExecutor.execute(() -> {
+                // the function's new incarnation uses the subscriptions if it was created again since
+                if (functionMetaDataManager.containsFunction(details.getTenant(), details.getNamespace(),
+                        details.getName())) {
+                    log.debug().attr("function", FunctionCommon.getFullyQualifiedName(details))
+                            .log("Skipping the cleanup of a function that was created again");
+                    return;
+                }
+                try {
+                    actioner.cleanupTerminatedFunction(details);
+                } catch (Exception e) {
+                    log.error().attr("function", FunctionCommon.getFullyQualifiedName(details))
+                            .exception(e)
+                            .log("Failed to clean up the subscriptions of a terminated function");
+                }
+            });
         }
     }
 
