@@ -1894,7 +1894,8 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
                 return super.putCursorProperty(key, value);
             }
         };
-        TrackerWithStorage ts = createTrackerWithMockLedger(31L, 5, new MockBucketSnapshotStorage(), -1, cursor);
+        RecordingCreatedDeletedStorage storage = new RecordingCreatedDeletedStorage();
+        TrackerWithStorage ts = createTrackerWithMockLedger(31L, 5, storage, -1, cursor);
         try {
             ImmutableBucket bucket = createMergeableBucket(ts, 31L, 35L, List.of(1L));
             String bucketKey = bucket.bucketKey();
@@ -1910,6 +1911,87 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
                     .withMessageContaining("publication failed");
             // The property still references the superseded ledger: no false success.
             assertThat(cursor.getCursorProperties()).containsEntry(bucketKey, String.valueOf(supersededId));
+            // The pre-delete removed the superseded ledger, and the failed save reclaims the
+            // unpublished replacement, so repeated failures cannot accumulate orphans.
+            assertThat(storage.deletedBucketIds).contains(supersededId);
+            assertThat(storage.createdBucketIds).hasSize(1);
+            long replacementId = storage.createdBucketIds.iterator().next();
+            Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() ->
+                    assertThat(storage.deletedBucketIds).contains(replacementId));
+        } finally {
+            ts.close();
+        }
+    }
+
+    private static class RecordingCreatedDeletedStorage extends MockBucketSnapshotStorage {
+        private final Set<Long> createdBucketIds = ConcurrentHashMap.newKeySet();
+        private final Set<Long> deletedBucketIds = ConcurrentHashMap.newKeySet();
+        private final Map<Long, AtomicInteger> deleteAttempts = new ConcurrentHashMap<>();
+        private final AtomicInteger failNextCreatedDelete = new AtomicInteger();
+
+        @Override
+        public CompletableFuture<Long> createBucketSnapshot(SnapshotMetadata snapshotMetadata,
+                                                             List<SnapshotSegment> bucketSnapshotSegments,
+                                                             String bucketKey, String topicName,
+                                                             String cursorName) {
+            return super.createBucketSnapshot(snapshotMetadata, bucketSnapshotSegments, bucketKey,
+                    topicName, cursorName).thenApply(bucketId -> {
+                createdBucketIds.add(bucketId);
+                return bucketId;
+            });
+        }
+
+        @Override
+        public CompletableFuture<Void> deleteBucketSnapshot(long bucketId) {
+            deleteAttempts.computeIfAbsent(bucketId, id -> new AtomicInteger()).incrementAndGet();
+            // Optionally fail the delete of a bucket created by this storage once — used to
+            // inject a transient failure into the reclaim of an unpublished replacement.
+            if (createdBucketIds.contains(bucketId) && failNextCreatedDelete.get() > 0
+                    && failNextCreatedDelete.decrementAndGet() >= 0) {
+                return FutureUtil.failedFuture(new BucketSnapshotPersistenceException("transient delete failure"));
+            }
+            deletedBucketIds.add(bucketId);
+            return super.deleteBucketSnapshot(bucketId);
+        }
+    }
+
+    @Test
+    public void testSaveRetriesReclaimOfUnpublishedLedger() throws Exception {
+        // The reclaim of an unpublished replacement ledger must retry a transient delete
+        // failure, exactly like the superseded delete: without the retry, a single transient
+        // error permanently leaks the allocated-but-unpublished ledger — no other path can
+        // resolve it once the save failed.
+        AtomicBoolean failPublication = new AtomicBoolean();
+        MockManagedCursor cursor = new MockManagedCursor("reclaim-retry-cursor") {
+            @Override
+            public CompletableFuture<Void> putCursorProperty(String key, String value) {
+                if (failPublication.get()) {
+                    return FutureUtil.failedFuture(new ManagedLedgerException("publication failed"));
+                }
+                return super.putCursorProperty(key, value);
+            }
+        };
+        RecordingCreatedDeletedStorage storage = new RecordingCreatedDeletedStorage();
+        TrackerWithStorage ts = createTrackerWithMockLedger(31L, 5, storage, -1, cursor);
+        try {
+            ImmutableBucket bucket = createMergeableBucket(ts, 31L, 35L, List.of(1L));
+            String bucketKey = bucket.bucketKey();
+            long supersededId = 10L;
+            assertThat(cursor.putCursorProperty(bucketKey, String.valueOf(supersededId)))
+                    .succeedsWithin(5, TimeUnit.SECONDS);
+            failPublication.set(true);
+            // The reclaim's first delete attempt fails transiently; the retry must reclaim it.
+            storage.failNextCreatedDelete.set(1);
+
+            assertThat(bucket.asyncSaveBucketSnapshot(new BucketDelayedMessageIndexStats(),
+                    new SnapshotMetadata(), List.of()))
+                    .failsWithin(5, TimeUnit.SECONDS);
+            long replacementId = storage.createdBucketIds.iterator().next();
+
+            Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
+                assertThat(storage.deletedBucketIds).contains(replacementId);
+            });
+            assertThat(storage.deleteAttempts.get(replacementId).get()).isGreaterThanOrEqualTo(2);
         } finally {
             ts.close();
         }
@@ -1943,14 +2025,20 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
             }
 
             storage.gate.complete(null);
+            // Wait for the whole trim+merge chain to settle before asserting: the gate only
+            // schedules the reads, it does not wait for them.
+            assertThat(ts.tracker.getTrimFuture()).succeedsWithin(10, TimeUnit.SECONDS);
 
-            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
-                synchronized (ts.tracker) {
-                    assertThat(ts.tracker.getImmutableBuckets().asMapOfRanges())
-                            .containsKey(Range.closed(6L, 10L))
-                            .doesNotContainKey(Range.closed(1L, 15L));
-                }
-            });
+            synchronized (ts.tracker) {
+                assertThat(ts.tracker.getImmutableBuckets().asMapOfRanges())
+                        .containsKey(Range.closed(6L, 10L))
+                        .containsKey(Range.closed(1L, 5L))
+                        .containsKey(Range.closed(11L, 15L))
+                        .containsKey(Range.closed(16L, 20L))
+                        // The selected inputs end at ledger 20, so the merge would have
+                        // installed the enclosing [1,20] range.
+                        .doesNotContainKey(Range.closed(1L, 20L));
+            }
         } finally {
             storage.gate.complete(null);
             ts.close();

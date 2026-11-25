@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.function.Supplier;
 import lombok.CustomLog;
 import lombok.Getter;
@@ -158,9 +159,40 @@ class ImmutableBucket {
                     setBucketId(newBucketId);
 
                     // Durable cursor publication is the success point: the superseded ledger
-                    // is already deleted, so swallowing a publication failure would leave
-                    // recovery unable to open any snapshot for this bucket.
-                    return putBucketKeyId(bucketKey, newBucketId).thenApply(ignored -> newBucketId);
+                    // is already deleted, so a swallowed failure would leave recovery unable
+                    // to open any snapshot for this bucket. When the publication fails, the
+                    // replacement ledger is reclaimed after verifying it was not committed, so
+                    // repeated publication failures cannot accumulate orphaned ledgers.
+                    return putBucketKeyId(bucketKey, newBucketId)
+                            .thenApply(ignored -> newBucketId)
+                            .exceptionally(ex -> {
+                                if (String.valueOf(newBucketId).equals(
+                                        ctx.cursor().getCursorProperties().get(bucketKey))) {
+                                    // The publication landed despite the failure.
+                                    return newBucketId;
+                                }
+                                long reclaimStartTime = System.currentTimeMillis();
+                                stats.recordTriggerEvent(BucketDelayedMessageIndexStats.Type.delete);
+                                executeWithRetry(
+                                        () -> ctx.bucketSnapshotStorage().deleteBucketSnapshot(newBucketId),
+                                        BucketSnapshotPersistenceException.class, MaxRetryTimes)
+                                        .whenComplete((__, deleteEx) -> {
+                                            if (deleteEx != null) {
+                                                log.warn()
+                                                        .attr("dispatcher", dispatcher)
+                                                        .attr("bucketKey", bucketKey)
+                                                        .attr("bucketId", newBucketId)
+                                                        .exception(deleteEx)
+                                                        .log("Failed to reclaim the unpublished snapshot ledger");
+                                                stats.recordFailEvent(BucketDelayedMessageIndexStats.Type.delete);
+                                            } else {
+                                                stats.recordSuccessEvent(BucketDelayedMessageIndexStats.Type.delete,
+                                                        System.currentTimeMillis() - reclaimStartTime);
+                                            }
+                                        });
+                                throw ex instanceof CompletionException
+                                        ? (CompletionException) ex : new CompletionException(ex);
+                            });
                 });
     }
 
