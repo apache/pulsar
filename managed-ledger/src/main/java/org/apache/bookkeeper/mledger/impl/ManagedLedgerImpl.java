@@ -934,8 +934,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     private synchronized boolean tryRegisterRecoveredCursor(ManagedCursorImpl cursor) {
-        // Serialize registration with the transition to Closed in asyncClose.
-        if (state == State.Closed) {
+        // Serialize registration with the transition to Closed in asyncClose, and with fencing: a cursor
+        // whose lazy recovery finishes after the ledger was closed or fenced must not join the container,
+        // or a later delete would trim around its stale mark-delete position and orphan offloaded data.
+        if (state == State.Closed || state.isFenced()) {
             return false;
         }
         cursor.setActive();

@@ -3714,6 +3714,44 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertTrue(reopened.getLedgersInfo().size() < ledgerIds.size());
     }
 
+    @Test(timeOut = 20000)
+    public void lazyCursorRecoveryFinishingAfterFenceForDeletionMustNotRegister() throws Exception {
+        ManagedLedgerConfig config = initManagedLedgerConfig(defaultConfig()).setMaxEntriesPerLedger(2);
+        ManagedLedger ledger = factory.open("testLazyRecoveryAfterFenceForDeletion", config);
+        ledger.openCursor("slow-cursor");
+        for (int i = 0; i < 6; i++) {
+            ledger.addEntry(("entry-" + i).getBytes());
+        }
+        ledger.close();
+
+        Map<String, CompletableFuture<Void>> recoveryGates = new ConcurrentHashMap<>();
+        recoveryGates.put("slow-cursor", new CompletableFuture<>());
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory2 = createFactoryWithGatedCursorRecovery(recoveryGates);
+        ManagedLedgerImpl reopened = (ManagedLedgerImpl) factory2.open("testLazyRecoveryAfterFenceForDeletion",
+                initManagedLedgerConfig(defaultConfig()).setMaxEntriesPerLedger(2).setLazyCursorRecovery(true));
+
+        // Fence the ledger for deletion while the cursor is still recovering: the recovery finishing
+        // afterwards must not register the cursor on the dying instance.
+        reopened.setFencedForDeletion();
+        recoveryGates.get("slow-cursor").complete(null);
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> {
+            synchronized (reopened) {
+                return reopened.uninitializedCursors.isEmpty();
+            }
+        });
+
+        // On the unfixed code the cursor joins the container here with its stale mark-delete position,
+        // and the trim below keeps the ledgers it pins.
+        assertNull(reopened.getCursors().get("slow-cursor"));
+
+        // Without the stale cursor, trimming sees no durable cursors and drops every ledger but current.
+        CompletableFuture<Void> trimmed = new CompletableFuture<>();
+        reopened.trimConsumedLedgersInBackground(trimmed);
+        trimmed.get(5, TimeUnit.SECONDS);
+        assertEquals(reopened.getLedgersInfo().size(), 1);
+    }
+
     @Test
     public void testFailedLazyCursorRecoveryBlocksTrimmingUntilRecovered() throws Exception {
         ManagedLedgerConfig config = initManagedLedgerConfig(defaultConfig()).setMaxEntriesPerLedger(2);
