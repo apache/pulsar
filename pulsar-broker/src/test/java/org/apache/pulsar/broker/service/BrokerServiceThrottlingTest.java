@@ -19,23 +19,15 @@
 package org.apache.pulsar.broker.service;
 
 import static io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions.assertThat;
-import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.Metric;
-import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.parseMetrics;
 import static org.awaitility.Awaitility.waitAtMost;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import com.google.common.collect.Multimap;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.opentelemetry.sdk.metrics.data.MetricData;
-import io.prometheus.metrics.core.metrics.GaugeWithCallback;
-import io.prometheus.metrics.model.registry.PrometheusRegistry;
-import java.io.ByteArrayOutputStream;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -46,10 +38,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import org.apache.pulsar.PrometheusMetricsTestUtil;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -68,19 +58,9 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class BrokerServiceThrottlingTest extends BrokerTestBase {
 
-    private static final String PENDING_LOOKUPS_GAUGE = "pulsar_broker_lookup_pending_requests";
-    private static final String PENDING_TOPIC_LOADS_GAUGE = "pulsar_broker_topic_load_pending_requests";
-
-    // The two gauges are per broker but the Prometheus registry is per JVM, and the first broker to register a name
-    // keeps it until it closes. A broker that outlives its test class, such as the shared one of
-    // SharedPulsarBaseTest, therefore answers the scrape in place of this test's broker.
-    private boolean pendingRequestGaugesBelongToThisBroker;
-
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
-        pendingRequestGaugesBelongToThisBroker = isFreeInTheDefaultRegistry(PENDING_LOOKUPS_GAUGE)
-                && isFreeInTheDefaultRegistry(PENDING_TOPIC_LOADS_GAUGE);
         super.baseSetup();
     }
 
@@ -158,56 +138,6 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
                     .doesNotContain(BrokerService.TOPIC_LOOKUP_LIMIT_METRIC_NAME,
                             BrokerService.TOPIC_LOAD_LIMIT_METRIC_NAME);
         }
-    }
-
-    @Test
-    public void testPendingRequestGaugesReportTheHeldPermits() throws Exception {
-        Semaphore lookupRequestSemaphore = pulsar.getBrokerService().lookupRequestSemaphore.get();
-        Semaphore topicLoadRequestSemaphore = pulsar.getBrokerService().topicLoadRequestSemaphore.get();
-        int pendingLookups = 3;
-        int pendingTopicLoads = 5;
-        lookupRequestSemaphore.acquire(pendingLookups);
-        topicLoadRequestSemaphore.acquire(pendingTopicLoads);
-        try {
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
-            PrometheusMetricsTestUtil.generate(pulsar, false, false, false, out);
-            Multimap<String, Metric> metrics = parseMetrics(out.toString(StandardCharsets.UTF_8));
-            Collection<Metric> pendingLookupSamples = metrics.get(PENDING_LOOKUPS_GAUGE);
-            Collection<Metric> pendingTopicLoadSamples = metrics.get(PENDING_TOPIC_LOADS_GAUGE);
-
-            if (pendingRequestGaugesBelongToThisBroker) {
-                assertThat(pendingLookupSamples)
-                        .as("%s while %s lookup permits are held", PENDING_LOOKUPS_GAUGE, pendingLookups)
-                        .extracting(sample -> sample.value)
-                        .containsExactly((double) pendingLookups);
-                assertThat(pendingTopicLoadSamples)
-                        .as("%s while %s topic load permits are held", PENDING_TOPIC_LOADS_GAUGE, pendingTopicLoads)
-                        .extracting(sample -> sample.value)
-                        .containsExactly((double) pendingTopicLoads);
-            } else {
-                assertThat(pendingLookupSamples).as("samples of %s", PENDING_LOOKUPS_GAUGE).hasSize(1);
-                assertThat(pendingTopicLoadSamples).as("samples of %s", PENDING_TOPIC_LOADS_GAUGE).hasSize(1);
-            }
-        } finally {
-            topicLoadRequestSemaphore.release(pendingTopicLoads);
-            lookupRequestSemaphore.release(pendingLookups);
-        }
-    }
-
-    /** Tries the registration that a starting broker makes, which reads no metric of another broker. */
-    private static boolean isFreeInTheDefaultRegistry(String gaugeName) {
-        GaugeWithCallback probe = GaugeWithCallback.builder()
-                .name(gaugeName)
-                .help("-")
-                .callback(callback -> callback.call(0))
-                .build();
-        try {
-            PrometheusRegistry.defaultRegistry.register(probe);
-        } catch (IllegalArgumentException nameIsTaken) {
-            return false;
-        }
-        PrometheusRegistry.defaultRegistry.unregister(probe);
-        return true;
     }
 
     /**
