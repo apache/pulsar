@@ -53,9 +53,13 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
+import org.apache.pulsar.metadata.api.MetadataCache;
+import org.apache.pulsar.metadata.api.Notification;
+import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.ScanConsumer;
 import org.apache.pulsar.metadata.api.coordination.LeaderElection;
 import org.apache.pulsar.metadata.api.coordination.LeaderElectionState;
+import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionSubscription;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException;
@@ -120,6 +124,10 @@ public class TransactionCoordinatorV5 {
 
     /** Per-partition leader-election controllers, keyed by partition (0..partitionCount-1). */
     private final Map<Integer, LeaderElection<TcLeader>> elections = new ConcurrentHashMap<>();
+    /** The persisted leader values for assignment watches, shared by their snapshots. */
+    private final MetadataCache<TcLeader> assignmentLeaders;
+    private Runnable cancelAssignmentMetadataListener;
+    private Runnable cancelAssignmentSessionListener;
     /** The local broker's election value — what we propose for every partition we lead. */
     private volatile TcLeader localLeader;
     /** Open assignment-watch listeners (one per watching client connection). */
@@ -136,6 +144,7 @@ public class TransactionCoordinatorV5 {
                 config.getTransactionCoordinatorScalableTopicsGcIntervalSeconds());
         this.gcRetentionMs = TimeUnit.SECONDS.toMillis(
                 config.getTransactionCoordinatorScalableTopicsGcRetentionSeconds());
+        this.assignmentLeaders = pulsar.getLocalMetadataStore().getMetadataCache(TcLeader.class);
     }
 
     // ---- Lifecycle --------------------------------------------------------
@@ -151,6 +160,10 @@ public class TransactionCoordinatorV5 {
             return;
         }
         verifyParallelismConsistency();
+        this.cancelAssignmentMetadataListener = pulsar.getLocalMetadataStore()
+                .registerCancellableListener(this::onLeaderMetadataNotification);
+        this.cancelAssignmentSessionListener = pulsar.getLocalMetadataStore()
+                .registerCancellableSessionListener(this::onLeaderSessionEvent);
         this.localLeader = new TcLeader(pulsar.getBrokerId(), pulsar.getBrokerServiceUrl(),
                 pulsar.getBrokerServiceUrlTls(), pulsar.getSafeWebServiceAddress());
         for (int partition = 0; partition < partitionCount; partition++) {
@@ -226,6 +239,15 @@ public class TransactionCoordinatorV5 {
     /** Stop the sweeps and release every leader-election lease. Idempotent. */
     public synchronized void close() {
         closed = true;
+        if (cancelAssignmentMetadataListener != null) {
+            cancelAssignmentMetadataListener.run();
+            cancelAssignmentMetadataListener = null;
+        }
+        if (cancelAssignmentSessionListener != null) {
+            cancelAssignmentSessionListener.run();
+            cancelAssignmentSessionListener = null;
+        }
+        assignmentLeaders.close();
         if (sweepExecutor != null) {
             sweepExecutor.shutdownNow();
             sweepExecutor = null;
@@ -251,6 +273,50 @@ public class TransactionCoordinatorV5 {
     /** Fire every assignment-watch listener — a leader changed somewhere, so the map moved. */
     private void onElectionStateChange(int partition, LeaderElectionState state) {
         log.debug().attr("partition", partition).attr("state", state).log("v5 TC election state changed");
+        notifyAssignmentChange();
+    }
+
+    private void onLeaderMetadataNotification(Notification notification) {
+        if (closed || notification.getType() != NotificationType.Created
+                && notification.getType() != NotificationType.Modified
+                && notification.getType() != NotificationType.Deleted) {
+            return;
+        }
+        String path = notification.getPath();
+        String prefix = TxnPaths.TXN_TC_LEADER_PREFIX + "/";
+        if (!path.startsWith(prefix)) {
+            return;
+        }
+        int partition;
+        try {
+            partition = Integer.parseInt(path.substring(prefix.length()));
+        } catch (NumberFormatException ignored) {
+            return;
+        }
+        if (partition < 0 || partition >= partitionCount || !path.equals(TxnPaths.tcLeaderPath(partition))) {
+            return;
+        }
+        // The leader can change without a change of this broker's role, which the election doesn't
+        // notify: e.g. a deletion notified while an election cycle is in progress makes the cycle
+        // read the lock again and keep following. The metadata store refreshes or invalidates its
+        // caches, including assignmentLeaders, before it calls this listener.
+        notifyAssignmentChange();
+    }
+
+    private void onLeaderSessionEvent(SessionEvent event) {
+        if (closed || event != SessionEvent.Reconnected && event != SessionEvent.SessionReestablished) {
+            return;
+        }
+        // The leader can change while disconnected, and an election that revalidates without a
+        // change of role notifies nothing. The metadata store invalidates its caches, including
+        // assignmentLeaders, before it calls this listener.
+        notifyAssignmentChange();
+    }
+
+    private void notifyAssignmentChange() {
+        if (closed) {
+            return;
+        }
         for (Runnable listener : assignmentChangeListeners) {
             try {
                 listener.run();
@@ -318,16 +384,23 @@ public class TransactionCoordinatorV5 {
     // ---- Assignment discovery (client watch) ------------------------------
 
     /**
-     * Build the current full {@code partition → leader} snapshot from the election state. Uses the
-     * async {@link LeaderElection#getLeaderValue()} (which loads from the metadata store on a cache
-     * miss) rather than the cache-only {@code getLeaderValueIfPresent()}: when this broker just
-     * transitioned to {@code Following} for a partition, its local cache for the new leader's node
-     * may not be repopulated yet, and a cache-only read would silently omit that partition. Loading
-     * from the store closes that window so a follower's snapshot is still complete.
+     * Build the current full {@code partition → leader} snapshot.
      *
-     * <p>A partition still genuinely without a leader (no broker elected yet) is omitted; the caller
-     * ({@code ServerCnx}) re-pushes shortly after so the client isn't stranded. Always the complete
-     * map — the watch protocol sends full snapshots, never diffs.
+     * <p>Once a partition's local election has settled, the snapshot takes the persisted leader,
+     * not the election's view of it. The election notifies role changes, not leader changes, so the
+     * leader-node and reconnection listeners also wake the watches, and they can run before the
+     * election catches up: after a reconnection, for example, it revalidates asynchronously and
+     * reports the previous leader until then. The metadata store has already refreshed or
+     * invalidated {@link #assignmentLeaders} by then, and concurrent watches share its loads.
+     *
+     * <p>While a partition's election reports no leader (at startup, or after its leader's node was
+     * deleted), the snapshot waits for the election through {@link LeaderElection#getLeaderValue()}:
+     * a client is ready once it gets its first snapshot, which must not miss the coordinators being
+     * elected.
+     *
+     * <p>A partition still without a leader is omitted; the caller ({@code ServerCnx}) re-pushes
+     * shortly after so the client isn't stranded. Always the complete map — the watch protocol sends
+     * full snapshots, never diffs.
      *
      * @return a future of the snapshot plus whether it is complete (every partition has a leader)
      */
@@ -336,7 +409,11 @@ public class TransactionCoordinatorV5 {
         List<CompletableFuture<Void>> loads = new ArrayList<>(elections.size());
         for (Map.Entry<Integer, LeaderElection<TcLeader>> e : elections.entrySet()) {
             int partition = e.getKey();
-            loads.add(e.getValue().getLeaderValue()
+            LeaderElection<TcLeader> election = e.getValue();
+            var leaderLoad = election.getState() == LeaderElectionState.NoLeader
+                    ? election.getLeaderValue()
+                    : assignmentLeaders.get(TxnPaths.tcLeaderPath(partition));
+            loads.add(leaderLoad
                     .thenAccept(opt -> opt.ifPresent(leader -> assignments.put(partition, leader)))
                     .exceptionally(ex -> {
                         // Treat a load error as "leader unknown for now"; the re-push will retry.
