@@ -1043,6 +1043,14 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
                                                           MockBucketSnapshotStorage storage,
                                                           int maxIndexesPerSegment)
             throws Exception {
+        return createTrackerWithMockLedger(firstLedgerId, maxNumBuckets, storage, maxIndexesPerSegment, null);
+    }
+
+    private TrackerWithStorage createTrackerWithMockLedger(long firstLedgerId, int maxNumBuckets,
+                                                          MockBucketSnapshotStorage storage,
+                                                          int maxIndexesPerSegment,
+                                                          ManagedCursor cursor)
+            throws Exception {
         storage.start();
 
         ManagedLedger mockLedger = mock(ManagedLedger.class);
@@ -1051,17 +1059,20 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         when(mockLedger.getLedgersInfo()).thenReturn(ledgerInfo);
         when(mockLedger.getName()).thenReturn("test-ledger");
 
-        ManagedCursor mockCursor = new MockManagedCursor("test-cursor") {
-            @Override
-            public ManagedLedger getManagedLedger() {
-                return mockLedger;
-            }
+        if (cursor == null) {
+            cursor = new MockManagedCursor("test-cursor") {
+                @Override
+                public ManagedLedger getManagedLedger() {
+                    return mockLedger;
+                }
 
-            @Override
-            public Position getMarkDeletedPosition() {
-                return PositionFactory.create(firstLedgerId, -1);
-            }
-        };
+                @Override
+                public Position getMarkDeletedPosition() {
+                    return PositionFactory.create(firstLedgerId, -1);
+                }
+            };
+        }
+        ManagedCursor mockCursor = cursor;
 
         AbstractPersistentDispatcherMultipleConsumers disp =
                 mock(AbstractPersistentDispatcherMultipleConsumers.class);
@@ -1864,6 +1875,98 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
                     String.valueOf(supersededId));
         } finally {
             ts.close();
+        }
+    }
+
+    @Test
+    public void testSaveFailsWhenCursorPublicationFails() throws Exception {
+        // The superseded ledger is deleted before the replacement is allocated, so durable
+        // cursor publication is the success point: a swallowed failure would report success
+        // while recovery can open neither snapshot — the old one is gone and the new one has
+        // no durable reference.
+        AtomicBoolean failPublication = new AtomicBoolean();
+        MockManagedCursor cursor = new MockManagedCursor("publish-fail-cursor") {
+            @Override
+            public CompletableFuture<Void> putCursorProperty(String key, String value) {
+                if (failPublication.get()) {
+                    return FutureUtil.failedFuture(new ManagedLedgerException("publication failed"));
+                }
+                return super.putCursorProperty(key, value);
+            }
+        };
+        TrackerWithStorage ts = createTrackerWithMockLedger(31L, 5, new MockBucketSnapshotStorage(), -1, cursor);
+        try {
+            ImmutableBucket bucket = createMergeableBucket(ts, 31L, 35L, List.of(1L));
+            String bucketKey = bucket.bucketKey();
+            long supersededId = 10L;
+            assertThat(cursor.putCursorProperty(bucketKey, String.valueOf(supersededId)))
+                    .succeedsWithin(5, TimeUnit.SECONDS);
+            failPublication.set(true);
+
+            assertThat(bucket.asyncSaveBucketSnapshot(new BucketDelayedMessageIndexStats(),
+                    new SnapshotMetadata(), List.of()))
+                    .failsWithin(5, TimeUnit.SECONDS)
+                    .withThrowableThat().havingCause()
+                    .withMessageContaining("publication failed");
+            // The property still references the superseded ledger: no false success.
+            assertThat(cursor.getCursorProperties()).containsEntry(bucketKey, String.valueOf(supersededId));
+        } finally {
+            ts.close();
+        }
+    }
+
+    @Test
+    public void testMergeAbortsWhenBucketAppearsInTheGap() throws Exception {
+        // A bucket sealed into a ledger gap between the selected merge inputs and the install
+        // must not be displaced by the merged enclosing range: its indexes are in neither the
+        // merged snapshot nor any source, so replacing the mapping would strand them.
+        GatedSegmentReadStorage storage = new GatedSegmentReadStorage();
+        TrackerWithStorage ts = createTrackerWithMockLedger(1L, 2, storage);
+        try {
+            for (int i = 1; i <= 5; i++) {
+                assertTrue(ts.tracker.addMessage(i, i, 10L * i));
+            }
+            for (int i = 11; i <= 15; i++) {
+                assertTrue(ts.tracker.addMessage(i, i, 10L * i));
+            }
+            for (int i = 16; i <= 20; i++) {
+                assertTrue(ts.tracker.addMessage(i, i, 10L * i));
+            }
+            // The next ledger seals the third bucket, which exceeds maxNumBuckets: trim+merge
+            // starts and holds on the gated segment reads, after the inputs were selected.
+            assertTrue(ts.tracker.addMessage(21, 21, 210L));
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> storage.segmentReads.get() > 0);
+
+            ImmutableBucket gapBucket = createMergeableBucket(ts, 6L, 10L, List.of(1L));
+            synchronized (ts.tracker) {
+                ts.tracker.getImmutableBuckets().put(Range.closed(6L, 10L), gapBucket);
+            }
+
+            storage.gate.complete(null);
+
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+                synchronized (ts.tracker) {
+                    assertThat(ts.tracker.getImmutableBuckets().asMapOfRanges())
+                            .containsKey(Range.closed(6L, 10L))
+                            .doesNotContainKey(Range.closed(1L, 15L));
+                }
+            });
+        } finally {
+            storage.gate.complete(null);
+            ts.close();
+        }
+    }
+
+    private static class GatedSegmentReadStorage extends MockBucketSnapshotStorage {
+        private final CompletableFuture<Void> gate = new CompletableFuture<>();
+        private final AtomicInteger segmentReads = new AtomicInteger();
+
+        @Override
+        public CompletableFuture<List<SnapshotSegment>> getBucketSnapshotSegment(long bucketId, long firstSegment,
+                                                                                long lastSegment) {
+            segmentReads.incrementAndGet();
+            return gate.thenCompose(
+                    ignored -> super.getBucketSnapshotSegment(bucketId, firstSegment, lastSegment));
         }
     }
 

@@ -33,6 +33,7 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -665,6 +666,18 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                     })
                     .thenCompose(combinedDelayedIndexQueue -> {
                         synchronized (BucketDelayedDeliveryTracker.this) {
+                            // Revalidate under the lock: a bucket sealed into a ledger gap
+                            // between the selected inputs and this install would be silently
+                            // displaced by the enclosing range — its indexes would be in neither
+                            // the merged snapshot nor any source.
+                            long mergedStartLedgerId = buckets.get(0).getStartLedgerId();
+                            long mergedEndLedgerId = buckets.get(buckets.size() - 1).getEndLedgerId();
+                            Collection<ImmutableBucket> covered = immutableBuckets
+                                    .subRangeMap(Range.closed(mergedStartLedgerId, mergedEndLedgerId))
+                                    .asMapOfRanges().values();
+                            if (covered.size() != buckets.size() || !covered.containsAll(buckets)) {
+                                return CompletableFuture.completedFuture(null);
+                            }
                             long createStartTime = System.currentTimeMillis();
                             stats.recordTriggerEvent(BucketDelayedMessageIndexStats.Type.create);
                             Pair<ImmutableBucket, DelayedIndex> immutableBucketDelayedIndexPair =

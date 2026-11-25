@@ -157,15 +157,10 @@ class ImmutableBucket {
                 .thenCompose(newBucketId -> {
                     setBucketId(newBucketId);
 
-                    return putBucketKeyId(bucketKey, newBucketId).exceptionally(ex -> {
-                        log.warn()
-                                .attr("dispatcher", dispatcher)
-                                .attr("bucketKey", bucketKey)
-                                .attr("bucketId", newBucketId)
-                                .exception(ex)
-                                .log("Failed to record bucketId to cursor property");
-                        return null;
-                    }).thenApply(ignored -> newBucketId);
+                    // Durable cursor publication is the success point: the superseded ledger
+                    // is already deleted, so swallowing a publication failure would leave
+                    // recovery unable to open any snapshot for this bucket.
+                    return putBucketKeyId(bucketKey, newBucketId).thenApply(ignored -> newBucketId);
                 });
     }
 
