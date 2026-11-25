@@ -133,7 +133,7 @@ audience-annotations = "0.12.0"
 curator = "5.9.0"
 reflections = "0.10.2"
 # OpenAPI 3 annotations (io.swagger.core.v3, jakarta variant) used for REST API and config docs annotations
-swagger = "2.2.55"
+swagger = "2.2.56"
 typetools = "0.6.3"
 jna = "5.19.1"
 java-semver = "0.10.2"
