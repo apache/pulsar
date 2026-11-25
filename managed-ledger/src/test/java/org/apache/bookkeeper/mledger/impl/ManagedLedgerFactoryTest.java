@@ -455,6 +455,22 @@ public class ManagedLedgerFactoryTest extends MockedBookKeeperTestCase {
     }
 
     @Test(timeOut = 30000)
+    public void testFailedClientBuildRemovesCachedOpen() throws Exception {
+        factory.shutdown();
+        var buildFailure = new ManagedLedgerException("Client build failed");
+        var builds = new AtomicInteger();
+        factory = new ManagedLedgerFactoryImpl(metadataStore, policy -> builds.getAndIncrement() == 0
+                ? CompletableFuture.failedFuture(buildFailure) : CompletableFuture.completedFuture(bkc),
+                new ManagedLedgerFactoryConfig());
+
+        var failedOpen = openAsync("ml", defaultConfig());
+        assertThatThrownBy(() -> failedOpen.get(5, TimeUnit.SECONDS)).cause().isSameAs(buildFailure);
+        assertThat(factory.getManagedLedgers()).doesNotContainKey("ml");
+        assertThat(factory.open("ml")).isNotNull();
+        assertThat(builds).hasValue(2);
+    }
+
+    @Test(timeOut = 30000)
     public void testOpenRetriesFailedOpen() throws Exception {
         CompletableFuture<ManagedLedgerImpl> failedFuture = new CompletableFuture<>();
         failedFuture.completeExceptionally(new ManagedLedgerException("open failed"));

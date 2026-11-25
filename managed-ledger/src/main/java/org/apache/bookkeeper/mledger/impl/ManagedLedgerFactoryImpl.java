@@ -631,6 +631,11 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                             }
                         }, null);
                     }).exceptionally(ex -> {
+                        // A failed client build leaves no initialization callback to remove the cached open.
+                        var pending = pendingInitializeLedgers.get(name);
+                        if (pending == null || pending.future != future) {
+                            removeLedgerFuture(name, future);
+                        }
                         future.completeExceptionally(ex);
                         return null;
                     });

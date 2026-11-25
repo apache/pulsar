@@ -19,12 +19,16 @@
 package org.apache.pulsar.broker.service;
 
 import static org.apache.bookkeeper.client.RackawareEnsemblePlacementPolicyImpl.REPP_DNS_RESOLVER_CLASS;
+import static org.apache.pulsar.bookie.rackawareness.BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Sets;
+import io.opentelemetry.api.OpenTelemetry;
 import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -33,8 +37,12 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.bookkeeper.bookie.BookieImpl;
@@ -61,6 +69,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -72,6 +81,12 @@ import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.metadata.api.GetResult;
+import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.Option;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
@@ -82,6 +97,7 @@ import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @CustomLog
@@ -111,6 +127,143 @@ public class BrokerBookieIsolationTest {
         if (bkEnsemble != null) {
             bkEnsemble.stop();
             bkEnsemble = null;
+        }
+    }
+
+    @DataProvider
+    public Object[][] rackEnforcement() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    @Test(dataProvider = "rackEnforcement", timeOut = 60_000)
+    public void testPlacementDuringBookieRackMetadataOutage(boolean enforceRacks) throws Exception {
+        String cluster = "use";
+        String isolatedGroup = "isolated";
+        String plainTopic = "persistent://tenant/plain/topic";
+        String isolatedTopic = "persistent://tenant/isolated/topic";
+        BookieServer[] bookies = bkEnsemble.getBookies();
+        Set<BookieId> isolatedBookies = Set.of(bookies[0].getBookieId(), bookies[1].getBookieId());
+        Set<BookieId> otherBookies = Set.of(bookies[2].getBookieId(), bookies[3].getBookieId());
+        setDefaultIsolationGroup(isolatedGroup, bkEnsemble.getZkClient(), isolatedBookies);
+
+        CompletableFuture<Void> initialReadStarted = new CompletableFuture<>();
+        CompletableFuture<Void> releaseInitialRead = new CompletableFuture<>();
+        CompletableFuture<Void> refreshStarted = new CompletableFuture<>();
+        CompletableFuture<Void> refreshRetried = new CompletableFuture<>();
+        var refresh = new CompletableFuture<Optional<GetResult>>();
+        AtomicBoolean holdRefresh = new AtomicBoolean();
+        AtomicInteger initialReads = new AtomicInteger();
+
+        ServiceConfiguration config = new ServiceConfiguration();
+        config.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
+        config.setClusterName(cluster);
+        config.setWebServicePort(Optional.of(0));
+        config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
+        config.setBrokerShutdownTimeoutMs(0L);
+        config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
+        config.setBrokerServicePort(Optional.of(0));
+        config.setAdvertisedAddress("localhost");
+        config.setTopicLevelPoliciesEnabled(false);
+        config.setSystemTopicEnabled(false);
+        config.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
+        config.setManagedLedgerDefaultEnsembleSize(2);
+        // The local ensemble advertises all bookies on the same host. With a one-bookie write quorum, hard rack
+        // placement permits their shared configured rack and rejects the default rack used before the first read.
+        config.setBookkeeperClientEnforceMinNumRacksPerWriteQuorum(enforceRacks);
+        config.setManagedLedgerDefaultWriteQuorum(enforceRacks ? 1 : 2);
+        config.setManagedLedgerDefaultAckQuorum(enforceRacks ? 1 : 2);
+        config.setManagedLedgerMaxEntriesPerLedger(2);
+        config.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
+        pulsarService = new PulsarService(config) {
+            @Override
+            public MetadataStoreExtended createLocalMetadataStore(PulsarMetadataEventSynchronizer synchronizer,
+                                                                  OpenTelemetry openTelemetry)
+                    throws MetadataStoreException {
+                MetadataStoreConfig storeConfig = MetadataStoreConfig.builder().synchronizer(synchronizer)
+                        .openTelemetry(openTelemetry).build();
+                return new ZKMetadataStore(config.getMetadataStoreUrl(), storeConfig, true) {
+                    @Override
+                    public CompletableFuture<Optional<GetResult>> get(String path, Set<Option> options) {
+                        if (!BOOKIE_INFO_ROOT_PATH.equals(path)) {
+                            return super.get(path, options);
+                        }
+                        if (holdRefresh.get()) {
+                            if (refresh.isCompletedExceptionally()) {
+                                refreshRetried.complete(null);
+                            } else {
+                                refreshStarted.complete(null);
+                            }
+                            return refresh;
+                        }
+                        initialReads.incrementAndGet();
+                        initialReadStarted.complete(null);
+                        return releaseInitialRead.thenCompose(__ -> super.get(path, options));
+                    }
+                };
+            }
+        };
+
+        CompletableFuture<Void> startup = CompletableFuture.runAsync(() -> {
+            try {
+                pulsarService.start();
+            } catch (Exception e) {
+                throw new CompletionException(e);
+            }
+        });
+        try {
+            initialReadStarted.get(10, TimeUnit.SECONDS);
+            assertThrows(TimeoutException.class, () -> startup.get(250, TimeUnit.MILLISECONDS));
+            assertEquals(initialReads.get(), 1);
+            releaseInitialRead.complete(null);
+            startup.get(10, TimeUnit.SECONDS);
+            @Cleanup
+            PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarService.getWebServiceAddress()).build();
+            admin.clusters().createCluster(cluster,
+                    ClusterData.builder().serviceUrl(pulsarService.getWebServiceAddress()).build());
+            admin.tenants().createTenant("tenant", new TenantInfoImpl(null, Set.of(cluster)));
+            admin.namespaces().createNamespace("tenant/plain");
+            admin.namespaces().createNamespace("tenant/isolated");
+            admin.namespaces().setBookieAffinityGroup("tenant/isolated", BookieAffinityGroupData.builder()
+                    .bookkeeperAffinityGroupPrimary(isolatedGroup).build());
+
+            @Cleanup
+            PulsarClient client = PulsarClient.builder().serviceUrl(pulsarService.getBrokerServiceUrl())
+                    .operationTimeout(10, TimeUnit.SECONDS).build();
+            try (Producer<byte[]> producer = client.newProducer().topic(plainTopic).create()) {
+                producer.send(new byte[] {1});
+            }
+
+            LedgerManager ledgerManager = pulsarService.getBookKeeperClient().getLedgerManager();
+            try (Producer<byte[]> producer = client.newProducer().topic(isolatedTopic)
+                    .enableBatching(false).sendTimeout(10, TimeUnit.SECONDS).create()) {
+                MessageIdAdv first = (MessageIdAdv) producer.send(new byte[] {1});
+                LedgerMetadata firstLedger = ledgerManager.readLedgerMetadata(first.getLedgerId())
+                        .get(10, TimeUnit.SECONDS).getValue();
+                assertEquals(Set.copyOf(firstLedger.getEnsembleAt(0)), isolatedBookies);
+
+                holdRefresh.set(true);
+                setDefaultIsolationGroup(isolatedGroup, bkEnsemble.getZkClient(), otherBookies);
+                refreshStarted.get(10, TimeUnit.SECONDS);
+
+                producer.send(new byte[] {2});
+                MessageIdAdv rolled = (MessageIdAdv) producer.send(new byte[] {3});
+                assertNotEquals(rolled.getLedgerId(), first.getLedgerId());
+                LedgerMetadata nextLedger = ledgerManager.readLedgerMetadata(rolled.getLedgerId())
+                        .get(10, TimeUnit.SECONDS).getValue();
+                assertEquals(Set.copyOf(nextLedger.getEnsembleAt(0)), isolatedBookies);
+
+                refresh.completeExceptionally(new MetadataStoreException("Unavailable /bookies"));
+                refreshRetried.get(10, TimeUnit.SECONDS);
+                producer.send(new byte[] {4});
+                MessageIdAdv afterFailure = (MessageIdAdv) producer.send(new byte[] {5});
+                assertNotEquals(afterFailure.getLedgerId(), rolled.getLedgerId());
+                LedgerMetadata recovered = ledgerManager.readLedgerMetadata(afterFailure.getLedgerId())
+                        .get(10, TimeUnit.SECONDS).getValue();
+                assertEquals(Set.copyOf(recovered.getEnsembleAt(0)), isolatedBookies);
+            }
+        } finally {
+            releaseInitialRead.complete(null);
+            refresh.completeExceptionally(new MetadataStoreException("Test ended"));
         }
     }
 

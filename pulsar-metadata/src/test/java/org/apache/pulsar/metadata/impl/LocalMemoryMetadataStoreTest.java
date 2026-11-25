@@ -40,6 +40,8 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import lombok.Cleanup;
+import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataEvent;
 import org.apache.pulsar.metadata.api.MetadataEventSynchronizer;
@@ -50,6 +52,8 @@ import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
+import org.apache.pulsar.metadata.bookkeeper.AbstractMetadataDriver;
+import org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver;
 import org.apache.pulsar.metadata.tableview.impl.MetadataStoreTableViewImpl;
 import org.awaitility.Awaitility;
 import org.testng.annotations.DataProvider;
@@ -92,6 +96,33 @@ public class LocalMemoryMetadataStoreTest {
         }
     }
 
+    @Test(timeOut = 30_000)
+    public void testBookKeeperCloseUnregistersMetadataCaches() throws Exception {
+        PulsarMetadataClientDriver.init();
+        try (var store = new LocalMemoryMetadataStore("memory:local", MetadataStoreConfig.builder().build())) {
+            byte[] value = "shared".getBytes(StandardCharsets.UTF_8);
+            store.put("/probe", value, Optional.empty()).get(10, TimeUnit.SECONDS);
+            int baseline = store.getMetadataCacheCount();
+            ClientConfiguration conf = new ClientConfiguration()
+                    .setMetadataServiceUri("metadata-store:memory:local")
+                    .setNumWorkerThreads(1)
+                    .setNumIOThreads(1);
+            conf.setProperty(AbstractMetadataDriver.METADATA_STORE_INSTANCE, store);
+
+            for (int i = 0; i < 3; i++) {
+                try (BookKeeper client = BookKeeper.forConfig(conf).build()) {
+                    assertThat(client.getMetadataClientDriver()).isInstanceOf(PulsarMetadataClientDriver.class);
+                    assertThat(store.getMetadataCacheCount()).isGreaterThan(baseline);
+                }
+                assertThat(store.getMetadataCacheCount())
+                        .as("closing BookKeeper must release all its caches from the shared store")
+                        .isEqualTo(baseline);
+                assertThat(store.get("/probe").get(10, TimeUnit.SECONDS)).hasValueSatisfying(
+                        result -> assertThat(result.getValue()).isEqualTo(value));
+            }
+        }
+    }
+
     @Test
     public void testCancelledSessionListenerIsNotNotified() throws Exception {
         @Cleanup
@@ -116,25 +147,59 @@ public class LocalMemoryMetadataStoreTest {
         String url = "memory:" + UUID.randomUUID();
         @Cleanup
         LocalMemoryMetadataStore store1 = new LocalMemoryMetadataStore(url, MetadataStoreConfig.builder().build());
-        int listenerCountWithoutSharedStores = store1.getListenerCount();
         @Cleanup
         LocalMemoryMetadataStore store2 = new LocalMemoryMetadataStore(url, MetadataStoreConfig.builder().build());
         @Cleanup
         LocalMemoryMetadataStore store3 = new LocalMemoryMetadataStore(url, MetadataStoreConfig.builder().build());
-        assertEquals(store1.getListenerCount(), listenerCountWithoutSharedStores + 2);
-        assertEquals(store2.getListenerCount(), listenerCountWithoutSharedStores + 2);
+        assertEquals(store1.getSharedStoreCount(), 3);
+        assertEquals(store2.getSharedStoreCount(), 3);
 
-        // Closing the store that registered the listeners of both directions, and the one that didn't
         store2.close();
         store1.close();
 
-        assertEquals(store3.getListenerCount(), listenerCountWithoutSharedStores);
+        assertEquals(store3.getSharedStoreCount(), 1);
         // The stores created later are still linked with the open ones
         @Cleanup
         LocalMemoryMetadataStore store4 = new LocalMemoryMetadataStore(url, MetadataStoreConfig.builder().build());
-        assertEquals(store3.getListenerCount(), listenerCountWithoutSharedStores + 1);
-        assertEquals(store4.getListenerCount(), listenerCountWithoutSharedStores + 1);
+        assertEquals(store3.getSharedStoreCount(), 2);
+        assertEquals(store4.getSharedStoreCount(), 2);
     }
+
+    @Test(timeOut = 30_000)
+    public void testSharedStoreListenersObserveUpdatedCache() throws Exception {
+        var url = "memory:" + UUID.randomUUID();
+        var config = MetadataStoreConfig.builder().build();
+        try (var writer = new LocalMemoryMetadataStore(url, config);
+             var reader = new LocalMemoryMetadataStore(url, config);
+             var cache = reader.getMetadataCache(Integer.class)) {
+            String path = "/group/number";
+            assertThat(cache.get(path).join()).isEmpty();
+            var notifications = new CopyOnWriteArrayList<NotificationType>();
+            var parentChanges = new LinkedBlockingQueue<NotificationType>();
+            var values = new LinkedBlockingQueue<CompletableFuture<Optional<Integer>>>();
+            reader.registerListener(event -> {
+                if (path.equals(event.getPath())) {
+                    notifications.add(event.getType());
+                    values.add(cache.get(path));
+                } else if ("/group".equals(event.getPath())) {
+                    parentChanges.add(event.getType());
+                }
+            });
+
+            writer.put(path, "1".getBytes(StandardCharsets.UTF_8), Optional.empty()).join();
+            assertThat(values.take().get()).contains(1);
+            assertThat(parentChanges.take()).isEqualTo(NotificationType.ChildrenChanged);
+            writer.put(path, "2".getBytes(StandardCharsets.UTF_8), Optional.empty()).join();
+            assertThat(values.take().get()).contains(2);
+            writer.delete(path, Optional.empty()).join();
+            assertThat(values.take().get()).isEmpty();
+            assertThat(parentChanges.take()).isEqualTo(NotificationType.ChildrenChanged);
+            assertThat(notifications).containsExactly(NotificationType.Created, NotificationType.Modified,
+                    NotificationType.Deleted);
+            assertThat(parentChanges).isEmpty();
+        }
+    }
+
     @Test
     public void testNotifyEvent() throws Exception {
         TestMetadataEventSynchronizer sync = new TestMetadataEventSynchronizer();

@@ -18,10 +18,9 @@
  */
 package org.apache.pulsar.metadata.impl;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.MapMaker;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
@@ -30,6 +29,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.CustomLog;
 import lombok.Data;
@@ -69,17 +69,12 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
     private final NavigableMap<String, Value> map;
     private final AtomicLong sequentialIdGenerator;
     private MetadataEventSynchronizer synchronizer;
-    // The stores that share the data set of this store, including this one. Held by each of them, since
-    // STATIC_INSTANCE holds it weakly. Guarded by STATIC_INSTANCE
+    // Each store holds its group strongly while the registry holds it weakly.
     private final Set<LocalMemoryMetadataStore> sharedStores;
-    // The callbacks that unregister the listeners between this store and the other stores that share its data set,
-    // by the other store. A callback unregisters the listeners in both directions, so both stores hold it.
-    // Guarded by STATIC_INSTANCE.
-    private final Map<LocalMemoryMetadataStore, Runnable> sharedStoreListeners = new HashMap<>();
 
     private static final Map<String, NavigableMap<String, Value>> STATIC_MAPS = new MapMaker()
             .weakValues().makeMap();
-    // Manage all instances to facilitate registration to the same listener
+    // Instances sharing a named map receive the same notifications.
     private static final Map<String, Set<LocalMemoryMetadataStore>> STATIC_INSTANCE = new MapMaker()
             .weakValues().makeMap();
     private static final Map<String, AtomicLong> STATIC_ID_GEN_MAP = new MapMaker()
@@ -100,21 +95,9 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
         } else {
             // Use a reference from a shared data set
             map = STATIC_MAPS.computeIfAbsent(name, __ -> new TreeMap<>());
-            synchronized (STATIC_INSTANCE) {
-                sharedStores = STATIC_INSTANCE.computeIfAbsent(name, __ -> new HashSet<>());
-                sharedStores.forEach(v -> {
-                    Runnable cancelListenerOfOther = registerCancellableListener(v);
-                    Runnable cancelListener = v.registerCancellableListener(this);
-                    Runnable cancelListeners = () -> {
-                        cancelListenerOfOther.run();
-                        cancelListener.run();
-                    };
-                    sharedStoreListeners.put(v, cancelListeners);
-                    v.sharedStoreListeners.put(this, cancelListeners);
-                });
-                sharedStores.add(this);
-            }
+            sharedStores = STATIC_INSTANCE.computeIfAbsent(name, __ -> new CopyOnWriteArraySet<>());
             sequentialIdGenerator = STATIC_ID_GEN_MAP.computeIfAbsent(name, __ -> new AtomicLong());
+            sharedStores.add(this);
             log.info().attr("name", name).log("Created LocalMemoryDataStore");
         }
     }
@@ -279,6 +262,25 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
     }
 
     @Override
+    protected CompletableFuture<Void> receivedNotification(Notification notification) {
+        if (sharedStores == null) {
+            return super.receivedNotification(notification);
+        }
+        // Enqueue directly on each store so its own caches see the event before its registered listeners.
+        return CompletableFuture.allOf(sharedStores.stream().map(store -> store.dispatchLocally(notification))
+                .toArray(CompletableFuture<?>[]::new));
+    }
+
+    private CompletableFuture<Void> dispatchLocally(Notification notification) {
+        return super.receivedNotification(notification);
+    }
+
+    @VisibleForTesting
+    int getSharedStoreCount() {
+        return sharedStores == null ? 1 : sharedStores.size();
+    }
+
+    @Override
     public Optional<MetadataEventSynchronizer> getMetadataEventSynchronizer() {
         return Optional.ofNullable(synchronizer);
     }
@@ -293,20 +295,9 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
     public void close() throws Exception {
         if (isClosed.compareAndSet(false, true)) {
             if (sharedStores != null) {
-                unregisterFromSharedStores();
+                sharedStores.remove(this);
             }
             super.close();
-        }
-    }
-
-    private void unregisterFromSharedStores() {
-        synchronized (STATIC_INSTANCE) {
-            sharedStores.remove(this);
-            sharedStoreListeners.forEach((v, cancelListeners) -> {
-                cancelListeners.run();
-                v.sharedStoreListeners.remove(this);
-            });
-            sharedStoreListeners.clear();
         }
     }
 }
