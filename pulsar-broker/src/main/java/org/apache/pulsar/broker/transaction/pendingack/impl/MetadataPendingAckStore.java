@@ -26,13 +26,15 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableMap;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.Entry;
@@ -101,8 +103,16 @@ public class MetadataPendingAckStore implements PendingAckStore {
     private final String subscriptionName;
 
     private final Object lock = new Object();
-    /** Transactions awaiting a decision or durable cursor coverage — drained by reconcile. */
+    /** Transactions awaiting a decision, or whose decision is still to be applied — drained by reconcile. */
     private final Set<String> openTxns = new HashSet<>();
+    /**
+     * Committed transactions whose outcome is applied, and whose ACK records are kept until the durable whole-entry
+     * prefix covers them, indexed by the highest position among those records. Reconcile only compares them with the
+     * persisted mark-delete position: it neither reads their headers nor commits them again. Guarded by {@link #lock},
+     * like {@link #retainedCommitPositions}, which maps each of them to its key here.
+     */
+    private final TreeMap<Position, Set<String>> retainedCommits = new TreeMap<>();
+    private final Map<String, Position> retainedCommitPositions = new HashMap<>();
     /**
      * The ack appends in progress, which {@link #closeAsync()} waits for: the ack records of a deleted subscription
      * are deleted once it is closed, and none must land after that. Guarded by {@link #lock}, like the
@@ -315,8 +325,10 @@ public class MetadataPendingAckStore implements PendingAckStore {
             }
             // Older records omitted both batch size and ACK mask. A whole-entry ACK is safe only if
             // the original entry contained exactly one message (or the cursor durably deleted it).
-            // A legacy partial multi-message batch cannot be reconstructed: retain its ops and fail
-            // recovery rather than acknowledge messages the application never processed.
+            // Which messages of a multi-message batch such a record acknowledged cannot be told: restore
+            // nothing for it, so they are delivered again, rather than acknowledge messages the application
+            // never processed. Failing recovery instead would fail it again on every retry. The record is
+            // retained until the durable cursor covers its entry.
             if (subscription.getCursor().isMessageDeleted(position)) {
                 return CompletableFuture.completedFuture(null);
             }
@@ -328,9 +340,11 @@ public class MetadataPendingAckStore implements PendingAckStore {
                         try {
                             MessageMetadata metadata = Commands.parseMessageMetadata(entry.getDataBuffer().duplicate());
                             if (metadata.getNumMessagesInBatch() != 1) {
-                                result.completeExceptionally(new MetadataStoreException(
-                                        "Legacy transactional ACK lacks a batch acknowledgement mask at "
-                                                + segmentName + "/" + position + "; operation records retained"));
+                                log.warn().attr("segment", segmentName).attr("sub", subscriptionName)
+                                        .attr("position", position)
+                                        .log("Not restoring a legacy transactional ACK of a batched entry that lacks "
+                                                + "its batch acknowledgement mask; its messages are delivered again");
+                                result.complete(null);
                             } else {
                                 result.complete(position);
                             }
@@ -380,13 +394,7 @@ public class MetadataPendingAckStore implements PendingAckStore {
         // terminal before calling us, so we don't repeat the header check here.
         CompletableFuture<?>[] appends = new CompletableFuture<?>[positions.size()];
         for (int i = 0; i < positions.size(); i++) {
-            Position p = positions.get(i).getLeft();
-            TxnOp op = new TxnOp(TxnOpKind.ACK, segmentName, subscriptionName,
-                    p.getLedgerId(), p.getEntryId(), cumulative ? Boolean.TRUE : null);
-            op.setBatchSize(positions.get(i).getRight());
-            long[] ackSet = getAckSetArrayOrNull(p);
-            op.setAckSet(ackSet == null ? null : ackSet.clone());
-            appends[i] = txnStore.appendOp(txnIdKey, op);
+            appends[i] = txnStore.appendOp(txnIdKey, ackOp(positions.get(i), cumulative));
         }
         CompletableFuture.allOf(appends).whenComplete((__, err) -> {
             synchronized (lock) {
@@ -402,6 +410,62 @@ public class MetadataPendingAckStore implements PendingAckStore {
             }
         });
         return appended;
+    }
+
+    private TxnOp ackOp(MutablePair<Position, Integer> ack, boolean cumulative) {
+        Position position = ack.getLeft();
+        TxnOp op = new TxnOp(TxnOpKind.ACK, segmentName, subscriptionName,
+                position.getLedgerId(), position.getEntryId(), cumulative ? Boolean.TRUE : null);
+        op.setBatchSize(ack.getRight());
+        long[] ackSet = getAckSetArrayOrNull(position);
+        op.setAckSet(ackSet == null ? null : ackSet.clone());
+        return op;
+    }
+
+    /**
+     * Deletes one record of the transaction per rejected acknowledgement. Recovery restores OPEN transactions in no
+     * particular order, so a record left by a rejected ACK could take the reservation of the accepted one. Records
+     * with the same contents are interchangeable, so any of them can go.
+     */
+    @Override
+    public CompletableFuture<Void> discardRejectedAck(TxnID txnID, List<MutablePair<Position, Integer>> positions,
+                                                      boolean cumulative) {
+        return FutureUtil.supplySafely(() -> {
+            String txnIdKey = TxnIds.toKey(txnID);
+            List<TxnOp> rejected = new ArrayList<>(positions.size());
+            for (MutablePair<Position, Integer> ack : positions) {
+                rejected.add(ackOp(ack, cumulative));
+            }
+            List<OpRecord> discards = new ArrayList<>(positions.size());
+            return txnStore.listOpsByTxn(txnIdKey, new ScanConsumer() {
+                @Override
+                public void onNext(GetResult record) {
+                    String path = record.getStat().getPath();
+                    if (!txnIdKey.equals(TxnPaths.txnIdFromOpPath(path))) {
+                        return;
+                    }
+                    TxnOp op = TxnMetadataStore.fromJson(record.getValue(), TxnOp.class);
+                    synchronized (discards) {
+                        if (rejected.remove(op)) {
+                            discards.add(new OpRecord(path, txnIdKey, record.getStat().getVersion()));
+                        }
+                    }
+                }
+
+                @Override
+                public void onError(Throwable error) {
+                    // The returned scan future propagates the error.
+                }
+
+                @Override
+                public void onCompleted() {
+                }
+            }).thenCompose(__ -> {
+                synchronized (discards) {
+                    return txnStore.deleteOps(List.copyOf(discards));
+                }
+            });
+        });
     }
 
     @Override
@@ -420,11 +484,21 @@ public class MetadataPendingAckStore implements PendingAckStore {
     // ---- Reconcile (event-driven) -----------------------------------------
 
     private void triggerReconcile() {
-        if (closed || !recoveryFuture.isDone() || recoveryFuture.isCompletedExceptionally()) {
+        if (!reconcilable()) {
             return;
         }
         // Retry the marked records left by a reset; the TC keeps re-publishing their outcome while they exist.
         resolveMarkedRecords();
+        cleanupCoveredCommits();
+        applyDecidedOutcomes();
+    }
+
+    private boolean reconcilable() {
+        return !closed && recoveryFuture.isDone() && !recoveryFuture.isCompletedExceptionally();
+    }
+
+    /** Reads the headers of the transactions in {@link #openTxns}, and applies the outcome of those decided. */
+    private void applyDecidedOutcomes() {
         Set<String> snapshot;
         synchronized (lock) {
             snapshot = new HashSet<>(openTxns);
@@ -457,6 +531,12 @@ public class MetadataPendingAckStore implements PendingAckStore {
     private void applyTerminal(String txnIdKey, TxnState state) {
         boolean removed;
         synchronized (lock) {
+            if (resetInProgress) {
+                // The reset left the records of the transactions that were OPEN when it read them unmarked. An outcome
+                // applied to the cursor before the reset lands would be discarded by it while its record survives,
+                // and recovery would reapply it: the message would be skipped. afterCursorReset reconciles again.
+                return;
+            }
             removed = openTxns.remove(txnIdKey);
         }
         if (!removed) {
@@ -484,10 +564,11 @@ public class MetadataPendingAckStore implements PendingAckStore {
             }
             // A successful cursor ACK can still be only in memory (partial batches and rate
             // limiting). Keep its recovery record until the durable whole-entry prefix covers it.
-            CompletableFuture<Void> cleanup = state == TxnState.COMMITTED
-                    ? cleanupCommittedAcks(txnIdKey)
-                    : txnStore.deleteAckOpsForSegmentSubscriptionAndTxn(segmentName, subscriptionName, txnIdKey);
-            cleanup
+            if (state == TxnState.COMMITTED) {
+                cleanupCommittedAcks(txnIdKey);
+                return;
+            }
+            txnStore.deleteAckOpsForSegmentSubscriptionAndTxn(segmentName, subscriptionName, txnIdKey)
                     .exceptionally(cleanupErr -> {
                         log.warn().attr("segment", segmentName).attr("sub", subscriptionName)
                                 .attr("txn", txnID).exception(cleanupErr)
@@ -500,11 +581,45 @@ public class MetadataPendingAckStore implements PendingAckStore {
         });
     }
 
-    private CompletableFuture<Void> cleanupCommittedAcks(String txnIdKey) {
-        return FutureUtil.supplySafely(() -> {
+    /** Cleans up the applied committed transactions whose records the persisted mark-delete position now covers. */
+    private void cleanupCoveredCommits() {
+        Position persisted = subscription.getCursor().getPersistentMarkDeletedPosition();
+        if (persisted == null) {
+            return;
+        }
+        List<String> covered = new ArrayList<>();
+        synchronized (lock) {
+            NavigableMap<Position, Set<String>> head = retainedCommits.headMap(persisted, true);
+            head.values().forEach(covered::addAll);
+            head.clear();
+            covered.forEach(retainedCommitPositions::remove);
+        }
+        covered.forEach(this::cleanupCommittedAcks);
+    }
+
+    private void retainCommit(String txnIdKey, Position highestRetained) {
+        synchronized (lock) {
+            Position previous = retainedCommitPositions.put(txnIdKey, highestRetained);
+            if (previous != null) {
+                Set<String> atPrevious = retainedCommits.get(previous);
+                if (atPrevious != null && atPrevious.remove(txnIdKey) && atPrevious.isEmpty()) {
+                    retainedCommits.remove(previous);
+                }
+            }
+            retainedCommits.computeIfAbsent(highestRetained, __ -> new HashSet<>()).add(txnIdKey);
+        }
+    }
+
+    /**
+     * Deletes the ACK records of an applied committed transaction that the durable whole-entry prefix covers. While
+     * any record remains, or if the cleanup fails, the transaction is kept in {@link #retainedCommits}, at the
+     * highest position of its remaining records.
+     */
+    private void cleanupCommittedAcks(String txnIdKey) {
+        FutureUtil.supplySafely(() -> {
             Position persisted = subscription.getCursor().getPersistentMarkDeletedPosition();
             ConcurrentLinkedQueue<OpRecord> covered = new ConcurrentLinkedQueue<>();
-            AtomicBoolean retained = new AtomicBoolean();
+            AtomicReference<Position> highestRetained = new AtomicReference<>();
             return txnStore.listOpsByTxn(txnIdKey, new ScanConsumer() {
                 @Override
                 public void onNext(GetResult record) {
@@ -518,7 +633,7 @@ public class MetadataPendingAckStore implements PendingAckStore {
                     if (persisted != null && position.compareTo(persisted) <= 0) {
                         covered.add(new OpRecord(path, txnIdKey, record.getStat().getVersion()));
                     } else {
-                        retained.set(true);
+                        highestRetained.accumulateAndGet(position, MetadataPendingAckStore::higher);
                     }
                 }
 
@@ -531,12 +646,12 @@ public class MetadataPendingAckStore implements PendingAckStore {
                 public void onCompleted() {
                 }
             }).thenCompose(__ -> txnStore.deleteOps(List.copyOf(covered))).thenCompose(__ -> {
-                if (retained.get() || covered.isEmpty()) {
-                    return CompletableFuture.completedFuture(retained.get());
+                if (highestRetained.get() != null || covered.isEmpty()) {
+                    return CompletableFuture.completedFuture(highestRetained.get());
                 }
                 // Versioned deletes can skip an op replaced at the same path. Keep tracking the
                 // transaction if such a record still exists, so a later event can retry cleanup.
-                AtomicBoolean remaining = new AtomicBoolean();
+                AtomicReference<Position> highestRemaining = new AtomicReference<>();
                 return txnStore.listOpsByTxn(txnIdKey, new ScanConsumer() {
                     @Override
                     public void onNext(GetResult record) {
@@ -544,7 +659,8 @@ public class MetadataPendingAckStore implements PendingAckStore {
                         if (txnIdKey.equals(TxnPaths.txnIdFromOpPath(record.getStat().getPath()))
                                 && op.getKind() == TxnOpKind.ACK && segmentName.equals(op.getSegment())
                                 && subscriptionName.equals(op.getSubscription())) {
-                            remaining.set(true);
+                            highestRemaining.accumulateAndGet(PositionFactory.create(op.getLedgerId(),
+                                    op.getEntryId()), MetadataPendingAckStore::higher);
                         }
                     }
 
@@ -556,15 +672,22 @@ public class MetadataPendingAckStore implements PendingAckStore {
                     @Override
                     public void onCompleted() {
                     }
-                }).thenApply(ignored -> remaining.get());
-            }).thenAccept(needsRecovery -> {
-                if (needsRecovery) {
-                    synchronized (lock) {
-                        openTxns.add(txnIdKey);
-                    }
-                }
+                }).thenApply(ignored -> highestRemaining.get());
             });
+        }).whenComplete((highest, error) -> {
+            if (error != null) {
+                log.warn().attr("segment", segmentName).attr("sub", subscriptionName).attr("txn", txnIdKey)
+                        .exception(error).log("Op-record cleanup failed; will retry on next reconcile");
+                // Retry on the next reconcile, whatever the persisted mark-delete position is then.
+                retainCommit(txnIdKey, PositionFactory.EARLIEST);
+            } else if (highest != null) {
+                retainCommit(txnIdKey, highest);
+            }
         });
+    }
+
+    private static Position higher(Position current, Position candidate) {
+        return current == null || candidate.compareTo(current) > 0 ? candidate : current;
     }
 
     // ---- Cursor reset ------------------------------------------------------
@@ -575,8 +698,10 @@ public class MetadataPendingAckStore implements PendingAckStore {
      * an ACK the cursor held only in memory. The reset replaces that cursor state, after which nothing covers the
      * record, and recovery would reapply the ACK and undo the reset; recovery never reapplies a marked record. The
      * records of OPEN transactions stay unmarked: their ACKs apply when they commit, after the reset, as on the live
-     * handle. A terminal transaction whose outcome is not applied yet loses only the durability of its ACK, which at
-     * worst redelivers the message.
+     * handle. Outcomes that arrive while the reset is in progress are held back until {@link #afterCursorReset}, so a
+     * transaction that commits after its records were read cannot apply its ACK before the reset discards it. A
+     * terminal transaction whose outcome is not applied yet loses only the durability of its ACK, which at worst
+     * redelivers the message.
      *
      * <p>The records are marked in place rather than deleted, so the TC never sees a terminal transaction without op
      * records, and keeps its header, while the outcome of the reset is unknown. Each mark that lands is tracked, so
@@ -647,7 +772,12 @@ public class MetadataPendingAckStore implements PendingAckStore {
             markedForReset = new ArrayList<>();
             resetInProgress = false;
         }
-        return resolveMarkedRecords();
+        CompletableFuture<Void> resolved = resolveMarkedRecords();
+        if (reconcilable()) {
+            // Apply the outcomes held back while the reset was in progress.
+            applyDecidedOutcomes();
+        }
+        return resolved;
     }
 
     /**

@@ -447,9 +447,14 @@ public class V5TransactionCrashWindowRecoveryTest extends MockedPulsarServiceBas
                         PositionFactory.create(acked.getLedgerId(), acked.getEntryId())))
                         .as("the OPEN transaction's ACK applies when it commits after the reset").isTrue();
             });
+        }
+        // Check delivery on a fresh consumer: a read of the consumer above can pass the cursor's filter while input-1
+        // is still pending, and reach the dispatcher's pending-ack filter once the commit removed it from there. The
+        // messages delivered to that consumer are replayed to this one without the acknowledged input-1.
+        try (QueueConsumer<String> fresh = subscribe(topic, subscription)) {
             List<String> values = new ArrayList<>();
             for (int i = 0; i < 3; i++) {
-                Message<String> message = recovered.receive(Duration.ofSeconds(3));
+                Message<String> message = fresh.receive(Duration.ofSeconds(3));
                 if (message == null) {
                     break;
                 }

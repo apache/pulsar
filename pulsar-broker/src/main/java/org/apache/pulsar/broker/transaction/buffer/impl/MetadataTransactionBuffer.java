@@ -246,7 +246,9 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
         try {
             handle = txnStore.subscribeSegmentEvents(segmentName, path -> triggerReconcile());
         } catch (MetadataStoreException e) {
+            log.error().attr("segment", segmentName).exception(e).log("TB recovery failed");
             recoveryFuture.completeExceptionally(e);
+            closeTopicAfterFailedRecovery();
             return;
         }
         subscription = handle;
@@ -327,6 +329,7 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
                 log.error().attr("segment", segmentName).exception(err).log("TB recovery failed");
                 closeSubscriptionQuietly();
                 recoveryFuture.completeExceptionally(err);
+                closeTopicAfterFailedRecovery();
                 return;
             }
             synchronized (lock) {
@@ -336,6 +339,43 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
             recoveryFuture.complete(null);
             // Drain any events that fired between subscribe and now.
             triggerReconcile();
+        });
+    }
+
+    /**
+     * Close the topic after a failed recovery, so that it reloads and recovers again: nothing retained becomes
+     * dispatchable before recovery completes. {@code TopicTransactionBuffer} closes its topic in the same case. The
+     * topic creates this buffer in its constructor, and its close() closes its buffer, so the close runs on the broker
+     * executor once the topic has published this buffer.
+     */
+    private void closeTopicAfterFailedRecovery() {
+        ScheduledExecutorService executor = brokerExecutor();
+        if (executor == null) {
+            closeTopic();
+            return;
+        }
+        executor.execute(Runnables.catchingAndLoggingThrowables(() -> {
+            TransactionBuffer published = topic.getTransactionBuffer();
+            if (published == null) {
+                // The topic constructor is still creating this buffer.
+                executor.schedule(this::closeTopicAfterFailedRecovery, 100, TimeUnit.MILLISECONDS);
+            } else if (published == this) {
+                closeTopic();
+            }
+        }));
+    }
+
+    private void closeTopic() {
+        if (closed || topic.isClosingOrDeleting()) {
+            return;
+        }
+        log.warn().attr("segment", segmentName)
+                .log("Closing the topic so that it reloads and recovers its transaction buffer again");
+        FutureUtil.supplySafely(() -> topic.close(true)).whenComplete((__, error) -> {
+            if (error != null) {
+                log.warn().attr("segment", segmentName).exception(error)
+                        .log("Failed to close the topic after its transaction buffer failed to recover");
+            }
         });
     }
 

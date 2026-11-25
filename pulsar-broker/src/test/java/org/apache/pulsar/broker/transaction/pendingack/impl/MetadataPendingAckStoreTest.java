@@ -87,8 +87,10 @@ import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.apache.pulsar.metadata.api.Option;
 import org.apache.pulsar.metadata.api.ScanConsumer;
 import org.apache.pulsar.metadata.api.Stat;
+import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 import org.awaitility.Awaitility;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Mockito;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
@@ -354,25 +356,28 @@ public class MetadataPendingAckStoreTest {
     }
 
     @Test
-    public void recovery_legacyBatchedAckFailsClosedAndRetainsItsOperation() throws Exception {
+    public void recovery_skipsALegacyBatchedAckAndRetainsItsOperation() throws Exception {
         legacyEntryBatched = true;
         TxnID txnId = new TxnID(1, 1);
         createOpenHeader(txnId);
         commitHeader(txnId);
+        // Written by a broker that recorded neither the batch size nor the mask of a partial batch ACK.
         txnStore.appendOp(TxnIds.toKey(txnId),
                 new TxnOp(TxnOpKind.ACK, SEGMENT, SUB, 7L, 1L, false)).get();
+        when(cursor.getPersistentMarkDeletedPosition()).thenReturn(PositionFactory.create(7, 0));
         MetadataPendingAckStore ackStore = new MetadataPendingAckStore(subscription, txnStore);
         ackStore.replayAsync(handle, replayExecutor);
 
-        assertThatThrownBy(() -> ackStore.recoveryFuture().get(5, TimeUnit.SECONDS))
-                .hasRootCauseInstanceOf(MetadataStoreException.class)
-                .hasStackTraceContaining("Legacy transactional ACK lacks a batch acknowledgement mask");
+        // Recovery cannot tell which messages of the batch the ACK covered: it restores nothing for it, so they are
+        // delivered again, rather than fail the subscription for good.
+        ackStore.recoveryFuture().get(5, TimeUnit.SECONDS);
+        verify(handle).changeToReadyState();
+        verify(handle, never()).handleIndividualAckRecover(eq(txnId), anyList());
+        // The record stays until the durable cursor covers its entry.
         List<TxnOp> remaining = new ArrayList<>();
         txnStore.listAcksBySegmentSubscription(SEGMENT, SUB, collectOps(remaining)).get();
         assertThat(remaining).hasSize(1);
         assertThat(txnStore.getHeader(TxnIds.toKey(txnId)).get()).isPresent();
-        verify(handle, never()).changeToReadyState();
-        verify(handle, never()).commitTxn(any(), any(), anyLong());
     }
 
     @Test
@@ -773,6 +778,141 @@ public class MetadataPendingAckStoreTest {
         assertThat(ackOps()).singleElement().satisfies(op -> assertThat(op.getResetPending()).isNull());
 
         assertRecoveryReappliesCommittedAcks(txnId, 1);
+    }
+
+    @Test
+    public void retainedCommittedAcksAreNotCommittedAgainByLaterEvents() throws Exception {
+        TxnMetadataStore counting = spy(txnStore);
+        when(cursor.getPersistentMarkDeletedPosition()).thenReturn(PositionFactory.create(3, 4));
+        MetadataPendingAckStore ackStore = new MetadataPendingAckStore(subscription, counting);
+        ackStore.replayAsync(handle, replayExecutor);
+        ackStore.recoveryFuture().get(5, TimeUnit.SECONDS);
+        TxnID txnId = new TxnID(1, 1);
+        String txnIdKey = TxnIds.toKey(txnId);
+        createOpenHeader(txnId);
+        ackStore.appendIndividualAck(txnId, Collections.singletonList(
+                MutablePair.of(PositionFactory.create(3, 5), 1))).get();
+        commitHeader(txnId);
+        publishDecision(txnId);
+        Awaitility.await().untilAsserted(() -> verify(handle).commitTxn(eq(txnId), eq(Map.of()), eq(0L)));
+        // The cleanup found the record above the persisted mark-delete position and kept it.
+        verify(counting, Mockito.timeout(5000)).listOpsByTxn(eq(txnIdKey), any());
+        assertThat(ackOps()).hasSize(1);
+
+        Mockito.clearInvocations(counting);
+        // Every event wakes the store up: those of other transactions, and this one's, which the TC publishes again
+        // on every GC sweep while the record exists.
+        for (int i = 0; i < 3; i++) {
+            publishDecision(txnId);
+        }
+        verify(counting, after(300).never()).getHeader(txnIdKey);
+        verify(counting, never()).listOpsByTxn(eq(txnIdKey), any());
+        verify(handle, times(1)).commitTxn(eq(txnId), any(), anyLong());
+
+        when(cursor.getPersistentMarkDeletedPosition()).thenReturn(PositionFactory.create(3, 5));
+        Awaitility.await().untilAsserted(() -> {
+            publishDecision(txnId);
+            assertThat(ackOps()).as("the durable cursor covers the record now").isEmpty();
+        });
+        verify(handle, times(1)).commitTxn(eq(txnId), any(), anyLong());
+    }
+
+    @Test
+    public void commitDuringACursorResetIsAppliedAfterTheReset() throws Exception {
+        MetadataPendingAckStore ackStore = new MetadataPendingAckStore(subscription, txnStore);
+        ackStore.replayAsync(handle, replayExecutor);
+        ackStore.recoveryFuture().get(5, TimeUnit.SECONDS);
+        TxnID txnId = new TxnID(1, 1);
+        createOpenHeader(txnId);
+        ackStore.appendIndividualAck(txnId, Collections.singletonList(
+                MutablePair.of(PositionFactory.create(200, 1), 1))).get();
+
+        ackStore.beforeCursorReset().get(5, TimeUnit.SECONDS);
+        assertThat(ackOps()).as("the transaction was OPEN when the reset read the records").singleElement()
+                .satisfies(op -> assertThat(op.getResetPending()).isNull());
+        commitHeader(txnId);
+        publishDecision(txnId);
+        // Applying the commit before the reset lands would let the reset discard the ACK while its unmarked record
+        // survives, and recovery would reapply it after a restart: the message would be skipped.
+        verify(handle, after(300).never()).commitTxn(any(), any(), anyLong());
+
+        ackStore.afterCursorReset(true).get(5, TimeUnit.SECONDS);
+        Awaitility.await().untilAsserted(() -> verify(handle).commitTxn(eq(txnId), eq(Map.of()), eq(0L)));
+        assertThat(ackOps()).as("the ACK applied after the reset stays recoverable").singleElement()
+                .satisfies(op -> assertThat(op.getResetPending()).isNull());
+    }
+
+    @Test
+    public void rejectedIndividualAckLeavesNoRecordToRecover() throws Exception {
+        PendingAckHandleImpl liveHandle = newLiveHandle();
+        try {
+            TxnID accepted = new TxnID(1, 1);
+            TxnID rejected = new TxnID(1, 2);
+            createOpenHeader(accepted);
+            createOpenHeader(rejected);
+            Position position = PositionFactory.create(200, 1);
+            liveHandle.individualAcknowledgeMessage(accepted, List.of(MutablePair.of(position, 1)))
+                    .get(5, TimeUnit.SECONDS);
+
+            assertThatThrownBy(() -> liveHandle.individualAcknowledgeMessage(rejected,
+                    List.of(MutablePair.of(position, 1))).get(5, TimeUnit.SECONDS))
+                    .hasCauseInstanceOf(TransactionConflictException.class);
+            // Recovery restores OPEN transactions in no particular order: a record left by the rejected ACK could
+            // take the reservation of the accepted one.
+            Awaitility.await().untilAsserted(() -> assertThat(ackOpsOf(rejected)).isEmpty());
+            assertThat(ackOpsOf(accepted)).singleElement()
+                    .satisfies(op -> assertThat(op.getEntryId()).isEqualTo(1L));
+        } finally {
+            liveHandle.closeAsync().get(5, TimeUnit.SECONDS);
+        }
+    }
+
+    @Test
+    public void rejectedCumulativeAckLeavesNoRecordToRecover() throws Exception {
+        when(cursor.getMarkDeletedPosition()).thenReturn(PositionFactory.create(200, 0));
+        PendingAckHandleImpl liveHandle = newLiveHandle();
+        try {
+            TxnID accepted = new TxnID(1, 1);
+            TxnID rejected = new TxnID(1, 2);
+            createOpenHeader(accepted);
+            createOpenHeader(rejected);
+            liveHandle.cumulativeAcknowledgeMessage(accepted, List.of(PositionFactory.create(200, 2)))
+                    .get(5, TimeUnit.SECONDS);
+
+            assertThatThrownBy(() -> liveHandle.cumulativeAcknowledgeMessage(rejected,
+                    List.of(PositionFactory.create(200, 3))).get(5, TimeUnit.SECONDS))
+                    .hasCauseInstanceOf(TransactionConflictException.class);
+            Awaitility.await().untilAsserted(() -> assertThat(ackOpsOf(rejected)).isEmpty());
+            assertThat(ackOpsOf(accepted)).singleElement()
+                    .satisfies(op -> assertThat(op.getEntryId()).isEqualTo(2L));
+        } finally {
+            liveHandle.closeAsync().get(5, TimeUnit.SECONDS);
+        }
+    }
+
+    /** A real handle on a mocked subscription, recovered from this test's metadata store. */
+    private PendingAckHandleImpl newLiveHandle() throws Exception {
+        PersistentSubscription liveSubscription = mock(PersistentSubscription.class, RETURNS_DEEP_STUBS);
+        when(liveSubscription.getTopicName()).thenReturn(SEGMENT);
+        when(liveSubscription.getName()).thenReturn(SUB);
+        when(liveSubscription.getCursor()).thenReturn(cursor);
+        var pulsar = liveSubscription.getTopic().getBrokerService().getPulsar();
+        when(pulsar.getTransactionExecutorProvider().getExecutor(any(PendingAckHandleImpl.class)))
+                .thenReturn(replayExecutor);
+        TransactionPendingAckStoreProvider provider = mock(TransactionPendingAckStoreProvider.class);
+        when(pulsar.getTransactionPendingAckStoreProvider()).thenReturn(provider);
+        when(provider.checkInitializedBefore(liveSubscription)).thenReturn(CompletableFuture.completedFuture(true));
+        MetadataPendingAckStore liveStore = new MetadataPendingAckStore(liveSubscription, txnStore);
+        when(provider.newPendingAckStore(liveSubscription)).thenReturn(CompletableFuture.completedFuture(liveStore));
+        PendingAckHandleImpl liveHandle = new PendingAckHandleImpl(liveSubscription);
+        liveHandle.pendingAckHandleFuture().get(5, TimeUnit.SECONDS);
+        return liveHandle;
+    }
+
+    private List<TxnOp> ackOpsOf(TxnID txnId) throws Exception {
+        List<TxnOp> ops = new ArrayList<>();
+        txnStore.listOpsByTxn(TxnIds.toKey(txnId), collectOps(ops)).get();
+        return ops;
     }
 
     /** The TC's GC sweep of a finalized txn past retention: it deletes the header once no op record of it remains. */

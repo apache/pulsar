@@ -180,8 +180,10 @@ public class TxnMetadataStore {
         // the whole /txn/op namespace.
         Option.SecondaryIndex byTxnIdx = new Option.SecondaryIndex(TxnPaths.IDX_OPS_BY_TXN, txnId);
         Option.PartitionKey partitionKey = new Option.PartitionKey(txnId);
+        // A rewrite whose reply is lost after it landed would otherwise fail on a version conflict, and its caller
+        // would not know the record now holds the new contents.
         return append ? Set.of(partitionKey, participantIdx, byTxnIdx, APPEND_DELTAS)
-                : Set.of(partitionKey, participantIdx, byTxnIdx);
+                : Set.of(partitionKey, participantIdx, byTxnIdx, Option.VerifyPublication.INSTANCE);
     }
 
     // ---- Index queries -----------------------------------------------------

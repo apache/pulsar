@@ -44,6 +44,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -59,6 +60,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.metadata.AbortedTxnRecord;
 import org.apache.pulsar.broker.transaction.metadata.SegmentWatermark;
 import org.apache.pulsar.broker.transaction.metadata.TxnEvent;
@@ -1076,6 +1078,68 @@ public class MetadataTransactionBufferTest {
             adds.add(addPlainEntry(tb, entry, callbacks));
         }
         return adds;
+    }
+
+    @Test
+    public void recoveryFailure_closesTheTopicSoThatItReloads() throws Exception {
+        TxnMetadataStore failing = spy(txnStore);
+        CompletableFuture<Optional<Versioned<SegmentWatermark>>> watermark = new CompletableFuture<>();
+        doReturn(watermark).when(failing).getSegmentWatermark(SEGMENT);
+        AtomicReference<TransactionBuffer> published = new AtomicReference<>();
+        runTopicTasksInline(published);
+        MetadataTransactionBuffer tb = new MetadataTransactionBuffer(topic, failing);
+        published.set(tb);
+
+        MetadataStoreException injected = new MetadataStoreException("injected watermark read failure");
+        watermark.completeExceptionally(injected);
+        assertThatThrownBy(() -> tb.checkIfTBRecoverCompletely().get(5, TimeUnit.SECONDS)).hasCause(injected);
+        // Without the close, nothing ever completes recovery: no retained entry would become dispatchable again.
+        verify(topic).close(true);
+    }
+
+    @Test
+    public void recoveryFailureInTheConstructor_closesTheTopicOnceItPublishedTheBuffer() throws Exception {
+        TxnMetadataStore failing = spy(txnStore);
+        doThrow(new MetadataStoreException("injected subscription failure"))
+                .when(failing).subscribeSegmentEvents(eq(SEGMENT), any());
+        AtomicReference<TransactionBuffer> published = new AtomicReference<>();
+        List<Runnable> delayed = runTopicTasksInline(published);
+        MetadataTransactionBuffer tb = new MetadataTransactionBuffer(topic, failing);
+
+        assertThatThrownBy(() -> tb.checkIfTBRecoverCompletely().get(5, TimeUnit.SECONDS))
+                .hasCauseInstanceOf(MetadataStoreException.class);
+        // The topic's close() closes its buffer, which the topic constructor has not published yet.
+        verify(topic, never()).close(true);
+        published.set(tb);
+        assertThat(delayed).hasSize(1);
+        delayed.remove(0).run();
+        verify(topic).close(true);
+    }
+
+    /**
+     * Runs the broker executor's tasks inline, keeps its delayed tasks for the test to run, and makes the topic
+     * report {@code published} as its transaction buffer.
+     */
+    private List<Runnable> runTopicTasksInline(AtomicReference<TransactionBuffer> published) {
+        ScheduledExecutorService executor = mock(ScheduledExecutorService.class);
+        doAnswer(invocation -> {
+            invocation.<Runnable>getArgument(0).run();
+            return null;
+        }).when(executor).execute(any(Runnable.class));
+        List<Runnable> delayed = new ArrayList<>();
+        doAnswer(invocation -> {
+            delayed.add(invocation.getArgument(0));
+            return mock(ScheduledFuture.class);
+        }).when(executor).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+        PulsarService pulsar = mock(PulsarService.class);
+        when(pulsar.getExecutor()).thenReturn(executor);
+        when(pulsar.getConfiguration()).thenReturn(new ServiceConfiguration());
+        BrokerService broker = mock(BrokerService.class);
+        when(broker.getPulsar()).thenReturn(pulsar);
+        when(topic.getBrokerService()).thenReturn(broker);
+        when(topic.getTransactionBuffer()).thenAnswer(invocation -> published.get());
+        when(topic.close(true)).thenReturn(CompletableFuture.completedFuture(null));
+        return delayed;
     }
 
     private List<CompletableFuture<Void>> captureTopicCloses() {

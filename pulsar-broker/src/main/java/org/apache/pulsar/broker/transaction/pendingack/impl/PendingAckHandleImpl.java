@@ -256,8 +256,8 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                                 String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID
                                         + " try to ack message:" + position + " already acked before.";
                                 log.error(errorMsg);
-                                completableFuture
-                                        .completeExceptionally(new TransactionConflictException(errorMsg));
+                                rejectConflictingAck(pendingAckStore, txnID, positions, false, errorMsg,
+                                        completableFuture);
                                 return;
                             }
 
@@ -280,8 +280,8 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                                             + txnID + " try to ack message:"
                                             + position + " already acked before.";
                                     log.error(errorMsg);
-                                    completableFuture
-                                            .completeExceptionally(new TransactionConflictException(errorMsg));
+                                    rejectConflictingAck(pendingAckStore, txnID, positions, false, errorMsg,
+                                            completableFuture);
                                     return;
                                 }
 
@@ -293,8 +293,8 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                                             + txnID + " try to ack batch message:"
                                             + position + " in pending ack status.";
                                     log.error(errorMsg);
-                                    completableFuture
-                                            .completeExceptionally(new TransactionConflictException(errorMsg));
+                                    rejectConflictingAck(pendingAckStore, txnID, positions, false, errorMsg,
+                                            completableFuture);
                                     return;
                                 }
                             } else {
@@ -304,8 +304,8 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                                             + txnID + " try to ack message:"
                                             + position + " in pending ack status.";
                                     log.error(errorMsg);
-                                    completableFuture
-                                            .completeExceptionally(new TransactionConflictException(errorMsg));
+                                    rejectConflictingAck(pendingAckStore, txnID, positions, false, errorMsg,
+                                            completableFuture);
                                     return;
                                 }
                             }
@@ -402,7 +402,9 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                                 + "markDeletePosition: "
                                 + persistentSubscription.getCursor().getMarkDeletedPosition();
                         log.error(errorMsg);
-                        completableFuture.completeExceptionally(new TransactionConflictException(errorMsg));
+                        rejectConflictingAck(pendingAckStore, txnID,
+                                Collections.singletonList(MutablePair.of(position, 1)), true, errorMsg,
+                                completableFuture);
                         return;
                     }
 
@@ -412,7 +414,9 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                                 + " try to cumulative batch ack position: " + position + " within range of current "
                                 + "currentPosition: " + cumulativeAckOfTransaction.getValue();
                         log.error(errorMsg);
-                        completableFuture.completeExceptionally(new TransactionConflictException(errorMsg));
+                        rejectConflictingAck(pendingAckStore, txnID,
+                                Collections.singletonList(MutablePair.of(position, 1)), true, errorMsg,
+                                completableFuture);
                         return;
                     }
 
@@ -569,6 +573,23 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         return commitFuture.whenComplete((__, t) ->
                 this.handleStats.recordCommitTxn(t == null, System.nanoTime() - start)
         );
+    }
+
+    /**
+     * Fail an acknowledgement that conflicts with the pending ACK state. Its records were appended before the check,
+     * so the store discards them.
+     */
+    private void rejectConflictingAck(PendingAckStore pendingAckStore, TxnID txnID,
+                                      List<MutablePair<Position, Integer>> positions, boolean cumulative,
+                                      String errorMsg, CompletableFuture<Void> completableFuture) {
+        completableFuture.completeExceptionally(new TransactionConflictException(errorMsg));
+        pendingAckStore.discardRejectedAck(txnID, positions, cumulative).exceptionally(error -> {
+            log.warn()
+                    .attr("txnId", txnID)
+                    .exception(error)
+                    .log("Failed to discard the records of a rejected transactional acknowledgement");
+            return null;
+        });
     }
 
     /** Apply hydrated metadata-store ACKs on the pinned executor before recovery changes this handle to Ready. */
