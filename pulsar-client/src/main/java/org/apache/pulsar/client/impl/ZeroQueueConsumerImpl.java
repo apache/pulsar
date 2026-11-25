@@ -187,7 +187,7 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
         Objects.requireNonNull(listener, "listener can't be null");
         Objects.requireNonNull(message, "unqueued message can't be null");
 
-        externalPinnedExecutor.execute(() -> {
+        externalPinnedExecutor.get().execute(() -> {
             stats.updateNumMsgsReceived(message);
             try {
                     log.debug().attr("messageId", message.getMessageId())
@@ -211,8 +211,16 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
                         .exception(t)
                         .log("Message listener error in processing unqueued message");
             }
-            increaseAvailablePermits(cnx());
-            waitingOnListenerForZeroQueueSize = false;
+            synchronized (ZeroQueueConsumerImpl.this) {
+                waitingOnListenerForZeroQueueSize = false;
+                // A reconnect replaces old credits with its initial grant after flushing pending ACKs.
+                // A failed unsubscribe keeps the subscription and must return any deferred credit instead.
+                if (isConnected()) {
+                    increaseAvailablePermits(cnx());
+                } else {
+                    addAvailablePermits(1);
+                }
+            }
         });
     }
 

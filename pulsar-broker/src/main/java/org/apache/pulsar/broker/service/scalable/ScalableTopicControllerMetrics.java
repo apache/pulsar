@@ -25,16 +25,24 @@ import io.opentelemetry.api.metrics.DoubleHistogram;
 import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.api.metrics.MeterProvider;
 import io.opentelemetry.api.metrics.ObservableLongMeasurement;
-import io.prometheus.client.Collector;
-import io.prometheus.client.Collector.MetricFamilySamples;
-import io.prometheus.client.Collector.MetricFamilySamples.Sample;
-import io.prometheus.client.Collector.Type;
-import io.prometheus.client.CollectorRegistry;
+import io.prometheus.metrics.model.registry.MetricType;
+import io.prometheus.metrics.model.registry.MultiCollector;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
+import io.prometheus.metrics.model.snapshots.ClassicHistogramBuckets;
+import io.prometheus.metrics.model.snapshots.CounterSnapshot;
+import io.prometheus.metrics.model.snapshots.GaugeSnapshot;
+import io.prometheus.metrics.model.snapshots.HistogramSnapshot;
+import io.prometheus.metrics.model.snapshots.Labels;
+import io.prometheus.metrics.model.snapshots.MetricFamilyDescriptor;
+import io.prometheus.metrics.model.snapshots.MetricMetadata;
+import io.prometheus.metrics.model.snapshots.MetricSnapshot;
+import io.prometheus.metrics.model.snapshots.MetricSnapshots;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -79,7 +87,7 @@ public final class ScalableTopicControllerMetrics implements AutoCloseable {
 
     // A registry can serve several in-JVM brokers. One collector merges identical series, without broker labels.
     // Likewise, one callback per Meter avoids duplicate observations when services share an SDK Meter.
-    private static final Map<CollectorRegistry, RegistryCollector> COLLECTORS = new IdentityHashMap<>();
+    private static final Map<PrometheusRegistry, RegistryCollector> COLLECTORS = new IdentityHashMap<>();
     private static final Map<Meter, MeterCallbacks> CALLBACKS = new IdentityHashMap<>();
     // SDK histograms outlive service recreation. Values must not reference their weak Meter keys.
     private static final Map<Meter, Map<HistogramKey, Histogram>> HISTOGRAMS = new WeakHashMap<>();
@@ -89,43 +97,56 @@ public final class ScalableTopicControllerMetrics implements AutoCloseable {
     public record Counts(long controllers, long active, long sealed) { }
 
     private enum Metric {
-        CONTROLLERS("controller.count", Type.GAUGE),
-        TAKEOVER("controller.takeover.duration", Type.HISTOGRAM, "operation.status"),
-        SEGMENTS("segment.count", Type.GAUGE, "segment.state"),
-        OPERATIONS("layout.operation.count", Type.COUNTER, "operation", "operation.trigger", "operation.status"),
-        OPERATION_DURATION("layout.operation.duration", Type.HISTOGRAM, "operation", "operation.status"),
-        SEAL_DURATION("layout.seal.duration", Type.HISTOGRAM, "operation"),
-        BLOCKED("auto_scale.blocked.count", Type.COUNTER, "auto_scale.reason");
+        CONTROLLERS("controller.count", MetricType.GAUGE),
+        TAKEOVER("controller.takeover.duration", MetricType.HISTOGRAM, "operation.status"),
+        SEGMENTS("segment.count", MetricType.GAUGE, "segment.state"),
+        OPERATIONS("layout.operation.count", MetricType.COUNTER, "operation", "operation.trigger",
+                "operation.status"),
+        OPERATION_DURATION("layout.operation.duration", MetricType.HISTOGRAM, "operation", "operation.status"),
+        SEAL_DURATION("layout.seal.duration", MetricType.HISTOGRAM, "operation"),
+        BLOCKED("auto_scale.blocked.count", MetricType.COUNTER, "auto_scale.reason");
 
         private final String name;
-        private final String prometheusName;
-        private final Type type;
+        private final MetricType type;
         private final List<String> attributes;
+        private final List<String> labelNames;
+        private final MetricFamilyDescriptor descriptor;
 
-        Metric(String name, Type type, String... attributes) {
+        Metric(String name, MetricType type, String... attributes) {
             this.name = name;
             this.type = type;
             this.attributes = List.of(attributes);
-            String suffix = type == Type.COUNTER ? name.substring(0, name.length() - ".count".length()) + ".total"
+            // Counters are declared without "_total"; the exposition format appends it.
+            String suffix = type == MetricType.COUNTER ? name.substring(0, name.length() - ".count".length())
                     : name;
-            this.prometheusName = "pulsar_scalable_topic_" + suffix.replace('.', '_')
-                    + (type == Type.HISTOGRAM ? "_seconds" : "");
+            String prometheusName = "pulsar_scalable_topic_" + suffix.replace('.', '_')
+                    + (type == MetricType.HISTOGRAM ? "_seconds" : "");
+            List<String> names = new ArrayList<>(List.of("cluster"));
+            for (String attribute : attributes) {
+                names.add(attribute.replace('.', '_'));
+            }
+            this.labelNames = List.copyOf(names);
+            this.descriptor = MetricFamilyDescriptor.of(type,
+                    new MetricMetadata(prometheusName, "Scalable topic " + name), labelNames);
         }
 
-        private MetricFamilySamples family(List<Sample> samples) {
-            return new MetricFamilySamples(prometheusName, type, "Scalable topic " + name, samples);
+        private Labels labels(String cluster, Attributes attributes) {
+            String[] values = new String[labelNames.size()];
+            values[0] = cluster;
+            for (int i = 0; i < this.attributes.size(); i++) {
+                values[i + 1] = attributes.get(AttributeKey.stringKey(ATTRIBUTE_PREFIX + this.attributes.get(i)));
+            }
+            return Labels.of(labelNames.toArray(String[]::new), values);
         }
     }
 
     private record Point(Metric metric, Attributes attributes) { }
 
-    private record SampleKey(String name, List<String> labelNames, List<String> labelValues) { }
-
     private record HistogramKey(String cluster, Point point) { }
 
     private final String cluster;
     private final Supplier<Counts> counts;
-    private final CollectorRegistry registry;
+    private final PrometheusRegistry registry;
     private final Meter meter;
     private final Map<Point, LongAdder> counters = new ConcurrentHashMap<>();
     private final Map<HistogramKey, Histogram> histograms;
@@ -149,7 +170,7 @@ public final class ScalableTopicControllerMetrics implements AutoCloseable {
      * rather than provide general monotonic multi-broker aggregation.
      */
     public ScalableTopicControllerMetrics(Meter meter, String cluster, Supplier<Counts> counts) {
-        this(meter, cluster, counts, CollectorRegistry.defaultRegistry);
+        this(meter, cluster, counts, PrometheusRegistry.defaultRegistry);
     }
 
     /**
@@ -159,7 +180,7 @@ public final class ScalableTopicControllerMetrics implements AutoCloseable {
      * registry and cluster contribute live-provider counters, so membership changes or partial close may lower or
      * reset cumulative series. This is not general monotonic multi-broker aggregation.
      */
-    ScalableTopicControllerMetrics(Meter meter, String cluster, Supplier<Counts> counts, CollectorRegistry registry) {
+    ScalableTopicControllerMetrics(Meter meter, String cluster, Supplier<Counts> counts, PrometheusRegistry registry) {
         this.meter = Objects.requireNonNull(meter);
         this.cluster = Objects.requireNonNull(cluster);
         this.counts = Objects.requireNonNull(counts);
@@ -355,63 +376,74 @@ public final class ScalableTopicControllerMetrics implements AutoCloseable {
      * Distinct registries or clusters sharing that Meter are not independent histogram scopes; use separate SDK
      * Meters for isolation. API no-op Meter histograms instead follow each provider's lifetime.
      */
-    private static final class RegistryCollector extends Collector implements Collector.Describable {
+    private static final class RegistryCollector implements MultiCollector {
+        private static final List<MetricFamilyDescriptor> DESCRIPTORS =
+                Arrays.stream(Metric.values()).map(metric -> metric.descriptor).toList();
+        private static final double[] UPPER_BOUNDS;
+
+        static {
+            UPPER_BOUNDS = new double[DURATION_BUCKETS.size() + 1];
+            for (int i = 0; i < DURATION_BUCKETS.size(); i++) {
+                UPPER_BOUNDS[i] = DURATION_BUCKETS.get(i);
+            }
+            UPPER_BOUNDS[DURATION_BUCKETS.size()] = Double.POSITIVE_INFINITY;
+        }
+
         private final Set<ScalableTopicControllerMetrics> providers = ConcurrentHashMap.newKeySet();
 
         @Override
-        public List<MetricFamilySamples> describe() {
-            List<MetricFamilySamples> result = new ArrayList<>();
-            for (Metric metric : Metric.values()) {
-                result.add(metric.family(List.of()));
-            }
-            return result;
+        public List<MetricFamilyDescriptor> getMetricFamilyDescriptors() {
+            return DESCRIPTORS;
         }
 
         @Override
-        public List<MetricFamilySamples> collect() {
-            Map<Metric, Map<SampleKey, Double>> families = new LinkedHashMap<>();
+        public MetricSnapshots collect() {
+            Map<Metric, Map<Labels, Double>> values = new EnumMap<>(Metric.class);
+            Map<Metric, Map<Labels, Distribution>> distributions = new EnumMap<>(Metric.class);
             Set<Map<HistogramKey, Histogram>> histograms = Collections.newSetFromMap(new IdentityHashMap<>());
             for (ScalableTopicControllerMetrics provider : providers) {
-                Map<Point, Long> values = new HashMap<>();
-                provider.collectState(values);
-                values.forEach((point, value) -> add(families, point, provider.cluster, "", null, value));
+                Map<Point, Long> state = new HashMap<>();
+                provider.collectState(state);
+                state.forEach((point, value) -> values.computeIfAbsent(point.metric, ignored -> new HashMap<>())
+                        .merge(point.metric.labels(provider.cluster, point.attributes), (double) value, Double::sum));
                 histograms.add(provider.histograms);
             }
-            histograms.forEach(state -> state.forEach((key, histogram) -> {
-                long count = 0;
-                for (int i = 0; i < histogram.buckets.length; i++) {
-                    count += histogram.buckets[i].sum();
-                    String bound = i < DURATION_BUCKETS.size()
-                            ? doubleToGoString(DURATION_BUCKETS.get(i)) : "+Inf";
-                    add(families, key.point, key.cluster, "_bucket", bound, count);
-                }
-                add(families, key.point, key.cluster, "_count", null, count);
-                add(families, key.point, key.cluster, "_sum", null, histogram.sum.sum());
-            }));
-            List<MetricFamilySamples> result = new ArrayList<>();
-            families.forEach((metric, values) -> {
-                List<Sample> samples = new ArrayList<>();
-                values.forEach((key, value) ->
-                        samples.add(new Sample(key.name, key.labelNames, key.labelValues, value)));
-                result.add(metric.family(samples));
-            });
-            return result;
+            histograms.forEach(state -> state.forEach((key, histogram) ->
+                    distributions.computeIfAbsent(key.point.metric, ignored -> new HashMap<>())
+                            .computeIfAbsent(key.point.metric.labels(key.cluster, key.point.attributes),
+                                    ignored -> new Distribution()).add(histogram)));
+            List<MetricSnapshot> result = new ArrayList<>();
+            for (Metric metric : Metric.values()) {
+                MetricMetadata metadata = metric.descriptor.getMetadata();
+                result.add(switch (metric.type) {
+                    case GAUGE -> new GaugeSnapshot(metadata, values.getOrDefault(metric, Map.of()).entrySet()
+                            .stream().map(entry -> new GaugeSnapshot.GaugeDataPointSnapshot(
+                                    entry.getValue(), entry.getKey(), null)).toList());
+                    case COUNTER -> new CounterSnapshot(metadata, values.getOrDefault(metric, Map.of()).entrySet()
+                            .stream().map(entry -> new CounterSnapshot.CounterDataPointSnapshot(
+                                    entry.getValue(), entry.getKey(), null, 0L)).toList());
+                    case HISTOGRAM -> new HistogramSnapshot(metadata,
+                            distributions.getOrDefault(metric, Map.of()).entrySet().stream()
+                                    .map(entry -> new HistogramSnapshot.HistogramDataPointSnapshot(
+                                            ClassicHistogramBuckets.of(UPPER_BOUNDS, entry.getValue().buckets),
+                                            entry.getValue().sum, entry.getKey(), null, 0L)).toList());
+                    default -> throw new IllegalStateException("Unexpected metric type " + metric.type);
+                });
+            }
+            return new MetricSnapshots(result);
         }
 
-        private static void add(Map<Metric, Map<SampleKey, Double>> families, Point point, String cluster,
-                                String suffix, String bound, double value) {
-            List<String> names = new ArrayList<>(List.of("cluster"));
-            List<String> values = new ArrayList<>(List.of(cluster));
-            for (String attribute : point.metric.attributes) {
-                names.add(attribute.replace('.', '_'));
-                values.add(point.attributes.get(AttributeKey.stringKey(ATTRIBUTE_PREFIX + attribute)));
+        /** Per-bucket counts of one series summed over the live histogram states that share its labels. */
+        private static final class Distribution {
+            private final long[] buckets = new long[UPPER_BOUNDS.length];
+            private double sum;
+
+            private void add(Histogram histogram) {
+                for (int i = 0; i < buckets.length; i++) {
+                    buckets[i] += histogram.buckets[i].sum();
+                }
+                sum += histogram.sum.sum();
             }
-            if (bound != null) {
-                names.add("le");
-                values.add(bound);
-            }
-            SampleKey key = new SampleKey(point.metric.prometheusName + suffix, names, values);
-            families.computeIfAbsent(point.metric, ignored -> new LinkedHashMap<>()).merge(key, value, Double::sum);
         }
     }
 }

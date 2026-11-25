@@ -54,7 +54,7 @@ public class SLAMonitoringTest {
 
     ExecutorService executor;
 
-    private static final int BROKER_COUNT = 5;
+    private static final int BROKER_COUNT = 3;
     private final int[] brokerWebServicePorts = new int[BROKER_COUNT];
     private final int[] brokerNativeBrokerPorts = new int[BROKER_COUNT];
     private final URL[] brokerUrls = new URL[BROKER_COUNT];
@@ -72,7 +72,7 @@ public class SLAMonitoringTest {
                         new LinkedBlockingQueue<>());
         log.info("---- Initializing SLAMonitoringTest -----");
         // Start local bookkeeper ensemble
-        bkEnsemble = new LocalBookkeeperEnsemble(3, 0);
+        bkEnsemble = new LocalBookkeeperEnsemble(1, 0);
         bkEnsemble.start();
 
         // start brokers
@@ -88,6 +88,9 @@ public class SLAMonitoringTest {
             config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
             config.setDefaultNumberOfNamespaceBundles(1);
             config.setLoadBalancerEnabled(false);
+            config.setManagedLedgerDefaultEnsembleSize(1);
+            config.setManagedLedgerDefaultWriteQuorum(1);
+            config.setManagedLedgerDefaultAckQuorum(1);
             configurations[i] = config;
 
             pulsarServices[i] = new PulsarService(config);

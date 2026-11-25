@@ -48,6 +48,11 @@ public class PythonSchemaTest extends PulsarTestSuite {
         private int b;
     }
 
+    @Override
+    protected boolean isClusterShared() {
+        return true;
+    }
+
     /**
      * Publish from Java and consume from Python.
      */

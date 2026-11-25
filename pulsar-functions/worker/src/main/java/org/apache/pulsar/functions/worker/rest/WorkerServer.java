@@ -18,7 +18,9 @@
  */
 package org.apache.pulsar.functions.worker.rest;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.opentelemetry.api.OpenTelemetry;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import jakarta.servlet.DispatcherType;
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -82,6 +84,7 @@ public class WorkerServer {
     private static final String MATCH_ALL = "/*";
     private final WebExecutorThreadPool webServerExecutor;
     private Server server;
+    private JettyStatisticsCollector jettyStatisticsCollector;
 
     private ServerConnector httpConnector;
     private ServerConnector httpsConnector;
@@ -162,7 +165,8 @@ public class WorkerServer {
         StatisticsHandler stats = new StatisticsHandler();
         stats.setHandler(handlerCollection);
         try {
-            new JettyStatisticsCollector(stats).register();
+            jettyStatisticsCollector = new JettyStatisticsCollector(stats);
+            PrometheusRegistry.defaultRegistry.register(jettyStatisticsCollector);
         } catch (IllegalArgumentException e) {
             // Already registered. Eg: in unit tests
         }
@@ -178,6 +182,7 @@ public class WorkerServer {
         if (this.workerConfig.getTlsEnabled()) {
             log.info().attr("port", this.workerConfig.getWorkerPortTls())
                     .log("Configuring https server");
+            this.workerConfig.logTlsClientAuthMode("functions-worker");
             try {
                 this.scheduledExecutorService = Executors
                         .newSingleThreadScheduledExecutor(new ExecutorProvider
@@ -283,6 +288,11 @@ public class WorkerServer {
                 log.error().exception(e).log("Failed to stop function web-server");
             }
         }
+        // Registered, the collector keeps the StatisticsHandler and the server reachable after shutdown.
+        if (this.jettyStatisticsCollector != null) {
+            PrometheusRegistry.defaultRegistry.unregister(this.jettyStatisticsCollector);
+            this.jettyStatisticsCollector = null;
+        }
         if (this.webServerExecutor != null && this.webServerExecutor.isRunning()) {
             try {
                 this.webServerExecutor.stop();
@@ -346,7 +356,7 @@ public class WorkerServer {
             TlsFactorySupport.initializeBlocking(this.tlsFactory, initContext);
             this.reloadableServerTls = JettyTlsFactory.createReloadingServerFactory(this.tlsFactory, TlsPurpose.WEB,
                     scheduledExecutorService,
-                    config.getTlsProvider(), config.isTlsRequireTrustedClientCertOnConnect(),
+                    config.getTlsProvider(), config.resolveTlsClientAuthMode(),
                     config.isTlsAllowInsecureConnection(), config.getWebServiceTlsCiphers(),
                     config.getWebServiceTlsProtocols());
             return this.reloadableServerTls.sslContextFactory();
@@ -363,7 +373,8 @@ public class WorkerServer {
         }
     }
 
-    private static PulsarTlsFactory buildDefaultWebTlsFactory(WorkerConfig config) {
+    @VisibleForTesting
+    static PulsarTlsFactory buildDefaultWebTlsFactory(WorkerConfig config) {
         TlsPolicy.Builder policyBuilder = TlsPolicy.builder()
                 .allowInsecureConnection(config.isTlsAllowInsecureConnection())
                 .protocols(toList(config.getWebServiceTlsProtocols()))
@@ -392,7 +403,7 @@ public class WorkerServer {
         Map<TlsPurpose, TlsPolicy> policies = Map.of(TlsPurpose.WEB, policyBuilder.build());
         // The Jetty web path uses a JDK SSLContext, so the Netty engine selection is irrelevant here.
         FileBasedTlsFactorySettings settings = FileBasedTlsFactorySettings.builder()
-                .requireTrustedClientCert(config.isTlsRequireTrustedClientCertOnConnect())
+                .clientAuthMode(config.resolveTlsClientAuthMode())
                 .refreshIntervalSeconds(FileBasedTlsFactorySettings.refreshIntervalSecondsFromConfig(
                         config.getTlsCertRefreshCheckDurationSec()))
                 .build();

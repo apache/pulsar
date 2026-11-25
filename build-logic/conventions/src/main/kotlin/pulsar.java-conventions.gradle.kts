@@ -19,6 +19,7 @@
 
 import java.io.File
 import org.gradle.api.attributes.java.TargetJvmVersion
+import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 
 plugins {
     `java-library`
@@ -43,9 +44,7 @@ val grpcVersion = catalog.findVersion("grpc").get().requiredVersion
 // non-resolvable bucket that only the resolvable build classpaths extend keeps full build-time
 // alignment (and feeds versionMapping for POM versions) while leaving it out of publication.
 // Consumers get the separate, non-enforced pulsar-bom for version recommendations instead.
-val internalPlatform = configurations.create("internalPlatform") {
-    isCanBeConsumed = false
-    isCanBeResolved = false
+val internalPlatform = configurations.dependencyScope("internalPlatform") {
     description = "Enforced version-alignment platform for build resolution only; never published."
 }
 // Wire the alignment platform onto the build's resolvable classpaths by name. These configurations
@@ -64,7 +63,7 @@ val platformAlignedClasspaths = setOf(
     "annotationProcessor", "testAnnotationProcessor",
 )
 configurations.matching { it.name in platformAlignedClasspaths }.configureEach {
-    extendsFrom(internalPlatform)
+    extendsFrom(internalPlatform.get())
 }
 
 // Java 17 is a compatibility promise for client libraries and user-written Functions/IO APIs.
@@ -135,7 +134,7 @@ if (path in clientProjects) {
     tasks.named("assemble") { dependsOn(verifyClientJavaCompatibility) }
 }
 
-configurations.all {
+configurations.configureEach {
     // Force Jackson version to match the version catalog. Transitive dependencies
     // (e.g. from jackson-bom) can pull in newer versions that break API compatibility
     // (EnumResolver.constructUsingToString signature changed in 2.19+).
@@ -242,7 +241,7 @@ dependencies {
     // Resolve lz4-java capability conflict: at.yawk.lz4:lz4-java (used by Pulsar) and
     // org.lz4:lz4-java (used by kafka-clients) both provide the org.lz4:lz4-java capability.
     // Prefer at.yawk.lz4 which is the version Pulsar standardizes on.
-    configurations.all {
+    configurations.configureEach {
         resolutionStrategy.capabilitiesResolution.withCapability("org.lz4:lz4-java") {
             select("at.yawk.lz4:lz4-java:0")
         }
@@ -303,7 +302,7 @@ tasks.withType<Test>().configureEach {
     }
     testLogging {
         events("FAILED")
-        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+        exceptionFormat = TestExceptionFormat.FULL
         showStackTraces = true
         showExceptions = true
         showCauses = true
@@ -367,6 +366,10 @@ tasks.withType<Test>().configureEach {
         // loopback would otherwise fail to start.
         "-Djava.net.preferIPv4Stack=true",
     )
+    // Don't fsync the transaction log of the ZooKeeper servers that tests start: the requests that arrive
+    // during an fsync wait for it, the clients' pings included, so a slow disk can stall a server long enough
+    // for its clients to drop their connection.
+    systemProperty("zookeeper.forceSync", "no")
     // Deliberately no org.apache.avro.SERIALIZABLE_* system properties here. Avro 1.12.2 (AVRO-4189)
     // only reflects over classes that are explicitly trusted, and Pulsar declares them where the
     // application hands over a class: building a schema from a class trusts it and everything the
@@ -379,6 +382,85 @@ tasks.withType<Test>().configureEach {
         // every test JVM that touches a Netty native transport prints a multi-line warning to
         // stderr, which is noise in test output and breaks assertions on empty stderr.
         jvmArgs("--enable-native-access=ALL-UNNAMED")
+    }
+}
+
+// CI runs the unit test groups as `testShards` (see pulsar-build/run_unit_group_gradle.sh). A test task
+// deals its classes to its forks round-robin, in class name order, before any of them runs, so a few slow
+// classes that sort close together can share a fork while the other forks finish early. With
+// `-PtestShards=N` and the durations in `-PtestShardDurations` (lines of "<seconds> <class name>", which CI
+// records from its previous run of the group), `testShards` runs N test tasks with one fork each, which
+// Gradle runs in parallel when the configuration cache is on, with the classes packed longest-first. A
+// class missing from that file goes by a hash of its name. Every test class goes to exactly one shard, so
+// the shards run the same tests as `test`. Without recorded durations, `testShards` runs `test`.
+val testShardCount = providers.gradleProperty("testShards").map { it.toInt() }.getOrElse(0)
+if (testShardCount > 0) {
+    // Locals, so that the exclude spec below doesn't capture the script object (configuration cache).
+    val shardCount = testShardCount
+    val shardOfClass = mutableMapOf<String, Int>()
+    val shardSeconds = DoubleArray(shardCount)
+    providers.gradleProperty("testShardDurations")
+        .flatMap { providers.fileContents(isolated.rootProject.projectDirectory.file(it)).asText }
+        .getOrElse("")
+        .lines()
+        .mapNotNull { line ->
+            val fields = line.trim().split(Regex("\\s+"))
+            val seconds = fields[0].toDoubleOrNull()
+            // No test class runs for an hour in a CI job that times out after 60 to 75 minutes, so a duration that
+            // long is a recording error. Packing by it would give the class a shard of its own and leave all the
+            // other classes to the other shards, so the class goes by a hash of its name, like a class not in the file.
+            if (seconds != null && seconds < 3600 && fields.size == 2) fields[1] to seconds else null
+        }
+        .sortedWith(compareByDescending<Pair<String, Double>> { it.second }.thenBy { it.first })
+        .forEach { (className, seconds) ->
+            val shard = shardSeconds.indices.minBy { shardSeconds[it] }
+            shardOfClass[className] = shard
+            shardSeconds[shard] += seconds
+        }
+    if (shardOfClass.isEmpty()) {
+        tasks.register("testShards") {
+            description = "Runs the tests with `test`, as there are no recorded durations to balance shards by."
+            group = "verification"
+            dependsOn("test")
+        }
+    } else {
+        // FailFastNotifier creates this file when a test fails and, with testFailFast, skips the remaining
+        // tests while it exists, so that a failure stops the other shards too. The shards share it, so it is
+        // neither an output nor local state of theirs: Gradle doesn't run tasks whose outputs or local state
+        // overlap at the same time.
+        val failFastFile = layout.buildDirectory.file("test-shards/fail-fast")
+        val resetFailFast = tasks.register<Delete>("testShardsResetFailFast") {
+            delete(failFastFile)
+        }
+        val testSourceSet = project.the<SourceSetContainer>()["test"]
+        // The `withType<Test>` blocks, in this plugin and in the modules, configure the shards like `test`, with
+        // the same system properties, JVM arguments, TestNG options and task dependencies.
+        val shards = (0 until shardCount).map { shard ->
+            tasks.register<Test>("testShard${shard + 1}") {
+                description = "Runs shard ${shard + 1} of $shardCount of the tests, in one fork."
+                group = "verification"
+                testClassesDirs = testSourceSet.output.classesDirs
+                classpath = testSourceSet.runtimeClasspath
+                maxParallelForks = 1
+                exclude { element ->
+                    val path = element.relativePath.pathString
+                    if (element.isDirectory || !path.endsWith(".class")) {
+                        false
+                    } else {
+                        // A nested class goes with its top-level class.
+                        val className = path.removeSuffix(".class").substringBefore('$').replace('/', '.')
+                        (shardOfClass[className] ?: Math.floorMod(className.hashCode(), shardCount)) != shard
+                    }
+                }
+                systemProperty("testFailFastFile", failFastFile.get().asFile.absolutePath)
+                dependsOn(resetFailFast)
+            }
+        }
+        tasks.register("testShards") {
+            description = "Runs the tests as $shardCount test tasks with one fork each, balanced by recorded durations."
+            group = "verification"
+            dependsOn(shards)
+        }
     }
 }
 
@@ -434,8 +516,8 @@ if (asyncProfilerEnabled) {
     // file is a JFR recording with an .html name.
     val outputFormat = providers.gradleProperty("test.asyncprofiler.outputformat").getOrElse("jfr")
     val outputDir = providers.gradleProperty("test.asyncprofiler.dir")
-        .map { rootProject.file(it) }
-        .getOrElse(rootProject.layout.buildDirectory.dir("test-profiles").get().asFile)
+        .map { rootDir.resolve(it) }
+        .getOrElse(rootDir.resolve("build/test-profiles"))
 
     tasks.withType<Test>().configureEach {
         val taskPath = path
@@ -485,28 +567,30 @@ if (asyncProfilerEnabled) {
     }
 }
 
-// Expose test classes for cross-module test dependencies (Maven test-jar equivalent)
+// Expose test classes for cross-module test dependencies (Maven test-jar equivalent), as a variant
+// that only a dependency asking for its capability gets: see TestJars.kt
 val testJar = tasks.register<Jar>("testJar") {
     archiveClassifier.set("tests")
     from(project.the<SourceSetContainer>()["test"].output)
 }
 
-configurations.create("testJar") {
-    isCanBeConsumed = true
-    isCanBeResolved = false
+configurations.consumable("testJarElements") {
+    description = "The test jar, with the test dependencies, for the tests of other modules."
     extendsFrom(configurations["testImplementation"], configurations["testRuntimeOnly"])
+    attributes {
+        attribute(Usage.USAGE_ATTRIBUTE, objects.named<Usage>(Usage.JAVA_RUNTIME))
+        attribute(Category.CATEGORY_ATTRIBUTE, objects.named<Category>(Category.LIBRARY))
+        attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, objects.named<LibraryElements>(LibraryElements.JAR))
+        attribute(Bundling.BUNDLING_ATTRIBUTE, objects.named<Bundling>(Bundling.EXTERNAL))
+    }
+    outgoing {
+        capability("${testJarCapability(project.path)}:${project.version}")
+        artifact(testJar)
+    }
 }
-artifacts.add("testJar", testJar)
 
-// Set archive names to match Maven artifactId for nested modules.
-// Skip if the project name is already qualified (starts with parent name),
-// which happens for sub-modules that use qualified names in settings.gradle.kts
-// to avoid Gradle name clashes.
-val parentProject = project.parent
-if (parentProject != null && parentProject != rootProject && parentProject.parent != rootProject
-        && !project.name.startsWith(parentProject.name)) {
-    the<BasePluginExtension>().archivesName.set("${parentProject.name}-${project.name}")
-}
+// Set archive names to match Maven artifactId for nested modules, see defaultArchivesName.
+the<BasePluginExtension>().archivesName.set(defaultArchivesName())
 
 tasks.withType<Jar>().configureEach {
     manifest {
@@ -518,4 +602,30 @@ tasks.withType<Jar>().configureEach {
 }
 
 // Add a task for viewing all configurations for all projects in a simple way
-tasks.register<DependencyReportTask>("allDependencies"){}
+tasks.register<DependencyReportTask>("allDependencies") {
+    group = "help"
+    description = "Displays the dependencies of all configurations of this project"
+}
+
+// ── sanityCheck ─────────────────────────────────────────────────────────────
+// Pre-PR gate of this module: quickCheck plus compiling the main and test sources, unless that needs the
+// shadow jar of a shaded module, which would be slow to build; the sources are still covered by
+// quickCheck then. A shaded module's own compilation doesn't build its shadow jar, so the shaded and
+// *-minimized modules are compiled. `./gradlew sanityCheck` runs it in every module.
+pluginManager.withPlugin("com.gradleup.shadow") {
+    PulsarShadedProjects.checkListed(project)
+}
+tasks.register("sanityCheck") {
+    group = "verification"
+    description = "Pre-PR check: quickCheck plus compiling main + test sources, unless that needs a " +
+        "shaded module's shadow jar."
+    dependsOn(tasks.named("quickCheck"))
+    // Decided when the task graph is built, once the build script has declared the dependencies
+    dependsOn(provider {
+        if (PulsarShadedProjects.compilationNeedsShadowJar(project)) {
+            emptyList()
+        } else {
+            listOf(tasks.named("compileJava"), tasks.named("compileTestJava"))
+        }
+    })
+}

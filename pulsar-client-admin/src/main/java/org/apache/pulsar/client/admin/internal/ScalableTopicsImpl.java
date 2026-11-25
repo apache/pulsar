@@ -459,12 +459,22 @@ public class ScalableTopicsImpl extends BaseResource implements ScalableTopics {
     @Override
     public CompletableFuture<Void> createSegmentSubscriptionAsync(String segmentTopic,
                                                                    String subscription) {
+        return createSegmentSubscriptionAsync(segmentTopic, subscription, Map.of());
+    }
+
+    @Override
+    public CompletableFuture<Void> createSegmentSubscriptionAsync(String segmentTopic, String subscription,
+                                                                   Map<String, String> subscriptionProperties) {
         TopicName tn = TopicName.get(segmentTopic);
         WebTarget path = adminSegments
                 .path(tn.getTenant()).path(tn.getNamespacePortion())
                 .path(tn.getLocalName()).path(tn.getSegmentDescriptor())
-                .path("subscription").path(subscription);
-        return asyncPutRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
+                .path("subscription").path("{subscription}")
+                .resolveTemplate("subscription", subscription, true);
+        Entity<?> entity = (subscriptionProperties != null && !subscriptionProperties.isEmpty())
+                ? Entity.entity(subscriptionProperties, MediaType.APPLICATION_JSON)
+                : Entity.entity("", MediaType.APPLICATION_JSON);
+        return asyncPutRequest(path, entity);
     }
 
     @Override
@@ -474,7 +484,8 @@ public class ScalableTopicsImpl extends BaseResource implements ScalableTopics {
         WebTarget path = adminSegments
                 .path(tn.getTenant()).path(tn.getNamespacePortion())
                 .path(tn.getLocalName()).path(tn.getSegmentDescriptor())
-                .path("subscription").path(subscription);
+                .path("subscription").path("{subscription}")
+                .resolveTemplate("subscription", subscription, true);
         return asyncDeleteRequest(path);
     }
 
@@ -485,7 +496,9 @@ public class ScalableTopicsImpl extends BaseResource implements ScalableTopics {
         WebTarget path = adminSegments
                 .path(tn.getTenant()).path(tn.getNamespacePortion())
                 .path(tn.getLocalName()).path(tn.getSegmentDescriptor())
-                .path("subscription").path(subscription).path("backlog");
+                .path("subscription").path("{subscription}")
+                .resolveTemplate("subscription", subscription, true)
+                .path("backlog");
         return asyncGetRequest(path, Long.class);
     }
 
@@ -497,7 +510,9 @@ public class ScalableTopicsImpl extends BaseResource implements ScalableTopics {
         WebTarget path = adminSegments
                 .path(tn.getTenant()).path(tn.getNamespacePortion())
                 .path(tn.getLocalName()).path(tn.getSegmentDescriptor())
-                .path("subscription").path(subscription).path("seek")
+                .path("subscription").path("{subscription}")
+                .resolveTemplate("subscription", subscription, true)
+                .path("seek")
                 .queryParam("timestamp", timestampMs);
         return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
     }
@@ -509,7 +524,9 @@ public class ScalableTopicsImpl extends BaseResource implements ScalableTopics {
         WebTarget path = adminSegments
                 .path(tn.getTenant()).path(tn.getNamespacePortion())
                 .path(tn.getLocalName()).path(tn.getSegmentDescriptor())
-                .path("subscription").path(subscription).path("skip-all");
+                .path("subscription").path("{subscription}")
+                .resolveTemplate("subscription", subscription, true)
+                .path("skip-all");
         return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
     }
 

@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.schema.ByteBufferSchema;
 
 /**
  * {@link org.apache.pulsar.client.api.TableView} implementation that stores the deserialized message
@@ -30,8 +31,9 @@ import org.apache.pulsar.client.api.Schema;
 public class TableViewImpl<T> extends AbstractTableViewImpl<T, T> {
 
     TableViewImpl(PulsarClientImpl client, Schema<T> schema, TableViewConfigurationData conf) {
-        // the message is fully consumed while extracting the value, so pooled messages can be used and released
-        super(client, schema, conf, true);
+        // the message is fully consumed while extracting the value, so pooled messages can be used and released,
+        // except with ByteBufferSchema, which returns a view of the message payload
+        super(client, schema, conf, !(schema instanceof ByteBufferSchema));
     }
 
     @Override

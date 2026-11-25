@@ -35,7 +35,12 @@ dependencies {
     api(libs.netty.common)
     api(libs.bookkeeper.server)
     api(libs.opentelemetry.api)
+    // simpleclient stays until the legacy scrape path (PrometheusMetricsGeneratorUtils) is removed
     api(libs.simpleclient)
+    // TopicListMemoryLimiter and JettyStatisticsCollector expose PrometheusRegistry/MultiCollector
+    api(libs.prometheus.metrics.core)
+    api(libs.prometheus.metrics.model)
+    implementation(libs.prometheus.metrics.exposition.textformats)
     implementation(libs.caffeine)
     api(libs.jakarta.servlet.api)
     // Legacy javax.servlet AdditionalServlet plugins are adapted to jakarta.servlet by the Apache Felix

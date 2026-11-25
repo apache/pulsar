@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import lombok.Cleanup;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -47,6 +48,7 @@ public class ConsumeBaseExceptionTest extends SharedPulsarBaseTest {
     @Test
     public void testListener() throws PulsarClientException {
 
+        @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(newTopicName())
                 .subscriptionName("my-subscription").messageListener((consumer1, msg) -> {
 

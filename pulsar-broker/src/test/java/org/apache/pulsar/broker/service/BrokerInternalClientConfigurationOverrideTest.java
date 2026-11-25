@@ -41,6 +41,12 @@ public class BrokerInternalClientConfigurationOverrideTest extends BrokerTestBas
     @BeforeClass
     @Override
     protected void setup() throws Exception {
+        // The broker creates its internal client and admin client once, when it first needs them (in this class, at
+        // the latest when testOldNamespacePolicy loads a topic), so their configuration must be set before it starts.
+        Properties config = conf.getProperties();
+        config.setProperty("brokerClient_operationTimeoutMs", "60000");
+        config.setProperty("brokerClient_statsIntervalSeconds", "10");
+        conf.setBrokerClientAuthenticationParameters("sensitive");
         super.baseSetup();
     }
 
@@ -52,9 +58,6 @@ public class BrokerInternalClientConfigurationOverrideTest extends BrokerTestBas
 
     @Test
     public void testPulsarServiceAdminClientConfiguration() throws PulsarServerException {
-        Properties config = pulsar.getConfiguration().getProperties();
-        config.setProperty("brokerClient_operationTimeoutMs", "60000");
-        config.setProperty("brokerClient_statsIntervalSeconds", "10");
         ClientConfigurationData clientConf = ((PulsarAdminImpl) pulsar.getAdminClient()).getClientConfigData();
         Assert.assertEquals(clientConf.getOperationTimeoutMs(), 60000);
         Assert.assertEquals(clientConf.getStatsIntervalSeconds(), 10);
@@ -62,10 +65,6 @@ public class BrokerInternalClientConfigurationOverrideTest extends BrokerTestBas
 
     @Test
     public void testPulsarServicePulsarClientConfiguration() throws PulsarServerException {
-        Properties config = pulsar.getConfiguration().getProperties();
-        config.setProperty("brokerClient_operationTimeoutMs", "60000");
-        config.setProperty("brokerClient_statsIntervalSeconds", "10");
-        pulsar.getConfiguration().setBrokerClientAuthenticationParameters("sensitive");
         ClientConfigurationData clientConf = ((PulsarClientImpl) pulsar.getClient()).getConfiguration();
         Assert.assertEquals(clientConf.getOperationTimeoutMs(), 60000);
         // Config should override internal default, which is 0.

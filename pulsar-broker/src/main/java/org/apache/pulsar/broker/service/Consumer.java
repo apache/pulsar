@@ -815,7 +815,13 @@ public class Consumer {
             Position position = pendingAckCompletions.positionAt(i);
             boolean blockedStateReconciled = false;
 
-            if (pendingAckCompletions.hasAckSetAt(i)) {
+            // The cursor merges batch-index ACKs even beyond a mark-delete hole. A completed batch must
+            // release its pending entry and account for the remaining unacked count exactly once.
+            boolean fullyAcked = !pendingAckCompletions.hasAckSetAt(i)
+                    || (Subscription.isIndividualAckMode(subType)
+                    && subscription instanceof PersistentSubscription persistentSubscription
+                    && persistentSubscription.getCursor().isMessageDeleted(position));
+            if (!fullyAcked) {
                 if (pendingAckCompletions.ackedCountAt(i) > 0) {
                     boolean updated = ackOwnerConsumer.updateRemainingUnacked(
                             position.getLedgerId(), position.getEntryId(), (int) pendingAckCompletions.ackedCountAt(i));
@@ -913,7 +919,7 @@ public class Consumer {
      *
      * @param ledgerId The ID of the ledger.
      * @param entryId The ID of the entry.
-     * @return Pair<Consumer, BatchSize>, this consumer and 1 when no other consumer has the pending ack
+     * @return {@code Pair<Consumer, BatchSize>}, this consumer and 1 when no other consumer has the pending ack
      */
     private ObjectIntPair<Consumer> getAckOwnerConsumerAndBatchSize(long ledgerId, long entryId) {
         if (Subscription.isIndividualAckMode(subType)) {

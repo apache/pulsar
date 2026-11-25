@@ -19,6 +19,7 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.defaultConfig;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
@@ -41,7 +42,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
 import org.apache.bookkeeper.client.BKException;
+import org.apache.bookkeeper.client.PulsarMockLedgerHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.TerminateCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -54,6 +57,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
@@ -62,6 +66,166 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class ManagedLedgerTerminationTest extends MockedBookKeeperTestCase {
+
+    @Test(timeOut = 20000)
+    public void synchronousCursorInitializationFailureDoesNotPoisonSameNameRetry() throws Exception {
+        ManagedLedgerImpl ledger = spy((ManagedLedgerImpl) factory.open(
+                "cursor-initialization-sync-failure", initManagedLedgerConfig(defaultConfig())));
+        CursorInitializationProbe owner = new CursorInitializationProbe(false);
+        CursorInitializationProbe joining = new CursorInitializationProbe(false);
+        AtomicInteger positionCalls = new AtomicInteger();
+        doAnswer(invocation -> {
+            if (positionCalls.incrementAndGet() == 1) {
+                // Join through the public API while the first initialization owns the published future.
+                ledger.asyncOpenCursor("same-name", InitialPosition.Earliest, joining, null);
+                throw new IllegalStateException("injected first-position initialization failure");
+            }
+            return invocation.callRealMethod();
+        }).when(ledger).getFirstPosition();
+
+        Throwable escaped = null;
+        try {
+            ledger.asyncOpenCursor("same-name", InitialPosition.Earliest, owner, null);
+        } catch (Throwable error) {
+            escaped = error;
+        }
+        CursorInitializationProbe retry = new CursorInitializationProbe(false);
+        ledger.asyncOpenCursor("same-name", InitialPosition.Earliest, retry, null);
+        // Baseline leaves an incomplete future behind: this real same-name retry cannot complete.
+        ManagedCursor cursor = retry.result.get(5, TimeUnit.SECONDS);
+        assertTrue(escaped == null, "Initialization errors must use the failed callback: " + escaped);
+        assertTrue(owner.result.isCompletedExceptionally());
+        assertTrue(joining.result.isCompletedExceptionally());
+        assertEquals(owner.completed.get(), 0);
+        assertEquals(owner.failed.get(), 1);
+        assertEquals(joining.completed.get(), 0);
+        assertEquals(joining.failed.get(), 1);
+        assertEquals(retry.completed.get(), 1);
+        assertEquals(retry.failed.get(), 0);
+        assertEquals(cursor.getName(), "same-name");
+        cursor.close();
+        ledger.close();
+    }
+
+    @Test(timeOut = 20000)
+    public void successfulCursorCallbacksAreNotFailedAgainWhenObserversThrow() throws Exception {
+        ManagedLedgerImpl ledger = spy((ManagedLedgerImpl) factory.open(
+                "cursor-initialization-callback-failure", initManagedLedgerConfig(defaultConfig())));
+        CursorInitializationProbe owner = new CursorInitializationProbe(true);
+        CursorInitializationProbe joining = new CursorInitializationProbe(true);
+        AtomicBoolean joined = new AtomicBoolean();
+        doAnswer(invocation -> {
+            if (joined.compareAndSet(false, true)) {
+                ledger.asyncOpenCursor("same-name", InitialPosition.Earliest, joining, null);
+            }
+            return invocation.callRealMethod();
+        }).when(ledger).getFirstPosition();
+
+        ledger.asyncOpenCursor("same-name", InitialPosition.Earliest, owner, null);
+        ManagedCursor cursor = owner.result.get(5, TimeUnit.SECONDS);
+        assertEquals(joining.result.get(5, TimeUnit.SECONDS), cursor);
+        assertEquals(owner.completed.get(), 1);
+        assertEquals(owner.failed.get(), 0);
+        assertEquals(joining.completed.get(), 1);
+        assertEquals(joining.failed.get(), 0);
+        CursorInitializationProbe cached = new CursorInitializationProbe(false);
+        ledger.asyncOpenCursor("same-name", InitialPosition.Earliest, cached, null);
+        assertEquals(cached.result.get(5, TimeUnit.SECONDS), cursor);
+        cursor.close();
+        ledger.close();
+    }
+
+    private static final class CursorInitializationProbe implements OpenCursorCallback {
+        private final CompletableFuture<ManagedCursor> result = new CompletableFuture<>();
+        private final AtomicInteger completed = new AtomicInteger();
+        private final AtomicInteger failed = new AtomicInteger();
+        private final boolean throwAfterSuccess;
+
+        private CursorInitializationProbe(boolean throwAfterSuccess) {
+            this.throwAfterSuccess = throwAfterSuccess;
+        }
+
+        @Override
+        public void openCursorComplete(ManagedCursor cursor, Object ctx) {
+            completed.incrementAndGet();
+            result.complete(cursor);
+            if (throwAfterSuccess) {
+                throw new IllegalStateException("injected observer failure after successful initialization");
+            }
+        }
+
+        @Override
+        public void openCursorFailed(ManagedLedgerException exception, Object ctx) {
+            failed.incrementAndGet();
+            result.completeExceptionally(exception);
+        }
+    }
+
+    @Test(timeOut = 20000)
+    public void earliestCursorOnReopenedTerminatedLedgerPreservesRetainedEntries() throws Exception {
+        String name = "terminated-fresh-earliest-retained-entries";
+        ManagedLedgerConfig config = initManagedLedgerConfig(defaultConfig());
+        config.setRetentionTime(-1, TimeUnit.HOURS);
+        config.setRetentionSizeInMB(-1);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(name, config);
+        Position first = ledger.addEntry("entry-0".getBytes());
+        Position last = ledger.addEntry("entry-1".getBytes());
+        assertEquals(ledger.terminate(), last);
+        ledger.close();
+
+        ManagedLedgerImpl reopened = (ManagedLedgerImpl) factory.open(name, config);
+        assertFalse(reopened.getLedgersInfo().isEmpty());
+        ManagedCursor cursor = reopened.openCursor("fresh-earliest", InitialPosition.Earliest);
+        assertEquals(reopened.getFirstPosition(), PositionFactory.create(first.getLedgerId(), -1));
+        List<Entry> entries = cursor.readEntries(10);
+        try {
+            assertEquals(entries.size(), 2);
+            assertEquals(entries.get(0).getPosition(), first);
+            assertEquals(entries.get(1).getPosition(), last);
+            assertEquals(entries.get(0).getData(), "entry-0".getBytes());
+            assertEquals(entries.get(1).getData(), "entry-1".getBytes());
+        } finally {
+            entries.forEach(Entry::release);
+        }
+        assertFalse(cursor.hasMoreEntries());
+        try {
+            cursor.readEntriesOrWait(1);
+            fail("All retained entries must be replayed before terminal exhaustion");
+        } catch (NoMoreEntriesToReadException expected) {
+            // Exact retained entries were observed before the terminal signal.
+        }
+        cursor.close();
+        reopened.close();
+    }
+
+    @Test(timeOut = 20000)
+    public void openEarliestCursorOnReopenedEmptyTerminatedLedger() throws Exception {
+        String name = "empty-terminated-fresh-earliest";
+        ManagedLedgerConfig config = initManagedLedgerConfig(defaultConfig());
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(name, config);
+        Position terminatedPosition = ledger.terminate();
+        assertEquals(terminatedPosition.getEntryId(), -1L);
+        ledger.close();
+
+        ManagedLedgerImpl reopened = (ManagedLedgerImpl) factory.open(name, config);
+        assertTrue(reopened.isTerminated());
+        // Recovery discards the empty data ledger and creates no new ledger after termination.
+        assertTrue(reopened.getLedgersInfo().isEmpty());
+        ManagedCursor cursor = reopened.openCursor("fresh-earliest", InitialPosition.Earliest);
+        assertEquals(reopened.getFirstPosition(), terminatedPosition);
+        assertEquals(cursor.getMarkDeletedPosition(), terminatedPosition);
+        assertEquals(cursor.getReadPosition(), terminatedPosition.getNext());
+        assertFalse(cursor.hasMoreEntries());
+        assertEquals(cursor.readEntries(1), Collections.emptyList());
+        try {
+            cursor.readEntriesOrWait(1);
+            fail("A fully drained terminated ledger must signal end of topic");
+        } catch (NoMoreEntriesToReadException expected) {
+            // The fresh cursor must complete normally before reporting terminal exhaustion.
+        }
+        cursor.close();
+        reopened.close();
+    }
 
     @Test(timeOut = 20000)
     public void terminateSimple() throws Exception {
@@ -100,6 +264,122 @@ public class ManagedLedgerTerminationTest extends MockedBookKeeperTestCase {
         } catch (ManagedLedgerTerminatedException e) {
             // Expected
         }
+    }
+
+    @DataProvider(name = "terminationMetadataFailures")
+    public Object[][] terminationMetadataFailures() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    @Test(timeOut = 20000, dataProvider = "terminationMetadataFailures")
+    public void duplicateTerminateWaitsForDurableMetadata(boolean metadataFails) throws Exception {
+        String ledgerName = "my_test_ledger";
+        String mlPath = "/managed-ledgers/" + ledgerName;
+        CompletableFuture<Void> updateGate = new CompletableFuture<>();
+        AtomicBoolean interceptNextPut = new AtomicBoolean();
+        CountDownLatch putIntercepted = new CountDownLatch(1);
+        AtomicInteger putCount = new AtomicInteger();
+        MetadataStoreException injectedFailure = new MetadataStoreException("termination metadata unavailable");
+        FaultInjectionMetadataStore spyStore = spy(metadataStore);
+        doAnswer(inv -> {
+            putCount.incrementAndGet();
+            if (!interceptNextPut.compareAndSet(true, false)) {
+                return inv.callRealMethod();
+            }
+            String path = inv.getArgument(0);
+            byte[] value = inv.getArgument(1);
+            Optional<Long> expectedVersion = inv.getArgument(2);
+            putIntercepted.countDown();
+            return updateGate.thenCompose(ignore -> metadataFails
+                    ? CompletableFuture.failedFuture(injectedFailure)
+                    : metadataStore.put(path, value, expectedVersion));
+        }).when(spyStore).put(eq(mlPath), any(byte[].class), any());
+
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl spyStoreFactory = new ManagedLedgerFactoryImpl(spyStore, bkc);
+        ManagedLedgerConfig config = initManagedLedgerConfig(defaultConfig());
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) spyStoreFactory.open(ledgerName, config);
+        Position lastPosition = ledger.addEntry("entry-0".getBytes());
+        int putsBeforeTerminate = putCount.get();
+        interceptNextPut.set(true);
+
+        CompletableFuture<Position> terminated = terminateAsync(ledger);
+        CompletableFuture<Position> duplicate;
+        try {
+            assertThat(putIntercepted.await(5, TimeUnit.SECONDS)).isTrue();
+            // Writes are rejected before the final metadata update is durable. A replayed terminate must still wait.
+            assertThat(ledger.getState()).isEqualTo(ManagedLedgerImpl.State.Terminated);
+            duplicate = terminateAsync(ledger);
+            assertThat(terminated.isDone()).isFalse();
+            assertThat(duplicate.isDone())
+                    .as("Duplicate terminate waits for the metadata persistence result").isFalse();
+            assertThat(putCount.get()).isEqualTo(putsBeforeTerminate + 1);
+            assertThat(spyStoreFactory.getManagedLedgerInfo(ledgerName).terminatedPosition).isNull();
+        } finally {
+            updateGate.complete(null);
+        }
+
+        if (metadataFails) {
+            Throwable failure = terminated.handle((position, error) -> error).get(5, TimeUnit.SECONDS);
+            assertThat(failure).isInstanceOf(ManagedLedgerException.class)
+                    .hasRootCauseMessage(injectedFailure.getMessage());
+            assertThat(duplicate.handle((position, error) -> error).get(5, TimeUnit.SECONDS)).isSameAs(failure);
+            assertThat(spyStoreFactory.getManagedLedgerInfo(ledgerName).terminatedPosition).isNull();
+            // A temporary metadata failure must not turn the next attempt into either a false success or a sticky
+            // failure. It has to retry the durable write after storage recovers.
+            assertThat(terminateAsync(ledger).get(5, TimeUnit.SECONDS)).isEqualTo(lastPosition);
+            assertThat(putCount.get()).isEqualTo(putsBeforeTerminate + 2);
+        } else {
+            assertThat(terminated.get(5, TimeUnit.SECONDS)).isEqualTo(lastPosition);
+            assertThat(duplicate.get(5, TimeUnit.SECONDS)).isEqualTo(lastPosition);
+        }
+        assertTerminatedAt(spyStoreFactory, ledger, lastPosition);
+
+        int putsAfterTermination = putCount.get();
+        assertThat(terminateAsync(ledger).get(5, TimeUnit.SECONDS)).isEqualTo(lastPosition);
+        assertThat(putCount.get()).isEqualTo(putsAfterTermination);
+        ledger.close();
+        ManagedLedger reopened = spyStoreFactory.open(ledgerName, config);
+        CompletableFuture<Position> recoveredTermination = terminateAsync(reopened);
+        assertThat(recoveredTermination.isDone()).as("Recovered durable termination completes immediately").isTrue();
+        assertThat(recoveredTermination.get(5, TimeUnit.SECONDS)).isEqualTo(lastPosition);
+        assertThat(putCount.get()).isEqualTo(putsAfterTermination);
+    }
+
+    @Test(timeOut = 20000)
+    public void duplicateTerminateSharesLedgerCloseFailureAndRecoversOnRetry() throws Exception {
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my_test_ledger",
+                initManagedLedgerConfig(defaultConfig()));
+        Position lastPosition = ledger.addEntry("entry-0".getBytes());
+        PulsarMockLedgerHandle writeHandle = bkc.getLedgerMap().get(lastPosition.getLedgerId());
+        CompletableFuture<Void> closeGate = bkc.promiseAfter(0);
+        CompletableFuture<Position> terminated = terminateAsync(ledger);
+        CompletableFuture<Position> duplicate = terminateAsync(ledger);
+        try {
+            assertThat(ledger.getState()).isEqualTo(ManagedLedgerImpl.State.Terminated);
+            assertThat(terminated.isDone()).isFalse();
+            assertThat(duplicate.isDone()).as("Duplicate terminate waits for the ledger close result").isFalse();
+            assertThat(factory.getManagedLedgerInfo(ledger.getName()).terminatedPosition).isNull();
+        } finally {
+            closeGate.completeExceptionally(new BKException.BKWriteException());
+        }
+        Throwable failure = terminated.handle((position, error) -> error).get(5, TimeUnit.SECONDS);
+        assertThat(failure).isInstanceOf(ManagedLedgerException.class);
+        assertThat(duplicate.handle((position, error) -> error).get(5, TimeUnit.SECONDS)).isSameAs(failure);
+        assertThat(factory.getManagedLedgerInfo(ledger.getName()).terminatedPosition).isNull();
+
+        // Like a BookKeeper write handle, the mock replays its failed close, so a retry has to recover the ledger
+        // instead. A failure to recover it can be retried as well.
+        bkc.failNow(BKException.Code.BookieHandleNotAvailableException);
+        assertThat(terminateAsync(ledger).handle((position, error) -> error).get(5, TimeUnit.SECONDS))
+                .isInstanceOf(ManagedLedgerException.class);
+        assertThat(factory.getManagedLedgerInfo(ledger.getName()).terminatedPosition).isNull();
+        assertThat(terminateAsync(ledger).get(5, TimeUnit.SECONDS)).isEqualTo(lastPosition);
+        assertThat(writeHandle.getAsyncCloseCount()).as("Retries recover the ledger instead of closing it again")
+                .hasValue(1);
+        assertTerminatedAt(factory, ledger, lastPosition);
+        // The recovered handle replaced the write handle, whose close would still fail
+        ledger.close();
     }
 
     @Test(timeOut = 20000)

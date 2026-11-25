@@ -498,11 +498,12 @@ public class SubscriptionCoordinatorTest {
 
     @Test
     public void testReconnectWithinGracePeriodPreservesAssignment() throws Exception {
-        coordinator.registerConsumer("consumer-1", 1L, mock(TransportCnx.class)).get();
+        TransportCnx cnx1 = mock(TransportCnx.class);
+        coordinator.registerConsumer("consumer-1", 1L, cnx1).get();
         coordinator.registerConsumer("consumer-2", 2L, mock(TransportCnx.class)).get();
 
         // consumer-1 drops
-        coordinator.onConsumerDisconnect("consumer-1");
+        coordinator.onConsumerDisconnect("consumer-1", cnx1);
         assertEquals(coordinator.getConsumers().size(), 2,
                 "session should still be tracked during grace period");
 
@@ -524,11 +525,12 @@ public class SubscriptionCoordinatorTest {
 
     @Test
     public void testExpiredSessionIsEvictedAfterGracePeriod() {
-        coordinator.registerConsumer("consumer-1", 1L, mock(TransportCnx.class)).join();
+        TransportCnx cnx1 = mock(TransportCnx.class);
+        coordinator.registerConsumer("consumer-1", 1L, cnx1).join();
         coordinator.registerConsumer("consumer-2", 2L, mock(TransportCnx.class)).join();
         assertEquals(coordinator.getConsumers().size(), 2);
 
-        coordinator.onConsumerDisconnect("consumer-1");
+        coordinator.onConsumerDisconnect("consumer-1", cnx1);
 
         // Grace period is 200ms in tests — wait for eviction
         Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
@@ -536,6 +538,36 @@ public class SubscriptionCoordinatorTest {
             assertEquals(active.size(), 1);
             assertEquals(active.iterator().next().getConsumerName(), "consumer-2");
         });
+    }
+
+    @Test
+    public void testCloseOfPreviousConnectionAfterReconnectIsIgnored() throws Exception {
+        TransportCnx previousCnx = mock(TransportCnx.class);
+        TransportCnx currentCnx = mock(TransportCnx.class);
+        coordinator.registerConsumer("consumer-1", 1L, previousCnx).get();
+        // The consumer registers again on a new connection, keeping its consumer id as the Java
+        // client does, before the broker notices that the previous connection is gone.
+        coordinator.registerConsumer("consumer-1", 1L, currentCnx).get();
+        clearInvocations(currentCnx);
+
+        // Only now does the previous connection close.
+        coordinator.onConsumerDisconnect("consumer-1", previousCnx);
+
+        ConsumerSession session = coordinator.getConsumers().iterator().next();
+        assertThat(session.isConnected())
+                .as("the session is attached to the new connection, which is still open")
+                .isTrue();
+        assertThat(session.getCnx()).as("the session's connection").isSameAs(currentCnx);
+        assertThat((Object) session.getGraceTimer()).as("no grace period must start").isNull();
+
+        // The consumer still gets the rebalance that a new consumer causes.
+        coordinator.registerConsumer("consumer-2", 2L, mock(TransportCnx.class)).get();
+        verify(currentCnx).sendScalableConsumerAssignment(eq(1L), any());
+
+        // The close of the connection the session is attached to still starts the grace period.
+        coordinator.onConsumerDisconnect("consumer-1", currentCnx);
+        assertThat(session.isConnected()).as("the session once its own connection closed").isFalse();
+        assertThat((Object) session.getGraceTimer()).as("the grace period timer").isNotNull();
     }
 
     @Test
@@ -563,8 +595,9 @@ public class SubscriptionCoordinatorTest {
 
     @Test
     public void testClosedCoordinatorDoesNotEvictExpiredSession() {
-        coordinator.registerConsumer("consumer-1", 1L, mock(TransportCnx.class)).join();
-        coordinator.onConsumerDisconnect("consumer-1");
+        TransportCnx cnx1 = mock(TransportCnx.class);
+        coordinator.registerConsumer("consumer-1", 1L, cnx1).join();
+        coordinator.onConsumerDisconnect("consumer-1", cnx1);
 
         // The controller stops serving as the leader: the session is the next leader's to restore.
         coordinator.close();

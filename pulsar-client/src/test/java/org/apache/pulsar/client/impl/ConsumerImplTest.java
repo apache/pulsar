@@ -28,6 +28,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -60,6 +61,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerArray;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -92,6 +94,7 @@ import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.Backoff;
 import org.awaitility.Awaitility;
+import org.mockito.MockedStatic;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -162,7 +165,7 @@ public class ConsumerImplTest {
 
     /**
      * Reproduces the chunked-message bookkeeping data race in {@link ConsumerImpl}, using the real
-     * production cross-thread pair:
+     * production cross-thread pair.
      * <ul>
      *   <li>{@code processMessageChunk(...)} on the Netty IO event-loop thread (here: the "receiver" thread);</li>
      *   <li>{@code removeExpireIncompleteChunkedMessages()} on the internalPinnedExecutor (here: the "expirer"
@@ -1054,6 +1057,88 @@ public class ConsumerImplTest {
         verify(cnx, times(1)).sendRequestWithId(any(ByteBuf.class), anyLong());
     }
 
+    @Test
+    public void testSeekAsyncReleasesBufferOnInProgressConflict() {
+        ClientCnx cnx = mock(ClientCnx.class);
+        CompletableFuture<ProducerResponse> clientReq = new CompletableFuture<>();
+        when(cnx.sendRequestWithId(any(ByteBuf.class), anyLong())).thenAnswer(inv -> {
+            inv.<ByteBuf>getArgument(0).release();
+            return clientReq;
+        });
+        consumer.setClientCnx(cnx);
+        consumer.setState(HandlerState.State.Ready);
+
+        List<ByteBuf> capturedBuffers = new ArrayList<>();
+        try (MockedStatic<Commands> commands = mockStatic(Commands.class, inv -> {
+            Object result = inv.callRealMethod();
+            if ("newSeek".equals(inv.getMethod().getName())) {
+                capturedBuffers.add((ByteBuf) result);
+            }
+            return result;
+        })) {
+            CompletableFuture<Void> firstResult = consumer.seekAsync(1L);
+            CompletableFuture<Void> secondResult = consumer.seekAsync(1L);
+
+            assertThat(capturedBuffers).hasSize(2);
+            assertThat(capturedBuffers.get(1).refCnt()).isZero();
+            assertTrue(secondResult.isCompletedExceptionally());
+        }
+    }
+
+    @Test
+    public void testSeekAsyncReleasesBufferOnTimeout() {
+        ScheduledExecutorProvider provider = mock(ScheduledExecutorProvider.class);
+        ScheduledExecutorService scheduledExecutorService = mock(ScheduledExecutorService.class);
+        when(provider.getExecutor()).thenReturn(scheduledExecutorService);
+        when(consumer.getClient().getScheduledExecutorProvider()).thenReturn(provider);
+
+        doAnswer(invocation -> {
+            ((Runnable) invocation.getArgument(0)).run();
+            return null;
+        }).when(scheduledExecutorService).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+
+        List<ByteBuf> capturedBuffers = new ArrayList<>();
+        try (MockedStatic<Commands> commands = mockStatic(Commands.class, inv -> {
+            Object result = inv.callRealMethod();
+            if ("newSeek".equals(inv.getMethod().getName())) {
+                capturedBuffers.add((ByteBuf) result);
+            }
+            return result;
+        })) {
+            CompletableFuture<Void> result = consumer.seekAsync(1L);
+
+            assertThat(capturedBuffers).hasSize(1);
+            assertThat(capturedBuffers.get(0).refCnt()).isZero();
+            assertTrue(result.isCompletedExceptionally());
+        }
+    }
+
+    @Test
+    public void testSeekAsyncReleasesBufferOnRejectedRetry() {
+        ScheduledExecutorProvider provider = mock(ScheduledExecutorProvider.class);
+        ScheduledExecutorService scheduledExecutorService = mock(ScheduledExecutorService.class);
+        when(provider.getExecutor()).thenReturn(scheduledExecutorService);
+        when(consumer.getClient().getScheduledExecutorProvider()).thenReturn(provider);
+
+        when(scheduledExecutorService.schedule(any(Runnable.class), anyLong(), any(TimeUnit.class)))
+                .thenThrow(new java.util.concurrent.RejectedExecutionException("shutdown"));
+
+        List<ByteBuf> capturedBuffers = new ArrayList<>();
+        try (MockedStatic<Commands> commands = mockStatic(Commands.class, inv -> {
+            Object result = inv.callRealMethod();
+            if ("newSeek".equals(inv.getMethod().getName())) {
+                capturedBuffers.add((ByteBuf) result);
+            }
+            return result;
+        })) {
+            CompletableFuture<Void> result = consumer.seekAsync(1L);
+
+            assertThat(capturedBuffers).hasSize(1);
+            assertThat(capturedBuffers.get(0).refCnt()).isZero();
+            assertTrue(result.isCompletedExceptionally());
+        }
+    }
+
     @Test(invocationTimeOut = 1000)
     public void testAutoGenerateConsumerName() {
         Pattern consumerNamePattern = Pattern.compile("[a-zA-Z0-9]{5}");
@@ -1090,6 +1175,38 @@ public class ConsumerImplTest {
         Assert.assertTrue(consumer.scaleReceiverQueueHint.get(),
                 "Hint must reflect the post-enqueue state (pipeline had >=1 message); "
                         + "a concurrent drain of the just-enqueued message must not clear it.");
+    }
+
+    @Test
+    public void testEnqueueReservesMemoryBeforeMessageIsVisible() {
+        // receive() takes a message without incomingQueueLock and releases its size. If the enqueue made the
+        // message visible before reserving its size, such a receive could release it first and drop the shared
+        // memory usage below what the queues hold: a consumer sharing the controller then sees usage under the
+        // expansion threshold, and the late reservation crosses the shrink threshold from below.
+        consumerConf = new ConsumerConfigurationData<>();
+        consumerConf.setAutoScaledReceiverQueueSizeEnabled(true);
+        createConsumer(consumerConf);
+        MemoryLimitController memoryLimitController = spy(new MemoryLimitController(300));
+        when(consumer.client.getMemoryLimitController()).thenReturn(memoryLimitController);
+        // Memory held by the queue of another consumer sharing the controller.
+        memoryLimitController.forceReserveMemory(300);
+
+        AtomicLong lowestUsage = new AtomicLong(memoryLimitController.currentUsage());
+        doAnswer(invocation -> {
+            // A receive() on the application thread, racing with the enqueue.
+            Message<byte[]> taken = consumer.incomingMessages.poll();
+            if (taken != null) {
+                consumer.decreaseIncomingMessageSize(taken);
+                lowestUsage.accumulateAndGet(memoryLimitController.currentUsage(), Math::min);
+            }
+            return invocation.callRealMethod();
+        }).when(memoryLimitController).forceReserveMemory(anyLong());
+
+        consumer.enqueueMessageAndCheckBatchReceive(mockIncomingMessage(0));
+
+        assertThat(lowestUsage.get()).isEqualTo(300);
+        assertThat(consumer.getTotalIncomingMessages()).isEqualTo(1);
+        assertThat(memoryLimitController.currentUsage()).isEqualTo(400);
     }
 
     @Test(invocationTimeOut = 1000)

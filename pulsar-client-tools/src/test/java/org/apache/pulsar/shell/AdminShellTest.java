@@ -22,6 +22,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import java.util.Properties;
 import org.apache.pulsar.admin.cli.PulsarAdminSupplier;
@@ -62,6 +63,13 @@ public class AdminShellTest {
         assertTrue(run(new String[]{"--admin-url", "http://localhost:8080",
                 "topics", "list", "public/default"}));
         verify(builder, times(3)).build();
+    }
+
+    @Test
+    public void testUsageMessageHasNoEnvironmentVariables() {
+        String usage = adminShell.getCommander().getUsageMessage();
+        assertFalse(usage.contains("Environment variables:"), usage);
+        assertFalse(usage.contains("PULSAR_CLIENT_CONF"), usage);
     }
 
     private boolean run(String[] args) {

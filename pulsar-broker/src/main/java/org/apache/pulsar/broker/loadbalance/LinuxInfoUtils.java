@@ -327,8 +327,8 @@ public class LinuxInfoUtils {
 
     /**
      * TLV IFLA_OPERSTATE
-     * contains RFC2863 state of the interface in numeric representation:
-     * See <a href="https://www.kernel.org/doc/Documentation/networking/operstates.txt">...</a>
+     * contains RFC2863 state of the interface in numeric representation.
+     * See <a href="https://www.kernel.org/doc/Documentation/networking/operstates.txt">...</a>.
      */
     enum Operstate {
         // Interface is in unknown state, neither driver nor userspace has set

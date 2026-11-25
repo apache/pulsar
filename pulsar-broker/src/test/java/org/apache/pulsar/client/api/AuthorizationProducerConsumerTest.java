@@ -101,7 +101,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
     }
 
     /**
-     * It verifies plugable authorization service
+     * It verifies plugable authorization service.
      *
      * <pre>
      * 1. Client passes correct authorization plugin-name + correct auth role: SUCCESS
