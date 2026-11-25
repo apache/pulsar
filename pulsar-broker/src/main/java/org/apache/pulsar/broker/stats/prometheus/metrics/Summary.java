@@ -66,6 +66,9 @@ public class Summary implements Collector {
     private Summary(Builder builder) {
         this.descriptor = MetricFamilyDescriptor.summary(builder.name).help(builder.help).build();
         this.quantiles = List.copyOf(builder.quantiles);
+        // Rejects a quantile outside [0, 1] and a duplicate here, where the summary is built. A scrape builds the
+        // same quantiles, and there the exception would fail the whole scrape.
+        Quantiles.of(quantiles.stream().map(quantile -> new Quantile(quantile, 0)).toList());
         synchronized (LOGGERS) {
             LOGGERS.add(logger);
         }
