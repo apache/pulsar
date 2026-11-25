@@ -5002,6 +5002,23 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testGetAllPoliciesOfNonPersistentTopic() throws Exception {
+        // the handler is inherited by the non-persistent path, and non-persistent topics apply topic policies
+        final String topic = TopicName.get(TopicDomain.non_persistent.value(), NamespaceName.get(myNamespace),
+                "test-np-get-all-" + UUID.randomUUID()).toString();
+        admin.topics().createNonPartitionedTopic(topic);
+        admin.topicPolicies().setMaxSubscriptionsPerTopic(topic, 10);
+
+        Awaitility.await().untilAsserted(() -> {
+            Map<String, Object> raw = admin.topicPolicies().getTopicPolicies(topic);
+            assertEquals(((Number) raw.get("maxSubscriptionsPerTopic")).intValue(), 10);
+            Map<String, Object> applied = admin.topicPolicies().getTopicPolicies(topic, true);
+            assertApplied(applied, "maxSubscriptionsPerTopic", "TOPIC");
+            assertEquals(((Number) appliedValue(applied, "maxSubscriptionsPerTopic")).intValue(), 10);
+        });
+    }
+
+    @Test
     public void testAppliedTopicRateOverridesAreNormalized() throws Exception {
         DispatchRate nsRate = DispatchRate.builder().dispatchThrottlingRateInMsg(100)
                 .dispatchThrottlingRateInByte(-1).ratePeriodInSecond(1).build();

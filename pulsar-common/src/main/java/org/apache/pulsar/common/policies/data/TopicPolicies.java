@@ -39,6 +39,12 @@ import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 
 /**
  * Topic policies.
+ *
+ * <p>The JSON form of this class is public: it is the body that {@code GET .../{topic}/policies} returns, and with the
+ * metadata-store topic policies service it is also the stored format. Keep it compatible: add fields, but do not
+ * rename or remove them. Derived helper properties, such as the {@code xxxSet} flags, are excluded with
+ * {@code @JsonIgnore}. {@link #isSchemaValidationEnforced()} must not get that annotation, because it shares its bean
+ * name with the real {@code schemaValidationEnforced} property and Jackson would drop the whole property.
  */
 @Data
 @Builder
