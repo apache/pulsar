@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -31,6 +32,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class AppliedValue<T> {
+    // Always serialized, so that a policy that no level sets is returned as "value": null.
+    @JsonInclude(JsonInclude.Include.ALWAYS)
     private T value;
     private PolicySource source;
 }

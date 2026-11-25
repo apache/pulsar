@@ -3953,20 +3953,35 @@ public class PersistentTopicsBase extends AdminResource {
                 .thenApply(policies -> policies.retention_policies);
     }
 
-    @SuppressWarnings("deprecation")
     protected CompletableFuture<TopicPolicies> internalGetTopicPolicies(boolean isGlobal) {
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
                 .thenApply(op -> op.orElseGet(() -> TopicPolicies.builder().isGlobal(isGlobal).build()));
     }
 
-    protected CompletableFuture<AppliedTopicPolicies> internalGetAppliedTopicPolicies(boolean isGlobal) {
-        return internalGetTopicPolicies(isGlobal)
+    /**
+     * Resolves the policies in effect, with the precedence a loaded topic uses: the local topic policies, the global
+     * topic policies, the namespace policies, then the broker configuration. It does not depend on the scope of the
+     * request.
+     */
+    protected CompletableFuture<Void> validateAppliedTopicPoliciesSupported() {
+        if (SystemTopicNames.isSystemTopic(topicName)) {
+            // A system topic ignores or overrides several levels, which the resolver does not mirror.
+            return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
+                    "The applied policies are not available for a system topic"));
+        }
+        return CompletableFuture.completedFuture(null);
+    }
+
+    protected CompletableFuture<AppliedTopicPolicies> internalGetAppliedTopicPolicies() {
+        return internalGetTopicPolicies(false)
+                .thenCombine(internalGetTopicPolicies(true), Pair::of)
                 .thenCombine(getNamespacePoliciesAsync(namespaceName), (topicPolicies, namespacePolicies) ->
                         new TopicPolicyResolver(config(),
                                 pulsar().getBrokerService().getBacklogQuotaManager().getDefaultQuota())
-                                .resolve(topicPolicies, namespacePolicies));
+                                .resolve(topicPolicies.getLeft(), topicPolicies.getRight(), namespacePolicies));
     }
 
+    @SuppressWarnings("deprecation")
     protected CompletableFuture<RetentionPolicies> internalGetRetention(boolean applied, boolean isGlobal) {
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenApply(op -> op.map(TopicPolicies::getRetentionPolicies).orElseGet(() -> {

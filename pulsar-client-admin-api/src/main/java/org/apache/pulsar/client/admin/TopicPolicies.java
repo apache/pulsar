@@ -2041,7 +2041,8 @@ public interface TopicPolicies {
      * {@code GET /admin/v2/persistent/{tenant}/{namespace}/{topic}/policies}. Each key is the name of a policy field
      * and each value is the corresponding JSON value, decoded as a {@link Map}, {@link java.util.List}, string,
      * number or boolean. Policies that were never set on the topic have no value. Values inherited from the
-     * namespace or the broker are not included; use the {@code applied} flag of the individual getters for those.
+     * namespace or the broker are not included; use {@link #getTopicPolicies(String, boolean)} with
+     * {@code applied} for those.
      * A topic without any policy yields a map in which no policy is set, never {@code null}.
      *
      * <p>The map is deliberately untyped so that new topic policies are returned without an API change. Field names
@@ -2060,11 +2061,15 @@ public interface TopicPolicies {
     CompletableFuture<Map<String, Object>> getTopicPoliciesAsync(String topic);
 
     /**
-     * Get all the policies of the topic, optionally resolved through the topic, namespace and broker levels.
+     * Get all the policies of the topic, optionally resolved through the local topic, global topic, namespace and
+     * broker levels.
      *
      * <p>Without {@code applied} this is {@link #getTopicPolicies(String)}. With {@code applied} every policy is
      * returned as an object with the {@code value} in effect and the {@code source} ({@code TOPIC},
-     * {@code NAMESPACE} or {@code BROKER}) it came from.
+     * {@code TOPIC_GLOBAL}, {@code NAMESPACE} or {@code BROKER}) it came from, and the scope of this object is
+     * ignored: like a loaded topic, the local topic policies win over the global ones. A policy that no level sets
+     * has a {@code null} value. The per-subscription policies map each subscription to such an object, and are
+     * absent when no subscription has one.
      *
      * @param topic the topic name
      * @param applied whether to return the policies in effect instead of the ones set on the topic

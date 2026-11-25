@@ -23,10 +23,18 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
+import com.fasterxml.jackson.databind.JsonNode;
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.TopicPolicies;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.testng.annotations.Test;
 
 public class CmdTopicPoliciesTest {
@@ -161,5 +169,30 @@ public class CmdTopicPoliciesTest {
 
         cmd.run("get persistent://public/default/topic --applied".split("\\s+"));
         verify(localPolicies, times(1)).getTopicPolicies("persistent://public/default/topic", true);
+    }
+
+    @Test
+    public void testGetAllPoliciesPrintsJson() throws Exception {
+        TopicPolicies localPolicies = mock(TopicPolicies.class);
+        Map<String, Object> policies = new LinkedHashMap<>();
+        policies.put("retentionPolicies", Map.of("retentionTimeInMinutes", 60, "retentionSizeInMB", 1024));
+        policies.put("messageTTLInSeconds", Map.of("value", 300, "source", "NAMESPACE"));
+        PulsarAdmin admin = mock(PulsarAdmin.class);
+        when(admin.topicPolicies(false)).thenReturn(localPolicies);
+        when(localPolicies.getTopicPolicies("persistent://public/default/topic", true)).thenReturn(policies);
+
+        PrintStream original = System.out;
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        try {
+            System.setOut(new PrintStream(output, true, StandardCharsets.UTF_8));
+            new CmdTopicPolicies(() -> admin).run("get public/default/topic --applied".split("\\s+"));
+        } finally {
+            System.setOut(original);
+        }
+
+        // The output is a single JSON document, not one "key    value" line per entry.
+        JsonNode json = ObjectMapperFactory.getMapper().reader().readTree(output.toString(StandardCharsets.UTF_8));
+        assertEquals(json.get("retentionPolicies").get("retentionTimeInMinutes").asInt(), 60);
+        assertEquals(json.get("messageTTLInSeconds").get("source").asText(), "NAMESPACE");
     }
 }

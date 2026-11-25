@@ -2133,13 +2133,15 @@ public class CmdTopicPolicies extends CmdBase {
         private boolean isGlobal = false;
 
         @Option(names = { "-ap", "--applied" }, description = "Get the policies in effect, resolved through the "
-                + "topic, namespace and broker levels, with the level each value came from")
+                + "local topic, global topic, namespace and broker levels, with the level each value came from. "
+                + "The scope of --global is ignored")
         private boolean applied = false;
 
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(topicName);
-            print(getTopicPolicies(isGlobal).getTopicPolicies(persistentTopic, applied));
+            // Cast, so that the whole result is printed as one JSON document and not as one line per entry.
+            print((Object) getTopicPolicies(isGlobal).getTopicPolicies(persistentTopic, applied));
         }
     }
 

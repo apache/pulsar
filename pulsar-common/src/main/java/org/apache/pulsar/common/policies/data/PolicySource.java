@@ -22,8 +22,10 @@ package org.apache.pulsar.common.policies.data;
  * The level of the topic -> namespace -> broker cascade that an applied policy value came from.
  */
 public enum PolicySource {
-    /** The value is set in the topic-level policies. */
+    /** The value is set in the local topic-level policies. */
     TOPIC,
+    /** The value is set in the global topic-level policies, and no local topic-level policy overrides it. */
+    TOPIC_GLOBAL,
     /** The value is set in the namespace policies. */
     NAMESPACE,
     /** The value is the broker default (<code>broker.conf</code>), or no level sets it. */

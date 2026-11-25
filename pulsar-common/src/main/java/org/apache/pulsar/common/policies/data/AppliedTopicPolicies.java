@@ -28,11 +28,13 @@ import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 
 /**
- * The topic-level policies in effect for a topic, resolved through the cascade topic -> namespace -> broker.
+ * The topic-level policies in effect for a topic, resolved through the cascade
+ * local topic -> global topic -> namespace -> broker.
  *
  * <p>There is one field for each policy of {@link TopicPolicies}, with the same name. Unlike {@link TopicPolicies},
  * where {@code null} means "not set on the topic", each field holds the value in effect and the
- * {@link PolicySource level} it came from. Policies that exist only at topic level are returned as stored.
+ * {@link PolicySource level} it came from. Policies that exist only at topic level (the shadow topics and the
+ * per-subscription policies) are returned with the level they were set on, and are absent when unset.
  */
 @Data
 @NoArgsConstructor
@@ -71,5 +73,5 @@ public class AppliedTopicPolicies {
     private AppliedValue<Boolean> schemaValidationEnforced;
     private AppliedValue<List<SubType>> subscriptionTypesEnabled;
     private Map<String, AppliedValue<BacklogQuotaImpl>> backLogQuotaMap;
-    private Map<String, SubscriptionPolicies> subscriptionPolicies;
+    private Map<String, AppliedValue<SubscriptionPolicies>> subscriptionPolicies;
 }

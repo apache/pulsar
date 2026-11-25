@@ -4915,6 +4915,105 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         assertNull(applied.get("shadowTopics"));
     }
 
+    @Test
+    public void testAppliedTopicPoliciesFollowLocalThenGlobalTopicPolicies() throws Exception {
+        final String topic = testTopic + UUID.randomUUID();
+        admin.topics().createNonPartitionedTopic(topic);
+        admin.namespaces().setRetention(myNamespace, new RetentionPolicies(10, 10));
+        admin.topicPolicies(true).setRetention(topic, new RetentionPolicies(60, 600));
+        admin.topicPolicies(true).setMaxConsumers(topic, 7);
+
+        // The global topic value wins over the namespace, whichever scope is requested.
+        for (boolean isGlobal : new boolean[]{false, true}) {
+            Awaitility.await().untilAsserted(() -> {
+                Map<String, Object> applied = admin.topicPolicies(isGlobal).getTopicPolicies(topic, true);
+                assertApplied(applied, "retentionPolicies", "TOPIC_GLOBAL");
+                assertEquals(((Number) ((Map<?, ?>) appliedValue(applied, "retentionPolicies"))
+                        .get("retentionTimeInMinutes")).intValue(), 60);
+                assertApplied(applied, "maxConsumerPerTopic", "TOPIC_GLOBAL");
+                assertEquals(((Number) appliedValue(applied, "maxConsumerPerTopic")).intValue(), 7);
+            });
+        }
+        // and it is what the loaded topic enforces
+        waitTopicPoliciesApplied(topic, 0, hierarchy -> {
+            assertEquals(hierarchy.getRetentionPolicies().get(), new RetentionPolicies(60, 600));
+            assertEquals(hierarchy.getMaxConsumerPerTopic().get(), Integer.valueOf(7));
+        });
+
+        // A local value wins over the global one.
+        admin.topicPolicies().setRetention(topic, new RetentionPolicies(30, 300));
+        for (boolean isGlobal : new boolean[]{false, true}) {
+            Awaitility.await().untilAsserted(() -> {
+                Map<String, Object> applied = admin.topicPolicies(isGlobal).getTopicPolicies(topic, true);
+                assertApplied(applied, "retentionPolicies", "TOPIC");
+                assertEquals(((Number) ((Map<?, ?>) appliedValue(applied, "retentionPolicies"))
+                        .get("retentionTimeInMinutes")).intValue(), 30);
+                // not overridden locally
+                assertApplied(applied, "maxConsumerPerTopic", "TOPIC_GLOBAL");
+            });
+        }
+        waitTopicPoliciesApplied(topic, 0, hierarchy ->
+                assertEquals(hierarchy.getRetentionPolicies().get(), new RetentionPolicies(30, 300)));
+    }
+
+    @Test
+    public void testAppliedTopicRateOverridesAreNormalized() throws Exception {
+        DispatchRate nsRate = DispatchRate.builder().dispatchThrottlingRateInMsg(100)
+                .dispatchThrottlingRateInByte(-1).ratePeriodInSecond(1).build();
+        admin.namespaces().setDispatchRate(myNamespace, nsRate);
+        // The CLI stores -1/-1 when no limit is given.
+        admin.topicPolicies().setDispatchRate(testTopic, DispatchRate.builder().dispatchThrottlingRateInMsg(-1)
+                .dispatchThrottlingRateInByte(-1).ratePeriodInSecond(1).build());
+
+        Awaitility.await().untilAsserted(() -> {
+            Map<String, Object> applied = admin.topicPolicies().getTopicPolicies(testTopic, true);
+            assertApplied(applied, "dispatchRate", "NAMESPACE");
+            assertEquals(((Number) ((Map<?, ?>) appliedValue(applied, "dispatchRate"))
+                    .get("dispatchThrottlingRateInMsg")).intValue(), 100);
+        });
+    }
+
+    @Test
+    public void testAppliedSubscriptionPoliciesCarryTheirSource() throws Exception {
+        // absent when no subscription has a policy
+        assertNull(admin.topicPolicies().getTopicPolicies(testTopic, true).get("subscriptionPolicies"));
+
+        DispatchRate rate = DispatchRate.builder().dispatchThrottlingRateInMsg(10)
+                .dispatchThrottlingRateInByte(1000).ratePeriodInSecond(1).build();
+        admin.topicPolicies().setSubscriptionDispatchRate(testTopic, "local-sub", rate);
+        admin.topicPolicies(true).setSubscriptionDispatchRate(testTopic, "global-sub", rate);
+
+        Awaitility.await().untilAsserted(() -> {
+            Map<?, ?> subs = (Map<?, ?>) admin.topicPolicies().getTopicPolicies(testTopic, true)
+                    .get("subscriptionPolicies");
+            assertNotNull(subs);
+            assertEquals(((Map<?, ?>) subs.get("local-sub")).get("source"), "TOPIC");
+            assertEquals(((Map<?, ?>) subs.get("global-sub")).get("source"), "TOPIC_GLOBAL");
+            assertNotNull(((Map<?, ?>) subs.get("local-sub")).get("value"));
+        });
+    }
+
+    @Test
+    public void testAppliedPersistenceReplacesNegativeMarkDeleteRate() throws Exception {
+        admin.topicPolicies().setPersistence(testTopic, new PersistencePolicies(2, 2, 2, -1));
+        Awaitility.await().untilAsserted(() -> {
+            Map<String, Object> applied = admin.topicPolicies().getTopicPolicies(testTopic, true);
+            assertApplied(applied, "persistence", "TOPIC");
+            assertEquals(((Number) ((Map<?, ?>) appliedValue(applied, "persistence"))
+                    .get("managedLedgerMaxMarkDeleteRate")).doubleValue(),
+                    conf.getManagedLedgerDefaultMarkDeleteRateLimit());
+        });
+    }
+
+    @Test
+    public void testAppliedTopicPoliciesAreRejectedForSystemTopics() throws Exception {
+        // Setting a topic policy creates the namespace events system topic.
+        admin.topicPolicies().setMaxConsumers(testTopic, 3);
+        String systemTopic = "persistent://" + myNamespace + "/" + NAMESPACE_EVENTS_LOCAL_NAME;
+        assertThrows(PulsarAdminException.PreconditionFailedException.class,
+                () -> admin.topicPolicies().getTopicPolicies(systemTopic, true));
+    }
+
     private static Object appliedValue(Map<String, Object> applied, String policy) {
         return ((Map<?, ?>) applied.get(policy)).get("value");
     }

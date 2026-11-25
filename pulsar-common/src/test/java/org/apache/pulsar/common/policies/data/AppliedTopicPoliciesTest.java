@@ -20,6 +20,7 @@ package org.apache.pulsar.common.policies.data;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.lang.reflect.Field;
 import java.util.Set;
@@ -59,5 +60,15 @@ public class AppliedTopicPoliciesTest {
         TopicPolicies read = ObjectMapperFactory.getMapper().reader().readValue(json, TopicPolicies.class);
         assertEquals(read.getRetentionPolicies(), policies.getRetentionPolicies());
         assertEquals(read.getIsGlobal(), Boolean.TRUE);
+    }
+
+    @Test
+    public void testNullAppliedValueKeepsTheValueKey() throws Exception {
+        String json = ObjectMapperFactory.getMapper().writer()
+                .writeValueAsString(new AppliedValue<String>(null, PolicySource.BROKER));
+        JsonNode tree = ObjectMapperFactory.getMapper().reader().readTree(json);
+        assertTrue(tree.has("value"));
+        assertTrue(tree.get("value").isNull());
+        assertEquals(tree.get("source").asText(), "BROKER");
     }
 }
