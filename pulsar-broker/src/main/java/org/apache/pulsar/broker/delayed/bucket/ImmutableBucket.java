@@ -447,6 +447,15 @@ class ImmutableBucket {
         if (snapshotCreateFuture.isPresent()) {
             return snapshotCreateFuture.get().handle((bucketId, ex) -> {
                 if (ex != null) {
+                    // Creation failed. If a replacement ledger was allocated before the failure
+                    // (e.g. a cursor publication failure) and is not the value the property
+                    // currently references, it is an unpublished snapshot that still needs
+                    // reclaiming; otherwise there is nothing to delete.
+                    Long cached = this.bucketId;
+                    if (cached != null && !String.valueOf(cached)
+                            .equals(ctx.cursor().getCursorProperties().get(bucketKey()))) {
+                        return Optional.of(cached);
+                    }
                     return Optional.empty();
                 }
                 setBucketId(bucketId);

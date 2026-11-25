@@ -493,6 +493,17 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                                 Range.closed(immutableBucket.getStartLedgerId(), immutableBucket.getEndLedgerId()));
                         snapshotSegmentLastIndexMap.remove(
                                 new SnapshotKey(lastDelayedIndex.getLedgerId(), lastDelayedIndex.getEntryId()));
+
+                        // A save that allocated a replacement ledger but never published it (for
+                        // example a cursor publication failure) leaves that ledger unreferenced
+                        // by the cursor property: keep the bucket in uncleanedBuckets so that
+                        // clear() retries the reclaim through resolveBucketIdForDelete().
+                        if (immutableBucket.getBucketId().isPresent()
+                                && !String.valueOf(immutableBucket.getBucketId().get())
+                                        .equals(ctx.cursor().getCursorProperties()
+                                                .get(immutableBucket.bucketKey()))) {
+                            uncleanedBuckets.add(immutableBucket);
+                        }
                     }
                 });
                 immutableBucket.setSnapshotCreateFuture(future);
