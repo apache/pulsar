@@ -18,7 +18,9 @@
  */
 package org.apache.pulsar.proxy.server;
 
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
@@ -54,6 +56,7 @@ import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandGetSchema;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
+import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespaceResponse;
 import org.apache.pulsar.common.api.proto.CommandLookupTopic;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
 import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadata;
@@ -62,6 +65,8 @@ import org.apache.pulsar.common.api.proto.KeyValue;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.lookup.GetTopicsResult;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter.AsyncDualMemoryLimiterPermit;
+import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter.LimitType;
 import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiterImpl;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.testng.annotations.AfterMethod;
@@ -78,6 +83,7 @@ public class LookupProxyHandlerTest {
     private ProxyConfiguration configuration;
     private ProxyService proxyService;
     private ProxyConnection proxyConnection;
+    private Semaphore lookupRequestSemaphore;
     private CompletableFuture<LookupDataResult> metadataFuture;
     private CompletableFuture<ClientCnx> connectionFuture;
     private ClientCnx clientCnx;
@@ -93,7 +99,8 @@ public class LookupProxyHandlerTest {
         configuration.setBrokerServiceURL("pulsar://broker:6650");
         proxyService = mock(ProxyService.class);
         when(proxyService.getConfiguration()).thenReturn(configuration);
-        when(proxyService.getLookupRequestSemaphore()).thenReturn(new Semaphore(1));
+        lookupRequestSemaphore = new Semaphore(1);
+        when(proxyService.getLookupRequestSemaphore()).thenReturn(lookupRequestSemaphore);
 
         metadataFuture = new CompletableFuture<>();
         clientCnx = mock(ClientCnx.class);
@@ -177,16 +184,19 @@ public class LookupProxyHandlerTest {
             metadataFuture.completeExceptionally(error);
         }
         handler.handlePartitionMetadataResponse(newRequest());
+        assertThat(lookupRequestSemaphore.availablePermits()).as("Permits while connecting").isZero();
         connectionFuture.complete(clientCnx);
         assertForwardedRequest(false);
         if (!alreadyFailed) {
             assertThat(channel.outboundMessages()).as("Responses before the broker completes").isEmpty();
+            assertThat(lookupRequestSemaphore.availablePermits()).as("Permits while awaiting metadata").isZero();
             metadataFuture.completeExceptionally(error);
         }
 
         assertErrorResponse(expectedError, expectedMessage);
         verify(clientCnx).newLookup(any(ByteBuf.class), eq(BROKER_REQUEST_ID));
         verify(connectionPool).releaseConnection(clientCnx);
+        assertThat(lookupRequestSemaphore.availablePermits()).as("Permits after metadata failure").isOne();
     }
 
     @DataProvider
@@ -237,6 +247,7 @@ public class LookupProxyHandlerTest {
         assertThat(response.getPartitions()).as("Partition count").isEqualTo(partitions);
         assertThat(response.hasError()).as("Success response error").isFalse();
         verify(connectionPool).releaseConnection(clientCnx);
+        assertThat(lookupRequestSemaphore.availablePermits()).as("Permits after metadata response").isOne();
     }
 
     @DataProvider
@@ -272,6 +283,7 @@ public class LookupProxyHandlerTest {
         assertErrorResponse(expectedError, expectedMessage);
         verifyNoBackendLookup();
         verify(connectionPool, never()).releaseConnection(any(ClientCnx.class));
+        assertThat(lookupRequestSemaphore.availablePermits()).as("Permits after connection failure").isOne();
     }
 
     @Test
@@ -380,6 +392,79 @@ public class LookupProxyHandlerTest {
 
         verify(context).writeAndFlush(any(ByteBuf.class), eq(promise));
         verify(connectionPool).releaseConnection(clientCnx);
+        assertThat(lookupRequestSemaphore.availablePermits()).as("Permits after response write failure").isOne();
+    }
+
+    @Test
+    public void testGetTopicsOfNamespaceHoldsPermitUntilResponse() throws Exception {
+        long heapMemoryLimit = 1024;
+        long directMemoryLimit = 1024;
+        topicListLimiter = new AsyncDualMemoryLimiterImpl(heapMemoryLimit, 100, 30_000,
+                directMemoryLimit, 100, 30_000);
+        TopicListSizeResultCache sizeCache = new TopicListSizeResultCache();
+        sizeCache.getTopicListSize(NAMESPACE, CommandGetTopicsOfNamespace.Mode.PERSISTENT).updateSize(1);
+        when(proxyService.getMaxTopicListInFlightLimiter()).thenReturn(topicListLimiter);
+        when(proxyService.getTopicListSizeResultCache()).thenReturn(sizeCache);
+        handler = new LookupProxyHandler(proxyService, proxyConnection);
+        CompletableFuture<GetTopicsResult> topicsFuture = new CompletableFuture<>();
+        doAnswer(invocation -> {
+            ByteBuf request = invocation.getArgument(0);
+            request.release();
+            return topicsFuture;
+        }).when(clientCnx).newGetTopicsOfNamespace(any(ByteBuf.class), eq(BROKER_REQUEST_ID));
+
+        AsyncDualMemoryLimiterPermit blockingDirectPermit =
+                topicListLimiter.acquire(directMemoryLimit, LimitType.DIRECT_MEMORY, () -> false).get(10, SECONDS);
+        try {
+            handler.handleGetTopicsOfNamespace(new CommandGetTopicsOfNamespace()
+                    .setNamespace(NAMESPACE).setRequestId(CLIENT_REQUEST_ID)
+                    .setMode(CommandGetTopicsOfNamespace.Mode.PERSISTENT));
+            assertThat(lookupRequestSemaphore.availablePermits()).as("Permits while connecting").isZero();
+            ProxyConnection otherConnection = mock(ProxyConnection.class);
+            when(otherConnection.ctx()).thenReturn(channel.pipeline().firstContext());
+            when(otherConnection.getConnectionPool()).thenReturn(connectionPool);
+            LookupProxyHandler otherHandler = new LookupProxyHandler(proxyService, otherConnection);
+            otherHandler.handleLookup(newLookupRequest());
+            readLookupErrorResponse(ServerError.TooManyRequests);
+            verify(otherConnection, never()).getConnectionPool();
+
+            connectionFuture.complete(clientCnx);
+            verify(clientCnx).newGetTopicsOfNamespace(any(ByteBuf.class), eq(BROKER_REQUEST_ID));
+            assertThat(lookupRequestSemaphore.availablePermits()).as("Permits while awaiting the topic list").isZero();
+            // An earlier heap waiter can proceed once the request queues its resize and releases its estimate.
+            CompletableFuture<AsyncDualMemoryLimiterPermit> heapWaiter =
+                    topicListLimiter.acquire(heapMemoryLimit, LimitType.HEAP_MEMORY, () -> false);
+            topicsFuture.complete(new GetTopicsResult(List.of(TOPIC), null, false, true));
+            AsyncDualMemoryLimiterPermit blockingHeapPermit = heapWaiter.get(10, SECONDS);
+            try {
+                assertThat(lookupRequestSemaphore.availablePermits()).as("Permits while resizing heap memory").isZero();
+            } finally {
+                topicListLimiter.release(blockingHeapPermit);
+            }
+            await().untilAsserted(() ->
+                    assertThat(topicListLimiter.getLimiter(LimitType.DIRECT_MEMORY).getQueueSize())
+                            .as("Responses waiting for direct memory").isOne());
+            assertThat(lookupRequestSemaphore.availablePermits()).as("Permits while awaiting direct memory").isZero();
+            assertThat(channel.outboundMessages()).as("Responses before direct memory is available").isEmpty();
+        } finally {
+            topicListLimiter.release(blockingDirectPermit);
+        }
+
+        await().untilAsserted(() ->
+                assertThat(lookupRequestSemaphore.availablePermits()).as("Permits after topic list response").isOne());
+        channel.runPendingTasks();
+        ByteBuf buffer = channel.readOutbound();
+        assertThat(buffer).as("Topic list response").isNotNull();
+        try {
+            BaseCommand command = decodeCommand(buffer);
+            assertThat(command.getType()).as("Response command type")
+                    .isEqualTo(BaseCommand.Type.GET_TOPICS_OF_NAMESPACE_RESPONSE);
+            CommandGetTopicsOfNamespaceResponse response = command.getGetTopicsOfNamespaceResponse();
+            assertThat(response.getRequestId()).as("Client request ID").isEqualTo(CLIENT_REQUEST_ID);
+            assertThat(response.getTopicsList()).as("Topics in the response").containsExactly(TOPIC);
+        } finally {
+            buffer.release();
+        }
     }
 
     @Test
@@ -514,6 +599,43 @@ public class LookupProxyHandlerTest {
 
         readLookupErrorResponse(ServerError.MetadataError);
         verify(connectionPool, never()).getConnection(any(InetSocketAddress.class));
+        assertThat(lookupRequestSemaphore.availablePermits()).as("Permits after invalid broker URL").isOne();
+    }
+
+    @Test
+    public void testLookupHoldsPermitAcrossRedirect() {
+        InetSocketAddress redirectedAddress = InetSocketAddress.createUnresolved("broker2", 6650);
+        CompletableFuture<ClientCnx> redirectedConnectionFuture = new CompletableFuture<>();
+        when(connectionPool.getConnection(redirectedAddress)).thenReturn(redirectedConnectionFuture);
+        ClientCnx redirectedClientCnx = mock(ClientCnx.class);
+        CompletableFuture<LookupDataResult> redirectedLookupFuture = new CompletableFuture<>();
+        doAnswer(invocation -> {
+            ByteBuf request = invocation.getArgument(0);
+            request.release();
+            return redirectedLookupFuture;
+        }).when(redirectedClientCnx).newLookup(any(ByteBuf.class), eq(BROKER_REQUEST_ID));
+
+        handler.handleLookup(newLookupRequest());
+        assertThat(lookupRequestSemaphore.availablePermits()).as("Permits while connecting").isZero();
+
+        connectionFuture.complete(clientCnx);
+        assertThat(lookupRequestSemaphore.availablePermits()).as("Permits while awaiting the first lookup").isZero();
+        metadataFuture.complete(new LookupDataResult(new CommandLookupTopicResponse()
+                .setRequestId(BROKER_REQUEST_ID)
+                .setResponse(CommandLookupTopicResponse.LookupType.Redirect)
+                .setBrokerServiceUrl("pulsar://broker2:6650")));
+        verify(connectionPool).releaseConnection(clientCnx);
+        verify(connectionPool).getConnection(redirectedAddress);
+        assertThat(lookupRequestSemaphore.availablePermits()).as("Permits while connecting after redirect").isZero();
+
+        redirectedConnectionFuture.complete(redirectedClientCnx);
+        verify(redirectedClientCnx).newLookup(any(ByteBuf.class), eq(BROKER_REQUEST_ID));
+        assertThat(lookupRequestSemaphore.availablePermits()).as("Permits while awaiting redirected lookup").isZero();
+        redirectedLookupFuture.completeExceptionally(new PulsarClientException.TimeoutException("Lookup timed out"));
+
+        readLookupErrorResponse(ServerError.ServiceNotReady);
+        verify(connectionPool).releaseConnection(redirectedClientCnx);
+        assertThat(lookupRequestSemaphore.availablePermits()).as("Permits after redirected lookup failure").isOne();
     }
 
     @DataProvider
@@ -535,6 +657,7 @@ public class LookupProxyHandlerTest {
 
         readLookupErrorResponse(expectedError);
         verify(connectionPool).releaseConnection(clientCnx);
+        assertThat(lookupRequestSemaphore.availablePermits()).as("Permits after invalid redirect URL").isOne();
     }
 
     private CommandLookupTopic newLookupRequest() {
