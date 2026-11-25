@@ -767,21 +767,20 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
         while (n > 0 && !sharedBucketPriorityQueue.isEmpty()) {
             long timestamp = sharedBucketPriorityQueue.peekN1();
-            long ledgerId = sharedBucketPriorityQueue.peekN2();
-            long entryId = sharedBucketPriorityQueue.peekN3();
-            if (firstLiveLedgerId != null && ledgerId < firstLiveLedgerId) {
-                sharedBucketPriorityQueue.pop();
-                removeIndexBit(ledgerId, entryId);
-                continue;
-            }
             if (timestamp > cutoffTime) {
                 break;
             }
 
-            SnapshotKey snapshotKey = new SnapshotKey(ledgerId, entryId);
+            long ledgerId = sharedBucketPriorityQueue.peekN2();
+            long entryId = sharedBucketPriorityQueue.peekN3();
 
+            boolean orphaned = firstLiveLedgerId != null && ledgerId < firstLiveLedgerId;
+            SnapshotKey snapshotKey = new SnapshotKey(ledgerId, entryId);
             ImmutableBucket bucket = snapshotSegmentLastIndexMap.get(snapshotKey);
-            if (bucket != null && immutableBuckets.asMapOfRanges().containsValue(bucket)) {
+            boolean shouldLoadNextSegment = bucket != null
+                    && immutableBuckets.asMapOfRanges().containsValue(bucket)
+                    && (!orphaned || bucket.getEndLedgerId() >= firstLiveLedgerId);
+            if (shouldLoadNextSegment) {
                 // All message of current snapshot segment are scheduled, try load next snapshot segment
                 if (bucket.merging) {
                     log.info()
@@ -867,6 +866,12 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
             }
 
             sharedBucketPriorityQueue.pop();
+
+            if (orphaned) {
+                removeIndexBit(ledgerId, entryId);
+                continue;
+            }
+
             // Dedup: queue may carry the same position twice (initial seal + merge); only the
             // first delivery of each position decrements the counter via removeIndexBit.
             if (removeIndexBit(ledgerId, entryId)) {

@@ -64,6 +64,8 @@ A few rules matter specifically when an AI tool makes the change, on top of the 
   these outward-facing actions — see *Licensing and provenance* above.
 - **A clean local run is weak evidence for concurrency/data race fixes** (timing- and
   platform-dependent). See [`CODING.md`](CODING.md#reproducing-concurrency--memory-visibility-bugs).
+- **Async exceptions:** before changing how async errors are checked, wrapped, or unwrapped, read
+  [`CODING.md` → Exception wrapping and unwrapping](CODING.md#exception-wrapping-and-unwrapping).
 - **Follow Java style guidance** in [`CODING.md`](CODING.md#style). One hard rule: reference classes
   by simple name with an `import`, never by fully qualified name inline — unless two classes share a
   simple name in one file, in which case the less used one stays qualified.
