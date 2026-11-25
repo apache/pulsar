@@ -22,8 +22,11 @@ import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.parseMetrics;
 import static org.assertj.core.api.Assertions.assertThat;
 import com.google.common.collect.Multimap;
+import io.prometheus.client.CollectorRegistry;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 import java.util.Map;
 import org.apache.pulsar.PrometheusMetricsTestUtil;
 import org.apache.pulsar.PulsarVersion;
@@ -68,6 +71,8 @@ public class JvmMetricsExportTest extends SharedPulsarBaseTest {
         assertThat(metrics.get("jvm_memory_direct_bytes_used")).singleElement()
                 .satisfies(used -> assertThat(used.value).as("-1 means the JVM cannot estimate it")
                         .isGreaterThanOrEqualTo(-1));
+        assertRegisteredInThe1xRegistryOnly("jvm_memory_direct_bytes_max");
+        assertRegisteredInThe1xRegistryOnly("jvm_memory_direct_bytes_used");
     }
 
     @Test
@@ -78,6 +83,21 @@ public class JvmMetricsExportTest extends SharedPulsarBaseTest {
                     .containsEntry("commit", PulsarVersion.getGitSha());
             assertThat(versionInfo.value).isEqualTo(1.0);
         });
+        assertRegisteredInThe1xRegistryOnly("pulsar_version_info");
+    }
+
+    /**
+     * The broker /metrics writes the simpleclient registry and the 1.x registry, so the scrape alone does not tell
+     * in which of them a family is registered.
+     */
+    private static void assertRegisteredInThe1xRegistryOnly(String family) {
+        assertThat(PrometheusRegistry.defaultRegistry.scrape(family::equals))
+                .as("%s in the 1.x registry", family)
+                .hasSize(1);
+        assertThat(Collections.list(CollectorRegistry.defaultRegistry.metricFamilySamples()))
+                .as("families in the simpleclient registry")
+                .extracting(legacyFamily -> legacyFamily.name)
+                .doesNotContain(family);
     }
 
     private String scrape() throws Exception {

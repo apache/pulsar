@@ -36,6 +36,7 @@ import jakarta.ws.rs.core.StreamingOutput;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -134,6 +135,17 @@ public class FunctionsMetricsResourceTest {
                 .singleElement()
                 .satisfies(used -> assertThat(used).as("-1 means the JVM cannot estimate it")
                         .isGreaterThanOrEqualTo(-1.0));
+        // The worker /metrics writes the simpleclient registry and the 1.x registry, so the scrape alone does not
+        // tell in which of them the gauges are registered
+        for (String gauge : List.of("jvm_memory_direct_bytes_max", "jvm_memory_direct_bytes_used")) {
+            assertThat(PrometheusRegistry.defaultRegistry.scrape(gauge::equals))
+                    .as("%s in the 1.x registry", gauge)
+                    .hasSize(1);
+            assertThat(Collections.list(CollectorRegistry.defaultRegistry.metricFamilySamples()))
+                    .as("families in the simpleclient registry")
+                    .extracting(family -> family.name)
+                    .doesNotContain(gauge);
+        }
     }
 
     private static String scrape(boolean includeStandardPrometheusMetrics) throws Exception {
