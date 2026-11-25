@@ -217,6 +217,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     // NOTE: Don't update cursorLedgerStat alone,
     // please use updateCursorLedgerStat method to update cursorLedgerStat and managedCursorInfo at the same time.
     private volatile Stat cursorLedgerStat;
+    private final Object cursorPropertiesLock = new Object();
     private volatile ManagedCursorInfo managedCursorInfo;
 
     private static final LongPairConsumer<Position> positionRangeConverter = PositionFactory::create;
@@ -453,8 +454,20 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     private void updateCursorLedgerStat(ManagedCursorInfo cursorInfo, Stat stat) {
-        this.managedCursorInfo = cursorInfo;
-        this.cursorLedgerStat = stat;
+        // The three fields describe one persisted cursor state: the properties are rebuilt from
+        // the info so a version refresh cannot pair a fresh stat with stale properties. The stat
+        // is written last: a lock-free reader that observes the new stat then also observes the
+        // new properties, as the pre-existing volatile ordering guaranteed.
+        Map<String, String> rebuiltProperties = new HashMap<>();
+        for (int i = 0; i < cursorInfo.getCursorPropertiesCount(); i++) {
+            StringProperty property = cursorInfo.getCursorPropertyAt(i);
+            rebuiltProperties.put(property.getName(), property.getValue());
+        }
+        synchronized (cursorPropertiesLock) {
+            this.managedCursorInfo = cursorInfo;
+            this.cursorProperties = Collections.unmodifiableMap(rebuiltProperties);
+            this.cursorLedgerStat = stat;
+        }
     }
 
     @Override
@@ -485,11 +498,43 @@ public class ManagedCursorImpl implements ManagedCursor {
             final Function<Map<String, String>, Map<String, String>> updateFunction) {
         CompletableFuture<Void> updateCursorPropertiesResult = new CompletableFuture<>();
 
-        final Stat lastCursorLedgerStat = ManagedCursorImpl.this.cursorLedgerStat;
-
-        Map<String, String> newProperties = updateFunction.apply(ManagedCursorImpl.this.cursorProperties);
         if (!isDurable()) {
-            this.cursorProperties = Collections.unmodifiableMap(newProperties);
+            // No store version guards the write, so the read, the function and the publication
+            // run as one critical section: two concurrent updates would otherwise both succeed
+            // and only one edit would survive.
+            synchronized (cursorPropertiesLock) {
+                final Map<String, String> newProperties;
+                try {
+                    // The copy also validates the result: it rejects a null map, null keys and
+                    // values, and it owns the snapshot that is published and persisted.
+                    newProperties = Map.copyOf(updateFunction.apply(this.cursorProperties));
+                } catch (Exception e) {
+                    updateCursorPropertiesResult.completeExceptionally(e);
+                    return updateCursorPropertiesResult;
+                }
+                this.cursorProperties = newProperties;
+            }
+            updateCursorPropertiesResult.complete(null);
+            return updateCursorPropertiesResult;
+        }
+
+        final Stat lastCursorLedgerStat;
+        final Map<String, String> currentProperties;
+        synchronized (cursorPropertiesLock) {
+            lastCursorLedgerStat = ManagedCursorImpl.this.cursorLedgerStat;
+            currentProperties = ManagedCursorImpl.this.cursorProperties;
+        }
+
+        final Map<String, String> newProperties;
+        try {
+            newProperties = Map.copyOf(updateFunction.apply(currentProperties));
+        } catch (Exception e) {
+            updateCursorPropertiesResult.completeExceptionally(e);
+            return updateCursorPropertiesResult;
+        }
+        if (newProperties.equals(currentProperties)) {
+            // Nothing changed: skip the version-bumping write, which could collide with the
+            // concurrent writer the update function just chose not to fight.
             updateCursorPropertiesResult.complete(null);
             return updateCursorPropertiesResult;
         }
@@ -506,7 +551,6 @@ public class ManagedCursorImpl implements ManagedCursor {
                     @Override
                     public void operationComplete(Void result, Stat stat) {
                         log.info("Updated ledger cursor");
-                        ManagedCursorImpl.this.cursorProperties = Collections.unmodifiableMap(newProperties);
                         updateCursorLedgerStat(copy, stat);
                         updateCursorPropertiesResult.complete(result);
                     }
@@ -566,6 +610,13 @@ public class ManagedCursorImpl implements ManagedCursor {
             newProperties.remove(key);
             return newProperties;
         });
+    }
+
+    @Override
+    public CompletableFuture<Void> updateCursorProperties(
+            Function<Map<String, String>, Map<String, String>> updateFunction) {
+        return computeCursorProperties(
+                lastRead -> updateFunction.apply(lastRead == null ? new HashMap<>() : new HashMap<>(lastRead)));
     }
 
     @Override
@@ -925,7 +976,9 @@ public class ManagedCursorImpl implements ManagedCursor {
             position = lastPosition;
         }
         log.info().attr("position", position).log("Recovered cursor");
-        this.cursorProperties = cursorProperties == null ? Collections.emptyMap() : cursorProperties;
+        synchronized (cursorPropertiesLock) {
+            this.cursorProperties = cursorProperties == null ? Collections.emptyMap() : cursorProperties;
+        }
         // Initialize the counter such that the difference between the entries added to the ML and the
         // messagesConsumed is the backlog. Entries may already have been added if the recovery was lazy.
         messagesConsumedCounter = lastPositionAndCounter.getRight()
@@ -3537,7 +3590,15 @@ public class ManagedCursorImpl implements ManagedCursor {
             return;
         }
 
-        final Stat lastCursorLedgerStat = cursorLedgerStat;
+        // Sample the version and the properties as one pair: sampling them separately can pair
+        // the fresh version with stale properties, and the store would then commit the stale map
+        // under the fresh version, silently reverting an acknowledged property update.
+        final Stat lastCursorLedgerStat;
+        final Map<String, String> cursorPropertiesSnapshot;
+        synchronized (cursorPropertiesLock) {
+            lastCursorLedgerStat = this.cursorLedgerStat;
+            cursorPropertiesSnapshot = this.cursorProperties;
+        }
         final long lastActiveToPersist = lastActive;
 
         // When closing we store the last mark-delete position in the z-node itself, so we won't need the cursor ledger,
@@ -3552,7 +3613,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
 
         info.addAllProperties(buildPropertiesMap(properties));
-        info.addAllCursorProperties(buildStringPropertiesMap(cursorProperties));
+        info.addAllCursorProperties(buildStringPropertiesMap(cursorPropertiesSnapshot));
         if (persistIndividualDeletedMessageRanges) {
             info.addAllIndividualDeletedMessages(buildIndividualDeletedMessageRanges());
             if (getConfig().isDeletionAtBatchIndexLevelEnabled()) {
