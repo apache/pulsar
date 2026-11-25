@@ -20,12 +20,17 @@ package org.apache.pulsar.broker.service;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.pulsar.common.protocol.Commands.serializeMetadataAndPayload;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
@@ -35,6 +40,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.RejectedExecutionException;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
@@ -53,9 +60,11 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.CompressionType;
 import org.apache.pulsar.common.api.proto.MarkerType;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.policies.data.ClusterPolicies.ClusterUrl;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
@@ -75,6 +84,120 @@ public class AbstractBaseDispatcherTest {
         when(svcConfig.isDispatchThrottlingForFilteredEntriesEnabled()).thenReturn(true);
         this.subscriptionMock = mock(PersistentSubscription.class);
         this.helper = new AbstractBaseDispatcherTestHelper(this.subscriptionMock, this.svcConfig, null);
+    }
+
+    @Test(dataProvider = "consumerNotificationFailures")
+    public void testTopicMigrationContinuesAfterConsumerFailure(Throwable failure) {
+        PersistentTopic topic = mock(PersistentTopic.class);
+        when(topic.isMigrated()).thenReturn(true);
+        CompletableFuture<Optional<ClusterUrl>> lookup = new CompletableFuture<>();
+        when(topic.getMigratedClusterUrlAsync()).thenReturn(lookup);
+        Optional<ClusterUrl> url = Optional.of(new ClusterUrl(null, null, "pulsar://target:6650", null));
+        Consumer a = mock(Consumer.class, "A");
+        Consumer b = mock(Consumer.class, "B");
+        Consumer c = mock(Consumer.class, "C");
+        List<Consumer> attempts = new ArrayList<>();
+        doAnswer(invocation -> {
+            attempts.add(a);
+            return null;
+        }).when(a).topicMigrated(url);
+        doAnswer(invocation -> {
+            attempts.add(b);
+            throw failure;
+        }).when(b).topicMigrated(url);
+        doAnswer(invocation -> {
+            attempts.add(c);
+            return null;
+        }).when(c).topicMigrated(url);
+
+        AbstractBaseDispatcher.checkAndApplyReachedEndOfTopicOrTopicMigration(topic, List.of(a, b, c));
+        assertThat(attempts).as("Notifications wait for the migration URL").isEmpty();
+        lookup.complete(url);
+
+        assertThat(attempts).as("A failed consumer must not prevent later notifications")
+                .containsExactly(a, b, c);
+    }
+
+    @DataProvider
+    public Object[][] consumerNotificationFailures() {
+        return new Object[][]{
+                {new RejectedExecutionException("B notification failed")},
+                {new AssertionError("B notification failed")}
+        };
+    }
+
+    @Test(dataProvider = "consumerNotificationFailures")
+    public void testEndOfTopicContinuesAfterConsumerFailure(Throwable failure) {
+        PersistentTopic topic = mock(PersistentTopic.class);
+        Consumer a = mock(Consumer.class, "A");
+        Consumer b = mock(Consumer.class, "B");
+        Consumer c = mock(Consumer.class, "C");
+        List<Consumer> attempts = new ArrayList<>();
+        doAnswer(invocation -> {
+            attempts.add(a);
+            return null;
+        }).when(a).reachedEndOfTopic();
+        doAnswer(invocation -> {
+            attempts.add(b);
+            throw failure;
+        }).when(b).reachedEndOfTopic();
+        doAnswer(invocation -> {
+            attempts.add(c);
+            return null;
+        }).when(c).reachedEndOfTopic();
+
+        assertThatCode(() -> AbstractBaseDispatcher.checkAndApplyReachedEndOfTopicOrTopicMigration(
+                topic, List.of(a, b, c)))
+                .as("Notification failures must allow the caller to continue")
+                .doesNotThrowAnyException();
+
+        assertThat(attempts).as("A failed consumer must not prevent later notifications")
+                .containsExactly(a, b, c);
+        verify(topic, never()).getMigratedClusterUrlAsync();
+    }
+
+    @Test
+    public void testMigrationUrlFailureDoesNotNotifyConsumers() {
+        PersistentTopic topic = mock(PersistentTopic.class);
+        when(topic.isMigrated()).thenReturn(true);
+        CompletableFuture<Optional<ClusterUrl>> lookup = new CompletableFuture<>();
+        when(topic.getMigratedClusterUrlAsync()).thenReturn(lookup);
+        Consumer a = mock(Consumer.class, "A");
+        Consumer b = mock(Consumer.class, "B");
+        Consumer c = mock(Consumer.class, "C");
+
+        AbstractBaseDispatcher.checkAndApplyReachedEndOfTopicOrTopicMigration(topic, List.of(a, b, c));
+        lookup.completeExceptionally(new CompletionException(new IllegalStateException("URL lookup failed")));
+
+        verifyNoInteractions(a, b, c);
+    }
+
+    @DataProvider
+    public Object[][] successfulConsumerNotifications() {
+        return new Object[][]{
+                {true, Optional.of(new ClusterUrl(null, null, "pulsar://target:6650", null))},
+                {true, Optional.empty()},
+                {false, Optional.empty()}
+        };
+    }
+
+    @Test(dataProvider = "successfulConsumerNotifications")
+    public void testSuccessfulConsumerNotifications(boolean migrated, Optional<ClusterUrl> url) {
+        PersistentTopic topic = mock(PersistentTopic.class);
+        when(topic.isMigrated()).thenReturn(migrated);
+        when(topic.getMigratedClusterUrlAsync()).thenReturn(CompletableFuture.completedFuture(url));
+        List<Consumer> consumers = List.of(mock(Consumer.class), mock(Consumer.class), mock(Consumer.class));
+
+        AbstractBaseDispatcher.checkAndApplyReachedEndOfTopicOrTopicMigration(topic, consumers);
+
+        for (Consumer consumer : consumers) {
+            if (migrated) {
+                verify(consumer).topicMigrated(url);
+            } else {
+                verify(consumer).reachedEndOfTopic();
+            }
+            verifyNoMoreInteractions(consumer);
+        }
     }
 
     @Test

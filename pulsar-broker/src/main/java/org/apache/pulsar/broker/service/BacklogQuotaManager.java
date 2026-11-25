@@ -95,10 +95,8 @@ public class BacklogQuotaManager {
     public void handleExceededBacklogQuota(PersistentTopic persistentTopic, BacklogQuotaType backlogQuotaType,
                                            boolean preciseTimeBasedBacklogQuotaCheck) {
         if (persistentTopic.isFenced() || persistentTopic.isClosingOrDeleting()) {
-            // Skip eviction work on a topic that is being torn down or transiently fenced.
-            // Mutating cursors here (skipEntries / markDeletePosition) contends with the
-            // delete path and can keep namespace force-delete from completing in time;
-            // the entries are about to be discarded anyway.
+            // Skip quota handling on a topic that is temporarily unavailable or being torn down.
+            // For close/delete, mutating cursors here can contend with the teardown path.
             log.debug()
                     .attr("topic", persistentTopic.getName())
                     .attr("backlogQuotaType", backlogQuotaType)
@@ -117,12 +115,14 @@ public class BacklogQuotaManager {
             case consumer_backlog_eviction:
                 switch (backlogQuotaType) {
                     case destination_storage:
-                        dropBacklogForSizeLimit(persistentTopic, quota);
-                        topicBacklogQuotaMetrics.recordSizeBasedBacklogEviction();
+                        if (dropBacklogForSizeLimit(persistentTopic, quota)) {
+                            topicBacklogQuotaMetrics.recordSizeBasedBacklogEviction();
+                        }
                         break;
                     case message_age:
-                        dropBacklogForTimeLimit(persistentTopic, quota, preciseTimeBasedBacklogQuotaCheck);
-                        topicBacklogQuotaMetrics.recordTimeBasedBacklogEviction();
+                        if (dropBacklogForTimeLimit(persistentTopic, quota, preciseTimeBasedBacklogQuotaCheck)) {
+                            topicBacklogQuotaMetrics.recordTimeBasedBacklogEviction();
+                        }
                         break;
                     default:
                         break;
@@ -147,8 +147,9 @@ public class BacklogQuotaManager {
      *            The topic from which backlog should be dropped
      * @param quota
      *            Backlog quota set for the topic
+     * @return false if teardown stopped eviction before the first cursor mutation attempt
      */
-    private void dropBacklogForSizeLimit(PersistentTopic persistentTopic, BacklogQuota quota) {
+    private boolean dropBacklogForSizeLimit(PersistentTopic persistentTopic, BacklogQuota quota) {
         long targetSize = computeEvictionTarget(quota.getLimitSize());
 
         // Get estimated unconsumed size for the managed ledger associated with this topic. Estimated size is more
@@ -196,7 +197,10 @@ public class BacklogQuotaManager {
                     log.debug().attr("slowestConsumer", slowestConsumer).log("no messages to skip for");
                     break;
                 }
-                // Skip messages on the slowest consumer
+                beforeBacklogQuotaCursorMutation(persistentTopic);
+                if (shouldStopEvictionOnTopicClose(persistentTopic)) {
+                    return previousSlowestConsumer != null;
+                }
                 log.debug()
                         .attr("topic", persistentTopic.getName())
                         .attr("messagesToSkip", messagesToSkip)
@@ -222,6 +226,7 @@ public class BacklogQuotaManager {
                     .attr("backlogSize", backlogSize)
                     .log("Updated unconsumed size");
         }
+        return true;
     }
 
     /**
@@ -231,9 +236,10 @@ public class BacklogQuotaManager {
      *            The topic from which backlog should be dropped
      * @param quota
      *            Backlog quota set for the topic
+     * @return false if teardown stopped eviction before the first cursor mutation attempt
      */
-    private void dropBacklogForTimeLimit(PersistentTopic persistentTopic, BacklogQuota quota,
-                                         boolean preciseTimeBasedBacklogQuotaCheck) {
+    private boolean dropBacklogForTimeLimit(PersistentTopic persistentTopic, BacklogQuota quota,
+                                            boolean preciseTimeBasedBacklogQuotaCheck) {
         // If enabled precise time based backlog quota check, will expire message based on the timeBaseQuota
         if (preciseTimeBasedBacklogQuotaCheck) {
             int target = (int) computeEvictionTarget(quota.getLimitTime());
@@ -250,6 +256,7 @@ public class BacklogQuotaManager {
             // If disabled precise time based backlog quota check, will try to remove whole ledger from cursor's backlog
             long currentMillis = persistentTopic.getManagedLedger().getConfig().getClock().millis();
             ManagedLedger mLedger = persistentTopic.getManagedLedger();
+            boolean cursorAdvanced = false;
             try {
                 for (; ; ) {
                     ManagedCursor slowestConsumer = mLedger.getSlowestConsumer();
@@ -267,7 +274,12 @@ public class BacklogQuotaManager {
                     if (ledgerInfo == null) {
                         long ledgerId = mLedger.getLedgersInfo().ceilingKey(oldestPosition.getLedgerId() + 1);
                         Position nextPosition = PositionFactory.create(ledgerId, -1);
+                        beforeBacklogQuotaCursorMutation(persistentTopic);
+                        if (shouldStopEvictionOnTopicClose(persistentTopic)) {
+                            return cursorAdvanced;
+                        }
                         slowestConsumer.markDelete(nextPosition);
+                        cursorAdvanced = true;
                         markDeletePositionMoveForward(persistentTopic, slowestConsumer);
                         continue;
                     }
@@ -278,7 +290,12 @@ public class BacklogQuotaManager {
                         long ledgerId = mLedger.getLedgersInfo().ceilingKey(oldestPosition.getLedgerId() + 1);
                         Position nextPosition = PositionFactory.create(ledgerId, -1);
                         if (!nextPosition.equals(oldestPosition)) {
+                            beforeBacklogQuotaCursorMutation(persistentTopic);
+                            if (shouldStopEvictionOnTopicClose(persistentTopic)) {
+                                return cursorAdvanced;
+                            }
                             slowestConsumer.markDelete(nextPosition);
+                            cursorAdvanced = true;
                             markDeletePositionMoveForward(persistentTopic, slowestConsumer);
                             continue;
                         }
@@ -293,6 +310,7 @@ public class BacklogQuotaManager {
                         .log("Error resetting cursor for slowest consumer");
             }
         }
+        return true;
     }
 
     /**
@@ -366,6 +384,21 @@ public class BacklogQuotaManager {
         }
     }
 
+    @VisibleForTesting
+    protected void beforeBacklogQuotaCursorMutation(PersistentTopic persistentTopic) {
+        // No-op.
+    }
+
+    private boolean shouldStopEvictionOnTopicClose(PersistentTopic persistentTopic) {
+        // Best effort: do not hold the topic lock across blocking cursor I/O.
+        if (persistentTopic.isClosingOrDeleting()) {
+            log.debug()
+                    .attr("topic", persistentTopic.getName())
+                    .log("Stopping backlog-quota eviction because topic is closing or deleting");
+            return true;
+        }
+        return false;
+    }
 
     /**
      * Compute the target value after backlog eviction.

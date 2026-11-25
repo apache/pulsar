@@ -306,6 +306,9 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 } else if (skipDueToSeek) {
                     log.info().attr("messageId", msg.getMessageId())
                             .log("Skip processing message received during seek");
+                    // The application never gets this message, so release it here if it is pooled. A message of
+                    // an older epoch needs no release: isValidConsumerEpoch() released it.
+                    msg.release();
                 }
             });
 

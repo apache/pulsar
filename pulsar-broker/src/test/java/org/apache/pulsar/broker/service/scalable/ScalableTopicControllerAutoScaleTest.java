@@ -42,6 +42,7 @@ import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.resources.ScalableTopicResources;
+import org.apache.pulsar.broker.resources.TopicResources;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.TopicPoliciesService;
 import org.apache.pulsar.broker.service.TransportCnx;
@@ -130,7 +131,6 @@ public class ScalableTopicControllerAutoScaleTest {
         when(pulsar.getNamespaceService()).thenReturn(namespaceService);
         when(namespaceService.isServiceUnitOwnedAsync(any()))
                 .thenReturn(CompletableFuture.completedFuture(true));
-
         // Namespace policies feed the per-namespace auto-scale override resolution.
         // Default: no policies → broker config applies. Tests install overrides via
         // namespacePolicies. Reset explicitly — TestNG reuses the test instance.
@@ -139,6 +139,11 @@ public class ScalableTopicControllerAutoScaleTest {
         namespaceResources = mock(NamespaceResources.class);
         when(pulsar.getPulsarResources()).thenReturn(pulsarResources);
         when(pulsarResources.getNamespaceResources()).thenReturn(namespaceResources);
+        // The segments' topics have no managed ledgers either.
+        TopicResources topicResources = mock(TopicResources.class);
+        when(pulsarResources.getTopicResources()).thenReturn(topicResources);
+        when(topicResources.getManagedLedgerCursorsFromStoreAsync(any(TopicName.class)))
+                .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
         when(namespaceResources.getPoliciesAsync(any(NamespaceName.class)))
                 .thenAnswer(__ -> CompletableFuture.completedFuture(
                         Optional.ofNullable(namespacePolicies)));
