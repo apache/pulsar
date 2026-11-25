@@ -96,16 +96,27 @@ public class PrometheusAppenderTest {
         assertThat(scrapeLogEventsByLevel()).isEqualTo(eventsBefore);
     }
 
+    @Test
+    public void declaresTheFamilyAsTheSimpleclientAppenderDid() throws IOException {
+        assertThat(scrapeLogEvents())
+                .contains("# HELP log4j2_appender_total Log4j2 log statements at various log levels\n")
+                .contains("# TYPE log4j2_appender_total counter\n");
+    }
+
     private static Map<String, Double> scrapeLogEventsByLevel() throws IOException {
-        ByteArrayOutputStream text = new ByteArrayOutputStream();
-        PrometheusTextFormatWriter.create().write(text,
-                PrometheusRegistry.defaultRegistry.scrape(name -> name.startsWith("log4j2_appender")),
-                EscapingScheme.UNDERSCORE_ESCAPING);
         Map<String, Double> eventsByLevel = new HashMap<>();
-        Matcher sample = LOG_EVENTS_SAMPLE.matcher(text.toString(StandardCharsets.UTF_8));
+        Matcher sample = LOG_EVENTS_SAMPLE.matcher(scrapeLogEvents());
         while (sample.find()) {
             eventsByLevel.put(sample.group(1), Double.parseDouble(sample.group(2)));
         }
         return eventsByLevel;
+    }
+
+    private static String scrapeLogEvents() throws IOException {
+        ByteArrayOutputStream text = new ByteArrayOutputStream();
+        PrometheusTextFormatWriter.create().write(text,
+                PrometheusRegistry.defaultRegistry.scrape(name -> name.startsWith("log4j2_appender")),
+                EscapingScheme.UNDERSCORE_ESCAPING);
+        return text.toString(StandardCharsets.UTF_8);
     }
 }
