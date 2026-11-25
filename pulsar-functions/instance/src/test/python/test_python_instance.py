@@ -500,12 +500,16 @@ class TestConsumerSubscribeArgs(unittest.TestCase):
 
   def test_consumer_name_reaches_the_input_specs_path(self):
     def consumer_name(details):
+      details.tenant = "public"
+      details.namespace = "default"
+      details.name = "my-function"
       details.source.inputSpecs["persistent://public/default/in"].consumerProperties["consumerName"] = "my-consumer"
 
     kwargs = self._subscribe_kwargs(via_input_specs=True, configure=consumer_name)
 
     self.assertEqual("my-consumer", kwargs["consumer_name"])
-    self.assertNotIn("consumerName", kwargs["properties"])
+    self.assertEqual({"application": "pulsar-function", "id": "public/default/my-function",
+                      "instance_id": "test_instance"}, kwargs["properties"])
 
   def test_consumer_name_reaches_the_regex_path(self):
     def consumer_name(details):
@@ -517,6 +521,7 @@ class TestConsumerSubscribeArgs(unittest.TestCase):
 
   def test_unsupported_consumer_properties_are_logged_and_ignored(self):
     def consumer_properties(details):
+      details.source.timeoutMs = 30000
       details.source.inputSpecs["persistent://public/default/in"].consumerProperties["ackTimeoutMillis"] = "5000"
 
     with patch("python_instance.Log") as mock_log:
@@ -524,6 +529,7 @@ class TestConsumerSubscribeArgs(unittest.TestCase):
 
     self.assertNotIn("consumer_name", kwargs)
     self.assertNotIn("ackTimeoutMillis", kwargs["properties"])
+    self.assertEqual(30000, kwargs["unacked_messages_timeout_ms"])
     self.assertTrue(any("ackTimeoutMillis" in call.args[0] for call in mock_log.warning.call_args_list))
 
   def test_no_consumer_properties_adds_no_arguments(self):

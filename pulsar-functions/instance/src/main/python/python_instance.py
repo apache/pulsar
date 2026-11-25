@@ -603,9 +603,8 @@ class PythonInstance(object):
     """Translate ConsumerSpec.consumerProperties into Client.subscribe() arguments.
 
     The Java runtime passes consumerProperties to ConsumerBuilder.loadConf(), so they are consumer
-    configuration keys such as consumerName, not subscription properties. Only consumerName has a
-    direct subscribe() argument here; any other key is logged and ignored rather than dropped
-    silently.
+    configuration keys such as consumerName, not subscription properties. This helper currently
+    maps only consumerName; other keys are logged and ignored rather than dropped silently.
     """
     args = {}
     for key, value in consumer_properties.items():
