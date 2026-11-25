@@ -99,6 +99,7 @@ public class PrometheusAppenderTest {
     @Test
     public void declaresTheFamilyAsTheSimpleclientAppenderDid() throws IOException {
         assertThat(scrapeLogEvents())
+                .as("scrape of the counter of the log4j2 appender")
                 .contains("# HELP log4j2_appender_total Log4j2 log statements at various log levels\n")
                 .contains("# TYPE log4j2_appender_total counter\n");
     }
