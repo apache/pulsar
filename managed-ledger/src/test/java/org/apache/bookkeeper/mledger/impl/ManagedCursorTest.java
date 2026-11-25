@@ -225,9 +225,13 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ledger.addEntry("dummy-entry-2".getBytes(Encoding));
 
         // Hold a read in flight so the mark-delete below queues instead of persisting at once.
+        // Issue the read from its own thread: with the entries cached it can complete inline
+        // on the calling thread, and the callback below would then block the test thread
+        // itself waiting for releaseRead (CI: ThreadTimeoutException, the test never reached
+        // asyncClearBacklog). The callback blocks the read thread instead.
         CountDownLatch readStarted = new CountDownLatch(1);
         CountDownLatch releaseRead = new CountDownLatch(1);
-        cursor.asyncReadEntries(100, new ReadEntriesCallback() {
+        Thread readThread = new Thread(() -> cursor.asyncReadEntries(100, new ReadEntriesCallback() {
             @Override
             public void readEntriesComplete(List<Entry> entries, Object ctx) {
                 entries.forEach(Entry::release);
@@ -243,7 +247,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
                 fail(exception.getMessage());
             }
-        }, null, PositionFactory.LATEST);
+        }, null, PositionFactory.LATEST));
+        readThread.start();
         assertTrue(readStarted.await(10, TimeUnit.SECONDS));
 
         AtomicReference<ManagedLedgerException> clearFailure = new AtomicReference<>();
@@ -280,6 +285,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertTrue(clearFailure.get() instanceof ManagedLedgerException.CursorAlreadyClosedException);
         assertTrue(closeDone.await(10, TimeUnit.SECONDS));
         releaseRead.countDown();
+        readThread.join();
         ledger.close();
     }
 
