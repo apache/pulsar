@@ -3977,12 +3977,11 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     /**
-     * Resolves the policies in effect, with the precedence a loaded topic uses: the local topic policies, the global
-     * topic policies, the namespace policies, then the broker configuration. It does not depend on the scope of the
-     * request.
+     * Rejects the applied view for a system topic, which the broker loads with its own special cases, including the
+     * topics in the system service namespaces.
      */
     protected CompletableFuture<Void> validateAppliedTopicPoliciesSupported() {
-        if (SystemTopicNames.isSystemTopic(topicName)) {
+        if (pulsar().getBrokerService().isSystemTopic(topicName)) {
             // A system topic ignores or overrides several levels, which the resolver does not mirror.
             return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
                     "The applied policies are not available for a system topic"));
@@ -3990,6 +3989,11 @@ public class PersistentTopicsBase extends AdminResource {
         return CompletableFuture.completedFuture(null);
     }
 
+    /**
+     * Resolves the policies in effect, with the precedence a loaded topic uses: the local topic policies, the global
+     * topic policies, the namespace policies, then the broker configuration. It does not depend on the scope of the
+     * request.
+     */
     protected CompletableFuture<AppliedTopicPolicies> internalGetAppliedTopicPolicies() {
         return internalGetTopicPolicies(false)
                 .thenCombine(internalGetTopicPolicies(true), Pair::of)

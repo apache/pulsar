@@ -2140,8 +2140,9 @@ public class CmdTopicPolicies extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(topicName);
-            // Cast, so that the whole result is printed as one JSON document and not as one line per entry.
-            print((Object) getTopicPolicies(isGlobal).getTopicPolicies(persistentTopic, applied));
+            // Print the whole result as one JSON document and not as one line per entry. An applied policy that is
+            // unset has a null value, which must stay in the output as it does in the REST response.
+            prettyPrintIncludingNulls(getTopicPolicies(isGlobal).getTopicPolicies(persistentTopic, applied));
         }
     }
 

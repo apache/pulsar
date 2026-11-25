@@ -26,6 +26,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
@@ -179,6 +180,11 @@ public class CmdTopicPoliciesTest {
         Map<String, Object> policies = new LinkedHashMap<>();
         policies.put("retentionPolicies", Map.of("retentionTimeInMinutes", 60, "retentionSizeInMB", 1024));
         policies.put("messageTTLInSeconds", Map.of("value", 300, "source", "NAMESPACE"));
+        // An unset policy has a null value, which the output must keep.
+        Map<String, Object> unset = new LinkedHashMap<>();
+        unset.put("value", null);
+        unset.put("source", "BROKER");
+        policies.put("offloadPolicies", unset);
         PulsarAdmin admin = mock(PulsarAdmin.class);
         when(admin.topicPolicies(false)).thenReturn(localPolicies);
         when(localPolicies.getTopicPolicies("persistent://public/default/topic", true)).thenReturn(policies);
@@ -196,6 +202,9 @@ public class CmdTopicPoliciesTest {
         JsonNode json = ObjectMapperFactory.getMapper().reader().readTree(output.toString(StandardCharsets.UTF_8));
         assertEquals(json.get("retentionPolicies").get("retentionTimeInMinutes").asInt(), 60);
         assertEquals(json.get("messageTTLInSeconds").get("source").asText(), "NAMESPACE");
+        assertTrue(json.get("offloadPolicies").has("value"));
+        assertTrue(json.get("offloadPolicies").get("value").isNull());
+        assertEquals(json.get("offloadPolicies").get("source").asText(), "BROKER");
     }
 
     @Test

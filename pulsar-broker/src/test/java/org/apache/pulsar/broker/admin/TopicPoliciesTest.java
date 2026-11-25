@@ -4987,6 +4987,21 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testAppliedPoliciesAreRejectedForSystemTopics() throws Exception {
+        // an event topic, and a topic in a system service namespace, which the broker also loads as a SystemTopic
+        for (String topic : List.of(
+                "persistent://" + myNamespace + "/" + NAMESPACE_EVENTS_LOCAL_NAME,
+                "persistent://pulsar/system/loadbalancer-service-unit-state")) {
+            try {
+                admin.topicPolicies().getTopicPolicies(topic, true);
+                Assert.fail("applied policies must be rejected for " + topic);
+            } catch (PulsarAdminException e) {
+                assertEquals(e.getStatusCode(), 412, topic);
+            }
+        }
+    }
+
+    @Test
     public void testAppliedTopicRateOverridesAreNormalized() throws Exception {
         DispatchRate nsRate = DispatchRate.builder().dispatchThrottlingRateInMsg(100)
                 .dispatchThrottlingRateInByte(-1).ratePeriodInSecond(1).build();
