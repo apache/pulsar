@@ -60,4 +60,19 @@ public class BrokerServiceBacklogQuotaTest {
                     .withThrowableOfType(ExecutionException.class).havingCause().isSameAs(failure);
         }
     }
+
+    @Test
+    public void testQuotaCheckReturnsFailedFutureWhenPositionUpdateThrows() throws Exception {
+        try (PulsarTestContext context = PulsarTestContext.builderForNonStartableContext().build()) {
+            PersistentTopic topic = mock(PersistentTopic.class);
+            var failure = new IllegalStateException("Position update failed");
+            when(topic.updateOldPositionInfo()).thenThrow(failure);
+
+            CompletableFuture<Void> check = context.getBrokerService().checkBacklogQuota(topic);
+
+            assertThat(check).as("quota check after position update throws")
+                    .failsWithin(5, SECONDS)
+                    .withThrowableOfType(ExecutionException.class).havingCause().isSameAs(failure);
+        }
+    }
 }
