@@ -33,6 +33,7 @@ import org.apache.pulsar.common.api.proto.CommandCloseConsumer;
 import org.apache.pulsar.common.api.proto.CommandCloseProducer;
 import org.apache.pulsar.common.api.proto.CommandConnect;
 import org.apache.pulsar.common.api.proto.CommandConnected;
+import org.apache.pulsar.common.api.proto.CommandConsumerStatsResponse;
 import org.apache.pulsar.common.api.proto.CommandEndTxnOnPartitionResponse;
 import org.apache.pulsar.common.api.proto.CommandEndTxnOnSubscriptionResponse;
 import org.apache.pulsar.common.api.proto.CommandEndTxnResponse;
@@ -89,6 +90,11 @@ public class ClientChannelHelper {
         @Override
         protected void handleConnected(CommandConnected connected) {
             queue.offer(new CommandConnected().copyFrom(connected));
+        }
+
+        @Override
+        protected void handleConsumerStatsResponse(CommandConsumerStatsResponse response) {
+            queue.offer(new CommandConsumerStatsResponse().copyFrom(response));
         }
 
         @Override
