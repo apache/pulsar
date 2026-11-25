@@ -44,4 +44,10 @@ public class PrometheusMetricsProviderTest {
     public void sanitizeMetricNameKeepsTotalSuffix() {
         assertThat(sanitizeMetricName("requests_total")).isEqualTo("requests_total");
     }
+
+    @Test
+    public void sanitizeMetricNameReplacesBothCharsOfASupplementaryCharacter() {
+        // U+1F600 is outside the Basic Multilingual Plane, so it is two chars in a String
+        assertThat(sanitizeMetricName("a\uD83D\uDE00b")).isEqualTo("a__b");
+    }
 }
