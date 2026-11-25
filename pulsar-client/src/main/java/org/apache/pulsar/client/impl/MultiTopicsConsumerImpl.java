@@ -92,12 +92,13 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     protected final ConcurrentHashMap<String, ConsumerImpl<T>> consumers;
 
     // The parent epoch as of the last redelivery fan-out that ran on internalPinnedExecutor.
-    // redeliverUnacknowledgedMessages() bumps CONSUMER_EPOCH on the caller thread and only then queues the fan-out,
-    // so a child created from a task queued ahead of the fan-out would read the bumped value and be bumped again
-    // by the fan-out, ending one epoch ahead of the parent. Seeding new children from this value instead keeps
-    // them at the epoch the fan-out has actually applied: either the child joins the fan-out and is bumped with
-    // the rest, or it reads the already-applied value. Read and written only on internalPinnedExecutor; volatile
-    // so the initial value is visible to the executor thread.
+    // Each fan-out advances this by exactly one, on the executor thread. redeliverUnacknowledgedMessages() bumps
+    // CONSUMER_EPOCH on the caller thread and only then queues the fan-out, so copying the caller-side counter
+    // here would read redeliveries whose fan-outs are still queued: a child created between two queued fan-outs
+    // would seed from the later counter and be bumped again by the second fan-out, ending one epoch ahead of the
+    // parent. Advancing once per fan-out keeps a child at the epoch the fan-out has actually applied: either the
+    // child joins the fan-out and is bumped with the rest, or it reads the already-applied value. Read and written
+    // only on internalPinnedExecutor; volatile so the initial value is visible to the executor thread.
     private volatile long appliedConsumerEpoch;
 
     // Map <topic, numPartitions>, store partition number for each topic
@@ -813,10 +814,11 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                     consumer.redeliverUnacknowledgedMessages();
                     consumer.unAckedChunkedMessageIdSequenceMap.clear();
                 });
-                // The fan-out has now bumped every published child: record the epoch it applied, so a
-                // child created afterwards seeds from it instead of the receive-side counter, which may
-                // already include a redelivery whose fan-out is still queued behind this task.
-                appliedConsumerEpoch = CONSUMER_EPOCH.get(this);
+                // The fan-out has now bumped every published child once: advance the applied epoch by
+                // exactly one, so a child created afterwards seeds from the epoch this fan-out applied
+                // instead of the receive-side counter, which may already include a redelivery whose
+                // fan-out is still queued behind this task.
+                appliedConsumerEpoch++;
                 clearIncomingMessages();
                 unAckedMessageTracker.clear();
                 resumeReceivingFromPausedConsumersIfNeeded();
@@ -1324,9 +1326,9 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             try {
                 internalPinnedExecutor.execute((CleanupTask) () -> {
                     try {
-                        if (getState() == State.Closing || getState() == State.Closed) {
-                            // The parent started closing before this task ran: fail without creating a
-                            // child that closeAsync() would never see, and release the reservation.
+                        if (client.isClosed() || getState() == State.Closing || getState() == State.Closed) {
+                            // The parent or the client started closing before this task ran: fail without
+                            // creating a child that closeAsync() would never see, and release the reservation.
                             allTopicPartitionsNumber.decrementAndGet();
                             PulsarClientException.AlreadyClosedException ex =
                                     new PulsarClientException.AlreadyClosedException(
@@ -1357,10 +1359,11 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                             // uncompleted so the start scan below never runs for it.
                             return;
                         }
-                        if (getState() == State.Closing || getState() == State.Closed) {
-                            // The parent started closing after the check above but before publication:
-                            // closeAsync() already snapshotted the children, so this child would escape
-                            // the close. Remove and close it here instead, and release the reservation.
+                        if (client.isClosed() || getState() == State.Closing || getState() == State.Closed) {
+                            // The parent or the client started closing after the check above but before
+                            // publication: closeAsync() already snapshotted the children, so this child
+                            // would escape the close. Remove and close it here instead, and release the
+                            // reservation.
                             consumers.remove(topicName, consumer);
                             consumer.closeAsync();
                             allTopicPartitionsNumber.decrementAndGet();
@@ -1465,7 +1468,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         log.warn().attr("topic", topicName)
                 .exceptionMessage(error)
                 .log("Failed to subscribe for topic in topics consumer");
-        client.externalExecutorProvider().getExecutor().execute(() -> {
+        Runnable cleanup = () -> {
             AtomicInteger toCloseNum = new AtomicInteger(0);
             List<ConsumerImpl> filterConsumers = consumers.values().stream().filter(consumer1 -> {
                 String consumerTopicName = consumer1.getTopic();
@@ -1498,7 +1501,18 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                     return;
                 });
             });
-        });
+        };
+        try {
+            client.externalExecutorProvider().getExecutor().execute(cleanup);
+        } catch (RejectedExecutionException e) {
+            // The client stopped the external executor before this cleanup could be dispatched:
+            // shutdown stops it before draining the internal cleanup tasks, so a creation task
+            // that failed on the shutdown thread lands here with nowhere to dispatch to. Run the
+            // cleanup on this thread instead: it only initiates async closes and completes the
+            // future from their callbacks, so it never blocks. Without this the outward
+            // subscribe future would never complete.
+            cleanup.run();
+        }
     }
 
     // un-subscribe a given topic
@@ -1725,9 +1739,9 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         try {
             internalPinnedExecutor.execute((CleanupTask) () -> {
                 try {
-                    if (getState() == State.Closing || getState() == State.Closed) {
-                        // The parent started closing before this task ran: fail without creating a
-                        // child that closeAsync() would never see, and release the reservation.
+                    if (client.isClosed() || getState() == State.Closing || getState() == State.Closed) {
+                        // The parent or the client started closing before this task ran: fail without
+                        // creating a child that closeAsync() would never see, and release the reservation.
                         allTopicPartitionsNumber.decrementAndGet();
                         createdFuture.completeExceptionally(
                                 new PulsarClientException.AlreadyClosedException(
@@ -1755,10 +1769,12 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         created.set(true);
                         return newConsumerSupplier.get();
                     });
-                    if (created.get() && (getState() == State.Closing || getState() == State.Closed)) {
-                        // The parent started closing after the check above but before publication:
-                        // closeAsync() already snapshotted the children, so this child would escape
-                        // the close. Remove and close it here instead, and release the reservation.
+                    if (created.get()
+                            && (client.isClosed() || getState() == State.Closing || getState() == State.Closed)) {
+                        // The parent or the client started closing after the check above but before
+                        // publication: closeAsync() already snapshotted the children, so this child
+                        // would escape the close. Remove and close it here instead, and release the
+                        // reservation.
                         // A reused child never escapes: it was published before this task ran, so
                         // any close snapshot taken since then includes it.
                         consumers.remove(internalTopicName, consumer);

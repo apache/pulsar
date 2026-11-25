@@ -89,12 +89,12 @@ public class MultiTopicsConsumerPauseTest {
         Wire wire = new Wire();
         wire.subscribeReply.complete(null);
         try (Fixture fixture = new Fixture(initiallyPaused, wire)) {
-            assertThat(fixture.parent.getState()).isEqualTo(HandlerState.State.Ready);
             // Child creation is queued on the pinned executor, so the configured topic is no
             // longer subscribed by the time the constructor returns: wait for the subscribe
             // future instead of asserting it is already done.
             assertThat(fixture.parent.subscribeFuture().get(TIMEOUT_SECONDS, TimeUnit.SECONDS))
                     .isSameAs(fixture.parent);
+            assertThat(fixture.parent.getState()).isEqualTo(HandlerState.State.Ready);
             assertThat(fixture.parent.getConsumers()).hasSize(1);
             ConsumerImpl<byte[]> child = fixture.parent.consumers.get(TOPIC);
             assertThat(child.paused).isEqualTo(initiallyPaused);
@@ -160,6 +160,9 @@ public class MultiTopicsConsumerPauseTest {
         try (Fixture fixture = new Fixture(initiallyPaused)) {
             if (creation == ChildCreation.PARTITION_EXPANSION) {
                 CompletableFuture<Void> initialSubscription = fixture.parent.subscribeAsync(TOPIC, 1);
+                // Child creation is queued on the pinned executor: wait for the creation task to
+                // publish partition 0 before driving its mock subscribe reply.
+                fixture.parent.internalPinnedExecutor.submit(() -> { }).get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
                 ConsumerImpl<byte[]> existing = fixture.parent.consumers.get(TOPIC + "-partition-0");
                 new Wire().subscribe(existing);
                 initialSubscription.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
