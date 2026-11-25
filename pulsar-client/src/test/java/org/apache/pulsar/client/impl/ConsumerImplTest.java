@@ -56,7 +56,9 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -93,7 +95,6 @@ import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.Backoff;
-import java.util.concurrent.RejectedExecutionException;
 import org.awaitility.Awaitility;
 import org.mockito.MockedStatic;
 import org.testng.Assert;
@@ -1780,7 +1781,7 @@ public class ConsumerImplTest {
         when(scheduledExecutorService.schedule(any(Runnable.class), anyLong(), any(TimeUnit.class)))
                 .thenAnswer(inv -> {
                     capturedRetry.set(inv.getArgument(0));
-                    return mock(java.util.concurrent.ScheduledFuture.class);
+                    return mock(ScheduledFuture.class);
                 });
 
         CompletableFuture<?> future = consumer.internalGetLastMessageIdAsync();
@@ -1793,6 +1794,32 @@ public class ConsumerImplTest {
         capturedRetry.get().run();
 
         assertTrue(future.isCompletedExceptionally());
+        assertThatThrownBy(future::join)
+                .isInstanceOf(CompletionException.class)
+                .hasCauseInstanceOf(PulsarClientException.AlreadyClosedException.class);
+    }
+
+    @Test(timeOut = 5000)
+    public void testCloseFailsPendingGetLastMessageIdWithoutRunningRetry() throws Exception {
+        ScheduledExecutorProvider provider = mock(ScheduledExecutorProvider.class);
+        ScheduledExecutorService scheduledExecutorService = mock(ScheduledExecutorService.class);
+        when(provider.getExecutor()).thenReturn(scheduledExecutorService);
+        when(consumer.getClient().getScheduledExecutorProvider()).thenReturn(provider);
+
+        AtomicReference<Runnable> capturedRetry = new AtomicReference<>();
+        when(scheduledExecutorService.schedule(any(Runnable.class), anyLong(), any(TimeUnit.class)))
+                .thenAnswer(inv -> {
+                    capturedRetry.set(inv.getArgument(0));
+                    return mock(ScheduledFuture.class);
+                });
+
+        CompletableFuture<?> future = consumer.internalGetLastMessageIdAsync();
+        assertThat(future).isNotDone();
+        assertThat(capturedRetry.get()).as("retry was scheduled").isNotNull();
+
+        consumer.closeAsync();
+
+        Awaitility.await().untilAsserted(() -> assertTrue(future.isCompletedExceptionally()));
         assertThatThrownBy(future::join)
                 .isInstanceOf(CompletionException.class)
                 .hasCauseInstanceOf(PulsarClientException.AlreadyClosedException.class);

@@ -1470,10 +1470,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     private void failPendingGetLastMessageIdFutures() {
+        if (pendingGetLastMessageIdFutures.isEmpty()) {
+            return;
+        }
         PulsarClientException.AlreadyClosedException ex = new PulsarClientException.AlreadyClosedException(
             String.format("The consumer %s is closing: subscription %s of topic %s",
                     consumerName, subscription, topicName.toString()));
-        pendingGetLastMessageIdFutures.forEach(f -> f.completeExceptionally(ex));
+        pendingGetLastMessageIdFutures.forEach(f ->
+            externalPinnedExecutor.get().execute(() -> f.completeExceptionally(ex)));
     }
 
     void activeConsumerChanged(boolean isActive) {
@@ -3424,7 +3428,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             } catch (RejectedExecutionException e) {
                 future.completeExceptionally(new PulsarClientException.AlreadyClosedException(
                     String.format("getLastMessageId retry for subscription %s of topic %s was rejected: "
-                            + "client is shutting down", subscription, topicName.toString()), e));
+                            + "client is shutting down", subscription, topicName.toString())));
             }
         }
     }
