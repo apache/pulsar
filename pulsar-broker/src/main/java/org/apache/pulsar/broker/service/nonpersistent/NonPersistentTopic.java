@@ -56,6 +56,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedExcepti
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicFencedException;
+import org.apache.pulsar.broker.service.BrokerServiceException.TopicMigratedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.UnsupportedVersionException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
@@ -310,7 +311,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                 return future;
             }
 
-            if (subscriptionName.startsWith(replicatorPrefix)) {
+            if (AbstractReplicator.isReplicatorCursor(replicatorPrefix, subscriptionName)) {
                 log.warn()
                         .attr("subscription", subscriptionName)
                         .log("Failed to create subscription");
@@ -340,24 +341,18 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
             NonPersistentSubscription subscription = subscriptions.computeIfAbsent(subscriptionName,
                     name -> new NonPersistentSubscription(this, subscriptionName, subscriptionProperties));
 
-            Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName,
-                    false, cnx, cnx.getAuthRole(), metadata, readCompacted, keySharedMeta, MessageId.latest,
-                    DEFAULT_CONSUMER_EPOCH, schemaType);
-            consumer.checkAndApplyTopicMigrationAsync().thenCompose(migrated -> {
+            CompletableFuture<Boolean> migrationCheck = subscription.isSubscriptionMigrated()
+                    ? isClusterMigrationEnabled(brokerService.getPulsar(), topic)
+                    : CompletableFuture.completedFuture(false);
+            migrationCheck.thenCompose(migrated -> {
                 if (migrated) {
-                    // The topic is migrated: checkAndApplyTopicMigrationAsync() has already sent the
-                    // TopicMigrated redirect and disconnected the consumer (which also released the usage
-                    // count taken by handleConsumerAdded above). Skip addConsumerToSubscription so the consumer
-                    // is never attached to the subscription on the old cluster. Sequencing the migration check
-                    // through thenCompose (instead of the previous fire-and-forget thenAccept that raced with
-                    // addConsumerToSubscription) is what guarantees the consumer is not added once migrated.
-                    log.info()
-                            .attr("subscription", subscriptionName)
-                            .attr("consumerId", consumerId)
-                            .log("Skipped subscription on migrated topic; consumer was redirected");
-                    future.complete(consumer);
-                    return CompletableFuture.<Void>completedFuture(null);
+                    // Roll back the subscribe usage count through the failure path. ServerCnx redirects the
+                    // request without closing a consumer that was never attached to the dispatcher.
+                    return CompletableFuture.<Void>failedFuture(new TopicMigratedException("Topic is migrated"));
                 }
+                Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName,
+                        false, cnx, cnx.getAuthRole(), metadata, readCompacted, keySharedMeta, MessageId.latest,
+                        DEFAULT_CONSUMER_EPOCH, schemaType);
                 return addConsumerToSubscription(subscription, consumer).thenRun(() -> {
                     if (!cnx.isActive()) {
                         try {
@@ -1268,23 +1263,23 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
 
     @Override
     public CompletableFuture<Void> unsubscribe(String subscriptionName) {
-        // checkInactiveSubscriptions iterates over subscriptions map and removing from the map with the same thread.
-        // That creates deadlock. so, execute remove it in different thread.
-        return CompletableFuture.runAsync(() -> {
-            NonPersistentSubscription sub = subscriptions.remove(subscriptionName);
-            if (sub != null) {
-                // preserve accumulative stats form removed subscription
-                GetStatsOptions getStatsOptions = new GetStatsOptions(false, false, false, false, false);
-                SubscriptionStatsImpl stats = sub.getStats(getStatsOptions);
-                bytesOutFromRemovedSubscriptions.add(stats.bytesOutCounter);
-                msgOutFromRemovedSubscriptions.add(stats.msgOutCounter);
+        // Remove the subscription before returning: the broker acknowledges the close of the last consumer right after
+        // this call, and the topic must not count the subscription after that (e.g. as activity in the inactive topic
+        // GC). The subscriptions map allows removals while it is being iterated.
+        NonPersistentSubscription sub = subscriptions.remove(subscriptionName);
+        if (sub != null) {
+            // preserve accumulative stats form removed subscription
+            GetStatsOptions getStatsOptions = new GetStatsOptions(false, false, false, false, false);
+            SubscriptionStatsImpl stats = sub.getStats(getStatsOptions);
+            bytesOutFromRemovedSubscriptions.add(stats.bytesOutCounter);
+            msgOutFromRemovedSubscriptions.add(stats.msgOutCounter);
 
-                if (isSystemCursor(subscriptionName)
-                        || subscriptionName.startsWith(SystemTopicNames.SYSTEM_READER_PREFIX)) {
-                    bytesOutFromRemovedSystemSubscriptions.add(stats.bytesOutCounter);
-                }
+            if (isSystemCursor(subscriptionName)
+                    || subscriptionName.startsWith(SystemTopicNames.SYSTEM_READER_PREFIX)) {
+                bytesOutFromRemovedSystemSubscriptions.add(stats.bytesOutCounter);
             }
-        }, brokerService.executor());
+        }
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override

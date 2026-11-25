@@ -61,6 +61,26 @@ public class WebExecutorThreadPoolTest {
         assertJoinCompletes(pool);
     }
 
+    @Test(timeOut = 30000)
+    public void testIsPoolThread() throws Exception {
+        WebExecutorThreadPool pool = new WebExecutorThreadPool(4, "test-web");
+        WebExecutorThreadPool otherPool = new WebExecutorThreadPool(4, "test-other-web");
+        pool.start();
+        otherPool.start();
+        try {
+            assertThat(pool.isPoolThread()).isFalse();
+            CompletableFuture<Boolean> onPoolThread = new CompletableFuture<>();
+            pool.execute(() -> onPoolThread.complete(pool.isPoolThread()));
+            assertThat(onPoolThread).succeedsWithin(10, TimeUnit.SECONDS).isEqualTo(true);
+            CompletableFuture<Boolean> onOtherPoolThread = new CompletableFuture<>();
+            otherPool.execute(() -> onOtherPoolThread.complete(pool.isPoolThread()));
+            assertThat(onOtherPoolThread).succeedsWithin(10, TimeUnit.SECONDS).isEqualTo(false);
+        } finally {
+            pool.stop();
+            otherPool.stop();
+        }
+    }
+
     private static void assertJoinCompletes(WebExecutorThreadPool pool) {
         CompletableFuture<Void> joined = CompletableFuture.runAsync(() -> {
             try {

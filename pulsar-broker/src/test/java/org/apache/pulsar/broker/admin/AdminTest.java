@@ -22,7 +22,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
@@ -44,6 +43,7 @@ import jakarta.ws.rs.core.UriInfo;
 import java.lang.reflect.Field;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -100,6 +100,7 @@ import org.apache.zookeeper.KeeperException.Code;
 import org.apache.zookeeper.MockZooKeeper;
 import org.awaitility.Awaitility;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -194,6 +195,22 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
     public void cleanup() throws Exception {
         super.internalCleanup();
         conf.setClusterName(configClusterName);
+        // The spies' recorded invocations reference them again, so Mockito's inline mock maker would keep them, and
+        // the closed broker they reference, until the JVM exits; TestNG keeps this test instance until the run ends.
+        for (Object resource : Arrays.asList(clusters, tenants, namespaces, persistentTopics, brokers, resourceQuotas,
+                brokerStats, schemasResource)) {
+            if (resource != null) {
+                Mockito.framework().clearInlineMock(resource);
+            }
+        }
+        clusters = null;
+        tenants = null;
+        namespaces = null;
+        persistentTopics = null;
+        brokers = null;
+        resourceQuotas = null;
+        brokerStats = null;
+        schemasResource = null;
     }
 
     @SuppressWarnings("deprecation")
@@ -259,7 +276,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
     @SuppressWarnings("unchecked")
     public void clusters() throws Exception {
         assertEquals(asyncRequests(ctx -> clusters.getClusters(ctx)), new HashSet<>());
-        verify(clusters, never()).validateSuperUserAccessAsync();
+        verify(clusters, times(1)).validateSuperUserAccessAsync();
 
         asyncRequests(ctx -> clusters.createCluster(ctx,
                 "use", ClusterDataImpl.builder().serviceUrl("http://broker.messaging.use.example.com:8080").build()));
@@ -474,7 +491,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
         }
-        verify(clusters, times(26)).validateSuperUserAccessAsync();
+        verify(clusters, times(30)).validateSuperUserAccessAsync();
     }
 
     @Test

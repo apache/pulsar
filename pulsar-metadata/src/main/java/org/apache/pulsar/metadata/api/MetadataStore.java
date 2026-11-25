@@ -30,6 +30,7 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
+import org.apache.pulsar.metadata.impl.ListenerRegistrationWarnings;
 
 /**
  * Metadata store client interface.
@@ -245,8 +246,40 @@ public interface MetadataStore extends AutoCloseable {
      *
      * @param listener
      *            a consumer of notifications
+     * @deprecated use {@link #registerCancellableListener(Consumer)}, and run the returned callback when the
+     *             listener is no longer needed. Implementations implement
+     *             {@link #registerCancellableListener(Consumer)} instead of this method.
      */
-    void registerListener(Consumer<Notification> listener);
+    @Deprecated
+    default void registerListener(Consumer<Notification> listener) {
+        ListenerRegistrationWarnings.deprecatedMethodCalled("MetadataStore.registerListener",
+                "registerCancellableListener");
+        registerCancellableListener(listener);
+    }
+
+    /**
+     * Register a listener that will be called on changes in the underlying store.
+     *
+     * <p>The caller must run the returned callback when the listener is no longer needed, at the latest when the
+     * component that registered it is closed, so that the store stops notifying it and doesn't keep it reachable.
+     * Running the callback more than once has no further effect.
+     *
+     * <p>Implementations must override this method. The default implementation is only there for the
+     * implementations that were written for the deprecated {@link #registerListener(Consumer)}: it registers the
+     * listener with that method and returns a callback that can't unregister it. Since the default implementations
+     * of the two methods call each other, an implementation that overrides neither fails with a
+     * {@link StackOverflowError} when a listener is registered.
+     *
+     * @param listener
+     *            a consumer of notifications
+     * @return a callback that unregisters the listener
+     */
+    default Runnable registerCancellableListener(Consumer<Notification> listener) {
+        ListenerRegistrationWarnings.cancellableMethodNotImplemented(getClass(),
+                "MetadataStore.registerCancellableListener");
+        registerListener(listener);
+        return () -> { };
+    }
 
     /**
      * Create a metadata cache specialized for a specific class.

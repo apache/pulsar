@@ -100,9 +100,9 @@ public class EntryBucketConsumerSelector implements StickyKeyConsumerSelector {
     }
 
     @Override
-    public int makeStickyKeyHash(byte[] stickyKey) {
+    public int makeStickyKeyHashOfKeyHash(int keyHash) {
         return canonicalHashOf(
-                StickyKeyConsumerSelectorUtils.makeStickyKeyHash(stickyKey, getKeyHashRange()));
+                StickyKeyConsumerSelectorUtils.makeStickyKeyHashOfKeyHash(keyHash, getKeyHashRange()));
     }
 
     @Override

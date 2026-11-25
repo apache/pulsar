@@ -27,7 +27,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
-public class PulsarResources {
+public class PulsarResources implements AutoCloseable {
 
     public static final int DEFAULT_OPERATION_TIMEOUT_SEC = 30;
 
@@ -124,5 +124,19 @@ public class PulsarResources {
         return MetadataStoreExtended.create(serverUrls, MetadataStoreConfig.builder()
                 .sessionTimeoutMillis(sessionTimeoutMs).allowReadOnlyOperations(allowReadOnlyOperations)
                 .metadataStoreName(MetadataStoreConfig.CONFIGURATION_METADATA_STORE).build());
+    }
+
+    /**
+     * Unregister the listeners that the resources registered with the metadata stores. The metadata stores aren't
+     * closed, since they are owned by the caller.
+     */
+    @Override
+    public void close() {
+        if (topicResources != null) {
+            topicResources.close();
+        }
+        if (scalableTopicResources != null) {
+            scalableTopicResources.close();
+        }
     }
 }

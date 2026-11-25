@@ -39,8 +39,16 @@ import org.testng.annotations.Test;
  */
 public class AdminMultiHostTest extends TestRetrySupport {
 
-    private final String clusterName = "MultiHostTest-" + UUID.randomUUID();
-    private final PulsarClusterSpec spec = PulsarClusterSpec.builder().clusterName(clusterName).numBrokers(3).build();
+    // Container names are "<cluster>-<hostname>", and Docker's DNS gives no reverse lookup answer for a name longer
+    // than a DNS label (63 characters). The ZooKeeper client in every container looks up the server's name from its
+    // address before it connects, and would wait 5 s per connection for that lookup to time out.
+    private final String clusterName = "MultiHostTest-" + UUID.randomUUID().toString().substring(0, 8);
+    // The admin client connects to the brokers: the cluster needs no proxy
+    private final PulsarClusterSpec spec = PulsarClusterSpec.builder()
+            .clusterName(clusterName)
+            .numBrokers(3)
+            .numProxies(0)
+            .build();
     private PulsarCluster pulsarCluster = null;
 
     @BeforeMethod(alwaysRun = true)

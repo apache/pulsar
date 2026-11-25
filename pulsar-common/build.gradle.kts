@@ -159,7 +159,13 @@ dependencies {
     implementation(libs.jackson.datatype.jdk8)
     implementation(libs.jackson.dataformat.yaml)
     api(libs.guava)
-    api(libs.simpleclient.caffeine)
+    // CacheMetricsCollector is server-side: the modules that register caches (pulsar-metadata, pulsar-broker,
+    // pulsar-functions-instance, the auth plugins) provide caffeine and its Prometheus instrumentation at
+    // runtime, so neither reaches the client artifacts. The instrumentation's @StableApi annotation is an
+    // optional dependency that javac needs to subclass the annotated collector.
+    compileOnly(libs.caffeine)
+    compileOnly(libs.prometheus.metrics.instrumentation.caffeine)
+    compileOnly(libs.prometheus.metrics.annotations)
     api(libs.jspecify)
     api(libs.netty.handler)
     api(libs.netty.buffer)
@@ -168,19 +174,24 @@ dependencies {
     implementation(variantOf(libs.netty.transport.native.epoll) { classifier("linux-x86_64") })
     implementation(variantOf(libs.netty.transport.native.epoll) { classifier("linux-aarch_64") })
     implementation(libs.netty.transport.native.unix.common)
+    // The BookKeeper artifacts declare their own, older slog version. Exclude it so that the
+    // published POM carries only libs.slog: Maven picks the nearest declaration, not the highest.
     implementation(libs.bookkeeper.common.allocator) {
         exclude(group = "commons-configuration", module = "commons-configuration2")
         exclude(group = "commons-beanutils", module = "commons-beanutils")
+        exclude(group = "io.github.merlimat.slog", module = "slog")
     }
     implementation(libs.bookkeeper.cpu.affinity) {
         exclude(group = "commons-configuration", module = "commons-configuration2")
         exclude(group = "commons-beanutils", module = "commons-beanutils")
+        exclude(group = "io.github.merlimat.slog", module = "slog")
     }
     api(libs.aircompressor)
     implementation(libs.bookkeeper.circe.checksum) {
         exclude(group = "io.netty")
         exclude(group = "commons-configuration", module = "commons-configuration2")
         exclude(group = "commons-beanutils", module = "commons-beanutils")
+        exclude(group = "io.github.merlimat.slog", module = "slog")
     }
     implementation(libs.netty.tcnative.boringssl.static)
     implementation(variantOf(libs.netty.tcnative.boringssl.static) { classifier("linux-x86_64") })
@@ -222,6 +233,9 @@ dependencies {
     testImplementation(libs.snappy.java)
     testImplementation(libs.awaitility)
     testImplementation(libs.jsonassert)
+    testImplementation(libs.caffeine)
+    testImplementation(libs.prometheus.metrics.instrumentation.caffeine)
+    testImplementation(libs.prometheus.metrics.exposition.textformats)
     // PIP-478: the TLS factory tests implement TlsFactoryInitContext, whose openTelemetry() accessor
     // exposes the (compileOnly) OpenTelemetry API from pulsar-tls-factory-api.
     testImplementation(libs.opentelemetry.api)

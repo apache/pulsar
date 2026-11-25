@@ -23,6 +23,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 import org.apache.pulsar.client.api.SubscriptionType;
 
 /**
@@ -31,10 +33,15 @@ import org.apache.pulsar.client.api.SubscriptionType;
  * @param serviceUrl the broker's service URL, which the launcher sets
  * @param timeoutSeconds the longest the workload may run: the applications stop waiting for messages, and the
  *                       gateways for the warmup and the measurement's start, after it
+ * @param tlsTrustCertsFilePath the CA certificate that the clients trust when the service URL is a TLS one, which the
+ *                              launcher sets with {@code cluster.tls}; null without TLS
+ * @param authTokenFilePath the file of the JSON Web Token that the clients authenticate with, which the launcher sets
+ *                          with {@code cluster.jwt}; null without authentication
  */
 public record IotScenario(String serviceUrl, Warmup warmup, Measurement measurement, int rate, Payload payload,
                           Devices devices, Gateways gateways, Topics topics,
-                          Applications applications, Behaviors behaviors, int timeoutSeconds) {
+                          Applications applications, Behaviors behaviors, int timeoutSeconds,
+                          String tlsTrustCertsFilePath, String authTokenFilePath) {
     /**
      * The traffic before the measurement, which the applications receive and check but which the measurement leaves
      * out: {@code rounds} rounds of {@code seconds} at the rate, or of {@code messages} messages, each received by
@@ -60,8 +67,29 @@ public record IotScenario(String serviceUrl, Warmup warmup, Measurement measurem
     public record Payload(int size) {
     }
 
-    /** The devices whose telemetry the gateways publish, each with its own key and sequence. */
-    public record Devices(int count) {
+    /**
+     * The devices whose telemetry the gateways publish, each with its own key and sequence.
+     *
+     * @param keyType the messages' key: {@code bytes}, the default, the device's ID as 8 big-endian bytes, which the
+     *                broker receives base64-encoded, or {@code string}, {@code device-<ID>} as a plain string key,
+     *                which Key_Shared hashes as a string
+     */
+    public record Devices(int count, String keyType) {
+        /** The {@code keyType} of binary keys, the default. */
+        public static final String BYTES_KEYS = "bytes";
+        /** The {@code keyType} of string keys. */
+        public static final String STRING_KEYS = "string";
+        static final List<String> KEY_TYPES = List.of(BYTES_KEYS, STRING_KEYS);
+
+        public Devices {
+            if (keyType == null) {
+                keyType = BYTES_KEYS;
+            }
+        }
+
+        public Devices(int count) {
+            this(count, null);
+        }
     }
 
     /**
@@ -86,9 +114,13 @@ public record IotScenario(String serviceUrl, Warmup warmup, Measurement measurem
      *                                      producer receives a message every {@code gateways.count * topics.count /
      *                                      rate} seconds on average, so a batch has more than one message only when
      *                                      the delay is longer than that
+     * @param chunkMaxMessageSizeBytes chunk the messages larger than this into chunks of this size, which the
+     *                                 consumers put together again; null for no chunking. It needs
+     *                                 {@code batchingEnabled: false}
      */
     public record Producer(int ioThreads, int listenerThreads, int maxOutstanding, boolean batchingEnabled,
-                           boolean precreate, Integer precreateConcurrency, Integer batchingMaxPublishDelayMillis) {
+                           boolean precreate, Integer precreateConcurrency, Integer batchingMaxPublishDelayMillis,
+                           Integer chunkMaxMessageSizeBytes) {
         /** The default of {@code precreateConcurrency}, for scenarios written before it existed. */
         public static final int DEFAULT_PRECREATE_CONCURRENCY = 32;
 
@@ -98,6 +130,12 @@ public record IotScenario(String serviceUrl, Warmup warmup, Measurement measurem
             }
         }
 
+        public Producer(int ioThreads, int listenerThreads, int maxOutstanding, boolean batchingEnabled,
+                        boolean precreate, Integer precreateConcurrency, Integer batchingMaxPublishDelayMillis) {
+            this(ioThreads, listenerThreads, maxOutstanding, batchingEnabled, precreate, precreateConcurrency,
+                    batchingMaxPublishDelayMillis, null);
+        }
+
         /** Settings with the client's default batching delay. */
         public Producer(int ioThreads, int listenerThreads, int maxOutstanding, boolean batchingEnabled,
                         boolean precreate, Integer precreateConcurrency) {
@@ -105,8 +143,49 @@ public record IotScenario(String serviceUrl, Warmup warmup, Measurement measurem
         }
     }
 
-    /** The telemetry topics, named {@code <prefix><index>}. */
-    public record Topics(int count, String prefix) {
+    /**
+     * The telemetry topics, named {@code <prefix><index>}.
+     *
+     * @param partitions the partitions of each topic, which the launcher creates as a partitioned topic before the
+     *                   workloads start; 0, the default, for non-partitioned topics, which the gateways' producers
+     *                   create. A producer routes a device's messages by its key to one partition
+     * @param patternDiscoverySeconds the applications subscribe to the topics by a pattern, the prefix followed by
+     *                                the index, rather than by their names, so they discover the topics as the
+     *                                gateways' producers create them: through the broker's topic list watcher, and
+     *                                every this many seconds by a lookup; null to subscribe by the names
+     */
+    public record Topics(int count, String prefix, Integer partitions, Integer patternDiscoverySeconds) {
+        public Topics {
+            if (partitions == null) {
+                partitions = 0;
+            }
+        }
+
+        public Topics(int count, String prefix, Integer partitions) {
+            this(count, prefix, partitions, null);
+        }
+
+        public Topics(int count, String prefix) {
+            this(count, prefix, null);
+        }
+
+        /** Whether the applications subscribe to the topics by a pattern. */
+        public boolean subscribedByPattern() {
+            return patternDiscoverySeconds != null;
+        }
+
+        /**
+         * The pattern of the topics' names: the prefix as it is, since the client finds the namespace in the
+         * pattern's text, and the index.
+         */
+        public Pattern pattern() {
+            return Pattern.compile(prefix + "\\d+");
+        }
+
+        /** Whether the topics are partitioned. */
+        public boolean partitioned() {
+            return partitions > 0;
+        }
     }
 
     /**
@@ -138,16 +217,32 @@ public record IotScenario(String serviceUrl, Warmup warmup, Measurement measurem
      * @param subscriptionType the subscriptions' type: {@code Key_Shared}, the default, {@code Shared} or
      *                         {@code Failover}. A Shared subscription doesn't keep a device's messages in order, so
      *                         the applications check it for lost and duplicated messages only
+     * @param mode how each pod reads the topics: {@code subscription}, the default, with a consumer of the
+     *             application's subscription, which receives every message; or {@code compactedReaders}, with a
+     *             reader of each topic that reads it compacted from the start, as a digital twin service rebuilds the
+     *             devices' latest state, which receives each device's latest message that compaction kept and then
+     *             every later one. A pod that reads compacted keeps each device's latest sequence, which must never
+     *             fall, and has its state when it has each device's last message. With {@code latestState}, the pods
+     *             consume the application's subscription, which keeps a device's messages in order, and the
+     *             application keeps each device's latest sequence as a pod that reads compacted does: the messages
+     *             that the broker expires or evicts, by a message TTL or a backlog quota, are gaps, which are allowed
      */
     public record Applications(int count, int podsPerApplication, String subscriptionPrefix, Client client,
                                Map<String, String> env, List<Integer> joinSeconds, Integer caughtUpLatencyMillis,
                                List<Long> skipMessages, boolean unloadBeforeJoin, List<Long> resetToMillis,
-                               String subscriptionType) {
+                               String subscriptionType, String mode) {
         /** The default of {@code caughtUpLatencyMillis}. */
         public static final int DEFAULT_CAUGHT_UP_LATENCY_MILLIS = 1000;
         /** The subscription types that the applications support. */
         static final List<SubscriptionType> SUBSCRIPTION_TYPES =
                 List.of(SubscriptionType.Key_Shared, SubscriptionType.Shared, SubscriptionType.Failover);
+        /** The {@code mode} of pods with a consumer of the subscription, the default. */
+        public static final String SUBSCRIPTION_MODE = "subscription";
+        /** The {@code mode} of pods with a reader of each topic, which reads it compacted. */
+        public static final String COMPACTED_READERS_MODE = "compactedReaders";
+        /** The {@code mode} of pods that consume the subscription, with each device's latest state checked. */
+        public static final String LATEST_STATE_MODE = "latestState";
+        static final List<String> MODES = List.of(SUBSCRIPTION_MODE, COMPACTED_READERS_MODE, LATEST_STATE_MODE);
 
         public Applications {
             // kept with any nulls, which the scenario's validation rejects with its message
@@ -162,6 +257,30 @@ public record IotScenario(String serviceUrl, Warmup warmup, Measurement measurem
             if (subscriptionType == null) {
                 subscriptionType = SubscriptionType.Key_Shared.name();
             }
+            if (mode == null) {
+                mode = SUBSCRIPTION_MODE;
+            }
+        }
+
+        public Applications(int count, int podsPerApplication, String subscriptionPrefix, Client client,
+                            Map<String, String> env, List<Integer> joinSeconds, Integer caughtUpLatencyMillis,
+                            List<Long> skipMessages, boolean unloadBeforeJoin, List<Long> resetToMillis,
+                            String subscriptionType) {
+            this(count, podsPerApplication, subscriptionPrefix, client, env, joinSeconds, caughtUpLatencyMillis,
+                    skipMessages, unloadBeforeJoin, resetToMillis, subscriptionType, null);
+        }
+
+        /** Whether each pod reads the topics compacted with readers rather than consuming the subscription. */
+        public boolean readsCompacted() {
+            return COMPACTED_READERS_MODE.equals(mode);
+        }
+
+        /**
+         * Whether the application checks each device's latest state, which may skip messages, rather than every
+         * message: when its pods read compacted, or with {@code latestState}.
+         */
+        public boolean keepsLatestState() {
+            return readsCompacted() || LATEST_STATE_MODE.equals(mode);
         }
 
         public Applications(int count, int podsPerApplication, String subscriptionPrefix, Client client,
@@ -190,16 +309,138 @@ public record IotScenario(String serviceUrl, Warmup warmup, Measurement measurem
         }
     }
 
-    /** The applications' client resources: the event loop's and the listener thread pool's threads. */
-    public record Client(int ioThreads, int listenerThreads) {
+    /**
+     * The applications' client resources: the event loop's and the listener thread pool's threads.
+     *
+     * @param receiverQueueSize each pod's consumer's receiver queue, in messages; null for the client's default,
+     *                          1,000, which is too many for messages of megabytes
+     */
+    public record Client(int ioThreads, int listenerThreads, Integer receiverQueueSize) {
+        public Client(int ioThreads, int listenerThreads) {
+            this(ioThreads, listenerThreads, null);
+        }
     }
 
     /** What happens to the simulated system during the run, beyond the traffic. */
-    public record Behaviors(PodRestarts podRestarts) {
-        static final Behaviors NONE = new Behaviors(PodRestarts.NONE);
+    public record Behaviors(PodRestarts podRestarts, PodPauses podPauses, ProcessingFailures processingFailures,
+                            ScheduledDelivery scheduledDelivery) {
+        static final Behaviors NONE = new Behaviors(PodRestarts.NONE, PodPauses.NONE, ProcessingFailures.NONE,
+                ScheduledDelivery.NONE);
 
         public Behaviors {
             podRestarts = podRestarts != null ? podRestarts : PodRestarts.NONE;
+            podPauses = podPauses != null ? podPauses : PodPauses.NONE;
+            processingFailures = processingFailures != null ? processingFailures : ProcessingFailures.NONE;
+            scheduledDelivery = scheduledDelivery != null ? scheduledDelivery : ScheduledDelivery.NONE;
+        }
+
+        public Behaviors(PodRestarts podRestarts, PodPauses podPauses, ProcessingFailures processingFailures) {
+            this(podRestarts, podPauses, processingFailures, null);
+        }
+
+        public Behaviors(PodRestarts podRestarts, PodPauses podPauses) {
+            this(podRestarts, podPauses, null);
+        }
+
+        public Behaviors(PodRestarts podRestarts) {
+            this(podRestarts, null);
+        }
+    }
+
+    /**
+     * The gateways schedule each measured message's delivery a random delay ahead, as a command service schedules
+     * commands for the devices' maintenance windows: the broker keeps the messages back until then, in its delayed
+     * delivery tracker. The applications record how late each measured message arrives after its delivery time,
+     * instead of after its publishing, and count the messages that arrive early.
+     *
+     * @param minDelayMillis the shortest delay
+     * @param maxDelayMillis the longest delay; 0 for none
+     * @param earlyToleranceMillis how early a message may arrive without counting as early, 1,000 by default: a broker
+     *                             without {@code isDelayedDeliveryDeliverAtTimeStrict} delivers messages up to its
+     *                             {@code delayedDeliveryTickTimeMillis}, 1,000 by default, before their time
+     */
+    public record ScheduledDelivery(int minDelayMillis, int maxDelayMillis, Integer earlyToleranceMillis) {
+        static final ScheduledDelivery NONE = new ScheduledDelivery(0, 0, null);
+        /** The message property with the message's delivery time, in epoch milliseconds. */
+        public static final String DELIVER_AT_PROPERTY = "deliverAt";
+
+        public ScheduledDelivery {
+            if (earlyToleranceMillis == null) {
+                earlyToleranceMillis = 1000;
+            }
+        }
+
+        public boolean enabled() {
+            return maxDelayMillis > 0;
+        }
+    }
+
+    /**
+     * The applications fail to process some messages, as a worker does when a downstream service fails, and retry
+     * them; the messages that they can never process, such as malformed ones, go to a dead letter topic after the
+     * retries, which each application also consumes. Which attempts fail depends only on the message and the
+     * attempt, so that a check after the run knows which messages are dead letters.
+     *
+     * @param fraction the fraction of the messages whose first and second attempts fail, as a downstream service
+     *                 that fails now and then: such a message succeeds by its third attempt
+     * @param poisonFraction the fraction of the messages that fail at every attempt, which end in the dead letter
+     *                       topic
+     * @param retry how a failed message is retried: {@code negativeAck}, the default, which the broker redelivers
+     *              after the retry delay, or {@code retryTopic}, which the consumer republishes to the application's
+     *              retry topic with a delivery delay, as {@code reconsumeLater} does
+     * @param retryDelayMillis the delay before a failed message's next attempt, 1,000 by default
+     * @param maxRedeliveries the redeliveries or republications after which a failed message goes to the dead letter
+     *                        topic, at least 3, the default
+     */
+    public record ProcessingFailures(double fraction, double poisonFraction, String retry, Integer retryDelayMillis,
+                                     Integer maxRedeliveries) {
+        static final ProcessingFailures NONE = new ProcessingFailures(0, 0, null, null, null);
+        /** The {@code retry} with negative acknowledgments, the default. */
+        public static final String NEGATIVE_ACK = "negativeAck";
+        /** The {@code retry} through the retry topic. */
+        public static final String RETRY_TOPIC = "retryTopic";
+        static final List<String> RETRIES = List.of(NEGATIVE_ACK, RETRY_TOPIC);
+        // The attempts that a message of the fraction fails
+        static final int TRANSIENT_FAILED_ATTEMPTS = 2;
+
+        public ProcessingFailures {
+            if (retry == null) {
+                retry = NEGATIVE_ACK;
+            }
+            if (retryDelayMillis == null) {
+                retryDelayMillis = 1000;
+            }
+            if (maxRedeliveries == null) {
+                maxRedeliveries = 3;
+            }
+        }
+
+        public boolean enabled() {
+            return fraction > 0 || poisonFraction > 0;
+        }
+
+        public boolean retriesThroughTopic() {
+            return RETRY_TOPIC.equals(retry);
+        }
+
+        /** Whether the message can never be processed. */
+        public boolean poison(long deviceId, long sequence) {
+            return poisonFraction > 0 && uniform(deviceId, sequence, -1) < poisonFraction;
+        }
+
+        /** Whether the attempt to process the message, the first being 0, fails. */
+        public boolean fails(long deviceId, long sequence, int attempt) {
+            return poison(deviceId, sequence) || attempt < TRANSIENT_FAILED_ATTEMPTS && fraction > 0
+                    && uniform(deviceId, sequence, -2) < fraction;
+        }
+
+        // A number from 0 to 1 that depends only on its arguments: SplitMix64's finalizer of their combination
+        private static double uniform(long deviceId, long sequence, int attempt) {
+            long z = deviceId * 0x9E3779B97F4A7C15L + sequence * 0xC2B2AE3D27D4EB4FL + attempt * 0x165667B19E3779F9L;
+            z = (z ^ (z >>> 30)) * 0xBF58476D1CE4E5B9L;
+            z = (z ^ (z >>> 27)) * 0x94D049BB133111EBL;
+            z = z ^ (z >>> 31);
+            return (z >>> 11) * 0x1.0p-53;
         }
     }
 
@@ -215,6 +456,31 @@ public record IotScenario(String serviceUrl, Warmup warmup, Measurement measurem
         boolean enabled() {
             return intervalSeconds > 0 && fraction > 0;
         }
+    }
+
+    /**
+     * Each application pauses some of its pods periodically, as a pod stalled by a garbage collection, a slow
+     * downstream or a debugger would: a paused pod's consumer stops asking for messages, so the broker holds back its
+     * keys' messages, which a Key_Shared subscription keeps in its replay queue, until it resumes.
+     *
+     * @param intervalSeconds how often each application pauses pods; 0 never
+     * @param fraction the fraction of an application's pods that each pause stops
+     * @param pauseMillis how long the pods stay paused, shorter than the interval
+     */
+    public record PodPauses(int intervalSeconds, double fraction, int pauseMillis) {
+        static final PodPauses NONE = new PodPauses(0, 0, 0);
+
+        boolean enabled() {
+            return intervalSeconds > 0 && fraction > 0 && pauseMillis > 0;
+        }
+    }
+
+    /** A scenario without TLS and authentication. */
+    public IotScenario(String serviceUrl, Warmup warmup, Measurement measurement, int rate, Payload payload,
+                       Devices devices, Gateways gateways, Topics topics, Applications applications,
+                       Behaviors behaviors, int timeoutSeconds) {
+        this(serviceUrl, warmup, measurement, rate, payload, devices, gateways, topics, applications, behaviors,
+                timeoutSeconds, null, null);
     }
 
     public IotScenario {
@@ -249,6 +515,7 @@ public record IotScenario(String serviceUrl, Warmup warmup, Measurement measurem
         Producer producer = gateways.producer();
         Client client = applications.client();
         PodRestarts podRestarts = behaviors.podRestarts();
+        PodPauses podPauses = behaviors.podPauses();
         require(durationSeconds >= 1, "measurement.seconds must be at least 1");
         require(warmupSeconds >= 0 && warmupMessages >= 0 && warmupRoundDelaySeconds >= 0,
                 "warmup.seconds, warmup.messages and warmup.roundDelaySeconds must not be negative");
@@ -263,6 +530,8 @@ public record IotScenario(String serviceUrl, Warmup warmup, Measurement measurem
                         && applications.podsPerApplication() >= 1,
                 "devices.count, gateways.count, topics.count, applications.count and "
                         + "applications.podsPerApplication must be at least 1");
+        require(Devices.KEY_TYPES.contains(devices.keyType()),
+                "devices.keyType must be one of " + Devices.KEY_TYPES + ", not " + devices.keyType());
         require(producer.ioThreads() >= 1 && producer.listenerThreads() >= 1 && client.ioThreads() >= 1
                         && client.listenerThreads() >= 1,
                 "The gateways' and the applications' ioThreads and listenerThreads must be at least 1");
@@ -334,6 +603,105 @@ public record IotScenario(String serviceUrl, Warmup warmup, Measurement measurem
                         && applications.resetToMillis().stream().allMatch(resetTo -> resetTo == null || resetTo == -1),
                 "applications.skipMessages and applications.resetToMillis need a subscription type that keeps each"
                         + " device's order, not Shared");
+        ScheduledDelivery scheduled = behaviors.scheduledDelivery();
+        long scheduledDelaySeconds = (scheduled.maxDelayMillis() + 999L) / 1000;
+        require(!scheduled.enabled() || timeoutSeconds >= minimumRuntimeSeconds + scheduledDelaySeconds,
+                String.format(Locale.ROOT, "timeoutSeconds is %d, but the last scheduled message is delivered %d s"
+                        + " after the warmup and the measurement, which take %d s, so set timeoutSeconds to at"
+                        + " least %d", timeoutSeconds, scheduledDelaySeconds, minimumRuntimeSeconds,
+                        minimumRuntimeSeconds + scheduledDelaySeconds));
+        require(scheduled.minDelayMillis() >= 0 && scheduled.maxDelayMillis() >= scheduled.minDelayMillis()
+                        && scheduled.earlyToleranceMillis() >= 0,
+                "behaviors.scheduledDelivery needs 0 <= minDelayMillis <= maxDelayMillis and earlyToleranceMillis of"
+                        + " at least 0");
+        // The broker delivers delayed messages only to Shared and Key_Shared subscriptions, and the delays deliver a
+        // device's messages out of order
+        require(!scheduled.enabled() || SubscriptionType.Shared.name().equals(applications.subscriptionType())
+                        && !applications.readsCompacted(),
+                "behaviors.scheduledDelivery needs applications.subscriptionType Shared and mode subscription");
+        ProcessingFailures failures = behaviors.processingFailures();
+        require(failures.fraction() >= 0 && failures.fraction() < 1 && failures.poisonFraction() >= 0
+                        && failures.poisonFraction() < 1,
+                "behaviors.processingFailures.fraction and poisonFraction must be from 0 to below 1");
+        require(ProcessingFailures.RETRIES.contains(failures.retry()),
+                "behaviors.processingFailures.retry must be one of " + ProcessingFailures.RETRIES + ", not "
+                        + failures.retry());
+        require(failures.retryDelayMillis() >= 0
+                        && failures.maxRedeliveries() > ProcessingFailures.TRANSIENT_FAILED_ATTEMPTS,
+                "behaviors.processingFailures.retryDelayMillis must not be negative, and maxRedeliveries must be at"
+                        + " least " + (ProcessingFailures.TRANSIENT_FAILED_ATTEMPTS + 1));
+        // A redelivery for any other reason, of a restarted or paused pod's messages or of a nacked message's
+        // batch, counts as an attempt for the broker, which would dead-letter a message that hasn't failed enough
+        require(!failures.enabled() || failures.retriesThroughTopic()
+                        || !podRestarts.enabled() && !podPauses.enabled() && !producer.batchingEnabled(),
+                "behaviors.processingFailures.retry negativeAck needs no podRestarts or podPauses and"
+                        + " gateways.producer.batchingEnabled: false; retryTopic counts only the retries");
+        // Retries deliver a device's messages out of order, and a pod that reads compacted doesn't process them. A late
+        // application's catch-up counts the topics that it receives from, which the retry topic would be one of
+        require(!failures.enabled() || SubscriptionType.Shared.name().equals(applications.subscriptionType())
+                        && !applications.readsCompacted()
+                        && applications.joinSeconds().stream().allMatch(seconds -> seconds == null || seconds == 0),
+                "behaviors.processingFailures needs applications.subscriptionType Shared and mode subscription, and"
+                        + " doesn't support applications.joinSeconds");
+        require(Applications.MODES.contains(applications.mode()),
+                "applications.mode must be one of " + Applications.MODES + ", not " + applications.mode());
+        // A pod that reads compacted rebuilds the latest state from the start at any time, and has no subscription
+        // to prepare or to pause
+        require(!applications.readsCompacted() || applications.joinSeconds().stream()
+                        .allMatch(seconds -> seconds == null || seconds == 0)
+                        && applications.skipMessages().stream().allMatch(skipped -> skipped == null || skipped == 0)
+                        && applications.resetToMillis().stream().allMatch(resetTo -> resetTo == null || resetTo == -1)
+                        && !applications.unloadBeforeJoin() && !podPauses.enabled() && warmupMessages == 0,
+                "applications.mode compactedReaders doesn't support joinSeconds, skipMessages, resetToMillis,"
+                        + " unloadBeforeJoin, behaviors.podPauses or warmup.messages");
+        // Only a device's latest sequence is checked, which a redelivery of an older message would make fall
+        require(!Applications.LATEST_STATE_MODE.equals(applications.mode())
+                        || !SubscriptionType.Shared.name().equals(applications.subscriptionType())
+                        && !podRestarts.enabled() && !failures.enabled() && !scheduled.enabled()
+                        && applications.joinSeconds().stream().allMatch(seconds -> seconds == null || seconds == 0)
+                        && applications.skipMessages().stream().allMatch(skipped -> skipped == null || skipped == 0)
+                        && applications.resetToMillis().stream().allMatch(resetTo -> resetTo == null || resetTo == -1)
+                        && !applications.unloadBeforeJoin() && warmupMessages == 0,
+                "applications.mode latestState needs a subscription type that keeps each device's order, and doesn't"
+                        + " support behaviors.podRestarts, processingFailures or scheduledDelivery, joinSeconds,"
+                        + " skipMessages, resetToMillis, unloadBeforeJoin or warmup.messages");
+        // The gateways wait for the warmup's every message, which a paused pod's expired messages would never be
+        require(!Applications.LATEST_STATE_MODE.equals(applications.mode()) || !podPauses.enabled()
+                        || minimumRuntimeSeconds - durationSeconds
+                        < podPauses.intervalSeconds() - podPauses.pauseMillis() / 1000L,
+                "applications.mode latestState with behaviors.podPauses needs the warmup to end before the first"
+                        + " pause, intervalSeconds - pauseMillis after the start");
+        require(topics.partitions() >= 0, "topics.partitions must not be negative");
+        // A pattern subscription creates its subscription on a topic when it discovers it, and the client subscribes
+        // to the retry topic only with the topics' names
+        require(!topics.subscribedByPattern() || topics.patternDiscoverySeconds() >= 1 && !topics.partitioned()
+                        && !applications.readsCompacted() && !behaviors.processingFailures().enabled()
+                        && applications.joinSeconds().stream().allMatch(seconds -> seconds == null || seconds == 0)
+                        && !topics.prefix().matches(".*[.*+?^$|()\\[\\]{}\\\\].*"),
+                "topics.patternDiscoverySeconds must be at least 1, needs a topics.prefix without regular expression"
+                        + " characters, and doesn't support topics.partitions,"
+                        + " applications.mode compactedReaders, applications.joinSeconds or"
+                        + " behaviors.processingFailures");
+        // The launcher prepares a join with each topic's stats, which a partitioned topic keeps per partition, and a
+        // late application's catch-up counts the topics that it receives from, which are the partitions
+        require(!topics.partitioned() || !applications.unloadBeforeJoin()
+                        && applications.joinSeconds().stream().allMatch(seconds -> seconds == null || seconds == 0)
+                        && applications.skipMessages().stream().allMatch(skipped -> skipped == null || skipped == 0)
+                        && applications.resetToMillis().stream().allMatch(resetTo -> resetTo == null || resetTo == -1),
+                "topics.partitions doesn't support applications.joinSeconds, skipMessages, unloadBeforeJoin or"
+                        + " resetToMillis");
+        require(producer.chunkMaxMessageSizeBytes() == null
+                        || producer.chunkMaxMessageSizeBytes() >= 1024 && !producer.batchingEnabled(),
+                "gateways.producer.chunkMaxMessageSizeBytes must be at least 1024, and needs batchingEnabled: false");
+        // Shared delivers a message's chunks to any consumer, which can't put them together
+        require(producer.chunkMaxMessageSizeBytes() == null
+                        || !SubscriptionType.Shared.name().equals(applications.subscriptionType()),
+                "gateways.producer.chunkMaxMessageSizeBytes needs a subscription type other than Shared");
+        // Compaction keeps a key's last entry, which is a chunked message's last chunk
+        require(producer.chunkMaxMessageSizeBytes() == null || !applications.readsCompacted(),
+                "gateways.producer.chunkMaxMessageSizeBytes doesn't support applications.mode compactedReaders");
+        require(client.receiverQueueSize() == null || client.receiverQueueSize() >= 1,
+                "applications.client.receiverQueueSize must be at least 1");
         require(producer.precreateConcurrency() >= 1, "gateways.producer.precreateConcurrency must be at least 1");
         require(producer.batchingMaxPublishDelayMillis() == null || producer.batchingMaxPublishDelayMillis() >= 1,
                 "gateways.producer.batchingMaxPublishDelayMillis must be at least 1");
@@ -351,6 +719,13 @@ public record IotScenario(String serviceUrl, Warmup warmup, Measurement measurem
         }
         require(podRestarts.intervalSeconds() >= 0 && podRestarts.fraction() >= 0 && podRestarts.fraction() <= 1,
                 "behaviors.podRestarts.intervalSeconds must not be negative, and fraction must be from 0 to 1");
+        require(podPauses.intervalSeconds() >= 0 && podPauses.fraction() >= 0 && podPauses.fraction() <= 1
+                        && podPauses.pauseMillis() >= 0,
+                "behaviors.podPauses.intervalSeconds and pauseMillis must not be negative, and fraction must be from 0"
+                        + " to 1");
+        require(!podPauses.enabled()
+                        || podPauses.pauseMillis() < TimeUnit.SECONDS.toMillis(podPauses.intervalSeconds()),
+                "behaviors.podPauses.pauseMillis must be shorter than intervalSeconds");
     }
 
     private static void require(boolean condition, String message) {
@@ -381,6 +756,11 @@ public record IotScenario(String serviceUrl, Warmup warmup, Measurement measurem
 
     public int deviceCount() {
         return devices.count();
+    }
+
+    /** Whether the gateways key the messages with strings rather than with bytes. */
+    public boolean stringKeys() {
+        return Devices.STRING_KEYS.equals(devices.keyType());
     }
 
     public int gatewayCount() {
@@ -490,6 +870,38 @@ public record IotScenario(String serviceUrl, Warmup warmup, Measurement measurem
             result.add(topicName(i));
         }
         return result;
+    }
+
+    /**
+     * The topics whose stats the brokers keep: the topics, or each partition of the partitioned topics, named
+     * {@code <topic>-partition-<index>}.
+     */
+    public List<String> statsTopicNames() {
+        if (!topics.partitioned()) {
+            return topicNames();
+        }
+        List<String> result = new ArrayList<>(topics.count() * topics.partitions());
+        for (String topic : topicNames()) {
+            for (int partition = 0; partition < topics.partitions(); partition++) {
+                result.add(topic + "-partition-" + partition);
+            }
+        }
+        return result;
+    }
+
+    /** The dead letter topic of the application's subscription, which its failed messages go to. */
+    public String deadLetterTopicName(int applicationIndex) {
+        return topics.prefix() + subscriptionName(applicationIndex) + "-DLQ";
+    }
+
+    /** The retry topic of the application's subscription. */
+    public String retryTopicName(int applicationIndex) {
+        return topics.prefix() + subscriptionName(applicationIndex) + "-RETRY";
+    }
+
+    /** Whether the gateways hand each device's last sequence to the applications, which check against it. */
+    public boolean handsOverFinalSequences() {
+        return applications.keepsLatestState() || behaviors.processingFailures().enabled();
     }
 
     /** The topic with the index, from 0 to {@code topics.count} - 1. */

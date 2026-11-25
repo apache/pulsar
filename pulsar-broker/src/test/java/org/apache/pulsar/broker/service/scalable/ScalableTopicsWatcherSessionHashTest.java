@@ -24,9 +24,9 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.DefaultChannelPromise;
-import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.util.concurrent.ImmediateEventExecutor;
 import java.util.List;
 import java.util.Map;
@@ -59,6 +59,7 @@ public class ScalableTopicsWatcherSessionHashTest {
     private ServerCnx cnx;
     private ChannelHandlerContext ctx;
     private ScheduledExecutorService scheduler;
+    private ScalableTopicsWatcherSession session;
 
     @BeforeMethod
     public void setUp() throws Exception {
@@ -68,16 +69,19 @@ public class ScalableTopicsWatcherSessionHashTest {
         cnx = mock(ServerCnx.class);
         ctx = mock(ChannelHandlerContext.class);
         when(cnx.ctx()).thenReturn(ctx);
-        // writeAndFlush returns a ChannelFuture; provide a no-op promise to keep the
-        // call chain happy. The ScalableTopicsWatcherSession ignores the return.
-        when(ctx.writeAndFlush(org.mockito.ArgumentMatchers.any()))
-                .thenReturn(new DefaultChannelPromise(new EmbeddedChannel(),
-                        ImmediateEventExecutor.INSTANCE));
+        when(ctx.writeAndFlush(org.mockito.ArgumentMatchers.any())).thenAnswer(invocation -> {
+            ByteBuf frame = invocation.getArgument(0);
+            frame.release();
+            return new DefaultChannelPromise(mock(Channel.class), ImmediateEventExecutor.INSTANCE).setSuccess();
+        });
         scheduler = Executors.newSingleThreadScheduledExecutor();
     }
 
     @AfterMethod(alwaysRun = true)
     public void tearDown() throws Exception {
+        if (session != null) {
+            session.close();
+        }
         if (scheduler != null) {
             scheduler.shutdownNow();
         }
@@ -97,7 +101,7 @@ public class ScalableTopicsWatcherSessionHashTest {
         TopicName tn = TopicName.get("topic://" + ns + "/t1");
         resources.createScalableTopicAsync(tn, meta()).get();
 
-        var session = new ScalableTopicsWatcherSession(1L, ns, Map.of(),
+        session = new ScalableTopicsWatcherSession(1L, ns, Map.of(),
                 /* clientHash= */ null, cnx, resources, scheduler);
         session.start().get();
 
@@ -115,7 +119,7 @@ public class ScalableTopicsWatcherSessionHashTest {
         // matching hash with the same function the broker uses (TopicList.crc32c).
         String matchingHash = TopicList.calculateHash(List.of(tn.toString()));
 
-        var session = new ScalableTopicsWatcherSession(2L, ns, Map.of(),
+        session = new ScalableTopicsWatcherSession(2L, ns, Map.of(),
                 /* clientHash= */ matchingHash, cnx, resources, scheduler);
         session.start().get();
 
@@ -134,7 +138,7 @@ public class ScalableTopicsWatcherSessionHashTest {
         // Snapshot so the client can reconcile.
         String staleHash = TopicList.calculateHash(List.of("topic://" + ns + "/something-else"));
 
-        var session = new ScalableTopicsWatcherSession(3L, ns, Map.of(),
+        session = new ScalableTopicsWatcherSession(3L, ns, Map.of(),
                 /* clientHash= */ staleHash, cnx, resources, scheduler);
         session.start().get();
 

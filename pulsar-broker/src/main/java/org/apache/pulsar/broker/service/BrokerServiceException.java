@@ -71,6 +71,16 @@ public class BrokerServiceException extends Exception {
         }
     }
 
+    /**
+     * A service unit can't be acquired, or looked up without waiting for the metadata store, while the broker's
+     * metadata session is lost. The client looks the topic up again, possibly at another broker.
+     */
+    public static class MetadataSessionLostException extends ServiceUnitNotReadyException {
+        public MetadataSessionLostException(String msg) {
+            super(msg);
+        }
+    }
+
     public static class TopicClosedException extends BrokerServiceException {
         public TopicClosedException(Throwable t) {
             super(t);
@@ -160,6 +170,12 @@ public class BrokerServiceException extends Exception {
 
     public static class SubscriptionNotFoundException extends BrokerServiceException {
         public SubscriptionNotFoundException(String msg) {
+            super(msg);
+        }
+    }
+
+    public static class SubscriptionAlreadyExistsException extends BrokerServiceException {
+        public SubscriptionAlreadyExistsException(String msg) {
             super(msg);
         }
     }

@@ -41,6 +41,7 @@ import javax.net.ssl.SSLParameters;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 import lombok.CustomLog;
+import org.apache.pulsar.common.tls.TlsClientAuthMode;
 import org.apache.pulsar.common.util.tls.JcaProviders;
 import org.apache.pulsar.common.util.tls.JdkSslContexts;
 import org.apache.pulsar.tls.TlsPolicy;
@@ -63,9 +64,9 @@ import org.apache.pulsar.tls.TlsPolicy;
  *       backend fixes the endpoint-identification algorithm at build time.</li>
  *   <li><b>Server insecure trust</b> — {@code policy.allowInsecureConnection()} on a
  *       server context installs {@link InsecureTrustManagerFactory#INSTANCE} so an untrusted client
- *       certificate still completes the handshake and remains available for TLS authentication, while
- *       client-auth stays {@link ClientAuth#REQUIRE}/{@link ClientAuth#OPTIONAL} (never
- *       {@link ClientAuth#NONE}, per {@code tlsRequireTrustedClientCert} semantics).</li>
+ *       certificate still completes the handshake and remains available for TLS authentication. Insecure
+ *       trust never changes the client-auth mode: that follows the configured {@link TlsClientAuthMode}
+ *       alone, so {@link ClientAuth#NONE} is used only when it was asked for explicitly.</li>
  * </ul>
  */
 @CustomLog
@@ -165,12 +166,12 @@ public final class TlsContexts {
      * @param material                 the loaded server material
      * @param policy                   the policy (flags, protocols, ciphers)
      * @param provider                 the Netty SSL provider (engine selection)
-     * @param requireTrustedClientCert whether to require (vs. merely request) a trusted client cert
+     * @param clientAuthMode           whether to require, request or not request a client certificate
      * @return the built server context
      * @throws Exception if the context cannot be built
      */
     static SslContext buildNettyServerContext(TlsMaterial material, TlsPolicy policy, SslProvider provider,
-                                              boolean requireTrustedClientCert) throws Exception {
+                                              TlsClientAuthMode clientAuthMode) throws Exception {
         // Keystore material builds the server identity from the whole keystore (multi-alias selection); PEM
         // material has a single server key + chain, routed through a KeyManagerFactory only when a provider
         // axis is pinned (see applyKeyManager).
@@ -178,8 +179,9 @@ public final class TlsContexts {
         applyEngineProvider(builder, policy, provider);
         applyTrust(builder, material, policy);
         applyCiphersAndProtocols(builder, policy);
-        // Never drop to ClientAuth.NONE, even when insecure: a captured client cert powers TLS auth.
-        builder.clientAuth(requireTrustedClientCert ? ClientAuth.REQUIRE : ClientAuth.OPTIONAL);
+        // Insecure trust does not imply ClientAuth.NONE: a captured client cert powers TLS auth, so NONE is
+        // used only when explicitly configured.
+        builder.clientAuth(toNettyClientAuth(clientAuthMode));
         return builder.build();
     }
 
@@ -274,13 +276,12 @@ public final class TlsContexts {
      *
      * @param sslContext               the JDK context to wrap
      * @param isClient                 whether the wrapped context is for client-mode engines
-     * @param requireTrustedClientCert server-side client-auth requirement (ignored when {@code isClient})
+     * @param clientAuthMode           server-side client-auth mode (ignored when {@code isClient})
      * @return a Netty context backed by the JDK context
      */
     public static SslContext synthesizeNettyFromJdk(SSLContext sslContext, boolean isClient,
-                                                    boolean requireTrustedClientCert) {
-        ClientAuth clientAuth = isClient ? ClientAuth.NONE
-                : (requireTrustedClientCert ? ClientAuth.REQUIRE : ClientAuth.OPTIONAL);
+                                                    TlsClientAuthMode clientAuthMode) {
+        ClientAuth clientAuth = isClient ? ClientAuth.NONE : toNettyClientAuth(clientAuthMode);
         return new JdkSslContext(sslContext, isClient, null, IdentityCipherSuiteFilter.INSTANCE,
                 ApplicationProtocolConfig.DISABLED, clientAuth, null, false);
     }
@@ -321,7 +322,7 @@ public final class TlsContexts {
                     + "certificate valid for a different host is accepted, so a peer holding any trusted "
                     + "certificate can impersonate this destination.");
         }
-        SslContext clientContext = synthesizeNettyFromJdk(sslContext, true, false);
+        SslContext clientContext = synthesizeNettyFromJdk(sslContext, true, TlsClientAuthMode.NONE);
         SSLParameters overlay = composeClientOverlay(factoryBaseline, enableHostnameVerification);
         return new SynthesizedEngineSslContext(clientContext, overlay, false);
     }
@@ -332,27 +333,36 @@ public final class TlsContexts {
      * the framework when a custom factory returns {@code empty()} for the Netty class on a server purpose but
      * supplies the JDK {@code SSLContext} fallback.
      *
-     * <p>The consumer's {@code requireTrustedClientCert} is mapped onto the base context as usual
-     * ({@link ClientAuth#REQUIRE}/{@link ClientAuth#OPTIONAL}). When a companion is supplied its non-null
+     * <p>The consumer's {@link TlsClientAuthMode} is mapped onto the base context as usual
+     * ({@link ClientAuth#REQUIRE}/{@link ClientAuth#OPTIONAL}/{@link ClientAuth#NONE}).
+     * When a companion is supplied its non-null
      * baseline members (protocols/ciphers/algorithm-constraints/application-protocols) are overlaid per engine
      * and — merge rule 4 — its {@code needClientAuth}/{@code wantClientAuth} are authoritative for the
      * client-auth mode; with no companion the base context's client-auth mode is left untouched. In both cases,
      * when no enabled protocols were set the {@link #DEFAULT_ENABLED_PROTOCOLS} floor is applied.
      *
      * @param sslContext               the JDK context to wrap
-     * @param requireTrustedClientCert the consumer's client-auth requirement (used when no companion supplied)
+     * @param clientAuthMode           the consumer's client-auth mode (used when no companion supplied)
      * @param factoryBaseline          the factory's engine-policy companion, or {@code null} if none supplied
      * @return a Netty server context backed by the JDK context, carrying the composed engine policy
      */
     public static SslContext synthesizeNettyServerFromJdk(SSLContext sslContext,
-                                                          boolean requireTrustedClientCert,
+                                                          TlsClientAuthMode clientAuthMode,
                                                           SSLParameters factoryBaseline) {
-        SslContext serverContext = synthesizeNettyFromJdk(sslContext, false, requireTrustedClientCert);
+        SslContext serverContext = synthesizeNettyFromJdk(sslContext, false, clientAuthMode);
         // Apply the companion's client-auth mode (merge rule 4) only when a companion was supplied; with none,
         // the base context already carries the consumer's client-auth mode and the overlay pins only protocols.
         SSLParameters overlay = factoryBaseline == null ? new SSLParameters() : copyBaselineMembers(factoryBaseline);
         applyDefaultProtocolsIfUnset(overlay);
         return new SynthesizedEngineSslContext(serverContext, overlay, factoryBaseline != null);
+    }
+
+    private static ClientAuth toNettyClientAuth(TlsClientAuthMode clientAuthMode) {
+        return switch (clientAuthMode) {
+            case NONE -> ClientAuth.NONE;
+            case OPTIONAL -> ClientAuth.OPTIONAL;
+            case REQUIRE -> ClientAuth.REQUIRE;
+        };
     }
 
     /**

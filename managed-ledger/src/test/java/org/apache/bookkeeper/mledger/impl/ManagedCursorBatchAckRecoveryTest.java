@@ -20,11 +20,17 @@ package org.apache.bookkeeper.mledger.impl;
 
 import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.defaultConfig;
 import static org.assertj.core.api.Assertions.assertThat;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -52,6 +58,170 @@ public class ManagedCursorBatchAckRecoveryTest extends MockedBookKeeperTestCase 
     @DataProvider(name = "booleans")
     public Object[][] booleans() {
         return new Object[][] {{false}, {true}};
+    }
+
+    @Test
+    public void testIsCursorDataFullyPersistableReflectsBatchDeletedIndexLimit() throws Exception {
+        ManagedLedgerConfig config = defaultConfig();
+        config.setDeletionAtBatchIndexLevelEnabled(true);
+        config.setMaxBatchDeletedIndexToPersist(2);
+        config.setThrottleMarkDelete(0);
+        String name = "tenant/ns/persistent/cursor-data-fully-persistable-batch-index";
+        @Cleanup
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(name, config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("sub");
+        List<Position> positions = new ArrayList<>();
+        for (int i = 0; i <= 3; i++) {
+            positions.add(ledger.addEntry(new byte[] {(byte) i}));
+        }
+        cursor.delete(positions.get(0));
+        Awaitility.await().until(() -> cursor.getStats().getPersistLedgerSucceed() > 0);
+
+        long[][] ackSets = {{2L}, {Long.MIN_VALUE, 1L}, {5L, 0L, 3L}};
+        for (int i = 1; i < positions.size(); i++) {
+            Position position = positions.get(i);
+            cursor.delete(AckSetStateUtil.createPositionWithAckSet(
+                    position.getLedgerId(), position.getEntryId(), ackSets[i - 1]));
+            if (i < 3) {
+                assertThat(cursor.isCursorDataFullyPersistable())
+                        .as("batch deleted index count %s is within limit 2", i)
+                        .isTrue();
+            } else {
+                assertThat(cursor.isCursorDataFullyPersistable())
+                        .as("third batch deleted index record exceeds limit 2")
+                        .isFalse();
+            }
+        }
+    }
+
+    @Test(dataProvider = "booleans")
+    public void testCumulativeAckPreservesIndividualBatchAcks(boolean metadataStore) throws Exception {
+        ManagedLedgerConfig config = defaultConfig()
+                .setMaxUnackedRangesToPersistInMetadataStore(metadataStore ? 20 : -1);
+        config.setDeletionAtBatchIndexLevelEnabled(true);
+        String name = "tenant/ns/persistent/mixed-batch-acks-" + metadataStore;
+        @Cleanup
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(name, config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("sub");
+        Position initial = ledger.addEntry(new byte[] {0});
+        Position batch = ledger.addEntry(new byte[] {1});
+        ledger.addEntry(new byte[] {2});
+        cursor.markDelete(initial);
+
+        // The individual ACK clears index 3; the cumulative ACK clears indexes 0 and 1.
+        cursor.delete(AckSetStateUtil.createPositionWithAckSet(
+                batch.getLedgerId(), batch.getEntryId(), new long[] {7L}));
+        cursor.markDelete(AckSetStateUtil.createPositionWithAckSet(
+                batch.getLedgerId(), batch.getEntryId(), new long[] {12L}));
+        assertThat(cursor.getBatchPositionAckSet(batch)).containsExactly(4L);
+
+        // An older cumulative snapshot must not bring any acknowledged indexes back either.
+        cursor.markDelete(AckSetStateUtil.createPositionWithAckSet(
+                batch.getLedgerId(), batch.getEntryId(), new long[] {14L}));
+        assertThat(cursor.getBatchPositionAckSet(batch)).containsExactly(4L);
+        ledger.close();
+
+        @Cleanup
+        ManagedLedgerImpl reopened = (ManagedLedgerImpl) factory.open(name, config);
+        ManagedCursorImpl recovered = (ManagedCursorImpl) reopened.openCursor("sub");
+        assertThat(recovered.getMarkDeletedPosition()).isEqualTo(initial);
+        assertThat(recovered.getBatchPositionAckSet(batch)).containsExactly(4L);
+    }
+
+    @Test(dataProvider = "booleans")
+    public void testCumulativeAckOverlapsIndividualBatchAck(boolean fullyAcknowledged) throws Exception {
+        ManagedLedgerConfig config = defaultConfig().setMaxUnackedRangesToPersistInMetadataStore(-1);
+        config.setDeletionAtBatchIndexLevelEnabled(true);
+        @Cleanup
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(
+                "tenant/ns/persistent/concurrent-batch-acks-" + fullyAcknowledged, config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("sub");
+        Position initial = ledger.addEntry(new byte[] {0});
+        Position batch = ledger.addEntry(new byte[] {1});
+        ledger.addEntry(new byte[] {2});
+        cursor.markDelete(initial);
+        cursor.delete(AckSetStateUtil.createPositionWithAckSet(
+                batch.getLedgerId(), batch.getEntryId(), new long[] {14L}));
+
+        CountDownLatch individualMerged = new CountDownLatch(1);
+        CountDownLatch releaseIndividual = new CountDownLatch(1);
+        Position individualPosition = AckSetStateUtil.createPositionWithAckSet(
+                batch.getLedgerId(), batch.getEntryId(), new long[] {fullyAcknowledged ? 3L : 11L});
+        Iterable<Position> individualPositions = () -> new Iterator<>() {
+            private final Iterator<Position> delegate = List.of(individualPosition).iterator();
+
+            @Override
+            public boolean hasNext() {
+                boolean hasNext = delegate.hasNext();
+                if (!hasNext) {
+                    // Pause after the real individual merge, while asyncDelete still holds the write lock.
+                    individualMerged.countDown();
+                    awaitLatch(releaseIndividual);
+                }
+                return hasNext;
+            }
+
+            @Override
+            public Position next() {
+                return delegate.next();
+            }
+        };
+        CountDownLatch cumulativeEntered = new CountDownLatch(1);
+        Position cumulativePosition = new AckSetPositionImpl(batch.getLedgerId(), batch.getEntryId(),
+                new long[] {12L}) {
+            @Override
+            public long[] getAckSet() {
+                cumulativeEntered.countDown();
+                return super.getAckSet();
+            }
+        };
+        @Cleanup("shutdownNow")
+        ExecutorService executor = Executors.newSingleThreadExecutor(new DefaultThreadFactory("individual-batch-ack"));
+        Future<?> individual = executor.submit(() -> {
+            cursor.delete(individualPositions);
+            return null;
+        });
+        CompletableFuture<Void> cumulative = new CompletableFuture<>();
+        Thread cumulativeThread = new DefaultThreadFactory("cumulative-batch-ack").newThread(() -> {
+            try {
+                cursor.markDelete(cumulativePosition);
+                cumulative.complete(null);
+            } catch (Exception e) {
+                cumulative.completeExceptionally(e);
+            }
+        });
+        try {
+            assertThat(individualMerged.await(5, TimeUnit.SECONDS)).isTrue();
+            cumulativeThread.start();
+            assertThat(cumulativeEntered.await(5, TimeUnit.SECONDS)).isTrue();
+            // Both versions eventually wait for the cursor write lock. Before the fix, the cumulative
+            // path has already replaced the bitmap by this point, restoring individually ACKed bits.
+            Awaitility.await().atMost(Duration.ofSeconds(5))
+                    .until(() -> cumulativeThread.getState() == Thread.State.WAITING);
+        } finally {
+            releaseIndividual.countDown();
+            cumulativeThread.join(5000);
+        }
+        individual.get(5, TimeUnit.SECONDS);
+        cumulative.get(5, TimeUnit.SECONDS);
+
+        if (fullyAcknowledged) {
+            assertThat(cursor.getBatchPositionAckSet(batch)).isNull();
+            assertThat(cursor.isMessageDeleted(batch)).isTrue();
+            assertThat(cursor.getMarkDeletedPosition()).isEqualTo(batch);
+        } else {
+            assertThat(cursor.getBatchPositionAckSet(batch)).containsExactly(8L);
+            assertThat(cursor.getMarkDeletedPosition()).isEqualTo(initial);
+        }
+    }
+
+    private static void awaitLatch(CountDownLatch latch) {
+        try {
+            assertThat(latch.await(5, TimeUnit.SECONDS)).isTrue();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException(e);
+        }
     }
 
     @Test

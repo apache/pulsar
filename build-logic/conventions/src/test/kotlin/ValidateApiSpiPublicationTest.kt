@@ -45,7 +45,10 @@ class ValidateApiSpiPublicationTest {
             """.trimIndent())
             task.poms.from(pom)
             task.moduleMetadata.from(module)
+            val validated = directory.resolve("validated.txt")
+            task.validated.set(validated)
             task.validate()
+            assertTrue(validated.readText().contains("example.pulsar:client:1"))
         } finally {
             directory.deleteRecursively()
         }

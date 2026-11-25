@@ -57,11 +57,15 @@ import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.net.BookieNode;
 import org.apache.bookkeeper.net.BookieSocketAddress;
 import org.apache.bookkeeper.net.NetworkTopology;
+import org.apache.bookkeeper.net.NetworkTopologyImpl;
 import org.apache.bookkeeper.proto.BookieAddressResolver;
 import org.apache.bookkeeper.stats.NullStatsLogger;
 import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.bookkeeper.versioning.Version;
 import org.apache.bookkeeper.versioning.Versioned;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.config.Configurator;
 import org.apache.pulsar.common.policies.data.BookieInfo;
 import org.apache.pulsar.common.policies.data.BookiesRackConfiguration;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -132,6 +136,40 @@ public class BookieRackAffinityMappingTest {
         mapping1.setBookieAddressResolver(BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER);
         // This previously threw an exception when the metadataServiceUri was a comma delimited list.
         mapping1.setConf(bkClientConf1);
+    }
+
+    @Test
+    public void testMetadataStoreConfigQueryParamsInMetadataServiceUri() throws Exception {
+        @Cleanup
+        MetadataStore racksStore = MetadataStoreFactory.create("memory:rack-mapping-query-params",
+                MetadataStoreConfig.builder().build());
+        String data = "{\"group1\": {\"" + bookie1
+                + "\": {\"rack\": \"/rack0\", \"hostname\": \"bookie1.example.com\"}}}";
+        racksStore.put(BOOKIE_INFO_ROOT_PATH, data.getBytes(), Optional.empty()).join();
+
+        ClientConfiguration bkClientConf = new ClientConfiguration();
+        // The query string configures the store instead of becoming part of its URL, so the mapping reads the store
+        // the racks above were written to. No zkTimeout: the URI alone is enough.
+        bkClientConf.setProperty("metadataServiceUri",
+                "metadata-store:memory:rack-mapping-query-params?batchingEnabled=false&sessionTimeoutMillis=40000");
+        try (MetadataStore store = BookieRackAffinityMapping.getMetadataStore(bkClientConf)) {
+            bkClientConf.setProperty(BookieRackAffinityMapping.METADATA_STORE_INSTANCE, store);
+            BookieRackAffinityMapping mapping = new BookieRackAffinityMapping();
+            mapping.setBookieAddressResolver(BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER);
+            mapping.setConf(bkClientConf);
+
+            assertEquals(mapping.resolve(Lists.newArrayList(bookie1.getHostName())).get(0), "/rack0");
+        }
+    }
+
+    @Test(expectedExceptions = RuntimeException.class, expectedExceptionsMessageRegExp = ".*must be greater than 0.*")
+    public void testInvalidMetadataStoreConfigQueryParamInMetadataServiceUri() {
+        BookieRackAffinityMapping mapping = new BookieRackAffinityMapping();
+        ClientConfiguration bkClientConf = new ClientConfiguration();
+        bkClientConf.setProperty("metadataServiceUri", "metadata-store:memory:local?batchingMaxOperations=0");
+        bkClientConf.setProperty("zkTimeout", "100000");
+        mapping.setBookieAddressResolver(BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER);
+        mapping.setConf(bkClientConf);
     }
 
     @Test
@@ -378,6 +416,17 @@ public class BookieRackAffinityMappingTest {
         repp.withDefaultRack(NetworkTopology.DEFAULT_REGION_AND_RACK);
 
         mapping.registerRackChangeListener(repp);
+
+        // Both loops below log on every call, hundreds of thousands of lines in all: quiet those loggers
+        Map<String, Level> quietLevels = Map.of(
+                BookieRackAffinityMapping.class.getName(), Level.WARN,
+                NetworkTopologyImpl.class.getName(), Level.WARN,
+                "org.apache.bookkeeper.client.TopologyAwareEnsemblePlacementPolicy", Level.ERROR);
+        Map<String, Level> originalLevels = new HashMap<>();
+        quietLevels.keySet().forEach(name -> originalLevels.put(name, LogManager.getLogger(name).getLevel()));
+        Configurator.setLevel(quietLevels);
+        @Cleanup
+        AutoCloseable restoreLevels = () -> Configurator.setLevel(originalLevels);
 
         @Cleanup("shutdownNow")
         ExecutorService executor1 = Executors.newSingleThreadExecutor();

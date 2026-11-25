@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.bookie.rackawareness;
 
-import static org.apache.pulsar.metadata.bookkeeper.AbstractMetadataDriver.METADATA_STORE_SCHEME;
 import java.lang.reflect.Field;
 import java.net.InetAddress;
 import java.util.ArrayList;
@@ -30,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Consumer;
 import lombok.CustomLog;
 import org.apache.bookkeeper.client.DefaultBookieAddressResolver;
 import org.apache.bookkeeper.client.ITopologyAwareEnsemblePlacementPolicy;
@@ -52,6 +52,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.bookkeeper.AbstractMetadataDriver;
 
 /**
  * It provides the mapping of bookies to its rack from zookeeper.
@@ -62,6 +63,16 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
 
     public static final String BOOKIE_INFO_ROOT_PATH = "/bookies";
     public static final String METADATA_STORE_INSTANCE = "METADATA_STORE_INSTANCE";
+    /**
+     * The configuration property of a {@code Consumer<Runnable>} that receives the callback that unregisters the
+     * listener of the metadata store passed with {@link #METADATA_STORE_INSTANCE}. The factory that created the
+     * BookKeeper client runs it when the factory is closed, since the BookKeeper client doesn't close its DNS
+     * resolver.
+     */
+    public static final String METADATA_STORE_LISTENER_CLEANUP = "METADATA_STORE_LISTENER_CLEANUP";
+
+    // BookKeeper's AbstractConfiguration#getZkTimeout default.
+    private static final int DEFAULT_ZK_TIMEOUT_MILLIS = 10_000;
 
     private MetadataCache<BookiesRackConfiguration> bookieMappingCache = null;
     private volatile ITopologyAwareEnsemblePlacementPolicy<BookieNode> rackawarePolicy = null;
@@ -69,6 +80,7 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
 
     private BookiesRackConfiguration racksWithHost = new BookiesRackConfiguration();
     private Map<String, BookieInfo> bookieInfoMap = new HashMap<>();
+    private Runnable cancelListener;
 
     static MetadataStore getMetadataStore(Configuration conf) throws MetadataException {
         MetadataStore store;
@@ -79,15 +91,14 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
             }
             store = (MetadataStore) storeProperty;
         } else {
-            String url;
             String metadataServiceUri = ConfigurationStringUtil.castToString(conf.getProperty("metadataServiceUri"));
             if (StringUtils.isNotBlank(metadataServiceUri)) {
-                try {
-                    url = metadataServiceUri.replaceFirst(METADATA_STORE_SCHEME + ":", "")
-                            .replace(";", ",");
-                } catch (Exception e) {
-                    throw new MetadataException(Code.METADATA_SERVICE_ERROR, e);
-                }
+                // A configuration may set only the URI, with sessionTimeoutMillis in its query string; BookKeeper's
+                // own default applies then.
+                int zkTimeout = conf.getInt("zkTimeout", DEFAULT_ZK_TIMEOUT_MILLIS);
+                // Parsed as the BookKeeper metadata drivers parse it, so that MetadataStoreConfig parameters in the
+                // query string, such as configFilePath, configure the store rather than end up in its URL.
+                store = AbstractMetadataDriver.createMetadataStore(metadataServiceUri, zkTimeout);
             } else {
                 String zkServers = ConfigurationStringUtil.castToString(conf.getProperty("zkServers"));
                 if (StringUtils.isBlank(zkServers)) {
@@ -95,34 +106,40 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
                             + "metadataServiceUri/zkServers set in bk server configuration", METADATA_STORE_INSTANCE);
                     throw new RuntimeException(errorMsg);
                 }
-                url = zkServers;
-            }
-            try {
-                int zkTimeout = Integer.parseInt((String) conf.getProperty("zkTimeout"));
-                store = MetadataStoreExtended.create(url,
-                        MetadataStoreConfig.builder()
-                                .metadataStoreName(MetadataStoreConfig.METADATA_STORE)
-                                .sessionTimeoutMillis(zkTimeout)
-                                .build());
-            } catch (MetadataStoreException e) {
-                throw new MetadataException(Code.METADATA_SERVICE_ERROR, e);
+                try {
+                    int zkTimeout = Integer.parseInt((String) conf.getProperty("zkTimeout"));
+                    store = MetadataStoreExtended.create(zkServers,
+                            MetadataStoreConfig.builder()
+                                    .metadataStoreName(MetadataStoreConfig.METADATA_STORE)
+                                    .sessionTimeoutMillis(zkTimeout)
+                                    .build());
+                } catch (MetadataStoreException e) {
+                    throw new MetadataException(Code.METADATA_SERVICE_ERROR, e);
+                }
             }
         }
         return store;
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public synchronized void setConf(Configuration conf) {
         super.setConf(conf);
         MetadataStore store;
         try {
             store = getMetadataStore(conf);
         } catch (MetadataException e) {
-            throw new RuntimeException(METADATA_STORE_INSTANCE + " failed to init BookieId list");
+            throw new RuntimeException(METADATA_STORE_INSTANCE + " failed to init BookieId list: " + e.getMessage(), e);
         }
 
         bookieMappingCache = store.getMetadataCache(BookiesRackConfiguration.class);
-        store.registerListener(this::handleUpdates);
+        if (cancelListener != null) {
+            cancelListener.run();
+        }
+        cancelListener = store.registerCancellableListener(this::handleUpdates);
+        if (conf.getProperty(METADATA_STORE_LISTENER_CLEANUP) instanceof Consumer<?> listenerCleanup) {
+            ((Consumer<Runnable>) listenerCleanup).accept(cancelListener);
+        }
 
         try {
             var racksWithHost = bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH)

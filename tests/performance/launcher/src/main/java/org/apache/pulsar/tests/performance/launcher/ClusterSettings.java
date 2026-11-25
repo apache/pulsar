@@ -50,6 +50,18 @@ import java.util.regex.Pattern;
  * first broker, and {@code all} every broker, so that the clients can look topics up while a broker is unreachable,
  * for example cut off by a network partition.
  *
+ * <p>A {@code tls} section makes the workloads connect to the brokers with TLS, as {@link TlsSettings} describes,
+ * and a {@code jwt} section makes the brokers authenticate the clients with tokens, as {@link JwtSettings} describes;
+ * the remote cluster's too.
+ *
+ * <pre>
+ * cluster:
+ *   tls:
+ *     enabled: true
+ *   jwt:
+ *     enabled: true
+ * </pre>
+ *
  * <p>A {@code remote} section adds a second cluster, which shares the configuration store with the first, so that
  * the namespace replicates the workload's topics to it, and runs applications that consume the replicated messages
  * there, as {@link Remote} describes. The gateways publish to the first cluster, and its applications consume there as
@@ -65,12 +77,15 @@ import java.util.regex.Pattern;
  *       count: 4
  * </pre>
  */
-record ClusterSettings(Component brokers, Component bookies, boolean allBrokersBootstrap, Remote remote) {
+record ClusterSettings(Component brokers, Component bookies, boolean allBrokersBootstrap, Remote remote,
+                       TlsSettings tls, JwtSettings jwt) {
     static final String BROKERS = "brokers";
     static final String BOOKIES = "bookies";
     static final String REMOTE = "remote";
+    static final String TLS = "tls";
+    static final String JWT = "jwt";
     static final String APPLICATIONS = "applications";
-    private static final List<String> KEYS = List.of(BROKERS, BOOKIES, REMOTE);
+    private static final List<String> KEYS = List.of(BROKERS, BOOKIES, REMOTE, TLS, JWT);
     private static final String REPLICAS = "replicas";
     private static final String ENV = "env";
     static final String BOOTSTRAP = "bootstrap";
@@ -143,9 +158,9 @@ record ClusterSettings(Component brokers, Component bookies, boolean allBrokersB
      * @param applications the applications that consume the replicated messages in it
      */
     record Remote(Component brokers, Component bookies, boolean allBrokersBootstrap, RemoteApplications applications) {
-        /** The remote applications' service URL. */
-        String serviceUrl(String clusterName) {
-            return ClusterSettings.serviceUrl(remoteClusterName(clusterName), brokers, allBrokersBootstrap);
+        /** The remote applications' service URL, with TLS when {@code tls} is enabled. */
+        String serviceUrl(String clusterName, TlsSettings tls) {
+            return ClusterSettings.serviceUrl(remoteClusterName(clusterName), brokers, allBrokersBootstrap, tls);
         }
     }
 
@@ -174,7 +189,8 @@ record ClusterSettings(Component brokers, Component bookies, boolean allBrokersB
         });
         return new ClusterSettings(component(mapper, cluster.path(BROKERS), "cluster." + BROKERS, BROKER_KEYS),
                 component(mapper, cluster.path(BOOKIES), "cluster." + BOOKIES, BOOKIE_KEYS),
-                allBrokersBootstrap(cluster.path(BROKERS), "cluster." + BROKERS), remote(mapper, cluster));
+                allBrokersBootstrap(cluster.path(BROKERS), "cluster." + BROKERS), remote(mapper, cluster),
+                TlsSettings.read(cluster.path(TLS)), JwtSettings.read(cluster.path(JWT)));
     }
 
     /** The {@code remote} section, null when it is missing or null. */
@@ -298,17 +314,21 @@ record ClusterSettings(Component brokers, Component bookies, boolean allBrokersB
         return clusterName + REMOTE_CLUSTER_SUFFIX;
     }
 
-    /** The workloads' service URL: the first broker, or every broker with {@code bootstrap: all}. */
+    /**
+     * The workloads' service URL: the first broker, or every broker with {@code bootstrap: all}, at the TLS port with
+     * TLS.
+     */
     String serviceUrl(String clusterName) {
-        return serviceUrl(clusterName, brokers, allBrokersBootstrap);
+        return serviceUrl(clusterName, brokers, allBrokersBootstrap, tls);
     }
 
-    private static String serviceUrl(String clusterName, Component brokers, boolean allBrokersBootstrap) {
+    private static String serviceUrl(String clusterName, Component brokers, boolean allBrokersBootstrap,
+                                     TlsSettings tls) {
         int count = allBrokersBootstrap ? brokers.replicas() : 1;
-        StringBuilder url = new StringBuilder("pulsar://");
+        StringBuilder url = new StringBuilder(tls.scheme());
         for (int broker = 0; broker < count; broker++) {
             url.append(broker > 0 ? "," : "").append(clusterName).append("-pulsar-broker-").append(broker)
-                    .append(":6650");
+                    .append(':').append(tls.brokerPort());
         }
         return url.toString();
     }

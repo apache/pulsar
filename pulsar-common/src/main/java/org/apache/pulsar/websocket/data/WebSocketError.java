@@ -19,7 +19,7 @@
 package org.apache.pulsar.websocket.data;
 
 /**
- * Enum for possible errors in the proxy
+ * Enum for possible errors in the proxy.
  * <p>
  * Enum has error code and description of the error.
  * </p>

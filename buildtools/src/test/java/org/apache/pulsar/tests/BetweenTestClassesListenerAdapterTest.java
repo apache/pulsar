@@ -186,6 +186,8 @@ public class BetweenTestClassesListenerAdapterTest {
             closeTestInstance(testClass);
         }
 
+        // TestNG 7.10 deprecated all IClass.getInstances overloads.
+        @SuppressWarnings("deprecation")
         private void closeTestInstance(ITestClass testClass) {
             Arrays.stream(testClass.getInstances(false))
                     .map(instance -> instance instanceof IParameterInfo

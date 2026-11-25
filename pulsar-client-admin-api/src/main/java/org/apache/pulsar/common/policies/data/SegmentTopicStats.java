@@ -20,6 +20,7 @@ package org.apache.pulsar.common.policies.data;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -42,6 +43,10 @@ public class SegmentTopicStats {
 
     /** Broker currently serving the segment. */
     private String ownerBroker;
+
+    /** Whether the backing topic is terminated (sealed), absent when an older broker did not report it. */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private Boolean terminated;
 
     /** Rate of messages published on the segment (msg/s). */
     private double msgRateIn;
@@ -90,6 +95,7 @@ public class SegmentTopicStats {
     @Data
     @NoArgsConstructor
     @JsonIgnoreProperties(ignoreUnknown = true)
+    @Schema(name = "SegmentTopicProducerStats")
     public static class ProducerStats {
 
         /** Producer name. */
@@ -121,6 +127,7 @@ public class SegmentTopicStats {
     @Data
     @NoArgsConstructor
     @JsonIgnoreProperties(ignoreUnknown = true)
+    @Schema(name = "SegmentTopicSubscriptionStats")
     public static class SubscriptionStats {
 
         /** The subscription type on the segment's topic (Exclusive, Shared, Key_Shared, ...). */
@@ -147,6 +154,12 @@ public class SegmentTopicStats {
         /** Messages delivered but not yet acknowledged. */
         private long unackedMessages;
 
+        /**
+         * Entry buckets withheld until the previous owner acknowledges in-flight messages.
+         * Zero for dispatchers that do not use entry buckets, including classic Key_Shared subscriptions.
+         */
+        private int drainingBuckets;
+
         /** Age in seconds of the oldest unacknowledged message, or -1 when unknown. */
         private long oldestBacklogMessageAgeSeconds;
 
@@ -169,6 +182,7 @@ public class SegmentTopicStats {
     @Data
     @NoArgsConstructor
     @JsonIgnoreProperties(ignoreUnknown = true)
+    @Schema(name = "SegmentTopicConsumerStats")
     public static class ConsumerStats {
 
         /** Consumer name. */

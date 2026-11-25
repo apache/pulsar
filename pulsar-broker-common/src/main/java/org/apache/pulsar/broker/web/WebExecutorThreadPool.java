@@ -25,6 +25,8 @@ import org.eclipse.jetty.util.thread.ExecutorThreadPool;
 
 public class WebExecutorThreadPool extends ExecutorThreadPool {
 
+    private static final ThreadLocal<WebExecutorThreadPool> CURRENT_POOL = new ThreadLocal<>();
+
     private final ThreadFactory threadFactory;
     private volatile boolean startAttempted;
 
@@ -39,7 +41,17 @@ public class WebExecutorThreadPool extends ExecutorThreadPool {
 
     @Override
     protected Thread newThread(Runnable job) {
-        return threadFactory.newThread(job);
+        return threadFactory.newThread(() -> {
+            CURRENT_POOL.set(this);
+            job.run();
+        });
+    }
+
+    /**
+     * Returns whether the calling thread is one of this pool's threads.
+     */
+    public boolean isPoolThread() {
+        return CURRENT_POOL.get() == this;
     }
 
     @Override

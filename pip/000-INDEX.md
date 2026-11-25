@@ -178,6 +178,7 @@ The following table lists all current PIPs in this directory, sorted by PIP numb
 | PIP-261 | [Restructure Getting Started section](pip-261.md) |
 | PIP-264 | [Support OpenTelemetry metrics in Pulsar](pip-264.md) |
 | PIP-265 | [PR-based system for managing and reviewing PIPs](pip-265.md) |
+| PIP-273 | [Enable hostname verification by default](pip-273.md) |
 | PIP-275 | [Rename numWorkerThreadsForNonPersistentTopic to topicOrderedExecutorThreadNum](pip-275.md) |
 | PIP-276 | [Add pulsar prefix to topic_load_times metric](pip-276.md) |
 | PIP-277 | [Add current cluster marking to clusters list command](pip-277.md) |
@@ -319,3 +320,4 @@ The following table lists all current PIPs in this directory, sorted by PIP numb
 | PIP-492 | [Add subscription-level storage backlog age metric and stats field](pip-492.md) |
 | PIP-494 | [Scalable Topics Client Specification — authoritative reference and change process](pip-494.md) |
 | PIP-496 | [Pulsar Functions and IO support for the V5 client and scalable topics](pip-496.md) |
+| PIP-502 | [Improve replication observability in the Admin API](pip-502.md) |

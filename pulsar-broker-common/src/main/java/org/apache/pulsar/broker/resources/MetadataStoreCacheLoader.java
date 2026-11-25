@@ -47,6 +47,8 @@ public class MetadataStoreCacheLoader implements Closeable {
     private volatile List<LoadManagerReport> availableBrokers;
     private final FutureUtil.Sequencer<Void> sequencer;
     private final AtomicBoolean refreshInProgress = new AtomicBoolean(false);
+    private volatile Runnable cancelListener;
+    private volatile Runnable cancelSessionListener;
 
     private final OrderedScheduler orderedExecutor = OrderedScheduler.newSchedulerBuilder().numThreads(8)
             .name("pulsar-metadata-cache-loader-ordered-cache").build();
@@ -66,13 +68,13 @@ public class MetadataStoreCacheLoader implements Closeable {
      * @throws Exception
      */
     public void init() throws Exception {
-        loadReportResources.getStore().registerListener((n) -> {
+        cancelListener = loadReportResources.getStore().registerCancellableListener((n) -> {
             if (LOADBALANCE_BROKERS_ROOT.equals(n.getPath()) && NotificationType.ChildrenChanged.equals(n.getType())) {
                 sequencer.sequential(this::reloadBrokers);
             }
         });
-        if (loadReportResources.getStore() instanceof MetadataStoreExtended) {
-            ((MetadataStoreExtended) loadReportResources.getStore()).registerSessionListener(sessionEvent ->
+        if (loadReportResources.getStore() instanceof MetadataStoreExtended metadataStoreExtended) {
+            cancelSessionListener = metadataStoreExtended.registerCancellableSessionListener(sessionEvent ->
                     sequencer.sequential(this::reloadBrokers));
         }
         // Do initial fetch of brokers list
@@ -102,6 +104,12 @@ public class MetadataStoreCacheLoader implements Closeable {
 
     @Override
     public void close() throws IOException {
+        if (cancelListener != null) {
+            cancelListener.run();
+        }
+        if (cancelSessionListener != null) {
+            cancelSessionListener.run();
+        }
         orderedExecutor.shutdown();
     }
 

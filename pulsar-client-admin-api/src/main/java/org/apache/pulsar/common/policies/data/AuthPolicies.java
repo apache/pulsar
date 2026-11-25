@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Map;
 import java.util.Set;
 import org.apache.pulsar.client.admin.utils.ReflectionUtils;
@@ -26,8 +27,11 @@ import org.apache.pulsar.client.admin.utils.ReflectionUtils;
  * Authentication policies.
  */
 public interface AuthPolicies {
+    @JsonProperty("namespace_auth")
     Map<String, Set<AuthAction>> getNamespaceAuthentication();
+    @JsonProperty("destination_auth")
     Map<String, Map<String, Set<AuthAction>>> getTopicAuthentication();
+    @JsonProperty("subscription_auth_roles")
     Map<String, Set<String>> getSubscriptionAuthentication();
 
     static Builder builder() {

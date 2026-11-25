@@ -236,7 +236,7 @@ final class DagWatchClient implements DagWatchSession, AutoCloseable {
             initialLayoutFuture.completeExceptionally(
                     error == ServerError.TopicNotFound
                             ? new PulsarClientException.NotFoundException(detail)
-                            : new PulsarClientException(detail));
+                            : ClientCnx.getPulsarClientException(error, detail));
         }
         // After the initial layout has arrived, broker-side errors on this session
         // (e.g., metadata unavailable) are transient — a reconnect typically clears

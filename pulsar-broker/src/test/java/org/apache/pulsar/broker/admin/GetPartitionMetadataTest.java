@@ -24,6 +24,7 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
+import java.net.URI;
 import java.net.URL;
 import java.util.Collections;
 import java.util.List;
@@ -127,7 +128,7 @@ public class GetPartitionMetadataTest extends TestRetrySupport {
         // Start broker.
         pulsar1 = new PulsarService(conf);
         pulsar1.start();
-        url1 = new URL(pulsar1.getWebServiceAddress());
+        url1 = URI.create(pulsar1.getWebServiceAddress()).toURL();
         admin1 = PulsarAdmin.builder().serviceHttpUrl(url1.toString()).build();
         clientWithHttpLookup1 =
                 (PulsarClientImpl) PulsarClient.builder().serviceUrl(pulsar1.getWebServiceAddress()).build();

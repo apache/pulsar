@@ -132,11 +132,6 @@ public class NonPersistentSubscription extends AbstractSubscription {
                 break;
             case Failover:
                 int partitionIndex = TopicName.getPartitionIndex(topicName);
-                if (partitionIndex < 0) {
-                    // For non partition topics, assume index 0 to pick a predictable consumer
-                    partitionIndex = 0;
-                }
-
                 if (dispatcher == null || dispatcher.getType() != SubType.Failover) {
                     previousDispatcher = dispatcher;
                     dispatcher = new NonPersistentDispatcherSingleActiveConsumer(SubType.Failover, partitionIndex,
@@ -189,6 +184,9 @@ public class NonPersistentSubscription extends AbstractSubscription {
         msgOutFromRemovedConsumer.add(stats.msgOutCounter);
         // Unsubscribe when all the consumers disconnected.
         if (dispatcher != null && CollectionUtils.isEmpty(dispatcher.getConsumers())) {
+            // Fence under the same lock as addConsumer before queuing removal, so a reconnect cannot
+            // attach to this subscription while it is being removed from the topic.
+            IS_FENCED_UPDATER.set(this, TRUE);
             topic.unsubscribe(subName);
         }
 

@@ -277,7 +277,7 @@ final class ScalableQueueConsumer<T> implements QueueConsumerImpl<T>, DagWatchCl
             Thread.currentThread().interrupt();
             throw new PulsarClientException("Close interrupted", e);
         } catch (ExecutionException e) {
-            throw new PulsarClientException(e.getCause());
+            throw V5ExceptionMappings.toV5Exception(e);
         }
     }
 
@@ -309,7 +309,8 @@ final class ScalableQueueConsumer<T> implements QueueConsumerImpl<T>, DagWatchCl
                             : CompletableFuture.completedFuture(null)));
         }
         return CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new))
-                .whenComplete((__, ___) -> segmentConsumers.clear());
+                .whenComplete((__, ___) -> segmentConsumers.clear())
+                .exceptionallyCompose(V5ExceptionMappings::failWithV5Exception);
     }
 
     // --- Layout change handling ---

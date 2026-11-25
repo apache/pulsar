@@ -50,8 +50,7 @@ final class TransactionV5 implements Transaction {
             Thread.currentThread().interrupt();
             throw new PulsarClientException("Commit interrupted", e);
         } catch (ExecutionException e) {
-            Throwable cause = e.getCause() != null ? e.getCause() : e;
-            throw new PulsarClientException(cause.getMessage(), cause);
+            throw V5ExceptionMappings.toV5Exception(e);
         }
     }
 
@@ -63,8 +62,7 @@ final class TransactionV5 implements Transaction {
             Thread.currentThread().interrupt();
             throw new PulsarClientException("Abort interrupted", e);
         } catch (ExecutionException e) {
-            Throwable cause = e.getCause() != null ? e.getCause() : e;
-            throw new PulsarClientException(cause.getMessage(), cause);
+            throw V5ExceptionMappings.toV5Exception(e);
         }
     }
 
@@ -103,12 +101,12 @@ final class TransactionV5 implements Transaction {
     private final class AsyncView implements AsyncTransaction {
         @Override
         public CompletableFuture<Void> commit() {
-            return v4Transaction.commit();
+            return v4Transaction.commit().exceptionallyCompose(V5ExceptionMappings::failWithV5Exception);
         }
 
         @Override
         public CompletableFuture<Void> abort() {
-            return v4Transaction.abort();
+            return v4Transaction.abort().exceptionallyCompose(V5ExceptionMappings::failWithV5Exception);
         }
     }
 }

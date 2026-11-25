@@ -23,10 +23,10 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.util.concurrent.UncheckedExecutionException;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Parser of a value from the namespace field provided in configuration.
@@ -39,7 +39,7 @@ public class NamespaceName implements ServiceUnitId {
     private final String localName;
 
     private static final LoadingCache<String, NamespaceName> cache = CacheBuilder.newBuilder().maximumSize(100000)
-            .expireAfterAccess(30, TimeUnit.MINUTES).build(new CacheLoader<String, NamespaceName>() {
+            .expireAfterAccess(Duration.ofMinutes(30)).build(new CacheLoader<String, NamespaceName>() {
                 @Override
                 public NamespaceName load(String name) throws Exception {
                     return new NamespaceName(name);

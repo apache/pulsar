@@ -24,12 +24,15 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import java.lang.reflect.Field;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Random;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
 import lombok.CustomLog;
+import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
@@ -42,6 +45,10 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ConsumerBase;
+import org.apache.pulsar.client.impl.ConsumerImpl;
+import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
@@ -62,6 +69,7 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
         HashSet<String> messageDataHashSet = new HashSet<>();
 
         // 1. producer connect
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
@@ -72,6 +80,7 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
         assertEquals(topicRef.getProducers().size(), 1);
 
         // 2. Create consumer
+        @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
                 .receiverQueueSize(7).subscribe();
 
@@ -116,24 +125,31 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
         assertEquals(messageDataHashSet.size(), totalMessages);
         printIncomingMessageQueue(consumer);
 
-        // 7. Request resend 2nd time - you should receive 4 messages
+        // 7. Request resend 2nd time - you should receive the 7 messages that are not acked, once the acks reached the
+        // broker (a message whose ack is on its way would be resent too)
+        int unackedMessages = totalMessages - messageIdHashSet.size();
+        Awaitility.await().untilAsserted(() -> assertEquals(
+                topicRef.getSubscription(subscriptionName).getNumberOfEntriesInBacklog(true), unackedMessages));
         consumer.redeliverUnacknowledgedMessages();
         log.info("Resend Messages Request sent");
-        message = consumer.receive(2000, TimeUnit.MILLISECONDS);
-        while (message != null) {
+        for (int i = 0; i < unackedMessages; i++) {
+            message = consumer.receive(5000, TimeUnit.MILLISECONDS);
+            assertNotNull(message);
             log.info().attr("data", new String(message.getData())).log("Message received");
             consumer.acknowledge(message);
             log.info().attr("data", new String(message.getData())).log("Message acked");
             messageIdHashSet.add(message.getMessageId());
             messageDataHashSet.add(new String(message.getData()));
-            message = consumer.receive(5000, TimeUnit.MILLISECONDS);
         }
+        assertNoMoreMessages(consumer);
 
         assertEquals(messageIdHashSet.size(), totalMessages);
         assertEquals(messageDataHashSet.size(), totalMessages);
         printIncomingMessageQueue(consumer);
 
-        // 9. Calling resend after acking all messages - expecting 0 messages
+        // 9. Calling resend after acking all messages - expecting 0 messages, once the acks reached the broker
+        Awaitility.await().untilAsserted(() -> assertEquals(
+                topicRef.getSubscription(subscriptionName).getNumberOfEntriesInBacklog(true), 0));
         consumer.redeliverUnacknowledgedMessages();
         assertNull(consumer.receive(2000, TimeUnit.MILLISECONDS));
 
@@ -150,6 +166,7 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
         final String messagePredicate = "my-message-";
         final int totalMessages = 10;
         // 1. producer connect
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
@@ -159,6 +176,7 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
         assertEquals(topicRef.getProducers().size(), 1);
 
         // 2. Create consumer
+        @Cleanup
         Consumer<byte[]> consumer1 = pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName(subscriptionName).receiverQueueSize(totalMessages / 2)
                 .subscriptionType(SubscriptionType.Shared).subscribe();
@@ -236,6 +254,7 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
         final String messagePredicate = "my-message-";
         final int totalMessages = 10;
         // 1. producer connect
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
@@ -262,7 +281,9 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName(subscriptionName).receiverQueueSize(10).subscriptionType(SubscriptionType.Failover)
                 .acknowledgmentGroupTime(0, TimeUnit.SECONDS).consumerEventListener(listener);
+        @Cleanup
         Consumer<byte[]> consumerA = consumerBuilder.clone().consumerName("consumer-a").subscribe();
+        @Cleanup
         Consumer<byte[]> consumerB = consumerBuilder.clone().consumerName("consumer-b").subscribe();
 
         // Wait until the active consumer is assigned (becameActive has been called at least once)
@@ -286,66 +307,42 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
             log.info().attr("message", message).log("Producer produced");
         }
 
-        // 4. Receive messages
-        int receivedConsumer1 = 0, receivedConsumer2 = 0;
-        Message<byte[]> message1;
-        Message<byte[]> message2;
-        do {
-            message1 = consumer1.receive(500, TimeUnit.MILLISECONDS);
-            message2 = consumer2.receive(500, TimeUnit.MILLISECONDS);
-            if (message1 != null) {
-                log.info().attr("data", new String(message1.getData())).log("Consumer 1 Received");
-                receivedConsumer1 += 1;
-            }
-            if (message2 != null) {
-                log.info().attr("data", new String(message2.getData())).log("Consumer 2 Received");
-                receivedConsumer2 += 1;
-            }
-
-        } while (message1 != null || message2 != null);
-
-        log.info().attr("receivedConsumer1", receivedConsumer1).log("Consumer 1 receives");
-        log.info().attr("receivedConsumer2", receivedConsumer2).log("Consumer 2 receives");
-        log.info().attr("value", (receivedConsumer2 + receivedConsumer1)).log("Total receives");
-        assertEquals(receivedConsumer2 + receivedConsumer1, totalMessages);
+        // 4. Receive messages: consumer 1 gets all of them, and nothing more comes to either consumer
+        for (int i = 0; i < totalMessages; i++) {
+            Message<byte[]> message1 = consumer1.receive(5, TimeUnit.SECONDS);
+            assertNotNull(message1);
+            log.info().attr("data", new String(message1.getData())).log("Consumer 1 Received");
+        }
+        assertNoMoreMessages(consumer1, consumer2);
         // Consumer 2 is on Stand By
-        assertEquals(receivedConsumer2, 0);
+        assertNothingDispatchedTo(topicName, subscriptionName, consumer2);
 
         // 5. Consumer 1 asks for resend
         consumer1.redeliverUnacknowledgedMessages();
-        Thread.sleep(1000);
 
         // 6. Consumer 1 acknowledges a few messages
-        receivedConsumer1 = receivedConsumer2 = 0;
-        for (int i = 0; i < totalMessages / 2; i++) {
-            message1 = consumer1.receive(500, TimeUnit.MILLISECONDS);
-            message2 = consumer2.receive(500, TimeUnit.MILLISECONDS);
-            if (message1 != null) {
-                log.info().attr("data", new String(message1.getData())).log("Consumer 1 Received");
-                receivedConsumer1 += 1;
-                log.info().attr("data", new String(message1.getData())).log("Consumer 1 Acknowledged");
-                consumer1.acknowledge(message1);
-            }
-
-            if (message2 != null) {
-                log.info().attr("data", new String(message2.getData())).log("Consumer 2 Received");
-                receivedConsumer2 += 1;
-            }
+        int receivedConsumer1 = totalMessages / 2;
+        for (int i = 0; i < receivedConsumer1; i++) {
+            Message<byte[]> message1 = consumer1.receive(5, TimeUnit.SECONDS);
+            assertNotNull(message1);
+            log.info().attr("data", new String(message1.getData())).log("Consumer 1 Received");
+            log.info().attr("data", new String(message1.getData())).log("Consumer 1 Acknowledged");
+            consumer1.acknowledge(message1);
         }
-        assertEquals(receivedConsumer2 + receivedConsumer1, totalMessages / 2);
 
         // Consumer 2 is on Stand By
-        assertEquals(receivedConsumer2, 0);
+        assertNothingDispatchedTo(topicName, subscriptionName, consumer2);
 
         // 7. Consumer 1 close
         consumer1.close();
 
         // 8. Checking if all messages are received by Consumer 2
-        message2 = consumer2.receive();
         int acknowledgedMessages = 0;
         int unAcknowledgedMessages = 0;
         boolean flag = true;
-        do {
+        for (int i = 0; i < totalMessages - receivedConsumer1; i++) {
+            Message<byte[]> message2 = consumer2.receive(5, TimeUnit.SECONDS);
+            assertNotNull(message2);
             if (flag) {
                 consumer2.acknowledge(message2);
                 acknowledgedMessages += 1;
@@ -355,23 +352,16 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
             }
             flag = !flag;
             log.info().attr("data", new String(message2.getData())).log("Consumer 2 Received");
-            message2 = consumer2.receive(500, TimeUnit.MILLISECONDS);
-        } while (message2 != null);
-        log.info().attr("value", (unAcknowledgedMessages + acknowledgedMessages)).log("Consumer 2 receives");
+        }
+        assertNoMoreMessages(consumer2);
         log.info().attr("acknowledgedMessages", acknowledgedMessages).log("Consumer 2 acknowledges");
-        assertEquals(unAcknowledgedMessages + acknowledgedMessages, totalMessages - receivedConsumer1);
 
-        // 9 .Consumer 2 asks for a resend
+        // 9 .Consumer 2 asks for a resend: it gets the messages it didn't acknowledge
         consumer2.redeliverUnacknowledgedMessages();
-        Thread.sleep(1000);
-        message2 = consumer2.receive();
-        receivedConsumer2 = 0;
-        do {
-            receivedConsumer2 += 1;
-            message2 = consumer2.receive(500, TimeUnit.MILLISECONDS);
-        } while (message2 != null);
-        log.info().attr("receivedConsumer2", receivedConsumer2).log("Consumer 2 receives");
-        assertEquals(unAcknowledgedMessages, receivedConsumer2);
+        for (int i = 0; i < unAcknowledgedMessages; i++) {
+            assertNotNull(consumer2.receive(5, TimeUnit.SECONDS));
+        }
+        assertNoMoreMessages(consumer2);
     }
 
     @Test(timeOut = testTimeout)
@@ -382,6 +372,7 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
         final int totalMessages = 10;
 
         // 1. producer connect
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
@@ -392,6 +383,7 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
         assertEquals(topicRef.getProducers().size(), 1);
 
         // 2. Create consumer
+        @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
                 .receiverQueueSize(7).subscribe();
 
@@ -440,12 +432,14 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
         admin.topics().createPartitionedTopic(topicName, numberOfPartitions);
 
         // 1. producer connect
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.RoundRobinPartition)
             .create();
 
         // 2. Create consumer
+        @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
                 .receiverQueueSize(7).subscribe();
 
@@ -522,12 +516,10 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
         int messageCount2 = 0;
         int ackCount1 = 0;
         int ackCount2 = 0;
-        while (true) {
-            Message<byte[]> message1 = consumer1.receive(500, TimeUnit.MILLISECONDS);
-            Message<byte[]> message2 = consumer2.receive(500, TimeUnit.MILLISECONDS);
-            if (message1 == null && message2 == null) {
-                break;
-            }
+        // The test method's timeout ends the loops below if messages are missing
+        while (messageCount1 + messageCount2 < totalMessages) {
+            Message<byte[]> message1 = consumer1.receive(10, TimeUnit.MILLISECONDS);
+            Message<byte[]> message2 = consumer2.receive(10, TimeUnit.MILLISECONDS);
             if (message1 != null) {
                 log.info().attr("data", new String(message1.getData())).log("Consumer1 received");
                 messageCount1 += 1;
@@ -547,13 +539,24 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
                 }
             }
         }
+        assertNoMoreMessages(consumer1, consumer2);
         log.info().attr("messageCount1", messageCount1).log("messageCount1");
         log.info().attr("messageCount2", messageCount2).log("messageCount2");
         log.info().attr("ackCount1", ackCount1).log("ackCount1");
         log.info().attr("ackCount2", ackCount2).log("ackCount2");
         assertEquals(messageCount1 + messageCount2, totalMessages);
 
-        // 5. Ask for redeliver
+        // 5. Ask for redeliver, once the acks reached the broker: only the messages consumer1 didn't ack come back
+        int unackedMessages = totalMessages - ackCount1 - ackCount2;
+        Awaitility.await().untilAsserted(() -> {
+            long backlog = 0;
+            for (int i = 0; i < numberOfPartitions; i++) {
+                String partition = TopicName.get(topicName).getPartition(i).toString();
+                backlog += ((PersistentTopic) getTopicReference(partition).orElseThrow())
+                        .getSubscription(subscriptionName).getNumberOfEntriesInBacklog(true);
+            }
+            assertEquals(backlog, unackedMessages);
+        });
         log.info("Sent a Redeliver Message Request");
         consumer1.redeliverUnacknowledgedMessages();
         if ((ackCount1 + ackCount2) == totalMessages) {
@@ -562,12 +565,9 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
 
         // 6. Check if Messages redelivered again
         messageCount1 = 0;
-        while (true) {
-            Message<byte[]> message1 = consumer1.receive(500, TimeUnit.MILLISECONDS);
-            Message<byte[]> message2 = consumer2.receive(500, TimeUnit.MILLISECONDS);
-            if (message1 == null && message2 == null) {
-                break;
-            }
+        while (messageCount1 + messageCount2 + ackCount1 < totalMessages) {
+            Message<byte[]> message1 = consumer1.receive(10, TimeUnit.MILLISECONDS);
+            Message<byte[]> message2 = consumer2.receive(10, TimeUnit.MILLISECONDS);
             if (message1 != null) {
                 log.info().attr("data", new String(message1.getData())).log("Consumer1 received");
                 messageCount1 += 1;
@@ -577,6 +577,7 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
                 messageCount2 += 1;
             }
         }
+        assertNoMoreMessages(consumer1, consumer2);
         log.info().attr("messageCount1", messageCount1).log("messageCount1");
         log.info().attr("messageCount2", messageCount2).log("messageCount2");
         log.info().attr("ackCount1", ackCount1).log("ackCount1");
@@ -595,6 +596,7 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
         Random rn = new Random();
 
         // 1. producer connect
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.RoundRobinPartition)
@@ -603,7 +605,9 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
         // 2. Create consumer
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName(subscriptionName).receiverQueueSize(7).subscriptionType(SubscriptionType.Failover);
+        @Cleanup
         Consumer<byte[]> consumer1 = consumerBuilder.clone().consumerName("Consumer-1").subscribe();
+        @Cleanup
         Consumer<byte[]> consumer2 = consumerBuilder.clone().consumerName("Consumer-2").subscribe();
 
         Thread.sleep(1000);
@@ -678,6 +682,7 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
         final String messagePredicate = "my-message-";
         final int totalMessages = 10;
         // 1. producer connect
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
@@ -689,7 +694,9 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
         // 2. Create consumer
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName(subscriptionName).receiverQueueSize(10).subscriptionType(SubscriptionType.Failover);
+        @Cleanup
         Consumer<byte[]> consumer1 = consumerBuilder.clone().consumerName("Consumer-1").subscribe();
+        @Cleanup
         Consumer<byte[]> consumer2 = consumerBuilder.clone().consumerName("Consumer-2").subscribe();
 
         // 3. Producer publishes messages
@@ -743,6 +750,47 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
         Message<byte[]> activeMsg = activeConsumer.receive(500, TimeUnit.MILLISECONDS);
         assertNull(standbyMsg);
         assertNotNull(activeMsg);
+    }
+
+    /**
+     * Asserts that the consumers, on one subscription, receive no more messages. A message can only reach them while
+     * the broker has one left to dispatch: one waiting to be redelivered, or an entry that the subscription's cursor
+     * has not read yet. This waits until the broker has none left on any topic of the consumers (each partition), so
+     * a short receive is enough to check that none is still on its way.
+     */
+    private void assertNoMoreMessages(Consumer<?>... consumers) throws Exception {
+        List<String> topics = consumers[0] instanceof MultiTopicsConsumerImpl<?> multiTopicsConsumer
+                ? multiTopicsConsumer.getConsumers().stream().map(ConsumerImpl::getTopic).toList()
+                : List.of(consumers[0].getTopic());
+        String subscriptionName = consumers[0].getSubscription();
+        Awaitility.await().untilAsserted(() -> {
+            for (String topic : topics) {
+                PersistentTopic persistentTopic =
+                        (PersistentTopic) getTopicReference(TopicName.get(topic).toString()).orElseThrow();
+                PersistentSubscription subscription = persistentTopic.getSubscription(subscriptionName);
+                if (subscription.getDispatcher() instanceof AbstractPersistentDispatcherMultipleConsumers dispatcher) {
+                    assertEquals(dispatcher.getNumberOfMessagesInReplay(), 0, topic);
+                }
+                assertTrue(subscription.getCursor().getReadPosition()
+                        .compareTo(persistentTopic.getLastPosition()) > 0, topic);
+            }
+        });
+        for (Consumer<?> consumer : consumers) {
+            assertNull(consumer.receive(200, TimeUnit.MILLISECONDS));
+        }
+    }
+
+    /**
+     * Asserts that the broker has dispatched no message to the consumer, as to the standby consumer of a failover
+     * subscription.
+     */
+    private void assertNothingDispatchedTo(String topicName, String subscriptionName, Consumer<?> consumer)
+            throws Exception {
+        ConsumerStats consumerStats = admin.topics().getStats(topicName).getSubscriptions().get(subscriptionName)
+                .getConsumers().stream()
+                .filter(stats -> consumer.getConsumerName().equals(stats.getConsumerName()))
+                .findFirst().orElseThrow();
+        assertEquals(consumerStats.getMsgOutCounter(), 0);
     }
 
     @SuppressWarnings("unchecked")

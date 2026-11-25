@@ -52,6 +52,15 @@ and ordering checks; the applications use Key_Shared subscriptions, and the aler
 | [`iot-telemetry-offload-seek.yaml`](iot-telemetry-offload-seek.yaml) | Seeks by timestamp in offloaded ledgers: 110,000 1 KiB messages 1 ms apart to one topic, offloaded to SeaweedFS, and six applications whose subscriptions are reset to publish times spread over the offloaded ledgers, with the storage's reads counted; see [Offloading](../docs/offloading.md) | medium, about 11 GB |
 | [`iot-telemetry-offload-random-seeks.yaml`](iot-telemetry-offload-random-seeks.yaml) | Random reads of offloaded ledgers by time: after 110,000 1 KiB messages 1 ms apart to one topic, offloaded to SeaweedFS, 500 seeks to random publish times, each reading the message there, with the storage's reads counted; see [Offloading](../docs/offloading.md#random-seeks) | medium, about 11 GB |
 | [`iot-telemetry-max-rate.yaml`](iot-telemetry-max-rate.yaml) | The maximum rate: the 500 gateways of the high-rate scenario publish four million unbatched messages to one topic without a rate limit, consumed by one application with 20 pods, on single-copy ledgers | high, about 14 GB |
+| [`iot-telemetry-failover-processors.yaml`](iot-telemetry-failover-processors.yaml) | Hot-standby stream processors on partitioned topics: 20 gateways publish 20,000 messages per second to 4 topics of 12 partitions, consumed by 8 applications, each a Failover subscription with 3 pods, restarting one pod of each every 20 s | medium, about 11 GB |
+| [`iot-telemetry-partitioned.yaml`](iot-telemetry-partitioned.yaml) | Fleet telemetry on partitioned topics: 50 gateways publish 5,000 messages per second to 3 topics of 16 partitions, consumed by 10 applications with 20 pods each, each pod a multi-topics consumer of the 48 partitions | high, about 14 GB |
+| [`iot-telemetry-partitioned-max-rate.yaml`](iot-telemetry-partitioned-max-rate.yaml) | The capacity of partitioned-topic consumers: the 500 gateways of the high-rate scenario publish six million messages to one topic of 16 partitions without a rate limit, consumed by 2 applications with 2 pods each | high, about 14 GB |
+| [`iot-device-shadow.yaml`](iot-device-shadow.yaml) | Device shadows on compacted topics: 10 gateways publish the 512-byte states of 300,000 devices at 10,000 messages per second to 4 topics that the broker compacts every 4 MB, read by 2 applications with 3 pods each, each pod reading every topic compacted from the start and one pod of each restarted every 30 s | medium, about 11 GB |
+| [`iot-alarm-retries.yaml`](iot-alarm-retries.yaml) | Alarm processing with retries and a dead letter topic: 10 gateways publish 5,000 alarms per second to 4 topics, processed by 4 applications, each a Shared subscription with 4 workers, which fail 5 % of the alarms twice and retry them through a retry topic, and dead-letter the 0.1 % that fail every attempt | medium, about 11 GB |
+| [`iot-scheduled-commands.yaml`](iot-scheduled-commands.yaml) | Scheduled device commands with delayed delivery: 10 gateways publish 5,000 commands per second to 4 topics, each delivered 1 to 5 minutes later to 4 applications, each a Shared subscription with 4 pods: up to about 1.5 million delayed messages per subscription | medium, about 11 GB |
+| [`iot-ota-firmware.yaml`](iot-ota-firmware.yaml) | OTA firmware distribution with chunked messages: 4 gateways publish 40 images of 1 MiB per second, in 128 KiB chunks, to 2 topics, consumed by 3 applications, each a Key_Shared subscription with 2 pods, restarting one of each every 30 s | medium, with larger gateway and application memory, about 13 GB |
+| [`iot-fleet-onboarding.yaml`](iot-fleet-onboarding.yaml) | Fleet onboarding with a topic per site: 10 gateways publish 2,000 messages per second without a warmup to 2,000 topics that their first messages create, consumed by 3 applications with 2 pods each that subscribe by a pattern and discover the topics as they appear | high, about 14 GB |
+| [`iot-disconnected-sites.yaml`](iot-disconnected-sites.yaml) | Disconnected sites with a message TTL of 60 s and a backlog quota of 20 MB with consumer_backlog_eviction: 10 gateways publish 5,000 messages per second to 4 topics, read by 4 sites with 2 Key_Shared pods each that go offline for 2 of every 3 minutes and keep each device's latest state | medium, about 11 GB |
 | [`iot-alerts-fanout.yaml`](iot-alerts-fanout.yaml) | Alert fan-out with Shared subscriptions and broker deduplication: 20 gateways publish 5,000 alerts per second to one topic, consumed by 50 applications, each a Shared subscription with 4 worker pods: 250,000 messages per second of dispatch | high, about 14 GB |
 | [`iot-alerts-fanout-max-rate.yaml`](iot-alerts-fanout-max-rate.yaml) | The alert fan-out at the maximum rate: two million unbatched alerts as fast as the cluster takes them | high, about 14 GB |
 | [`iot-alerts-sites.yaml`](iot-alerts-sites.yaml) | The alert fan-out across 1,000 per-site topics: 5 gateways, 10 applications with 4 pods each, 5,000 producers, 10,000 Shared subscriptions and 40,000 consumers at 5,000 alerts per second in all | high, with a 4 GB application heap, about 17 GB |
@@ -144,6 +153,59 @@ in place of the scenario's), and each busy bookie's journal takes about 512 MB o
 The ledger storage still writes every entry to the disk, and syncs its files each time it flushes its write cache.
 When those syncs are what's slow, [disabling write barriers](../environment/README.md#disabling-write-barriers) makes
 them cheaper on a disk without power loss protection, at the risk of the host's file system.
+
+### TLS
+
+[`tls.yaml`](configs/tls.yaml) makes the gateways and the applications connect to the brokers with TLS, with
+`cluster.tls.enabled`, so that a run measures what TLS costs: the handshakes when the clients connect, and the
+encryption and decryption of every message, which the brokers' I/O threads (`pulsar-io`) and the clients' do.
+Compare a scenario with and without it, on the same image.
+
+The launcher creates a CA for each run and a certificate of the brokers that the CA signs, with the brokers' host and
+container names, and writes them into the run directory's `tls` directory, which the brokers and the workloads mount.
+The brokers open their TLS port, 6651, beside the plain one, and the workloads' service URL is
+`pulsar+ssl://<broker>:6651`. The clients trust the CA and verify the brokers' names, as Pulsar's clients do by
+default; they don't authenticate with certificates of their own. Only the workloads' connections use TLS: the proxy,
+geo-replication between the clusters, and the launcher's admin requests keep the plain ports, and the brokers' own
+connections to the bookies don't use TLS. With [a remote cluster](../docs/network-conditions.md#geo-replication), the
+remote applications connect to its brokers with TLS too.
+
+`cluster.tls.keyAlgorithm` sets the keys' algorithm: `RSA`, the default, 2048-bit RSA keys, or `EC`, ECDSA keys on the
+P-256 curve, whose handshakes cost the brokers less CPU. The brokers' `env` can add other TLS settings, such as
+`tlsProtocols` or `tlsCiphers`, or replace the launcher's.
+
+```bash
+./gradlew :tests:performance:launcher:run \
+  --args='--scenario tests/performance/scenarios/iot-telemetry-high-rate.yaml --extends configs/tls'
+```
+
+Handshakes cost most when clients connect often: the pods' restarts
+(`workloads.iotTelemetry.behaviors.podRestarts`), and network faults that reset connections, such as
+[`network/connection-resets`](network/connection-resets.yaml) and
+[`network/consumer-reconnect-storm`](network/consumer-reconnect-storm.yaml), make them reconnect during the
+measurement.
+
+### JWT authentication
+
+[`jwt.yaml`](configs/jwt.yaml) makes the brokers authenticate every client with a JSON Web Token, with
+`cluster.jwt.enabled`, so that a run measures what authentication costs, such as verifying the token of each
+connection that a client opens. It works with or without [TLS](#tls): `--extends configs/tls --extends configs/jwt`
+sends the tokens over TLS, as most deployments do.
+
+The launcher creates the keys and the tokens for each run, in the formats of `pulsar tokens`, as the Pulsar Helm
+chart's JWT secret job does, and writes them into the run directory's `jwt` directory, which the brokers and the
+workloads mount. The gateways and the applications authenticate as `iot-workload`. The brokers' own clients, such as
+geo-replication's, and the launcher's admin requests authenticate as `admin`, the brokers' super-user. The brokers
+authenticate the clients but don't authorize them: any authenticated client may produce and consume. The brokers'
+`/metrics` endpoint stays unauthenticated, as it is by default.
+
+`cluster.jwt.signatureAlgorithm` sets how the tokens are signed: `RS256`, the default, with a 2048-bit RSA key pair
+whose public key the brokers verify the tokens with, or `HS256`, with a secret key that the brokers share.
+
+```bash
+./gradlew :tests:performance:launcher:run \
+  --args='--scenario tests/performance/scenarios/iot-telemetry-high-rate.yaml --extends configs/tls --extends configs/jwt'
+```
 
 ## Scenarios for the legacy TestNG runner
 

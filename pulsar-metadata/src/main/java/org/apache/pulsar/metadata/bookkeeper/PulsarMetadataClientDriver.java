@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.metadata.bookkeeper;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
 import org.apache.bookkeeper.conf.ClientConfiguration;
@@ -36,6 +38,9 @@ public class PulsarMetadataClientDriver extends AbstractMetadataDriver implement
     static {
         MetadataDrivers.registerClientDriver(METADATA_STORE_SCHEME, PulsarMetadataClientDriver.class);
     }
+
+    // The callbacks that unregister the session listeners. Guarded by this
+    private final List<Runnable> cancelSessionListeners = new ArrayList<>();
 
     public static void init() {
         // cause <cinit> to be invoked
@@ -66,11 +71,20 @@ public class PulsarMetadataClientDriver extends AbstractMetadataDriver implement
     }
 
     @Override
-    public void setSessionStateListener(SessionStateListener sessionStateListener) {
-        store.registerSessionListener(event -> {
+    public synchronized void setSessionStateListener(SessionStateListener sessionStateListener) {
+        cancelSessionListeners.add(store.registerCancellableSessionListener(event -> {
             if (event == SessionEvent.SessionLost) {
                 sessionStateListener.onSessionExpired();
             }
-        });
+        }));
+    }
+
+    @Override
+    public void close() {
+        synchronized (this) {
+            cancelSessionListeners.forEach(Runnable::run);
+            cancelSessionListeners.clear();
+        }
+        super.close();
     }
 }

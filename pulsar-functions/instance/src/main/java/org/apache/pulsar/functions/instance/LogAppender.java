@@ -21,13 +21,25 @@ package org.apache.pulsar.functions.instance;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.Marker;
+import org.apache.logging.log4j.MarkerManager;
 import org.apache.logging.log4j.core.Appender;
 import org.apache.logging.log4j.core.ErrorHandler;
 import org.apache.logging.log4j.core.Layout;
 import org.apache.logging.log4j.core.LogEvent;
+import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.appender.DefaultErrorHandler;
+import org.apache.logging.log4j.core.config.Configuration;
+import org.apache.logging.log4j.core.config.LoggerConfig;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -46,6 +58,8 @@ public class LogAppender implements Appender {
     private static final String LOG_LEVEL = "loglevel";
     private static final String INSTANCE = "instance";
     private static final String FQN = "fqn";
+    // The marker of the events that drain() logs, which end its wait instead of going to the log topic
+    private static final Marker DRAIN_MARKER = MarkerManager.getMarker("PULSAR_FUNCTION_LOG_TOPIC_DRAIN");
 
     private PulsarClient pulsarClient;
     private Supplier<org.apache.pulsar.client.api.v5.PulsarClient> pulsarClientV5;
@@ -55,6 +69,8 @@ public class LogAppender implements Appender {
     private State state;
     private ErrorHandler errorHandler;
     private Producer<byte[]> producer;
+    // The waits of drain(), by the message of the event that each one waits for
+    private final Map<String, CompletableFuture<Void>> drains = new ConcurrentHashMap<>();
 
     public LogAppender(PulsarClient pulsarClient, String logTopic, String fqn, String instance) {
         this.pulsarClient = pulsarClient;
@@ -75,12 +91,58 @@ public class LogAppender implements Appender {
 
     @Override
     public void append(LogEvent logEvent) {
+        if (DRAIN_MARKER.equals(logEvent.getMarker())) {
+            CompletableFuture<Void> drained = drains.get(logEvent.getMessage().getFormattedMessage());
+            if (drained != null) {
+                drained.complete(null);
+            }
+            return;
+        }
         producer.newMessage()
                 .value(logEvent.getMessage().getFormattedMessage().getBytes(StandardCharsets.UTF_8))
                 .property(LOG_LEVEL, logEvent.getLevel().name())
                 .property(INSTANCE, instance)
                 .property(FQN, fqn)
                 .sendAsync();
+    }
+
+    /**
+     * Waits until this appender has received the events that the context's loggers accepted before this call, for at
+     * most the timeout, and returns whether it did.
+     *
+     * <p>With async loggers, the context's background thread hands each event to the appenders attached when it gets
+     * to the event, so an event still queued when the appender is detached never reaches the log topic. The thread
+     * handles the events in order: this logs an event that only this appender receives, through a logger of its own,
+     * and waits for it. With synchronous loggers, the event arrives at once.
+     */
+    boolean drain(LoggerContext context, long timeoutMillis) {
+        String loggerName = LogAppender.class.getName() + ".drain." + fqn + "." + instance;
+        Configuration config = context.getConfiguration();
+        // The logger's configuration stays, without appenders, after the drain: an event that the background thread
+        // handles after the timeout must not reach the configuration's other appenders through the root logger
+        if (!config.getLoggers().containsKey(loggerName)) {
+            config.addLogger(loggerName, new LoggerConfig(loggerName, Level.ALL, false));
+        }
+        LoggerConfig loggerConfig = config.getLoggers().get(loggerName);
+        loggerConfig.addAppender(this, null, null);
+        context.updateLoggers();
+        String id = UUID.randomUUID().toString();
+        CompletableFuture<Void> drained = new CompletableFuture<>();
+        drains.put(id, drained);
+        try {
+            // At the most severe level, which a queue-full policy that discards events keeps
+            context.getLogger(loggerName).log(Level.FATAL, DRAIN_MARKER, id);
+            drained.get(timeoutMillis, TimeUnit.MILLISECONDS);
+            return true;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return false;
+        } catch (ExecutionException | TimeoutException e) {
+            return false;
+        } finally {
+            drains.remove(id);
+            loggerConfig.removeAppender(getName());
+        }
     }
 
     @Override

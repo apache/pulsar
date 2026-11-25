@@ -67,9 +67,10 @@ final class RandomSeeks {
     private RandomSeeks() {
     }
 
-    static void run(String adminUrl, List<String> topics, long fromEpochMs, long toEpochMs, SeekSettings settings,
-                    Path runOutput, CompletableFuture<?> runFailure, Consumer<String> status) throws Exception {
-        try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(adminUrl)
+    static void run(String adminUrl, String adminToken, List<String> topics, long fromEpochMs, long toEpochMs,
+                    SeekSettings settings, Path runOutput, CompletableFuture<?> runFailure, Consumer<String> status)
+            throws Exception {
+        try (PulsarAdmin admin = JwtSettings.adminBuilder(adminUrl, adminToken)
                 .connectionTimeout(10, TimeUnit.SECONDS)
                 .readTimeout(REQUEST_TIMEOUT_SECONDS, TimeUnit.SECONDS)
                 .requestTimeout(REQUEST_TIMEOUT_SECONDS, TimeUnit.SECONDS)

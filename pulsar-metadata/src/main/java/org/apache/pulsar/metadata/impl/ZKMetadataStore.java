@@ -19,12 +19,16 @@
 package org.apache.pulsar.metadata.impl;
 
 import com.google.common.annotations.VisibleForTesting;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -32,6 +36,7 @@ import lombok.CustomLog;
 import lombok.SneakyThrows;
 import org.apache.bookkeeper.zookeeper.BoundExponentialBackoffRetryPolicy;
 import org.apache.commons.lang3.tuple.Triple;
+import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStore;
@@ -77,6 +82,7 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
     // ephemeralOwner value for persistent nodes
     private static final long NOT_EPHEMERAL = 0L;
 
+    private final Set<CompletableFuture<Optional<GetResult>>> publicationReads = ConcurrentHashMap.newKeySet();
     private final String zkConnectString;
     private final String rootPath;
     private final MetadataStoreConfig metadataStoreConfig;
@@ -123,9 +129,22 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
         }
     }
 
-    private void processSessionWatcher(WatchedEvent event) {
+    @VisibleForTesting
+    void processSessionWatcher(WatchedEvent event) {
         if (sessionWatcher != null) {
-            processEvent(sessionWatcher::process, event);
+            ZKSessionWatcher.SessionEventSnapshot stateSnapshot;
+            if (event instanceof PulsarZooKeeperClient.HandleStateWatchedEvent handleStateEvent) {
+                stateSnapshot = new ZKSessionWatcher.SessionEventSnapshot(event,
+                        handleStateEvent.getHandleGeneration(), handleStateEvent.getSessionId(),
+                        handleStateEvent.getClientState());
+            } else {
+                long handleGeneration = zkc instanceof PulsarZooKeeperClient
+                        ? ((PulsarZooKeeperClient) zkc).getCurrentHandleGeneration()
+                        : ZKSessionWatcher.UNKNOWN_HANDLE_GENERATION;
+                stateSnapshot = new ZKSessionWatcher.SessionEventSnapshot(
+                        event, handleGeneration, zkc.getSessionId(), zkc.getState());
+            }
+            processEvent(sessionWatcher::process, stateSnapshot);
         }
     }
 
@@ -140,15 +159,26 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
     }
 
     @VisibleForTesting
-    @SneakyThrows
     public ZKMetadataStore(ZooKeeper zkc, MetadataStoreConfig config, boolean isZkManaged) {
+        this(zkc, config, isZkManaged, true);
+    }
+
+    @VisibleForTesting
+    ZKMetadataStore(ZooKeeper zkc, boolean startSessionWatcherScheduler) {
+        this(zkc, MetadataStoreConfig.builder().build(), false, startSessionWatcherScheduler);
+    }
+
+    @SneakyThrows
+    private ZKMetadataStore(ZooKeeper zkc, MetadataStoreConfig config, boolean isZkManaged,
+                            boolean startSessionWatcherScheduler) {
         super(config);
         this.zkConnectString = null;
         this.rootPath = null;
         this.metadataStoreConfig = null;
         this.isZkManaged = isZkManaged;
         this.zkc = zkc;
-        this.sessionWatcher = new ZKSessionWatcher(zkc, this::receivedSessionEvent);
+        this.sessionWatcher = new ZKSessionWatcher(
+                zkc, this::receivedSessionEvent, startSessionWatcherScheduler);
         zkc.addWatch("/", eventWatcher, AddWatchMode.PERSISTENT_RECURSIVE);
         initBatchStrategy();
     }
@@ -215,6 +245,10 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
 
     @Override
     protected void batchOperation(List<MetadataOp> ops) {
+        batchOperation(ops, false);
+    }
+
+    private void batchOperation(List<MetadataOp> ops, boolean splitFromRejectedBatch) {
         try {
             zkc.multi(ops.stream().map(this::convertOp).collect(Collectors.toList()), (rc, path, ctx, results) -> {
                 if (results == null) {
@@ -259,6 +293,10 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                         // Retry with the individual operations
                         scheduleDelayedTask(100, TimeUnit.MILLISECONDS,
                             () -> ops.forEach(o -> batchOperation(Collections.singletonList(o))));
+                    } else if (code == Code.BADARGUMENTS && ops.size() > 1 && ops.stream().allMatch(
+                            op -> op.getType() == MetadataOp.Type.GET
+                                    || op.getType() == MetadataOp.Type.GET_CHILDREN)) {
+                        retryRejectedReadBatch(ops, splitFromRejectedBatch);
                     } else {
                         MetadataStoreException e = getException(code, path);
                         ops.forEach(o -> o.getFuture().completeExceptionally(e));
@@ -294,6 +332,30 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
         } catch (Throwable t) {
             ops.forEach(o -> o.getFuture().completeExceptionally(new MetadataStoreException(t)));
         }
+    }
+
+    /**
+     * Retries a read batch that the server rejected for exceeding its multiRead.maxOps or
+     * multiRead.maxResponseBytes limit, which ZooKeeper reports as BADARGUMENTS for the whole batch. Batches are
+     * formed from estimated response sizes, so a batch can exceed the limits even though each of its reads is valid.
+     * Halving the batch ends in single reads, and a rejected single read fails its future instead of being retried,
+     * so a batch of n reads results in at most 2n - 1 requests. Only the rejection of the original batch is logged as
+     * a warning, because splitting a batch can result in up to n - 1 rejections.
+     */
+    private void retryRejectedReadBatch(List<MetadataOp> ops, boolean splitFromRejectedBatch) {
+        if (splitFromRejectedBatch) {
+            log.trace().attr("operations", ops.size())
+                    .log("ZooKeeper rejected a part of a split read batch. Retrying it as two smaller batches.");
+        } else {
+            log.warn().attr("operations", ops.size())
+                    .log("ZooKeeper rejected a read batch for exceeding its multiRead.maxOps or"
+                            + " multiRead.maxResponseBytes limit. Retrying it as smaller batches.");
+        }
+        int middle = ops.size() / 2;
+        safeExecuteCallbacks(() -> {
+            batchOperation(ops.subList(0, middle), true);
+            batchOperation(ops.subList(middle, ops.size()), true);
+        }, ops);
     }
 
     private void handlePutResult(OpPut op, OpResult opr) {
@@ -446,6 +508,83 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
         }
     }
 
+    @Override
+    protected CompletableFuture<Stat> storePut(String path, byte[] data, Optional<Long> expectedVersion,
+                                               Set<Option> opts) {
+        var written = super.storePut(path, data, expectedVersion, opts);
+        // The publication ID identifies the write at expectedVersion + 1 (version 0 for a create).
+        // Ephemeral nodes require checking session ownership, and sequential creates use a server-assigned path.
+        if (!opts.contains(Option.VerifyPublication.INSTANCE) || expectedVersion.isEmpty()
+                || OptionsHelper.isEphemeral(opts) || OptionsHelper.isSequential(opts)) {
+            return written;
+        }
+        return written.exceptionallyCompose(error -> {
+            // A write retried individually after a failed multi can lose its reply directly.
+            if (!(error instanceof BadVersionException) && !(error.getCause() instanceof KeeperException ke
+                    && isUncertainResult(ke.code()))) {
+                return CompletableFuture.failedFuture(error);
+            }
+            long nextVersion = expectedVersion.get() + 1;
+            return readPublication(path).thenApply(value -> {
+                GetResult stored = value.orElse(null);
+                if (stored != null && !stored.getStat().isEphemeral() && stored.getStat().getVersion() == nextVersion) {
+                    if (Arrays.equals(data, stored.getValue())) {
+                        return stored.getStat();
+                    }
+                    log.warn().attr("path", path).attr("version", nextVersion)
+                            .log("Stored bytes differ from the attempted publication at the expected next version");
+                }
+                throw new CompletionException(error);
+            });
+        });
+    }
+
+    private static boolean isUncertainResult(Code code) {
+        return PulsarZooKeeperClient.ZooWorker.isRecoverableException(code.intValue()) || code == Code.REQUESTTIMEOUT;
+    }
+
+    private CompletableFuture<Optional<GetResult>> readPublication(String path) {
+        var result = new CompletableFuture<Optional<GetResult>>();
+        publicationReads.add(result);
+        result.whenComplete((__, error) -> publicationReads.remove(result));
+        readPublication(path, result, Backoff.create());
+        return result;
+    }
+
+    private void readPublication(String path, CompletableFuture<Optional<GetResult>> result, Backoff backoff) {
+        if (isClosed()) {
+            result.completeExceptionally(new MetadataStoreException.AlreadyClosedException());
+            return;
+        }
+        // A single-node getData can read a valid znode even when its size exceeds the server's multiRead limit.
+        try {
+            zkc.getData(path, false, (rc, __, ctx, bytes, stat) -> safeExecuteCallback(() -> {
+                if (result.isDone()) {
+                    return;
+                }
+                Code code = Code.get(rc);
+                if (code == Code.OK) {
+                    result.complete(Optional.of(new GetResult(bytes, getStat(path, stat))));
+                } else if (code == Code.NONODE) {
+                    result.complete(Optional.empty());
+                } else if (isUncertainResult(code) || code == Code.THROTTLEDOP) {
+                    // Keep the original publication pending so subsequent openCursor calls can join the same create.
+                    // Only the read is retried, even when the write itself lost its response.
+                    try {
+                        scheduleDelayedTask(backoff.next().toMillis(), TimeUnit.MILLISECONDS,
+                                () -> readPublication(path, result, backoff));
+                    } catch (RejectedExecutionException closed) {
+                        result.completeExceptionally(new MetadataStoreException.AlreadyClosedException(closed));
+                    }
+                } else {
+                    result.completeExceptionally(getException(code, path));
+                }
+            }, result), null);
+        } catch (RuntimeException e) {
+            result.completeExceptionally(new MetadataStoreException(e));
+        }
+    }
+
     private void internalStorePut(OpPut opPut) {
         boolean hasVersion = opPut.getOptExpectedVersion().isPresent();
         int expectedVersion = opPut.getOptExpectedVersion().orElse(-1L).intValue();
@@ -509,6 +648,8 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
     @Override
     public void close() throws Exception {
         if (isClosed.compareAndSet(false, true)) {
+            var closed = new MetadataStoreException.AlreadyClosedException();
+            publicationReads.forEach(read -> read.completeExceptionally(closed));
             if (isZkManaged) {
                 zkc.close();
             }
