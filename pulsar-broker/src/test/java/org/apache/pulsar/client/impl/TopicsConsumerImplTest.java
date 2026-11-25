@@ -1509,6 +1509,134 @@ public class TopicsConsumerImplTest extends SharedPulsarBaseTest {
         }
     }
 
+    // With pooled messages, the client owns a message until it hands it to the application, so it must release the
+    // messages from before a seek that it drops.
+    @Test(timeOut = testTimeout)
+    public void testSeekReleasesPooledMessagesDroppedAfterTheSeekCompleted() throws Exception {
+        record Arrival(MessageId messageId, ByteBuf payload) {
+        }
+        record Position(long ledgerId, long entryId, int partitionIndex) {
+            static Position of(MessageId messageId) {
+                MessageIdAdv id = (MessageIdAdv) messageId;
+                return new Position(id.getLedgerId(), id.getEntryId(), id.getPartitionIndex());
+            }
+        }
+        final String topic = TopicName.get(newTopicName()).toString();
+        admin.topics().createPartitionedTopic(topic, 1);
+        final String partition = TopicName.get(topic).getPartition(0).toString();
+        // Each message the partition's consumer handles, in that order. The test takes a reference of its own to the
+        // payload: a buffer that is still referenced cannot be reused, so its reference count stays readable.
+        List<Arrival> arrivals = new CopyOnWriteArrayList<>();
+        Consumer<Integer> consumer = pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName("sub")
+                .poolMessages(true)
+                .intercept(new ConsumerInterceptor<Integer>() {
+                    @Override
+                    public Message<Integer> onArrival(Consumer<Integer> consumer, Message<Integer> message) {
+                        ByteBuf payload = ((MessageImpl<Integer>) message).getDataBuffer();
+                        arrivals.add(new Arrival(message.getMessageId(), payload.retain()));
+                        return message;
+                    }
+
+                    @Override
+                    public Message<Integer> beforeConsume(Consumer<Integer> consumer, Message<Integer> message) {
+                        return message;
+                    }
+
+                    @Override
+                    public void onAcknowledge(Consumer<Integer> consumer, MessageId messageId, Throwable exception) {
+                    }
+
+                    @Override
+                    public void onAcknowledgeCumulative(Consumer<Integer> consumer, MessageId messageId,
+                                                        Throwable exception) {
+                    }
+
+                    @Override
+                    public void onNegativeAcksSend(Consumer<Integer> consumer, Set<MessageId> messageIds) {
+                    }
+
+                    @Override
+                    public void onAckTimeoutSend(Consumer<Integer> consumer, Set<MessageId> messageIds) {
+                    }
+
+                    @Override
+                    public void close() {
+                    }
+                })
+                .subscribe();
+        CountDownLatch seekCompleted = new CountDownLatch(1);
+        try {
+            ConsumerImpl<Integer> partitionConsumer =
+                    ((MultiTopicsConsumerImpl<Integer>) consumer).getConsumers().get(0);
+
+            // Hold the partition consumer's tasks back until the seek has completed, so that it hands the messages
+            // from before the seek over after it.
+            partitionConsumer.internalPinnedExecutor.execute(() -> {
+                try {
+                    seekCompleted.await(testTimeout, TimeUnit.MILLISECONDS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            });
+            @Cleanup
+            PulsarClient producerClient = newPulsarClient();
+            @Cleanup
+            Producer<Integer> producer = producerClient.newProducer(Schema.INT32)
+                    .topic(topic)
+                    .enableBatching(false)
+                    .compressionType(CompressionType.LZ4)
+                    .compressionMinMsgBodySize(0)
+                    .create();
+            List<MessageId> msgIds = new ArrayList<>();
+            for (int i = 0; i < 10; i++) {
+                msgIds.add(producer.send(i));
+            }
+            Awaitility.await().untilAsserted(() -> assertThat(
+                    admin.topics().getStats(partition).getSubscriptions().get("sub").getMsgOutCounter())
+                    .as("messages the broker dispatched to the subscription")
+                    .isEqualTo(10));
+
+            consumer.seek(TopicMessageId.create(partition, msgIds.get(5)));
+            seekCompleted.countDown();
+
+            for (int i = 6; i < 10; i++) {
+                Message<Integer> msg = consumer.receive(10, TimeUnit.SECONDS);
+                assertThat(msg).as("message %d after the seek", i).isNotNull();
+                try {
+                    assertThat(msg.getValue()).as("value of the next message after the seek").isEqualTo(i);
+                } finally {
+                    msg.release();
+                }
+            }
+
+            Awaitility.await().untilAsserted(() -> {
+                assertThat(arrivals).as("messages the partition's consumer handled")
+                        .hasSizeGreaterThanOrEqualTo(10);
+                List<Arrival> beforeSeek = arrivals.subList(0, 10);
+                assertThat(beforeSeek)
+                        .as("positions of the messages handled first: the ones that arrived before the seek")
+                        .extracting(arrival -> Position.of(arrival.messageId()))
+                        .containsExactlyInAnyOrderElementsOf(msgIds.stream().map(Position::of).toList());
+                assertThat(beforeSeek)
+                        .as("payload reference counts of the pooled messages dropped after the seek: only the test's"
+                                + " own reference must be left")
+                        .extracting(arrival -> arrival.payload().refCnt())
+                        .containsOnly(1);
+            });
+        } finally {
+            // Let the partition consumer's executor go when the test fails before the seek: the close needs it
+            seekCompleted.countDown();
+            try {
+                // Closed first, so that no message arrives after the test has given its references back
+                consumer.close();
+            } finally {
+                arrivals.forEach(arrival -> arrival.payload().release());
+            }
+        }
+    }
+
     private static class CustomizedConsumerEventListener implements ConsumerEventListener {
 
         private final Map<String, String> activeConsumers = new HashMap<>();
