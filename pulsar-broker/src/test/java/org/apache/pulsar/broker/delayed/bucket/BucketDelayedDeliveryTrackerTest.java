@@ -2043,6 +2043,47 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
     }
 
     @Test
+    public void testSuccessfulReclaimDoesNotQueueBucketForClearRetry() throws Exception {
+        // When the immediate reclaim of an unpublished replacement ledger succeeds, the cached
+        // ledger id is dropped so the create-failure callback does not also queue the bucket in
+        // uncleanedBuckets: clear() must not re-delete an already-reclaimed ledger.
+        AtomicBoolean failPublication = new AtomicBoolean(true);
+        MockManagedCursor cursor = new MockManagedCursor("reclaim-clear-ok-cursor") {
+            @Override
+            public CompletableFuture<Void> putCursorProperty(String key, String value) {
+                if (failPublication.get()) {
+                    return FutureUtil.failedFuture(new ManagedLedgerException("publication failed"));
+                }
+                return super.putCursorProperty(key, value);
+            }
+        };
+        RecordingCreatedDeletedStorage storage = new RecordingCreatedDeletedStorage();
+        TrackerWithStorage ts = createTrackerWithMockLedger(31L, 50, storage, -1, cursor);
+        try {
+            for (int i = 1; i <= 5; i++) {
+                ts.tracker.addMessage(31, i, 100L * i);
+            }
+            ts.tracker.addMessage(32, 1, 600L); // seals [31..31]
+            // The save fails on cursor publication; the first reclaim attempt fails transiently
+            // and the retry succeeds.
+            storage.failNextCreatedDelete.set(1);
+
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+                    assertEquals(0, ts.tracker.getImmutableBuckets().asMapOfRanges().size()));
+            long replacementId = storage.createdBucketIds.iterator().next();
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+                    assertThat(storage.deletedBucketIds).contains(replacementId));
+            int attemptsAfterReclaim = storage.deleteAttempts.get(replacementId).get();
+
+            // The successful immediate reclaim must not leave the bucket for a clear() retry.
+            assertThat(ts.tracker.clear()).succeedsWithin(5, TimeUnit.SECONDS);
+            assertThat(storage.deleteAttempts.get(replacementId).get()).isEqualTo(attemptsAfterReclaim);
+        } finally {
+            ts.close();
+        }
+    }
+
+    @Test
     public void testMergeAbortsWhenBucketAppearsInTheGap() throws Exception {
         // A bucket sealed into a ledger gap between the selected merge inputs and the install
         // must not be displaced by the merged enclosing range: its indexes are in neither the

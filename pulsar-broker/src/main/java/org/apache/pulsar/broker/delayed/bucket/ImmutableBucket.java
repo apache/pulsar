@@ -188,6 +188,11 @@ class ImmutableBucket {
                                             } else {
                                                 stats.recordSuccessEvent(BucketDelayedMessageIndexStats.Type.delete,
                                                         System.currentTimeMillis() - reclaimStartTime);
+                                                // The unpublished ledger is gone: drop the cached id so the
+                                                // create-failure callback does not also queue this bucket for a
+                                                // redundant clear() retry (resolveBucketIdForDelete would then
+                                                // resolve an already-deleted ledger).
+                                                setBucketId(null);
                                             }
                                         });
                                 throw ex instanceof CompletionException
