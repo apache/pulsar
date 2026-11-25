@@ -56,6 +56,10 @@ import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.Unpooled;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.nio.ReadOnlyBufferException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -152,6 +156,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.VoidCallback;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
 import org.apache.bookkeeper.mledger.impl.cache.EntryCache;
 import org.apache.bookkeeper.mledger.impl.cache.EntryCacheManager;
+import org.apache.bookkeeper.mledger.proto.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.mledger.util.Futures;
@@ -167,6 +172,7 @@ import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.MetadataStoreExtended;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
@@ -1300,6 +1306,157 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         }, null);
 
         counter.await();
+    }
+
+    @Test(timeOut = 20000)
+    public void asyncOpenCursorFailsWhenLedgerClosedDuringInitialize() throws Exception {
+        openCursorRacingKill(false);
+    }
+
+    @Test(timeOut = 20000)
+    public void asyncOpenCursorFailsWhenLedgerFencedDuringInitialize() throws Exception {
+        openCursorRacingKill(true);
+    }
+
+    /**
+     * Opens a cursor while holding its create in the metadata store, kills the ledger, and only then lets
+     * the create complete: the open must fail and the cursor must never be registered on the dead instance.
+     */
+    private void openCursorRacingKill(boolean fence) throws Exception {
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl blockingFactory = new BlockingCursorOpenFactory(metadataStore, bkc);
+        ManagedLedger ledger = blockingFactory.open("my_test_ledger", initManagedLedgerConfig(defaultConfig()));
+        BlockingCursorMetaStore blockingStore = ((BlockingCursorOpenLedger) ledger).blockingStore();
+
+        final CountDownLatch openDone = new CountDownLatch(1);
+        final AtomicReference<ManagedCursor> openedCursor = new AtomicReference<>();
+        final AtomicReference<ManagedLedgerException> openFailure = new AtomicReference<>();
+        ledger.asyncOpenCursor("test-cursor", new OpenCursorCallback() {
+            @Override
+            public void openCursorComplete(ManagedCursor cursor, Object ctx) {
+                openedCursor.set(cursor);
+                openDone.countDown();
+            }
+
+            @Override
+            public void openCursorFailed(ManagedLedgerException exception, Object ctx) {
+                openFailure.set(exception);
+                openDone.countDown();
+            }
+        }, null);
+
+        assertTrue(blockingStore.awaitIntercepted(5, TimeUnit.SECONDS));
+        if (fence) {
+            ((ManagedLedgerImpl) ledger).setFenced();
+        } else {
+            ledger.close();
+        }
+        blockingStore.release();
+        assertTrue(openDone.await(5, TimeUnit.SECONDS));
+
+        assertNull(openedCursor.get());
+        if (fence) {
+            assertTrue(openFailure.get() instanceof ManagedLedgerFencedException,
+                    "Expected a fenced failure but got " + openFailure.get());
+        } else {
+            assertTrue(openFailure.get() instanceof ManagedLedgerAlreadyClosedException,
+                    "Expected an already-closed failure but got " + openFailure.get());
+        }
+        assertNull(ledger.getCursors().get("test-cursor"));
+        if (fence) {
+            try {
+                ledger.close();
+            } catch (ManagedLedgerException e) {
+                // A fenced ledger refuses a normal close; the factory shutdown still releases it.
+            }
+        }
+    }
+
+    private static final class BlockingCursorOpenFactory extends ManagedLedgerFactoryImpl {
+        BlockingCursorOpenFactory(MetadataStoreExtended metadataStore, BookKeeper bookKeeper) {
+            super(metadataStore, bookKeeper);
+        }
+
+        @Override
+        protected ManagedLedgerImpl createManagedLedger(BookKeeper bk, MetaStore store, String name,
+                                                        ManagedLedgerConfig config,
+                                                        Supplier<CompletableFuture<Boolean>> mlOwnershipChecker) {
+            return new BlockingCursorOpenLedger(this, bk, store, config, scheduledExecutor, name, mlOwnershipChecker);
+        }
+    }
+
+    private static final class BlockingCursorOpenLedger extends ManagedLedgerImpl {
+        private final BlockingCursorMetaStore blockingStore;
+
+        BlockingCursorOpenLedger(ManagedLedgerFactoryImpl factory, BookKeeper bookKeeper, MetaStore store,
+                                 ManagedLedgerConfig config, OrderedScheduler scheduledExecutor, String name,
+                                 Supplier<CompletableFuture<Boolean>> mlOwnershipChecker) {
+            super(factory, bookKeeper, store, config, scheduledExecutor, name, mlOwnershipChecker);
+            this.blockingStore = new BlockingCursorMetaStore(store);
+        }
+
+        BlockingCursorMetaStore blockingStore() {
+            return blockingStore;
+        }
+
+        @Override
+        MetaStore getStore() {
+            return blockingStore.proxy();
+        }
+    }
+
+    /**
+     * Holds the metadata-store write that persists a new cursor until the test releases it, so a
+     * close or fence deterministically lands between the open entry checks and the open callback.
+     */
+    private static final class BlockingCursorMetaStore implements InvocationHandler {
+        private final MetaStore delegate;
+        private final MetaStore proxy;
+        private final CountDownLatch intercepted = new CountDownLatch(1);
+        private volatile boolean armed = true;
+        private volatile String stashedLedger;
+        private volatile String stashedCursor;
+        private volatile ManagedCursorInfo stashedInfo;
+        private volatile Stat stashedStat;
+        private volatile MetaStoreCallback<Void> stashedCallback;
+
+        BlockingCursorMetaStore(MetaStore delegate) {
+            this.delegate = delegate;
+            this.proxy = (MetaStore) Proxy.newProxyInstance(MetaStore.class.getClassLoader(),
+                    new Class<?>[]{MetaStore.class}, this);
+        }
+
+        MetaStore proxy() {
+            return proxy;
+        }
+
+        boolean awaitIntercepted(long timeout, TimeUnit unit) throws InterruptedException {
+            return intercepted.await(timeout, unit);
+        }
+
+        void release() {
+            delegate.asyncUpdateCursorInfo(stashedLedger, stashedCursor, stashedInfo, stashedStat, stashedCallback);
+        }
+
+        @Override
+        public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+            if (armed && "asyncUpdateCursorInfo".equals(method.getName())
+                    && args != null && args.length == 5 && "test-cursor".equals(args[1])) {
+                armed = false;
+                stashedLedger = (String) args[0];
+                stashedCursor = (String) args[1];
+                stashedInfo = (ManagedCursorInfo) args[2];
+                stashedStat = (Stat) args[3];
+                stashedCallback = (MetaStoreCallback<Void>) args[4];
+                intercepted.countDown();
+                return null;
+            }
+            try {
+                return method.invoke(delegate, args);
+            } catch (InvocationTargetException e) {
+                throw e.getCause();
+            }
+        }
     }
 
     @Test(timeOut = 20000)
