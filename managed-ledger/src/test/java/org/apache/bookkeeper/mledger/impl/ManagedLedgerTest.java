@@ -38,6 +38,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -156,6 +157,7 @@ import org.apache.bookkeeper.mledger.impl.cache.EntryCacheManager;
 import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.mledger.util.Futures;
+import org.apache.bookkeeper.mledger.util.ManagedLedgerUtils;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.net.BookieSocketAddress;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
@@ -3713,6 +3715,58 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         reopened.trimConsumedLedgersInBackground(trimmedAfterAck);
         trimmedAfterAck.get(5, TimeUnit.SECONDS);
         assertTrue(reopened.getLedgersInfo().size() < ledgerIds.size());
+    }
+
+    @DataProvider
+    public Object[][] fencedCursorRecoveryOrder() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    @Test(dataProvider = "fencedCursorRecoveryOrder")
+    public void testDeleteReclaimsCursorLedgerAcrossFencedRecovery(boolean recoveryCompletesBeforeDelete)
+            throws Exception {
+        ManagedLedgerConfig config = initManagedLedgerConfig(defaultConfig())
+                .setMaxUnackedRangesToPersistInMetadataStore(0);
+        ManagedLedger ledger = factory.open("delete-during-lazy-cursor-recovery", config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("cursor");
+        ledger.addEntry(new byte[] {1});
+        cursor.delete(ledger.addEntry(new byte[] {2}));
+        long cursorLedgerId = cursor.getCursorLedger();
+        ledger.close();
+        assertThat(bkc.getLedgers()).contains(cursorLedgerId);
+        String cursorPath = "/managed-ledgers/" + ledger.getName() + "/cursor";
+        assertThat(metadataStore.exists(cursorPath).get(5, TimeUnit.SECONDS)).isTrue();
+
+        CompletableFuture<Void> resumeRecovery = new CompletableFuture<>();
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory2 = createFactoryWithGatedCursorRecovery(Map.of("cursor", resumeRecovery));
+        ManagedLedgerImpl reopened = (ManagedLedgerImpl) factory2.open(ledger.getName(),
+                config.setLazyCursorRecovery(true));
+        DeleteLedgerCallback deletion = mock(DeleteLedgerCallback.class);
+        CompletableFuture<ManagedCursor> opening;
+        try {
+            opening = ManagedLedgerUtils.openCursor(reopened, "cursor");
+            assertThat(opening).isNotDone();
+            if (recoveryCompletesBeforeDelete) {
+                reopened.setFenced();
+                resumeRecovery.complete(null);
+                assertThatThrownBy(() -> opening.get(5, TimeUnit.SECONDS))
+                        .hasCauseInstanceOf(ManagedLedgerFencedException.class);
+                assertThat(reopened.getCursors()).isEmpty();
+                assertThat(reopened.getActiveCursors()).isEmpty();
+            }
+            factory2.asyncDelete(ledger.getName(), deletion, null);
+            assertThat(reopened.getState()).isEqualTo(ManagedLedgerImpl.State.FencedForDeletion);
+        } finally {
+            resumeRecovery.complete(null);
+        }
+        assertThatThrownBy(() -> opening.get(5, TimeUnit.SECONDS))
+                .hasCauseInstanceOf(ManagedLedgerFencedException.class);
+        assertThat(reopened.getActiveCursors()).isEmpty();
+        verify(deletion, timeout(5000)).deleteLedgerComplete(null);
+        assertThat(metadataStore.exists(cursorPath).get(5, TimeUnit.SECONDS)).isFalse();
+        Awaitility.await().atMost(5, TimeUnit.SECONDS)
+                .untilAsserted(() -> assertThat(bkc.getLedgers()).doesNotContain(cursorLedgerId));
     }
 
     @Test
