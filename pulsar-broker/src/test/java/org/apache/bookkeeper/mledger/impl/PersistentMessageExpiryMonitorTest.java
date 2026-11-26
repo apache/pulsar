@@ -85,7 +85,7 @@ public class PersistentMessageExpiryMonitorTest extends ProducerConsumerBase {
     @Override
     protected void customizeMainPulsarTestContextBuilder(PulsarTestContext.Builder pulsarTestContextBuilder) {
         super.customizeMainPulsarTestContextBuilder(pulsarTestContextBuilder);
-        // testTopicExpiryCheckDoesNotReadWithoutBacklog reads the number of completed finds from the metrics
+        // testTopicExpiryCheckDoesNotReadWithoutBacklog reads the number of finds from the metrics
         pulsarTestContextBuilder.enableOpenTelemetry(true);
     }
 
@@ -301,10 +301,11 @@ public class PersistentMessageExpiryMonitorTest extends ProducerConsumerBase {
 
         List<Position> readPositions = recordReads(ml);
         try {
-            long findsBeforeCheck = completedExpiryFinds();
+            long findsBeforeCheck = expiryFindsWithoutPosition();
             persistentTopic.checkMessageExpiry();
             Awaitility.await().untilAsserted(() ->
-                    assertThat(completedExpiryFinds()).as("completed finds").isEqualTo(findsBeforeCheck + 1));
+                    assertThat(expiryFindsWithoutPosition()).as("finds that completed without a position")
+                            .isEqualTo(findsBeforeCheck + 1));
             assertThat(readPositions).as("entries read by the expiry check").isEmpty();
             assertThat(cursor.getMarkDeletedPosition()).as("mark-delete position after the check")
                     .isEqualTo(lastPosition);
@@ -380,12 +381,14 @@ public class PersistentMessageExpiryMonitorTest extends ProducerConsumerBase {
         return readPositions;
     }
 
-    private long completedExpiryFinds() {
+    private long expiryFindsWithoutPosition() {
         return pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics().stream()
                 .filter(metric -> metric.getName().equals(OpenTelemetryMessageFinderStats.FIND_DURATION_METRIC_NAME))
                 .flatMap(metric -> metric.getHistogramData().getPoints().stream())
                 .filter(point ->
-                        "expiry".equals(point.getAttributes().get(OpenTelemetryMessageFinderStats.FIND_REASON)))
+                        "expiry".equals(point.getAttributes().get(OpenTelemetryMessageFinderStats.FIND_REASON))
+                        && "not_found".equals(
+                                point.getAttributes().get(OpenTelemetryMessageFinderStats.FIND_RESULT)))
                 .mapToLong(HistogramPointData::getCount)
                 .sum();
     }
