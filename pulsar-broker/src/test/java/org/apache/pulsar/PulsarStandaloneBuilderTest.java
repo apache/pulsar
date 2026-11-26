@@ -45,7 +45,6 @@ public class PulsarStandaloneBuilderTest {
             assertThat(tempBaseDir).exists();
             assertThat(standalone.getConfig().getMetadataStoreUrl())
                     .contains(tempBaseDir.toAbsolutePath().toString());
-
             try (PulsarClient client = standalone.buildClient()) {
                 Producer<String> producer = client.newProducer(Schema.STRING)
                         .topic("test-topic").create();
