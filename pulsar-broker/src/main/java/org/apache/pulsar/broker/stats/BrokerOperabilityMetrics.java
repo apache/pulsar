@@ -71,8 +71,9 @@ public class BrokerOperabilityMetrics implements AutoCloseable {
         }
     }
 
+    // Nothing exports exemplars, so the counters skip the sampling that 1.x counters do by default.
     private static final Counter TOPIC_LOAD_FAILED = Counter.builder().name("topic_load_failed").help("-")
-            .labelNames("reason").register();
+            .labelNames("reason").withoutExemplars().register();
 
     static {
         for (TopicLoadFailureReason reason : TopicLoadFailureReason.values()) {
@@ -82,10 +83,10 @@ public class BrokerOperabilityMetrics implements AutoCloseable {
 
     private static final Counter NON_RECOVERABLE_LEDGERS_SKIPPED = Counter.builder()
             .name("pulsar_broker_non_recoverable_ledgers_skipped")
-            .help("Count of non-recoverable ledgers skipped").register();
+            .help("Count of non-recoverable ledgers skipped").withoutExemplars().register();
     private static final Counter NON_RECOVERABLE_ENTRIES_SKIPPED = Counter.builder()
             .name("pulsar_broker_non_recoverable_entries_skipped")
-            .help("Count of non-recoverable entries skipped").register();
+            .help("Count of non-recoverable entries skipped").withoutExemplars().register();
     private final List<Metrics> metricsList;
     private final String localCluster;
     private final DimensionStats topicLoadStats;
