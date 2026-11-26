@@ -27,8 +27,6 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
 
 public final class PulsarStandaloneBuilder {
-    private Path tempBaseDir;
-
     private PulsarStandalone pulsarStandalone;
 
     private PulsarStandaloneBuilder() {
@@ -38,6 +36,10 @@ public final class PulsarStandaloneBuilder {
     }
 
     public PulsarStandaloneBuilder withTempDirectory() {
+        if (pulsarStandalone.getTempBaseDir() != null) {
+            return this;
+        }
+        Path tempBaseDir;
         try {
             tempBaseDir = Files.createTempDirectory("pulsar-standalone");
         } catch (IOException e) {
@@ -45,6 +47,7 @@ public final class PulsarStandaloneBuilder {
         }
         pulsarStandalone.setZkDir(tempBaseDir.resolve("zookeeper").toString());
         pulsarStandalone.setBkDir(tempBaseDir.resolve("bookkeeper").toString());
+        pulsarStandalone.setMetadataDir(tempBaseDir.resolve("metadata").toString());
         pulsarStandalone.setTempBaseDir(tempBaseDir);
         return this;
     }
@@ -111,6 +114,9 @@ public final class PulsarStandaloneBuilder {
     public PulsarStandalone build() {
         ServiceConfiguration config = new ServiceConfiguration();
         config.setClusterName("standalone");
+        config.setManagedLedgerDefaultEnsembleSize(1);
+        config.setManagedLedgerDefaultWriteQuorum(1);
+        config.setManagedLedgerDefaultAckQuorum(1);
         pulsarStandalone.setConfig(config);
 
         if (pulsarStandalone.getAdvertisedAddress() != null) {

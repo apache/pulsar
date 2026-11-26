@@ -19,12 +19,9 @@
 
 package org.apache.pulsar;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.AssertJUnit.assertNotNull;
-import static org.testng.AssertJUnit.assertTrue;
-import java.nio.file.Files;
+import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import java.nio.file.Path;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -33,6 +30,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class PulsarStandaloneBuilderTest {
     @Test
     public void testStartFromJava() throws Exception {
@@ -41,9 +39,13 @@ public class PulsarStandaloneBuilderTest {
                 .build();
         Path tempBaseDir = standalone.getTempBaseDir();
         try {
-            standalone.setNumOfBk(2);
+            standalone.getConfig().setBrokerServicePort(Optional.of(0));
+            standalone.getConfig().setWebServicePort(Optional.of(0));
             standalone.start();
-            assertTrue(Files.exists(tempBaseDir));
+            assertThat(tempBaseDir).exists();
+            assertThat(standalone.getConfig().getMetadataStoreUrl())
+                    .contains(tempBaseDir.toAbsolutePath().toString());
+
             try (PulsarClient client = standalone.buildClient()) {
                 Producer<String> producer = client.newProducer(Schema.STRING)
                         .topic("test-topic").create();
@@ -52,13 +54,13 @@ public class PulsarStandaloneBuilderTest {
 
                 producer.send("hello");
                 Message<String> msg = consumer.receive(10, TimeUnit.SECONDS);
-                assertNotNull(msg);
-                assertEquals(msg.getValue(), "hello");
+                assertThat(msg).isNotNull();
+                assertThat(msg.getValue()).isEqualTo("hello");
             }
 
         } finally {
             standalone.close();
         }
-        assertFalse(Files.exists(tempBaseDir), "Temp directory was not cleaned up: " + tempBaseDir);
+        assertThat(tempBaseDir).as("Temp directory was not cleaned up").doesNotExist();
         }
 }
