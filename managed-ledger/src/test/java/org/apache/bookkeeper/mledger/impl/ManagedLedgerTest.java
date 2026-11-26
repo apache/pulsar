@@ -4318,6 +4318,64 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         bkc.setReadHandleInterceptor(null);
     }
 
+    /**
+     * A later range that hits the read-entry timeout is a range that fails: the batch waits for the
+     * ranges in flight instead of finalizing on its own, delivers the first range's entries as the
+     * prefix, and leaves the cursor right after them, before the timed-out range.
+     */
+    @Test
+    public void testBatchedSkipReadLaterRangeTimesOutDeliversFirstRange() throws Exception {
+        ManagedLedgerConfig config = initManagedLedgerConfig(defaultConfig()).setReadEntryTimeoutSeconds(1);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("batched_skip_read_later_range_timeout",
+                config);
+        @Cleanup
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("test-cursor", InitialPosition.Earliest);
+        long ledgerId = -1;
+        for (int i = 0; i < 20; i++) {
+            ledgerId = ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding)).getLedgerId();
+        }
+        // Entries 4 to 15 are individually deleted: a 12-entry hole, so the window [0..19] is read as
+        // the ranges [0..3] and [16..19]
+        List<Position> hole = new ArrayList<>();
+        for (long entryId = 4; entryId <= 15; entryId++) {
+            hole.add(PositionFactory.create(ledgerId, entryId));
+        }
+        cursor.delete(hole);
+
+        // The first range answers at once; the second one never does, so that it hits the 1s timeout.
+        factory.getEntryCacheManager().clear();
+        bkc.setReadHandleInterceptor(new PulsarMockReadHandleInterceptor() {
+            @Override
+            public CompletableFuture<LedgerEntries> interceptReadAsync(long bkLedgerId, long firstEntry,
+                                                                       long lastEntry, LedgerEntries entries) {
+                if (firstEntry == 0) {
+                    return CompletableFuture.completedFuture(entries);
+                }
+                return new CompletableFuture<>();
+            }
+        });
+
+        RecordingReadEntriesCallback recording = new RecordingReadEntriesCallback();
+        try {
+            cursor.asyncReadEntries(20, -1, recording, null, PositionFactory.LATEST);
+
+            // The second range's timeout makes the read succeed with the first range's entries
+            assertTrue(recording.await());
+            assertEquals(recording.failure.get(), null,
+                    "a prefix was delivered, so the read reports the entries");
+            assertEquals(recording.entries.size(), 4);
+            for (int i = 0; i < 4; i++) {
+                assertEquals(recording.entries.get(i).getEntryId(), i);
+            }
+            // The cursor waits right after the delivered prefix: on the individually deleted hole
+            // before the timed-out range, which the next read's scan skips
+            assertEquals(cursor.getReadPosition().getEntryId(), 4);
+            recording.entries.forEach(Entry::release);
+        } finally {
+            bkc.setReadHandleInterceptor(null);
+        }
+    }
+
     @Test
     public void testReadEntryTimeoutCallbackRunsOnManagedLedgerExecutor() throws Exception {
         ManagedLedgerConfig config = initManagedLedgerConfig(defaultConfig()).setReadEntryTimeoutSeconds(1);
