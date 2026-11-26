@@ -64,8 +64,6 @@ import picocli.CommandLine.ScopeType;
 @CustomLog
 @Command(name = "standalone", showDefaultValues = true, scope = ScopeType.INHERIT)
 public class PulsarStandalone implements AutoCloseable {
-    private Path tempBaseDir;
-
     private static final String PULSAR_STANDALONE_USE_ZOOKEEPER = "PULSAR_STANDALONE_USE_ZOOKEEPER";
 
     PulsarService broker;
@@ -75,6 +73,7 @@ public class PulsarStandalone implements AutoCloseable {
 
     // This is used from Pulsar 2.11 on, with new default settings
     BKCluster bkCluster;
+    private Path tempBaseDir;
     MetadataStoreExtended metadataStore;
 
     ServiceConfiguration config;
@@ -256,6 +255,7 @@ public class PulsarStandalone implements AutoCloseable {
                 .serviceHttpUrl(this.getWebServiceUrl())
                 .build();
     }
+
     @Option(names = { "-c", "--config" }, description = "Configuration file path")
     private String configFile;
 

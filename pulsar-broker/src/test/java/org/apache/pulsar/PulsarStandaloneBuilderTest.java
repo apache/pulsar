@@ -19,10 +19,11 @@
 
 package org.apache.pulsar;
 
-import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import java.nio.file.Path;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
@@ -42,6 +43,9 @@ public class PulsarStandaloneBuilderTest {
             standalone.getConfig().setBrokerServicePort(Optional.of(0));
             standalone.getConfig().setWebServicePort(Optional.of(0));
             standalone.start();
+            try (PulsarAdmin admin = standalone.buildAdmin()) {
+                assertThat(admin.namespaces().getNamespaces("public")).contains("public/default");
+            }
             assertThat(tempBaseDir).exists();
             assertThat(standalone.getConfig().getMetadataStoreUrl())
                     .contains(tempBaseDir.toAbsolutePath().toString());
@@ -61,5 +65,5 @@ public class PulsarStandaloneBuilderTest {
             standalone.close();
         }
         assertThat(tempBaseDir).as("Temp directory was not cleaned up").doesNotExist();
-        }
+    }
 }
