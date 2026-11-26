@@ -938,9 +938,10 @@ public class MultiTopicsConsumerImplTest {
         when(clientMock.getPartitionsForTopic(topicName, false)).thenReturn(CompletableFuture.completedFuture(
                 Arrays.asList(topicPartition0, topicPartition1)));
 
-        // Occupy the pinned executor, then trigger growth: the creation task is queued but has
-        // not started when the topic is unsubscribed, so it must fail instead of publishing a
-        // child the unsubscribe never sees.
+        // Occupy the pinned executor, then trigger growth and unsubscribe while it is
+        // occupied: the creation task is queued ahead of the unsubscribe task, so it
+        // publishes the child first and the unsubscribe snapshot must include it instead
+        // of leaving an orphan behind or cleaning it up twice.
         CountDownLatch occupierRunning = new CountDownLatch(1);
         CountDownLatch releaseOccupier = new CountDownLatch(1);
         impl.internalPinnedExecutor.execute(() -> {
@@ -957,10 +958,9 @@ public class MultiTopicsConsumerImplTest {
         CompletableFuture<Void> unsubscribeFuture = impl.unsubscribeAsync(topicName);
 
         releaseOccupier.countDown();
-        // The unsubscribe already removed the topic, so the queued creation trips the
-        // recheck and fails; the refresh logs the failure and completes normally. Wait for
-        // both, then assert no child was created or published and the reservation was
-        // released.
+        // The creation ran before the unsubscribe snapshot, so the child was published
+        // and then unsubscribed by it; the refresh completes normally. Wait for both,
+        // then assert no child remains and the reservation was released.
         unsubscribeFuture.get(15, TimeUnit.SECONDS);
         growth.get(15, TimeUnit.SECONDS);
         assertFalse(impl.consumers.containsKey(topicPartition0));
