@@ -7689,10 +7689,11 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         long ledgerId = ledger.currentLedger.getId();
         // The scan skips entry 4, whose single-entry hole is merged into one range read [0..9]
         List<LongLongPair> ranges = List.of(LongLongPair.of(0L, 9L));
-        LongPredicate shouldSkipEntry =
-                entryId -> entryId == 4 || cursor.isMessageDeleted(ledgerId, entryId);
+        List<LongLongPair> mergedHoles = List.of(LongLongPair.of(4L, 4L));
+        LongPredicate shouldSkipEntry = entryId -> cursor.isMessageDeleted(ledgerId, entryId);
         ManagedLedgerImpl.BatchReadEntriesCallback callback = new ManagedLedgerImpl.BatchReadEntriesCallback(
-                ranges, 9, opReadEntry, PositionFactory.create(ledgerId, 9), readCtx, shouldSkipEntry);
+                ranges, 9, opReadEntry, PositionFactory.create(ledgerId, 9), readCtx, shouldSkipEntry,
+                mergedHoles);
 
         // Entry 7 was not skipped by the scan but is individually deleted while the range read is in
         // flight: it is dropped and released on arrival, the prefix walk jumps over it together with
@@ -7725,6 +7726,143 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertEquals(holeEntry.refCnt(), 0, "the merged hole entry must be released");
         assertEquals(deletedInFlightEntry.refCnt(), 0, "the entry deleted in flight must be released");
         assertEquals(cursor.getReadPosition().getEntryId(), 10);
+    }
+
+    /**
+     * A hole entry that stops being skipped while its range read is in flight must still be released
+     * without delivery: the expected count was reduced by the holes that the scan found, so
+     * delivering the entry would reach the count while another range is still in flight, and
+     * completing the batch then would advance the read position past that range's entries and drop
+     * them.
+     */
+    @Test
+    public void testBatchedSkipReadHoleEntryUnskippedOnArrivalDeliversInFlightRange() throws Exception {
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testBatchedSkipReadHoleEntryUnskipped",
+                initManagedLedgerConfig(defaultConfig()));
+        for (int i = 0; i < 20; i++) {
+            ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
+        }
+        @Cleanup
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("test-cursor", InitialPosition.Earliest);
+
+        // The scan skips entry 2 (a one-entry hole, merged into the range read [0..3]) and entries
+        // 4..18 (too long a run to merge), so the window [0..19] builds the ranges [0..3] and [19..19].
+        AtomicBoolean entryTwoInTracker = new AtomicBoolean(true);
+        Predicate<Position> skipCondition = position -> {
+            long entryId = position.getEntryId();
+            if (entryId == 2) {
+                return entryTwoInTracker.get();
+            }
+            return entryId >= 4 && entryId <= 18;
+        };
+
+        // While the range [0..3] is read, entry 2's delivery time passes and the tracker drops it, so
+        // the skip condition no longer matches it. The range [19..19] is held to be still in flight.
+        factory.getEntryCacheManager().clear();
+        CompletableFuture<Void> releaseSecondRange = new CompletableFuture<>();
+        bkc.setReadHandleInterceptor(new PulsarMockReadHandleInterceptor() {
+            @Override
+            public CompletableFuture<LedgerEntries> interceptReadAsync(long bkLedgerId, long firstEntry,
+                                                                       long lastEntry, LedgerEntries entries) {
+                if (firstEntry == 19) {
+                    return releaseSecondRange.thenApply(ignored -> entries);
+                }
+                entryTwoInTracker.set(false);
+                return CompletableFuture.completedFuture(entries);
+            }
+        });
+
+        RecordingReadEntriesCallback recording = new RecordingReadEntriesCallback();
+        cursor.asyncReadEntriesWithSkip(20, -1, recording, null, PositionFactory.LATEST, skipCondition);
+
+        try {
+            // Entry 2 is a hole of the scan: it must be released even though the condition no longer
+            // skips it, so that the batch waits for the held range instead of completing early.
+            assertFalse(recording.latch.await(500, TimeUnit.MILLISECONDS),
+                    "the batched read must wait for the in-flight range instead of completing early");
+            releaseSecondRange.complete(null);
+            assertTrue(recording.await());
+
+            assertEquals(recording.failure.get(), null);
+            List<Long> deliveredEntryIds = new ArrayList<>();
+            for (Entry entry : recording.entries) {
+                deliveredEntryIds.add(entry.getEntryId());
+            }
+            assertEquals(deliveredEntryIds, List.of(0L, 1L, 3L, 19L),
+                    "the scan's hole entry must be released and the in-flight range delivered");
+            assertEquals(cursor.getReadPosition().getEntryId(), 20);
+            recording.entries.forEach(Entry::release);
+        } finally {
+            bkc.setReadHandleInterceptor(null);
+        }
+    }
+
+    /**
+     * An arriving range whose entries are all filtered on arrival must not finalize the batched read
+     * while another range is in flight: the in-flight range can still deliver its entries, while
+     * finalizing now would release them and read them again.
+     */
+    @Test
+    public void testBatchReadEntriesCallbackWaitsWhenArrivingRangeFiltersToNothing() throws Exception {
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testBatchedSkipReadFiltersToNothing",
+                initManagedLedgerConfig(defaultConfig()));
+        for (int i = 0; i < 16; i++) {
+            ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
+        }
+        @Cleanup
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("test-cursor", InitialPosition.Earliest);
+        long ledgerId = ledger.currentLedger.getId();
+
+        // The scan skips entry 1 (a one-entry hole, merged into the range read [0..4]) and entries
+        // 5..13 (too long a run to merge), building the ranges [0..4] and [14..15].
+        LongPredicate scanSkip = entryId -> entryId == 1 || (entryId >= 5 && entryId <= 13);
+        List<LongLongPair> ranges = new ArrayList<>();
+        List<LongLongPair> mergedHoles = new ArrayList<>();
+        ManagedLedgerImpl.buildRanges(0, 15, scanSkip, 4, ranges, 8, 256, mergedHoles);
+        assertEquals(ranges, List.of(LongLongPair.of(0L, 4L), LongLongPair.of(14L, 15L)));
+        assertEquals(mergedHoles, List.of(LongLongPair.of(1L, 1L)));
+
+        Object readCtx = new Object();
+        RecordingReadEntriesCallback recording = new RecordingReadEntriesCallback();
+        OpReadEntry opReadEntry = OpReadEntry.create(cursor, cursor.readPosition, 16, -1, recording,
+                readCtx, ledger.lastConfirmedEntry, position -> false, true);
+        ManagedLedgerImpl.BatchReadEntriesCallback callback = new ManagedLedgerImpl.BatchReadEntriesCallback(
+                ranges, 6, opReadEntry, PositionFactory.create(ledgerId, 15), readCtx,
+                entryId -> scanSkip.test(entryId) || cursor.isMessageDeleted(ledgerId, entryId),
+                mergedHoles);
+
+        // The readable entries of the range [0..4] are individually deleted while the range read is
+        // in flight: together with the merged hole entry 1, everything of the range is filtered on
+        // arrival.
+        List<Position> deletedInFlight = new ArrayList<>();
+        for (long entryId : new long[]{0, 2, 3, 4}) {
+            deletedInFlight.add(PositionFactory.create(ledgerId, entryId));
+        }
+        cursor.delete(deletedInFlight);
+        callback.onRangeSubmitted();
+        callback.onRangeSubmitted();
+        callback.readEntriesComplete(List.of(EntryImpl.create(ledgerId, 0, new byte[1]),
+                EntryImpl.create(ledgerId, 1, new byte[1]),
+                EntryImpl.create(ledgerId, 2, new byte[1]),
+                EntryImpl.create(ledgerId, 3, new byte[1]),
+                EntryImpl.create(ledgerId, 4, new byte[1])), ranges.get(0));
+        assertFalse(callback.shouldStopSubmission(),
+                "an arrival that filters down to nothing must not finalize the batched read");
+
+        // The other range's entries are delivered, and the prefix walk accepts the deleted, hole and
+        // skipped entry ids in between, so that they form one contiguous prefix.
+        callback.readEntriesComplete(List.of(EntryImpl.create(ledgerId, 14, new byte[1]),
+                EntryImpl.create(ledgerId, 15, new byte[1])), ranges.get(1));
+        callback.submissionFinished();
+
+        assertTrue(recording.await());
+        assertEquals(recording.failure.get(), null);
+        List<Long> deliveredEntryIds = new ArrayList<>();
+        for (Entry entry : recording.entries) {
+            deliveredEntryIds.add(entry.getEntryId());
+        }
+        assertEquals(deliveredEntryIds, List.of(14L, 15L));
+        assertEquals(cursor.getReadPosition().getEntryId(), 16);
     }
 
     @Test
@@ -8204,71 +8342,71 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
                                                                      LongPredicate shouldSkipEntry,
                                                                      long maxMergedHoleDistance,
                                                                      long maxMergedRangeEntries,
-                                                                     long[] mergedHoleEntries) {
+                                                                     List<LongLongPair> mergedHoles) {
         List<LongLongPair> ranges = new ArrayList<>();
         ManagedLedgerImpl.buildRanges(firstEntry, lastEntry, shouldSkipEntry, Integer.MAX_VALUE, ranges,
-                maxMergedHoleDistance, maxMergedRangeEntries, mergedHoleEntries);
+                maxMergedHoleDistance, maxMergedRangeEntries, mergedHoles);
         return ranges;
     }
 
     @Test
     public void testBuildRangesMergesSmallHoleIntoOneRange() {
         // Skip entry 5, a hole of one entry: read through it instead of splitting [1..4] and [6..10]
-        long[] mergedHoleEntries = {0};
+        List<LongLongPair> mergedHoles = new ArrayList<>();
         List<LongLongPair> ranges = callBuildRangesWithHoleMerging(1, 10,
-                entryId -> entryId == 5, 8, 256, mergedHoleEntries);
+                entryId -> entryId == 5, 8, 256, mergedHoles);
 
         assertEquals(ranges.size(), 1);
         assertEquals(ranges.get(0), LongLongPair.of(1L, 10L));
-        assertEquals(mergedHoleEntries[0], 1);
+        assertEquals(mergedHoles, List.of(LongLongPair.of(5L, 5L)));
     }
 
     @Test
     public void testBuildRangesMergesOnlyHolesWithinMaxDistance() {
         // A hole one entry away merges with a maximum distance of 3, a hole four entries away splits
-        long[] mergedHoleEntries = {0};
+        List<LongLongPair> mergedHoles = new ArrayList<>();
         List<LongLongPair> ranges = callBuildRangesWithHoleMerging(0, 10,
-                entryId -> entryId == 2 || (entryId >= 6 && entryId <= 8), 3, 256, mergedHoleEntries);
+                entryId -> entryId == 2 || (entryId >= 6 && entryId <= 8), 3, 256, mergedHoles);
 
         assertEquals(ranges.size(), 2);
         assertEquals(ranges.get(0), LongLongPair.of(0L, 5L));
         assertEquals(ranges.get(1), LongLongPair.of(9L, 10L));
-        assertEquals(mergedHoleEntries[0], 1);
+        assertEquals(mergedHoles, List.of(LongLongPair.of(2L, 2L)));
     }
 
     @Test
     public void testBuildRangesHoleMergingDisabledSplitsEveryHole() {
-        long[] mergedHoleEntries = {0};
+        List<LongLongPair> mergedHoles = new ArrayList<>();
         List<LongLongPair> ranges = callBuildRangesWithHoleMerging(1, 10,
-                entryId -> entryId == 5, 0, 256, mergedHoleEntries);
+                entryId -> entryId == 5, 0, 256, mergedHoles);
 
         assertEquals(ranges.size(), 2);
         assertEquals(ranges.get(0), LongLongPair.of(1L, 4L));
         assertEquals(ranges.get(1), LongLongPair.of(6L, 10L));
-        assertEquals(mergedHoleEntries[0], 0);
+        assertTrue(mergedHoles.isEmpty());
     }
 
     @Test
     public void testBuildRangesHoleMergingBoundedByMaxRangeEntries() {
         // The hole is small, but merging it would span 11 entries of a maximum of 10
-        long[] mergedHoleEntries = {0};
+        List<LongLongPair> mergedHoles = new ArrayList<>();
         List<LongLongPair> ranges = callBuildRangesWithHoleMerging(0, 12,
-                entryId -> entryId == 10, 8, 10, mergedHoleEntries);
+                entryId -> entryId == 10, 8, 10, mergedHoles);
 
         assertEquals(ranges.size(), 2);
         assertEquals(ranges.get(0), LongLongPair.of(0L, 9L));
         assertEquals(ranges.get(1), LongLongPair.of(11L, 12L));
-        assertEquals(mergedHoleEntries[0], 0);
+        assertTrue(mergedHoles.isEmpty());
     }
 
     @Test
     public void testBuildRangesTrailingSkippedRunIsNotMerged() {
-        long[] mergedHoleEntries = {0};
+        List<LongLongPair> mergedHoles = new ArrayList<>();
         List<LongLongPair> ranges = callBuildRangesWithHoleMerging(0, 6,
-                entryId -> entryId >= 3, 8, 256, mergedHoleEntries);
+                entryId -> entryId >= 3, 8, 256, mergedHoles);
 
         assertEquals(ranges.size(), 1);
         assertEquals(ranges.get(0), LongLongPair.of(0L, 2L));
-        assertEquals(mergedHoleEntries[0], 0);
+        assertTrue(mergedHoles.isEmpty());
     }
 }
