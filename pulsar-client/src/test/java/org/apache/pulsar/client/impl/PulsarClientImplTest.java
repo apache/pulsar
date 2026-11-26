@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -43,26 +44,36 @@ import io.netty.resolver.AddressResolver;
 import io.netty.resolver.dns.DefaultDnsServerAddressStreamProvider;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import io.netty.util.concurrent.ImmediateEventExecutor;
 import java.lang.reflect.Field;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.regex.Pattern;
 import lombok.Cleanup;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageRoutingMode;
+import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientSharedResources;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.client.util.ScheduledExecutorProvider;
@@ -74,6 +85,7 @@ import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.mockito.Mockito;
 import org.testng.annotations.AfterMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
@@ -104,6 +116,216 @@ public class PulsarClientImplTest {
         assertFalse(client.isClosed());
         client.close();
         assertTrue(client.isClosed());
+    }
+
+    @DataProvider
+    public Object[][] sharedEventLoop() {
+        return new Object[][]{{false}, {true}};
+    }
+
+    /**
+     * A lookup on a closed client fails without asking for a new connection: once the client's own event loop has
+     * terminated, a new connection never completes, and a shared event loop would still open one.
+     */
+    @Test(dataProvider = "sharedEventLoop", timeOut = 30_000)
+    public void testLookupsFailOnClosedClient(boolean sharedEventLoop) throws Exception {
+        @Cleanup
+        PulsarClientSharedResources sharedResources = sharedEventLoop
+                ? PulsarClientSharedResources.builder()
+                        .resourceTypes(PulsarClientSharedResources.SharedResource.EventLoopGroup)
+                        .build()
+                : null;
+        PulsarClientImpl client = (PulsarClientImpl) PulsarClient.builder()
+                .serviceUrl("pulsar://localhost:6650")
+                .sharedResources(sharedResources)
+                .build();
+        client.close();
+
+        String topic = "persistent://public/default/test";
+        assertFailsAsClosed(client.getSchema(topic));
+        assertFailsAsClosed(client.getConnection(topic));
+        assertFailsAsClosed(client.getConnectionToServiceUrl());
+    }
+
+    private static void assertFailsAsClosed(CompletableFuture<?> future) {
+        assertThat(future).failsWithin(Duration.ofSeconds(10))
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(PulsarClientException.AlreadyClosedException.class);
+    }
+
+    @DataProvider
+    public Object[][] partitions() {
+        return new Object[][]{{0}, {2}};
+    }
+
+    /**
+     * Cancelling the creation future does not stop the creation: the producer still comes up, and the client keeps
+     * owning it, so it is closed with the client.
+     */
+    @Test(dataProvider = "partitions")
+    @SuppressWarnings("unchecked")
+    public void testCancelledCreationLeavesTheProducerOwnedByTheClient(int partitions) throws Exception {
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setServiceUrl("pulsar://localhost:6650");
+        initializeEventLoopGroup(conf);
+        LookupService lookup = mock(LookupService.class);
+        CompletableFuture<PartitionedTopicMetadata> metadata = new CompletableFuture<>();
+        when(lookup.getPartitionedTopicMetadata(any(TopicName.class), anyBoolean(), anyBoolean()))
+                .thenReturn(metadata);
+        when(lookup.getBroker(any()))
+                .thenReturn(CompletableFuture.completedFuture(new LookupTopicResult(
+                        mock(InetSocketAddress.class), mock(InetSocketAddress.class), false)));
+        ConnectionPool pool = mock(ConnectionPool.class);
+        ClientCnx cnx = mock(ClientCnx.class);
+        ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
+        Channel channel = mock(Channel.class);
+        when(channel.remoteAddress()).thenReturn(mock(SocketAddress.class));
+        when(channel.eventLoop()).thenReturn(eventLoopGroup.next());
+        when(ctx.channel()).thenReturn(channel);
+        when(ctx.writeAndFlush(any(), any(ChannelPromise.class))).thenReturn(mock(ChannelFuture.class));
+        when(ctx.voidPromise()).thenReturn(mock(ChannelPromise.class));
+        when(cnx.channel()).thenReturn(channel);
+        when(cnx.ctx()).thenReturn(ctx);
+        ProducerResponse response = mock(ProducerResponse.class);
+        when(response.getProducerName()).thenReturn("cancelled-creation-producer");
+        when(cnx.sendRequestWithId(any(ByteBuf.class), anyLong()))
+                .thenReturn(CompletableFuture.completedFuture(response));
+        when(pool.getConnection(any(InetSocketAddress.class), any(InetSocketAddress.class), anyInt()))
+                .thenReturn(CompletableFuture.completedFuture(cnx));
+        PulsarClientImpl client = new PulsarClientImpl(conf, eventLoopGroup, pool);
+        client.setLookup(lookup);
+        try {
+            ProducerConfigurationData producerConf = new ProducerConfigurationData();
+            producerConf.setTopicName("persistent://public/default/cancelled-creation");
+            producerConf.setMessageRoutingMode(MessageRoutingMode.RoundRobinPartition);
+            CompletableFuture<Producer<byte[]>> creation = client.createProducerAsync(producerConf, Schema.BYTES);
+
+            // Cancelled before the metadata is known, which is before the producer exists.
+            creation.cancel(true);
+            metadata.complete(new PartitionedTopicMetadata(partitions));
+
+            assertEquals(client.producersCount(), 1, "The client must keep owning the producer");
+        } finally {
+            client.close();
+        }
+        assertEquals(client.producersCount(), 0, "Closing the client must close the producer it kept");
+    }
+
+    @DataProvider
+    public Object[][] endedBeforeRegistration() {
+        return new Object[][]{
+                {"closed", (Consumer<ProducerImpl<?>>) ProducerImpl::closeAsync},
+                {"failed", (Consumer<ProducerImpl<?>>) producer ->
+                        producer.connectionFailed(new PulsarClientException.AuthorizationException("not allowed"))},
+        };
+    }
+
+    /**
+     * A producer whose creation fails before the client has registered it, from another thread or from a
+     * connection that fails at once, removes itself from the client while it is not there yet. The client must not
+     * keep it afterwards.
+     */
+    @Test(dataProvider = "endedBeforeRegistration")
+    @SuppressWarnings("unchecked")
+    public void testProducerEndedBeforeItIsRegisteredIsNotKept(String how, Consumer<ProducerImpl<?>> end)
+            throws Exception {
+        LookupService lookup = mock(LookupService.class);
+        when(lookup.getPartitionedTopicMetadata(any(TopicName.class), anyBoolean(), anyBoolean()))
+                .thenReturn(CompletableFuture.completedFuture(new PartitionedTopicMetadata()));
+        when(lookup.getBroker(any())).thenReturn(new CompletableFuture<>());
+        ConnectionPool pool = mock(ConnectionPool.class);
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setServiceUrl("pulsar://localhost:6650");
+        PulsarClientImpl client = new PulsarClientImpl(conf, eventLoopGroup, pool) {
+            @Override
+            protected <T> ProducerImpl<T> newProducerImpl(String topic, int partitionIndex,
+                                                          ProducerConfigurationData producerConf, Schema<T> schema,
+                                                          ProducerInterceptors interceptors,
+                                                          CompletableFuture<Producer<T>> producerCreatedFuture,
+                                                          Optional<String> overrideProducerName) {
+                ProducerImpl<T> producer = super.newProducerImpl(topic, partitionIndex, producerConf, schema,
+                        interceptors, producerCreatedFuture, overrideProducerName);
+                // Before createProducerAsync() has added the producer.
+                end.accept(producer);
+                return producer;
+            }
+        };
+        client.setLookup(lookup);
+        try {
+            ProducerConfigurationData producerConf = new ProducerConfigurationData();
+            producerConf.setTopicName("persistent://public/default/closed-before-registered");
+            client.createProducerAsync(producerConf, Schema.BYTES);
+
+            assertEquals(client.producersCount(), 0,
+                    "A producer " + how + " before it was registered must not be kept");
+        } finally {
+            client.close();
+        }
+    }
+
+    @DataProvider
+    public Object[][] subscriptionsFailingAtOnce() {
+        return new Object[][]{
+                {"consumer", 0, "subscribe request"}, {"consumer", 0, "connection"},
+                {"reader", 0, "subscribe request"}, {"reader", 0, "connection"},
+                {"consumer", 2, "subscribe request"}, {"reader", 2, "subscribe request"},
+        };
+    }
+
+    /**
+     * A subscription whose connection is already open and whose subscribe request has already failed when the
+     * consumer attaches its callbacks (the broker's error arrived first), or whose connection fails at once, fails
+     * inside the consumer's constructor, before the client has registered the consumer: the consumer removes itself
+     * from the client while it is not there yet. The client must not keep it afterwards. On a partitioned topic, the
+     * partitions' failures reach the parent consumer through the client's executors, which run tasks at once here.
+     */
+    @Test(dataProvider = "subscriptionsFailingAtOnce")
+    public void testConsumerFailedBeforeItIsRegisteredIsNotKept(String kind, int partitions, String failing)
+            throws Exception {
+        LookupService lookup = mock(LookupService.class);
+        when(lookup.getPartitionedTopicMetadata(any(TopicName.class), anyBoolean(), anyBoolean()))
+                .thenReturn(CompletableFuture.completedFuture(new PartitionedTopicMetadata(partitions)));
+        when(lookup.getBroker(any()))
+                .thenReturn(CompletableFuture.completedFuture(new LookupTopicResult(
+                        mock(InetSocketAddress.class), mock(InetSocketAddress.class), false)));
+        ConnectionPool pool = mock(ConnectionPool.class);
+        if (failing.equals("subscribe request")) {
+            ClientCnx cnx = mock(ClientCnx.class);
+            Channel channel = mock(Channel.class);
+            when(cnx.channel()).thenReturn(channel);
+            ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
+            when(ctx.channel()).thenReturn(channel);
+            when(cnx.ctx()).thenReturn(ctx);
+            when(cnx.sendRequestWithId(any(ByteBuf.class), anyLong())).thenAnswer(invocation -> {
+                invocation.getArgument(0, ByteBuf.class).release();
+                return CompletableFuture.failedFuture(
+                        new PulsarClientException.IncompatibleSchemaException("incompatible schema"));
+            });
+            when(pool.getConnection(any(InetSocketAddress.class), any(InetSocketAddress.class), anyInt()))
+                    .thenReturn(CompletableFuture.completedFuture(cnx));
+        } else {
+            when(pool.getConnection(any(InetSocketAddress.class), any(InetSocketAddress.class), anyInt()))
+                    .thenReturn(CompletableFuture.failedFuture(
+                            new PulsarClientException.AuthorizationException("not allowed")));
+        }
+        ExecutorProvider executors = mock(ExecutorProvider.class);
+        when(executors.getExecutor()).thenReturn(ImmediateEventExecutor.INSTANCE);
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setServiceUrl("pulsar://localhost:6650");
+        PulsarClientImpl client = new PulsarClientImpl(conf, eventLoopGroup, pool, null, executors, executors, null);
+        client.setLookup(lookup);
+        try {
+            String topic = "persistent://public/default/failed-before-registered";
+            CompletableFuture<?> subscription = kind.equals("consumer")
+                    ? client.newConsumer().topic(topic).subscriptionName("sub").subscribeAsync()
+                    : client.newReader().topic(topic).startMessageId(MessageId.earliest).createAsync();
+
+            assertThat(subscription).isCompletedExceptionally();
+            assertEquals(client.consumersCount(), 0, "A " + kind + " on " + partitions + " partitions whose "
+                    + failing + " failed before it was registered must not be kept");
+        } finally {
+            client.close();
+        }
     }
 
     @Test

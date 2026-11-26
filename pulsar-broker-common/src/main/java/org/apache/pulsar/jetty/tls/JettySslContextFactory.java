@@ -21,6 +21,7 @@ package org.apache.pulsar.jetty.tls;
 import java.util.Set;
 import javax.net.ssl.SSLContext;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.common.tls.TlsClientAuthMode;
 import org.apache.pulsar.common.util.PulsarSslFactory;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
@@ -37,15 +38,34 @@ public class JettySslContextFactory {
                                                                    PulsarSslFactory pulsarSslFactory,
                                                                    boolean requireTrustedClientCertOnConnect,
                                                                    Set<String> ciphers, Set<String> protocols) {
+        return createSslContextFactory(sslProviderString, pulsarSslFactory,
+                requireTrustedClientCertOnConnect ? TlsClientAuthMode.REQUIRE : TlsClientAuthMode.OPTIONAL,
+                ciphers, protocols);
+    }
+
+    /**
+     * Create a Jetty server {@link SslContextFactory} backed by the given {@link PulsarSslFactory}.
+     *
+     * @param sslProviderString the JSSE provider name, or {@code null}/empty for the default
+     * @param pulsarSslFactory  the factory that supplies the {@code SSLContext}
+     * @param clientAuthMode    whether to require, request or not request a client certificate
+     * @param ciphers           enabled cipher suites, or {@code null} for defaults
+     * @param protocols         enabled protocols, or {@code null} for defaults
+     * @return the Jetty server SSL context factory
+     */
+    public static SslContextFactory.Server createSslContextFactory(String sslProviderString,
+                                                                   PulsarSslFactory pulsarSslFactory,
+                                                                   TlsClientAuthMode clientAuthMode,
+                                                                   Set<String> ciphers, Set<String> protocols) {
         return new JettySslContextFactory.Server(sslProviderString, pulsarSslFactory,
-                requireTrustedClientCertOnConnect, ciphers, protocols);
+                clientAuthMode, ciphers, protocols);
     }
 
     private static class Server extends SslContextFactory.Server {
         private final PulsarSslFactory pulsarSslFactory;
 
         public Server(String sslProviderString, PulsarSslFactory pulsarSslFactory,
-                      boolean requireTrustedClientCertOnConnect, Set<String> ciphers, Set<String> protocols) {
+                      TlsClientAuthMode clientAuthMode, Set<String> ciphers, Set<String> protocols) {
             super();
             this.pulsarSslFactory = pulsarSslFactory;
 
@@ -61,8 +81,13 @@ public class JettySslContextFactory {
                 setProvider(sslProviderString);
             }
 
-            if (requireTrustedClientCertOnConnect) {
+            if (clientAuthMode == TlsClientAuthMode.REQUIRE) {
                 this.setNeedClientAuth(true);
+                this.setTrustAll(false);
+            } else if (clientAuthMode == TlsClientAuthMode.NONE) {
+                // No client certificate is requested, so there is none to trust.
+                this.setNeedClientAuth(false);
+                this.setWantClientAuth(false);
                 this.setTrustAll(false);
             } else {
                 this.setWantClientAuth(true);

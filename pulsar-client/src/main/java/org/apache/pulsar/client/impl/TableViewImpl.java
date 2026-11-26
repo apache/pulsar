@@ -48,6 +48,7 @@ import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TableView;
 import org.apache.pulsar.client.api.TopicMessageId;
+import org.apache.pulsar.client.impl.schema.ByteBufferSchema;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.topics.TopicCompactionStrategy;
@@ -147,7 +148,9 @@ public class TableViewImpl<T> implements TableView<T> {
                 .startMessageId(MessageId.earliest)
                 .autoUpdatePartitions(true)
                 .autoUpdatePartitionsInterval((int) conf.getAutoUpdatePartitionsSeconds(), TimeUnit.SECONDS)
-                .poolMessages(true)
+                // pooled messages are released after the value is extracted, except with ByteBufferSchema,
+                // which returns a view of the message payload
+                .poolMessages(!(schema instanceof ByteBufferSchema))
                 .subscriptionName(conf.getSubscriptionName());
         if (isPersistentTopic) {
             readerBuilder.readCompacted(true);

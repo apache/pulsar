@@ -18,9 +18,13 @@
  */
 package org.apache.pulsar.broker.transaction.coordinator;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.AssertJUnit.assertTrue;
 import static org.testng.AssertJUnit.fail;
 import com.google.common.collect.Sets;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerTestBase;
@@ -93,6 +97,24 @@ public class TransactionCoordinatorConfigTest extends BrokerTestBase {
             fail();
         } catch (Exception e) {
             assertTrue(e.getCause() instanceof PulsarClientException.TimeoutException);
+        }
+    }
+
+    @Test(timeOut = 60000)
+    public void testClientBuildFailsWhenTransactionsAreDisabled() throws Exception {
+        pulsar.getConfig().setTransactionCoordinatorEnabled(false);
+        CompletableFuture<PulsarClient> build = CompletableFuture.supplyAsync(() -> {
+            try {
+                return PulsarClient.builder().serviceUrl(lookupUrl.toString()).enableTransaction(true).build();
+            } catch (PulsarClientException e) {
+                throw new CompletionException(e);
+            }
+        });
+        try {
+            build.get(10, TimeUnit.SECONDS).close();
+            fail();
+        } catch (ExecutionException e) {
+            assertThat(e).hasRootCauseInstanceOf(PulsarClientException.NotAllowedException.class);
         }
     }
 }

@@ -133,8 +133,21 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
 
                         @Override
                         public ZooKeeper call() throws KeeperException, InterruptedException {
-                            if (closed.get()) {
-                                throw new InterruptedException("ZooKeeper client is closed");
+                            synchronized (reconnectLock) {
+                                if (closed.get()) {
+                                    throw new InterruptedException("ZooKeeper client is closed");
+                                }
+                                // A replacement can connect after its wait timed out, while the retry backs off.
+                                long currentGeneration = currentHandleGeneration.get();
+                                ZooKeeper currentZk = zk.get();
+                                if (currentZk != null && currentGeneration != reconnectingHandleGeneration
+                                        && currentGeneration != pendingReconnectHandleGeneration) {
+                                    States state = currentZk.getState();
+                                    if (state == States.CONNECTED
+                                            || (allowReadOnlyMode && state == States.CONNECTEDREADONLY)) {
+                                        return currentZk;
+                                    }
+                                }
                             }
                             log.info("Reconnecting zookeeper {}.", connectString);
                             // close the previous one
@@ -594,7 +607,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
     // held.
     boolean runStateUpdateIfCurrentHandle(CurrentHandleIdentity expectedIdentity, Runnable stateUpdate) {
         synchronized (reconnectLock) {
-            if (!expectedIdentity.equals(getCurrentHandleIdentityLocked())) {
+            if (closed.get() || !expectedIdentity.equals(getCurrentHandleIdentityLocked())) {
                 return false;
             }
             stateUpdate.run();

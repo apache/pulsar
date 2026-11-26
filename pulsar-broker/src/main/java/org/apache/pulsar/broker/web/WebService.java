@@ -43,6 +43,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.intercept.BrokerInterceptors;
+import org.apache.pulsar.common.tls.TlsClientAuthMode;
 import org.apache.pulsar.common.util.PulsarSslConfiguration;
 import org.apache.pulsar.common.util.PulsarSslFactory;
 import org.apache.pulsar.jetty.metrics.JettyStatisticsCollector;
@@ -171,7 +172,7 @@ public class WebService implements AutoCloseable {
                 }
                 SslContextFactory.Server sslCtxFactory =
                         JettySslContextFactory.createSslContextFactory(config.getWebServiceTlsProvider(),
-                                this.sslFactory, config.isTlsRequireTrustedClientCertOnConnect(),
+                                this.sslFactory, config.resolveTlsClientAuthMode(),
                                 firstNonEmpty(config.getWebServiceTlsCiphers(), config.getTlsCiphers()),
                                 firstNonEmpty(config.getWebServiceTlsProtocols(), config.getTlsProtocols()));
                 List<ConnectionFactory> connectionFactories = new ArrayList<>();
@@ -521,7 +522,9 @@ public class WebService implements AutoCloseable {
                 .tlsCertificateFilePath(serviceConfig.getTlsCertificateFilePath())
                 .tlsKeyFilePath(serviceConfig.getTlsKeyFilePath())
                 .allowInsecureConnection(serviceConfig.isTlsAllowInsecureConnection())
-                .requireTrustedClientCertOnConnect(serviceConfig.isTlsRequireTrustedClientCertOnConnect())
+                .requireTrustedClientCertOnConnect(
+                        serviceConfig.resolveTlsClientAuthMode() == TlsClientAuthMode.REQUIRE)
+                .clientAuthMode(serviceConfig.resolveTlsClientAuthMode())
                 .tlsEnabledWithKeystore(serviceConfig.isTlsEnabledWithKeyStore())
                 .tlsCustomParams(serviceConfig.getSslFactoryPluginParams())
                 .serverMode(true)

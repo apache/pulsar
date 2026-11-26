@@ -31,4 +31,13 @@
     <Match>
         <Bug pattern="UUF_UNUSED_PUBLIC_OR_PROTECTED_FIELD"/>
     </Match>
+    <Match>
+        <!-- Accessed from lambdas that run under the monitor of synchronized methods -->
+        <Class name="org.apache.pulsar.metadata.impl.ZKSessionWatcher"/>
+        <Or>
+            <Field name="probeGeneration"/>
+            <Field name="replacedSessionId"/>
+        </Or>
+        <Bug pattern="IS2_INCONSISTENT_SYNC"/>
+    </Match>
 </FindBugsFilter>

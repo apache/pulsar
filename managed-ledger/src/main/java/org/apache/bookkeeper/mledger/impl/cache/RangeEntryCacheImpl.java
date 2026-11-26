@@ -81,7 +81,6 @@ public class RangeEntryCacheImpl implements EntryCache {
     final ManagedLedgerImpl ml;
     private ManagedLedgerInterceptor interceptor;
     private final RangeCache entries;
-    private final boolean copyEntries;
     private final PendingReadsManager pendingReadsManager;
 
     private static final double MB = 1024 * 1024;
@@ -90,12 +89,12 @@ public class RangeEntryCacheImpl implements EntryCache {
     private final LongAdder totalAddedEntriesCount = new LongAdder();
     private final EntryLengthFunction entryLengthFunction;
 
-    public RangeEntryCacheImpl(RangeEntryCacheManagerImpl manager, ManagedLedgerImpl ml, boolean copyEntries,
+    public RangeEntryCacheImpl(RangeEntryCacheManagerImpl manager, ManagedLedgerImpl ml,
                                RangeCacheRemovalQueue rangeCacheRemovalQueue, EntryLengthFunction entryLengthFunction) {
-        this(manager, ml, copyEntries, rangeCacheRemovalQueue, entryLengthFunction, null);
+        this(manager, ml, rangeCacheRemovalQueue, entryLengthFunction, null);
     }
 
-    RangeEntryCacheImpl(RangeEntryCacheManagerImpl manager, ManagedLedgerImpl ml, boolean copyEntries,
+    RangeEntryCacheImpl(RangeEntryCacheManagerImpl manager, ManagedLedgerImpl ml,
                         RangeCacheRemovalQueue rangeCacheRemovalQueue, EntryLengthFunction entryLengthFunction,
                         PendingReadsManager pendingReadsManager) {
         this.manager = manager;
@@ -104,7 +103,6 @@ public class RangeEntryCacheImpl implements EntryCache {
         this.entryLengthFunction = entryLengthFunction;
         this.interceptor = ml.getManagedLedgerInterceptor();
         this.entries = new RangeCache(rangeCacheRemovalQueue);
-        this.copyEntries = copyEntries;
 
         if (log.isDebugEnabled()) {
             log.debug("[{}] Initialized managed-ledger entry cache", ml.getName());
@@ -145,6 +143,7 @@ public class RangeEntryCacheImpl implements EntryCache {
                     entryLength);
         }
 
+        boolean copyEntries = manager.isCopyEntriesInCache();
         ByteBuf cachedData;
         if (copyEntries) {
             cachedData = copyEntry(entry);
@@ -479,11 +478,22 @@ public class RangeEntryCacheImpl implements EntryCache {
                         if (readEntries != null && !readEntries.isEmpty()) {
                             for (Entry entry : readEntries) {
                                 int index = (int) (entry.getPosition().getEntryId() - firstPosition.getEntryId());
-                                if (index >= 0 && index < entriesToReturn.size()) {
+                                if (index >= 0 && index < entriesToReturn.size()
+                                        && entriesToReturn.get(index) == null) {
                                     entriesToReturn.set(index, entry);
                                 } else {
-                                    log.warn("Received entry {} outside of expected range {} to {}",
+                                    // The entry is unexpected: it is either positioned outside
+                                    // the requested range, or it duplicates an already-filled
+                                    // slot — a storage read answering beyond its missing
+                                    // sub-range would otherwise overwrite the slot's entry,
+                                    // leaking it. The dropped entry has no other owner: the
+                                    // future's list is the sole reference, and unlike the
+                                    // failure path above (which releases every
+                                    // successfully-read entry), nothing downstream would
+                                    // release it — release it here to avoid leaking its buffer.
+                                    log.warn("Received an unexpected entry {}, dropping it (expected range {} to {})",
                                             entry.getPosition(), firstPosition, lastPosition);
+                                    releaseUndeliveredEntry(entry);
                                 }
                             }
                         }
@@ -496,6 +506,19 @@ public class RangeEntryCacheImpl implements EntryCache {
             pendingReadsManager.readEntries(lh, firstPosition.getEntryId(), lastPosition.getEntryId(),
                     expectedReadCount, callback, ctx);
         }
+    }
+
+    /**
+     * Releases an entry that is dropped without being delivered to a reader. The drop must not
+     * count as a read on the expected-read count the entry shares with the cached copy that
+     * {@code readFromStorage} inserted — otherwise the cached entry becomes eligible for
+     * eviction before its expected readers got to it — while the deallocation hooks still run.
+     * The same treatment {@link PendingReadsManager} gives to entries that do not represent a
+     * delivery.
+     */
+    private static void releaseUndeliveredEntry(Entry entry) {
+        ((EntryImpl) entry).setDecreaseReadCountOnRelease(false);
+        entry.release();
     }
 
     private CompletableFuture<List<Entry>> readMissingEntriesAsync(ReadHandle lh,
@@ -585,14 +608,27 @@ public class RangeEntryCacheImpl implements EntryCache {
                                 false));
             }
 
-            if (!(cause instanceof BKException
-                    && ((BKException) cause).getCode() == BKException.Code.TooManyRequestsException)) {
-                ml.invalidateLedgerHandle(lh);
-                pendingReadsManager.invalidateLedger(lh.getId());
+            if (cause instanceof BKException
+                    && ((BKException) cause).getCode() == BKException.Code.TooManyRequestsException) {
+                return CompletableFuture.<List<Entry>>failedFuture(cause);
             }
-
-            CompletableFuture<List<Entry>> failedFuture = CompletableFuture.failedFuture(cause);
-            return failedFuture;
+            pendingReadsManager.invalidateLedger(lh.getId());
+            if (!allowRetry) {
+                ml.invalidateLedgerHandle(lh);
+                return CompletableFuture.<List<Entry>>failedFuture(cause);
+            }
+            // The cached handle keeps the ensembles the ledger had when it was opened: read again once if the ledger
+            // was re-replicated since, instead of failing the read and making the cursor back off
+            return ml.reopenLedgerHandleIfReplicated(lh).thenCompose(reopened -> {
+                if (reopened == null) {
+                    return CompletableFuture.<List<Entry>>failedFuture(cause);
+                }
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Read failed on a handle of ledger {} with outdated ensembles, reading again with"
+                            + " the current ones", ml.getName(), lh.getId());
+                }
+                return readFromStorage(reopened, firstEntry, lastEntry, expectedReadCount, false);
+            });
         }).thenCompose(Function.identity());
     }
 

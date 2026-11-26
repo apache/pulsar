@@ -25,6 +25,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.ToString;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
+import org.apache.pulsar.common.tls.TlsClientAuthMode;
 
 /**
  * Pulsar SSL Configuration Object to be used by all Pulsar Server and Client Components.
@@ -63,6 +64,14 @@ public class PulsarSslConfiguration implements Serializable, Cloneable {
             required = true
     )
     private boolean requireTrustedClientCertOnConnect;
+
+    @ApiModelProperty(
+            name = "clientAuthMode",
+            value = "Whether a server asks connecting clients for a certificate (NONE, OPTIONAL or REQUIRE). "
+                    + "When null, a server requires a client certificate if requireTrustedClientCertOnConnect "
+                    + "is true and requests one otherwise."
+    )
+    private TlsClientAuthMode clientAuthMode;
 
     @ApiModelProperty(
             name = "authData",
