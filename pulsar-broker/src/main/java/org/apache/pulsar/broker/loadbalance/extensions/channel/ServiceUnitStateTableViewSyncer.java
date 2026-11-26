@@ -39,6 +39,7 @@ import java.util.function.BiConsumer;
 import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -58,11 +59,20 @@ public class ServiceUnitStateTableViewSyncer implements Closeable {
     };
     private volatile int syncWaitTimeInSecs = SYNC_WAIT_TIME_IN_SECS;
     private PulsarService pulsar;
+    private final PulsarClient client;
     private volatile ServiceUnitStateTableView systemTopicTableView;
     private volatile ServiceUnitStateTableView metadataStoreTableView;
     private volatile boolean isActive = false;
     private final ObjectWriter jsonWriter = ObjectMapperFactory.getMapper().writer();
 
+
+    public ServiceUnitStateTableViewSyncer() {
+        this(null);
+    }
+
+    public ServiceUnitStateTableViewSyncer(PulsarClient client) {
+        this.client = client;
+    }
 
     public void start(PulsarService pulsar)
             throws IOException, TimeoutException, InterruptedException, ExecutionException {
@@ -137,6 +147,7 @@ public class ServiceUnitStateTableViewSyncer implements Closeable {
         ServiceUnitStateTableView systemTopicTableView = new ServiceUnitStateTableViewImpl();
         systemTopicTableView.start(
                 pulsar,
+                client,
                 NOOP_CONSUMER,
                 NOOP_CONSUMER,
                 NOOP_CONSUMER
@@ -197,6 +208,7 @@ public class ServiceUnitStateTableViewSyncer implements Closeable {
         this.systemTopicTableView = new ServiceUnitStateTableViewImpl();
         this.systemTopicTableView.start(
                 pulsar,
+                client,
                 this::syncToMetadataStore,
                 NOOP_CONSUMER,
                 NOOP_CONSUMER

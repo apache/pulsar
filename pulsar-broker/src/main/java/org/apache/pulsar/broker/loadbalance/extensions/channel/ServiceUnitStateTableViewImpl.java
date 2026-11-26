@@ -33,6 +33,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TableView;
@@ -50,6 +51,7 @@ public class ServiceUnitStateTableViewImpl extends ServiceUnitStateTableViewBase
     public static final CompressionType MSG_COMPRESSION_TYPE = CompressionType.ZSTD;
     private volatile Producer<ServiceUnitStateData> producer;
     private volatile TableView<ServiceUnitStateData> tableview;
+    private PulsarClient client;
 
     @Override
     @SuppressWarnings("deprecation")
@@ -58,6 +60,7 @@ public class ServiceUnitStateTableViewImpl extends ServiceUnitStateTableViewBase
                       BiConsumer<String, ServiceUnitStateData> existingItemListener,
                       BiConsumer<String, ServiceUnitStateData> itemOutdatedListeners) throws IOException {
         boolean debug = ExtensibleLoadManagerImpl.debug(pulsar.getConfiguration(), log);
+        PulsarClient client = this.client != null ? this.client : pulsar.getClient();
 
         init(pulsar);
 
@@ -72,7 +75,7 @@ public class ServiceUnitStateTableViewImpl extends ServiceUnitStateTableViewBase
             }
         }
 
-        producer = pulsar.getClient().newProducer(schema)
+        producer = client.newProducer(schema)
                 .enableBatching(true)
                 .compressionType(MSG_COMPRESSION_TYPE)
                 .maxPendingMessages(MAX_OUTSTANDING_PUB_MESSAGES)
@@ -91,7 +94,7 @@ public class ServiceUnitStateTableViewImpl extends ServiceUnitStateTableViewBase
             }
         }
 
-        tableview = pulsar.getClient().newTableViewBuilder(schema)
+        tableview = client.newTableViewBuilder(schema)
                 .topic(TOPIC)
                 .loadConf(Map.of(
                         "topicCompactionStrategyClassName",
@@ -102,6 +105,16 @@ public class ServiceUnitStateTableViewImpl extends ServiceUnitStateTableViewBase
         tableview.forEach(this::updateOwnedServiceUnits);
         tableview.forEach(existingItemListener);
 
+    }
+
+    @Override
+    public void start(PulsarService pulsar, PulsarClient client,
+                      BiConsumer<String, ServiceUnitStateData> tailItemListener,
+                      BiConsumer<String, ServiceUnitStateData> existingItemListener,
+                      BiConsumer<String, ServiceUnitStateData> itemOutdatedListeners) throws IOException {
+        this.client = client;
+        // Preserve the original extension point for subclasses overriding start().
+        start(pulsar, tailItemListener, existingItemListener, itemOutdatedListeners);
     }
 
     private boolean isValidState() {

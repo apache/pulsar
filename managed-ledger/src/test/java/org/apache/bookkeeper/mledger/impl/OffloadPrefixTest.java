@@ -37,7 +37,6 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BooleanSupplier;
@@ -1546,9 +1545,21 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         assertEquals(offloader.offloadedLedgers(), Set.of(lastLedgerId));
     }
 
-    @Test
-    public void manualOffloadWaitsForTerminationMetadataUpdate() throws Exception {
-        MockLedgerOffloader offloader = new MockLedgerOffloader();
+    @DataProvider(name = "terminationOffloadThresholds")
+    public Object[][] terminationOffloadThresholds() {
+        return new Object[][] {{-1L}, {0L}};
+    }
+
+    @Test(dataProvider = "terminationOffloadThresholds")
+    public void manualOffloadWaitsForTerminationMetadataUpdate(long automaticOffloadThreshold) throws Exception {
+        CompletableFuture<Void> allowOffload = new CompletableFuture<>();
+        MockLedgerOffloader offloader = new MockLedgerOffloader() {
+            @Override
+            public CompletableFuture<Void> offload(ReadHandle ledger, UUID uuid, Map<String, String> extraMetadata) {
+                return allowOffload.thenCompose(__ -> super.offload(ledger, uuid, extraMetadata));
+            }
+        };
+        offloader.getOffloadPolicies().setManagedLedgerOffloadThresholdInBytes(automaticOffloadThreshold);
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setMaxEntriesPerLedger(10);
         config.setRetentionTime(10, TimeUnit.MINUTES);
@@ -1600,17 +1611,21 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         assertTrue(terminationMetadataPutStarted.await(5, TimeUnit.SECONDS));
 
         OffloadCallbackPromise offloadResult = new OffloadCallbackPromise();
-        // The blocked metadata put holds the managed ledger lock, so start the offload from another thread
-        CompletableFuture.runAsync(() -> ledger.asyncOffloadPrefix(lastPosition, offloadResult, null));
         try {
-            assertThrows(TimeoutException.class, () -> offloadResult.get(1, TimeUnit.SECONDS));
+            ledger.asyncOffloadPrefix(lastPosition, offloadResult, null);
+            assertFalse(offloadResult.isDone());
             assertEquals(metadataPutCount.get(), 1);
         } finally {
             allowConcurrentMetadataPuts.set(true);
             allowTerminationMetadataPut.countDown();
         }
 
-        assertEquals(terminationResult.get(5, TimeUnit.SECONDS), lastPosition);
+        try {
+            assertEquals(terminationResult.get(5, TimeUnit.SECONDS), lastPosition);
+        } finally {
+            // Keep the first copy in flight until the pending manual request has resumed on the ledger executor.
+            ledger.getExecutor().execute(() -> allowOffload.complete(null));
+        }
         assertEquals(offloadResult.get(5, TimeUnit.SECONDS), lastPosition.getNext());
         assertEquals(offloader.offloadedLedgers(), Set.of(lastLedgerId));
         assertFalse(ledger.getState().isFenced());
