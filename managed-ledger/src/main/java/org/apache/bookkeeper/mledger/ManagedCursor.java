@@ -153,7 +153,8 @@ public interface ManagedCursor {
      *
      * <p>On a durable cursor, even an unchanged update can advance the metadata version
      * or fail with {@link ManagedLedgerException.BadVersionException}. Callers should be
-     * prepared to retry on a version conflict.
+     * prepared to retry on a version conflict; a retry re-applies the function, so the
+     * function must be side-effect free and must not retain the passed map.
      *
      * The default implementation is a best-effort, non-atomic fallback that applies the per-key
      * differences through the individual property operations; implementations with an atomic
