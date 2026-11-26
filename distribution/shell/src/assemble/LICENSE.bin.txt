@@ -334,7 +334,7 @@ The Apache Software License, Version 2.0
     - listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar
  * J2ObjC Annotations -- j2objc-annotations-3.1.jar
  * Netty Reactive Streams -- netty-reactive-streams-2.0.20.jar
- * Swagger -- swagger-annotations-jakarta-2.2.55.jar
+ * Swagger -- swagger-annotations-jakarta-2.2.56.jar
  * DataSketches
     - datasketches-java-7.0.1.jar
     - datasketches-memory-4.1.0.jar
@@ -377,11 +377,13 @@ The Apache Software License, Version 2.0
     - netty-resolver-dns-native-macos-4.2.21.Final-osx-aarch_64.jar
     - netty-resolver-dns-native-macos-4.2.21.Final-osx-x86_64.jar
  * Prometheus client
-    - simpleclient-0.16.0.jar
-    - simpleclient_log4j2-0.16.0.jar
-    - simpleclient_tracer_common-0.16.0.jar
-    - simpleclient_tracer_otel-0.16.0.jar
-    - simpleclient_tracer_otel_agent-0.16.0.jar
+    - prometheus-metrics-config-1.8.0.jar
+    - prometheus-metrics-core-1.8.0.jar
+    - prometheus-metrics-model-1.8.0.jar
+    - prometheus-metrics-tracer-common-1.8.0.jar
+    - prometheus-metrics-tracer-initializer-1.8.0.jar
+    - prometheus-metrics-tracer-otel-1.8.0.jar
+    - prometheus-metrics-tracer-otel-agent-1.8.0.jar
  * Log4J
     - log4j-api-2.26.1.jar
     - log4j-core-2.26.1.jar
@@ -427,7 +429,7 @@ The Apache Software License, Version 2.0
     - avro-protobuf-1.12.2.jar
  * RE2j -- re2j-1.8.jar
  * Spotify completable-futures -- completable-futures-0.3.6.jar
- * RoaringBitmap -- RoaringBitmap-1.6.29.jar
+ * RoaringBitmap -- RoaringBitmap-1.6.30.jar
  * Fastutil -- it.unimi.dsi:fastutil (only the classes used by Pulsar, bundled within pulsar-client-fastutil-minimized)
  * JSpecify -- jspecify-1.0.1.jar
  * JetBrains Annotations -- annotations-26.1.0.jar

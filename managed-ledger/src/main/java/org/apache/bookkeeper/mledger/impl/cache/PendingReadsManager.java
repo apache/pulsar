@@ -42,50 +42,59 @@ import org.apache.pulsar.common.util.FutureUtil;
 @CustomLog
 public class PendingReadsManager {
 
+    // Nothing exports exemplars, so the counters skip the sampling that 1.x counters do by default.
     private static final Counter COUNT_ENTRIES_READ_FROM_BK = Counter
             .builder()
             .name("pulsar_ml_cache_pendingreads_entries_read")
             .help("Total number of entries read from BK")
+            .withoutExemplars()
             .register();
 
     private static final Counter COUNT_ENTRIES_NOTREAD_FROM_BK = Counter
             .builder()
             .name("pulsar_ml_cache_pendingreads_entries_notread")
             .help("Total number of entries not read from BK")
+            .withoutExemplars()
             .register();
 
     private static final Counter COUNT_PENDING_READS_MATCHED = Counter
             .builder()
             .name("pulsar_ml_cache_pendingreads_matched")
             .help("Pending reads reused with perfect range match")
+            .withoutExemplars()
             .register();
     private static final Counter COUNT_PENDING_READS_MATCHED_INCLUDED = Counter
             .builder()
             .name("pulsar_ml_cache_pendingreads_matched_included")
             .help("Pending reads reused by attaching to a read with a larger range")
+            .withoutExemplars()
             .register();
     private static final Counter COUNT_PENDING_READS_MISSED = Counter
             .builder()
             .name("pulsar_ml_cache_pendingreads_missed")
             .help("Pending reads that didn't find a match")
+            .withoutExemplars()
             .register();
 
     private static final Counter COUNT_PENDING_READS_MATCHED_OVERLAPPING_MISS_LEFT = Counter
             .builder()
             .name("pulsar_ml_cache_pendingreads_matched_overlapping_miss_left")
             .help("Pending reads that didn't find a match but they partially overlap with another read")
+            .withoutExemplars()
             .register();
 
     private static final Counter COUNT_PENDING_READS_MATCHED_BUT_OVERLAPPING_MISS_RIGHT = Counter
             .builder()
             .name("pulsar_ml_cache_pendingreads_matched_overlapping_miss_right")
             .help("Pending reads that didn't find a match but they partially overlap with another read")
+            .withoutExemplars()
             .register();
 
     private static final Counter COUNT_PENDING_READS_MATCHED_BUT_OVERLAPPING_MISS_BOTH = Counter
             .builder()
             .name("pulsar_ml_cache_pendingreads_matched_overlapping_miss_both")
             .help("Pending reads that didn't find a match but they partially overlap with another read")
+            .withoutExemplars()
             .register();
 
     private final RangeEntryCacheImpl rangeEntryCache;
@@ -491,7 +500,10 @@ public class PendingReadsManager {
 
     private void releaseEntriesSafely(CompletableFuture<List<Entry>> future) {
         if (!future.isCompletedExceptionally()) {
-            future.thenAccept(entries -> entries.forEach(Entry::release));
+            // a leg read through the cache may deliver a sparse list whose null slots have nothing
+            // to release; the discard also skips them and keeps the shared expected-read counts
+            // intact, since no entry of the failed read reached a reader
+            future.thenAccept(EntryImpl::releaseDiscarded);
         }
     }
 

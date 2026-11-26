@@ -22,6 +22,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.io.IOException;
+import java.util.BitSet;
 import java.util.Objects;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageIdAdv;
@@ -106,7 +107,7 @@ public class MessageIdImpl implements MessageIdAdv, TraceableMessageId {
         if (idData.hasBatchIndex()) {
             if (idData.hasBatchSize()) {
                 messageId = new BatchMessageIdImpl(idData.getLedgerId(), idData.getEntryId(), idData.getPartition(),
-                    idData.getBatchIndex(), idData.getBatchSize(), BatchMessageIdImpl.newAckSet(idData.getBatchSize()));
+                    idData.getBatchIndex(), idData.getBatchSize(), ackSetFor(idData));
             } else {
                 messageId = new BatchMessageIdImpl(idData.getLedgerId(), idData.getEntryId(), idData.getPartition(),
                     idData.getBatchIndex());
@@ -141,8 +142,7 @@ public class MessageIdImpl implements MessageIdAdv, TraceableMessageId {
         if (idData.hasBatchIndex()) {
             if (idData.hasBatchSize()) {
                 messageId = new BatchMessageIdImpl(idData.getLedgerId(), idData.getEntryId(), idData.getPartition(),
-                        idData.getBatchIndex(), idData.getBatchSize(),
-                        BatchMessageIdImpl.newAckSet(idData.getBatchSize()));
+                        idData.getBatchIndex(), idData.getBatchSize(), ackSetFor(idData));
             } else {
                 messageId = new BatchMessageIdImpl(idData.getLedgerId(), idData.getEntryId(), idData.getPartition(),
                         idData.getBatchIndex(), 0, null);
@@ -156,6 +156,14 @@ public class MessageIdImpl implements MessageIdAdv, TraceableMessageId {
         }
 
         return messageId;
+    }
+
+    private static BitSet ackSetFor(MessageIdData idData) throws IOException {
+        final int batchSize = idData.getBatchSize();
+        if (batchSize < 0) {
+            throw new IOException("Invalid message id data: negative batch size " + batchSize);
+        }
+        return BatchMessageIdImpl.newAckSet(batchSize);
     }
 
     protected MessageIdData writeMessageIdData(MessageIdData msgId, int batchIndex, int batchSize) {

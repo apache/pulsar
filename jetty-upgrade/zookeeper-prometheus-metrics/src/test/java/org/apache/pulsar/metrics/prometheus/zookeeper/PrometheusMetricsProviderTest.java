@@ -26,7 +26,6 @@ import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertSame;
 import static org.testng.AssertJUnit.assertTrue;
 import static org.testng.AssertJUnit.fail;
-import io.prometheus.client.CollectorRegistry;
 import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -73,7 +72,6 @@ public class PrometheusMetricsProviderTest {
 
     @BeforeMethod
     public void setup() throws Exception {
-        CollectorRegistry.defaultRegistry.clear();
         provider = new PrometheusMetricsProvider(new PrometheusRegistry());
         Properties configuration = new Properties();
         configuration.setProperty("numWorkerThreads", "0"); // sync behavior for test
@@ -89,7 +87,6 @@ public class PrometheusMetricsProviderTest {
         if (provider != null) {
             provider.stop();
         }
-        CollectorRegistry.defaultRegistry.clear();
     }
 
     @Test
@@ -500,34 +497,6 @@ public class PrometheusMetricsProviderTest {
         } catch (final IllegalArgumentException e) {
             assertThat(e.getMessage()).contains("Already registered");
         }
-    }
-
-    /**
-     * conf/log4j2.yaml still configures the simpleclient 0.x Prometheus appender. Its samples
-     * must remain visible in both /metrics and the 4lw dump until that appender is migrated
-     * as part of #27045, without re-exposing the old JVM/process samples.
-     */
-    @Test
-    public void testLegacyCollectorSamplesAreExposed() throws Exception {
-        io.prometheus.client.Counter.build("log4j2_appender_total", "log4j2 appender events")
-                .labelNames("level")
-                .register(CollectorRegistry.defaultRegistry)
-                .labels("error").inc();
-        io.prometheus.client.Gauge.build("jvm_dummy_bytes_used", "legacy jvm sample")
-                .register(CollectorRegistry.defaultRegistry).set(1);
-        io.prometheus.client.Gauge.build("process_dummy_seconds", "legacy process sample")
-                .register(CollectorRegistry.defaultRegistry).set(1);
-
-        String response = callServlet();
-        assertThat(response).contains("log4j2_appender_total{level=\"error\",} 1.0");
-        assertThat(response).doesNotContain("jvm_dummy_bytes_used");
-        assertThat(response).doesNotContain("process_dummy_seconds");
-
-        Map<String, Object> dumped = new HashMap<>();
-        provider.dump(dumped::put);
-        assertThat(dumped).containsEntry("log4j2_appender_total{level=\"error\"}", 1.0);
-        assertThat(dumped.keySet()).noneMatch(key -> key.startsWith("jvm_dummy_")
-                || key.startsWith("process_dummy_"));
     }
 
     /**

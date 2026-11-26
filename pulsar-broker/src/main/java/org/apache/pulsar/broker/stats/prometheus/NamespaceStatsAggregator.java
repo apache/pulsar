@@ -30,13 +30,13 @@ import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl;
 import org.apache.commons.collections4.MapUtils;
-import org.apache.commons.lang3.ArrayUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.GetStatsOptions;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopicMetrics;
 import org.apache.pulsar.broker.service.persistent.PersistentTopicMetrics.BacklogQuotaMetrics;
+import org.apache.pulsar.broker.service.persistent.SystemTopic;
 import org.apache.pulsar.broker.stats.prometheus.metrics.PrometheusLabels;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
@@ -204,6 +204,9 @@ public class NamespaceStatsAggregator {
                                       boolean subscriptionBacklogSize, Optional<CompactorMXBean> compactorMXBean) {
         stats.reset();
 
+        // Custom topic types can override the ledger accessor or the backlog returned by topic stats.
+        Class<?> topicClass = topic.getClass();
+        boolean reuseTopicBacklogSize = topicClass == PersistentTopic.class || topicClass == SystemTopic.class;
         if (topic instanceof PersistentTopic persistentTopic) {
             // Managed Ledger stats
             ManagedLedger ml = persistentTopic.getManagedLedger();
@@ -211,7 +214,9 @@ public class NamespaceStatsAggregator {
 
             stats.managedLedgerStats.storageSize = mlStats.getStoredMessagesSize();
             stats.managedLedgerStats.storageLogicalSize = mlStats.getStoredMessagesLogicalSize();
-            stats.managedLedgerStats.backlogSize = ml.getEstimatedBacklogSize();
+            if (!reuseTopicBacklogSize) {
+                stats.managedLedgerStats.backlogSize = ml.getEstimatedBacklogSize();
+            }
             stats.managedLedgerStats.offloadedStorageUsed = ml.getOffloadedSize();
             stats.backlogQuotaLimit = topic
                     .getBacklogQuota(BacklogQuotaType.destination_storage).getLimitSize();
@@ -248,6 +253,9 @@ public class NamespaceStatsAggregator {
                 .subscriptionBacklogSize(subscriptionBacklogSize)
                 .excludeLastPublishTime(true)
                 .build());
+        if (reuseTopicBacklogSize) {
+            stats.managedLedgerStats.backlogSize = tStatus.backlogSize;
+        }
         stats.msgInCounter = tStatus.msgInCounter;
         stats.bytesInCounter = tStatus.bytesInCounter;
         stats.msgOutCounter = tStatus.msgOutCounter;
@@ -378,6 +386,7 @@ public class NamespaceStatsAggregator {
 
     private static void printBrokerStats(PrometheusMetricStreams stream, String cluster,
                                          AggregatedBrokerStats brokerStats) {
+        String[] clusterLabels = {"cluster", cluster};
         // Print metrics values. This is necessary to have the available brokers being
         // reported in the brokers dashboard even if they don't have any topic or traffic
         writeMetric(stream, "pulsar_broker_topics_count", brokerStats.topicsCount, cluster);
@@ -404,15 +413,15 @@ public class NamespaceStatsAggregator {
 
         writeMetric(stream, "pulsar_broker_msg_backlog", brokerStats.msgBacklog, cluster);
         long userOutBytes = brokerStats.bytesOutCounter - brokerStats.bytesOutInternalCounter;
-        writeMetric(stream, "pulsar_broker_out_bytes_total",
-                userOutBytes, cluster, "system_subscription", "false");
-        writeMetric(stream, "pulsar_broker_out_bytes_total",
-                brokerStats.bytesOutInternalCounter, cluster, "system_subscription", "true");
+        stream.writeSample("pulsar_broker_out_bytes_total",
+                userOutBytes, clusterLabels, "system_subscription", "false");
+        stream.writeSample("pulsar_broker_out_bytes_total",
+                brokerStats.bytesOutInternalCounter, clusterLabels, "system_subscription", "true");
         long userTopicInBytes = brokerStats.bytesInCounter - brokerStats.systemTopicBytesInCounter;
-        writeMetric(stream, "pulsar_broker_in_bytes_total",
-                userTopicInBytes, cluster, "system_topic", "false");
-        writeMetric(stream, "pulsar_broker_in_bytes_total",
-                brokerStats.systemTopicBytesInCounter, cluster, "system_topic", "true");
+        stream.writeSample("pulsar_broker_in_bytes_total",
+                userTopicInBytes, clusterLabels, "system_topic", "false");
+        stream.writeSample("pulsar_broker_in_bytes_total",
+                brokerStats.systemTopicBytesInCounter, clusterLabels, "system_topic", "true");
     }
 
     private static void printTopicsCountStats(PrometheusMetricStreams stream, Map<String, Long> namespaceTopicsCount,
@@ -468,10 +477,11 @@ public class NamespaceStatsAggregator {
         writeMetric(stream, "pulsar_delayed_message_index_size_bytes", stats.delayedMessageIndexSizeInBytes, cluster,
                 namespace);
 
-        stats.bucketDelayedIndexStats.forEach((k, metric) -> {
-            String[] labels = ArrayUtils.addAll(new String[]{"namespace", namespace}, metric.labelsAndValues);
-            writeMetric(stream, metric.name, metric.value, cluster, labels);
-        });
+        if (!stats.bucketDelayedIndexStats.isEmpty()) {
+            String[] namespaceLabels = {"cluster", cluster, "namespace", namespace};
+            stats.bucketDelayedIndexStats.forEach((k, metric) ->
+                    stream.writeSample(metric.name, metric.value, namespaceLabels, metric.labelsAndValues));
+        }
 
         writePulsarMsgBacklog(stream, stats.msgBacklog, cluster, namespace);
         writePulsarBacklogQuotaMetricNamespaceLevel(stream,
@@ -592,12 +602,6 @@ public class NamespaceStatsAggregator {
     private static void writeMetric(PrometheusMetricStreams stream, String metricName, Number value,
                                     String cluster) {
         stream.writeSample(metricName, value, "cluster", cluster);
-    }
-
-    private static void writeMetric(PrometheusMetricStreams stream, String metricName, Number value,
-                                    String cluster, String... extraLabelsAndValues) {
-        String[] labels = ArrayUtils.addAll(new String[]{"cluster", cluster}, extraLabelsAndValues);
-        stream.writeSample(metricName, value, labels);
     }
 
     private static void writeMetric(PrometheusMetricStreams stream, String metricName, Number value, String cluster,

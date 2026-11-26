@@ -24,11 +24,9 @@ import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.common.stats.JvmMetrics.getJvmDirectMemoryUsed;
 import com.google.common.annotations.VisibleForTesting;
-import io.prometheus.client.Collector;
-import io.prometheus.client.CollectorRegistry;
-import io.prometheus.client.Gauge;
-import io.prometheus.client.Gauge.Child;
+import io.prometheus.metrics.core.metrics.GaugeWithCallback;
 import io.prometheus.metrics.instrumentation.jvm.JvmMetrics;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import jakarta.servlet.Servlet;
 import java.io.IOException;
 import java.text.DateFormat;
@@ -39,6 +37,7 @@ import java.util.Date;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import java.util.function.LongSupplier;
 import lombok.CustomLog;
 import lombok.Getter;
 import org.apache.logging.log4j.LogManager;
@@ -291,40 +290,10 @@ public class ProxyServiceStarter {
         if (!metricsInitialized) {
             // Setup metrics
             JvmMetrics.builder().register();
-            CollectorRegistry registry = CollectorRegistry.defaultRegistry;
 
             // Report direct memory from Netty counters
-            Collector jvmMemoryDirectBytesUsed =
-                    Gauge.build("jvm_memory_direct_bytes_used", "-").create().setChild(new Child() {
-                        @Override
-                        public double get() {
-                            return getJvmDirectMemoryUsed();
-                        }
-                    });
-            try {
-                registry.register(jvmMemoryDirectBytesUsed);
-            } catch (IllegalArgumentException e) {
-                // workaround issue in tests where the metric is already registered
-                log.debug()
-                        .exceptionMessage(e)
-                        .log("Failed to register jvm_memory_direct_bytes_used");
-            }
-
-            Collector jvmMemoryDirectBytesMax =
-                    Gauge.build("jvm_memory_direct_bytes_max", "-").create().setChild(new Child() {
-                        @Override
-                        public double get() {
-                            return DirectMemoryUtils.jvmMaxDirectMemory();
-                        }
-                    });
-            try {
-                registry.register(jvmMemoryDirectBytesMax);
-            } catch (IllegalArgumentException e) {
-                // workaround issue in tests where the metric is already registered
-                log.debug()
-                        .exceptionMessage(e)
-                        .log("Failed to register jvm_memory_direct_bytes_max");
-            }
+            registerGaugeUnlessNameIsTaken("jvm_memory_direct_bytes_used", () -> getJvmDirectMemoryUsed());
+            registerGaugeUnlessNameIsTaken("jvm_memory_direct_bytes_max", DirectMemoryUtils::jvmMaxDirectMemory);
 
             metricsInitialized = true;
         }
@@ -336,6 +305,19 @@ public class ProxyServiceStarter {
 
         // start web-service
         server.start();
+    }
+
+    private static void registerGaugeUnlessNameIsTaken(String name, LongSupplier currentValue) {
+        try {
+            GaugeWithCallback.builder()
+                    .name(name)
+                    .help("-")
+                    .callback(callback -> callback.call(currentValue.getAsLong()))
+                    .register(PrometheusRegistry.defaultRegistry);
+        } catch (IllegalArgumentException nameIsTakenByABrokerInThisJvm) {
+            log.debug().attr("gauge", name).exceptionMessage(nameIsTakenByABrokerInThisJvm)
+                    .log("Prometheus gauge is already registered");
+        }
     }
 
     public void close() {

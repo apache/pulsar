@@ -311,7 +311,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                 return future;
             }
 
-            if (subscriptionName.startsWith(replicatorPrefix)) {
+            if (AbstractReplicator.isReplicatorCursor(replicatorPrefix, subscriptionName)) {
                 log.warn()
                         .attr("subscription", subscriptionName)
                         .log("Failed to create subscription");

@@ -81,6 +81,8 @@ val clientProjects = setOf(
     ":pulsar-client-tools-customcommand-example", ":pulsar-cli-utils",
     ":pulsar-package-management:pulsar-package-core",
     ":pulsar-functions:pulsar-functions-api", ":pulsar-io:pulsar-io-core",
+    // Bundled with the client CLI tools, whose conf/log4j2.yaml configures its appender.
+    ":pulsar-log4j2-prometheus-metrics",
     // Test support must also load in the Java 17 consumer compatibility test JVM.
     ":buildtools", ":testmocks", ":tests:pulsar-client-java-compatibility",
 )
