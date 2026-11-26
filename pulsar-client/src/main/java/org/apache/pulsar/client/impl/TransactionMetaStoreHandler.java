@@ -887,7 +887,9 @@ public class TransactionMetaStoreHandler extends HandlerState
         this.useProxy = newUseProxy;
         ClientCnx current = cnx();
         if (current != null) {
-            // Drop the current connection; connectionClosed re-grabs against the new leader.
+            // Drop the current connection; connectionClosed re-grabs against the new leader. That
+            // reconnect uses the connection handler's proxy mode, so update it first.
+            connectionHandler.setUseProxy(newUseProxy);
             current.channel().close();
         } else {
             connectionHandler.grabCnx(newLeaderUri, newUseProxy);

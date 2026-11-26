@@ -104,12 +104,14 @@ public class TxnLogBufferedWriterMetricsStats implements Closeable {
         this.labelValues = labelValues.clone();
 
         // Classic buckets only, as before: a native histogram would add a second representation of each metric.
+        // Nothing exports exemplars, so the metrics skip the sampling that 1.x metrics do by default.
         recordsPerBatchHistogram = owned(Histogram.builder()
                         .name(metricsPrefix + "_bufferedwriter_batch_records")
                         .labelNames(this.labelNames)
                         .help("Records per batch histogram")
                         .classicOnly()
                         .classicUpperBounds(RECORD_COUNT_PER_ENTRY_BUCKETS)
+                        .withoutExemplars()
                         .register(registry))
                 .labelValues(this.labelValues);
 
@@ -119,6 +121,7 @@ public class TxnLogBufferedWriterMetricsStats implements Closeable {
                         .help("Batch size in bytes histogram")
                         .classicOnly()
                         .classicUpperBounds(BYTES_SIZE_PER_ENTRY_BUCKETS)
+                        .withoutExemplars()
                         .register(registry))
                 .labelValues(this.labelValues);
 
@@ -128,6 +131,7 @@ public class TxnLogBufferedWriterMetricsStats implements Closeable {
                         .help("Max record latency in batch histogram")
                         .classicOnly()
                         .classicUpperBounds(MAX_DELAY_TIME_BUCKETS)
+                        .withoutExemplars()
                         .register(registry))
                 .labelValues(this.labelValues);
 
@@ -135,6 +139,7 @@ public class TxnLogBufferedWriterMetricsStats implements Closeable {
                         .name(metricsPrefix + "_bufferedwriter_flush_trigger_max_records")
                         .labelNames(this.labelNames)
                         .help("Event count of batch flush triggered by max records count")
+                        .withoutExemplars()
                         .register(registry))
                 .labelValues(this.labelValues);
 
@@ -142,6 +147,7 @@ public class TxnLogBufferedWriterMetricsStats implements Closeable {
                         .name(metricsPrefix + "_bufferedwriter_flush_trigger_max_size")
                         .labelNames(this.labelNames)
                         .help("Event count of batch flush triggered by max bytes size")
+                        .withoutExemplars()
                         .register(registry))
                 .labelValues(this.labelValues);
 
@@ -149,6 +155,7 @@ public class TxnLogBufferedWriterMetricsStats implements Closeable {
                         .name(metricsPrefix + "_bufferedwriter_flush_trigger_max_delay")
                         .labelNames(this.labelNames)
                         .help("Event count of batch flush triggered by max delay time")
+                        .withoutExemplars()
                         .register(registry))
                 .labelValues(this.labelValues);
 
@@ -156,6 +163,7 @@ public class TxnLogBufferedWriterMetricsStats implements Closeable {
                         .name(metricsPrefix + "_bufferedwriter_flush_trigger_large_data")
                         .labelNames(this.labelNames)
                         .help("Event count of batch flush triggered by the single large data write")
+                        .withoutExemplars()
                         .register(registry))
                 .labelValues(this.labelValues);
 

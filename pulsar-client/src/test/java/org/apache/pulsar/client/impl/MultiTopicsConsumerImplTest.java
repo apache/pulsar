@@ -25,7 +25,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -33,14 +36,19 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.expectThrows;
 import com.google.common.collect.Sets;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.HashedWheelTimer;
+import io.netty.util.Timeout;
 import io.netty.util.Timer;
+import io.netty.util.TimerTask;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
@@ -58,6 +66,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import lombok.Cleanup;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -182,6 +191,204 @@ public class MultiTopicsConsumerImplTest {
                 clientMock, consumerConfData, executorProvider,
                 new CompletableFuture<>(), schema, null, true);
         return impl;
+    }
+
+    @Test
+    public void testPartitionUpdateSkipsInitialSubscriptionDuringRollback() throws Exception {
+        String topic = "persistent://public/default/initial-subscription";
+        String failedPartition = topic + "-partition-0";
+        String pendingPartition = topic + "-partition-1";
+        ClientCnx connection = ClientTestFixtures.mockClientCnx();
+        PulsarClientImpl client = createPulsarClientMockWithMockedClientCnx(
+                executorProvider, internalExecutor, connection);
+        when(client.timer().newTimeout(any(), eq(60L), eq(TimeUnit.SECONDS))).thenAnswer(invocation -> {
+            Timeout timeout = mock(Timeout.class);
+            TimerTask task = invocation.getArgument(0);
+            when(timeout.task()).thenReturn(task);
+            return timeout;
+        });
+        var failure = new PulsarClientException.AuthorizationException("lookup denied");
+        when(client.getConnection(eq(failedPartition), anyInt()))
+                .thenReturn(CompletableFuture.failedFuture(failure))
+                .thenReturn(CompletableFuture.completedFuture(Pair.of(connection, false)));
+        CompletableFuture<Pair<ClientCnx, Boolean>> pendingConnection = new CompletableFuture<>();
+        when(client.getConnection(eq(pendingPartition), anyInt())).thenReturn(pendingConnection);
+        when(client.getPartitionsForTopic(topic, false))
+                .thenReturn(CompletableFuture.completedFuture(List.of(failedPartition, pendingPartition)));
+
+        Schema<byte[]> schema = mock();
+        when(schema.getSchemaInfo()).thenReturn(Schema.BYTES.getSchemaInfo());
+        CompletableFuture<Void> rollbackStarted = new CompletableFuture<>();
+        CompletableFuture<Void> schemaClosed = new CompletableFuture<>();
+        when(schema.closeAsync()).thenAnswer(invocation -> {
+            rollbackStarted.complete(null);
+            return schemaClosed;
+        });
+
+        ConsumerConfigurationData<byte[]> conf = new ConsumerConfigurationData<>();
+        conf.getTopicNames().add(topic);
+        conf.setSubscriptionName("subscription");
+        conf.setAutoUpdatePartitions(true);
+        CompletableFuture<Consumer<byte[]>> subscription = new CompletableFuture<>();
+        MultiTopicsConsumerImpl<byte[]> parent = MultiTopicsConsumerImpl.createPartitionedConsumer(
+                client, conf, executorProvider, subscription, 2, schema, null);
+        Timeout timeout = parent.getPartitionsAutoUpdateTimeout();
+        ConsumerImpl<byte[]> failedChild = parent.consumers.get(failedPartition);
+        assertTrue(failedChild.subscribeFuture().isCompletedExceptionally());
+
+        ConsumerImpl<byte[]> childAfterUpdate = null;
+        try {
+            pendingConnection.completeExceptionally(failure);
+            rollbackStarted.get(5, TimeUnit.SECONDS);
+            assertFalse(subscription.isDone());
+
+            // Rollback has captured the original children, but their asynchronous close is still pending.
+            PartitionsChangedListener listener = parent.topicsPartitionChangedListener;
+            listener.onTopicsExtended(List.of(topic)).get(5, TimeUnit.SECONDS);
+            childAfterUpdate = parent.consumers.get(failedPartition);
+            assertSame(childAfterUpdate, failedChild, "Partition update replaced a child during initial rollback");
+            verify(client).getConnection(eq(failedPartition), anyInt());
+        } finally {
+            schemaClosed.complete(null);
+            try {
+                expectThrows(ExecutionException.class, () -> subscription.get(5, TimeUnit.SECONDS));
+            } finally {
+                if (childAfterUpdate != null && childAfterUpdate != failedChild) {
+                    childAfterUpdate.closeAsync().get(5, TimeUnit.SECONDS);
+                }
+            }
+        }
+        assertTrue(parent.getPartitions().isEmpty());
+        // An expired timeout can still run after cleanup cancelled partition updates.
+        timeout.task().run(timeout);
+        assertNull(parent.getPartitionsAutoUpdateTimeout());
+    }
+
+    @Test
+    public void testCloseWaitsForPartitionReplacement() throws Exception {
+        String topic = "persistent://public/default/close-during-retry";
+        String first = topic + "-partition-0";
+        String second = topic + "-partition-1";
+        ClientCnx connection = ClientTestFixtures.mockClientCnx();
+        PulsarClientImpl client = createPulsarClientMockWithMockedClientCnx(
+                executorProvider, internalExecutor, connection);
+        client.getConfiguration().setStatsIntervalSeconds(0);
+        doReturn(CompletableFuture.completedFuture(List.of(first, second)))
+                .when(client).getPartitionsForTopic(topic, false);
+        CountDownLatch lookupStarted = new CountDownLatch(1);
+        CountDownLatch continueLookup = new CountDownLatch(1);
+        doReturn(CompletableFuture.failedFuture(new PulsarClientException.AuthorizationException("denied")))
+                .doAnswer(invocation -> {
+                    lookupStarted.countDown();
+                    assertTrue(continueLookup.await(20, TimeUnit.SECONDS));
+                    return CompletableFuture.completedFuture(Pair.of(connection, false));
+                }).when(client).getConnection(eq(second), anyInt());
+
+        ConsumerConfigurationData<byte[]> conf = new ConsumerConfigurationData<>();
+        conf.getTopicNames().add(topic);
+        conf.setSubscriptionName("subscription");
+        conf.setAutoUpdatePartitions(true);
+        CompletableFuture<Consumer<byte[]>> subscribed = new CompletableFuture<>();
+        MultiTopicsConsumerImpl<byte[]> parent = MultiTopicsConsumerImpl.createPartitionedConsumer(
+                client, conf, executorProvider, subscribed, 1, Schema.BYTES, null);
+        subscribed.get(10, TimeUnit.SECONDS);
+
+        PartitionsChangedListener updates = parent.topicsPartitionChangedListener;
+        updates.onTopicsExtended(List.of(topic)).get(10, TimeUnit.SECONDS);
+        assertTrue(parent.consumers.get(second).subscribeFuture().isCompletedExceptionally());
+
+        CompletableFuture<Void> retry = CompletableFuture.runAsync(() ->
+                updates.onTopicsExtended(List.of(topic)).join());
+        CompletableFuture<Void> close;
+        CompletableFuture<Void> secondClose;
+        try {
+            assertTrue(lookupStarted.await(10, TimeUnit.SECONDS));
+            close = parent.closeAsync();
+            assertFalse(close.isDone(), "close must wait until the replacement is published");
+            secondClose = parent.closeAsync();
+            assertFalse(secondClose.isDone(), "concurrent callers must wait for the same shutdown");
+        } finally {
+            continueLookup.countDown();
+        }
+        close.get(10, TimeUnit.SECONDS);
+        secondClose.get(10, TimeUnit.SECONDS);
+        retry.get(10, TimeUnit.SECONDS);
+        ConsumerImpl<byte[]> replacement = parent.consumers.get(second);
+        assertEquals(parent.getState(), HandlerState.State.Closed);
+        try {
+            assertFalse(replacement.isConnected(), "Replacement still connected after parent.closeAsync() completed");
+        } finally {
+            replacement.closeAsync().get(10, TimeUnit.SECONDS);
+        }
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testPartitionUpdateJittersFailedSubscriptionsOnly() throws Exception {
+        String topic = "persistent://public/default/partition-update";
+        String partition = topic + "-partition-0";
+        PulsarClientImpl clientMock = createPulsarClientMockWithMockedClientCnx(executorProvider, internalExecutor);
+        Timer timer = mock(Timer.class);
+        List<Timeout> scheduled = new ArrayList<>();
+        List<Long> delays = new ArrayList<>();
+        List<TimeUnit> units = new ArrayList<>();
+        when(clientMock.timer()).thenReturn(timer);
+        when(timer.newTimeout(any(), anyLong(), any())).thenAnswer(invocation -> {
+            TimerTask task = invocation.getArgument(0);
+            Timeout timeout = mock(Timeout.class);
+            when(timeout.task()).thenReturn(task);
+            scheduled.add(timeout);
+            delays.add(invocation.getArgument(1));
+            units.add(invocation.getArgument(2));
+            return timeout;
+        });
+
+        ConsumerConfigurationData<byte[]> conf = new ConsumerConfigurationData<>();
+        conf.setSubscriptionName("subscription");
+        conf.setAutoUpdatePartitions(true);
+        conf.setAutoUpdatePartitionsIntervalSeconds(60);
+        MultiTopicsConsumerImpl<byte[]> impl = new MultiTopicsConsumerImpl<>(clientMock, conf, executorProvider,
+                new CompletableFuture<>(), Schema.BYTES, null, true);
+        impl.partitionedTopics.put(topic, 1);
+        impl.topicsForPartitionUpdate.add(topic);
+        ConsumerImpl<byte[]> child = mock(ConsumerImpl.class);
+        when(child.subscribeFuture()).thenReturn(CompletableFuture.completedFuture(child));
+        impl.consumers.put(partition, child);
+        CompletableFuture<List<String>> healthyLookup = new CompletableFuture<>();
+        CompletableFuture<List<String>> failedLookup = new CompletableFuture<>();
+        when(clientMock.getPartitionsForTopic(topic, false)).thenReturn(healthyLookup, failedLookup);
+
+        // Healthy children start the metadata check immediately and only schedule the next periodic check.
+        scheduled.get(0).task().run(scheduled.get(0));
+        verify(clientMock, times(1)).getPartitionsForTopic(topic, false);
+        assertEquals(scheduled.size(), 2);
+        assertEquals(units.get(1), TimeUnit.SECONDS);
+        scheduled.get(1).task().run(scheduled.get(1));
+        verify(clientMock, times(1)).getPartitionsForTopic(topic, false);
+        assertEquals(scheduled.size(), 3);
+        healthyLookup.complete(List.of(partition));
+        assertTrue(impl.partitionsAutoUpdateFuture.isDone());
+
+        // A failed child schedules one short delay, and further ticks cannot overlap it.
+        when(child.subscribeFuture()).thenReturn(CompletableFuture.failedFuture(new RuntimeException("failed")));
+        scheduled.get(2).task().run(scheduled.get(2));
+        verify(clientMock, times(1)).getPartitionsForTopic(topic, false);
+        assertEquals(scheduled.size(), 5);
+        assertEquals(units.get(3), TimeUnit.MILLISECONDS);
+        assertTrue(delays.get(3) >= 0 && delays.get(3) <= 5_000);
+        assertEquals(units.get(4), TimeUnit.SECONDS);
+        scheduled.get(4).task().run(scheduled.get(4));
+        assertEquals(scheduled.size(), 6);
+        assertEquals(units.get(5), TimeUnit.SECONDS);
+        scheduled.get(3).task().run(scheduled.get(3));
+        verify(clientMock, times(2)).getPartitionsForTopic(topic, false);
+        assertFalse(impl.partitionsAutoUpdateFuture.isDone());
+        scheduled.get(5).task().run(scheduled.get(5));
+        verify(clientMock, times(2)).getPartitionsForTopic(topic, false);
+        assertEquals(scheduled.size(), 7);
+        impl.setState(HandlerState.State.Closed);
+        failedLookup.complete(List.of(partition));
+        assertTrue(impl.partitionsAutoUpdateFuture.isDone());
     }
 
     @Test
@@ -397,6 +604,7 @@ public class MultiTopicsConsumerImplTest {
         MultiTopicsConsumerImpl<byte[]> impl = createMultiTopicsConsumer(consumerConfData);
 
         impl.partitionedTopics.put(topicName, 2);
+        impl.topicsForPartitionUpdate.add(topicName);
         impl.allTopicPartitionsNumber.set(2);
 
         ConsumerImpl<byte[]> partitionConsumer0 = (ConsumerImpl<byte[]>) mock(ConsumerImpl.class);

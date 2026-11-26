@@ -406,13 +406,18 @@ public final class TlsContextAcquisition {
         }
 
         @Override
-        public synchronized void dispose() {
-            // Synchronized on the same monitor as publish(), so this returns only once any in-flight publish
-            // has finished: setting the flag alone would still let a publisher that had already passed the
-            // check invoke the consumer callback after dispose() returned. The callback contract is a cheap
-            // non-blocking store (see FileBasedTlsFactory.deliverToSubscribers), so waiting here is bounded.
-            disposed.set(true);
-            TlsHandle<SSLContext> jdkHandle = underlying;
+        public void dispose() {
+            TlsHandle<SSLContext> jdkHandle;
+            synchronized (this) {
+                // Wait for an in-flight publish before marking the subscription disposed, so no consumer
+                // callback can run after dispose returns.
+                if (disposed.getAndSet(true)) {
+                    return;
+                }
+                jdkHandle = underlying;
+            }
+            // The factory may use the same lock for delivery and disposal. Release our monitor before
+            // calling it, since a delivery holding the factory lock may be waiting to enter publish().
             if (jdkHandle != null) {
                 jdkHandle.dispose();
             }

@@ -74,6 +74,20 @@ Running specific benchmarks:
 java -jar microbench/build/libs/microbench-*-benchmarks.jar ".*BenchmarkName.*"
 ```
 
+`KeyBasedBatchGroupingBenchmark` measures key construction, hashing and lookup in a populated batch
+map for 1,024 keys, using ASCII text, UTF-8 text, binary partition keys and ordering keys of 16/64 raw
+bytes. It compares legacy stored-string grouping, canonical Base64, canonical Latin-1, and Latin-1
+with reuse of plain ASCII strings. The legacy approach is a cost reference with known correctness
+issues when key representations are mixed. Setup and message creation are excluded; the reused input
+strings can retain their cached hashes. These are grouping lookup costs, not producer throughput.
+To compare Base64 normalization with the optimized container behavior and record allocation:
+
+```shell
+java -jar microbench/build/libs/microbench-*-benchmarks.jar \
+  'KeyBasedBatchGroupingBenchmark.(normalizedGroupingLookup|candidateGroupingLookup)' \
+  -jvmArgsAppend '-Xms512m -Xmx512m -XX:+UseG1GC' -prof gc
+```
+
 `ManagedLedgerTrimScanBenchmark` compares the original full offload-deletion scan and `List.contains`
 checks with a policy guard and a scan after the ordinary deletion prefix. It uses the managed-ledger
 `ConcurrentSkipListMap` and real ledger metadata, including gaps in ledger IDs and a mix of complete,
@@ -102,6 +116,67 @@ Checking what benchmarks match the pattern:
 ```shell
 java -jar microbench/build/libs/microbench-*-benchmarks.jar ".*BenchmarkName.*" -lp
 ```
+
+### Subscription backlog estimation
+
+`ManagedLedgerBacklogSizeBenchmark` compares the production batch estimator with repeated calls to the production
+per-position estimator. Each invocation estimates `subscriptionCount` subscriptions over `ledgerCount` closed-ledger
+metadata records. `CLUSTERED_TAIL` places positions in the last four ledgers, with overlapping backlog suffixes;
+`OPPOSITE_ENDS` alternates between the first and last ledger, including the two-subscription case. Setup checks that
+the two estimators return identical results before measurement. Constructor collaborators are mocked; timed estimator
+calls use a real `ManagedLedgerImpl` and do not invoke mocks or perform storage I/O.
+Both paths consume every subscription's result. The per-position path consumes each estimate directly; the batch
+path includes building the result map and looking up its estimates, as the stats caller does.
+
+Measure latency and bytes allocated per complete batch of subscription estimates:
+
+```shell
+java -jar microbench/build/libs/microbench-*-benchmarks.jar \
+  '.*ManagedLedgerBacklogSizeBenchmark.estimate' \
+  -p ledgerCount=10000 -p subscriptionCount=2,100 \
+  -p placement=CLUSTERED_TAIL,OPPOSITE_ENDS -p estimator=PER_POSITION,BATCH \
+  -prof gc -rf json -rff backlog-estimate.json
+```
+
+Probe monitor contention with one continuously polling stats thread and one thread acquiring the same ledger monitor:
+
+```shell
+java -jar microbench/build/libs/microbench-*-benchmarks.jar \
+  '.*ManagedLedgerBacklogSizeBenchmark.contended' \
+  -p ledgerCount=10000 -p subscriptionCount=2,100 \
+  -p placement=CLUSTERED_TAIL,OPPOSITE_ENDS -p estimator=PER_POSITION,BATCH \
+  -rf json -rff backlog-contention.json
+```
+
+Inspect the `monitorProbe` sample-time percentiles separately from the `stats` scores. The probe's time includes
+monitor acquisition and a counter increment; it measures a synthetic lock competitor, not `addEntry` latency or
+throughput. The stats thread polls continuously, so faster estimators also issue more stats requests; these results
+describe saturation rather than a fixed stats polling interval. Use lock profiling to examine blocked stacks and
+cluster performance tests to assess effects on publishing. To compare revisions of the batch implementation, run
+the same benchmark and parameters against each revision, preserving the JDK, JVM flags and host configuration.
+
+Use the separate `periodic` group to compare monitor contention at the same requested stats polling rate:
+
+```shell
+java -jar microbench/build/libs/microbench-*-benchmarks.jar \
+  '.*ManagedLedgerBacklogSizeBenchmark.periodic' \
+  -p ledgerCount=10000 -p subscriptionCount=2,100 \
+  -p placement=CLUSTERED_TAIL,OPPOSITE_ENDS -p estimator=PER_POSITION,BATCH \
+  -p pollPeriodMicros=20000 -bm avgt -rf json -rff backlog-periodic.json
+```
+
+The default period requests 50 stats polls per second. Pacing uses a per-thread clock and parks outside the ledger
+monitor. `periodicStats` measures the complete polling cycle, including its pacing delay; use the standalone
+`estimate` benchmark for estimator latency. Average-time mode includes every measured monitor acquisition
+in the `periodicMonitorProbe` mean. Sample-time mode can miss rare delayed acquisitions at this polling rate,
+so its optional percentiles serve only as diagnostics.
+
+The `polls` and `skippedPolls` auxiliary results count requests and dropped schedule slots, respectively.
+Their JSON `rawData` contains per-iteration counts, which can include calls while JMH synchronizes workers
+at the start and end of measurement. Use these counts as an approximate cadence check and compare monitor-probe
+means when both estimators sustain similar polling rates with few missed slots. Use longer measurement iterations
+to reduce the effect of calls at the boundaries. If estimates repeatedly overrun scheduled polls, increase the
+poll period. As with the saturation group, the monitor probe is a synthetic competitor.
 
 ### Redelivery tracker
 

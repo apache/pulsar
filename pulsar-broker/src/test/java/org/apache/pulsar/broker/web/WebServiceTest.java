@@ -295,6 +295,8 @@ public class WebServiceTest {
                 .hasLongSumSatisfying(
                         sum -> sum.hasPointsSatisfying(point -> point.hasAttributes(Result.REJECTED.attributes))));
 
+        // The Prometheus counter is static, so earlier brokers in this JVM may have moved it: compare to now.
+        double rejectedBefore = scrapeRejectedRequests();
         try {
             for (int i = 0; i < 500; i++) {
                 makeHttpRequest(false, false);
@@ -310,6 +312,21 @@ public class WebServiceTest {
                 Result.ACCEPTED.attributes, value -> assertThat(value).isGreaterThan(8));
         assertMetricLongSumValue(metrics, RateLimitingFilter.RATE_LIMIT_REQUEST_COUNT_METRIC_NAME,
                 Result.REJECTED.attributes, value -> assertThat(value).isPositive());
+        assertTrue(scrapeRejectedRequests() > rejectedBefore,
+                "the rejected requests must also reach the Prometheus counter");
+    }
+
+    /** The deprecated Prometheus counter of rate limited requests, read through the broker scrape. */
+    private double scrapeRejectedRequests() throws Exception {
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsTestUtil.generate(pulsar, false, false, false, statsOut);
+        String metricsStr = statsOut.toString();
+        assertTrue(metricsStr.contains("# TYPE pulsar_broker_http_rejected_requests_total counter\n"));
+        Collection<Metric> samples = parseMetrics(metricsStr).get("pulsar_broker_http_rejected_requests_total");
+        assertEquals(samples.size(), 1);
+        Metric sample = samples.iterator().next();
+        Assert.assertNotNull(sample.tags.get("cluster"));
+        return sample.value;
     }
 
     @Test
