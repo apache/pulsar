@@ -141,12 +141,13 @@ public class TenantResources extends BaseResources<TenantInfo> {
                         checkNs.complete(null);
                     }
                     return null;
-                }).exceptionally(ex2 -> {
-                    if (ex2.getCause() instanceof MetadataStoreException.ContentDeserializationException) {
+                }).exceptionally(ex -> {
+                    Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                    if (cause instanceof MetadataStoreException.ContentDeserializationException) {
                         // it's not a valid namespace-node
                         checkNs.complete(null);
                     } else {
-                        checkNs.completeExceptionally(ex2);
+                        checkNs.completeExceptionally(cause);
                     }
                     return null;
                 });
@@ -154,11 +155,11 @@ public class TenantResources extends BaseResources<TenantInfo> {
             FutureUtil.waitForAll(activeNamespaceListFuture).thenAccept(r -> {
                 activeNamespaceFuture.complete(null);
             }).exceptionally(ex -> {
-                activeNamespaceFuture.completeExceptionally(ex.getCause());
+                activeNamespaceFuture.completeExceptionally(FutureUtil.unwrapCompletionException(ex));
                 return null;
             });
         }).exceptionally(ex -> {
-            activeNamespaceFuture.completeExceptionally(ex.getCause());
+            activeNamespaceFuture.completeExceptionally(FutureUtil.unwrapCompletionException(ex));
             return null;
         });
         return activeNamespaceFuture;
