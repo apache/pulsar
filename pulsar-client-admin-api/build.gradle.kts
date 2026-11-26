@@ -25,4 +25,6 @@ dependencies {
     implementation(libs.slog)
     api(project(":pulsar-client-api"))
     api(libs.jackson.annotations)
+    // @Schema names for the OpenAPI specification generator; the annotations aren't needed at runtime
+    compileOnly(libs.swagger.annotations)
 }

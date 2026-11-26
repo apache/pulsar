@@ -37,6 +37,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.impl.MessageIdImpl;
@@ -487,6 +488,7 @@ public class PartitionedProducerConsumerTest extends SharedPulsarBaseTest {
 
         admin.topics().deletePartitionedTopic(topicName);
 
+        @Cleanup
         Producer<byte[]> producer1 = pulsarClient.newProducer().topic(topicName).create();
         if (producer1 instanceof PartitionedProducerImpl) {
             Assert.fail("should fail since partitioned topic was deleted");

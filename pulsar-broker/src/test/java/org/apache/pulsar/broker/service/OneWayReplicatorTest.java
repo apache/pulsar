@@ -709,6 +709,10 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         admin1.namespaces().setNamespaceReplicationClusters(ns,
                 new HashSet<>(Arrays.asList(cluster1)), true);
         waitReplicatorStopped(pulsar1, pulsar2, topicName);
+        // A stopped replicator stays on the topic until its cursor is deleted, and a topic that still has a
+        // replicator cannot be deleted.
+        Awaitility.await().untilAsserted(() ->
+                assertTrue(broker1.getTopic(topicName, false).join().get().getReplicators().isEmpty()));
         admin1.topics().delete(topicName);
         admin2.topics().delete(topicName);
     }
@@ -1584,6 +1588,12 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         // Disable replication.
         setTopicLevelClusters(topicName, Arrays.asList(cluster1), admin1, pulsar1);
         setTopicLevelClusters(topicName, Arrays.asList(cluster2), admin2, pulsar2);
+        // The topics remove their replicators after the new policy is visible, and a topic that still has a
+        // replicator cannot be deleted.
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(broker1.getTopic(topicName, false).join().get().getReplicators().isEmpty());
+            assertTrue(broker2.getTopic(topicName, false).join().get().getReplicators().isEmpty());
+        });
 
         // Delete topic.
         admin1.topics().delete(topicName);

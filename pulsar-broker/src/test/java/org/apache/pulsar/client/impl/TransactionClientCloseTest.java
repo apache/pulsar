@@ -161,12 +161,14 @@ public class TransactionClientCloseTest extends SharedPulsarBaseTest {
         CompletableFuture<Void> closeFuture = null;
         CompletableFuture<Void> callback = null;
         try {
-            Transaction firstTxn = client.newTransaction().build().get(10, TimeUnit.SECONDS);
-            Transaction secondTxn = client.newTransaction().build().get(10, TimeUnit.SECONDS);
             List<TransactionMetaStoreHandler> handlers = new ArrayList<>(
                     ((TransactionCoordinatorClientImpl) client.getTransactionCoordinatorClient()).getHandlers());
+            // Count the permits before the first coordinator request, while none is in use. A request returns its
+            // permit after completing its future, so it may still hold it when the caller sees the result.
             int availablePermits = handlers.stream().mapToInt(
                     TransactionMetaStoreHandler::getAvailableRequestPermits).sum();
+            Transaction firstTxn = client.newTransaction().build().get(10, TimeUnit.SECONDS);
+            Transaction secondTxn = client.newTransaction().build().get(10, TimeUnit.SECONDS);
             List<ByteBuf> sentRequests = new CopyOnWriteArrayList<>();
             // Use real coordinator requests over the real connection. Drop only END_TXN responses so the
             // requests stay in flight until close, as when a coordinator response is delayed or lost.

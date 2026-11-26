@@ -490,8 +490,8 @@ public class PulsarClientImpl implements PulsarClient {
      * This is the only client TLS path since the PIP-337 removal. It normally runs only when broker TLS is
      * enabled (a plaintext client leaves {@code conf.getTlsFactory()} null, and its transports never request
      * TLS); {@link #needsClientTlsFactory()} lists the two configurations that also need it on an otherwise
-     * plaintext client. On the v5-builder path a fail-fast probe of {@code CLIENT_DEFAULT} runs, so a
-     * bad configuration fails the client build.
+     * plaintext client. On the v5-builder path with broker TLS enabled, a fail-fast probe of
+     * {@code CLIENT_DEFAULT} runs, so a bad transport TLS configuration fails the client build.
      *
      * @throws PulsarClientException if the TLS factory cannot be built / initialized / probed
      */
@@ -1171,7 +1171,7 @@ public class PulsarClientImpl implements PulsarClient {
                         partitionIndex, false, consumerSubscribedFuture, null, schema, interceptors,
                         true /* createTopicIfDoesNotExist */);
             }
-            consumers.add(consumer);
+            addConsumer(consumer);
         }).exceptionally(ex -> {
             log.warn().attr("topic", topic).exception(ex).log("Failed to get partitioned topic metadata");
             consumerSubscribedFuture.completeExceptionally(ex);
@@ -1190,7 +1190,7 @@ public class PulsarClientImpl implements PulsarClient {
                 externalExecutorProvider, consumerSubscribedFuture, schema, interceptors,
                 true /* createTopicIfDoesNotExist */);
 
-        consumers.add(consumer);
+        addConsumer(consumer);
 
         return consumerSubscribedFuture;
     }
@@ -1247,7 +1247,7 @@ public class PulsarClientImpl implements PulsarClient {
                         consumerSubscribedFuture,
                         schema, subscriptionMode, interceptors);
 
-                consumers.add(consumer);
+                addConsumer(consumer);
             })
             .exceptionally(ex -> {
                 log.warn().attr("namespaceName", namespaceName).log("Failed to get topics under namespace");
@@ -1302,7 +1302,7 @@ public class PulsarClientImpl implements PulsarClient {
         MultiTopicsReaderImpl<T> reader = new MultiTopicsReaderImpl<>(this,
                 conf, externalExecutorProvider, consumerSubscribedFuture, schema);
         ConsumerBase<T> consumer = reader.getMultiTopicsConsumer();
-        consumers.add(consumer);
+        addConsumer(consumer);
         consumerSubscribedFuture.thenRun(() -> readerFuture.complete(reader))
                 .exceptionally(ex -> {
                     log.warn().exception(ex).log("Failed to create multiTopicReader");
@@ -1341,7 +1341,7 @@ public class PulsarClientImpl implements PulsarClient {
                 consumer = ((ReaderImpl<T>) reader).getConsumer();
             }
 
-            consumers.add(consumer);
+            addConsumer(consumer);
 
             consumerSubscribedFuture.thenRun(() -> readerFuture.complete(reader)).exceptionally(ex -> {
                 log.warn().attr("topic", topic).exception(ex).log("Failed to get create topic reader");
@@ -1464,6 +1464,9 @@ public class PulsarClientImpl implements PulsarClient {
 
     @Override
     public void shutdown() throws PulsarClientException {
+        // Fail the producers, consumers and readers created from now on, as closeAsync() does before it gets here:
+        // they would wait for ever on the resources released below.
+        state.compareAndSet(State.Open, State.Closing);
         try {
             // We will throw the last thrown exception only, though logging all of them.
             Throwable throwable = null;
@@ -1522,18 +1525,19 @@ public class PulsarClientImpl implements PulsarClient {
                 }
             }
 
+            // Close the connections before shutting down the event loop, which runs those closes before it terminates
+            try {
+                closeCnxPool(cnxPool);
+            } catch (PulsarClientException e) {
+                log.warn().exception(e).log("Failed to shutdown cnxPool");
+                throwable = e;
+            }
             try {
                 // Shutting down eventLoopGroup separately because in some cases, cnxPool might be using different
                 // eventLoopGroup.
                 shutdownEventLoopGroup(eventLoopGroup);
             } catch (PulsarClientException e) {
                 log.warn().exception(e).log("Failed to shutdown eventLoopGroup");
-                throwable = e;
-            }
-            try {
-                closeCnxPool(cnxPool);
-            } catch (PulsarClientException e) {
-                log.warn().exception(e).log("Failed to shutdown cnxPool");
                 throwable = e;
             }
             if (timer != null && needStopTimer) {
@@ -1641,6 +1645,8 @@ public class PulsarClientImpl implements PulsarClient {
         } catch (Throwable t) {
             log.warn().exception(t).log("Failed to shutdown Pulsar client");
             throw PulsarClientException.unwrap(t);
+        } finally {
+            state.set(State.Closed);
         }
     }
 
@@ -1657,7 +1663,12 @@ public class PulsarClientImpl implements PulsarClient {
     private void shutdownEventLoopGroup(EventLoopGroup eventLoopGroup) throws PulsarClientException {
         if (createdEventLoopGroup && eventLoopGroup != null && !eventLoopGroup.isShutdown()) {
             try {
-                eventLoopGroup.shutdownGracefully().get(CLOSE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+                // No quiet period: Netty's default of 2 s would hold every close for at least 2 s. The loop runs every
+                // task queued before the shutdown request before it terminates, including the connection closes that
+                // closeCnxPool() queued. Those closes are needed: when the request arrives while the loop is running
+                // tasks, Netty 4.2 ends a loop with no quiet period without closing its channels itself.
+                eventLoopGroup.shutdownGracefully(0, CLOSE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                        .get(CLOSE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
             } catch (Throwable t) {
                 throw PulsarClientException.unwrap(t);
             }
@@ -1809,6 +1820,55 @@ public class PulsarClientImpl implements PulsarClient {
         }
         InetSocketAddress address = lookup.resolveHost();
         return getConnection(address, address, cnxPool.genRandomKeyToSelectCon());
+    }
+
+    /**
+     * Open a TC assignment watch without confusing an any-broker pairing request with an actual
+     * proxy route. The future completes with a connection that advertises TC discovery, or fails
+     * with {@link PulsarClientException.NotSupportedException}. A direct broker advertises TC
+     * discovery on an ordinary connection. A proxy's lookup connection advertises no broker features
+     * and must first pair to a supporting broker. Both attempts use the same unresolved service
+     * endpoint, including its TLS/SNI hostname and port.
+     */
+    public CompletableFuture<ClientCnx> getTcAssignmentsWatchConnection() {
+        return FutureUtil.supplySafely(() -> {
+            if (!lookup.isBinaryProtoLookupService()) {
+                return FutureUtil.failedFuture(new PulsarClientException.InvalidServiceURL(
+                        "TC assignment watches require a pulsar:// service URL", null));
+            }
+            InetSocketAddress endpoint = lookup.resolveHost();
+            int key = cnxPool.genRandomKeyToSelectCon();
+            return getConnection(endpoint, endpoint, key).thenCompose(probe -> {
+                if (probe.isSupportsTcMetadataDiscovery()) {
+                    return CompletableFuture.completedFuture(probe);
+                }
+                // The watch doesn't use the probe. releaseConnection closes it only when pooling is
+                // disabled; a pooled connection stays open for its other users.
+                cnxPool.releaseConnection(probe);
+                if (probe.isSupportsScalableTopics() || probe.isSupportsTopicWatchers()) {
+                    // A Pulsar proxy's lookup connection advertises neither feature, so the endpoint
+                    // is a broker without TC discovery. Don't pair: behind a load balancer, the pairing
+                    // could reach another broker that supports it, and the watch would then be
+                    // treated as proxied.
+                    return FutureUtil.failedFuture(newTcDiscoveryNotSupportedException());
+                }
+                return getConnection(PulsarChannelInitializer.PROXY_TO_ANY_BROKER, endpoint, key)
+                        .thenCompose(paired -> {
+                            if (paired.isSupportsTcMetadataDiscovery()) {
+                                return CompletableFuture.completedFuture(paired);
+                            }
+                            // Like the probe, a pooled pairing stays open, so a retry gets the same
+                            // pairing, and the same broker, back.
+                            cnxPool.releaseConnection(paired);
+                            return FutureUtil.failedFuture(newTcDiscoveryNotSupportedException());
+                        });
+            });
+        });
+    }
+
+    private static PulsarClientException.NotSupportedException newTcDiscoveryNotSupportedException() {
+        return new PulsarClientException.NotSupportedException(
+                "Broker does not support scalable-topics transactions (metadata-store TC discovery)");
     }
 
     /**
@@ -2005,6 +2065,17 @@ public class PulsarClientImpl implements PulsarClient {
 
     void cleanupConsumer(ConsumerBase<?> consumer) {
         consumers.remove(consumer);
+    }
+
+    private void addConsumer(ConsumerBase<?> consumer) {
+        consumers.add(consumer);
+        // The subscription can fail before the consumer is added, from another thread or inside its constructor (a
+        // connection that fails at once, or a broker's error that arrives before the subscribe callbacks are
+        // attached), in which case the consumer has already failed or closed and removed itself from the client. Do
+        // not keep it then.
+        if (consumer.isTerminalState()) {
+            cleanupConsumer(consumer);
+        }
     }
 
     @VisibleForTesting

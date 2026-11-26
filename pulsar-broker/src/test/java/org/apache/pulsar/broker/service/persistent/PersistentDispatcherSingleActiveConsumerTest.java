@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -198,8 +197,9 @@ public class PersistentDispatcherSingleActiveConsumerTest extends SharedPulsarBa
                 .setPartitionKey("out-of-range-key-12345")
                 .setPartitionKeyB64Encoded(false)
                 .setNumMessagesInBatch(10);
+        // a batch payload takes at least 4 bytes per message, so size it to keep the batch size valid
         ByteBuf buf = Commands.serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, metadata,
-                Unpooled.copiedBuffer("payload".getBytes(UTF_8)));
+                Unpooled.wrappedBuffer(new byte[10 * 4]));
         Entry entry = EntryImpl.create(1, 1, buf);
         buf.release();
         List<Entry> entries = new ArrayList<>(List.of(entry));

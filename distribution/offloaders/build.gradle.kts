@@ -28,22 +28,14 @@ tasks.named("jar") { enabled = false }
 
 val pulsarVersion = project.version.toString()
 
-// Resolvable configuration for offloader NAR artifacts
-val offloaderNars = configurations.create("offloaderNars") {
-    isCanBeResolved = true
-    isCanBeConsumed = false
-    isTransitive = false
-    attributes {
-        attribute(ArtifactTypeDefinition.ARTIFACT_TYPE_ATTRIBUTE, "nar")
-    }
-}
-
-dependencies {
-    offloaderNars(project(":tiered-storage:tiered-storage-jcloud"))
-    offloaderNars(project(":tiered-storage:tiered-storage-file-system"))
-}
+// The offloader NARs, see ProjectArtifacts.kt
+val offloaderNars = projectNars("offloaderNars",
+    ":tiered-storage:tiered-storage-jcloud",
+    ":tiered-storage:tiered-storage-file-system").files
 
 val offloaderDistTar = tasks.register<Tar>("offloaderDistTar") {
+    group = "distribution"
+    description = "Builds the Pulsar tiered storage offloaders distribution tarball"
     val baseDir = "apache-pulsar-offloaders-${pulsarVersion}"
 
     archiveBaseName.set("apache-pulsar-offloaders")
@@ -53,7 +45,7 @@ val offloaderDistTar = tasks.register<Tar>("offloaderDistTar") {
     compression = Compression.GZIP
     destinationDirectory.set(layout.buildDirectory.dir("distributions"))
 
-    from(rootProject.projectDir.resolve("LICENSE")) {
+    from(rootDir.resolve("LICENSE")) {
         into(baseDir)
     }
     from("src/assemble/README") {
@@ -66,14 +58,8 @@ val offloaderDistTar = tasks.register<Tar>("offloaderDistTar") {
     }
 }
 
-// Consumable configuration exposing the offloader distribution tarball
-val offloaderDistElements = configurations.create("offloaderDistElements") {
-    isCanBeConsumed = true
-    isCanBeResolved = false
-    outgoing {
-        artifact(offloaderDistTar)
-    }
-}
+// The offloader distribution tarball, for the Docker image, see SharedBuildArtifacts.kt
+shareBuildArtifact("offloader-distribution", offloaderDistTar.flatMap { it.archiveFile }, offloaderDistTar)
 
 tasks.named("assemble") {
     dependsOn(offloaderDistTar)

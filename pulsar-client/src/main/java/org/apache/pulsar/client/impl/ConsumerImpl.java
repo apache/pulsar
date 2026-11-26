@@ -63,6 +63,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -201,6 +202,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     @VisibleForTesting
     final AtomicReference<SeekStatus> seekStatus;
     private volatile CompletableFuture<Void> seekFuture;
+    // The number of seeks that the broker confirmed. Updated on the connection's thread, which receives the messages in
+    // order with the seek response: each message records the count when it arrives, so a message that arrived before
+    // a seek can be told apart from one that arrived after it, wherever it is when the seek completes.
+    private final AtomicLong seekCount = new AtomicLong();
 
     private final MessageIdAdv initialStartMessageId;
 
@@ -512,39 +517,51 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     @Override
     public CompletableFuture<Void> unsubscribeAsync(boolean force) {
-        if (getState() == State.Closing || getState() == State.Closed) {
-            return FutureUtil
-                    .failedFuture(new PulsarClientException.AlreadyClosedException("Consumer was already closed"));
+        final ClientCnx cnx;
+        final long cnxEpoch;
+        synchronized (this) {
+            if (getState() == State.Closing || getState() == State.Closed) {
+                return FutureUtil
+                        .failedFuture(new PulsarClientException.AlreadyClosedException("Consumer was already closed"));
+            }
+            cnx = cnx();
+            if (!isConnected(cnx)) {
+                return FutureUtil.failedFuture(new PulsarClientException.NotConnectedException(
+                        String.format("The client is not connected to the broker when unsubscribing the "
+                                + "subscription %s of the topic %s", subscription, topicName.toString())));
+            }
+            setState(State.Closing);
+            cnxEpoch = connectionHandler.getEpoch();
         }
         final CompletableFuture<Void> unsubscribeFuture = new CompletableFuture<>();
-        if (isConnected()) {
-            setState(State.Closing);
-            long requestId = client.newRequestId();
-            ByteBuf unsubscribe = Commands.newUnsubscribe(consumerId, requestId, force);
-            ClientCnx cnx = cnx();
-            cnx.sendRequestWithId(unsubscribe, requestId).thenRun(() -> {
-                closeConsumerTasks();
-                deregisterFromClientCnx();
-                client.cleanupConsumer(this);
-                log.info("Successfully unsubscribed from topic");
-                setState(State.Closed);
-                unsubscribeFuture.complete(null);
-            }).exceptionally(e -> {
-                log.error().exceptionMessage(e.getCause())
-                        .log("Failed to unsubscribe");
-                setState(State.Ready);
-                unsubscribeFuture.completeExceptionally(
-                        PulsarClientException.wrap(e.getCause(),
-                                String.format("Failed to unsubscribe the subscription %s of topic %s",
-                                        subscription, topicName.toString())));
-                return null;
-            });
-        } else {
+        long requestId = client.newRequestId();
+        ByteBuf unsubscribe = Commands.newUnsubscribe(consumerId, requestId, force);
+        cnx.sendRequestWithId(unsubscribe, requestId).thenRun(() -> {
+            closeConsumerTasks();
+            deregisterFromClientCnx();
+            client.cleanupConsumer(this);
+            log.info("Successfully unsubscribed from topic");
+            setState(State.Closed);
+            unsubscribeFuture.complete(null);
+        }).exceptionally(e -> {
+            log.error().exceptionMessage(e.getCause())
+                    .log("Failed to unsubscribe");
+            synchronized (ConsumerImpl.this) {
+                if (getState() == State.Closing) {
+                    setState(State.Ready);
+                    // This subscription remains usable after a broker rejection. Return credits deferred
+                    // by listener completion or resume(), unless a new connection attempt has replaced it.
+                    if (!connectionHandler.isSupersededAttempt(cnx, cnxEpoch)) {
+                        flushAvailablePermitsToBroker(cnx);
+                    }
+                }
+            }
             unsubscribeFuture.completeExceptionally(
-                    new PulsarClientException.NotConnectedException(
-                            String.format("The client is not connected to the broker when unsubscribing the "
-                                    + "subscription %s of the topic %s", subscription, topicName.toString())));
-        }
+                    PulsarClientException.wrap(e.getCause(),
+                            String.format("Failed to unsubscribe the subscription %s of topic %s",
+                                    subscription, topicName.toString())));
+            return null;
+        });
         return unsubscribeFuture;
     }
 
@@ -1331,7 +1348,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     @Override
-    public synchronized CompletableFuture<Void> closeAsync() {
+    public CompletableFuture<Void> closeAsync() {
+        return closeAsync(true);
+    }
+
+    // A parent retaining another child with this schema owns its eventual close.
+    synchronized CompletableFuture<Void> closeAsync(boolean closeSchema) {
         CompletableFuture<Void> closeFuture = new CompletableFuture<>();
 
         ArrayList<CompletableFuture<Void>> closeFutures = new ArrayList<>(4);
@@ -1350,7 +1372,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 }
             }));
         }
-        if (schema != null) {
+        if (closeSchema && schema != null) {
             closeFutures.add(schema.closeAsync().whenComplete((ignore, ex) -> {
                 if (ex != null) {
                     log.warn().exception(ex).log("Exception ignored in closing schema of consumer");
@@ -1449,7 +1471,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             return;
         }
 
-        externalPinnedExecutor.execute(() -> {
+        externalPinnedExecutor.get().execute(() -> {
             if (isActive) {
                 consumerEventListener.becameActive(this, partitionIndex);
             } else {
@@ -1559,12 +1581,16 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         // Enqueue the message so that it can be retrieved when application calls receive()
         // if the conf.getReceiverQueueSize() is 0 then discard message if no one is waiting for it.
         // if asyncReceive is waiting then notify callback without adding to incomingMessages queue
+        final long seekCountOnArrival = seekCount.get();
         internalPinnedExecutor.execute(() -> {
             if (!isValidConsumerEpoch(message)) {
                 increaseAvailablePermits(cnx());
                 return;
             }
             Message<T> interceptMsg = onArrival(message);
+            if (interceptMsg instanceof MessageImpl) {
+                ((MessageImpl<T>) interceptMsg).setConsumerSeekCount(seekCountOnArrival);
+            }
             if (hasNextPendingReceive()) {
                 notifyPendingReceivedCallback(interceptMsg, null);
             } else if (enqueueMessageAndCheckBatchReceive(interceptMsg) && hasPendingBatchReceive()) {
@@ -2296,8 +2322,15 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         increaseAvailablePermits(currentCnx, 1);
     }
 
+    /**
+     * Accumulate permit credit without sending FLOW; return the updated balance.
+     */
+    int addAvailablePermits(int delta) {
+        return AVAILABLE_PERMITS_UPDATER.addAndGet(this, delta);
+    }
+
     protected void increaseAvailablePermits(ClientCnx currentCnx, int delta) {
-        int available = AVAILABLE_PERMITS_UPDATER.addAndGet(this, delta);
+        int available = addAvailablePermits(delta);
         while (available >= getCurrentReceiverQueueSize() / 2 && !paused) {
             if (AVAILABLE_PERMITS_UPDATER.compareAndSet(this, available, 0)) {
                 log.debug().attr("available", available)
@@ -2360,10 +2393,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     @Override
-    public void resume() {
+    public synchronized void resume() {
         if (paused) {
             paused = false;
-            flushAvailablePermitsToBroker(cnx());
+            // A new connection can be installed before SUBSCRIBE completes. Its initial permit grant
+            // replaces the old available permits after flushing pending ACKs under this same lock.
+            if (isConnected()) {
+                flushAvailablePermitsToBroker(cnx());
+            }
         }
     }
 
@@ -2992,6 +3029,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 .build();
 
         if (!seekStatus.compareAndSet(SeekStatus.NOT_STARTED, SeekStatus.IN_PROGRESS)) {
+            seek.release();
             final String message = String.format(
                     "[%s][%s] attempting to seek operation that is already in progress (seek by %s)",
                     topic, subscription, seekBy);
@@ -3022,6 +3060,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
                 lastDequeuedMessageId = MessageId.earliest;
 
+                seekCount.incrementAndGet();
                 clearIncomingMessages();
                 CompletableFuture<Void> future = null;
                 synchronized (this) {
@@ -3052,6 +3091,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         } else {
             long nextDelay = Math.min(backoff.next().toMillis(), remainingTime.get());
             if (nextDelay <= 0) {
+                seek.release();
                 failSeek(
                         new PulsarClientException.TimeoutException(
                                 String.format("The subscription %s of the topic %s could not seek "
@@ -3059,13 +3099,20 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 return;
             }
 
-            ((ScheduledExecutorService) client.getScheduledExecutorProvider().getExecutor()).schedule(() -> {
-                log.warn().attr("handler", getHandlerName())
-                        .attr("nextDelay", nextDelay)
-                        .log("Could not get connection while seek -- Will try again in ms");
-                remainingTime.addAndGet(-nextDelay);
-                seekAsyncInternal(requestId, seek, seekId, seekTimestamp, seekBy, backoff, remainingTime);
-            }, nextDelay, TimeUnit.MILLISECONDS);
+            try {
+                ((ScheduledExecutorService) client.getScheduledExecutorProvider().getExecutor()).schedule(() -> {
+                    log.warn().attr("handler", getHandlerName())
+                            .attr("nextDelay", nextDelay)
+                            .log("Could not get connection while seek -- Will try again in ms");
+                    remainingTime.addAndGet(-nextDelay);
+                    seekAsyncInternal(requestId, seek, seekId, seekTimestamp, seekBy, backoff, remainingTime);
+                }, nextDelay, TimeUnit.MILLISECONDS);
+            } catch (RejectedExecutionException e) {
+                seek.release();
+                failSeek(new PulsarClientException(
+                        String.format("Seek retry for subscription %s of topic %s was rejected",
+                                subscription, topicName.toString()), e));
+            }
         }
     }
 
@@ -3074,6 +3121,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (seekStatus.compareAndSet(SeekStatus.IN_PROGRESS, SeekStatus.NOT_STARTED)) {
             seekFuture.completeExceptionally(throwable);
         }
+    }
+
+    long getSeekCount() {
+        return seekCount.get();
     }
 
     @Override

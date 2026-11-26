@@ -24,22 +24,14 @@ import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.suites.PulsarCliTestSuite;
 import org.awaitility.Awaitility;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+// The brokers enable topic policies by default
 public class SchemaCompatibilityStrategyTest extends PulsarCliTestSuite {
-    @BeforeClass(alwaysRun = true)
-    @Override
-    public void before() throws Exception {
-        enableTopicPolicies();
-        super.before();
-    }
 
-    @AfterClass(alwaysRun = true)
     @Override
-    public void after() throws Exception {
-        super.after();
+    protected boolean isClusterShared() {
+        return true;
     }
 
     @Test

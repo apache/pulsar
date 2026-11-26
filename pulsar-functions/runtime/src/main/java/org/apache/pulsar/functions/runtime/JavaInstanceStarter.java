@@ -25,9 +25,9 @@ import com.google.gson.reflect.TypeToken;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import io.grpc.stub.StreamObserver;
-import io.prometheus.client.exporter.HTTPServer;
+import io.prometheus.metrics.exporter.httpserver.HTTPServer;
+import io.prometheus.metrics.exporter.httpserver.MetricsHandler;
 import java.lang.reflect.Type;
-import java.net.InetSocketAddress;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
@@ -38,6 +38,7 @@ import net.bytebuddy.description.type.TypeDefinition;
 import net.bytebuddy.dynamic.ClassFileLocator;
 import net.bytebuddy.pool.TypePool;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.logging.log4j.LogManager;
 import org.apache.pulsar.common.functions.MemoryLimit;
 import org.apache.pulsar.common.functions.WindowConfig;
 import org.apache.pulsar.common.nar.NarClassLoader;
@@ -282,6 +283,10 @@ public class JavaInstanceStarter implements AutoCloseable {
                 close();
             } catch (Exception ex) {
                 System.err.println(ex);
+            } finally {
+                // Log4j2's own shutdown hook is disabled for the instance JVM (see RuntimeUtils), so flush and
+                // stop logging here, after the instance, including the user's Sink/Source/Function, is closed.
+                LogManager.shutdown();
             }
         }));
 
@@ -290,7 +295,12 @@ public class JavaInstanceStarter implements AutoCloseable {
 
         // starting metrics server
         log.info().attr("metricsPort", metricsPort).log("Starting metrics server");
-        metricsServer = new HTTPServer(new InetSocketAddress(metricsPort), collectorRegistry, true);
+        // The worker and older Prometheus setups scrape the root path, so serve the metrics there too
+        metricsServer = HTTPServer.builder()
+                .port(metricsPort)
+                .registry(collectorRegistry)
+                .defaultHandler(new MetricsHandler(collectorRegistry))
+                .buildAndStart();
 
         if (expectedHealthCheckInterval > 0) {
             healthCheckTimer =
@@ -317,7 +327,6 @@ public class JavaInstanceStarter implements AutoCloseable {
         return Boolean.TRUE.toString().equals(param);
     }
 
-    @SuppressWarnings("deprecation")
     @Override
     public void close() {
         try {
@@ -335,7 +344,7 @@ public class JavaInstanceStarter implements AutoCloseable {
                 containerFactory.close();
             }
             if (metricsServer != null) {
-                metricsServer.stop();
+                metricsServer.close();
             }
 
             InstanceCache.shutdown();

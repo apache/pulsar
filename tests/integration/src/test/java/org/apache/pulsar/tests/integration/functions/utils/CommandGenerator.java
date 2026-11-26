@@ -19,6 +19,8 @@
 package org.apache.pulsar.tests.integration.functions.utils;
 
 import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import lombok.Getter;
@@ -27,7 +29,10 @@ import lombok.ToString;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.common.functions.ConsumerConfig;
+import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.ProducerConfig;
+import org.apache.pulsar.common.functions.Resources;
+import org.apache.pulsar.common.functions.WindowConfig;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 
 @Getter
@@ -278,6 +283,83 @@ public class CommandGenerator {
             commandBuilder.append(" --producer-config \'" + new Gson().toJson(producerConfig) + "\'");
         }
         return commandBuilder.toString();
+    }
+
+    /**
+     * Returns the config of the function that the command of {@link #generateCreateFunctionCommand(String)} creates,
+     * set the way pulsar-admin sets it from the command's options, for creating the function through the admin client.
+     * The code goes in the config's jar, py or go, as the path of the file in the containers.
+     */
+    public FunctionConfig generateFunctionConfig(String codeFile) {
+        FunctionConfig config = new FunctionConfig();
+        config.setTenant(tenant);
+        config.setNamespace(namespace);
+        config.setName(functionName);
+        if (runtime != Runtime.GO) {
+            config.setClassName(functionClassName);
+        }
+        if (StringUtils.isNotEmpty(sourceTopic)) {
+            config.setInputs(Arrays.asList(sourceTopic.split(",")));
+            if (consumerConfig != null) {
+                config.setInputSpecs(Map.of(sourceTopic, consumerConfig));
+            }
+        }
+        config.setTopicsPattern(sourceTopicPattern);
+        config.setLogTopic(logTopic);
+        config.setBatchBuilder(batchBuilder);
+        if (customSerDeSourceTopics != null && !customSerDeSourceTopics.isEmpty()) {
+            config.setCustomSerdeInputs(customSerDeSourceTopics);
+        }
+        config.setOutput(sinkTopic);
+        config.setOutputSerdeClassName(outputSerDe);
+        if (processingGuarantees != null) {
+            config.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.valueOf(processingGuarantees));
+        }
+        config.setTimeoutMs(timeoutMs);
+        if (!userConfig.isEmpty()) {
+            config.setUserConfig(new HashMap<>(userConfig));
+        }
+        config.setParallelism(parallelism);
+        if (windowLengthCount != null || windowLengthDurationMs != null || slidingIntervalCount != null
+                || slidingIntervalDurationMs != null) {
+            WindowConfig windowConfig = new WindowConfig();
+            windowConfig.setWindowLengthCount(windowLengthCount);
+            windowConfig.setWindowLengthDurationMs(windowLengthDurationMs);
+            windowConfig.setSlidingIntervalCount(slidingIntervalCount);
+            windowConfig.setSlidingIntervalDurationMs(slidingIntervalDurationMs);
+            config.setWindowConfig(windowConfig);
+        }
+        if (customSchemaInputs != null) {
+            config.setCustomSchemaInputs(
+                    new Gson().fromJson(customSchemaInputs, new TypeToken<Map<String, String>>() {}.getType()));
+        }
+        config.setInputTypeClassName(inputTypeClassName);
+        config.setOutputTypeClassName(outputTypeClassName);
+        config.setOutputSchemaType(schemaType);
+        if (subscriptionInitialPosition != null) {
+            config.setSubscriptionPosition(subscriptionInitialPosition);
+        }
+        if (retainOrdering != null) {
+            config.setRetainOrdering(true);
+        }
+        if (retainKeyOrdering != null) {
+            config.setRetainKeyOrdering(true);
+        }
+
+        switch (runtime) {
+            case JAVA:
+                config.setJar(JAVAJAR);
+                config.setResources(Resources.builder().ram(JAVA_RUNTIME_RAM_BYTES).build());
+                break;
+            case PYTHON:
+                config.setPy(codeFile != null ? PYTHONBASE + codeFile : PYTHONBASE);
+                break;
+            case GO:
+                config.setGo(codeFile != null ? GOBASE + codeFile : GOBASE);
+                break;
+        }
+        config.setProducerConfig(producerConfig);
+        return config;
     }
 
     public String generateUpdateFunctionCommand() {

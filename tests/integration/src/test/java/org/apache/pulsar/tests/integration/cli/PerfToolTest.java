@@ -46,6 +46,11 @@ public class PerfToolTest extends TopicMessagingBase {
     private static final String[] V5_CLIENT = {"--client-api", "V5"};
     private static final String[] DEFAULT_CLIENT = {};
 
+    @Override
+    protected boolean isClusterShared() {
+        return true;
+    }
+
     @Test
     public void testProduce() throws Exception {
         String serviceUrl = "pulsar://" + pulsarCluster.getProxy().getContainerName() + ":"

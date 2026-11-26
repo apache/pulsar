@@ -36,6 +36,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import lombok.CustomLog;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.metrics.Counter;
 import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
@@ -54,6 +55,9 @@ public class UnAckedMessageTracker implements Closeable {
             new UnAckedMessageTrackerDisabled();
     protected final long ackTimeoutMillis;
     protected final long tickDurationInMs;
+    // An Exclusive or Failover consumer cannot redeliver single messages: when some of its messages time out, it
+    // redelivers all of its unacked messages and clears this tracker.
+    protected final boolean redeliversAllOnAckTimeout;
 
     private final Counter consumerAckTimeoutsCounter;
 
@@ -101,6 +105,7 @@ public class UnAckedMessageTracker implements Closeable {
         messageIdPartitionMap = null;
         this.ackTimeoutMillis = 0;
         this.tickDurationInMs = 0;
+        this.redeliversAllOnAckTimeout = false;
         this.consumerAckTimeoutsCounter = null;
     }
 
@@ -117,6 +122,8 @@ public class UnAckedMessageTracker implements Closeable {
         this.ackTimeoutMillis = conf.getAckTimeoutMillis();
         this.tickDurationInMs = Math.min(conf.getTickDurationMillis(), conf.getAckTimeoutMillis());
         checkArgument(tickDurationInMs > 0 && ackTimeoutMillis >= tickDurationInMs);
+        this.redeliversAllOnAckTimeout = conf.getSubscriptionType() != SubscriptionType.Shared
+                && conf.getSubscriptionType() != SubscriptionType.Key_Shared;
         ReentrantReadWriteLock readWriteLock = new ReentrantReadWriteLock();
         this.readLock = readWriteLock.readLock();
         this.writeLock = readWriteLock.writeLock();
@@ -154,14 +161,16 @@ public class UnAckedMessageTracker implements Closeable {
                             log.info().attr("consumerBase", consumerBase)
                                     .attr("count", headPartition.size())
                                     .log("messages will be re-delivered");
-                            headPartition.forEach(messageId -> {
-                                if (messageId instanceof ChunkMessageIdImpl) {
-                                    addChunkedMessageIdsAndRemoveFromSequenceMap(messageId, messageIds, consumerBase);
-                                } else {
-                                    messageIds.add(messageId);
-                                }
-                                messageIdPartitionMap.remove(messageId);
-                            });
+                            removeMessagesToRedeliver(headPartition, messageIds, consumerBase, true);
+                            if (redeliversAllOnAckTimeout) {
+                                // The consumer redelivers the messages tracked after the timed-out ones too, and
+                                // drops them from this tracker: report them to onAckTimeoutSend as well. Keep their
+                                // chunk mappings: an acknowledgment of one of them must still cover all its chunks
+                                timePartitions.forEach(partition -> {
+                                    removeMessagesToRedeliver(partition, messageIds, consumerBase, false);
+                                    partition.clear();
+                                });
+                            }
                         }
 
                         headPartition.clear();
@@ -186,15 +195,37 @@ public class UnAckedMessageTracker implements Closeable {
         }
     }
 
+    private void removeMessagesToRedeliver(HashSet<MessageId> partition, Set<MessageId> messageIds,
+                                           ConsumerBase<?> consumerBase, boolean timedOut) {
+        partition.forEach(messageId -> {
+            if (messageId instanceof ChunkMessageIdImpl) {
+                if (timedOut) {
+                    addChunkedMessageIdsAndRemoveFromSequenceMap(messageId, messageIds, consumerBase);
+                } else {
+                    addChunkedMessageIds(messageId, messageIds, consumerBase);
+                }
+            } else {
+                messageIds.add(messageId);
+            }
+            messageIdPartitionMap.remove(messageId);
+        });
+    }
+
     public static void addChunkedMessageIdsAndRemoveFromSequenceMap(MessageId messageId, Set<MessageId> messageIds,
                                                                     ConsumerBase<?> consumerBase) {
+        addChunkedMessageIds(messageId, messageIds, consumerBase);
+        if (messageId instanceof MessageIdImpl) {
+            consumerBase.unAckedChunkedMessageIdSequenceMap.remove((MessageIdImpl) messageId);
+        }
+    }
+
+    static void addChunkedMessageIds(MessageId messageId, Set<MessageId> messageIds, ConsumerBase<?> consumerBase) {
         if (messageId instanceof MessageIdImpl) {
             MessageIdImpl[] chunkedMsgIds = consumerBase.unAckedChunkedMessageIdSequenceMap
                     .get((MessageIdImpl) messageId);
             if (chunkedMsgIds != null && chunkedMsgIds.length > 0) {
                 Collections.addAll(messageIds, chunkedMsgIds);
             }
-            consumerBase.unAckedChunkedMessageIdSequenceMap.remove((MessageIdImpl) messageId);
         }
     }
 

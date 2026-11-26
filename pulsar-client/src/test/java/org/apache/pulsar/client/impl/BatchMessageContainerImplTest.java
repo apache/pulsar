@@ -609,6 +609,49 @@ public class BatchMessageContainerImplTest {
         }
     }
 
+    @Test
+    public void testEntryBucketOrderWithDistantSequenceIds() throws Exception {
+        ProducerImpl<?> producer = createTestProducer(CompressionType.NONE);
+        doAnswer(invocation -> invocation.getArgument(1)).when(producer).encryptMessage(any(), any());
+        doAnswer(invocation -> {
+            ByteBuf payload = invocation.getArgument(5);
+            ByteBuf header = PulsarByteBufAllocator.DEFAULT.buffer();
+            header.writeInt(4 + 4 + payload.readableBytes());
+            header.writeInt(0);
+            return ByteBufPair.get(header, payload);
+        }).when(producer).sendMessage(anyLong(), anyLong(), anyLong(), anyInt(), any(), any());
+
+        // "key-1" and "key-2" hash into different entry buckets with these splits.
+        EntryBucketBatchContainer container =
+                new EntryBucketBatchContainer(Arrays.asList(0x4000, 0x8000, 0xC000));
+        container.setProducer(producer);
+        List<MessageImpl<?>> messages = new ArrayList<>();
+        try {
+            // The sequence ids are more than Integer.MAX_VALUE apart
+            long distantSequenceId = 2147483653L;
+            for (long sequenceId : new long[]{1L, distantSequenceId}) {
+                MessageMetadata messageMetadata = new MessageMetadata();
+                messageMetadata.setSequenceId(sequenceId);
+                messageMetadata.setProducerName("producer");
+                messageMetadata.setPublishTime(System.currentTimeMillis());
+                messageMetadata.setPartitionKey(sequenceId == 1L ? "key-1" : "key-2");
+                ByteBuffer payload = ByteBuffer.wrap("payload".getBytes(StandardCharsets.UTF_8));
+                MessageImpl<?> message = MessageImpl.create(messageMetadata, payload, Schema.BYTES, null);
+                messages.add(message);
+                container.add(message, null);
+            }
+
+            List<ProducerImpl.OpSendMsg> ops = container.createOpSendMsgs();
+            assertEquals(ops.size(), 2);
+            assertEquals(ops.get(0).sequenceId, 1L);
+            assertEquals(ops.get(1).sequenceId, distantSequenceId);
+            ops.forEach(op -> op.cmd.release());
+            container.clear();
+        } finally {
+            messages.forEach(ReferenceCountUtil::safeRelease);
+        }
+    }
+
     /**
      * discard() invokes the application callback before releasing the batch buffer. The callback is application
      * code (future handlers run inside sendComplete), so it can throw; the release must not be skipped when it

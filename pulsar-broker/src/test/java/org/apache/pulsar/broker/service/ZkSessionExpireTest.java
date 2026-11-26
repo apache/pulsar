@@ -209,6 +209,11 @@ public class ZkSessionExpireTest extends NetworkErrorTestBase {
             assertEquals(availableBrokers2.size(), 2);
         });
 
+        // Verify: broker-1 answers lookups at once. The lookup it got while its session was lost waits for the owner,
+        // which broker-2 became meanwhile: the table view refill after the session is reestablished must answer it,
+        // or it (and any new lookup) waits until loadBalancerInFlightServiceUnitStateWaitingTimeInMillis (30 s).
+        admin1.lookups().lookupTopicAsync(topicName).get(10, TimeUnit.SECONDS);
+
         // Verify: the topic on broker-1 will be unloaded.
         // Verify: the topic on broker-2 is fine.
         Awaitility.await().atMost(Duration.ofSeconds(180)).untilAsserted(() -> {
