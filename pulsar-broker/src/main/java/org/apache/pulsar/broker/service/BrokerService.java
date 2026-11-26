@@ -1848,8 +1848,9 @@ public class BrokerService implements Closeable {
     /**
      * Deletes an unloaded topic's metadata if this broker owns the topic's bundle. The broker may have given the
      * bundle up since the delete was accepted, and another broker may serve the topic by then. The caller holds the
-     * topic's reservation in the cache, which a bundle unload that starts from now on waits for. A bundle unload that
-     * started earlier made the ownership check fail before it looked at the cache.
+     * topic's reservation in the cache, which a bundle unload that starts from now on waits for, up to
+     * {@code namespaceBundleUnloadingTimeoutMs}. A bundle unload that started earlier made the ownership check fail
+     * before it looked at the cache.
      *
      * <p>The broker's own heartbeat namespace counts as owned. Lookups assign a heartbeat namespace to the broker that
      * it is named after, so no other broker serves it, and the broker deletes its heartbeat topic at shutdown, after
@@ -1863,9 +1864,24 @@ public class BrokerService implements Closeable {
         // The same test as the lookups use, not the namespace's name: only a namespace that they assign to this
         // broker alone is safe to delete from without owning the bundle.
         String heartbeatBroker = NamespaceService.checkHeartbeatNamespace(topicName);
-        CompletableFuture<Boolean> ownsBundle = heartbeatBroker != null && heartbeatBroker.equals(pulsar.getBrokerId())
-                ? CompletableFuture.completedFuture(true)
-                : pulsar.getNamespaceService().checkTopicOwnership(topicName);
+        NamespaceService namespaceService = pulsar.getNamespaceService();
+        CompletableFuture<Boolean> ownsBundle;
+        if (heartbeatBroker != null && heartbeatBroker.equals(pulsar.getBrokerId())) {
+            ownsBundle = CompletableFuture.completedFuture(true);
+        } else {
+            // On the modular load manager, the first check of a topic whose managed ledger was fenced validates the
+            // bundle's lock, drops the topic's readmission marker and answers false, so that a pending load starts
+            // over. Checking once more is then the plain bundle check. The reservation keeps the topic from being
+            // loaded, and so from being fenced again, in between. The extensible load manager has no such marker.
+            // On the extensible load manager, an owner lookup that reads the bundle as Owned and then, on its second
+            // read, as Releasing waits for the bundle's next state. The release publishes that state only after its
+            // close, which waits for this reservation, so the lookup gives up after
+            // loadBalancerInFlightServiceUnitStateWaitingTimeInMillis and the delete fails.
+            boolean checkAgainIfNotOwned = !ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar);
+            ownsBundle = namespaceService.checkTopicOwnership(topicName)
+                    .thenCompose(owned -> owned || !checkAgainIfNotOwned ? CompletableFuture.completedFuture(owned)
+                            : namespaceService.checkTopicOwnership(topicName));
+        }
         return ownsBundle.thenCompose(owned -> {
             if (owned) {
                 return deleteUnloadedTopicMetadata(topic);
