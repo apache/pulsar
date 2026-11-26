@@ -112,6 +112,13 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     private final Set<CompletableFuture<Void>> partitionPublications = new HashSet<>();
     private volatile CompletableFuture<Void> closeCompletion = CompletableFuture.completedFuture(null);
 
+    // Set once closeAsync() has snapshotted the children it will close. A child published after
+    // this point escapes the close, so a creation task that publishes after the snapshot removes
+    // and closes its child instead. Set before the snapshot is taken, so a child published while
+    // closeAsync() is still waiting for in-flight publications stays and the close closes it.
+    // Written on the thread running closeAsync()'s closing stage, read on internalPinnedExecutor.
+    private volatile boolean closeChildrenSnapshotTaken;
+
     // Topics whose per-topic unsubscribe is in flight. While a topic is marked, a queued
     // creation task for it fails instead of publishing a child the unsubscribe already
     // snapshotted. Only the creation tasks read this marker: a re-subscribe or a partition
@@ -736,16 +743,21 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             return getState() == State.Closed ? CompletableFuture.completedFuture(null) : closeCompletion.copy();
         }
 
-        publications.thenCompose(__ -> FutureUtil.waitForAll(consumers.values().stream()
-                .map(consumer -> consumer.closeAsync().exceptionally(t -> {
-                    Throwable cause = FutureUtil.unwrapCompletionException(t);
-                    if (!(cause instanceof PulsarClientException.AlreadyClosedException)) {
-                        log.warn().attr("topic", consumer.getTopic())
-                                .exception(cause)
-                                .log("Error closing individual consumer");
-                    }
-                    return null;
-                })).toList()))
+        publications.thenCompose(__ -> {
+            // Mark the snapshot before taking it: a creation task publishing after this point
+            // must remove its child instead of letting it escape the close.
+            closeChildrenSnapshotTaken = true;
+            return FutureUtil.waitForAll(consumers.values().stream()
+                    .map(consumer -> consumer.closeAsync().exceptionally(t -> {
+                        Throwable cause = FutureUtil.unwrapCompletionException(t);
+                        if (!(cause instanceof PulsarClientException.AlreadyClosedException)) {
+                            log.warn().attr("topic", consumer.getTopic())
+                                    .exception(cause)
+                                    .log("Error closing individual consumer");
+                        }
+                        return null;
+                    })).toList());
+        })
             .thenComposeAsync((r) -> {
                 setState(State.Closed);
                 cleanupMultiConsumer();
@@ -1399,11 +1411,15 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                             // uncompleted so the start scan below never runs for it.
                             return;
                         }
-                        if (client.isClosed() || getState() == State.Closing || getState() == State.Closed) {
-                            // The parent or the client started closing after the check above but before
-                            // publication: closeAsync() already snapshotted the children, so this child
-                            // would escape the close. Remove and close it here instead, and release the
-                            // reservation.
+                        if (client.isClosed() || closeChildrenSnapshotTaken || getState() == State.Closed) {
+                            // The parent started closing after the check above but before publication,
+                            // and closeAsync() already snapshotted the children it will close, so this
+                            // child would escape the close. Remove and close it here instead, and release
+                            // the reservation. While closeAsync() is still waiting for in-flight
+                            // publications the snapshot has not been taken yet, so the child stays and
+                            // the close closes it. State.Closed stays as a check because a completed
+                            // whole-consumer unsubscribe closes the parent without taking a close
+                            // snapshot.
                             consumers.remove(topicName, consumer);
                             consumer.closeAsync();
                             allTopicPartitionsNumber.decrementAndGet();
@@ -1824,13 +1840,21 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             int partitionIndex = TopicName.getPartitionIndex(partitionName);
             return addNewConsumerIfNotExists(partitionName,
                     () -> createInternalConsumer(getInternalConsumerConfig(topicName), partitionName,
-                            partitionIndex, new CompletableFuture<>(), true, schema), childrenPublished);
-        } finally {
-            synchronized (partitionPublications) {
-                partitionPublications.remove(publication);
-            }
-            publication.complete(null);
+                            partitionIndex, new CompletableFuture<>(), true, schema), childrenPublished,
+                    publication);
+        } catch (Throwable t) {
+            // The creation task was never queued: release the close wait instead of leaving
+            // closeAsync() hanging on a publication that will never complete.
+            completePublication(publication);
+            throw t;
         }
+    }
+
+    private void completePublication(CompletableFuture<Void> publication) {
+        synchronized (partitionPublications) {
+            partitionPublications.remove(publication);
+        }
+        publication.complete(null);
     }
 
     // True when the topic of a queued child creation is no longer subscribed: either its
@@ -1851,6 +1875,12 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     private CompletableFuture<Consumer<T>> addNewConsumerIfNotExists(String internalTopicName,
             Supplier<ConsumerImpl<T>> newConsumerSupplier, CompletableFuture<Void> childrenPublished) {
+        return addNewConsumerIfNotExists(internalTopicName, newConsumerSupplier, childrenPublished, null);
+    }
+
+    private CompletableFuture<Consumer<T>> addNewConsumerIfNotExists(String internalTopicName,
+            Supplier<ConsumerImpl<T>> newConsumerSupplier, CompletableFuture<Void> childrenPublished,
+            CompletableFuture<Void> publication) {
         // Create and publish the child on the same executor the redelivery fan-out runs on.
         // The supplier reads the parent epoch when it constructs the child, so creating it on any
         // other thread leaves a window where a redeliver bumps the parent epoch and fans out before
@@ -1912,11 +1942,15 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         return newConsumerSupplier.get();
                     });
                     if (created.get()
-                            && (client.isClosed() || getState() == State.Closing || getState() == State.Closed)) {
-                        // The parent or the client started closing after the check above but before
-                        // publication: closeAsync() already snapshotted the children, so this child
-                        // would escape the close. Remove and close it here instead, and release the
-                        // reservation.
+                            && (client.isClosed() || closeChildrenSnapshotTaken || getState() == State.Closed)) {
+                        // The parent started closing after the check above but before publication,
+                        // and closeAsync() already snapshotted the children it will close, so this
+                        // child would escape the close. Remove and close it here instead, and release
+                        // the reservation. While closeAsync() is still waiting for in-flight
+                        // publications the snapshot has not been taken yet, so the child stays and
+                        // the close closes it. State.Closed stays as a check because a completed
+                        // whole-consumer unsubscribe closes the parent without taking a close
+                        // snapshot.
                         // A reused child never escapes: it was published before this task ran, so
                         // any close snapshot taken since then includes it.
                         consumers.remove(internalTopicName, consumer);
@@ -1932,6 +1966,12 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                     createdFuture.complete(consumer);
                 } catch (Throwable t) {
                     createdFuture.completeExceptionally(t);
+                } finally {
+                    // The child is published (or the task failed): the close wait ends here,
+                    // independently of the broker's subscribe reply.
+                    if (publication != null) {
+                        completePublication(publication);
+                    }
                 }
             });
         } catch (RejectedExecutionException e) {
@@ -1939,6 +1979,9 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             // hanging, and release the reservation no child will ever claim.
             allTopicPartitionsNumber.decrementAndGet();
             createdFuture.completeExceptionally(e);
+            if (publication != null) {
+                completePublication(publication);
+            }
         }
         // Only start receiving for a newly created child once the caller confirms all children
         // of this partition update are published; a reused child already receives.
