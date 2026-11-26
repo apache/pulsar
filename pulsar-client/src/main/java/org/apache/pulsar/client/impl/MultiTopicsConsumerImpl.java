@@ -112,6 +112,12 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     private final Set<CompletableFuture<Void>> partitionPublications = new HashSet<>();
     private volatile CompletableFuture<Void> closeCompletion = CompletableFuture.completedFuture(null);
 
+    // Topics whose per-topic unsubscribe is still waiting on its child RPCs. While a topic is
+    // marked, re-subscribing it is rejected and partition refreshes skip it, so a subscribe that
+    // lands mid-unsubscribe cannot reuse a child that cleanup is about to remove. The entry is
+    // kept until cleanup finishes and cleared once the children are gone.
+    private final Set<String> unsubscribingTopics = ConcurrentHashMap.newKeySet();
+
     // Queue of partition consumers on which we have stopped calling receiveAsync() because the
     // shared incoming queue was full
     protected final ConcurrentLinkedQueue<ConsumerImpl<T>> pausedConsumers;
@@ -1358,6 +1364,18 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                             createdFuture.completeExceptionally(ex);
                             return;
                         }
+                        if (unsubscribingTopics.contains(topicName)) {
+                            // The topic was unsubscribed after this creation was queued: the
+                            // unsubscribe already took its snapshot, so a child published here
+                            // would never be unsubscribed. Fail without creating it, and
+                            // release the reservation no child will ever claim.
+                            allTopicPartitionsNumber.decrementAndGet();
+                            PulsarClientException ex = new PulsarClientException(
+                                    "Topic " + topicName + " was unsubscribed");
+                            subscribeFuture.completeExceptionally(ex);
+                            createdFuture.completeExceptionally(ex);
+                            return;
+                        }
                         AtomicBoolean created = new AtomicBoolean();
                         ConsumerImpl<T> consumer = consumers.compute(topicName, (key, existingValue) -> {
                             if (existingValue != null) {
@@ -1391,6 +1409,20 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                             PulsarClientException.AlreadyClosedException ex =
                                     new PulsarClientException.AlreadyClosedException(
                                             "Topics Consumer was already closed");
+                            subscribeFuture.completeExceptionally(ex);
+                            createdFuture.completeExceptionally(ex);
+                            return;
+                        }
+                        if (unsubscribingTopics.contains(topicName)) {
+                            // The topic was unsubscribed after the pre-check above but before
+                            // publication: the unsubscribe already took its snapshot, so this
+                            // child would escape it. Remove and close it here instead, and
+                            // release the reservation.
+                            consumers.remove(topicName, consumer);
+                            consumer.closeAsync();
+                            allTopicPartitionsNumber.decrementAndGet();
+                            PulsarClientException ex = new PulsarClientException(
+                                    "Topic " + topicName + " was unsubscribed");
                             subscribeFuture.completeExceptionally(ex);
                             createdFuture.completeExceptionally(ex);
                             return;
@@ -1560,6 +1592,11 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         CompletableFuture<Void> unsubscribeFuture = new CompletableFuture<>();
         String topicPartName = TopicName.get(topicName).getPartitionedTopicName();
 
+        // Mark the topic before taking the child snapshot: a re-subscribe or a partition
+        // refresh that lands while the child RPCs are still in flight must not resurrect it.
+        // The reservation is kept until cleanup finishes.
+        unsubscribingTopics.add(topicPartName);
+
         List<ConsumerImpl<T>> consumersToUnsub = consumers.values().stream()
             .filter(consumer -> {
                 String consumerTopicName = consumer.getTopic();
@@ -1580,12 +1617,17 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
                     removeTopic(topicName);
                     removeTopicMessagesFromUnackedTracker(topicName);
+                    // Cleanup is finished: only now may the topic be subscribed again.
+                    unsubscribingTopics.remove(topicPartName);
 
                     unsubscribeFuture.complete(null);
                     log.info().attr("topic", topicName)
                             .attr("allTopicPartitionsNumber", allTopicPartitionsNumber)
                             .log("Unsubscribed Topics Consumer");
                 } else {
+                    // The topic stays subscribed, so drop the marker; the failure already puts
+                    // the consumer into Failed state.
+                    unsubscribingTopics.remove(topicPartName);
                     unsubscribeFuture.completeExceptionally(ex);
                     setState(State.Failed);
                     log.error().attr("topic", topicName)
@@ -1778,6 +1820,17 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         }
     }
 
+    // True when the topic of a queued child creation is no longer subscribed: either its
+    // unsubscribe is still in flight, or the unsubscribe already removed it from the
+    // subscribed topics. A creation task rechecks this before publishing, so a child queued
+    // before the unsubscribe cannot outlive it. Only valid for partitioned topics: a
+    // non-partitioned topic is never in partitionedTopics, so callers for those check
+    // unsubscribingTopics directly.
+    private boolean isTopicUnsubscribed(String internalTopicName) {
+        String baseTopicName = TopicName.get(internalTopicName).getPartitionedTopicName();
+        return unsubscribingTopics.contains(baseTopicName) || !partitionedTopics.containsKey(baseTopicName);
+    }
+
     private CompletableFuture<Consumer<T>> addNewConsumerIfNotExists(String internalTopicName,
                                                                      Supplier<ConsumerImpl<T>> newConsumerSupplier) {
         return addNewConsumerIfNotExists(internalTopicName, newConsumerSupplier, null);
@@ -1809,6 +1862,19 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         createdFuture.completeExceptionally(
                                 new PulsarClientException.AlreadyClosedException(
                                         "Topics Consumer was already closed"));
+                        return;
+                    }
+                    if (isTopicUnsubscribed(internalTopicName)) {
+                        // The topic was unsubscribed after this creation was queued: the
+                        // unsubscribe already took its snapshot and removed the topic, so a
+                        // child published here would never be unsubscribed and would keep
+                        // its reservation. Fail without creating it, and release the
+                        // reservation no child will ever claim.
+                        allTopicPartitionsNumber.decrementAndGet();
+                        createdFuture.completeExceptionally(
+                                new PulsarClientException(
+                                        "Topic " + TopicName.get(internalTopicName).getPartitionedTopicName()
+                                                + " was unsubscribed"));
                         return;
                     }
                     ConsumerImpl<T> consumer = consumers.compute(internalTopicName, (__, existingConsumer) -> {
@@ -1846,6 +1912,22 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         createdFuture.completeExceptionally(
                                 new PulsarClientException.AlreadyClosedException(
                                         "Topics Consumer was already closed"));
+                        return;
+                    }
+                    if (created.get() && isTopicUnsubscribed(internalTopicName)) {
+                        // The topic was unsubscribed after the pre-check above but before
+                        // publication: the unsubscribe already took its snapshot, so this
+                        // child would escape it. Remove and close it here instead, and
+                        // release the reservation.
+                        // A reused child never escapes: it was published before this task ran, so
+                        // any unsubscribe snapshot taken since then includes it.
+                        consumers.remove(internalTopicName, consumer);
+                        consumer.closeAsync();
+                        allTopicPartitionsNumber.decrementAndGet();
+                        createdFuture.completeExceptionally(
+                                new PulsarClientException(
+                                        "Topic " + TopicName.get(internalTopicName).getPartitionedTopicName()
+                                                + " was unsubscribed"));
                         return;
                     }
                     // Reconcile after compute publishes the child, without holding a map lock together with pauseMutex.

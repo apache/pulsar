@@ -666,6 +666,7 @@ public class MultiTopicsConsumerImplTest {
                 new CompletableFuture<>(), schema, null, true);
 
         impl.partitionedTopics.put(topicName, 0);
+        impl.topicsForPartitionUpdate.add(topicName);
         impl.allTopicPartitionsNumber.set(0);
 
         when(clientMock.getPartitionsForTopic(topicName, false)).thenReturn(CompletableFuture.completedFuture(
@@ -718,6 +719,7 @@ public class MultiTopicsConsumerImplTest {
                 new CompletableFuture<>(), schema, null, true);
 
         impl.partitionedTopics.put(topicName, 0);
+        impl.topicsForPartitionUpdate.add(topicName);
         impl.allTopicPartitionsNumber.set(0);
 
         when(clientMock.getPartitionsForTopic(topicName, false)).thenReturn(CompletableFuture.completedFuture(
@@ -789,6 +791,7 @@ public class MultiTopicsConsumerImplTest {
                 new CompletableFuture<>(), schema, null, true);
 
         impl.partitionedTopics.put(topicName, 0);
+        impl.topicsForPartitionUpdate.add(topicName);
         impl.allTopicPartitionsNumber.set(0);
 
         // Install a single metadata answer before the first child starts: the child's
@@ -858,6 +861,7 @@ public class MultiTopicsConsumerImplTest {
                 new CompletableFuture<>(), schema, null, true);
 
         impl.partitionedTopics.put(topicName, 0);
+        impl.topicsForPartitionUpdate.add(topicName);
         impl.allTopicPartitionsNumber.set(0);
 
         when(clientMock.getPartitionsForTopic(topicName, false)).thenReturn(CompletableFuture.completedFuture(
@@ -897,6 +901,74 @@ public class MultiTopicsConsumerImplTest {
         assertFalse(impl.consumers.containsKey(topicPartition1));
     }
 
+    @Test(timeOut = 20000)
+    public void testQueuedChildCreationSkippedAfterUnsubscribe() throws Exception {
+        String topicName = "persistent://public/default/epoch-unsubscribe-topic";
+        String topicPartition0 = topicName + "-partition-0";
+        String topicPartition1 = topicName + "-partition-1";
+
+        ConsumerConfigurationData<byte[]> consumerConfData = new ConsumerConfigurationData<>();
+        consumerConfData.setSubscriptionName("subscriptionName");
+        consumerConfData.setAutoUpdatePartitions(true);
+        consumerConfData.setAutoUpdatePartitionsIntervalSeconds(60);
+
+        ClientCnx clientCnxMock = mockClientCnx();
+        when(clientCnxMock.getRemoteEndpointProtocolVersion()).thenReturn(ProtocolVersion.v12_VALUE);
+        PulsarClientImpl clientMock = createPulsarClientMockWithMockedClientCnx(executorProvider, internalExecutor,
+                clientCnxMock);
+        when(clientMock.getPartitionedTopicMetadata(any(), anyBoolean(), anyBoolean()))
+                .thenReturn(CompletableFuture.completedFuture(new PartitionedTopicMetadata()));
+        Schema<byte[]> schema = Schema.BYTES;
+
+        MultiTopicsConsumerImpl<byte[]> impl = new MultiTopicsConsumerImpl<>(
+                clientMock, consumerConfData, executorProvider,
+                new CompletableFuture<>(), schema, null, true);
+
+        impl.partitionedTopics.put(topicName, 0);
+        impl.topicsForPartitionUpdate.add(topicName);
+        impl.allTopicPartitionsNumber.set(0);
+
+        when(clientMock.getPartitionsForTopic(topicName, false)).thenReturn(CompletableFuture.completedFuture(
+                Collections.singletonList(topicPartition0)));
+
+        PartitionsChangedListener listener = impl.topicsPartitionChangedListener;
+        listener.onTopicsExtended(Collections.singleton(topicName)).join();
+        assertTrue(impl.consumers.containsKey(topicPartition0));
+
+        when(clientMock.getPartitionsForTopic(topicName, false)).thenReturn(CompletableFuture.completedFuture(
+                Arrays.asList(topicPartition0, topicPartition1)));
+
+        // Occupy the pinned executor, then trigger growth: the creation task is queued but has
+        // not started when the topic is unsubscribed, so it must fail instead of publishing a
+        // child the unsubscribe never sees.
+        CountDownLatch occupierRunning = new CountDownLatch(1);
+        CountDownLatch releaseOccupier = new CountDownLatch(1);
+        impl.internalPinnedExecutor.execute(() -> {
+            occupierRunning.countDown();
+            try {
+                releaseOccupier.await(15, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+        assertTrue(occupierRunning.await(15, TimeUnit.SECONDS));
+
+        CompletableFuture<Void> growth = listener.onTopicsExtended(Collections.singleton(topicName));
+        CompletableFuture<Void> unsubscribeFuture = impl.unsubscribeAsync(topicName);
+
+        releaseOccupier.countDown();
+        // The unsubscribe already removed the topic, so the queued creation trips the
+        // recheck and fails; the refresh logs the failure and completes normally. Wait for
+        // both, then assert no child was created or published and the reservation was
+        // released.
+        unsubscribeFuture.get(15, TimeUnit.SECONDS);
+        growth.get(15, TimeUnit.SECONDS);
+        assertFalse(impl.consumers.containsKey(topicPartition0));
+        assertFalse(impl.consumers.containsKey(topicPartition1));
+        assertFalse(impl.partitionedTopics.containsKey(topicName));
+        assertEquals(impl.allTopicPartitionsNumber.get(), 0);
+    }
+
     @Test(timeOut = 30000)
     public void testQueuedChildCreationFailsOnExecutorShutdownNow() throws Exception {
         String topicName = "persistent://public/default/epoch-shutdown-topic";
@@ -927,6 +999,7 @@ public class MultiTopicsConsumerImplTest {
 
         try {
             impl.partitionedTopics.put(topicName, 0);
+            impl.topicsForPartitionUpdate.add(topicName);
             impl.allTopicPartitionsNumber.set(0);
 
             when(clientMock.getPartitionsForTopic(topicName, false)).thenReturn(CompletableFuture.completedFuture(
