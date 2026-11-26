@@ -21,10 +21,10 @@ package org.apache.pulsar.functions.worker;
 import static org.apache.pulsar.common.stats.JvmMetrics.getJvmDirectMemoryUsed;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.metrics.Meter;
-import io.prometheus.client.CollectorRegistry;
 import io.prometheus.metrics.core.datapoints.DistributionDataPoint;
 import io.prometheus.metrics.core.datapoints.GaugeDataPoint;
 import io.prometheus.metrics.core.metrics.Gauge;
+import io.prometheus.metrics.core.metrics.GaugeWithCallback;
 import io.prometheus.metrics.core.metrics.Summary;
 import io.prometheus.metrics.expositionformats.PrometheusTextFormatWriter;
 import io.prometheus.metrics.instrumentation.jvm.JvmMetrics;
@@ -170,22 +170,17 @@ public class WorkerStatsManager implements AutoCloseable {
     drainTotalExecutionTimeChild = drainTotalExecutionTime.labelValues(metricsLabels);
 
     if (runAsStandalone) {
-      // 1.x JvmMetrics does not export these two names, so they stay on the simpleclient default registry.
-      io.prometheus.client.Gauge.build("jvm_memory_direct_bytes_used", "-").create()
-          .setChild(new io.prometheus.client.Gauge.Child() {
-            @Override
-            public double get() {
-              return getJvmDirectMemoryUsed();
-            }
-          }).register(CollectorRegistry.defaultRegistry);
+      GaugeWithCallback.builder()
+          .name("jvm_memory_direct_bytes_used")
+          .help("-")
+          .callback(callback -> callback.call(getJvmDirectMemoryUsed()))
+          .register();
 
-      io.prometheus.client.Gauge.build("jvm_memory_direct_bytes_max", "-").create()
-          .setChild(new io.prometheus.client.Gauge.Child() {
-            @Override
-            public double get() {
-              return DirectMemoryUtils.jvmMaxDirectMemory();
-            }
-          }).register(CollectorRegistry.defaultRegistry);
+      GaugeWithCallback.builder()
+          .name("jvm_memory_direct_bytes_max")
+          .help("-")
+          .callback(callback -> callback.call(DirectMemoryUtils.jvmMaxDirectMemory()))
+          .register();
     }
   }
 

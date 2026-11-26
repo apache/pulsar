@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.worker.rest.api;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -34,10 +35,19 @@ import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.StreamingOutput;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import org.apache.pulsar.common.util.DirectMemoryUtils;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
+import org.apache.pulsar.functions.worker.WorkerStatsManager;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -53,6 +63,25 @@ public class FunctionsMetricsResourceTest {
 
     private Gauge legacyGauge;
     private Collector modernCollector;
+    private WorkerStatsManager standaloneWorkerStats;
+
+    @BeforeClass
+    public void startStandaloneWorkerStats() {
+        // A standalone worker registers the Netty direct memory gauges for the life of the JVM, and registering
+        // them a second time fails. A later run of this class in the same JVM therefore reuses the first run's.
+        if (!isInTheDefaultRegistry("jvm_memory_direct_bytes_max")
+                && !isInTheDefaultRegistry("jvm_memory_direct_bytes_used")) {
+            standaloneWorkerStats = new WorkerStatsManager(
+                    new WorkerConfig().setPulsarFunctionsCluster("test-cluster"), true);
+        }
+    }
+
+    @AfterClass(alwaysRun = true)
+    public void closeStandaloneWorkerStats() {
+        if (standaloneWorkerStats != null) {
+            standaloneWorkerStats.close();
+        }
+    }
 
     @BeforeMethod
     public void setup() {
@@ -95,6 +124,30 @@ public class FunctionsMetricsResourceTest {
         assertTrue(body.contains(FUNCTIONS_MARKER), body);
     }
 
+    @Test
+    public void testStandaloneWorkerExportsTheNettyDirectMemoryGauges() throws Exception {
+        String body = scrape(true);
+        assertThat(sampleValues(body, "jvm_memory_direct_bytes_max"))
+                .as("jvm_memory_direct_bytes_max samples in the worker /metrics")
+                .containsExactly((double) DirectMemoryUtils.jvmMaxDirectMemory());
+        assertThat(sampleValues(body, "jvm_memory_direct_bytes_used"))
+                .as("jvm_memory_direct_bytes_used samples in the worker /metrics")
+                .singleElement()
+                .satisfies(used -> assertThat(used).as("-1 means the JVM cannot estimate it")
+                        .isGreaterThanOrEqualTo(-1.0));
+        // The worker /metrics writes the simpleclient registry and the 1.x registry, so the scrape alone does not
+        // tell in which of them the gauges are registered
+        for (String gauge : List.of("jvm_memory_direct_bytes_max", "jvm_memory_direct_bytes_used")) {
+            assertThat(PrometheusRegistry.defaultRegistry.scrape(gauge::equals))
+                    .as("%s in the 1.x registry", gauge)
+                    .hasSize(1);
+            assertThat(Collections.list(CollectorRegistry.defaultRegistry.metricFamilySamples()))
+                    .as("families in the simpleclient registry")
+                    .extracting(family -> family.name)
+                    .doesNotContain(gauge);
+        }
+    }
+
     private static String scrape(boolean includeStandardPrometheusMetrics) throws Exception {
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setIncludeStandardPrometheusMetrics(includeStandardPrometheusMetrics);
@@ -116,5 +169,18 @@ public class FunctionsMetricsResourceTest {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         ((StreamingOutput) response.getEntity()).write(out);
         return out.toString(StandardCharsets.UTF_8);
+    }
+
+    private static List<Double> sampleValues(String body, String name) {
+        Matcher sample = Pattern.compile("^" + Pattern.quote(name) + " (\\S+)$", Pattern.MULTILINE).matcher(body);
+        List<Double> values = new ArrayList<>();
+        while (sample.find()) {
+            values.add(Double.parseDouble(sample.group(1)));
+        }
+        return values;
+    }
+
+    private static boolean isInTheDefaultRegistry(String name) {
+        return PrometheusRegistry.defaultRegistry.scrape(name::equals).size() > 0;
     }
 }
