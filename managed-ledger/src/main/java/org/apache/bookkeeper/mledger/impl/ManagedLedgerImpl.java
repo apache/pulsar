@@ -3503,8 +3503,16 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      * read returns. A non-positive {@code maxMergedHoleDistance} splits the read at every skipped
      * entry.
      *
+     * <p>The condition reads live state, so it can answer differently to two tests of the same entry.
+     * The scan tests every entry at most once: a look-ahead over a skipped run keeps its result, and
+     * the scan goes on from the entry it found readable without testing it again. The ranges are
+     * therefore ascending and disjoint, and so are the holes - which lie inside one range each - and
+     * the entries the ranges read without the holes are exactly the ones the scan found readable.
+     *
      * @return the entry id where the scan stopped, or -1 when the whole window was scanned; the caller
-     *         reads the entries beyond that point with its continuation read
+     *         reads the entries beyond that point with its continuation read. The scan stops before the
+     *         first readable entry that would start a range beyond {@code maxRanges}, so that the
+     *         continuation read leaves no readable entry out.
      */
     static long buildRanges(long firstEntry, long lastEntry, LongPredicate shouldSkipEntry,
                             int maxRanges, List<LongLongPair> ranges, long maxMergedHoleDistance,
@@ -3517,39 +3525,55 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 // continuation read, so the scan can stop without evaluating the predicate.
                 return entryId;
             }
-            if (shouldSkipEntry.test(entryId)) {
+            if (!shouldSkipEntry.test(entryId)) {
+                // A readable entry: it extends the open range, or starts one
                 if (rangeStart == -1) {
-                    continue;
+                    rangeStart = entryId;
                 }
-                // The next readable entry, or the end of the window when the skipped run is trailing
-                long nextEntry = entryId;
-                do {
-                    nextEntry++;
-                } while (nextEntry <= lastEntry && shouldSkipEntry.test(nextEntry));
-                if (nextEntry <= lastEntry && nextEntry - rangeEnd <= maxMergedHoleDistance
-                        && nextEntry - rangeStart < maxMergedRangeEntries) {
-                    // Read through the small hole: the merged range is one request to the bookie, and
-                    // the entries in between are released without being delivered. The look-ahead
-                    // tested nextEntry as readable: keep that result instead of testing the entry
-                    // again, so that every entry is tested once per scan. The condition reads live
-                    // state and can change while the scan runs - an entry acknowledged during it, for
-                    // example - so a second test could see as skipped an entry that the look-ahead saw
-                    // as readable, and start another hole from the same rangeEnd + 1. The holes would
-                    // then overlap, and the entries they share would be counted out of the expected
-                    // count twice.
-                    mergedHoles.add(LongLongImmutablePair.of(rangeEnd + 1, nextEntry - 1));
-                    rangeEnd = nextEntry;
-                    entryId = nextEntry;
-                    continue;
-                }
-                ranges.add(LongLongImmutablePair.of(rangeStart, rangeEnd));
-                rangeStart = -1;
+                rangeEnd = entryId;
                 continue;
             }
             if (rangeStart == -1) {
-                rangeStart = entryId;
+                // A skipped entry outside any range: nothing to do
+                continue;
             }
-            rangeEnd = entryId;
+            // The next readable entry, or the end of the window when the skipped run is trailing
+            long nextEntry = entryId;
+            do {
+                nextEntry++;
+            } while (nextEntry <= lastEntry && shouldSkipEntry.test(nextEntry));
+            // From here on the scan does not test any of the entries up to nextEntry again: the
+            // look-ahead just did. The condition reads live state and can change while the scan
+            // runs, so a second test could disagree with it. A merged hole that ends on an entry
+            // which the second test finds skipped would be followed by another hole from the same
+            // rangeEnd + 1, whose entries the first hole already counted out of the expected count.
+            boolean merged = nextEntry <= lastEntry && nextEntry - rangeEnd <= maxMergedHoleDistance
+                    && nextEntry - rangeStart < maxMergedRangeEntries;
+            if (merged) {
+                // Read through the small hole: the merged range is one request to the bookie, and
+                // the entries in between are released without being delivered.
+                mergedHoles.add(LongLongImmutablePair.of(rangeEnd + 1, nextEntry - 1));
+                // nextEntry is the last entry of the range, as if the scan had tested it readable
+                rangeEnd = nextEntry;
+                entryId = nextEntry;
+                continue;
+            }
+            // The hole is not read through: the range ends before it
+            ranges.add(LongLongImmutablePair.of(rangeStart, rangeEnd));
+            rangeStart = -1;
+            if (nextEntry > lastEntry) {
+                // A trailing skipped run: nothing of the window is left to read
+                break;
+            }
+            if (ranges.size() == maxRanges) {
+                // A range starting at nextEntry would be one too many: the scan stops before it,
+                // and the continuation read scans from there
+                return nextEntry;
+            }
+            // nextEntry starts the next range, as if the scan had tested it readable
+            rangeStart = nextEntry;
+            rangeEnd = nextEntry;
+            entryId = nextEntry;
         }
         if (rangeStart != -1) {
             ranges.add(LongLongImmutablePair.of(rangeStart, rangeEnd));
