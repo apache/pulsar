@@ -752,6 +752,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                     openTelemetryManagedCursorStats.close();
                     openTelemetryManagedLedgerStats.close();
                     openTelemetryCacheStats.close();
+                    store.close();
                     scheduledExecutor.shutdownNow();
                     entryCacheManager.clear();
                     if (bookkeeperFactory instanceof DefaultBkFactory defaultBkFactory) {
