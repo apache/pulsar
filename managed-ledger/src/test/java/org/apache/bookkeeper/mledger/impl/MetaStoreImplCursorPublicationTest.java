@@ -29,6 +29,8 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -71,6 +73,8 @@ import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooDefs.OpCode;
 import org.apache.zookeeper.ZooKeeper;
+import org.apache.zookeeper.data.ACL;
+import org.apache.zookeeper.proto.SetDataRequest;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -367,6 +371,203 @@ public class MetaStoreImplCursorPublicationTest extends MockedBookKeeperTestCase
                     }
                 } finally {
                     reopened.shutdown();
+                }
+            }
+        } finally {
+            cluster.killCluster();
+        }
+    }
+
+    private static void rejectCursorWrites(ZooKeeper zk) throws Exception {
+        // Leave READ and ADMIN available so verification still runs and the test can restore WRITE.
+        var acl = new ACL(ZooDefs.Perms.READ | ZooDefs.Perms.ADMIN, ZooDefs.Ids.ANYONE_ID_UNSAFE);
+        zk.setACL(PATH, Collections.singletonList(acl), -1);
+    }
+
+    @DataProvider
+    public Object[][] switchRejections() {
+        return new Object[][]{{Code.NOAUTH}, {Code.OPERATIONTIMEOUT}};
+    }
+
+    @Test(dataProvider = "switchRejections", timeOut = 45_000)
+    public void repeatedFailedAcksReuseOneCandidateAfterRecovery(Code rejection) throws Exception {
+        var cluster = new ZooKeeperUtil("/ledgers");
+        try {
+            cluster.startCluster();
+            var zk = cluster.getZooKeeperClient();
+            ZooKeeper client = mock(ZooKeeper.class, delegatesTo(zk));
+            var requests = new LinkedBlockingQueue<SetDataRequest>();
+            var reject = new AtomicBoolean(true);
+            doAnswer(inv -> {
+                Iterable<Op> operations = inv.getArgument(0);
+                for (Op op : operations) {
+                    if (PATH.equals(op.getPath())
+                            && op.toRequestRecord() instanceof SetDataRequest request) {
+                        requests.add(request);
+                        if (rejection == Code.OPERATIONTIMEOUT && reject.get()) {
+                            MultiCallback cb = inv.getArgument(1);
+                            cb.processResult(rejection.intValue(), PATH, inv.getArgument(2), null);
+                            return null;
+                        }
+                    }
+                }
+                return delegatesTo(zk).answer(inv);
+            }).when(client).multi(any(), any(MultiCallback.class), any());
+            try (var store = new ZKMetadataStore(client)) {
+                var writer = new ManagedLedgerFactoryImpl(store, bkc);
+                try {
+                    var ledger = writer.open("ledger");
+                    var cursor = (ManagedCursorImpl) ledger.openCursor("cursor");
+                    var first = ledger.addEntry(new byte[]{1});
+                    var second = ledger.addEntry(new byte[]{2});
+                    var third = ledger.addEntry(new byte[]{3});
+                    Set<Long> before = Set.copyOf(bkc.getLedgers());
+                    if (rejection == Code.NOAUTH) {
+                        rejectCursorWrites(zk);
+                    }
+                    Class<? extends KeeperException> expectedError = KeeperException.create(rejection).getClass();
+                    assertThatThrownBy(() -> cursor.markDelete(first))
+                            .hasRootCauseInstanceOf(expectedError);
+                    var allocated = new HashSet<>(bkc.getLedgers());
+                    allocated.removeAll(before);
+                    assertThat(allocated).hasSize(1);
+                    long candidate = allocated.iterator().next();
+                    assertThatThrownBy(() -> cursor.markDelete(second))
+                            .hasRootCauseInstanceOf(expectedError);
+                    var afterRetry = new HashSet<>(bkc.getLedgers());
+                    afterRetry.removeAll(before);
+                    assertThat(afterRetry).containsExactly(candidate);
+
+                    zk.setACL(PATH, ZooDefs.Ids.OPEN_ACL_UNSAFE, -1);
+                    reject.set(false);
+                    cursor.markDelete(third);
+                    assertThat(cursor.getCursorLedger()).isEqualTo(candidate);
+                    assertThat(parse(zk.getData(PATH, false, null)).getCursorsLedgerId()).isEqualTo(candidate);
+                    assertThat(cursor.getPersistentMarkDeletedPosition()).isEqualTo(third);
+                    assertThat(requests).hasSize(3);
+                    var original = requests.remove();
+                    for (var retry : requests) {
+                        assertThat(retry.getVersion()).isEqualTo(original.getVersion());
+                        assertThat(retry.getData()).isEqualTo(original.getData());
+                    }
+                } finally {
+                    zk.setACL(PATH, ZooDefs.Ids.OPEN_ACL_UNSAFE, -1);
+                    writer.shutdown();
+                }
+            }
+        } finally {
+            cluster.killCluster();
+        }
+    }
+
+    @Test(timeOut = 45_000)
+    public void unpublishedCandidateCannotAcknowledgeMessagesBeforeRecovery() throws Exception {
+        var cluster = new ZooKeeperUtil("/ledgers");
+        try {
+            cluster.startCluster();
+            var zk = cluster.getZooKeeperClient();
+            try (var store = new ZKMetadataStore(zk)) {
+                var writer = new ManagedLedgerFactoryImpl(store, bkc);
+                try {
+                    var config = new ManagedLedgerConfig().setMaxUnackedRangesToPersistInMetadataStore(0);
+                    var ledger = writer.open("ledger", config);
+                    var cursor = (ManagedCursorImpl) ledger.openCursor("cursor");
+                    ledger.addEntry(new byte[]{1});
+                    var acknowledged = ledger.addEntry(new byte[]{2});
+                    var unconfirmed = ledger.addEntry(new byte[]{3});
+                    cursor.delete(acknowledged);
+                    long oldLedger = cursor.getCursorLedger();
+                    var before = Set.copyOf(bkc.getLedgers());
+                    rejectCursorWrites(zk);
+                    cursor.startCreatingNewMetadataLedger();
+                    await().untilAsserted(() -> assertThat(cursor.getState()).isEqualTo("NoLedger"));
+                    var afterSwitch = Set.copyOf(bkc.getLedgers());
+                    assertThat(afterSwitch).hasSize(before.size() + 1);
+                    assertThatThrownBy(() -> cursor.delete(unconfirmed))
+                            .hasRootCauseInstanceOf(KeeperException.NoAuthException.class);
+                    // A duplicate ACK may already be reflected in memory. It must still wait for publication.
+                    assertThatThrownBy(() -> cursor.delete(unconfirmed))
+                            .hasRootCauseInstanceOf(KeeperException.NoAuthException.class);
+                    assertThat(parse(zk.getData(PATH, false, null)).getCursorsLedgerId()).isEqualTo(oldLedger);
+
+                    var afterAck = Set.copyOf(bkc.getLedgers());
+                    // Recover from durable state before the original factory can flush its in-memory ACKs on close.
+                    zk.setACL(PATH, ZooDefs.Ids.OPEN_ACL_UNSAFE, -1);
+                    var recovered = new ManagedLedgerFactoryImpl(store, bkc);
+                    try {
+                        var reader = recovered.open("ledger").openCursor("cursor");
+                        var entries = reader.readEntries(3);
+                        try {
+                            assertThat(entries).extracting(entry -> (int) entry.getData()[0]).containsExactly(1, 3);
+                        } finally {
+                            entries.forEach(Entry::release);
+                        }
+                        assertThat(afterAck).isEqualTo(afterSwitch);
+                        // The outstanding ranges require BookKeeper. Neither ledger alone can confirm a final write.
+                        assertThatThrownBy(cursor::close).hasMessageContaining("Unverified cursor ledger switch");
+                    } finally {
+                        zk.setACL(PATH, ZooDefs.Ids.OPEN_ACL_UNSAFE, -1);
+                        recovered.shutdown();
+                    }
+                } finally {
+                    zk.setACL(PATH, ZooDefs.Ids.OPEN_ACL_UNSAFE, -1);
+                    writer.shutdown();
+                }
+            }
+        } finally {
+            cluster.killCluster();
+        }
+    }
+
+    @Test(timeOut = 45_000)
+    public void resolveCandidateFromLaterCursorMetadata() throws Exception {
+        var cluster = new ZooKeeperUtil("/ledgers");
+        try {
+            cluster.startCluster();
+            var zk = cluster.getZooKeeperClient();
+            ZooKeeper client = mock(ZooKeeper.class, delegatesTo(zk));
+            try (var store = new ZKMetadataStore(client)) {
+                var writer = new ManagedLedgerFactoryImpl(store, bkc);
+                try {
+                    var ledger = writer.open("ledger");
+                    var cursor = (ManagedCursorImpl) ledger.openCursor("cursor");
+                    var first = ledger.addEntry(new byte[]{1});
+                    var second = ledger.addEntry(new byte[]{2});
+                    var third = ledger.addEntry(new byte[]{3});
+                    var before = Set.copyOf(bkc.getLedgers());
+
+                    // The switch committed, but the client sees only a rejection after an internal retry.
+                    doAnswer(inv -> {
+                        MultiCallback callback = inv.getArgument(1);
+                        zk.multi(inv.getArgument(0), (rc, path, ctx, results) ->
+                                callback.processResult(rc == Code.OK.intValue() ? Code.NOAUTH.intValue() : rc,
+                                        path, ctx, null), inv.getArgument(2));
+                        return null;
+                    }).doAnswer(delegatesTo(zk)).when(client).multi(any(), any(MultiCallback.class), any());
+                    assertThatThrownBy(() -> cursor.markDelete(first))
+                            .hasRootCauseInstanceOf(KeeperException.NoAuthException.class);
+                    long committed = parse(zk.getData(PATH, false, null)).getCursorsLedgerId();
+                    assertThat(committed).isNotNegative();
+                    var allocated = Set.copyOf(bkc.getLedgers());
+                    assertThat(allocated).hasSize(before.size() + 1);
+                    cursor.markDelete(second);
+                    assertThat(cursor.getCursorLedger()).isEqualTo(committed);
+                    assertThat(bkc.getLedgers()).containsExactlyInAnyOrderElementsOf(allocated);
+
+                    // Now deny a fresh switch. A successful property write with the old pointer fences it.
+                    rejectCursorWrites(zk);
+                    cursor.startCreatingNewMetadataLedger();
+                    await().untilAsserted(() -> assertThat(cursor.getState()).isEqualTo("NoLedger"));
+                    assertThat(bkc.getLedgers()).hasSize(allocated.size() + 1);
+                    zk.setACL(PATH, ZooDefs.Ids.OPEN_ACL_UNSAFE, -1);
+                    cursor.setCursorProperties(Map.of("test", "updated")).get(5, TimeUnit.SECONDS);
+                    await().untilAsserted(() -> assertThat(bkc.getLedgers())
+                            .containsExactlyInAnyOrderElementsOf(allocated));
+                    cursor.markDelete(third);
+                    assertThat(cursor.getPersistentMarkDeletedPosition()).isEqualTo(third);
+                } finally {
+                    zk.setACL(PATH, ZooDefs.Ids.OPEN_ACL_UNSAFE, -1);
+                    writer.shutdown();
                 }
             }
         } finally {

@@ -38,6 +38,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -298,7 +299,7 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
             if (info.getPublication().isEmpty()) {
                 info.setPublication(UUID.randomUUID().toString());
             }
-            return putCursorInfo(ledgerName, path, compressCursorInfo(info), stat, verificationTimeout,
+            return prepareCursorWrite(ledgerName, path, compressCursorInfo(info), stat, verificationTimeout,
                     write == CursorWrite.SWITCH_LEDGER ? info.getCursorsLedgerId() : -1);
         })
                 .whenComplete((written, error) -> dispatchCursorCallback(ledgerName, () -> {
@@ -335,6 +336,70 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
         }
     }
 
+    private CompletableFuture<Stat> prepareCursorWrite(String ledgerName, String path, byte[] content, Stat expected,
+                                                       Duration timeout, long candidate) {
+        // ZooKeeper create responses omit ctime. Pin the node incarnation before submitting a retryable switch.
+        if (candidate >= 0 && expected != null && expected.getCreationTimestamp() == 0
+                && store instanceof ZKMetadataStore zkStore) {
+            return readCursorPublication(ledgerName, path, zkStore.getZkClient(), timeout).thenCompose(value -> {
+                Stat pinned = value.map(GetResult::getStat)
+                        .filter(stat -> !stat.isEphemeral() && stat.getVersion() == expected.getVersion())
+                        .orElse(expected);
+                return putCursorInfo(ledgerName, path, content, pinned, timeout, candidate);
+            });
+        }
+        return putCursorInfo(ledgerName, path, content, expected, timeout, candidate);
+    }
+
+    private CursorPublicationOutcomeUnknownException unknownPublication(Throwable cause, ZKMetadataStore zkStore,
+            String ledgerName, String path, byte[] content, Stat expected) {
+        return new CursorPublicationOutcomeUnknownException(getException(cause), expected,
+                (timeout, stillOwner, callback) ->
+                        retryCursorPublication(zkStore, ledgerName, path, content, expected, timeout,
+                                stillOwner, callback));
+    }
+
+    private void retryCursorPublication(ZKMetadataStore zkStore, String ledgerName, String path, byte[] content,
+            Stat expected, Duration timeout, Supplier<CompletableFuture<Boolean>> stillOwner,
+            MetaStoreCallback<ManagedCursorInfo> callback) {
+        readCursorPublication(ledgerName, path, zkStore.getZkClient(), timeout).thenCompose(value -> {
+            GetResult stored = value.orElse(null);
+            if (expected == null || expected.getCreationTimestamp() <= 0 || stored == null
+                    || stored.getStat().isEphemeral()
+                    || stored.getStat().getCreationTimestamp() != expected.getCreationTimestamp()
+                    || stored.getStat().getVersion() < expected.getVersion()) {
+                return CompletableFuture.failedFuture(new MetadataStoreException.BadVersionException(path));
+            }
+            return stillOwner.get().thenCompose(owner -> {
+                if (!owner) {
+                    return CompletableFuture.failedFuture(new MetaStoreException("Lost ownership of " + path));
+                }
+                if (stored.getStat().getVersion() > expected.getVersion()) {
+                    // This version fences the original CAS. The durable pointer decides which ledger to keep.
+                    zkStore.accept(new Notification(NotificationType.Modified, path));
+                    return CompletableFuture.completedFuture(stored);
+                }
+                // A late original write may still win. Both attempts use exactly the same CAS and publication bytes.
+                return putCursorInfo(ledgerName, path, content, expected, timeout, -1)
+                        .thenApply(stat -> new GetResult(content, stat));
+            });
+        }).orTimeout(timeout.toMillis(), TimeUnit.MILLISECONDS)
+                .whenComplete((stored, error) -> dispatchCursorCallback(ledgerName, () -> {
+                    if (error != null) {
+                        callback.operationFailed(getException(error));
+                        return;
+                    }
+                    ManagedCursorInfo info;
+                    try {
+                        info = parseManagedCursorInfo(stored.getValue());
+                    } catch (Exception e) {
+                        callback.operationFailed(getException(e));
+                        return;
+                    }
+                    callback.operationComplete(info, stored.getStat());
+                }));
+    }
+
     private CompletableFuture<Stat> putCursorInfo(String ledgerName, String path, byte[] content, Stat expected,
                                                  Duration verificationTimeout, long candidateLedgerId) {
         if (closed.get() || executor.isShutdown()) {
@@ -351,7 +416,7 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
                     if (!(cause instanceof MetadataStoreException.BadVersionException
                             || cause.getCause() instanceof KeeperException ke && isUncertainResult(ke.code()))) {
                         return CompletableFuture.failedFuture(candidateLedgerId < 0 ? cause
-                                : new CursorPublicationOutcomeUnknownException(getException(cause)));
+                                : unknownPublication(cause, zkStore, ledgerName, path, content, expected));
                     }
                     var verification = FutureUtil.supplySafely(() ->
                             readCursorPublication(ledgerName, path, zkStore.getZkClient(), verificationTimeout))
@@ -368,7 +433,7 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
                     if (candidateLedgerId >= 0) {
                         // After put, only a completed verification can establish that deletion is safe.
                         verification = verification.exceptionallyCompose(ex -> CompletableFuture.failedFuture(
-                                new CursorPublicationOutcomeUnknownException(getException(ex))));
+                                unknownPublication(ex, zkStore, ledgerName, path, content, expected)));
                     }
                     return verification.thenCompose(confirmed -> confirmed == null
                             ? CompletableFuture.failedFuture(cause) : CompletableFuture.completedFuture(confirmed));
