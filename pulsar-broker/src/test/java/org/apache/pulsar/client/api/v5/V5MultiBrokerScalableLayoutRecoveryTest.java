@@ -46,8 +46,11 @@ import org.apache.pulsar.broker.resources.ScalableTopicResources;
 import org.apache.pulsar.broker.service.PulsarMetadataEventSynchronizer;
 import org.apache.pulsar.broker.service.SharedMultiBrokerPulsarCluster;
 import org.apache.pulsar.broker.service.scalable.ScalableTopicController;
+import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
 import org.apache.pulsar.client.api.v5.config.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.v5.schema.Schema;
+import org.apache.pulsar.common.naming.NamespaceBundle;
+import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AutoScalePolicyOverride;
@@ -106,8 +109,17 @@ public class V5MultiBrokerScalableLayoutRecoveryTest extends V5MultiBrokerClient
                 .startExtraBroker(FaultablePulsarService::new);
         // Own the namespace before any lookup. The merge test can then interrupt the first
         // parent's actual managed-ledger metadata write, while both parents contain real data.
-        for (var bundle : leader.getNamespaceService().getNamespaceBundleFactory()
-                .getBundles(NamespaceName.get(getNamespace())).getBundles()) {
+        // The first owned bundle makes the broker read topic policies from the namespace's events
+        // topic, and the lookup of that topic can give its bundle to another broker. So that bundle
+        // is owned first.
+        NamespaceName namespace = NamespaceName.get(getNamespace());
+        NamespaceBundleFactory bundleFactory = leader.getNamespaceService().getNamespaceBundleFactory();
+        NamespaceBundle policiesBundle =
+                bundleFactory.getBundle(NamespaceEventsSystemTopicFactory.getEventsTopicName(namespace));
+        List<NamespaceBundle> bundles = new ArrayList<>(bundleFactory.getBundles(namespace).getBundles());
+        bundles.remove(policiesBundle);
+        bundles.add(0, policiesBundle);
+        for (NamespaceBundle bundle : bundles) {
             leader.getNamespaceService().getOwnershipCache().tryAcquiringOwnership(bundle)
                     .get(10, TimeUnit.SECONDS);
         }

@@ -54,11 +54,12 @@ public class ReplicatedSubscriptionsSnapshotBuilder {
 
     private final Clock clock;
 
+    // Nothing exports exemplars, so the summary skips the sampling that 1.x summaries do by default.
     @PulsarDeprecatedMetric(newMetricName = OpenTelemetryReplicatedSubscriptionStats.SNAPSHOT_DURATION_METRIC_NAME)
     @Deprecated
     public static final Summary SNAPSHOT_METRIC = Summary.builder()
             .name("pulsar_replicated_subscriptions_snapshot_ms")
-            .help("Time taken to create a consistent snapshot across clusters").register();
+            .help("Time taken to create a consistent snapshot across clusters").withoutExemplars().register();
 
     public ReplicatedSubscriptionsSnapshotBuilder(ReplicatedSubscriptionsController controller,
                                                   Set<String> remoteClusters, ServiceConfiguration conf, Clock clock) {
