@@ -536,6 +536,12 @@ public class PulsarClientImpl implements PulsarClient {
                         Optional.empty());
             }
             producers.add(producer);
+            // The creation can fail before this line runs, from another thread or from a connection that fails at
+            // once, in which case the producer has already closed or failed and removed itself from the client. Do
+            // not keep it then.
+            if (producer.isTerminalState()) {
+                cleanupProducer(producer);
+            }
         }).exceptionally(ex -> {
             log.warn("[{}] Failed to get partitioned topic metadata: {}", topic, ex.getMessage());
             producerCreatedFuture.completeExceptionally(ex);
@@ -681,7 +687,7 @@ public class PulsarClientImpl implements PulsarClient {
                         partitionIndex, false, consumerSubscribedFuture, null, schema, interceptors,
                         true /* createTopicIfDoesNotExist */);
             }
-            consumers.add(consumer);
+            addConsumer(consumer);
         }).exceptionally(ex -> {
             log.warn("[{}] Failed to get partitioned topic metadata", topic, ex);
             consumerSubscribedFuture.completeExceptionally(ex);
@@ -700,7 +706,7 @@ public class PulsarClientImpl implements PulsarClient {
                 externalExecutorProvider, consumerSubscribedFuture, schema, interceptors,
                 true /* createTopicIfDoesNotExist */);
 
-        consumers.add(consumer);
+        addConsumer(consumer);
 
         return consumerSubscribedFuture;
     }
@@ -755,7 +761,7 @@ public class PulsarClientImpl implements PulsarClient {
                         consumerSubscribedFuture,
                         schema, subscriptionMode, interceptors);
 
-                consumers.add(consumer);
+                addConsumer(consumer);
             })
             .exceptionally(ex -> {
                 log.warn("[{}] Failed to get topics under namespace", namespaceName);
@@ -804,7 +810,7 @@ public class PulsarClientImpl implements PulsarClient {
         MultiTopicsReaderImpl<T> reader = new MultiTopicsReaderImpl<>(this,
                 conf, externalExecutorProvider, consumerSubscribedFuture, schema);
         ConsumerBase<T> consumer = reader.getMultiTopicsConsumer();
-        consumers.add(consumer);
+        addConsumer(consumer);
         consumerSubscribedFuture.thenRun(() -> readerFuture.complete(reader))
                 .exceptionally(ex -> {
                     log.warn("Failed to create multiTopicReader", ex);
@@ -843,7 +849,7 @@ public class PulsarClientImpl implements PulsarClient {
                 consumer = ((ReaderImpl<T>) reader).getConsumer();
             }
 
-            consumers.add(consumer);
+            addConsumer(consumer);
 
             consumerSubscribedFuture.thenRun(() -> readerFuture.complete(reader)).exceptionally(ex -> {
                 log.warn("[{}] Failed to get create topic reader", topic, ex);
@@ -1368,6 +1374,17 @@ public class PulsarClientImpl implements PulsarClient {
 
     void cleanupConsumer(ConsumerBase<?> consumer) {
         consumers.remove(consumer);
+    }
+
+    private void addConsumer(ConsumerBase<?> consumer) {
+        consumers.add(consumer);
+        // The subscription can fail before the consumer is added, from another thread or inside its constructor (a
+        // connection that fails at once, or a broker's error that arrives before the subscribe callbacks are
+        // attached), in which case the consumer has already failed or closed and removed itself from the client. Do
+        // not keep it then.
+        if (consumer.isTerminalState()) {
+            cleanupConsumer(consumer);
+        }
     }
 
     @VisibleForTesting

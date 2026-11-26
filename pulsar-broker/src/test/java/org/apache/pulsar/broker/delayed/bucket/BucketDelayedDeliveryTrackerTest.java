@@ -20,13 +20,19 @@ package org.apache.pulsar.broker.delayed.bucket;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.AssertJUnit.assertFalse;
+import com.google.common.collect.Range;
 import io.netty.util.Timeout;
 import io.netty.util.Timer;
 import io.netty.util.TimerTask;
@@ -36,6 +42,7 @@ import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.NavigableMap;
 import java.util.NavigableSet;
 import java.util.Set;
@@ -56,6 +63,8 @@ import org.apache.commons.lang3.mutable.MutableLong;
 import org.apache.pulsar.broker.delayed.AbstractDeliveryTrackerTest;
 import org.apache.pulsar.broker.delayed.MockBucketSnapshotStorage;
 import org.apache.pulsar.broker.delayed.MockManagedCursor;
+import org.apache.pulsar.broker.delayed.proto.SnapshotMetadata;
+import org.apache.pulsar.broker.delayed.proto.SnapshotSegment;
 import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
 import org.awaitility.Awaitility;
 import org.roaringbitmap.RoaringBitmap;
@@ -156,7 +165,9 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
                     new BucketDelayedDeliveryTracker(dispatcher, timer, 100000, clock,
                             true, bucketSnapshotStorage, 20, TimeUnit.HOURS.toMillis(1), 5, 100)
             }};
-            case "testExpiredTrackedMessageReturnsFalse", "testRecoverThenExpireAddMessage" -> new Object[][]{{
+            case "testExpiredTrackedMessageReturnsFalse", "testRecoverThenExpireAddMessage",
+                     "testLoadsNextSnapshotSegmentAfterCutoff",
+                     "testDoesNotLoadNextSnapshotSegmentBeforeCutoff" -> new Object[][]{{
                     new BucketDelayedDeliveryTracker(dispatcher, timer, 1, clock,
                             true, bucketSnapshotStorage, 5, TimeUnit.MILLISECONDS.toMillis(10), -1, 50)
             }};
@@ -232,6 +243,72 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         assertFalse(
                 "Recovered message that is now expired should return false",
                 tracker2.addMessage(1, 1, 1000));
+    }
+
+    @Test(dataProvider = "delayedTracker")
+    public void testDoesNotLoadNextSnapshotSegmentBeforeCutoff(BucketDelayedDeliveryTracker tracker)
+            throws Exception {
+        for (int i = 1; i <= 6; i++) {
+            tracker.addMessage(i, i, i * 10);
+        }
+
+        Awaitility.await().untilAsserted(() ->
+                assertTrue(tracker.getImmutableBuckets().asMapOfRanges().values().stream()
+                        .noneMatch(x -> x.merging || !x.getSnapshotCreateFuture().get().isDone())));
+
+        tracker.close();
+
+        MockManagedCursor recoveredCursor = spy((MockManagedCursor) dispatcher.getCursor());
+        doReturn(PositionFactory.create(3, 0)).when(recoveredCursor).getMarkDeletedPosition();
+        doReturn(recoveredCursor).when(dispatcher).getCursor();
+
+        clockTime.set(1);
+        MockBucketSnapshotStorage localStorage = spy((MockBucketSnapshotStorage) bucketSnapshotStorage);
+        @Cleanup
+        BucketDelayedDeliveryTracker tracker2 = new BucketDelayedDeliveryTracker(
+                dispatcher, timer, 1000, clock, true, localStorage, 4, TimeUnit.MILLISECONDS.toMillis(10), 2, 50);
+
+        // Recovery loads segment 1; reset so the assertion observes only getScheduledMessages-driven loads.
+        clearInvocations(localStorage);
+        assertTrue(tracker2.getScheduledMessages(10).isEmpty());
+
+        Awaitility.await().during(3, TimeUnit.SECONDS).untilAsserted(() ->
+                verify(localStorage, never()).getBucketSnapshotSegment(anyLong(), anyLong(), anyLong()));
+    }
+
+    @Test(dataProvider = "delayedTracker")
+    public void testLoadsNextSnapshotSegmentAfterCutoff(BucketDelayedDeliveryTracker tracker)
+            throws Exception {
+        for (int i = 1; i <= 6; i++) {
+            tracker.addMessage(i, i, i * 100);
+        }
+
+        Awaitility.await().untilAsserted(() ->
+                assertTrue(tracker.getImmutableBuckets().asMapOfRanges().values().stream()
+                        .noneMatch(x -> x.merging || !x.getSnapshotCreateFuture().get().isDone())));
+
+        tracker.close();
+
+        MockManagedCursor recoveredCursor = spy((MockManagedCursor) dispatcher.getCursor());
+        doReturn(PositionFactory.create(3, 0)).when(recoveredCursor).getMarkDeletedPosition();
+        doReturn(recoveredCursor).when(dispatcher).getCursor();
+
+        clockTime.set(0);
+        MockBucketSnapshotStorage localStorage = spy((MockBucketSnapshotStorage) bucketSnapshotStorage);
+        @Cleanup
+        BucketDelayedDeliveryTracker tracker2 = new BucketDelayedDeliveryTracker(
+                dispatcher, timer, 1000, clock, true, localStorage, 4, TimeUnit.MILLISECONDS.toMillis(10), 2, 50);
+
+        // Trigger the segment loading. Accumulate the results of every call: when the segment
+        // futures complete quickly the first call can already consume (4, 4), leaving later calls
+        // with an empty queue.
+        clockTime.set(600);
+        NavigableSet<Position> scheduledMessages = tracker2.getScheduledMessages(10);
+        Awaitility.await().untilAsserted(() -> {
+            scheduledMessages.addAll(tracker2.getScheduledMessages(10));
+            assertTrue(scheduledMessages.contains(PositionFactory.create(4, 4)));
+            verify(localStorage, atLeastOnce()).getBucketSnapshotSegment(anyLong(), anyLong(), anyLong());
+        });
     }
 
     @Test(dataProvider = "delayedTracker", invocationCount = 10)
@@ -557,6 +634,23 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         }
     }
 
+    /**
+     * Keeps every snapshot creation in flight until {@link #createGate} completes, so that bucket ids
+     * are still unknown while the trim runs.
+     */
+    private static class BlockingCreateStorage extends MockBucketSnapshotStorage {
+        final CompletableFuture<Void> createGate = new CompletableFuture<>();
+
+        @Override
+        public CompletableFuture<Long> createBucketSnapshot(SnapshotMetadata snapshotMetadata,
+                                                            List<SnapshotSegment> bucketSnapshotSegments,
+                                                            String bucketKey, String topicName, String cursorName) {
+            CompletableFuture<Long> createFuture = super.createBucketSnapshot(snapshotMetadata,
+                    bucketSnapshotSegments, bucketKey, topicName, cursorName);
+            return createGate.thenCompose(__ -> createFuture);
+        }
+    }
+
     private ImmutableBucket createMergeableBucket(TrackerWithStorage trackerWithStorage, long startLedgerId,
                                                   long endLedgerId, List<Long> firstScheduleTimestamps) {
         MutableBucket mutableBucket = trackerWithStorage.tracker.getLastMutableBucket();
@@ -661,17 +755,18 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         for (int i = 1; i <= messageCount; i++) {
             ts.tracker.addMessage(i, i, i * 10);
         }
-        Awaitility.await().untilAsserted(() ->
-                Assert.assertTrue(ts.tracker.getImmutableBuckets().asMapOfRanges().values().stream()
-                        .noneMatch(x -> x.merging)));
-
-        int bucketCount = ts.tracker.getImmutableBuckets().asMapOfRanges().size();
-        assertTrue(bucketCount <= 5,
-                "Bucket count " + bucketCount + " should be <= maxNumBuckets=5 after trim+merge");
-
-        ts.tracker.getImmutableBuckets().asMapOfRanges().forEach((range, bucket) ->
-                assertTrue(range.lowerEndpoint() >= firstLedgerId,
-                        "Remaining bucket range " + range + " should be >= " + firstLedgerId));
+        // Trim and merge run asynchronously once the bucket exceeding maxNumBuckets is sealed.
+        Awaitility.await().untilAsserted(() -> {
+            synchronized (ts.tracker) {
+                Map<Range<Long>, ImmutableBucket> buckets = ts.tracker.getImmutableBuckets().asMapOfRanges();
+                Assert.assertTrue(buckets.values().stream().noneMatch(x -> x.merging));
+                assertTrue(buckets.size() <= 5,
+                        "Bucket count " + buckets.size() + " should be <= maxNumBuckets=5 after trim+merge");
+                buckets.forEach((range, bucket) ->
+                        assertTrue(range.lowerEndpoint() >= firstLedgerId,
+                                "Remaining bucket range " + range + " should be >= " + firstLedgerId));
+            }
+        });
 
         long messagesAfterTrim = ts.tracker.getNumberOfDelayedMessages();
         ts.clockTime.set(messageCount * 10);
@@ -681,6 +776,37 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         assertEquals(ts.tracker.getNumberOfDelayedMessages(), messagesAfterTrim - scheduledMessages.size());
 
         ts.close();
+    }
+
+    @Test
+    public void testTrimWaitsForInFlightSnapshotCreation() throws Exception {
+        long firstLedgerId = 31L;
+        BlockingCreateStorage storage = new BlockingCreateStorage();
+        TrackerWithStorage ts = createTrackerWithMockLedger(firstLedgerId, 5, storage);
+        try {
+            // Sealing the sixth bucket exceeds maxNumBuckets and triggers the trim while the snapshot
+            // creations are still in flight, so no bucket id is known yet.
+            for (int i = 1; i <= 31; i++) {
+                ts.tracker.addMessage(i, i, i * 10);
+            }
+            synchronized (ts.tracker) {
+                assertEquals(ts.tracker.getImmutableBuckets().asMapOfRanges().size(), 6,
+                        "No orphaned bucket can be deleted before its snapshot creation completes");
+            }
+
+            storage.createGate.complete(null);
+
+            // All six buckets precede the first active ledger, so the trim must delete every one of them.
+            Awaitility.await().untilAsserted(() -> {
+                synchronized (ts.tracker) {
+                    Map<Range<Long>, ImmutableBucket> buckets = ts.tracker.getImmutableBuckets().asMapOfRanges();
+                    assertTrue(buckets.isEmpty(),
+                            "Orphaned buckets " + buckets.keySet() + " should have been trimmed");
+                }
+            });
+        } finally {
+            ts.close();
+        }
     }
 
     @Test

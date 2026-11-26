@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.jetty.tls;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import com.google.common.io.Resources;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
@@ -37,6 +38,7 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
+import org.apache.pulsar.common.tls.TlsClientAuthMode;
 import org.apache.pulsar.common.util.DefaultPulsarSslFactory;
 import org.apache.pulsar.common.util.PulsarSslConfiguration;
 import org.apache.pulsar.common.util.PulsarSslFactory;
@@ -48,6 +50,25 @@ import org.testng.annotations.Test;
 
 @Slf4j
 public class JettySslContextFactoryTest {
+
+    @Test
+    public void testClientAuthMode() {
+        PulsarSslFactory sslFactory = new DefaultPulsarSslFactory();
+        SslContextFactory.Server none = JettySslContextFactory.createSslContextFactory(null, sslFactory,
+                TlsClientAuthMode.NONE, null, null);
+        assertThat(none.getNeedClientAuth()).isFalse();
+        assertThat(none.getWantClientAuth()).isFalse();
+        SslContextFactory.Server optional = JettySslContextFactory.createSslContextFactory(null, sslFactory,
+                TlsClientAuthMode.OPTIONAL, null, null);
+        assertThat(optional.getNeedClientAuth()).isFalse();
+        assertThat(optional.getWantClientAuth()).isTrue();
+        SslContextFactory.Server require = JettySslContextFactory.createSslContextFactory(null, sslFactory,
+                TlsClientAuthMode.REQUIRE, null, null);
+        assertThat(require.getNeedClientAuth()).isTrue();
+        SslContextFactory.Server legacy = JettySslContextFactory.createSslContextFactory(null, sslFactory,
+                false, null, null);
+        assertThat(legacy.getWantClientAuth()).as("deprecated boolean false requests a certificate").isTrue();
+    }
 
     @Test
     public void testJettyTlsServerTls() throws Exception {

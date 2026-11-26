@@ -823,36 +823,31 @@ public abstract class AdminResource extends PulsarWebResource {
     private CompletableFuture<Void> provisionPartitionedTopicPath(int numPartitions,
                                                                   boolean createLocalTopicOnly,
                                                                   Map<String, String> properties) {
-        CompletableFuture<Void> future = new CompletableFuture<>();
-        namespaceResources()
-                .getPartitionedTopicResources()
+        return namespaceResources().getPartitionedTopicResources()
                 .createPartitionedTopicAsync(topicName, new PartitionedTopicMetadata(numPartitions, properties))
-                .whenComplete((ignored, ex) -> {
-                    if (ex != null) {
-                        if (ex instanceof AlreadyExistsException) {
-                            if (createLocalTopicOnly) {
-                                future.complete(null);
-                                return;
-                            }
-                            log.warn("[{}] Failed to create already existing partitioned topic {}",
-                                    clientAppId(), topicName);
-                            future.completeExceptionally(
-                                    new RestException(Status.CONFLICT, "Partitioned topic already exists"));
-                        } else if (ex instanceof BadVersionException) {
-                            log.warn("[{}] Failed to create partitioned topic {}: concurrent modification",
-                                    clientAppId(), topicName);
-                            future.completeExceptionally(
-                                    new RestException(Status.CONFLICT, "Concurrent modification"));
-                        } else {
-                            log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, ex);
-                            future.completeExceptionally(new RestException(ex.getCause()));
-                        }
-                        return;
+                .handle((ignored, ex) -> {
+                    if (ex == null) {
+                        log.info("[{}] Successfully created partitioned topic {}", clientAppId(), topicName);
+                        return null;
                     }
-                    log.info("[{}] Successfully created partitioned topic {}", clientAppId(), topicName);
-                    future.complete(null);
+
+                    Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                    if (cause instanceof AlreadyExistsException) {
+                        if (createLocalTopicOnly) {
+                            return null;
+                        }
+                        log.warn("[{}] Failed to create already existing partitioned topic {}",
+                                clientAppId(), topicName);
+                        throw new RestException(Status.CONFLICT, "Partitioned topic already exists");
+                    }
+                    if (cause instanceof BadVersionException) {
+                        log.warn("[{}] Failed to create partitioned topic {}: concurrent modification",
+                                clientAppId(), topicName);
+                        throw new RestException(Status.CONFLICT, "Concurrent modification");
+                    }
+                    log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, ex);
+                    throw new RestException(cause != null ? cause : ex);
                 });
-        return future;
     }
 
     protected CompletableFuture<SchemaCompatibilityStrategy> getSchemaCompatibilityStrategyAsync() {

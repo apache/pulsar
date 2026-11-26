@@ -19,6 +19,7 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import com.google.common.collect.Range;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import lombok.extern.slf4j.Slf4j;
@@ -76,14 +77,20 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
                     bookKeeper.newOpenLedgerOp().withRecovery(false).withLedgerId(lastLedgerId)
                             .withDigestType(config.getDigestType()).withPassword(config.getPassword()).execute()
                             .thenAccept(readHandle -> {
-                                readHandle.readLastAddConfirmedAsync().thenAccept(lastAddConfirmed -> {
+                                CompletableFuture<Long> lacRead;
+                                try {
+                                    lacRead = Objects.requireNonNull(readHandle.readLastAddConfirmedAsync());
+                                } catch (RuntimeException | Error error) {
+                                    closeReadHandleAsync(readHandle, log);
+                                    throw error;
+                                }
+                                lacRead.thenAccept(lastAddConfirmed -> {
                                     LedgerInfo info = LedgerInfo.newBuilder().setLedgerId(lastLedgerId)
                                             .setEntries(lastAddConfirmed + 1).setSize(readHandle.getLength())
                                             .setTimestamp(clock.millis()).build();
                                     ledgers.put(lastLedgerId, info);
-
-                                    future.complete(null);
-                                }).exceptionally(ex -> {
+                                }).whenComplete((ignored, error) -> closeReadHandleAsync(readHandle, log))
+                                        .thenRun(() -> future.complete(null)).exceptionally(ex -> {
                                     if (ex instanceof CompletionException
                                             && ex.getCause() instanceof IllegalArgumentException) {
                                         // The last ledger was empty, so we cannot read the last add confirmed.

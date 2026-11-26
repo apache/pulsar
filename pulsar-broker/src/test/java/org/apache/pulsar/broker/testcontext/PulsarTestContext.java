@@ -64,6 +64,7 @@ import org.apache.pulsar.common.util.PortManager;
 import org.apache.pulsar.compaction.CompactionServiceFactory;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.compaction.PulsarCompactionServiceFactory;
+import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.metadata.TestZKServer;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
@@ -176,6 +177,8 @@ public class PulsarTestContext implements AutoCloseable {
 
     private final boolean enableOpenTelemetry;
     private final InMemoryMetricReader openTelemetryMetricReader;
+
+    private final WorkerService functionWorkerService;
 
     public ManagedLedgerStorage getManagedLedgerStorage() {
         return managedLedgerStorage;
@@ -918,7 +921,7 @@ public class PulsarTestContext implements AutoCloseable {
                             builder.configurationMetadataStore, compactionServiceFactory,
                             builder.brokerInterceptor,
                             bookKeeperClientFactory, builder.brokerServiceCustomizer,
-                            openTelemetrySdkBuilderCustomizer);
+                            openTelemetrySdkBuilderCustomizer, Optional.ofNullable(builder.functionWorkerService));
             if (compactionServiceFactory != null) {
                 compactionServiceFactory.initialize(pulsarService);
             }

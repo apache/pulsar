@@ -325,7 +325,7 @@ The Apache Software License, Version 2.0
      - jackson-datatype-jsr310-2.18.12.jar
      - jackson-module-parameter-names-2.18.12.jar
  * Caffeine -- caffeine-2.9.1.jar
- * Conscrypt -- conscrypt-openjdk-uber-2.7.0.jar
+ * Conscrypt -- conscrypt-openjdk-uber-2.8.0.jar
  * Gson
     - gson-2.15.0.jar
  * Guava
@@ -386,10 +386,10 @@ The Apache Software License, Version 2.0
     - log4j-slf4j2-impl-2.26.1.jar
     - log4j-web-2.26.1.jar
 * OpenTelemetry
-     - opentelemetry-api-1.62.0.jar
-     - opentelemetry-api-incubator-1.62.0-alpha.jar
-     - opentelemetry-common-1.62.0.jar
-     - opentelemetry-context-1.62.0.jar
+     - opentelemetry-api-1.67.0.jar
+     - opentelemetry-api-incubator-1.67.0-alpha.jar
+     - opentelemetry-common-1.67.0.jar
+     - opentelemetry-context-1.67.0.jar
 
  * BookKeeper
     - bookkeeper-common-allocator-4.17.4.jar
@@ -401,18 +401,18 @@ The Apache Software License, Version 2.0
     - async-http-client-2.16.1.jar
     - async-http-client-netty-utils-2.16.1.jar
  * Jetty
-    - jetty-alpn-client-12.1.14.jar
-    - jetty-client-12.1.14.jar
-    - jetty-compression-common-12.1.14.jar
-    - jetty-compression-gzip-12.1.14.jar
-    - jetty-http-12.1.14.jar
-    - jetty-io-12.1.14.jar
-    - jetty-util-12.1.14.jar
-    - jetty-websocket-core-client-12.1.14.jar
-    - jetty-websocket-core-common-12.1.14.jar
-    - jetty-websocket-jetty-api-12.1.14.jar
-    - jetty-websocket-jetty-client-12.1.14.jar
-    - jetty-websocket-jetty-common-12.1.14.jar
+    - jetty-alpn-client-12.1.15.jar
+    - jetty-client-12.1.15.jar
+    - jetty-compression-common-12.1.15.jar
+    - jetty-compression-gzip-12.1.15.jar
+    - jetty-http-12.1.15.jar
+    - jetty-io-12.1.15.jar
+    - jetty-util-12.1.15.jar
+    - jetty-websocket-core-client-12.1.15.jar
+    - jetty-websocket-core-common-12.1.15.jar
+    - jetty-websocket-jetty-api-12.1.15.jar
+    - jetty-websocket-jetty-client-12.1.15.jar
+    - jetty-websocket-jetty-common-12.1.15.jar
  * SnakeYaml -- snakeyaml-2.0.jar
  * Google Error Prone Annotations - error_prone_annotations-2.45.0.jar
  * Javassist -- javassist-3.25.0-GA.jar
@@ -421,7 +421,7 @@ The Apache Software License, Version 2.0
     - avro-protobuf-1.11.5.jar
  * RE2j -- re2j-1.8.jar
  * Spotify completable-futures -- completable-futures-0.3.6.jar
- * RoaringBitmap -- RoaringBitmap-1.6.9.jar
+ * RoaringBitmap -- RoaringBitmap-1.6.29.jar
  * Fastutil -- fastutil-8.5.16.jar
  * JSpecify -- jspecify-1.0.0.jar
 

@@ -159,6 +159,9 @@ public class SinkConfigUtils {
                     bldr.setReceiverQueueSize(Function.ConsumerSpec.ReceiverQueueSize.newBuilder()
                             .setValue(spec.getReceiverQueueSize()).build());
                 }
+                if (spec.getSchemaProperties() != null) {
+                    bldr.putAllSchemaProperties(spec.getSchemaProperties());
+                }
                 if (spec.getCryptoConfig() != null) {
                     bldr.setCryptoSpec(CryptoUtils.convert(spec.getCryptoConfig()));
                 }
@@ -304,6 +307,7 @@ public class SinkConfigUtils {
                 consumerConfig.setCryptoConfig(CryptoUtils.convertFromSpec(input.getValue().getCryptoSpec()));
             }
             consumerConfig.setRegexPattern(input.getValue().getIsRegexPattern());
+            consumerConfig.setSchemaProperties(input.getValue().getSchemaPropertiesMap());
             consumerConfig.setConsumerProperties(input.getValue().getConsumerPropertiesMap());
             consumerConfig.setPoolMessages(input.getValue().getPoolMessages());
             consumerConfigMap.put(input.getKey(), consumerConfig);

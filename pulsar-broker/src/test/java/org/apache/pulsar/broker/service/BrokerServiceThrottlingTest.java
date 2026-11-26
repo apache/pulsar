@@ -26,6 +26,7 @@ import static org.testng.Assert.fail;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import io.opentelemetry.sdk.metrics.data.MetricData;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -109,6 +110,34 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
         admin.brokers().updateDynamicConfiguration(configName, Integer.toString(0));
         waitAtMost(1, TimeUnit.SECONDS).until(() -> topicLoadRequestSemaphore.get().availablePermits() == 0);
         assertOtelMetricLongSumValue(metricName, 0);
+    }
+
+    @Test
+    public void testCloseBrokerServiceClosesLimitMetrics() throws Exception {
+        var reader = pulsarTestContext.getOpenTelemetryMetricReader();
+        var metricNotOwnedByBrokerService = "pulsar.test.control";
+        try (var gaugeNotOwnedByBrokerService = pulsar.getOpenTelemetry().getMeter()
+                .gaugeBuilder(metricNotOwnedByBrokerService).ofLongs()
+                .buildWithCallback(measurement -> measurement.record(1))) {
+            assertThat(reader.collectAllMetrics())
+                    .as("metrics before the broker service closes")
+                    .extracting(MetricData::getName)
+                    .contains(BrokerService.TOPIC_LOOKUP_LIMIT_METRIC_NAME, BrokerService.TOPIC_LOAD_LIMIT_METRIC_NAME,
+                            metricNotOwnedByBrokerService);
+
+            pulsar.getBrokerService().closeAsync().get();
+
+            var metricsAfterClose = reader.collectAllMetrics();
+            assertThat(metricsAfterClose)
+                    .as("the reader must still collect after the broker service closes")
+                    .extracting(MetricData::getName)
+                    .contains(metricNotOwnedByBrokerService);
+            assertThat(metricsAfterClose)
+                    .as("limit metrics after the broker service closes")
+                    .extracting(MetricData::getName)
+                    .doesNotContain(BrokerService.TOPIC_LOOKUP_LIMIT_METRIC_NAME,
+                            BrokerService.TOPIC_LOAD_LIMIT_METRIC_NAME);
+        }
     }
 
     /**

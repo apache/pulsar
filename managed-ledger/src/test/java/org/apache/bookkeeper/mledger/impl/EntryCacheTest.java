@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -64,6 +65,8 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
         when(ml.getConfig()).thenReturn(new ManagedLedgerConfig());
         when(ml.getOptionalLedgerInfo(0L)).thenReturn(Optional.of(mock(
                 MLDataFormats.ManagedLedgerInfo.LedgerInfo.class)));
+        // A failed read asks the managed ledger for a handle with newer ensembles: there is none
+        when(ml.reopenLedgerHandleIfReplicated(any())).thenReturn(CompletableFuture.completedFuture(null));
     }
 
     @Test(timeOut = 5000)

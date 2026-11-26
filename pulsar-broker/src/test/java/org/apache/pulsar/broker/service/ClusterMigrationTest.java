@@ -20,6 +20,8 @@ package org.apache.pulsar.broker.service;
 
 import static java.lang.Thread.sleep;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
@@ -30,6 +32,8 @@ import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.BrokerTestUtil;
@@ -37,6 +41,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
+import org.apache.pulsar.broker.service.BrokerServiceException.TopicMigratedException;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
@@ -47,9 +52,13 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.ClientCnx;
+import org.apache.pulsar.client.impl.ConsumerImpl;
+import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterPolicies.ClusterUrl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
@@ -244,6 +253,30 @@ public class ClusterMigrationTest {
         methodName = m.getName();
     }
 
+    @Test
+    public void testPersistentTopicReloadHonorsClusterMigration() throws Exception {
+        String sourceNamespaceName = BrokerTestUtil.newUniqueName("pulsar/reload");
+        admin1.namespaces().createNamespace(sourceNamespaceName, Set.of("r1"));
+        String topicName = "persistent://" + sourceNamespaceName + "/topic";
+        admin1.topics().createNonPartitionedTopic(topicName);
+        admin1.topics().unload(topicName);
+        BrokerService sourceBrokerService = pulsar1.getBrokerService();
+        assertThat(sourceBrokerService.getTopic(topicName, false).get(10, TimeUnit.SECONDS))
+                .as("topic %s should reload before cluster migration", topicName)
+                .isPresent();
+
+        admin1.topics().unload(topicName);
+        ClusterUrl destinationClusterUrl = new ClusterUrl(url2.toString(), null, pulsar2.getBrokerServiceUrl(), null);
+        admin1.clusters().updateClusterMigration("r1", true, destinationClusterUrl);
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> admin1.clusters().getClusterMigration("r1")
+                .isMigrated());
+        assertThatThrownBy(
+                () -> sourceBrokerService.getTopic(topicName, false).get(10, TimeUnit.SECONDS),
+                "reload of topic %s should be rejected after cluster migration", topicName)
+                .isInstanceOf(ExecutionException.class)
+                .hasCauseInstanceOf(TopicMigratedException.class);
+    }
+
     /**
      * Test producer/consumer migration: using persistent/non-persistent topic and all types of subscriptions.
      * (1) Producer1 and consumer1 connect to cluster-1
@@ -427,6 +460,55 @@ public class ClusterMigrationTest {
         client1.close();
         client2.close();
         log.info("Successfully consumed messages by migrated consumers");
+    }
+
+    /**
+     * A consumer and a producer created on a migrated cluster are redirected to the new cluster without an answer to
+     * their subscribe and producer requests, which stay pending on the connection to the old cluster. When that
+     * connection closes and fails those requests, the consumer and the producer, already connected to the new
+     * cluster, must stay connected: a consumer that subscribes again drops the messages in its receiver queue.
+     */
+    @Test
+    public void testRedirectedConsumerAndProducerIgnoreTheirFirstAttempt() throws Exception {
+        final String topicName = BrokerTestUtil
+                .newUniqueName("persistent://" + namespace + "/migrationTopic");
+
+        @Cleanup
+        PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString()).statsInterval(0, TimeUnit.SECONDS)
+                .build();
+        // Load the topic on broker-1, through the connection that all of client1's handlers share
+        ProducerImpl<byte[]> producer1 = (ProducerImpl<byte[]>) client1.newProducer().topic(topicName).create();
+        ClientCnx cnx1 = producer1.getClientCnx();
+        AbstractTopic topic1 = (AbstractTopic) pulsar1.getBrokerService().getTopic(topicName, false).getNow(null).get();
+
+        ClusterUrl migratedUrl = new ClusterUrl(pulsar2.getWebServiceAddress(), pulsar2.getWebServiceAddressTls(),
+                pulsar2.getBrokerServiceUrl(), null);
+        admin1.clusters().updateClusterMigration("r1", true, migratedUrl);
+        Awaitility.await().ignoreExceptions().untilAsserted(() -> {
+            topic1.checkClusterMigration().get();
+            assertTrue(topic1.isMigrated());
+        });
+
+        Consumer<byte[]> consumer = client1.newConsumer().topic(topicName).subscriptionName("s1").subscribe();
+        Producer<byte[]> producer = client1.newProducer().topic(topicName).create();
+        int n = 5;
+        for (int i = 0; i < n; i++) {
+            producer.send(("msg-" + i).getBytes());
+        }
+        Awaitility.await().untilAsserted(
+                () -> assertEquals(((ConsumerImpl<byte[]>) consumer).numMessagesInQueue(), n));
+
+        // Close cnx1 from its event loop, so that the task submitted next runs after the disconnection is handled
+        cnx1.ctx().executor().submit(() -> cnx1.ctx().channel().close()).get();
+        cnx1.ctx().executor().submit(() -> { }).get();
+
+        assertTrue(consumer.isConnected(), "The consumer reconnected for its first subscribe attempt");
+        assertTrue(producer.isConnected(), "The producer reconnected for its first attempt");
+        for (int i = 0; i < n; i++) {
+            Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
+            assertNotNull(msg, "Message " + i + " was dropped from the receiver queue");
+            assertEquals(msg.getData(), ("msg-" + i).getBytes());
+        }
     }
 
     @Test

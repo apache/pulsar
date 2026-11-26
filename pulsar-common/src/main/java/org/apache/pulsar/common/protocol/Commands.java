@@ -157,6 +157,13 @@ public class Commands {
                 .setType(type);
     }
 
+    /**
+     * Returns whether the command is the reusable command of the current thread.
+     */
+    public static boolean isThreadLocalCommand(BaseCommand command) {
+        return command != null && command == LOCAL_BASE_COMMAND.getIfExists();
+    }
+
     private static final FastThreadLocal<SingleMessageMetadata> LOCAL_SINGLE_MESSAGE_METADATA = //
             new FastThreadLocal<SingleMessageMetadata>() {
                 @Override
@@ -310,6 +317,12 @@ public class Commands {
 
     public static BaseCommand newConnectedCommand(int clientProtocolVersion, int maxMessageSize,
                                                   boolean supportsTopicWatchers) {
+        return newConnectedCommand(clientProtocolVersion, maxMessageSize, supportsTopicWatchers, true);
+    }
+
+    public static BaseCommand newConnectedCommand(int clientProtocolVersion, int maxMessageSize,
+                                                  boolean supportsTopicWatchers,
+                                                  boolean supportsAutoProduceBytesWithoutSchema) {
         BaseCommand cmd = localCmd(Type.CONNECTED);
         CommandConnected connected = cmd.setConnected()
                 .setServerVersion("Pulsar Server" + PulsarVersion.getVersion());
@@ -329,11 +342,18 @@ public class Commands {
         connected.setFeatureFlags().setSupportsGetPartitionedMetadataWithoutAutoCreation(true);
         connected.setFeatureFlags().setSupportsReplDedupByLidAndEid(true);
         connected.setFeatureFlags().setSupportsTopicWatcherReconcile(supportsTopicWatchers);
+        connected.setFeatureFlags().setSupportsAutoProduceBytesWithoutSchema(supportsAutoProduceBytesWithoutSchema);
         return cmd;
     }
 
     public static ByteBuf newConnected(int clientProtocolVersion, int maxMessageSize,  boolean supportsTopicWatchers) {
         return serializeWithSize(newConnectedCommand(clientProtocolVersion, maxMessageSize, supportsTopicWatchers));
+    }
+
+    public static ByteBuf newConnected(int clientProtocolVersion, int maxMessageSize, boolean supportsTopicWatchers,
+                                       boolean supportsAutoProduceBytesWithoutSchema) {
+        return serializeWithSize(newConnectedCommand(clientProtocolVersion, maxMessageSize, supportsTopicWatchers,
+                supportsAutoProduceBytesWithoutSchema));
     }
 
     public static ByteBuf newAuthChallenge(String authMethod, AuthData brokerData, int clientProtocolVersion) {
@@ -894,6 +914,15 @@ public class Commands {
                                       long epoch, boolean userProvidedProducerName,
                                       ProducerAccessMode accessMode, Optional<Long> topicEpoch, boolean isTxnEnabled,
                                       String initialSubscriptionName) {
+        return newProducer(topic, producerId, requestId, producerName, encrypted, metadata, schemaInfo, epoch,
+                userProvidedProducerName, accessMode, topicEpoch, isTxnEnabled, initialSubscriptionName, false);
+    }
+
+    public static ByteBuf newProducer(String topic, long producerId, long requestId, String producerName,
+                                      boolean encrypted, Map<String, String> metadata, SchemaInfo schemaInfo,
+                                      long epoch, boolean userProvidedProducerName,
+                                      ProducerAccessMode accessMode, Optional<Long> topicEpoch, boolean isTxnEnabled,
+                                      String initialSubscriptionName, boolean isAutoProduceBytes) {
         BaseCommand cmd = localCmd(Type.PRODUCER);
         CommandProducer producer = cmd.setProducer()
                 .setTopic(topic)
@@ -903,6 +932,7 @@ public class Commands {
                 .setUserProvidedProducerName(userProvidedProducerName)
                 .setEncrypted(encrypted)
                 .setTxnEnabled(isTxnEnabled)
+                .setAutoProduceBytes(isAutoProduceBytes)
                 .setProducerAccessMode(convertProducerAccessMode(accessMode));
         if (producerName != null) {
             producer.setProducerName(producerName);

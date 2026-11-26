@@ -172,6 +172,44 @@ public class SinkConfigUtilsTest {
     }
 
     @Test
+    public void testConvertSchemaPropertiesRoundTrip() throws IOException {
+        SinkConfig sinkConfig = new SinkConfig();
+        sinkConfig.setTenant("test-tenant");
+        sinkConfig.setNamespace("test-namespace");
+        sinkConfig.setName("test-sink");
+        sinkConfig.setParallelism(1);
+        sinkConfig.setArchive("builtin://jdbc");
+        sinkConfig.setSourceSubscriptionName("test-subscription");
+        Map<String, String> schemaProperties = new HashMap<>();
+        schemaProperties.put("__alwaysAllowNull", "true");
+        Map<String, String> consumerProperties = new HashMap<>();
+        consumerProperties.put("application", "billing");
+        Map<String, ConsumerConfig> inputSpecs = new HashMap<>();
+        inputSpecs.put("test-input", ConsumerConfig.builder()
+                .isRegexPattern(false)
+                .schemaType("avro")
+                .schemaProperties(schemaProperties)
+                .consumerProperties(consumerProperties)
+                .build());
+        sinkConfig.setInputs(Collections.singleton("test-input"));
+        sinkConfig.setInputSpecs(inputSpecs);
+        sinkConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
+
+        Function.FunctionDetails functionDetails = SinkConfigUtils.convert(sinkConfig,
+                new SinkConfigUtils.ExtractedSinkDetails(null, null, null));
+        Function.ConsumerSpec inputSpec = functionDetails.getSource().getInputSpecsOrThrow("test-input");
+        assertEquals(1, inputSpec.getSchemaPropertiesCount());
+        assertEquals("true", inputSpec.getSchemaPropertiesOrThrow("__alwaysAllowNull"));
+        assertEquals(1, inputSpec.getConsumerPropertiesCount());
+        assertEquals("billing", inputSpec.getConsumerPropertiesOrThrow("application"));
+
+        SinkConfig convertedConfig = SinkConfigUtils.convertFromDetails(functionDetails);
+        ConsumerConfig convertedSpec = convertedConfig.getInputSpecs().get("test-input");
+        assertEquals(schemaProperties, convertedSpec.getSchemaProperties());
+        assertEquals(consumerProperties, convertedSpec.getConsumerProperties());
+    }
+
+    @Test
     public void testParseRetainOrderingField() throws IOException {
         List<Boolean> testcases = Lists.newArrayList(true, false, null);
         for (Boolean testcase : testcases) {

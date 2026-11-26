@@ -40,6 +40,7 @@ import org.apache.pulsar.broker.web.JsonMapperProvider;
 import org.apache.pulsar.broker.web.RateLimitingFilter;
 import org.apache.pulsar.broker.web.WebExecutorThreadPool;
 import org.apache.pulsar.client.util.ExecutorProvider;
+import org.apache.pulsar.common.tls.TlsClientAuthMode;
 import org.apache.pulsar.common.util.PulsarSslConfiguration;
 import org.apache.pulsar.common.util.PulsarSslFactory;
 import org.apache.pulsar.jetty.metrics.JettyStatisticsCollector;
@@ -145,7 +146,7 @@ public class WebServer {
                 }
                 SslContextFactory.Server sslCtxFactory =
                         JettySslContextFactory.createSslContextFactory(config.getTlsProvider(),
-                                sslFactory, config.isTlsRequireTrustedClientCertOnConnect(),
+                                sslFactory, config.resolveTlsClientAuthMode(),
                                 config.getWebServiceTlsCiphers(), config.getWebServiceTlsProtocols());
                 List<ConnectionFactory> connectionFactories = new ArrayList<>();
                 if (config.isWebServiceHaProxyProtocolEnabled()) {
@@ -411,7 +412,9 @@ public class WebServer {
                 .tlsCertificateFilePath(config.getTlsCertificateFilePath())
                 .tlsKeyFilePath(config.getTlsKeyFilePath())
                 .allowInsecureConnection(config.isTlsAllowInsecureConnection())
-                .requireTrustedClientCertOnConnect(config.isTlsRequireTrustedClientCertOnConnect())
+                .requireTrustedClientCertOnConnect(
+                        config.resolveTlsClientAuthMode() == TlsClientAuthMode.REQUIRE)
+                .clientAuthMode(config.resolveTlsClientAuthMode())
                 .tlsEnabledWithKeystore(config.isTlsEnabledWithKeyStore())
                 .tlsCustomParams(config.getSslFactoryPluginParams())
                 .authData(null)

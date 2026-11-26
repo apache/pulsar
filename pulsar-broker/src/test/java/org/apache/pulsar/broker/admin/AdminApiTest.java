@@ -72,6 +72,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.loadbalance.LeaderBroker;
+import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
 import org.apache.pulsar.broker.namespace.NamespaceService;
@@ -698,8 +699,13 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         retryStrategically((test) -> pulsar.getConfiguration().getLoadManagerClassName()
                 .equals(SimpleLoadManagerImpl.class.getName()), 150, 5);
         assertEquals(pulsar.getConfiguration().getLoadManagerClassName(), SimpleLoadManagerImpl.class.getName());
+        // The broker replaces its load manager on an executor after updating the configuration. Wait for each
+        // replacement, so that the broker runs a SimpleLoadManagerImpl in between, and the default load manager
+        // again for the following test methods.
+        Awaitility.await().until(() -> pulsar.getLoadManager().get() instanceof SimpleLoadManagerImpl);
         admin.brokers().deleteDynamicConfiguration("loadManagerClassName");
         assertFalse(admin.brokers().getAllDynamicConfigurations().containsKey("loadManagerClassName"));
+        Awaitility.await().until(() -> pulsar.getLoadManager().get() instanceof ModularLoadManagerWrapper);
     }
 
     /**

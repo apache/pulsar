@@ -186,14 +186,14 @@ flexible messaging model and an intuitive client API.</description>
     <curator.version>5.7.1</curator.version>
     <netty.version>4.1.141.Final</netty.version>
     <netty-iouring.version>0.0.26.Final</netty-iouring.version>
-    <jetty.version>12.1.14</jetty.version>
+    <jetty.version>12.1.15</jetty.version>
     <!-- Jetty 9 is used in tiered-storage/file-system tests and pulsar-io/alluxio -->
     <jetty9.version>9.4.58.v20250814</jetty9.version>
-    <conscrypt.version>2.7.0</conscrypt.version>
+    <conscrypt.version>2.8.0</conscrypt.version>
     <jersey.version>2.42</jersey.version>
     <athenz.version>1.10.62</athenz.version>
     <prometheus.version>0.16.0</prometheus.version>
-    <vertx.version>4.5.35</vertx.version>
+    <vertx.version>4.5.36</vertx.version>
     <rocksdb.version>7.9.2</rocksdb.version>
     <slf4j.version>2.0.18</slf4j.version>
     <commons.collections4.version>4.6.0</commons.collections4.version>
@@ -216,7 +216,7 @@ flexible messaging model and an intuitive client API.</description>
     <typetools.version>0.5.0</typetools.version>
     <!-- match the byte-buddy version (or newer) used by the mockito-core pom -->
     <byte-buddy.version>1.18.16</byte-buddy.version>
-    <zt-zip.version>1.17</zt-zip.version>
+    <zt-zip.version>1.18.3</zt-zip.version>
     <protobuf3.version>3.25.5</protobuf3.version>
     <protoc3.version>${protobuf3.version}</protoc3.version>
     <grpc.version>1.75.0</grpc.version>
@@ -298,7 +298,7 @@ flexible messaging model and an intuitive client API.</description>
     <jetcd.version>0.7.7</jetcd.version>
     <oxia.version>0.10.4</oxia.version>
     <oxia-testcontainers.version>0.7.4</oxia-testcontainers.version>
-    <slog.version>0.10.1</slog.version>
+    <slog.version>0.10.2</slog.version>
     <snakeyaml.version>2.0</snakeyaml.version>
     <ant.version>1.10.12</ant.version>
     <seancfoley.ipaddress.version>5.5.0</seancfoley.ipaddress.version>
@@ -309,11 +309,12 @@ flexible messaging model and an intuitive client API.</description>
     the core logic is switched to java implementation of zstd in org.apache.commons:commons-compress -->
     <zstd-jni.version>1.5.7-25</zstd-jni.version>
     <netty-reactive-streams.version>2.0.6</netty-reactive-streams.version>
-    <opentelemetry.version>1.62.0</opentelemetry.version>
+    <opentelemetry.version>1.67.0</opentelemetry.version>
     <opentelemetry.alpha.version>${opentelemetry.version}-alpha</opentelemetry.alpha.version>
-    <opentelemetry.instrumentation.version>2.28.1</opentelemetry.instrumentation.version>
+    <opentelemetry.instrumentation.version>2.33.1</opentelemetry.instrumentation.version>
     <opentelemetry.instrumentation.alpha.version>${opentelemetry.instrumentation.version}-alpha</opentelemetry.instrumentation.alpha.version>
-    <opentelemetry.semconv.version>1.41.1</opentelemetry.semconv.version>
+    <opentelemetry.semconv.version>1.44.0</opentelemetry.semconv.version>
+    <opentelemetry.gcp-resources.version>1.60.0-alpha</opentelemetry.gcp-resources.version>
     <picocli.version>4.7.7</picocli.version>
     <re2j.version>1.8</re2j.version>
     <completable-futures.version>0.3.6</completable-futures.version>
@@ -325,7 +326,7 @@ flexible messaging model and an intuitive client API.</description>
     <docker-java.version>3.7.0</docker-java.version>
     <hamcrest.version>2.2</hamcrest.version>
     <restassured.version>5.4.0</restassured.version>
-    <kerby.version>2.1.1</kerby.version>
+    <kerby.version>2.1.2</kerby.version>
     <testng.version>7.7.1</testng.version>
     <mockito.version>5.19.0</mockito.version>
     <javassist.version>3.25.0-GA</javassist.version>
@@ -368,7 +369,7 @@ flexible messaging model and an intuitive client API.</description>
     <lightproto-maven-plugin.version>0.4</lightproto-maven-plugin.version>
     <build-helper-maven-plugin.version>3.6.0</build-helper-maven-plugin.version>
     <dependency-check-maven.version>12.1.0</dependency-check-maven.version>
-    <roaringbitmap.version>1.6.9</roaringbitmap.version>
+    <roaringbitmap.version>1.6.29</roaringbitmap.version>
     <extra-enforcer-rules.version>1.6.1</extra-enforcer-rules.version>
     <oshi.version>6.4.0</oshi.version>
     <checkerframework.version>3.33.0</checkerframework.version>
@@ -659,11 +660,6 @@ flexible messaging model and an intuitive client API.</description>
           <exclusion>
             <groupId>commons-collections</groupId>
             <artifactId>commons-collections</artifactId>
-          </exclusion>
-          <!-- this can be removed after upgrading OpenTelemetry to version 1.52.0 or higher -->
-          <exclusion>
-            <groupId>io.opentelemetry</groupId>
-            <artifactId>opentelemetry-common</artifactId>
           </exclusion>
         </exclusions>
       </dependency>
@@ -1749,6 +1745,12 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>opentelemetry-semconv</artifactId>
         <version>${opentelemetry.semconv.version}</version>
       </dependency>
+      <!-- enforce opentelemetry-gcp-resources version that gets pulled transitively by grpc-gcp-csm-observability -->
+      <dependency>
+        <groupId>io.opentelemetry.contrib</groupId>
+        <artifactId>opentelemetry-gcp-resources</artifactId>
+        <version>${opentelemetry.gcp-resources.version}</version>
+      </dependency>
       <!-- enforce nimbus-jose-jwt version that gets pulled transitively -->
       <dependency>
         <groupId>com.nimbusds</groupId>
@@ -1813,6 +1815,15 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.eclipse.jetty.ee8</groupId>
         <artifactId>jetty-ee8-bom</artifactId>
         <version>${jetty.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+
+      <!-- Aligns the Kerby modules that Hadoop pulls in transitively -->
+      <dependency>
+        <groupId>org.apache.kerby</groupId>
+        <artifactId>kerby-bom</artifactId>
+        <version>${kerby.version}</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>

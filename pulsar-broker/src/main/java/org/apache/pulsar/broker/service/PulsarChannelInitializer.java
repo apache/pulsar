@@ -34,6 +34,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.FrameDecoderUtil;
 import org.apache.pulsar.common.protocol.OptionalProxyProtocolDecoder;
+import org.apache.pulsar.common.tls.TlsClientAuthMode;
 import org.apache.pulsar.common.util.PulsarSslConfiguration;
 import org.apache.pulsar.common.util.PulsarSslFactory;
 
@@ -145,7 +146,9 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
                 .tlsCertificateFilePath(serviceConfig.getTlsCertificateFilePath())
                 .tlsKeyFilePath(serviceConfig.getTlsKeyFilePath())
                 .allowInsecureConnection(serviceConfig.isTlsAllowInsecureConnection())
-                .requireTrustedClientCertOnConnect(serviceConfig.isTlsRequireTrustedClientCertOnConnect())
+                .requireTrustedClientCertOnConnect(
+                        serviceConfig.resolveTlsClientAuthMode() == TlsClientAuthMode.REQUIRE)
+                .clientAuthMode(serviceConfig.resolveTlsClientAuthMode())
                 .tlsEnabledWithKeystore(serviceConfig.isTlsEnabledWithKeyStore())
                 .tlsCustomParams(serviceConfig.getSslFactoryPluginParams())
                 .serverMode(true)

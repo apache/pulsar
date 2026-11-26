@@ -39,6 +39,7 @@ import java.net.MalformedURLException;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -131,6 +132,7 @@ import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferClientImpl;
 import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
 import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStoreProvider;
+import org.apache.pulsar.broker.validator.BindAddressValidator;
 import org.apache.pulsar.broker.validator.MultipleListenerValidator;
 import org.apache.pulsar.broker.validator.TransactionBatchedWriteValidator;
 import org.apache.pulsar.broker.web.WebService;
@@ -856,6 +858,10 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                         + "authenticationEnabled=true when authorization is enabled with authorizationEnabled=true.");
             }
 
+            if (!BindAddressValidator.validateBindAddresses(config, Arrays.asList("pulsar+ssl", "https")).isEmpty()) {
+                config.logTlsClientAuthMode("broker");
+            }
+
             if (config.getDefaultRetentionSizeInMB() > 0
                     && config.getBacklogQuotaDefaultLimitBytes() > 0
                     && config.getBacklogQuotaDefaultLimitBytes()
@@ -1053,13 +1059,13 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             acquireSLANamespace();
 
-            // start function worker service if necessary
-            this.startWorkerService(brokerService.getAuthenticationService(), brokerService.getAuthorizationService());
-
             // start packages management service if necessary
             if (config.isEnablePackagesManagement()) {
                 this.startPackagesManagementService();
             }
+
+            // start function worker service if necessary
+            this.startWorkerService(brokerService.getAuthenticationService(), brokerService.getAuthorizationService());
 
             // Start the task to publish resource usage, if necessary
             this.resourceUsageTransportManager = DISABLE_RESOURCE_USAGE_TRANSPORT_MANAGER;
@@ -2156,6 +2162,14 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         }
     }
 
+    /**
+     * Whether the configuration metadata store and the local metadata store are the same instance, which happens
+     * when both use the same URL.
+     */
+    public boolean isConfigurationMetadataStoreSharedWithLocal() {
+        return configurationMetadataStore == localMetadataStore;
+    }
+
     public void initConfigMetadataSynchronizerIfNeeded() {
         mutex.lock();
         try {
@@ -2166,6 +2180,13 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 LOG.info(
                         "Skip to update Metadata Synchronizer because of the Configuration Metadata Store using[{}]"
                                 + " does not support.", configurationMetadataStore.getClass().getName());
+                return;
+            }
+            // Skip if the configuration metadata store is the local one: swapping its synchronizer would make every
+            // local metadata write depend on the configuration sync topic.
+            if (isConfigurationMetadataStoreSharedWithLocal()) {
+                LOG.warn("Skip to update Metadata Synchronizer to topic[{}] because the Configuration Metadata Store"
+                        + " is the same as the Local Metadata Store.", newTopic);
                 return;
             }
             // Skip if no changes.
