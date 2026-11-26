@@ -26,6 +26,7 @@ import io.netty.util.Recycler.Handle;
 import io.netty.util.ReferenceCounted;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
+import java.util.Collection;
 import lombok.CustomLog;
 import lombok.Getter;
 import lombok.Setter;
@@ -89,9 +90,14 @@ public final class EntryImpl extends AbstractCASReferenceCounted
         entry.data.retain();
         entry.readCountHandler = EntryReadCountHandlerImpl.maybeCreate(expectedReadCount);
         // Reset the lazily-cached position LAST, after the id assignments: a recycled object can
-        // carry a stale Position materialized by a getPosition() call that raced past the recycle
-        // (deallocation nulls the field, but a late reader re-materializes it from the reset ids
-        // as (-1, -1)), and any racy lazy rebuild must observe the fresh legitimate ids.
+        // carry a Position poisoned by a getPosition() call that slipped in after the release
+        // (deallocation nulls the field, but the late reader re-materializes it from the reset
+        // ids as (-1, -1) and caches it in the pooled object), so the next create() would deliver
+        // the poisoned position with otherwise legitimate ids. This closes the SEQUENTIAL
+        // poison-and-reuse case; it is best-effort hardening only — a getPosition() concurrent
+        // with this create() can still read the old ids and publish its stale value after the
+        // reset (unsynchronized fields, no generation check). Post-release access is a caller
+        // bug and must be fixed at the call site, not here.
         entry.position = null;
         entry.setRefCnt(1);
         return entry;
@@ -366,6 +372,21 @@ public final class EntryImpl extends AbstractCASReferenceCounted
             entryImpl.setDecreaseReadCountOnRelease(false);
         }
         entry.release();
+    }
+
+    /**
+     * Releases every entry of the given collection as {@link #releaseDiscarded(Entry) discarded},
+     * ignoring a null or empty collection and the null elements a read may deliver as placeholders.
+     *
+     * @param entries the entries to release
+     */
+    public static void releaseDiscarded(Collection<Entry> entries) {
+        if (entries == null || entries.isEmpty()) {
+            return;
+        }
+        for (Entry entry : entries) {
+            releaseDiscarded(entry);
+        }
     }
 
     public synchronized void initializeMessageMetadataIfNeeded(String managedLedgerName) {

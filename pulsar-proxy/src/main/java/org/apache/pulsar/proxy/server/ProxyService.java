@@ -38,9 +38,9 @@ import io.netty.resolver.dns.DnsAddressResolverGroup;
 import io.netty.resolver.dns.DnsNameResolverBuilder;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.util.concurrent.Future;
-import io.prometheus.client.CollectorRegistry;
 import io.prometheus.metrics.core.metrics.Counter;
 import io.prometheus.metrics.core.metrics.Gauge;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -156,12 +156,13 @@ public class ProxyService implements Closeable {
     // second factory built from the same broker-client tls* material. Closed with the ProxyService.
     private volatile PulsarTlsFactory lookupClientTlsFactory;
 
+    // Nothing in the proxy exports exemplars, so its metrics skip the sampling that 1.x metrics do by default.
     static final Gauge ACTIVE_CONNECTIONS = Gauge.builder()
             .name("pulsar_proxy_active_connections")
             .help("Number of connections currently active in the proxy")
+            .withoutExemplars()
             .register();
 
-    // Nothing in the proxy exports exemplars, so its counters skip the sampling that 1.x counters do by default.
     static final Counter NEW_CONNECTIONS = Counter.builder()
             .name("pulsar_proxy_new_connections")
             .help("Counter of connections being opened in the proxy")
@@ -272,7 +273,7 @@ public class ProxyService implements Closeable {
 
         // Initialize topic list memory limiter
         this.maxTopicListInFlightLimiter = new TopicListMemoryLimiter(
-                CollectorRegistry.defaultRegistry, "pulsar_proxy_", openTelemetry.getMeter(),
+                PrometheusRegistry.defaultRegistry, "pulsar_proxy_", openTelemetry.getMeter(),
                 proxyConfig.getMaxTopicListInFlightHeapMemSizeMB() * 1024L * 1024L,
                 proxyConfig.getMaxTopicListInFlightHeapMemSizePermitsAcquireQueueSize(),
                 proxyConfig.getMaxTopicListInFlightHeapMemSizePermitsAcquireTimeoutMillis(),

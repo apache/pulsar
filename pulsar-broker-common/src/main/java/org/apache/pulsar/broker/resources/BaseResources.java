@@ -35,6 +35,7 @@ import java.util.function.Function;
 import lombok.CustomLog;
 import lombok.Getter;
 import org.apache.pulsar.common.util.Backoff;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataCacheConfig;
 import org.apache.pulsar.metadata.api.MetadataStore;
@@ -85,8 +86,7 @@ public class BaseResources<T> {
         try {
             return getChildrenAsync(path).get(operationTimeoutSec, TimeUnit.SECONDS);
         } catch (ExecutionException e) {
-            throw (e.getCause() instanceof MetadataStoreException) ? (MetadataStoreException) e.getCause()
-                    : new MetadataStoreException(e.getCause());
+            throw unwrapAsMetadataStoreException(e);
         } catch (Exception e) {
             throw new MetadataStoreException("Failed to get children of " + path, e);
         }
@@ -131,8 +131,7 @@ public class BaseResources<T> {
         try {
             return getAsync(path).get(operationTimeoutSec, TimeUnit.SECONDS);
         } catch (ExecutionException e) {
-            throw (e.getCause() instanceof MetadataStoreException) ? (MetadataStoreException) e.getCause()
-                    : new MetadataStoreException(e.getCause());
+            throw unwrapAsMetadataStoreException(e);
         } catch (Exception e) {
             throw new MetadataStoreException("Failed to get data from " + path, e);
         }
@@ -153,8 +152,7 @@ public class BaseResources<T> {
         try {
             setAsync(path, modifyFunction).get(operationTimeoutSec, TimeUnit.SECONDS);
         } catch (ExecutionException e) {
-            throw (e.getCause() instanceof MetadataStoreException) ? (MetadataStoreException) e.getCause()
-                    : new MetadataStoreException(e.getCause());
+            throw unwrapAsMetadataStoreException(e);
         } catch (Exception e) {
             throw new MetadataStoreException("Failed to set data for " + path, e);
         }
@@ -168,8 +166,7 @@ public class BaseResources<T> {
         try {
             setWithCreateAsync(path, createFunction).get(operationTimeoutSec, TimeUnit.SECONDS);
         } catch (ExecutionException e) {
-            throw (e.getCause() instanceof MetadataStoreException) ? (MetadataStoreException) e.getCause()
-                    : new MetadataStoreException(e.getCause());
+            throw unwrapAsMetadataStoreException(e);
         } catch (Exception e) {
             throw new MetadataStoreException("Failed to set/create " + path, e);
         }
@@ -183,8 +180,7 @@ public class BaseResources<T> {
         try {
             createAsync(path, data).get(operationTimeoutSec, TimeUnit.SECONDS);
         } catch (ExecutionException e) {
-            throw (e.getCause() instanceof MetadataStoreException) ? (MetadataStoreException) e.getCause()
-                    : new MetadataStoreException(e.getCause());
+            throw unwrapAsMetadataStoreException(e);
         } catch (Exception e) {
             throw new MetadataStoreException("Failed to create " + path, e);
         }
@@ -198,8 +194,7 @@ public class BaseResources<T> {
         try {
             deleteAsync(path).get(operationTimeoutSec, TimeUnit.SECONDS);
         } catch (ExecutionException e) {
-            throw (e.getCause() instanceof MetadataStoreException) ? (MetadataStoreException) e.getCause()
-                    : new MetadataStoreException(e.getCause());
+            throw unwrapAsMetadataStoreException(e);
         } catch (Exception e) {
             throw new MetadataStoreException("Failed to delete " + path, e);
         }
@@ -213,12 +208,13 @@ public class BaseResources<T> {
         log.info().attr("path", path).log("Deleting path");
         CompletableFuture<Void> future = new CompletableFuture<>();
         cache.delete(path).whenComplete((ignore, ex) -> {
-            if (ex != null && ex.getCause() instanceof MetadataStoreException.NotFoundException) {
+            Throwable cause = FutureUtil.unwrapCompletionException(ex);
+            if (cause instanceof MetadataStoreException.NotFoundException) {
                 log.info().attr("path", path).log("Path did not exist in metadata store");
                 future.complete(null);
-            } else if (ex != null) {
+            } else if (cause != null) {
                 log.info().attr("path", path).exception(ex).log("Failed to delete path from metadata store");
-                future.completeExceptionally(ex);
+                future.completeExceptionally(cause);
             } else {
                 log.info().attr("path", path).log("Deleted path from metadata store");
                 future.complete(null);
@@ -231,8 +227,7 @@ public class BaseResources<T> {
         try {
             return cache.exists(path).get(operationTimeoutSec, TimeUnit.SECONDS);
         } catch (ExecutionException e) {
-            throw (e.getCause() instanceof MetadataStoreException) ? (MetadataStoreException) e.getCause()
-                    : new MetadataStoreException(e.getCause());
+            throw unwrapAsMetadataStoreException(e);
         } catch (Exception e) {
             throw new MetadataStoreException("Failed to check exist " + path, e);
         }
@@ -244,6 +239,10 @@ public class BaseResources<T> {
 
     public int getOperationTimeoutSec() {
         return operationTimeoutSec;
+    }
+
+    static MetadataStoreException unwrapAsMetadataStoreException(ExecutionException failure) {
+        return MetadataStoreException.wrap(FutureUtil.unwrapCompletionException(failure));
     }
 
     protected static String joinPath(String... parts) {
