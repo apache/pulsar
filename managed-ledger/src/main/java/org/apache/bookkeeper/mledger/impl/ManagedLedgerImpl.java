@@ -3529,9 +3529,17 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 if (nextEntry <= lastEntry && nextEntry - rangeEnd <= maxMergedHoleDistance
                         && nextEntry - rangeStart < maxMergedRangeEntries) {
                     // Read through the small hole: the merged range is one request to the bookie, and
-                    // the entries in between are released without being delivered.
+                    // the entries in between are released without being delivered. The look-ahead
+                    // tested nextEntry as readable: keep that result instead of testing the entry
+                    // again, so that every entry is tested once per scan. The condition reads live
+                    // state and can change while the scan runs - an entry acknowledged during it, for
+                    // example - so a second test could see as skipped an entry that the look-ahead saw
+                    // as readable, and start another hole from the same rangeEnd + 1. The holes would
+                    // then overlap, and the entries they share would be counted out of the expected
+                    // count twice.
                     mergedHoles.add(LongLongImmutablePair.of(rangeEnd + 1, nextEntry - 1));
-                    entryId = nextEntry - 1;
+                    rangeEnd = nextEntry;
+                    entryId = nextEntry;
                     continue;
                 }
                 ranges.add(LongLongImmutablePair.of(rangeStart, rangeEnd));

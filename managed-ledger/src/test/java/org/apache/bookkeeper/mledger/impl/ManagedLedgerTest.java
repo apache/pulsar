@@ -7865,6 +7865,77 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertEquals(cursor.getReadPosition().getEntryId(), 16);
     }
 
+    /**
+     * The condition can change while the scan runs, e.g. an entry acknowledged during it. The scan
+     * must test every entry once, or an entry seen as readable by a hole's look-ahead and as skipped
+     * afterwards would be counted out of the expected count twice, and the batch could complete with
+     * a range still in flight and drop that range's entries.
+     */
+    @Test
+    public void testBatchReadEntriesCallbackHoleCountHoldsWhenConditionChangesDuringScan() throws Exception {
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testBatchedSkipReadScanConditionChanges",
+                initManagedLedgerConfig(defaultConfig()));
+        for (int i = 0; i < 14; i++) {
+            ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
+        }
+        @Cleanup
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("test-cursor", InitialPosition.Earliest);
+        long ledgerId = ledger.currentLedger.getId();
+
+        // Entry 1 is deleted; entry 2 is acknowledged between the look-ahead of entry 1's hole and the
+        // point where the scan would reach it, so the look-ahead sees it as readable and every later
+        // evaluation as skipped. Entries 4..12 are deleted, too long a run to merge.
+        AtomicBoolean entryTwoAcknowledged = new AtomicBoolean();
+        LongPredicate scanSkip = entryId -> {
+            if (entryId == 1) {
+                return true;
+            }
+            if (entryId == 2) {
+                return entryTwoAcknowledged.getAndSet(true);
+            }
+            return entryId >= 4 && entryId <= 12;
+        };
+        List<LongLongPair> ranges = new ArrayList<>();
+        List<LongLongPair> mergedHoles = new ArrayList<>();
+        ManagedLedgerImpl.buildRanges(0, 13, scanSkip, 4, ranges, 8, 256, mergedHoles);
+        // One hole of one entry: entry 2 is a readable entry of the range, and the expected count is
+        // 4 + 1 - 1 = 4, so that the range [13..13] still in flight is never skipped.
+        assertEquals(ranges, List.of(LongLongPair.of(0L, 3L), LongLongPair.of(13L, 13L)));
+        assertEquals(mergedHoles, List.of(LongLongPair.of(1L, 1L)));
+
+        Object readCtx = new Object();
+        RecordingReadEntriesCallback recording = new RecordingReadEntriesCallback();
+        OpReadEntry opReadEntry = OpReadEntry.create(cursor, cursor.readPosition, 14, -1, recording,
+                readCtx, ledger.lastConfirmedEntry, position -> false, true);
+        ManagedLedgerImpl.BatchReadEntriesCallback callback = new ManagedLedgerImpl.BatchReadEntriesCallback(
+                ranges, 4, opReadEntry, PositionFactory.create(ledgerId, 13), readCtx,
+                entryId -> scanSkip.test(entryId) || cursor.isMessageDeleted(ledgerId, entryId),
+                mergedHoles);
+
+        callback.onRangeSubmitted();
+        callback.onRangeSubmitted();
+        // Entry 1 is the scan's hole, entry 2 is skipped now: only 0 and 3 are delivered, which is
+        // short of the expected count, so the batch must wait for the range [13..13].
+        callback.readEntriesComplete(List.of(EntryImpl.create(ledgerId, 0, new byte[1]),
+                EntryImpl.create(ledgerId, 1, new byte[1]),
+                EntryImpl.create(ledgerId, 2, new byte[1]),
+                EntryImpl.create(ledgerId, 3, new byte[1])), ranges.get(0));
+        assertFalse(callback.shouldStopSubmission(),
+                "a matching hole count must not complete the batch before the other range reported");
+
+        callback.readEntriesComplete(List.of(EntryImpl.create(ledgerId, 13, new byte[1])), ranges.get(1));
+        callback.submissionFinished();
+
+        assertTrue(recording.await());
+        assertEquals(recording.failure.get(), null);
+        List<Long> deliveredEntryIds = new ArrayList<>();
+        for (Entry entry : recording.entries) {
+            deliveredEntryIds.add(entry.getEntryId());
+        }
+        assertEquals(deliveredEntryIds, List.of(0L, 3L, 13L));
+        assertEquals(cursor.getReadPosition().getEntryId(), 14);
+    }
+
     @Test
     public void testReadEntriesFromDifferentLedgersWithSkipCondition() throws Exception {
         ManagedLedgerConfig config = new ManagedLedgerConfig();
@@ -8408,5 +8479,29 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertEquals(ranges.size(), 1);
         assertEquals(ranges.get(0), LongLongPair.of(0L, 2L));
         assertTrue(mergedHoles.isEmpty());
+    }
+
+    @Test
+    public void testBuildRangesKeepsHolesDisjointWhenConditionChangesDuringScan() {
+        // The condition reads live cursor state: entry 2 is acknowledged between the look-ahead of the
+        // hole at entry 1 and the point where the scan would reach it, so the look-ahead sees it as
+        // readable and every later evaluation as skipped. The scan must consume the look-ahead's
+        // result; testing entry 2 again would start another hole from the same rangeEnd + 1 and count
+        // entry 1 out of the expected count twice.
+        AtomicBoolean entryTwoAcknowledged = new AtomicBoolean();
+        LongPredicate scanSkip = entryId -> {
+            if (entryId == 1) {
+                return true;
+            }
+            if (entryId == 2) {
+                return entryTwoAcknowledged.getAndSet(true);
+            }
+            return entryId >= 4 && entryId <= 12;
+        };
+        List<LongLongPair> mergedHoles = new ArrayList<>();
+        List<LongLongPair> ranges = callBuildRangesWithHoleMerging(0, 13, scanSkip, 8, 256, mergedHoles);
+
+        assertEquals(ranges, List.of(LongLongPair.of(0L, 3L), LongLongPair.of(13L, 13L)));
+        assertEquals(mergedHoles, List.of(LongLongPair.of(1L, 1L)));
     }
 }
