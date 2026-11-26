@@ -19,9 +19,10 @@
 package org.apache.pulsar.broker.stats.prometheus;
 
 import static org.apache.pulsar.common.stats.JvmMetrics.getJvmDirectMemoryUsed;
-import io.prometheus.client.CollectorRegistry;
-import io.prometheus.client.Gauge;
+import io.prometheus.metrics.core.metrics.Gauge;
+import io.prometheus.metrics.core.metrics.GaugeWithCallback;
 import io.prometheus.metrics.instrumentation.jvm.JvmMetrics;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.common.util.DirectMemoryUtils;
 
@@ -34,35 +35,33 @@ public class MetricsExports {
     public static synchronized void initialize() {
         if (!initialized) {
             JvmMetrics.builder().register();
-            register(CollectorRegistry.defaultRegistry);
+            register(PrometheusRegistry.defaultRegistry);
             initialized = true;
         }
     }
 
-    public static void register(CollectorRegistry registry) {
-        Gauge.build("jvm_memory_direct_bytes_used", "-").create().setChild(new Gauge.Child() {
-            @Override
-            public double get() {
-                return getJvmDirectMemoryUsed();
-            }
-        }).register(registry);
-
-        Gauge.build("jvm_memory_direct_bytes_max", "-").create().setChild(new Gauge.Child() {
-            @Override
-            public double get() {
-                return DirectMemoryUtils.jvmMaxDirectMemory();
-            }
-        }).register(registry);
-
-        // metric to export pulsar version info
-        Gauge.build("pulsar_version_info", "-")
-                .labelNames("version", "commit").create()
-                .setChild(new Gauge.Child() {
-                    @Override
-                    public double get() {
-                        return 1.0;
-                    }
-                }, PulsarVersion.getVersion(), PulsarVersion.getGitSha())
+    public static void register(PrometheusRegistry registry) {
+        GaugeWithCallback.builder()
+                .name("jvm_memory_direct_bytes_used")
+                .help("-")
+                .callback(callback -> callback.call(getJvmDirectMemoryUsed()))
                 .register(registry);
+
+        GaugeWithCallback.builder()
+                .name("jvm_memory_direct_bytes_max")
+                .help("-")
+                .callback(callback -> callback.call(DirectMemoryUtils.jvmMaxDirectMemory()))
+                .register(registry);
+
+        // metric to export pulsar version info. Nothing exports exemplars, so the gauge skips the sampling that
+        // 1.x gauges do by default.
+        Gauge.builder()
+                .name("pulsar_version_info")
+                .help("-")
+                .labelNames("version", "commit")
+                .withoutExemplars()
+                .register(registry)
+                .labelValues(PulsarVersion.getVersion(), PulsarVersion.getGitSha())
+                .set(1);
     }
 }

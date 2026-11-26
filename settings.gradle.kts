@@ -78,6 +78,9 @@ include("pulsar-client-api-v5")
 // Focused, dependency-light SPI modules (PIP-478): TLS factory SPI and HTTP client SPI
 include("pulsar-tls-factory-api")
 include("pulsar-http-client-api")
+// The log4j2 appender that counts log events on the Prometheus Java client 1.x
+include("pulsar-log4j2-prometheus-metrics")
+project(":pulsar-log4j2-prometheus-metrics").projectDir = file("log4j2-prometheus-metrics")
 
 // Tier 1
 include("pulsar-client-admin-api")

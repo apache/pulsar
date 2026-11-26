@@ -38,6 +38,7 @@ import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import java.time.Clock;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collections;
 import java.util.Comparator;
@@ -48,9 +49,12 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -122,7 +126,7 @@ import org.jspecify.annotations.Nullable;
 
 @SuppressWarnings("checkstyle:javadoctype")
 public class ManagedCursorImpl implements ManagedCursor {
-    private static final Comparator<Entry> ENTRY_COMPARATOR = (e1, e2) -> {
+    static final Comparator<Entry> ENTRY_COMPARATOR = (e1, e2) -> {
         if (e1.getLedgerId() != e2.getLedgerId()) {
             return e1.getLedgerId() < e2.getLedgerId() ? -1 : 1;
         }
@@ -217,6 +221,13 @@ public class ManagedCursorImpl implements ManagedCursor {
     private volatile Stat cursorLedgerStat;
     private final Object cursorPropertiesLock = new Object();
     private volatile ManagedCursorInfo managedCursorInfo;
+
+    // Cursor ledgers whose publication in the cursor z-node may have committed, by ledger ID. Each is deleted once
+    // the z-node moves past the version that its publication expected without referencing it.
+    private final Map<Long, RetainedCursorLedger> retainedCursorLedgers = new ConcurrentHashMap<>();
+
+    private record RetainedCursorLedger(LedgerHandle handle, long expectedVersion) {
+    }
 
     private static final LongPairConsumer<Position> positionRangeConverter = PositionFactory::create;
 
@@ -468,6 +479,34 @@ public class ManagedCursorImpl implements ManagedCursor {
             this.cursorProperties = Collections.unmodifiableMap(rebuiltProperties);
             this.cursorLedgerStat = stat;
         }
+        deleteUnreferencedRetainedCursorLedgers(cursorInfo, stat);
+    }
+
+    private void retainCursorLedger(LedgerHandle lh, long expectedVersion) {
+        retainedCursorLedgers.put(lh.getId(), new RetainedCursorLedger(lh, expectedVersion));
+    }
+
+    private void deleteUnreferencedRetainedCursorLedgers(ManagedCursorInfo cursorInfo, Stat stat) {
+        if (retainedCursorLedgers.isEmpty() || cursorInfo == null || stat == null) {
+            return;
+        }
+        retainedCursorLedgers.forEach((ledgerId, retained) -> {
+            // A CAS that expected an older version can no longer commit, and the z-node does not reference the ledger.
+            if (retained.expectedVersion() < stat.getVersion() && ledgerId != cursorInfo.getCursorsLedgerId()
+                    && retainedCursorLedgers.remove(ledgerId, retained)) {
+                log.debug().attr("ledgerId", ledgerId).attr("version", stat.getVersion())
+                        .log("Deleting retained cursor ledger that the cursor z-node does not reference");
+                asyncDeleteLedger(retained.handle());
+            }
+        });
+    }
+
+    private void deleteRetainedCursorLedgers() {
+        retainedCursorLedgers.forEach((ledgerId, retained) -> {
+            if (retainedCursorLedgers.remove(ledgerId, retained)) {
+                asyncDeleteLedger(retained.handle());
+            }
+        });
     }
 
     @Override
@@ -530,12 +569,6 @@ public class ManagedCursorImpl implements ManagedCursor {
             newProperties = Map.copyOf(updateFunction.apply(currentProperties));
         } catch (Exception e) {
             updateCursorPropertiesResult.completeExceptionally(e);
-            return updateCursorPropertiesResult;
-        }
-        if (newProperties.equals(currentProperties)) {
-            // Nothing changed: skip the version-bumping write, which could collide with the
-            // concurrent writer the update function just chose not to fight.
-            updateCursorPropertiesResult.complete(null);
             return updateCursorPropertiesResult;
         }
 
@@ -3593,6 +3626,163 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
+    /**
+     * Receives the outcome of publishing a new cursor ledger in the cursor z-node.
+     */
+    private interface CursorLedgerPublicationCallback {
+        /**
+         * The cursor z-node references the new ledger.
+         */
+        void published(Stat stat);
+
+        /**
+         * The cursor z-node does not reference the new ledger, and the publication can no longer commit.
+         */
+        void rejected(MetaStoreException exception);
+
+        /**
+         * The publication may have committed, or may still commit. The cursor z-node may reference the new ledger
+         * until it moves past {@code expectedVersion}, the version that the publication's CAS expected.
+         */
+        void uncertain(MetaStoreException exception, long expectedVersion);
+    }
+
+    private void publishCursorLedger(long cursorsLedgerId, Position position, Map<String, Long> properties,
+                                     CursorLedgerPublicationCallback callback) {
+        // A closing cursor waits for an in-flight ledger switch to finish, so let that switch publish its ledger.
+        if (state.isClosed() && state != State.Closing) {
+            ledger.getExecutor().execute(() -> callback.rejected(new MetaStoreException(
+                    new CursorAlreadyClosedException(name + " cursor already closed"))));
+            return;
+        }
+
+        // Sample the version and the properties as one pair: sampling them separately can pair
+        // the fresh version with stale properties, and the store would then commit the stale map
+        // under the fresh version, silently reverting an acknowledged property update.
+        final Stat expectedStat;
+        final Map<String, String> cursorPropertiesSnapshot;
+        synchronized (cursorPropertiesLock) {
+            expectedStat = this.cursorLedgerStat;
+            cursorPropertiesSnapshot = this.cursorProperties;
+        }
+        final long lastActiveToPersist = lastActive;
+        ManagedCursorInfo info = buildManagedCursorInfo(cursorsLedgerId, position, properties,
+                cursorPropertiesSnapshot, lastActiveToPersist, false, null);
+        // Assign the publication ID here rather than leave it to the store: reconciliation compares the stored record
+        // with the complete attempted bytes, which must include the ID.
+        info.setPublication(UUID.randomUUID().toString());
+        byte[] attemptedBytes = info.toByteArray();
+        ledger.getStore().asyncUpdateCursorInfo(ledger.getName(), name, info, expectedStat,
+                new MetaStoreCallback<Void>() {
+                    @Override
+                    public void operationComplete(Void result, Stat stat) {
+                        updateCursorLedgerStat(info, stat);
+                        updateIdlePersisted(lastActiveToPersist);
+                        callback.published(stat);
+                    }
+
+                    @Override
+                    public void operationFailed(MetaStoreException e) {
+                        // A failed response does not prove that the server did not commit the cursor CAS.
+                        reconcileCursorLedgerPublication(info, attemptedBytes, expectedStat, lastActiveToPersist, e,
+                                callback);
+                    }
+                });
+    }
+
+    private void reconcileCursorLedgerPublication(ManagedCursorInfo attempted, byte[] attemptedBytes,
+                                                 Stat expectedStat, long lastActiveToPersist,
+                                                 MetaStoreException originalError,
+                                                 CursorLedgerPublicationCallback callback) {
+        long expectedVersion = expectedStat != null ? expectedStat.getVersion() : -1L;
+        ledger.getStore().asyncGetCursorInfo(ledger.getName(), name, new MetaStoreCallback<>() {
+            @Override
+            public void operationComplete(ManagedCursorInfo current, Stat stat) {
+                boolean advancedSameNode = expectedStat != null && expectedStat.getCreationTimestamp() > 0
+                        && stat.getCreationTimestamp() == expectedStat.getCreationTimestamp()
+                        && stat.getVersion() > expectedStat.getVersion();
+                boolean committed = advancedSameNode && Arrays.equals(attemptedBytes, current.toByteArray());
+                boolean safeToDelete = advancedSameNode
+                        && current.getCursorsLedgerId() != attempted.getCursorsLedgerId();
+                Runnable fail = () -> {
+                    if (safeToDelete) {
+                        callback.rejected(originalError);
+                    } else {
+                        callback.uncertain(originalError, expectedVersion);
+                    }
+                };
+                // Like other cursor z-node writes, a version conflict refreshes the cursor's version after an ownership
+                // check. It does so even if the z-node's creation timestamp is unknown or has changed, e.g. after a
+                // metadata store migration that keeps versions; otherwise every later publication would conflict.
+                boolean refreshAfterBadVersion = originalError instanceof MetaStoreException.BadVersionException
+                        && ledger.mlOwnershipChecker != null;
+                if (!committed && !refreshAfterBadVersion) {
+                    fail.run();
+                    return;
+                }
+
+                CompletableFuture<Boolean> ownership = ledger.mlOwnershipChecker == null
+                        ? CompletableFuture.completedFuture(true) : FutureUtil.supplySafely(ledger.mlOwnershipChecker);
+                ownership.whenComplete((owned, error) -> {
+                    Runnable completion = () -> {
+                        Stat localStat = cursorLedgerStat;
+                        // Don't go back from a version that a concurrent write or refresh has moved past.
+                        boolean notOlder = localStat == null || localStat == expectedStat
+                                || (localStat.getCreationTimestamp() == stat.getCreationTimestamp()
+                                && localStat.getVersion() <= stat.getVersion());
+                        if (error == null && Boolean.TRUE.equals(owned) && !state.isClosed() && notOlder) {
+                            updateCursorLedgerStat(current, stat);
+                            if (committed) {
+                                updateIdlePersisted(lastActiveToPersist);
+                                callback.published(stat);
+                                return;
+                            }
+                        }
+                        fail.run();
+                    };
+                    try {
+                        ledger.getExecutor().execute(completion);
+                    } catch (RejectedExecutionException rejected) {
+                        fail.run();
+                    }
+                });
+            }
+
+            @Override
+            public void operationFailed(MetaStoreException readError) {
+                log.debug().exceptionMessage(readError).log("Could not reconcile cursor ledger publication");
+                callback.uncertain(originalError, expectedVersion);
+            }
+        });
+    }
+
+    private ManagedCursorInfo buildManagedCursorInfo(long cursorsLedgerId, Position position,
+            Map<String, Long> properties, Map<String, String> cursorPropertiesSnapshot, long lastActiveToPersist,
+            boolean persistIndividualDeletedMessageRanges, ResetAckStateSnapshot resetAckStateSnapshot) {
+        ManagedCursorInfo info = new ManagedCursorInfo()
+                .setCursorsLedgerId(cursorsLedgerId)
+                .setMarkDeleteLedgerId(position.getLedgerId())
+                .setMarkDeleteEntryId(position.getEntryId())
+                .setLastActive(Math.abs(lastActiveToPersist));
+        if (lastActiveToPersist < 0) {
+            info.setIdleSince(-lastActiveToPersist);
+        }
+
+        info.addAllProperties(buildPropertiesMap(properties));
+        info.addAllCursorProperties(buildStringPropertiesMap(cursorPropertiesSnapshot));
+        if (persistIndividualDeletedMessageRanges) {
+            if (resetAckStateSnapshot == null) {
+                info.addAllIndividualDeletedMessages(buildIndividualDeletedMessageRanges());
+            }
+            if (getConfig().isDeletionAtBatchIndexLevelEnabled()) {
+                info.addAllBatchedEntryDeletionIndexInfos(buildBatchEntryDeletionIndexInfoList(
+                        resetAckStateSnapshot == null
+                                ? batchDeletedIndexes : resetAckStateSnapshot.batchDeletedIndexes()));
+            }
+        }
+        return info;
+    }
+
     private void persistPositionMetaStore(long cursorsLedgerId, Position position, Map<String, Long> properties,
             MetaStoreCallback<Void> callback, boolean persistIndividualDeletedMessageRanges) {
         persistPositionMetaStore(cursorsLedgerId, position, properties, callback,
@@ -3621,31 +3811,12 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         // When closing we store the last mark-delete position in the z-node itself, so we won't need the cursor ledger,
         // hence we write it as -1. The cursor ledger is deleted once the z-node write is confirmed.
-        ManagedCursorInfo info = new ManagedCursorInfo()
-                .setCursorsLedgerId(cursorsLedgerId)
-                .setMarkDeleteLedgerId(position.getLedgerId())
-                .setMarkDeleteEntryId(position.getEntryId())
-                .setLastActive(Math.abs(lastActiveToPersist));
-        if (lastActiveToPersist < 0) {
-            info.setIdleSince(-lastActiveToPersist);
-        }
-
-        info.addAllProperties(buildPropertiesMap(properties));
-        info.addAllCursorProperties(buildStringPropertiesMap(cursorPropertiesSnapshot));
-        if (persistIndividualDeletedMessageRanges) {
-            if (resetAckStateSnapshot == null) {
-                info.addAllIndividualDeletedMessages(buildIndividualDeletedMessageRanges());
-            }
-            if (getConfig().isDeletionAtBatchIndexLevelEnabled()) {
-                info.addAllBatchedEntryDeletionIndexInfos(buildBatchEntryDeletionIndexInfoList(
-                        resetAckStateSnapshot == null
-                                ? batchDeletedIndexes : resetAckStateSnapshot.batchDeletedIndexes()));
-            }
-        }
+        ManagedCursorInfo cursorInfo = buildManagedCursorInfo(cursorsLedgerId, position, properties,
+                cursorPropertiesSnapshot, lastActiveToPersist, persistIndividualDeletedMessageRanges,
+                resetAckStateSnapshot);
 
         log.debug().attr("position", position).log("Closing cursor");
 
-        ManagedCursorInfo cursorInfo = info;
         ledger.getStore().asyncUpdateCursorInfo(ledger.getName(), name, cursorInfo, lastCursorLedgerStat,
                 new MetaStoreCallback<Void>() {
                     @Override
@@ -4353,10 +4524,9 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     private void switchToNewLedger(final LedgerHandle lh, MarkDeleteEntry checkpoint, final VoidCallback callback) {
         log.debug().attr("ledgerId", lh.getId()).log("Switching to new metadata ledger");
-        persistPositionMetaStore(lh.getId(), checkpoint.newPosition, checkpoint.properties,
-                new MetaStoreCallback<Void>() {
+        CursorLedgerPublicationCallback publication = new CursorLedgerPublicationCallback() {
             @Override
-            public void operationComplete(Void result, Stat stat) {
+            public void published(Stat stat) {
                 log.info()
                         .attr("ledgerId", lh.getId())
                         .attr("markDeletePosition", markDeletePosition)
@@ -4381,13 +4551,76 @@ public class ManagedCursorImpl implements ManagedCursor {
             }
 
             @Override
-            public void operationFailed(MetaStoreException e) {
-                log.warn().exception(e).log("Failed to update cursor metadata");
-                // it means it failed to switch the newly created ledger so, it should be
-                // deleted to prevent leak
+            public void rejected(MetaStoreException e) {
+                log.warn().exception(e).attr("ledgerId", lh.getId()).log("Failed to publish new cursor ledger");
+                // The cursor z-node does not reference the new ledger, so delete it to prevent a leak.
                 deleteLedgerAsync(lh).thenRun(() -> callback.operationFailed(e));
             }
-        }, false);
+
+            @Override
+            public void uncertain(MetaStoreException e, long expectedVersion) {
+                log.warn().exceptionMessage(e).attr("ledgerId", lh.getId()).attr("expectedVersion", expectedVersion)
+                        .log("Failed to publish new cursor ledger, retaining it because the publication may have"
+                                + " committed");
+                // Close our handle, but keep the ledger until the cursor z-node moves past the expected version
+                // without referencing it.
+                lh.asyncClose((rc, handle, context) -> {
+                    retainCursorLedger(lh, expectedVersion);
+                    callback.operationFailed(e);
+                }, null);
+            }
+        };
+        resolveCursorNodeIdentity(publication, () -> publishCursorLedger(lh.getId(), checkpoint.newPosition,
+                checkpoint.properties, publication));
+    }
+
+    /**
+     * ZooKeeper does not report the creation timestamp of a node that it has just created. Reconciling a failed
+     * publication needs that timestamp to recognize the cursor node, so learn it before publishing: use the native
+     * Stat while the node still holds this cursor's version and content, or else refresh to it after an ownership
+     * check, as a version conflict does. Otherwise, the publication fails before writing anything.
+     */
+    private void resolveCursorNodeIdentity(CursorLedgerPublicationCallback publication, Runnable publish) {
+        Stat localStat = cursorLedgerStat;
+        ManagedCursorInfo localInfo = managedCursorInfo;
+        if (localStat == null || localStat.getCreationTimestamp() > 0) {
+            publish.run();
+            return;
+        }
+        ledger.getStore().asyncGetCursorInfo(ledger.getName(), name, new MetaStoreCallback<>() {
+            @Override
+            public void operationComplete(ManagedCursorInfo info, Stat stat) {
+                boolean sameVersion = stat.getVersion() == localStat.getVersion()
+                        && Arrays.equals(localInfo.toByteArray(), info.toByteArray());
+                CompletableFuture<Boolean> usable = sameVersion || ledger.mlOwnershipChecker == null
+                        ? CompletableFuture.completedFuture(sameVersion)
+                        : FutureUtil.supplySafely(ledger.mlOwnershipChecker);
+                usable.whenComplete((canUse, error) -> {
+                    Runnable completion = () -> {
+                        // Check this first: a concurrent change of the local Stat does not make the cursor the owner.
+                        if (error != null || !Boolean.TRUE.equals(canUse)) {
+                            publication.rejected(new MetaStoreException.BadVersionException(
+                                    "Cursor metadata changed since this cursor last wrote it"));
+                            return;
+                        }
+                        if (cursorLedgerStat == localStat && !state.isClosed()) {
+                            updateCursorLedgerStat(info, stat);
+                        }
+                        publish.run();
+                    };
+                    try {
+                        ledger.getExecutor().execute(completion);
+                    } catch (RejectedExecutionException rejected) {
+                        publication.rejected(new MetaStoreException(rejected));
+                    }
+                });
+            }
+
+            @Override
+            public void operationFailed(MetaStoreException e) {
+                publication.rejected(e);
+            }
+        });
     }
 
     /**
@@ -4568,6 +4801,8 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     void asyncDeleteCursorLedger() {
         closeReadOnlyCursorLedger();
+        // The cursor z-node has been removed, so it cannot reference a retained ledger anymore.
+        deleteRetainedCursorLedgers();
         asyncDeleteCursorLedger(DEFAULT_LEDGER_DELETE_RETRIES);
     }
 
@@ -4773,11 +5008,11 @@ public class ManagedCursorImpl implements ManagedCursor {
             Range<Position> range = individualDeletedMessages.rangeContaining(position.getLedgerId(),
                     position.getEntryId());
             if (range != null) {
-                Position nextPosition = range.upperEndpoint().getNext();
+                Position nextPosition = ledger.getNextValidPosition(range.upperEndpoint());
                 return (nextPosition != null && nextPosition.compareTo(position) > 0)
                         ? nextPosition : position.getNext();
             }
-            return position.getNext();
+            return ledger.getNextValidPosition(position);
         } finally {
             lock.readLock().unlock();
         }
