@@ -120,6 +120,12 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
 
     protected volatile boolean havePendingRead = false;
     protected volatile boolean havePendingReplayRead = false;
+    // The bound on how long replay priority may postpone the normal read, 0 when disabled.
+    private volatile long maxReplayPriorityDurationNanos;
+    // Whether the normal read is currently being postponed by replays, and since when (System.nanoTime
+    // scale). Written on the dispatch thread.
+    private volatile boolean normalReadStarved = false;
+    private volatile long normalReadStarvedSinceNanos;
     protected volatile Position minReplayedPosition = null;
     protected boolean shouldRewindBeforeReadingOrReplaying = false;
     protected final String name;
@@ -193,6 +199,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                 ? new InMemoryRedeliveryTracker()
                 : RedeliveryTrackerDisabled.REDELIVERY_TRACKER_DISABLED;
         this.readBatchSize = serviceConfig.getDispatcherMaxReadBatchSize();
+        this.maxReplayPriorityDurationNanos =
+                TimeUnit.MILLISECONDS.toNanos(serviceConfig.getDispatcherMaxReplayPriorityDurationInMillis());
         this.initializeDispatchRateLimiterIfNeeded();
         this.assignor = new SharedConsumerAssignor(this::getNextConsumer, this::addEntryToReplay, subscription);
         ServiceConfiguration serviceConfiguration = topic.getBrokerService().pulsar().getConfiguration();
@@ -441,11 +449,21 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
 
             Set<Position> messagesToReplayNow =
                     canReplayMessages() ? getMessagesToReplayNow(messagesToRead, bytesToRead) : Collections.emptySet();
+            if (!messagesToReplayNow.isEmpty() && shouldYieldToNormalRead()) {
+                // Replays have postponed the normal read for longer than the configured bound while
+                // entries are waiting: this round reads from the cursor instead (the branch below), and
+                // the replays that are due now stay queued for the next rounds.
+                log.debug()
+                        .attr("messagesToReplay", messagesToReplayNow.size())
+                        .log("Yield to the normal read postponed by replays");
+                messagesToReplayNow = Collections.emptySet();
+            }
             if (!messagesToReplayNow.isEmpty()) {
                 log.debug()
                         .attr("messagesToReplay", messagesToReplayNow.size())
                         .attr("consumerCount", consumerList.size())
                         .log("Schedule replay of messages for consumers");
+                markNormalReadStarved();
                 havePendingReplayRead = true;
                 Set<? extends Position> deletedMessages;
                 boolean readStarted = false;
@@ -488,6 +506,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                         .attr("consumersCount", consumerList.size())
                         .log("Schedule read of messages");
                 havePendingRead = true;
+                normalReadStarved = false;
                 boolean readStarted = false;
                 try {
                     updateMinReplayedPosition();
@@ -589,6 +608,43 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
      */
     protected boolean canReplayMessages() {
         return true;
+    }
+
+    /** The current time of the postponement bound; overridable so tests control it. */
+    protected long currentTimeNanos() {
+        return System.nanoTime();
+    }
+
+    /** Overrides the bound for tests that enable it on a dispatcher created from the default config. */
+    @VisibleForTesting
+    void setMaxReplayPriorityDurationInMillisForTesting(int maxReplayPriorityDurationInMillis) {
+        this.maxReplayPriorityDurationNanos = TimeUnit.MILLISECONDS.toNanos(maxReplayPriorityDurationInMillis);
+    }
+
+    /**
+     * Whether replays have postponed the normal read for longer than
+     * {@code dispatcherMaxReplayPriorityDurationInMillis} while entries are waiting to be read. The
+     * postponement is only counted while the cursor has entries to read: a normal read issued
+     * without any entry would only park a waiting read.
+     */
+    private boolean shouldYieldToNormalRead() {
+        if (maxReplayPriorityDurationNanos == 0 || !normalReadStarved || !cursor.hasMoreEntries()) {
+            return false;
+        }
+        if (BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.get(this) == TRUE) {
+            // A blocked dispatcher reads nothing: yielding here would skip the replay round as well.
+            return false;
+        }
+        return currentTimeNanos() - normalReadStarvedSinceNanos >= maxReplayPriorityDurationNanos;
+    }
+
+    /** Starts the clock of the normal read's postponement, on the first replay round that postpones it. */
+    private void markNormalReadStarved() {
+        if (maxReplayPriorityDurationNanos == 0 || normalReadStarved || !cursor.hasMoreEntries()) {
+            return;
+        }
+        normalReadStarved = true;
+        normalReadStarvedSinceNanos = currentTimeNanos();
     }
 
     private void updateMinReplayedPosition() {
