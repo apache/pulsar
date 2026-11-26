@@ -2704,7 +2704,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         // Find the target position.
         long expiredMessageTimestamp = System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(messageTtlInSeconds);
         CompletableFuture<Position> positionToMarkDelete = new CompletableFuture<>();
-        finder.findMessages(expiredMessageTimestamp, new AsyncCallbacks.FindEntryCallback() {
+        // The expiry only moves mark-delete positions forward, and no durable cursor has persisted a mark-delete
+        // position before this one. So the find does not read the entries up to it.
+        Position oldestMarkDelete = cursorWithOldestPosition.getPosition();
+        finder.findMessages(expiredMessageTimestamp, oldestMarkDelete, new AsyncCallbacks.FindEntryCallback() {
             @Override
             public void findEntryComplete(Position position, Object ctx) {
                 positionToMarkDelete.complete(position);
