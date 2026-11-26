@@ -150,16 +150,19 @@ public class PendingAckHandleStatsImpl implements PendingAckHandleStats {
                     ? new String[]{"namespace", "topic", "subscription", "status"}
                     : new String[]{"namespace", "status"};
 
+            // Nothing exports exemplars, so the metrics skip the sampling that 1.x metrics do by default.
             commitTxnCounter = Counter.builder()
                     .name("pulsar_txn_tp_committed_count")
                     .help("-")
                     .labelNames(labelNames)
+                    .withoutExemplars()
                     .register();
 
             abortTxnCounter = Counter.builder()
                     .name("pulsar_txn_tp_aborted_count")
                     .help("-")
                     .labelNames(labelNames)
+                    .withoutExemplars()
                     .register();
 
             commitTxnLatency = Summary.builder()
@@ -172,6 +175,7 @@ public class PendingAckHandleStatsImpl implements PendingAckHandleStats {
                     .maxAgeSeconds(QUANTILE_WINDOW_SECONDS)
                     .labelNames(exposeTopicLevelMetrics
                             ? new String[]{"namespace", "topic", "subscription"} : new String[]{"namespace"})
+                    .withoutExemplars()
                     .register();
         }
     }
