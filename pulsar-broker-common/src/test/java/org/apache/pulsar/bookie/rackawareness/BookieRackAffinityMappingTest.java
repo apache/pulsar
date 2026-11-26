@@ -139,6 +139,40 @@ public class BookieRackAffinityMappingTest {
     }
 
     @Test
+    public void testMetadataStoreConfigQueryParamsInMetadataServiceUri() throws Exception {
+        @Cleanup
+        MetadataStore racksStore = MetadataStoreFactory.create("memory:rack-mapping-query-params",
+                MetadataStoreConfig.builder().build());
+        String data = "{\"group1\": {\"" + bookie1
+                + "\": {\"rack\": \"/rack0\", \"hostname\": \"bookie1.example.com\"}}}";
+        racksStore.put(BOOKIE_INFO_ROOT_PATH, data.getBytes(), Optional.empty()).join();
+
+        ClientConfiguration bkClientConf = new ClientConfiguration();
+        // The query string configures the store instead of becoming part of its URL, so the mapping reads the store
+        // the racks above were written to. No zkTimeout: the URI alone is enough.
+        bkClientConf.setProperty("metadataServiceUri",
+                "metadata-store:memory:rack-mapping-query-params?batchingEnabled=false&sessionTimeoutMillis=40000");
+        try (MetadataStore store = BookieRackAffinityMapping.getMetadataStore(bkClientConf)) {
+            bkClientConf.setProperty(BookieRackAffinityMapping.METADATA_STORE_INSTANCE, store);
+            BookieRackAffinityMapping mapping = new BookieRackAffinityMapping();
+            mapping.setBookieAddressResolver(BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER);
+            mapping.setConf(bkClientConf);
+
+            assertEquals(mapping.resolve(Lists.newArrayList(bookie1.getHostName())).get(0), "/rack0");
+        }
+    }
+
+    @Test(expectedExceptions = RuntimeException.class, expectedExceptionsMessageRegExp = ".*must be greater than 0.*")
+    public void testInvalidMetadataStoreConfigQueryParamInMetadataServiceUri() {
+        BookieRackAffinityMapping mapping = new BookieRackAffinityMapping();
+        ClientConfiguration bkClientConf = new ClientConfiguration();
+        bkClientConf.setProperty("metadataServiceUri", "metadata-store:memory:local?batchingMaxOperations=0");
+        bkClientConf.setProperty("zkTimeout", "100000");
+        mapping.setBookieAddressResolver(BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER);
+        mapping.setConf(bkClientConf);
+    }
+
+    @Test
     public void testInvalidRackName() {
         String data = "{\"group1\": {\"" + bookie1
                 + "\": {\"rack\": \"/\", \"hostname\": \"bookie1.example.com\"}, \"" + bookie2
