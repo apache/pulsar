@@ -153,8 +153,15 @@ public interface ManagedCursor {
      *
      * <p>On a durable cursor, even an unchanged update can advance the metadata version
      * or fail with {@link ManagedLedgerException.BadVersionException}. Callers should be
-     * prepared to retry on a version conflict; a retry re-applies the function, so the
-     * function must be side-effect free and must not retain the passed map.
+     * prepared to retry on a version conflict. After a failed write the cursor best-effort
+     * refreshes the cached snapshot from the store while it still owns the ledger, and completes
+     * the call successfully when the refresh finds the write committed, which it recognizes by the
+     * publication id the managed ledger's metadata store stamps on every cursor-info write. On a ledger
+     * without an ownership checker only the cursor's own committed write is adopted, so a
+     * conflict there is not refreshed. The refresh can itself fail or miss a write that commits
+     * after it, so a caller deciding from {@link #getCursorProperties()} after a failure treats
+     * the outcome as unknown. The function must be side-effect free and must not retain the
+     * passed map.
      *
      * The default implementation is a best-effort, non-atomic fallback that applies the per-key
      * differences through the individual property operations; implementations with an atomic

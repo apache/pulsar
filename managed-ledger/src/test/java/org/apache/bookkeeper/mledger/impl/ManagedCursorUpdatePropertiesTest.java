@@ -19,16 +19,25 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anySet;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -44,6 +53,11 @@ import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.metadata.api.GetResult;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.Stat;
+import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
+import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.testng.annotations.Test;
 
@@ -333,6 +347,246 @@ public class ManagedCursorUpdatePropertiesTest extends MockedBookKeeperTestCase 
         Mockito.doReturn(null).when(cursorWithDefault).getCursorProperties();
         assertThat(cursorWithDefault.updateCursorProperties(current -> current))
                 .succeedsWithin(5, TimeUnit.SECONDS);
+    }
+
+    @Test
+    public void testCursorPropertiesRefreshFromStoreOnVersionConflict() throws Exception {
+        // Another factory's cursor commits first; the local write fails with BadVersionException
+        // and, before the caller observes the failure, the cached snapshot already shows the
+        // stored state the retry needs.
+        String ledgerName = "version-conflict-refresh-ledger";
+        String cursorName = "c1";
+        ManagedLedger ownedLedger = openLedgerWithOwnershipChecker(ledgerName,
+                () -> CompletableFuture.completedFuture(true));
+        ManagedCursor ownedCursor = ownedLedger.openCursor(cursorName);
+        @Cleanup("shutdown")
+        ManagedLedgerFactory externalFactory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        ManagedCursor externalCursor = externalFactory.open(ledgerName).openCursor(cursorName);
+        assertThat(externalCursor.putCursorProperty("k", "external")).succeedsWithin(5, TimeUnit.SECONDS);
+        assertThat(ownedCursor.getCursorProperties()).doesNotContainKey("k");
+
+        CompletableFuture<Void> write = ownedCursor.putCursorProperty("k", "local");
+        CompletableFuture<Map<String, String>> observedOnFailure =
+                write.handle((__, ex) -> ownedCursor.getCursorProperties());
+
+        assertThat(write).failsWithin(5, TimeUnit.SECONDS)
+                .withThrowableThat().extracting(FutureUtil::unwrapCompletionException)
+                .isInstanceOf(ManagedLedgerException.BadVersionException.class);
+        assertThat(observedOnFailure.join()).containsEntry("k", "external");
+    }
+
+    @Test
+    public void testCursorPropertiesRefreshFromStoreWhenCommitResponseIsLost() throws Exception {
+        // The store commits the write and its response is lost. The refresh recognizes the
+        // cursor's own publication, so the call completes successfully, and the cached
+        // properties already reflect the committed write when the caller observes the result.
+        String ledgerName = "lost-commit-response-ledger";
+        String cursorName = "c1";
+        String path = "/managed-ledgers/" + ledgerName + "/" + cursorName;
+        AtomicBoolean failNextPut = new AtomicBoolean();
+        AtomicReference<Stat> committed = new AtomicReference<>();
+        FaultInjectionMetadataStore spyStore = cursorStoreWithLostPutResponse(path, failNextPut, committed);
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl isolatedFactory = new ManagedLedgerFactoryImpl(spyStore, bkc);
+        ManagedLedger isolatedLedger = isolatedFactory.open(ledgerName);
+        ManagedCursor isolatedCursor = isolatedLedger.openCursor(cursorName);
+        assertThat(isolatedCursor.putCursorProperty("k", "a")).succeedsWithin(5, TimeUnit.SECONDS);
+
+        failNextPut.set(true);
+        CompletableFuture<Void> write = isolatedCursor.putCursorProperty("k", "b");
+        CompletableFuture<Map<String, String>> observedOnCompletion =
+                write.handle((__, ex) -> isolatedCursor.getCursorProperties());
+
+        assertThat(write).succeedsWithin(5, TimeUnit.SECONDS);
+        assertThat(committed.get()).as("the store committed the write before its response failed").isNotNull();
+        assertThat(observedOnCompletion.join()).containsEntry("k", "b");
+        CompletableFuture<Map<String, String>> durableRead =
+                isolatedFactory.getCursorPropertiesAsync(ledgerName, cursorName);
+        assertThat(durableRead).succeedsWithin(5, TimeUnit.SECONDS);
+        assertThat(durableRead.join()).containsEntry("k", "b");
+    }
+
+    @Test
+    public void testCursorPropertiesDoNotAdoptAnotherWriterWithoutOwnershipChecker() throws Exception {
+        // Without an ownership checker the refresh must adopt only the cursor's own committed
+        // write: adopting another writer's version would let a later position persist or close
+        // CAS succeed against it.
+        String ledgerName = "no-checker-foreign-write-ledger";
+        String cursorName = "c1";
+        ManagedLedger localLedger = factory.open(ledgerName);
+        ManagedCursor localCursor = localLedger.openCursor(cursorName);
+        @Cleanup("shutdown")
+        ManagedLedgerFactory externalFactory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        ManagedCursor externalCursor = externalFactory.open(ledgerName).openCursor(cursorName);
+        assertThat(externalCursor.putCursorProperty("k", "external")).succeedsWithin(5, TimeUnit.SECONDS);
+
+        CompletableFuture<Void> write = localCursor.putCursorProperty("k", "local");
+        CompletableFuture<Map<String, String>> observedOnFailure =
+                write.handle((__, ex) -> localCursor.getCursorProperties());
+
+        assertThat(write).failsWithin(5, TimeUnit.SECONDS)
+                .withThrowableThat().extracting(FutureUtil::unwrapCompletionException)
+                .isInstanceOf(ManagedLedgerException.BadVersionException.class);
+        assertThat(observedOnFailure.join()).doesNotContainKey("k");
+    }
+
+    @Test
+    public void testCursorPropertiesStayUnchangedWhenOwnershipIsLost() throws Exception {
+        String ledgerName = "ownership-lost-refresh-ledger";
+        String cursorName = "c1";
+        ManagedLedger ownedLedger = openLedgerWithOwnershipChecker(ledgerName,
+                () -> CompletableFuture.completedFuture(false));
+        ManagedCursor ownedCursor = ownedLedger.openCursor(cursorName);
+        @Cleanup("shutdown")
+        ManagedLedgerFactory externalFactory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        ManagedCursor externalCursor = externalFactory.open(ledgerName).openCursor(cursorName);
+        assertThat(externalCursor.putCursorProperty("k", "external")).succeedsWithin(5, TimeUnit.SECONDS);
+
+        CompletableFuture<Void> write = ownedCursor.putCursorProperty("k", "local");
+        CompletableFuture<Map<String, String>> observedOnFailure =
+                write.handle((__, ex) -> ownedCursor.getCursorProperties());
+
+        assertThat(write).failsWithin(5, TimeUnit.SECONDS);
+        assertThat(observedOnFailure.join()).doesNotContainKey("k");
+    }
+
+    @Test
+    public void testCursorPropertiesStayUnchangedWhenOwnershipCheckFails() throws Exception {
+        String ledgerName = "ownership-check-failed-refresh-ledger";
+        String cursorName = "c1";
+        ManagedLedger ownedLedger = openLedgerWithOwnershipChecker(ledgerName,
+                () -> FutureUtil.failedFuture(new RuntimeException("ownership check unavailable")));
+        ManagedCursor ownedCursor = ownedLedger.openCursor(cursorName);
+        @Cleanup("shutdown")
+        ManagedLedgerFactory externalFactory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        ManagedCursor externalCursor = externalFactory.open(ledgerName).openCursor(cursorName);
+        assertThat(externalCursor.putCursorProperty("k", "external")).succeedsWithin(5, TimeUnit.SECONDS);
+
+        CompletableFuture<Void> write = ownedCursor.putCursorProperty("k", "local");
+        CompletableFuture<Map<String, String>> observedOnFailure =
+                write.handle((__, ex) -> ownedCursor.getCursorProperties());
+
+        assertThat(write).failsWithin(5, TimeUnit.SECONDS);
+        assertThat(observedOnFailure.join()).doesNotContainKey("k");
+    }
+
+    @Test
+    public void testCursorPropertiesRefreshFailureFailsWithOriginalError() throws Exception {
+        // When the re-read itself fails, the caller sees the original error and the cache keeps
+        // the pre-write state.
+        String ledgerName = "refresh-read-failed-ledger";
+        String cursorName = "c1";
+        String path = "/managed-ledgers/" + ledgerName + "/" + cursorName;
+        FaultInjectionMetadataStore spyStore = spy(metadataStore);
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl isolatedFactory = new ManagedLedgerFactoryImpl(spyStore, bkc);
+        ManagedLedger isolatedLedger = openLedgerWithOwnershipChecker(isolatedFactory, ledgerName,
+                () -> CompletableFuture.completedFuture(true));
+        ManagedCursor isolatedCursor = isolatedLedger.openCursor(cursorName);
+        doReturn(CompletableFuture.failedFuture(new MetadataStoreException("cursor node read unavailable")))
+                .when(spyStore).get(eq(path), any());
+        @Cleanup("shutdown")
+        ManagedLedgerFactory externalFactory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        ManagedCursor externalCursor = externalFactory.open(ledgerName).openCursor(cursorName);
+        assertThat(externalCursor.putCursorProperty("k", "external")).succeedsWithin(5, TimeUnit.SECONDS);
+
+        CompletableFuture<Void> write = isolatedCursor.putCursorProperty("k", "local");
+        CompletableFuture<Map<String, String>> observedOnFailure =
+                write.handle((__, ex) -> isolatedCursor.getCursorProperties());
+
+        assertThat(write).failsWithin(5, TimeUnit.SECONDS)
+                .withThrowableThat().extracting(FutureUtil::unwrapCompletionException)
+                .isInstanceOf(ManagedLedgerException.BadVersionException.class);
+        assertThat(observedOnFailure.join()).isEmpty();
+    }
+
+    @Test
+    public void testCursorPropertiesRefreshKeepsNewerLocalVersion() throws Exception {
+        // The re-read delivers a snapshot that a later refresh has already moved past: the
+        // not-older guard keeps the newer local state instead of going back.
+        String ledgerName = "refresh-keeps-newer-local-ledger";
+        String cursorName = "c1";
+        String path = "/managed-ledgers/" + ledgerName + "/" + cursorName;
+        CompletableFuture<Void> releaseFirstRead = new CompletableFuture<>();
+        AtomicInteger reads = new AtomicInteger();
+        FaultInjectionMetadataStore spyStore = spy(metadataStore);
+        doAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            CompletableFuture<Optional<GetResult>> real =
+                    (CompletableFuture<Optional<GetResult>>) invocation.callRealMethod();
+            if (reads.getAndIncrement() == 0) {
+                // Capture the stored value now, deliver it only once released.
+                return real.thenCompose(value -> releaseFirstRead.thenApply(__ -> value));
+            }
+            return real;
+        }).when(spyStore).get(eq(path), any());
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl isolatedFactory = new ManagedLedgerFactoryImpl(spyStore, bkc);
+        ManagedLedger isolatedLedger = openLedgerWithOwnershipChecker(isolatedFactory, ledgerName,
+                () -> CompletableFuture.completedFuture(true));
+        ManagedCursor isolatedCursor = isolatedLedger.openCursor(cursorName);
+        @Cleanup("shutdown")
+        ManagedLedgerFactory externalFactory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        ManagedCursor externalCursor = externalFactory.open(ledgerName).openCursor(cursorName);
+        assertThat(externalCursor.putCursorProperty("k", "external")).succeedsWithin(5, TimeUnit.SECONDS);
+
+        // The conflict's re-read captures {k=external} and is held.
+        CompletableFuture<Void> firstWrite = isolatedCursor.putCursorProperty("k", "local");
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> reads.get() == 1);
+
+        // A later conflict refreshes the local snapshot to a newer stored state.
+        assertThat(externalCursor.putCursorProperty("k", "external2")).succeedsWithin(5, TimeUnit.SECONDS);
+        assertThat(isolatedCursor.putCursorProperty("k", "local2")).failsWithin(5, TimeUnit.SECONDS);
+        assertThat(isolatedCursor.getCursorProperties()).containsEntry("k", "external2");
+
+        releaseFirstRead.complete(null);
+        assertThat(firstWrite).failsWithin(5, TimeUnit.SECONDS);
+        assertThat(isolatedCursor.getCursorProperties()).containsEntry("k", "external2");
+    }
+
+    private ManagedLedger openLedgerWithOwnershipChecker(String ledgerName,
+                                                         Supplier<CompletableFuture<Boolean>> checker)
+            throws InterruptedException {
+        return openLedgerWithOwnershipChecker(factory, ledgerName, checker);
+    }
+
+    private ManagedLedger openLedgerWithOwnershipChecker(ManagedLedgerFactory ledgerFactory, String ledgerName,
+                                                         Supplier<CompletableFuture<Boolean>> checker)
+            throws InterruptedException {
+        CountDownLatch openLatch = new CountDownLatch(1);
+        AtomicReference<ManagedLedger> opened = new AtomicReference<>();
+        ledgerFactory.asyncOpen(ledgerName, new ManagedLedgerConfig(), new AsyncCallbacks.OpenLedgerCallback() {
+            @Override
+            public void openLedgerComplete(ManagedLedger managedLedger, Object ctx) {
+                opened.set(managedLedger);
+                openLatch.countDown();
+            }
+
+            @Override
+            public void openLedgerFailed(ManagedLedgerException exception, Object ctx) {
+                openLatch.countDown();
+            }
+        }, checker, null);
+        assertThat(openLatch.await(10, TimeUnit.SECONDS)).as("the ledger opens").isTrue();
+        return opened.get();
+    }
+
+    private FaultInjectionMetadataStore cursorStoreWithLostPutResponse(String path, AtomicBoolean failNextPut,
+                                                                      AtomicReference<Stat> committed) {
+        FaultInjectionMetadataStore spyStore = spy(metadataStore);
+        doAnswer(invocation -> {
+            if (failNextPut.compareAndSet(true, false)) {
+                @SuppressWarnings("unchecked")
+                CompletableFuture<Stat> real = (CompletableFuture<Stat>) invocation.callRealMethod();
+                return real.thenCompose(stat -> {
+                    committed.set(stat);
+                    return CompletableFuture.<Stat>failedFuture(
+                            new MetadataStoreException("write response was lost"));
+                });
+            }
+            return invocation.callRealMethod();
+        }).when(spyStore).put(eq(path), any(byte[].class), any(), anySet());
+        return spyStore;
     }
 
     @Test
