@@ -582,7 +582,9 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * Broker evenly assigns partitioned topics to highest priority consumers.
      * </pre>
      *
-     * <p>Priority level has no effect on failover subscriptions for non-partitioned topics.
+     * <p>For Failover subscriptions on non-partitioned topics, the broker selects among the highest-priority
+     * consumers by default. With {@code nonPartitionedTopicFailoverUseSubscriptionOrder} enabled, the broker
+     * ignores priority and selects the earliest subscriber that is still connected.
      *
      * @param priorityLevel the priority of this consumer
      * @return the consumer builder instance

@@ -941,8 +941,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean activeConsumerFailoverConsistentHashing = false;
     @FieldContext(
             category = CATEGORY_POLICIES,
-            doc = "Select the active consumer by join order for Failover subscriptions on non-partitioned topics."
-                    + " Consumer priority is ignored, and reconnecting consumers join last."
+            doc = "Use join order for all non-partitioned Failover subscriptions on this broker."
+                    + " Consumer priority is ignored. Reconnecting consumers join last."
+                    + " A multi-topic or regex consumer that joins each topic first can receive traffic"
+                    + " for all of them."
+                    + " On persistent topics, a seek or cursor reset can move replay to the next standby."
+                    + " If the active connection is lost silently, takeover waits until the broker detects"
+                    + " the disconnect."
     )
     private boolean nonPartitionedTopicFailoverUseSubscriptionOrder = false;
     @FieldContext(
