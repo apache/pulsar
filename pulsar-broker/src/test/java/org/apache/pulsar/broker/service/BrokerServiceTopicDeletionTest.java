@@ -49,6 +49,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
@@ -725,24 +726,24 @@ public class BrokerServiceTopicDeletionTest {
             CompletableFuture<Void> ownership = new CompletableFuture<>();
             CompletableFuture<Void> dequeued = new CompletableFuture<>();
             AtomicInteger ownershipChecks = new AtomicInteger();
+            NamespaceService namespaceService = fixture.service().getNamespaceService();
             doAnswer(invocation -> {
-                int check = ownershipChecks.incrementAndGet();
-                if (check == 1) {
-                    return CompletableFuture.completedFuture(null);
-                }
-                if (check == 2) {
-                    dequeued.complete(null);
-                    return ownership;
-                }
-                return invocation.callRealMethod();
-            }).when(realBroker).checkTopicNsOwnership(name);
-            doReturn(CompletableFuture.completedFuture(null)).when(realBroker).checkTopicNsOwnership(followingName);
+                Supplier<CompletableFuture<Boolean>> captured =
+                        (Supplier<CompletableFuture<Boolean>>) invocation.callRealMethod();
+                return (Supplier<CompletableFuture<Boolean>>) () -> {
+                    if (ownershipChecks.incrementAndGet() == 2) {
+                        dequeued.complete(null);
+                        return ownership.thenCompose(ignored -> captured.get());
+                    }
+                    return captured.get();
+                };
+            }).when(namespaceService).newTopicOwnershipChecker(TopicName.get(name));
             // The trigger load only holds the permit. Completing it on this thread dequeues the failing load here,
             // so its ownership callbacks are attached before this thread fails the check and tracks the cleanup.
             CompletableFuture<Optional<Topic>> trigger = new CompletableFuture<>();
             TopicLoadingContext triggerContext = new TopicLoadingContext(TopicName.get(triggerName), true, trigger,
                     mock(PulsarStats.class));
-            doReturn(CompletableFuture.completedFuture(null)).when(realBroker).checkTopicNsOwnership(triggerName);
+            triggerContext.setOwnershipChecker(() -> CompletableFuture.completedFuture(true));
             doNothing().when(realBroker).createPersistentTopic0(triggerContext);
             CompletableFuture<Void> queued = new CompletableFuture<>();
             CompletableFuture<Void> followingQueued = new CompletableFuture<>();
