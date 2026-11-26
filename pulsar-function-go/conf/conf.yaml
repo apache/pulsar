@@ -33,6 +33,7 @@ logTopic: "log-topic"
 processingGuarantees: 0
 secretsMap: ""
 runtime: 0
+secretsProviderClassName: ""
 autoAck: true
 parallelism: 0
 userConfig: '{"word-of-the-day": "hapax legomenon"}'

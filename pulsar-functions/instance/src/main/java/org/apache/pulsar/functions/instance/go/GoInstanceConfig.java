@@ -45,6 +45,7 @@ public class GoInstanceConfig {
     private String logTopic = "";
     private int processingGuarantees;
     private String secretsMap = "";
+    private String secretsProviderClassName = "";
     private String userConfig = "";
 
     private String clientAuthenticationPlugin = "";

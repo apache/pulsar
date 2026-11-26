@@ -22,6 +22,7 @@ package pf
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"sync"
 	"time"
 
@@ -36,6 +37,7 @@ import (
 type FunctionContext struct {
 	instanceConf           *instanceConf
 	userConfigs            map[string]interface{}
+	secrets                *functionSecrets
 	logAppender            *LogAppender
 	outputMessage          func(topic string) pulsar.Producer
 	outputMessageWithError func(topic string) (pulsar.Producer, error)
@@ -43,14 +45,28 @@ type FunctionContext struct {
 	record                 pulsar.Message
 }
 
+// processSecrets is shared by every function context of the process, so that the secrets map is
+// parsed once however many contexts are created.
+var (
+	processSecretsOnce sync.Once
+	processSecrets     *functionSecrets
+)
+
 // NewFuncContext returns a new Function context
 func NewFuncContext() *FunctionContext {
-	instanceConf := newInstanceConf()
+	fc := newFuncContextWithConf(newInstanceConf())
+	processSecretsOnce.Do(func() { processSecrets = fc.secrets })
+	fc.secrets = processSecrets
+	return fc
+}
+
+func newFuncContextWithConf(instanceConf *instanceConf) *FunctionContext {
 	userConfigs := buildUserConfig(instanceConf.funcDetails.GetUserConfig())
 
 	fc := &FunctionContext{
 		instanceConf: instanceConf,
 		userConfigs:  userConfigs,
+		secrets:      newFunctionSecrets(instanceConf),
 	}
 	return fc
 }
@@ -154,6 +170,20 @@ func (c *FunctionContext) GetUserConfValue(key string) interface{} {
 // GetUserConfMap returns the pulsar function's user configuration map
 func (c *FunctionContext) GetUserConfMap() map[string]interface{} {
 	return c.userConfigs
+}
+
+// GetSecret returns the secret the pulsar function was given under secretName,
+// for example with the --secrets option of pulsar-admin. The secret is resolved
+// by the secrets provider that the function worker selected for the function.
+//
+// The error wraps ErrSecretNotFound when the function has no secret of that
+// name or the secrets provider has none for it.
+func (c *FunctionContext) GetSecret(ctx context.Context, secretName string) (string, error) {
+	secret, err := c.secrets.get(ctx, secretName)
+	if err != nil {
+		return "", fmt.Errorf("secret %q: %w", secretName, err)
+	}
+	return secret, nil
 }
 
 // NewOutputMessage send message to the topic @param topicName: The name of the

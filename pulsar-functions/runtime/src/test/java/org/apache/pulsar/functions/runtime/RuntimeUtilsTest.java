@@ -22,16 +22,20 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.prometheus.metrics.instrumentation.jvm.JvmMetrics;
 import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import io.prometheus.metrics.model.snapshots.MetricSnapshot;
 import io.prometheus.metrics.model.snapshots.MetricSnapshots;
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.CustomLog;
@@ -137,7 +141,7 @@ public class RuntimeUtilsTest {
 
         List<String> commands = RuntimeUtils.getGoInstanceCmd(instanceConfig, authConfig, "config",
                 "pulsar://localhost:6650", "bk://localhost:4181",
-                "http://localhost:8080", k8sRuntime);
+                "http://localhost:8080", "EnvironmentBasedSecretsProvider", k8sRuntime);
         if (k8sRuntime) {
             goInstanceConfig = new ObjectMapper().readValue(commands.get(2).replaceAll("^\'|\'$", ""), HashMap.class);
         } else {
@@ -153,6 +157,7 @@ public class RuntimeUtilsTest {
         Assert.assertEquals(goInstanceConfig.get("className"), "");
         Assert.assertEquals(goInstanceConfig.get("sourceSpecsTopic"), "go-func-input");
         Assert.assertEquals(goInstanceConfig.get("secretsMap"), secretsMap.toString());
+        Assert.assertEquals(goInstanceConfig.get("secretsProviderClassName"), "EnvironmentBasedSecretsProvider");
         Assert.assertEquals(goInstanceConfig.get("sourceSchemaType"), "");
         Assert.assertEquals(goInstanceConfig.get("sinkSpecsTopic"), "");
         Assert.assertEquals(goInstanceConfig.get("clusterName"), "kluster");
@@ -189,6 +194,78 @@ public class RuntimeUtilsTest {
         Assert.assertEquals(goInstanceConfig.get("tlsTrustCertsFilePath"), "/secret/ca.cert.pem");
         Assert.assertEquals(goInstanceConfig.get("tlsHostnameVerificationEnable"), true);
         Assert.assertEquals(goInstanceConfig.get("tlsAllowInsecureConnection"), false);
+    }
+
+    /**
+     * The Go instance is compiled into the function binary and reads its config from the JSON that the worker builds
+     * here. Both sides are tested against one file, pulsar-function-go/pf/testdata/go-instance-conf.json: this test
+     * checks that it is what the worker passes to a Go function, and the tests in pulsar-function-go/pf check that the
+     * Go instance understands it. A change to one side that the other does not follow fails one of the two.
+     */
+    @SuppressWarnings("deprecation")
+    @Test
+    public void goInstanceConfIsTheOneTheGoInstanceIsTestedWith() throws IOException {
+        InstanceConfig instanceConfig = new InstanceConfig();
+        instanceConfig.setClusterName("standalone");
+        instanceConfig.setInstanceId(0);
+        instanceConfig.setFunctionId("go-instance-conf-function-id");
+        instanceConfig.setFunctionVersion("go-instance-conf-function-version");
+        instanceConfig.setMaxBufferedTuples(1024);
+        instanceConfig.setPort(9093);
+        instanceConfig.setMetricsPort(9094);
+
+        AuthenticationConfig authConfig = AuthenticationConfig.builder()
+                .clientAuthenticationPlugin("org.apache.pulsar.client.impl.auth.AuthenticationToken")
+                .clientAuthenticationParameters("file:///etc/auth/token")
+                .tlsHostnameVerificationEnable(false)
+                .tlsAllowInsecureConnection(false)
+                .build();
+
+        FunctionDetails functionDetails = new FunctionDetails()
+                .setAutoAck(true)
+                .setTenant("public")
+                .setNamespace("default")
+                .setName("go-secrets")
+                .setProcessingGuarantees(ProcessingGuarantees.ATLEAST_ONCE)
+                .setRuntime(FunctionDetails.Runtime.GO)
+                .setSecretsMap("{\"DB_PASSWORD\":{\"path\":\"db\",\"key\":\"password\"},"
+                        + "\"DB_USER\":{\"path\":\"db\",\"key\":\"user\"}}")
+                .setParallelism(1)
+                .setUserConfig("{\"key\":\"value\"}");
+        functionDetails.setSource().putInputSpecs("persistent://public/default/go-secrets-in").setIsRegexPattern(false);
+        functionDetails.setSink().setTopic("persistent://public/default/go-secrets-out");
+        instanceConfig.setFunctionDetails(functionDetails);
+
+        List<String> commands = RuntimeUtils.getGoInstanceCmd(instanceConfig, authConfig, "function",
+                "pulsar://localhost:6650", "bk://localhost:4181", "http://localhost:8080",
+                "EnvironmentBasedSecretsProvider", false);
+
+        ObjectMapper mapper = new ObjectMapper();
+        JsonNode expected;
+        try (InputStream in = getClass().getResourceAsStream("/go-instance-conf.json")) {
+            expected = mapper.readTree(in);
+        }
+        assertEquals(withNestedJsonParsed(mapper, mapper.readTree(commands.get(2))),
+                withNestedJsonParsed(mapper, expected),
+                "pulsar-function-go/pf/testdata/go-instance-conf.json is not what the worker passes to a Go function,"
+                        + " which is: " + commands.get(2));
+    }
+
+    /** Some values of the Go instance config are JSON in a string. Parse them, so that their formatting is ignored. */
+    private static JsonNode withNestedJsonParsed(ObjectMapper mapper, JsonNode conf) throws IOException {
+        ObjectNode parsed = conf.deepCopy();
+        for (String name : List.of("functionDetails", "secretsMap", "userConfig")) {
+            if (parsed.path(name).isTextual() && !parsed.get(name).asText().isEmpty()) {
+                parsed.set(name, mapper.readTree(parsed.get(name).asText()));
+            }
+        }
+        if (parsed.path("sourceInputSpecs").isObject()) {
+            ObjectNode inputSpecs = (ObjectNode) parsed.get("sourceInputSpecs");
+            for (Map.Entry<String, JsonNode> spec : List.copyOf(inputSpecs.properties())) {
+                inputSpecs.set(spec.getKey(), mapper.readTree(spec.getValue().asText()));
+            }
+        }
+        return parsed;
     }
 
     @DataProvider(name = "k8sRuntime")

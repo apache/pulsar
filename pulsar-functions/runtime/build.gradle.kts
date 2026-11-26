@@ -27,6 +27,9 @@ sourceSets {
     test {
         resources {
             srcDir("${project.projectDir}/../src/test/resources")
+            // go-instance-conf.json: the config the Go instance is tested with. RuntimeUtilsTest checks that it is
+            // what the worker passes to a Go function.
+            srcDir("${rootDir}/pulsar-function-go/pf/testdata")
         }
     }
 }

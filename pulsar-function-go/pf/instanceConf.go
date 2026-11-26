@@ -46,6 +46,7 @@ type instanceConf struct {
 	killAfterIdle               time.Duration
 	expectedHealthCheckInterval int32
 	metricsPort                 int
+	secretsProviderClassName    string
 	authPlugin                  string
 	authParams                  string
 	tlsTrustCertsPath           string
@@ -85,6 +86,7 @@ func newInstanceConfWithConf(cfg *conf.Conf) *instanceConf {
 		killAfterIdle:               cfg.KillAfterIdleMs,
 		expectedHealthCheckInterval: cfg.ExpectedHealthCheckInterval,
 		metricsPort:                 cfg.MetricsPort,
+		secretsProviderClassName:    cfg.SecretsProviderClassName,
 		funcDetails: pb.FunctionDetails{
 			Tenant:               cfg.Tenant,
 			Namespace:            cfg.NameSpace,
