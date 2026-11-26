@@ -22,6 +22,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
@@ -32,15 +33,33 @@ import org.apache.pulsar.metadata.api.Stat;
  */
 public interface MetaStore {
 
-    /** Whether this write publishes a newly allocated BookKeeper ledger that needs cleanup on failure. */
+    /** The operation that issued a cursor metadata write. */
     enum CursorWrite {
-        UPDATE, SWITCH_LEDGER
+        /** Create or update the cursor during normal operation. */
+        UPDATE,
+        /** Publish a new cursor ledger whose cleanup depends on the outcome of the write. */
+        SWITCH_LEDGER,
+        /** Persist the final position with a bounded verification time during cursor close. */
+        CLOSE
+    }
+
+    /** Reconciles one cursor-ledger switch with its original serialized value and expected version. */
+    @FunctionalInterface
+    interface CursorPublicationRetry {
+        void retry(Duration timeout, Supplier<CompletableFuture<Boolean>> stillOwner,
+                   MetaStoreCallback<ManagedCursorInfo> callback);
     }
 
     /** The store could not establish that the candidate ledger is safe to delete. */
     class CursorPublicationOutcomeUnknownException extends MetaStoreException {
-        CursorPublicationOutcomeUnknownException(MetaStoreException cause) {
+        final Stat expected;
+        final CursorPublicationRetry publication;
+
+        CursorPublicationOutcomeUnknownException(MetaStoreException cause, Stat expected,
+                                                 CursorPublicationRetry publication) {
             super(cause);
+            this.expected = expected;
+            this.publication = publication;
         }
     }
 

@@ -220,6 +220,21 @@ public class ManagedCursorImpl implements ManagedCursor {
     private volatile Stat cursorLedgerStat;
     private volatile ManagedCursorInfo managedCursorInfo;
 
+    // Keep cursorLedger installed until ZooKeeper confirms which ledger recovery will open.
+    private record PendingLedgerSwitch(LedgerHandle candidate, CursorPublicationOutcomeUnknownException outcome) {
+        boolean supersededBy(ManagedCursorInfo info, Stat stat) {
+            Stat expected = outcome.expected;
+            return expected != null && expected.getCreationTimestamp() > 0 && stat != null && !stat.isEphemeral()
+                    && stat.getCreationTimestamp() == expected.getCreationTimestamp()
+                    && stat.getVersion() > expected.getVersion() && info.hasCursorsLedgerId()
+                    && info.getCursorsLedgerId() != candidate.getId();
+        }
+    }
+
+    private volatile PendingLedgerSwitch pendingLedgerSwitch;
+    private final AtomicBoolean creatingCursorLedger = new AtomicBoolean();
+    private boolean cursorMetadataRemoved;
+
     private static final LongPairConsumer<Position> positionRangeConverter = PositionFactory::create;
 
     private static final RangeBoundConsumer<Position> positionRangeReverseConverter =
@@ -436,9 +451,12 @@ public class ManagedCursorImpl implements ManagedCursor {
         this.ledgerForceRecovery = getConfig().isLedgerForceRecovery();
     }
 
-    private void updateCursorLedgerStat(ManagedCursorInfo cursorInfo, Stat stat) {
+    private synchronized void updateCursorLedgerStat(ManagedCursorInfo cursorInfo, Stat stat) {
         this.managedCursorInfo = cursorInfo;
         this.cursorLedgerStat = stat;
+        if (pendingLedgerSwitch != null && pendingLedgerSwitch.supersededBy(cursorInfo, stat)) {
+            discardPendingLedgerSwitch();
+        }
     }
 
     @Override
@@ -952,7 +970,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     public void operationFailed(MetaStoreException e) {
                         callback.operationFailed(e);
                     }
-        }, false);
+        }, false, CursorWrite.UPDATE);
     }
 
     @Override
@@ -2425,7 +2443,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
 
         // Apply rate limiting to mark-delete operations
-        if (markDeleteLimiter != null && !markDeleteLimiter.tryAcquire()) {
+        if (markDeleteLimiter != null && canDeferAckPersistence() && !markDeleteLimiter.tryAcquire()) {
             isDirty = true;
             updateLastMarkDeleteEntryToLatest(newPosition, properties);
             callback.markDeleteComplete(ctx);
@@ -2764,33 +2782,25 @@ public class ManagedCursorImpl implements ManagedCursor {
                 }
             }
 
-            if (individualDeletedMessages.isEmpty()) {
-                // No changes to individually deleted messages, so nothing to do at this point
-                skipMarkDeleteBecauseAckedNothing = true;
-                return;
-            }
-
-            // If the lower bound of the range set is the current mark delete position, then we can trigger a new
-            // mark-delete to the upper bound of the first range segment
-            Range<Position> range = individualDeletedMessages.firstRange();
+            Range<Position> range = individualDeletedMessages.isEmpty() ? null : individualDeletedMessages.firstRange();
 
             // If the upper bound is before the mark-delete position, we need to move ahead as these
             // individualDeletedMessages are now irrelevant
-            if (range.upperEndpoint().compareTo(markDeletePosition) <= 0) {
+            if (range != null && range.upperEndpoint().compareTo(markDeletePosition) <= 0) {
                 individualDeletedMessages.removeAtMost(markDeletePosition.getLedgerId(),
                         markDeletePosition.getEntryId());
                 range = individualDeletedMessages.firstRange();
             }
 
-            if (range == null) {
-                // The set was completely cleaned up now
+            if (range == null && canDeferAckPersistence()) {
+                // With an unresolved switch, even an in-memory ACK can still need persistence.
                 skipMarkDeleteBecauseAckedNothing = true;
                 return;
             }
 
             // If the lowerBound is ahead of MarkDelete, verify if there are any entries in-between
-            if (range.lowerEndpoint().compareTo(markDeletePosition) <= 0 || ledger
-                    .getNumberOfEntries(Range.openClosed(markDeletePosition, range.lowerEndpoint())) <= 0) {
+            if (range != null && (range.lowerEndpoint().compareTo(markDeletePosition) <= 0 || ledger
+                    .getNumberOfEntries(Range.openClosed(markDeletePosition, range.lowerEndpoint())) <= 0)) {
 
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Found a position range to mark delete for cursor {}: {} ", ledger.getName(),
@@ -2824,7 +2834,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
 
         // Apply rate limiting to mark-delete operations
-        if (markDeleteLimiter != null && !markDeleteLimiter.tryAcquire()) {
+        if (markDeleteLimiter != null && canDeferAckPersistence() && !markDeleteLimiter.tryAcquire()) {
             isDirty = true;
             updateLastMarkDeleteEntryToLatest(newMarkDeletePosition, null);
             callback.deleteComplete(ctx);
@@ -3084,6 +3094,13 @@ public class ManagedCursorImpl implements ManagedCursor {
             final AsyncCallbacks.CloseCallback callback, final Object ctx) {
 
         if (shouldPersistUnackRangesToLedger()) {
+            if (pendingLedgerSwitch != null) {
+                // Recovery might read either ledger. A final write to the old handle alone cannot confirm these ACKs.
+                ManagedLedgerImpl.closeReadHandleAsync(cursorLedger, log);
+                callback.closeFailed(new MetaStoreException("Unverified cursor ledger switch while closing " + name),
+                        ctx);
+                return;
+            }
             persistPositionToLedger(cursorLedger, new MarkDeleteEntry(position, properties, null, null),
                     new VoidCallback() {
                         @Override
@@ -3120,7 +3137,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     closeReadOnlyCursorLedger();
                     callback.closeFailed(e, ctx);
                 }
-            }, true, Duration.ofSeconds(getConfig().getMetadataOperationsTimeoutSeconds()), CursorWrite.UPDATE);
+            }, true, CursorWrite.CLOSE);
         }
     }
 
@@ -3136,14 +3153,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     private void persistPositionMetaStore(long cursorsLedgerId, Position position, Map<String, Long> properties,
-            MetaStoreCallback<Void> callback, boolean persistIndividualDeletedMessageRanges) {
-        persistPositionMetaStore(cursorsLedgerId, position, properties, callback, persistIndividualDeletedMessageRanges,
-                null, CursorWrite.UPDATE);
-    }
-
-    private void persistPositionMetaStore(long cursorsLedgerId, Position position, Map<String, Long> properties,
-            MetaStoreCallback<Void> callback, boolean persistIndividualDeletedMessageRanges,
-            Duration verificationTimeout, CursorWrite write) {
+            MetaStoreCallback<Void> callback, boolean persistIndividualDeletedMessageRanges, CursorWrite write) {
         if (state == State.Closed) {
             ledger.getExecutor().execute(() -> callback.operationFailed(new MetaStoreException(
                     new CursorAlreadyClosedException(name + " cursor already closed"))));
@@ -3179,6 +3189,8 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
 
         ManagedCursorInfo cursorInfo = info.build();
+        Duration verificationTimeout = write == CursorWrite.CLOSE
+                ? Duration.ofSeconds(getConfig().getMetadataOperationsTimeoutSeconds()) : null;
         ledger.getStore().asyncUpdateCursorInfo(ledger.getName(), name, cursorInfo, lastCursorLedgerStat,
                 verificationTimeout, write, new MetaStoreCallback<Void>() {
                     @Override
@@ -3243,6 +3255,10 @@ public class ManagedCursorImpl implements ManagedCursor {
             log.info("[{}] [{}] State is already closed", ledger.getName(), name);
             callback.closeComplete(ctx);
             return;
+        }
+        var pending = pendingLedgerSwitch;
+        if (pending != null) {
+            ManagedLedgerImpl.closeReadHandleAsync(pending.candidate(), log);
         }
         closeWaitingCursor();
         setInactive();
@@ -3385,6 +3401,9 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     void createNewMetadataLedger() {
+        if (!creatingCursorLedger.compareAndSet(false, true)) {
+            return;
+        }
         createNewMetadataLedger(new VoidCallback() {
             @Override
             public void operationComplete() {
@@ -3394,6 +3413,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
                     // Resume normal mark-delete operations
                     changeStateIfNotClosed(State.Open);
+                    creatingCursorLedger.set(false);
                 }
             }
 
@@ -3401,6 +3421,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             public void operationFailed(ManagedLedgerException exception) {
                 log.error("[{}][{}] Metadata ledger creation failed {}", ledger.getName(), name, exception);
                 synchronized (pendingMarkDeleteOps) {
+                    creatingCursorLedger.set(false);
                     // At this point we don't have a ledger ready
                     changeStateIfNotClosed(State.NoLedger);
                     // There are two case may cause switch ledger fails.
@@ -3425,7 +3446,7 @@ public class ManagedCursorImpl implements ManagedCursor {
      * Try set {@link #state} to {@link State#Closing}.
      * @return false if the {@link #state} already is {@link State#Closing} or {@link State#Closed}.
      */
-    private boolean trySetStateToClosing() {
+    private synchronized boolean trySetStateToClosing() {
         State previousState = changeStateIfNotClosed(State.Closing);
         return !previousState.isClosed();
     }
@@ -3452,6 +3473,11 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     void createNewMetadataLedger(final VoidCallback callback) {
+        var pending = pendingLedgerSwitch;
+        if (pending != null) {
+            retryLedgerSwitch(pending, callback);
+            return;
+        }
         ledger.mbean.startCursorLedgerCreateOp();
         doCreateNewMetadataLedger().thenAccept(newLedgerHandle -> {
             if (newLedgerHandle == null) {
@@ -3767,7 +3793,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 mbean.persistToZookeeper(false);
                 callback.operationFailed(createManagedLedgerException(e));
             }
-        }, true);
+        }, true, CursorWrite.UPDATE);
     }
 
     boolean shouldCloseLedger(LedgerHandle lh) {
@@ -3790,6 +3816,79 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
+    private void retryLedgerSwitch(PendingLedgerSwitch pending, VoidCallback callback) {
+        Duration timeout = Duration.ofSeconds(getConfig().getMetadataOperationsTimeoutSeconds());
+        // Delay retries from a burst of failed ACKs. The normal switching state queues concurrent ACKs.
+        CompletableFuture.delayedExecutor(100, TimeUnit.MILLISECONDS).execute(() ->
+                pending.outcome().publication.retry(timeout, () -> {
+                    var ownership = ledger.mlOwnershipChecker == null ? CompletableFuture.completedFuture(true)
+                            : ledger.mlOwnershipChecker.get();
+                    return ownership.thenApply(owned -> owned && canResumeSwitch(pending));
+                }, new MetaStoreCallback<>() {
+                    @Override
+                    public void operationComplete(ManagedCursorInfo info, Stat stat) {
+                        LedgerHandle old = null;
+                        boolean installed = false;
+                        synchronized (ManagedCursorImpl.this) {
+                            if (canResumeSwitch(pending) && info.hasCursorsLedgerId()) {
+                                // A local metadata write can finish after the verification read.
+                                if (cursorLedgerStat.getCreationTimestamp() != stat.getCreationTimestamp()
+                                        || cursorLedgerStat.getVersion() <= stat.getVersion()) {
+                                    updateCursorLedgerStat(info, stat);
+                                }
+                                if (pendingLedgerSwitch == pending
+                                        && managedCursorInfo.getCursorsLedgerId() == pending.candidate().getId()) {
+                                    old = installCursorLedger(pending.candidate());
+                                    pendingLedgerSwitch = null;
+                                    installed = true;
+                                }
+                            }
+                        }
+                        if (installed) {
+                            completeLedgerSwitch(pending.candidate(), old, callback);
+                        } else {
+                            callback.operationFailed(new ManagedLedgerException.BadVersionException(
+                                    "Cursor ledger switch superseded or closed: " + name));
+                        }
+                    }
+
+                    @Override
+                    public void operationFailed(MetaStoreException error) {
+                        // Keep the candidate available to the next ACK, even if this retry failed before writing.
+                        callback.operationFailed(error);
+                    }
+                }));
+    }
+
+    private boolean canDeferAckPersistence() {
+        // While switching, an ACK held only in memory would be invisible if recovery opened the other ledger.
+        return state != State.SwitchingLedger && pendingLedgerSwitch == null;
+    }
+
+    private boolean canResumeSwitch(PendingLedgerSwitch pending) {
+        var ledgerState = ledger.getState();
+        return pendingLedgerSwitch == pending && !state.isClosed()
+                && !ledgerState.isFenced() && ledgerState != ManagedLedgerImpl.State.Closed;
+    }
+
+    private synchronized LedgerHandle installCursorLedger(LedgerHandle handle) {
+        LedgerHandle oldLedger = cursorLedger;
+        if (isCursorLedgerReadOnly && oldLedger != null) {
+            ManagedLedgerImpl.closeReadHandleAsync(oldLedger, log);
+        }
+        cursorLedger = handle;
+        isCursorLedgerReadOnly = false;
+        return oldLedger;
+    }
+
+    private void completeLedgerSwitch(LedgerHandle lh, LedgerHandle oldLedger, VoidCallback callback) {
+        log.info("[{}] Updated cursor {} with ledger id {} md-position={} rd-position={}", ledger.getName(),
+                name, lh.getId(), markDeletePosition, readPosition);
+        // Pending ACKs still go through the normal mark-delete write to the installed handle.
+        callback.operationComplete();
+        asyncDeleteLedger(oldLedger);
+    }
+
     void switchToNewLedger(final LedgerHandle lh, final VoidCallback callback) {
         if (log.isDebugEnabled()) {
             log.debug("[{}] Switching cursor {} to ledger {}", ledger.getName(), name, lh.getId());
@@ -3798,39 +3897,32 @@ public class ManagedCursorImpl implements ManagedCursor {
                 new MetaStoreCallback<Void>() {
             @Override
             public void operationComplete(Void result, Stat stat) {
-                log.info("[{}] Updated cursor {} with ledger id {} md-position={} rd-position={}", ledger.getName(),
-                        name, lh.getId(), markDeletePosition, readPosition);
-                final LedgerHandle oldLedger;
-                final boolean oldLedgerReadOnly;
-                synchronized (ManagedCursorImpl.this) {
-                    oldLedger = cursorLedger;
-                    oldLedgerReadOnly = isCursorLedgerReadOnly;
-                    cursorLedger = lh;
-                    isCursorLedgerReadOnly = false;
-                }
-                if (oldLedgerReadOnly && oldLedger != null) {
-                    ManagedLedgerImpl.closeReadHandleAsync(oldLedger, log);
-                }
-
-                // At this point the position had already been safely markdeleted
-                callback.operationComplete();
-
-                asyncDeleteLedger(oldLedger);
+                completeLedgerSwitch(lh, installCursorLedger(lh), callback);
             }
 
             @Override
             public void operationFailed(MetaStoreException e) {
-                if (e instanceof CursorPublicationOutcomeUnknownException) {
-                    // ZooKeeper may already reference this ledger. Close our handle and preserve its ACKs for recovery.
-                    log.warn("[{}][{}] Retaining cursor ledger {} after an unverified switch",
+                if (e instanceof CursorPublicationOutcomeUnknownException unknown) {
+                    synchronized (ManagedCursorImpl.this) {
+                        var pending = new PendingLedgerSwitch(lh, unknown);
+                        if (cursorMetadataRemoved || pending.supersededBy(managedCursorInfo, cursorLedgerStat)) {
+                            asyncDeleteLedger(lh);
+                        } else if (!state.isClosed() && ledger.getState() != ManagedLedgerImpl.State.Closed) {
+                            pendingLedgerSwitch = pending;
+                        } else {
+                            // The durable pointer may already reference this candidate.
+                            ManagedLedgerImpl.closeReadHandleAsync(lh, log);
+                        }
+                    }
+                    log.warn("[{}][{}] Unverified switch to cursor ledger {}",
                             ledger.getName(), name, lh.getId(), e);
-                    lh.asyncClose((rc, handle, ctx) -> callback.operationFailed(e), null);
+                    callback.operationFailed(e);
                 } else {
                     log.warn("[{}] Failed to update cursor metadata {}", ledger.getName(), name, e);
                     deleteLedgerAsync(lh).thenRun(() -> callback.operationFailed(e));
                 }
             }
-        }, false, null, CursorWrite.SWITCH_LEDGER);
+        }, false, CursorWrite.SWITCH_LEDGER);
     }
 
     /**
@@ -3976,7 +4068,20 @@ public class ManagedCursorImpl implements ManagedCursor {
         }, null);
     }
 
+    private synchronized void discardPendingLedgerSwitch() {
+        var pending = pendingLedgerSwitch;
+        if (pending != null) {
+            pendingLedgerSwitch = null;
+            ManagedLedgerImpl.closeReadHandleAsync(pending.candidate(), log);
+            asyncDeleteLedger(pending.candidate());
+        }
+    }
+
     void asyncDeleteCursorLedger() {
+        synchronized (this) {
+            cursorMetadataRemoved = true;
+            discardPendingLedgerSwitch();
+        }
         closeReadOnlyCursorLedger();
         asyncDeleteCursorLedger(DEFAULT_LEDGER_DELETE_RETRIES);
     }
@@ -4028,7 +4133,7 @@ public class ManagedCursorImpl implements ManagedCursor {
      * Change the state to {@link State#Deleting} if the current state is not {@link State#Deleted}.
      * @return The state before changing.
      */
-    State changeStateToDeletingIfNotDeleted() {
+    synchronized State changeStateToDeletingIfNotDeleted() {
         return STATE_UPDATER.getAndUpdate(this, current -> {
             // don't change the state if it's already deleted
             if (current == State.Deleted) {
