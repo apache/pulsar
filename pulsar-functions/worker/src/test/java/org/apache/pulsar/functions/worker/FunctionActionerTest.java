@@ -286,13 +286,17 @@ public class FunctionActionerTest {
     @DataProvider(name = "originalFileNames")
     public Object[][] originalFileNames() {
         return new Object[][]{
-                {"", ""},
-                {"package.jar", "package.jar"},
+                {"", "", ""},
+                {"package.jar", "package.jar", ""},
                 // Each original file name below is the name of the directory the other package is downloaded to.
                 // These rows pass without the fix too; they check that one package's file cannot take the
                 // directory of the other package.
-                {"transform-function-package", "transform-function.jar"},
-                {"sink.jar", "package"},
+                {"transform-function-package", "transform-function.jar", ""},
+                {"sink.jar", "package", ""},
+                // An older worker downloaded packages into the instance directory itself, so a stale package file
+                // may sit where a download directory is created now.
+                {"", "", "package"},
+                {"", "", "transform-function-package"},
         };
     }
 
@@ -302,10 +306,16 @@ public class FunctionActionerTest {
      */
     @Test(dataProvider = "originalFileNames")
     public void testStartSinkWithTransformFunctionPackageUrl(String sinkOriginalFileName,
-                                                             String transformFunctionOriginalFileName)
+                                                             String transformFunctionOriginalFileName,
+                                                             String stalePackageFileName)
             throws Exception {
         File downloadDirectory = Files.createTempDirectory("function-actioner-test").toFile();
         try {
+            if (!stalePackageFileName.isEmpty()) {
+                Path instanceDirectory = Files.createDirectories(downloadDirectory.toPath()
+                        .resolve(Path.of("test-tenant", "test-namespace", "test-sink", "0")));
+                Files.writeString(instanceDirectory.resolve(stalePackageFileName), "stale package");
+            }
             WorkerConfig workerConfig = new WorkerConfig();
             workerConfig.setWorkerId("worker-1");
             workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
