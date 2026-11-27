@@ -34,6 +34,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.util.HashedWheelTimer;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadInfo;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
@@ -182,6 +183,7 @@ public class TopicTransactionBufferStatsTest {
         private final Thread abortThread;
 
         TestContext() throws Exception {
+            AbortedTxnProcessor createdProcessor = null;
             TopicTransactionBuffer createdBuffer = null;
             try {
                 PersistentTopic topic = mock(PersistentTopic.class);
@@ -227,17 +229,18 @@ public class TopicTransactionBufferStatsTest {
                 }).when(managedLedger).asyncAddEntry(any(ByteBuf.class), any(), any());
 
                 // Skip reading the snapshot topics on recovery; every other call reaches the segmented processor.
-                AbortedTxnProcessor processor = mock(AbortedTxnProcessor.class,
+                createdProcessor = mock(AbortedTxnProcessor.class,
                         delegatesTo(new SnapshotSegmentAbortedTxnProcessorImpl(topic)));
-                doReturn(CompletableFuture.completedFuture(LAST_CONFIRMED)).when(processor).recoverFromSnapshot();
-                createdBuffer =
-                        new TopicTransactionBuffer(topic, processor, AbortedTxnProcessor.SnapshotType.Segment);
+                doReturn(CompletableFuture.completedFuture(LAST_CONFIRMED)).when(createdProcessor)
+                        .recoverFromSnapshot();
+                createdBuffer = new TopicTransactionBuffer(topic, createdProcessor,
+                        AbortedTxnProcessor.SnapshotType.Segment);
                 createdBuffer.checkIfTBRecoverCompletely().get(5, TimeUnit.SECONDS);
                 abortThread = abortExecutor.submit(Thread::currentThread).get(5, TimeUnit.SECONDS);
             } catch (Throwable failure) {
                 // try-with-resources does not close a context whose constructor failed.
                 try {
-                    close(createdBuffer);
+                    close(createdBuffer, createdProcessor);
                 } catch (Throwable closeFailure) {
                     failure.addSuppressed(closeFailure);
                 }
@@ -264,23 +267,29 @@ public class TopicTransactionBufferStatsTest {
 
         @Override
         public void close() throws Exception {
-            close(buffer);
+            close(buffer, null);
         }
 
-        private void close(TopicTransactionBuffer bufferToClose) throws Exception {
+        /** Closes the buffer, or the processor when the buffer was not created, and stops the executors. */
+        private void close(TopicTransactionBuffer bufferToClose, AbortedTxnProcessor processorToClose)
+                throws Exception {
             try {
                 if (bufferToClose != null) {
                     bufferToClose.closeAsync().get(5, TimeUnit.SECONDS);
+                } else if (processorToClose != null) {
+                    processorToClose.closeAsync().get(5, TimeUnit.SECONDS);
                 }
             } finally {
                 List<ExecutorService> executors =
                         List.of(transactionExecutor, recoveryExecutor, abortExecutor, statsExecutor);
                 executors.forEach(ExecutorService::shutdownNow);
+                List<ExecutorService> running = new ArrayList<>();
                 for (ExecutorService executor : executors) {
-                    assertThat(executor.awaitTermination(5, TimeUnit.SECONDS))
-                            .as("the test's executors must stop")
-                            .isTrue();
+                    if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
+                        running.add(executor);
+                    }
                 }
+                assertThat(running).as("test executors that did not stop").isEmpty();
             }
         }
     }
