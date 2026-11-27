@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl;
 import static org.apache.pulsar.client.impl.ClientTestFixtures.createDelayedCompletedFuture;
 import static org.apache.pulsar.client.impl.ClientTestFixtures.createExceptionFuture;
 import static org.apache.pulsar.client.impl.ClientTestFixtures.createPulsarClientMockWithMockedClientCnx;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -54,6 +55,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -82,6 +84,7 @@ import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.awaitility.Awaitility;
+import org.mockito.ArgumentCaptor;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
@@ -856,6 +859,43 @@ public class MultiTopicsConsumerImplTest {
     @SuppressWarnings("unchecked")
     private static void completeReceive(CompletableFuture<?> receive, MessageImpl<byte[]> message) {
         assertTrue(((CompletableFuture<Message<byte[]>>) receive).complete(message));
+    }
+
+    @Test(timeOut = 10000)
+    @SuppressWarnings("unchecked")
+    public void testRedeliverExpiredMessagesKeepsNextQueuedMessages() {
+        String topic = "persistent://public/default/topic-partition-0";
+        ConsumerConfigurationData<byte[]> conf = new ConsumerConfigurationData<>();
+        conf.setSubscriptionName("subscriptionName");
+        conf.setSubscriptionType(SubscriptionType.Key_Shared);
+        MultiTopicsConsumerImpl<byte[]> impl = createMultiTopicsConsumer(conf);
+        ConsumerImpl<byte[]> partitionConsumer = addPartitionConsumer(impl, topic, null, 10);
+        TopicMessageIdImpl expiredId = new TopicMessageIdImpl(topic, new MessageIdImpl(1, 1, 0));
+        TopicMessageIdImpl nextId = new TopicMessageIdImpl(topic, new MessageIdImpl(1, 2, 0));
+        TopicMessageIdImpl lastId = new TopicMessageIdImpl(topic, new MessageIdImpl(1, 3, 0));
+
+        // The head of the queue is a message whose ack timeout expired, the messages behind it did not expire
+        impl.enqueueMessageAndCheckBatchReceive(
+                new TopicMessageImpl<>(topic, newMessage(topic, 1, 1, 0), partitionConsumer));
+        impl.enqueueMessageAndCheckBatchReceive(
+                new TopicMessageImpl<>(topic, newMessage(topic, 1, 2, 0), partitionConsumer));
+        impl.enqueueMessageAndCheckBatchReceive(
+                new TopicMessageImpl<>(topic, newMessage(topic, 1, 3, 0), partitionConsumer));
+        Set<MessageId> expiredIds = new HashSet<>(Collections.singleton(expiredId));
+
+        impl.redeliverUnacknowledgedMessages(expiredIds);
+
+        assertThat(impl.incomingMessages.toList())
+                .extracting(Message::getMessageId)
+                .as("messages that did not expire stay queued, in their order")
+                .containsExactly(nextId, lastId);
+        assertThat(impl.getTotalIncomingMessages()).as("number of queued messages").isEqualTo(2);
+        assertThat(impl.getIncomingMessageSize()).as("size of queued messages").isEqualTo(2);
+        assertThat(expiredIds).as("message ids to redeliver").containsExactly(expiredId);
+        ArgumentCaptor<Set<MessageId>> redelivered = ArgumentCaptor.forClass(Set.class);
+        verify(partitionConsumer).redeliverUnacknowledgedMessages(redelivered.capture());
+        assertThat(redelivered.getValue()).as("message ids that the partition consumer redelivers")
+                .containsExactly(expiredId);
     }
 
     @Test
