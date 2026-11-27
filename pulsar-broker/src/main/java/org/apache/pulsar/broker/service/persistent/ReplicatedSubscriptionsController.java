@@ -138,12 +138,14 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
         }
     }
 
+    // Nothing exports exemplars, so the metrics skip the sampling that 1.x metrics do by default.
     @PulsarDeprecatedMetric(
             newMetricName = OpenTelemetryReplicatedSubscriptionStats.SNAPSHOT_OPERATION_COUNT_METRIC_NAME)
     @Deprecated
     private static final Gauge pendingSnapshotsMetric = Gauge.builder()
             .name("pulsar_replicated_subscriptions_pending_snapshots")
             .help("Counter of currently pending snapshots")
+            .withoutExemplars()
             .register();
 
     // timeouts use SnapshotOperationResult.TIMEOUT.attributes on the same metric
@@ -152,7 +154,7 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
     @Deprecated
     private static final Counter timedoutSnapshotsMetric = Counter.builder()
             .name("pulsar_replicated_subscriptions_timedout_snapshots")
-            .help("Counter of timed out snapshots").register();
+            .help("Counter of timed out snapshots").withoutExemplars().register();
 
     private final OpenTelemetryReplicatedSubscriptionStats stats;
 

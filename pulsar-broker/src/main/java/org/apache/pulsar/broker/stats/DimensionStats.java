@@ -50,7 +50,9 @@ public class DimensionStats implements AutoCloseable {
 
     /** A null registry leaves the summary unregistered, for tests that only need the snapshot arithmetic. */
     DimensionStats(String name, long updateDurationInSec, PrometheusRegistry registry) {
-        Summary.Builder summaryBuilder = Summary.builder().name(name).help("-").maxAgeSeconds(updateDurationInSec);
+        // Nothing exports exemplars, so the summary skips the sampling that 1.x summaries do by default.
+        Summary.Builder summaryBuilder = Summary.builder().name(name).help("-").maxAgeSeconds(updateDurationInSec)
+                .withoutExemplars();
         for (double quantile : QUANTILES) {
             summaryBuilder.quantile(quantile, 0.01);
         }

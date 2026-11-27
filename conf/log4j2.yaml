@@ -22,7 +22,6 @@ Configuration:
   status: ERROR
   monitorInterval: 30
   name: pulsar
-  packages: io.prometheus.client.log4j2
 
   Properties:
     Property:

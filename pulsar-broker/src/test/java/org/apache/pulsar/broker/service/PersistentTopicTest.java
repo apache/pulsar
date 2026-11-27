@@ -22,6 +22,8 @@ package org.apache.pulsar.broker.service;
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgsRecordingInvocations;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -33,6 +35,7 @@ import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.matches;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -100,6 +103,7 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerFencedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
@@ -162,6 +166,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore.OperationType;
 import org.awaitility.Awaitility;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.Mockito;
 import org.mockito.stubbing.Answer;
 import org.testng.Assert;
@@ -246,6 +251,11 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         doReturn(true).when(nsSvc).isServiceUnitOwned(any());
         doReturn(CompletableFuture.completedFuture(mock(NamespaceBundle.class))).when(nsSvc).getBundleAsync(any());
         doReturn(CompletableFuture.completedFuture(true)).when(nsSvc).checkBundleOwnership(any(), any());
+        doAnswer(invocation -> {
+            TopicName topicName = invocation.getArgument(0);
+            return (Supplier<CompletableFuture<Boolean>>) () -> brokerService
+                    .checkTopicNsOwnership(topicName.toString()).thenApply(__ -> true);
+        }).when(nsSvc).newTopicOwnershipChecker(any());
         doReturn(CompletableFuture.completedFuture(TopicExistsInfo.newTopicNotExists())).when(nsSvc)
                 .checkTopicExistsAsync(any());
 
@@ -754,6 +764,105 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                 .initialPosition(InitialPosition.Latest).subscriptionProperties(Optional.empty())
                 .startMessageRollbackDurationSec(0).replicatedSubscriptionStateArg(false).keySharedMeta(null)
                 .build();
+    }
+
+    @Test
+    public void testDurableCursorFencingRequiresFreshOwnershipBeforeClose() throws Exception {
+        PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName)
+                .get(30, TimeUnit.SECONDS);
+        ManagedLedgerFencedException fenced = new ManagedLedgerFencedException("cursor open observed fencing");
+        doAnswer(invocation -> {
+            OpenCursorCallback callback = invocation.getArgument(4);
+            callback.openCursorFailed(fenced, invocation.getArgument(5));
+            return null;
+        }).when(ledgerMock).asyncOpenCursor(eq(successSubName), any(InitialPosition.class), any(), any(), any(), any());
+
+        assertThatThrownBy(() -> topic.createSubscription(successSubName, InitialPosition.Latest, false,
+                Collections.emptyMap()).get(30, TimeUnit.SECONDS))
+                .hasRootCause(fenced);
+        topic.close().get(30, TimeUnit.SECONDS);
+        assertThat(brokerService.getTopicReference(successTopicName)).isEmpty();
+
+        InOrder closeOrder = inOrder(pulsarTestContext.getPulsarService().getNamespaceService(), ledgerMock);
+        closeOrder.verify(pulsarTestContext.getPulsarService().getNamespaceService())
+                .requireFreshOwnershipBeforeReadmission(TopicName.get(successTopicName));
+        closeOrder.verify(ledgerMock).asyncClose(any(CloseCallback.class), any());
+    }
+
+    @Test
+    public void testNonDurableSubscriptionFencingRequiresFreshOwnershipBeforeClose() throws Exception {
+        PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName)
+                .get(30, TimeUnit.SECONDS);
+        ManagedLedgerFencedException fenced =
+                new ManagedLedgerFencedException("non-durable cursor open observed fencing");
+        doThrow(fenced).when(ledgerMock).newNonDurableCursor(any(Position.class), eq(successSubName),
+                any(InitialPosition.class), anyBoolean());
+        CommandSubscribe command = new CommandSubscribe().setConsumerId(1).setConsumerName("consumer-name")
+                .setTopic(successTopicName).setSubscription(successSubName).setRequestId(1)
+                .setSubType(SubType.Exclusive).setDurable(false);
+
+        assertThatThrownBy(() -> topic.subscribe(getSubscriptionOption(command)).get(30, TimeUnit.SECONDS))
+                .hasRootCause(fenced);
+        topic.close().get(30, TimeUnit.SECONDS);
+        assertThat(brokerService.getTopicReference(successTopicName)).isEmpty();
+
+        InOrder closeOrder = inOrder(pulsarTestContext.getPulsarService().getNamespaceService(), ledgerMock);
+        closeOrder.verify(pulsarTestContext.getPulsarService().getNamespaceService())
+                .requireFreshOwnershipBeforeReadmission(TopicName.get(successTopicName));
+        closeOrder.verify(ledgerMock).asyncClose(any(CloseCallback.class), any());
+    }
+
+    @Test
+    public void testFencedPublishStillClosesTopicWhenReadmissionGateFails() throws Exception {
+        PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName)
+                .get(30, TimeUnit.SECONDS);
+        NamespaceService nsSvc = pulsarTestContext.getPulsarService().getNamespaceService();
+        // For example, a custom bundle assignment strategy throws while the gate resolves the topic's bundle.
+        doThrow(new IllegalStateException("bundle assignment failed"))
+                .when(nsSvc).requireFreshOwnershipBeforeReadmission(TopicName.get(successTopicName));
+        ManagedLedgerFencedException fenced = new ManagedLedgerFencedException("publish observed fencing");
+        List<Runnable> pendingAddFailures = new ArrayList<>();
+        doAnswer(invocation -> {
+            AddEntryCallback callback = invocation.getArgument(2);
+            Object ctx = invocation.getArgument(3);
+            pendingAddFailures.add(() -> callback.addFailed(fenced, ctx));
+            return null;
+        }).when(ledgerMock).asyncAddEntry(any(ByteBuf.class), anyInt(), any(AddEntryCallback.class), any());
+        CompletableFuture<Exception> publishResult = new CompletableFuture<>();
+        topic.publishMessage(Unpooled.wrappedBuffer("content".getBytes()),
+                (exception, ledgerId, entryId) -> publishResult.complete(exception));
+        assertThat(pendingAddFailures).hasSize(1);
+
+        // The managed ledger reports the failure from its own thread, which would drop a thrown exception.
+        assertThatCode(pendingAddFailures.get(0)::run).doesNotThrowAnyException();
+        assertThat(publishResult.getNow(null)).isInstanceOf(BrokerServiceException.TopicFencedException.class);
+        Awaitility.await().untilAsserted(() ->
+                assertThat(brokerService.getTopicReference(successTopicName)).isEmpty());
+    }
+
+    @Test
+    public void testFencedCursorOpenStillClosesTopicWhenReadmissionGateFails() throws Exception {
+        PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName)
+                .get(30, TimeUnit.SECONDS);
+        NamespaceService nsSvc = pulsarTestContext.getPulsarService().getNamespaceService();
+        doThrow(new IllegalStateException("bundle assignment failed"))
+                .when(nsSvc).requireFreshOwnershipBeforeReadmission(TopicName.get(successTopicName));
+        ManagedLedgerFencedException fenced = new ManagedLedgerFencedException("cursor open observed fencing");
+        List<Runnable> pendingCursorFailures = new ArrayList<>();
+        doAnswer(invocation -> {
+            OpenCursorCallback callback = invocation.getArgument(4);
+            Object ctx = invocation.getArgument(5);
+            pendingCursorFailures.add(() -> callback.openCursorFailed(fenced, ctx));
+            return null;
+        }).when(ledgerMock).asyncOpenCursor(eq(successSubName), any(InitialPosition.class), any(), any(), any(), any());
+        CompletableFuture<Subscription> subscription = topic.createSubscription(successSubName,
+                InitialPosition.Latest, false, Collections.emptyMap());
+        assertThat(pendingCursorFailures).hasSize(1);
+
+        assertThatCode(pendingCursorFailures.get(0)::run).doesNotThrowAnyException();
+        assertThatThrownBy(() -> subscription.getNow(null)).hasRootCause(fenced);
+        Awaitility.await().untilAsserted(() ->
+                assertThat(brokerService.getTopicReference(successTopicName)).isEmpty());
     }
 
     @Test
@@ -2575,6 +2684,167 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         // Verify asyncReadEntry was called again (cache was cleared)
         verify(ledgerMock, times(2)).asyncReadEntry(any(Position.class),
                 any(AsyncCallbacks.ReadEntryCallback.class), any()); // Now 2 calls
+    }
+
+    @Test
+    public void testSubscriptionBacklogSizeFallback() throws Exception {
+        doReturn("test-broker-id").when(pulsarTestContext.getPulsarService()).getBrokerId();
+        when(ledgerMock.getLastAddEntryTime()).thenReturn(1L);
+        Position position = PositionFactory.create(1, 2);
+        when(cursorMock.getMarkDeletedPosition()).thenReturn(position);
+        when(ledgerMock.getEstimatedBacklogSize(position)).thenReturn(123L);
+        ManagedCursor secondCursor = mock(ManagedCursor.class);
+        when(secondCursor.getName()).thenReturn("two");
+        Position secondPosition = PositionFactory.create(2, 3);
+        when(secondCursor.getMarkDeletedPosition()).thenReturn(secondPosition);
+        when(ledgerMock.getEstimatedBacklogSize(secondPosition)).thenReturn(234L);
+        ManagedCursor customCursor = mock(ManagedCursor.class);
+        when(customCursor.getName()).thenReturn("custom");
+        when(customCursor.getMarkDeletedPosition()).thenThrow(new AssertionError("Custom stats owns its position"));
+
+        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+        topic.initialize().join();
+        topic.getSubscriptions().put("one", new PersistentSubscription(topic, "one", cursorMock, false));
+        topic.getSubscriptions().put("two", new PersistentSubscription(topic, "two", secondCursor, false));
+        topic.getSubscriptions().put("custom", new PersistentSubscription(topic, "custom", customCursor, false) {
+            @Override
+            public CompletableFuture<SubscriptionStatsImpl> getStatsAsync(GetStatsOptions options) {
+                SubscriptionStatsImpl stats = new SubscriptionStatsImpl();
+                stats.backlogSize = 456L;
+                return CompletableFuture.completedFuture(stats);
+            }
+        });
+
+        var stats = topic.asyncGetStats(new GetStatsOptions(false, true, false, false, false)).get();
+        assertEquals(stats.subscriptions.get("one").backlogSize, 123L);
+        assertEquals(stats.subscriptions.get("two").backlogSize, 234L);
+        assertEquals(stats.subscriptions.get("custom").backlogSize, 456L);
+        verify(ledgerMock, times(1)).getEstimatedBacklogSize(position);
+        verify(ledgerMock, times(1)).getEstimatedBacklogSize(secondPosition);
+
+        stats = topic.asyncGetStats(new GetStatsOptions(false, false, false, false, false)).get();
+        assertEquals(stats.subscriptions.get("one").backlogSize, -1L);
+        verify(ledgerMock, times(1)).getEstimatedBacklogSize(position);
+        verify(ledgerMock, times(1)).getEstimatedBacklogSize(secondPosition);
+
+        topic.getSubscriptions().remove("two");
+        topic.getSubscriptions().remove("custom");
+        when(ledgerMock.getEstimatedBacklogSize(position)).thenReturn(321L);
+        stats = topic.asyncGetStats(new GetStatsOptions(false, true, false, false, false)).get();
+        assertEquals(stats.subscriptions.get("one").backlogSize, 321L);
+        verify(ledgerMock, times(2)).getEstimatedBacklogSize(position);
+    }
+
+    @Test
+    public void testSubscriptionBacklogSizeWithMissingPosition() throws Exception {
+        doReturn("test-broker-id").when(pulsarTestContext.getPulsarService()).getBrokerId();
+        when(ledgerMock.getLastAddEntryTime()).thenReturn(1L);
+        when(cursorMock.getMarkDeletedPosition()).thenReturn(null);
+        when(ledgerMock.getEstimatedBacklogSize(null)).thenReturn(0L);
+        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+        topic.initialize().join();
+        topic.getSubscriptions().put("missing", new PersistentSubscription(topic, "missing", cursorMock, false));
+        for (int i = 1; i <= 2; i++) {
+            String name = "sub-" + i;
+            ManagedCursor cursor = mock(ManagedCursor.class);
+            Position position = PositionFactory.create(i, 0);
+            when(cursor.getName()).thenReturn(name);
+            when(cursor.getMarkDeletedPosition()).thenReturn(position);
+            when(ledgerMock.getEstimatedBacklogSize(position)).thenReturn(i * 100L);
+            topic.getSubscriptions().put(name, new PersistentSubscription(topic, name, cursor, false));
+        }
+
+        var stats = topic.asyncGetStats(new GetStatsOptions(false, true, false, false, false)).get();
+        assertEquals(stats.subscriptions.get("missing").backlogSize, 0L);
+        assertEquals(stats.subscriptions.get("sub-1").backlogSize, 100L);
+        assertEquals(stats.subscriptions.get("sub-2").backlogSize, 200L);
+        verify(ledgerMock, times(1)).getEstimatedBacklogSize(null);
+
+        stats = topic.asyncGetStats(new GetStatsOptions(false, false, false, false, false)).get();
+        assertEquals(stats.subscriptions.get("missing").backlogSize, -1L);
+        assertEquals(stats.subscriptions.get("sub-1").backlogSize, -1L);
+        assertEquals(stats.subscriptions.get("sub-2").backlogSize, -1L);
+        verify(ledgerMock, times(1)).getEstimatedBacklogSize(null);
+    }
+
+    @Test
+    public void testSubscriptionBacklogSizeBatch() throws Exception {
+        doReturn("test-broker-id").when(pulsarTestContext.getPulsarService()).getBrokerId();
+        ManagedLedgerConfig config = new ManagedLedgerConfig()
+                .setMaxEntriesPerLedger(2)
+                .setRetentionTime(1, TimeUnit.HOURS);
+        config.setMinimumRolloverTime(0, TimeUnit.MILLISECONDS);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("subscription-backlog-size-batch", config);
+        ManagedCursor firstCursor = ledger.openCursor("one");
+        ManagedCursor secondCursor = ledger.openCursor("two");
+        List<Position> positions = new ArrayList<>();
+        for (int i = 0; i < 12; i++) {
+            ByteBuf entry = getMessageWithMetadata(new byte[100]);
+            try {
+                byte[] data = new byte[entry.readableBytes()];
+                entry.getBytes(entry.readerIndex(), data);
+                positions.add(ledger.addEntry(data));
+            } finally {
+                entry.release();
+            }
+        }
+        firstCursor.markDelete(positions.get(2));
+        secondCursor.markDelete(positions.get(7));
+        assertThat(ledger.getLedgersInfo()).hasSizeGreaterThan(1);
+        long firstBacklogSize = ledger.getEstimatedBacklogSize(firstCursor.getMarkDeletedPosition());
+        long secondBacklogSize = ledger.getEstimatedBacklogSize(secondCursor.getMarkDeletedPosition());
+
+        ManagedLedgerImpl ledgerSpy = spy(ledger);
+        // The optimization intentionally excludes subclasses with different metadata synchronization.
+        assertSame(ledgerSpy.getClass(), ManagedLedgerImpl.class);
+        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerSpy, brokerService);
+        topic.initialize().join();
+        topic.getSubscriptions().put("one", new PersistentSubscription(topic, "one", firstCursor, false));
+        topic.getSubscriptions().put("two", new PersistentSubscription(topic, "two", secondCursor, false));
+
+        var stats = topic.asyncGetStats(new GetStatsOptions(false, true, false, false, false)).get();
+        assertEquals(stats.subscriptions.get("one").backlogSize, firstBacklogSize);
+        assertEquals(stats.subscriptions.get("two").backlogSize, secondBacklogSize);
+        verify(ledgerSpy, times(0)).getEstimatedBacklogSize(any(Position.class));
+
+        stats = topic.asyncGetStats(new GetStatsOptions(false, false, false, false, false)).get();
+        assertEquals(stats.subscriptions.get("one").backlogSize, -1L);
+        assertEquals(stats.subscriptions.get("two").backlogSize, -1L);
+        verify(ledgerSpy, times(0)).getEstimatedBacklogSize(any(Position.class));
+
+        ManagedCursor replacementCursor = ledger.openCursor("replacement", InitialPosition.Earliest);
+        replacementCursor.markDelete(positions.get(10));
+        long replacementBacklogSize = ledger.getEstimatedBacklogSize(replacementCursor.getMarkDeletedPosition());
+        assertTrue(replacementBacklogSize < firstBacklogSize);
+        PersistentSubscription replacement = new PersistentSubscription(topic, "one", replacementCursor, false);
+        ManagedCursor capturedCursor = spy(firstCursor);
+        Position originalPosition = firstCursor.getMarkDeletedPosition();
+        Position capturedPosition = mock(Position.class);
+        doReturn(capturedPosition).when(capturedCursor).getMarkDeletedPosition();
+        when(capturedPosition.getEntryId()).thenReturn(originalPosition.getEntryId());
+        AtomicBoolean replaced = new AtomicBoolean();
+        // The estimator reads the position only after the complete subscription list has been captured.
+        when(capturedPosition.getLedgerId()).thenAnswer(invocation -> {
+            if (replaced.compareAndSet(false, true)) {
+                assertFalse(Thread.holdsLock(ledgerSpy));
+                topic.getSubscriptions().put("one", replacement);
+            }
+            return originalPosition.getLedgerId();
+        });
+        PersistentSubscription captured = new PersistentSubscription(topic, "one", capturedCursor, false);
+        topic.getSubscriptions().put("one", captured);
+
+        stats = topic.asyncGetStats(new GetStatsOptions(false, true, false, false, false)).get();
+        assertTrue(replaced.get());
+        assertSame(topic.getSubscriptions().get("one"), replacement);
+        assertEquals(stats.subscriptions.get("one").backlogSize, firstBacklogSize);
+        assertEquals(stats.subscriptions.get("two").backlogSize, secondBacklogSize);
+        verify(ledgerSpy, times(0)).getEstimatedBacklogSize(any(Position.class));
+
+        stats = topic.asyncGetStats(new GetStatsOptions(false, true, false, false, false)).get();
+        assertEquals(stats.subscriptions.get("one").backlogSize, replacementBacklogSize);
+        assertEquals(stats.subscriptions.get("two").backlogSize, secondBacklogSize);
+        verify(ledgerSpy, times(0)).getEstimatedBacklogSize(any(Position.class));
     }
 
 }

@@ -40,6 +40,7 @@ import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopicMetrics;
+import org.apache.pulsar.broker.service.persistent.SystemTopic;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
@@ -71,14 +72,24 @@ public class NamespaceStatsAggregatorTest {
     }
 
     @DataProvider
-    public Object[][] topicMetrics() {
-        return new Object[][] {{true}, {false}};
+    public Object[][] persistentTopicMetrics() {
+        return new Object[][] {
+                {PersistentTopic.class, true, true},
+                {PersistentTopic.class, true, false},
+                {SystemTopic.class, true, true},
+                {SystemTopic.class, true, false},
+                {CustomPersistentTopic.class, false, true},
+                {CustomPersistentTopic.class, false, false}
+        };
     }
 
-    @Test(dataProvider = "topicMetrics")
-    public void testGenerateSubscriptionsStats(boolean includeTopicMetrics) {
+    @Test(dataProvider = "persistentTopicMetrics")
+    public void testGenerateSubscriptionsStats(Class<? extends PersistentTopic> topicClass,
+                                               boolean reuseTopicBacklogSize, boolean includeTopicMetrics) {
         // given
         final String namespace = "tenant/cluster/ns";
+        final long ledgerBacklogSize = 321L;
+        final long topicBacklogSize = 987L;
 
         // prepare multi-layer topic map
         final var bundlesMap = new ConcurrentHashMap<String, Map<String, Topic>>();
@@ -96,9 +107,10 @@ public class NamespaceStatsAggregatorTest {
         when(mlBeanStats.getInternalEntrySizeBuckets()).thenReturn(
                 new StatsBuckets(ManagedLedgerMBeanImpl.ENTRY_SIZE_BUCKETS_BYTES));
         when(ml.getStats()).thenReturn(mlBeanStats);
+        when(ml.getEstimatedBacklogSize()).thenReturn(ledgerBacklogSize);
 
         // Prepare topic and subscription
-        PersistentTopic topic = Mockito.mock(PersistentTopic.class);
+        PersistentTopic topic = Mockito.mock(topicClass);
         PersistentSubscription subscription = Mockito.mock(PersistentSubscription.class);
         Consumer consumer = Mockito.mock(Consumer.class);
         ConsumerStatsImpl consumerStats = new ConsumerStatsImpl();
@@ -107,6 +119,7 @@ public class NamespaceStatsAggregatorTest {
         subscriptionsMaps.put("my-subscription", subscription);
         SubscriptionStatsImpl subStats = new SubscriptionStatsImpl();
         TopicStatsImpl topicStats = new TopicStatsImpl();
+        topicStats.backlogSize = topicBacklogSize;
         topicStats.subscriptions.put("my-subscription", subStats);
         topicStats.bytesInCounter = 9007199254740993L;
         topicStats.bytesOutCounter = 9007199254740993L;
@@ -141,14 +154,18 @@ public class NamespaceStatsAggregatorTest {
 
         // then
         Mockito.verify(topic).getStats(statsOptions);
+        Mockito.verify(ml, Mockito.times(reuseTopicBacklogSize ? 0 : 1)).getEstimatedBacklogSize();
+        long expectedBacklogSize = reuseTopicBacklogSize ? topicBacklogSize : ledgerBacklogSize;
         ByteBuf buffer = Unpooled.buffer();
         try {
             metricStreams.flushAllToStream(new SimpleTextOutputStream(buffer));
             List<String> lines = buffer.toString(StandardCharsets.UTF_8).lines().toList();
+            String namespaceLabels = "{cluster=\"\",namespace=\"tenant/cluster/ns\"";
             if (includeTopicMetrics) {
-                String subscriptionLabels = "{cluster=\"\",namespace=\"tenant/cluster/ns\",topic=\"my-topic\","
-                        + "partition=\"-1\",subscription=\"my-subscription\"";
+                String topicLabels = namespaceLabels + ",topic=\"my-topic\",partition=\"-1\"";
+                String subscriptionLabels = topicLabels + ",subscription=\"my-subscription\"";
                 assertThat(lines).containsOnlyOnce(
+                        "pulsar_storage_backlog_size" + topicLabels + "} " + expectedBacklogSize,
                         "pulsar_subscription_blocked_on_unacked_messages" + subscriptionLabels + "} 1",
                         "pulsar_consumer_blocked_on_unacked_messages" + subscriptionLabels
                                 + ",consumer_name=\"\",consumer_id=\"0\"} 0",
@@ -156,8 +173,9 @@ public class NamespaceStatsAggregatorTest {
                         "pulsar_subscription_unacked_messages" + subscriptionLabels + "} 1",
                         "pulsar_subscription_storage_backlog_age_seconds" + subscriptionLabels + "} 123");
             } else {
-                assertThat(lines).containsOnlyOnce("pulsar_test_delayed_bucket{cluster=\"\","
-                        + "namespace=\"tenant/cluster/ns\",bucket=\"bucket-a\"} 2.500");
+                assertThat(lines).containsOnlyOnce(
+                        "pulsar_storage_backlog_size" + namespaceLabels + "} " + expectedBacklogSize,
+                        "pulsar_test_delayed_bucket" + namespaceLabels + ",bucket=\"bucket-a\"} 2.500");
             }
             assertThat(lines).containsOnlyOnce(
                     "pulsar_broker_in_bytes_total{cluster=\"\",system_topic=\"false\"} 9007199254740993",
@@ -166,6 +184,12 @@ public class NamespaceStatsAggregatorTest {
                     "pulsar_broker_out_bytes_total{cluster=\"\",system_subscription=\"true\"} 0");
         } finally {
             buffer.release();
+        }
+    }
+
+    private static final class CustomPersistentTopic extends PersistentTopic {
+        private CustomPersistentTopic(String topic, ManagedLedger ledger, BrokerService brokerService) {
+            super(topic, ledger, brokerService);
         }
     }
 }

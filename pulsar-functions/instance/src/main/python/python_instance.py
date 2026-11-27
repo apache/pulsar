@@ -584,6 +584,7 @@ class PythonInstance(object):
       }
       consumer_args.update(nack_args)
       consumer_args.update(self.get_crypto_failure_action_args(consumer_conf))
+      consumer_args.update(self.get_consumer_properties_args(topic, consumer_conf.consumerProperties))
       if consumer_conf.HasField("receiverQueueSize"):
         consumer_args["receiver_queue_size"] = consumer_conf.receiverQueueSize.value
 
@@ -597,6 +598,22 @@ class PythonInstance(object):
           str(topic), subscription_name,
           **consumer_args
         )
+
+  def get_consumer_properties_args(self, topic, consumer_properties):
+    """Translate ConsumerSpec.consumerProperties into Client.subscribe() arguments.
+
+    The Java runtime passes consumerProperties to ConsumerBuilder.loadConf(), so they are consumer
+    configuration keys such as consumerName, not subscription properties. This helper currently
+    maps only consumerName; other keys are logged and ignored rather than dropped silently.
+    """
+    args = {}
+    for key, value in consumer_properties.items():
+      if key == "consumerName":
+        args["consumer_name"] = value
+      else:
+        Log.warning("consumerProperties key '%s' for input topic %s is not supported by the Python "
+                    "function runtime and is ignored" % (key, topic))
+    return args
 
   def get_negative_ack_args(self):
     """Build the negative-ack redelivery delay argument for Client.subscribe().
