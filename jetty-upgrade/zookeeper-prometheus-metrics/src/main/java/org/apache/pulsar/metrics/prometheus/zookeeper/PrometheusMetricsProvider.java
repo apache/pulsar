@@ -18,9 +18,6 @@
  */
 package org.apache.pulsar.metrics.prometheus.zookeeper;
 
-import io.prometheus.client.Collector;
-import io.prometheus.client.CollectorRegistry;
-import io.prometheus.client.exporter.common.TextFormat;
 import io.prometheus.metrics.expositionformats.PrometheusTextFormatWriter;
 import io.prometheus.metrics.instrumentation.jvm.JvmMetrics;
 import io.prometheus.metrics.model.registry.PrometheusRegistry;
@@ -34,17 +31,8 @@ import io.prometheus.metrics.model.snapshots.MetricMetadata;
 import io.prometheus.metrics.model.snapshots.MetricSnapshot;
 import io.prometheus.metrics.model.snapshots.Quantile;
 import io.prometheus.metrics.model.snapshots.SummarySnapshot;
-import java.io.BufferedWriter;
 import java.io.IOException;
-import java.io.OutputStream;
-import java.io.OutputStreamWriter;
-import java.io.Writer;
 import java.net.InetSocketAddress;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Enumeration;
-import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
@@ -87,9 +75,7 @@ import org.slf4j.LoggerFactory;
  * <p>The metrics are backed by the Prometheus Java client 1.x ({@code io.prometheus:prometheus-metrics-*}).
  * By default they are registered in {@link PrometheusRegistry#defaultRegistry} so that all the metrics
  * of the JVM are available as a single view, which matches the behavior of the former simpleclient based
- * implementation. Collectors that have not been migrated from the legacy simpleclient registry yet,
- * such as the log4j2 Prometheus appender configured in {@code conf/log4j2.yaml}, are exposed from
- * {@code CollectorRegistry.defaultRegistry} as well until #27045 is complete.
+ * implementation.
  */
 @CustomLog
 public class PrometheusMetricsProvider implements MetricsProvider {
@@ -268,14 +254,6 @@ public class PrometheusMetricsProvider implements MetricsProvider {
                 }
             }
         }
-        // Keep exposing collectors that are still registered in the legacy simpleclient registry,
-        // most notably the log4j2 Prometheus appender configured in conf/log4j2.yaml.
-        Enumeration<Collector.MetricFamilySamples> legacyFamilies = legacyMetricFamilySamples();
-        while (legacyFamilies.hasMoreElements()) {
-            for (Collector.MetricFamilySamples.Sample sample : legacyFamilies.nextElement().samples) {
-                sink.accept(buildKeyForDump(sample), sample.value);
-            }
-        }
     }
 
     /**
@@ -285,36 +263,6 @@ public class PrometheusMetricsProvider implements MetricsProvider {
      */
     private static String getInfoName(MetricMetadata metadata) {
         return metadata.getPrometheusName() + "_info";
-    }
-
-    /**
-     * Collectors that have not been migrated from simpleclient 0.x yet (see #27045) still register
-     * in {@link CollectorRegistry#defaultRegistry}. JVM and process collectors are filtered out:
-     * this provider registers {@link JvmMetrics} on the 1.x registry, so exposing the old samples
-     * here would produce two sets of JVM metrics under different names.
-     */
-    private static Enumeration<Collector.MetricFamilySamples> legacyMetricFamilySamples() {
-        List<Collector.MetricFamilySamples> families = new ArrayList<>();
-        Enumeration<Collector.MetricFamilySamples> enumeration =
-                CollectorRegistry.defaultRegistry.metricFamilySamples();
-        while (enumeration.hasMoreElements()) {
-            Collector.MetricFamilySamples filtered = enumeration.nextElement().filter(
-                    name -> !name.startsWith("jvm_") && !name.startsWith("process_"));
-            if (filtered != null) {
-                families.add(filtered);
-            }
-        }
-        return Collections.enumeration(families);
-    }
-
-    /**
-     * Appends the samples of the legacy simpleclient registry in the 0.0.4 text format. The 1.x
-     * writer has already flushed its output to the same stream at this point.
-     */
-    private static void writeLegacyMetrics(OutputStream out) throws IOException {
-        Writer writer = new BufferedWriter(new OutputStreamWriter(out, StandardCharsets.UTF_8));
-        TextFormat.write004(writer, legacyMetricFamilySamples());
-        writer.flush();
     }
 
     /**
@@ -329,24 +277,6 @@ public class PrometheusMetricsProvider implements MetricsProvider {
 
     private static String buildKeyForDump(String name, Labels labels) {
         return buildKeyForDump(name, labels, null, null);
-    }
-
-    private static String buildKeyForDump(Collector.MetricFamilySamples.Sample sample) {
-        StringBuilder keyBuilder = new StringBuilder(sample.name);
-        if (!sample.labelNames.isEmpty()) {
-            keyBuilder.append('{');
-            for (int i = 0; i < sample.labelNames.size(); ++i) {
-                if (i > 0) {
-                    keyBuilder.append(',');
-                }
-                keyBuilder.append(sample.labelNames.get(i))
-                        .append("=\"")
-                        .append(sample.labelValues.get(i))
-                        .append('"');
-            }
-            keyBuilder.append('}');
-        }
-        return keyBuilder.toString();
     }
 
     private static String buildKeyForDump(String name, Labels labels,
@@ -531,10 +461,12 @@ public class PrometheusMetricsProvider implements MetricsProvider {
 
         public PrometheusCounter(String name) {
             this.name = name;
+            // Nothing exports exemplars, so the metrics skip the sampling that 1.x metrics do by default.
             this.inner = io.prometheus.metrics.core.metrics.Counter
                     .builder()
                     .name(name)
                     .help(name)
+                    .withoutExemplars()
                     .register(collectorRegistry);
         }
 
@@ -569,6 +501,7 @@ public class PrometheusMetricsProvider implements MetricsProvider {
                     .builder()
                     .name(name)
                     .help(name)
+                    .withoutExemplars()
                     .labelNames(LABELS)
                     .register(collectorRegistry);
         }
@@ -604,6 +537,7 @@ public class PrometheusMetricsProvider implements MetricsProvider {
                     .builder()
                     .name(name)
                     .help(name)
+                    .withoutExemplars()
                     .register(collectorRegistry);
         }
 
@@ -640,6 +574,7 @@ public class PrometheusMetricsProvider implements MetricsProvider {
                     .builder()
                     .name(name)
                     .help(name)
+                    .withoutExemplars()
                     .labelNames(LABELS)
                     .register(collectorRegistry);
         }
@@ -673,6 +608,7 @@ public class PrometheusMetricsProvider implements MetricsProvider {
             var builder = io.prometheus.metrics.core.metrics.Summary.builder()
                     .name(name)
                     .help(name)
+                    .withoutExemplars()
                     .maxAgeSeconds(SUMMARY_MAX_AGE_SECONDS)
                     .numberOfAgeBuckets(SUMMARY_AGE_BUCKETS)
                     .quantile(0.5, 0.05); // Add 50th percentile (= median) with 5% tolerated error
@@ -708,6 +644,7 @@ public class PrometheusMetricsProvider implements MetricsProvider {
             var builder = io.prometheus.metrics.core.metrics.Summary.builder()
                     .name(name)
                     .help(name)
+                    .withoutExemplars()
                     .labelNames(LABELS)
                     .maxAgeSeconds(SUMMARY_MAX_AGE_SECONDS)
                     .numberOfAgeBuckets(SUMMARY_AGE_BUCKETS)
@@ -750,10 +687,7 @@ public class PrometheusMetricsProvider implements MetricsProvider {
             sampleGauges();
             resp.setStatus(HttpServletResponse.SC_OK);
             resp.setContentType(PrometheusTextFormatWriter.CONTENT_TYPE);
-            OutputStream out = resp.getOutputStream();
-            TEXT_FORMAT_WRITER.write(out, collectorRegistry.scrape());
-            // The log4j2 Prometheus appender is still a simpleclient 0.x collector (see #27045).
-            writeLegacyMetrics(out);
+            TEXT_FORMAT_WRITER.write(resp.getOutputStream(), collectorRegistry.scrape());
         }
     }
 

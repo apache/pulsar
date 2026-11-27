@@ -40,6 +40,7 @@ internal object BinaryLicenseSupport {
         "pulsar-cli-utils",
         "pulsar-common",
         "pulsar-http-client-api",
+        "pulsar-log4j2-prometheus-metrics",
         "pulsar-package",
         "pulsar-tls-factory-api",
         "pulsar-websocket",

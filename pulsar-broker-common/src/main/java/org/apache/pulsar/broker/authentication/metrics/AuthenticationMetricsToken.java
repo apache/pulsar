@@ -30,10 +30,12 @@ import org.apache.pulsar.common.stats.MetricsUtil;
 
 public class AuthenticationMetricsToken extends AuthenticationMetrics {
 
+    // Nothing exports exemplars, so the metrics skip the sampling that 1.x metrics do by default.
     @Deprecated
     private static final Counter expiredTokenMetrics = Counter.builder()
             .name("pulsar_expired_token")
             .help("Pulsar expired token")
+            .withoutExemplars()
             .register();
     public static final String EXPIRED_TOKEN_COUNTER_METRIC_NAME = "pulsar.authentication.token.expired.count";
     private LongCounter expiredTokensCounter;
@@ -61,6 +63,7 @@ public class AuthenticationMetricsToken extends AuthenticationMetrics {
                     .map(TimeUnit.SECONDS::toMinutes)
                     .mapToDouble(Double::valueOf)
                     .toArray())
+            .withoutExemplars()
             .register();
     public static final String EXPIRING_TOKEN_HISTOGRAM_METRIC_NAME = "pulsar.authentication.token.expiry.duration";
     private DoubleHistogram expiringTokenSeconds;

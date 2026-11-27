@@ -20,6 +20,7 @@ package org.apache.pulsar.proxy.server;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import io.prometheus.metrics.core.metrics.Counter;
+import io.prometheus.metrics.core.metrics.Gauge;
 import io.prometheus.metrics.model.snapshots.Labels;
 import java.util.List;
 import org.testng.annotations.Test;
@@ -28,7 +29,7 @@ public class ProxyCountersTest {
 
     /**
      * The proxy does not export exemplars, and two of these counters are incremented for every proxied frame,
-     * so none of them should keep an exemplar sampler.
+     * so none of them should keep an exemplar sampler. Neither should the gauge of the active connections.
      */
     @Test
     public void testCountersDoNotSampleExemplars() {
@@ -42,5 +43,10 @@ public class ProxyCountersTest {
             assertThat(counter.collect().getDataPoints().get(0).getExemplar())
                     .as(counter.getPrometheusName()).isNull();
         }
+        // likewise, an increment of 0 leaves the value of the shared gauge alone
+        Gauge activeConnections = ProxyService.ACTIVE_CONNECTIONS;
+        activeConnections.incWithExemplar(0, exemplarLabels);
+        assertThat(activeConnections.collect().getDataPoints().get(0).getExemplar())
+                .as(activeConnections.getPrometheusName()).isNull();
     }
 }

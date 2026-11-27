@@ -875,54 +875,64 @@ public class ResourceGroupService implements AutoCloseable{
     private static final String[] resourceGroupLabel = {"ResourceGroup"};
     private static final String[] resourceGroupMonitoringclassLabels = {"ResourceGroup", "MonitoringClass"};
 
+    // Nothing exports exemplars, so the metrics skip the sampling that 1.x metrics do by default.
     private static final Counter rgCalculatedQuotaBytes = Counter.builder()
             .name("pulsar_resource_group_calculated_bytes_quota")
             .help("Bytes quota calculated for resource group")
             .labelNames(resourceGroupMonitoringclassLabels)
+            .withoutExemplars()
             .register();
     private static final Counter rgCalculatedQuotaMessages = Counter.builder()
             .name("pulsar_resource_group_calculated_messages_quota")
             .help("Messages quota calculated for resource group")
             .labelNames(resourceGroupMonitoringclassLabels)
+            .withoutExemplars()
             .register();
 
     private static final Counter rgLocalUsageBytes = Counter.builder()
             .name("pulsar_resource_group_bytes_used")
             .help("Bytes locally used within this resource group during the last aggregation interval")
             .labelNames(resourceGroupMonitoringclassLabels)
+            .withoutExemplars()
             .register();
     private static final Counter rgLocalUsageMessages = Counter.builder()
             .name("pulsar_resource_group_messages_used")
             .help("Messages locally used within this resource group during the last aggregation interval")
             .labelNames(resourceGroupMonitoringclassLabels)
+            .withoutExemplars()
             .register();
 
     private static final Counter rgUpdates = Counter.builder()
             .name("pulsar_resource_group_updates")
             .help("Number of update operations on the given resource group")
             .labelNames(resourceGroupLabel)
+            .withoutExemplars()
             .register();
 
     private static final Counter rgTenantRegisters = Counter.builder()
             .name("pulsar_resource_group_tenant_registers")
             .help("Number of registrations of tenants")
             .labelNames(resourceGroupLabel)
+            .withoutExemplars()
             .register();
     private static final Counter rgTenantUnRegisters = Counter.builder()
             .name("pulsar_resource_group_tenant_unregisters")
             .help("Number of un-registrations of tenants")
             .labelNames(resourceGroupLabel)
+            .withoutExemplars()
             .register();
 
     private static final Counter rgNamespaceRegisters = Counter.builder()
             .name("pulsar_resource_group_namespace_registers")
             .help("Number of registrations of namespaces")
             .labelNames(resourceGroupLabel)
+            .withoutExemplars()
             .register();
     private static final Counter rgNamespaceUnRegisters = Counter.builder()
             .name("pulsar_resource_group_namespace_unregisters")
             .help("Number of un-registrations of namespaces")
             .labelNames(resourceGroupLabel)
+            .withoutExemplars()
             .register();
 
     /** simpleclient's default sliding window for summary quantiles; the 1.x default is 5 minutes. */
@@ -934,6 +944,7 @@ public class ResourceGroupService implements AutoCloseable{
             .maxAgeSeconds(QUANTILE_WINDOW_SECONDS)
             .name("pulsar_resource_group_aggregate_usage_secs")
             .help("Time required to aggregate usage of all resource groups, in seconds.")
+            .withoutExemplars()
             .register();
 
     private static final Summary rgQuotaCalculationLatency = Summary.builder()
@@ -942,6 +953,7 @@ public class ResourceGroupService implements AutoCloseable{
             .maxAgeSeconds(QUANTILE_WINDOW_SECONDS)
             .name("pulsar_resource_group_calculate_quota_secs")
             .help("Time required to calculate quota of all resource groups, in seconds.")
+            .withoutExemplars()
             .register();
 
     @VisibleForTesting

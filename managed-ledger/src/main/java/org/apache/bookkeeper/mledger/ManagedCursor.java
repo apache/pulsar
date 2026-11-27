@@ -150,12 +150,11 @@ public interface ManagedCursor {
      * changed the state the function observed cannot be overwritten by this update. The returned
      * map must not be {@code null} and must not contain {@code null} keys or values; a violation
      * fails the returned future with the original exception and leaves the properties untouched.
-     * If the returned map equals the snapshot the function read, no write is issued.
      *
-     * Note: like the other property operations, {@link ManagedLedgerException.BadVersionException}
-     * will be set in this {@link CompletableFuture} if there are concurrent modifications — a
-     * retry against a snapshot refreshed by a writer on this cursor re-applies the function, so
-     * the function must be side-effect free and must not retain the passed map.
+     * <p>On a durable cursor, even an unchanged update can advance the metadata version
+     * or fail with {@link ManagedLedgerException.BadVersionException}. Callers should be
+     * prepared to retry on a version conflict; a retry re-applies the function, so the
+     * function must be side-effect free and must not retain the passed map.
      *
      * The default implementation is a best-effort, non-atomic fallback that applies the per-key
      * differences through the individual property operations; implementations with an atomic
