@@ -99,7 +99,7 @@ public class TopicTransactionBufferStatsTest {
             assertThatCode(() -> stats.get(5, TimeUnit.SECONDS))
                     .as("getStats must not fail while an abort seals a snapshot segment")
                     .doesNotThrowAnyException();
-            assertThat(stats.get().segmentsStats.segmentStats)
+            assertThat(stats.get(5, TimeUnit.SECONDS).segmentsStats.segmentStats)
                     .as("the stats must show the segments from before the concurrent abort")
                     .hasSize(2);
             abort.get(5, TimeUnit.SECONDS);
@@ -229,8 +229,18 @@ public class TopicTransactionBufferStatsTest {
                     delegatesTo(new SnapshotSegmentAbortedTxnProcessorImpl(topic)));
             doReturn(CompletableFuture.completedFuture(LAST_CONFIRMED)).when(processor).recoverFromSnapshot();
             buffer = new TopicTransactionBuffer(topic, processor, AbortedTxnProcessor.SnapshotType.Segment);
-            buffer.checkIfTBRecoverCompletely().get(5, TimeUnit.SECONDS);
-            abortThread = abortExecutor.submit(Thread::currentThread).get(5, TimeUnit.SECONDS);
+            try {
+                buffer.checkIfTBRecoverCompletely().get(5, TimeUnit.SECONDS);
+                abortThread = abortExecutor.submit(Thread::currentThread).get(5, TimeUnit.SECONDS);
+            } catch (Throwable failure) {
+                // try-with-resources does not close a context whose constructor failed.
+                try {
+                    close();
+                } catch (Throwable closeFailure) {
+                    failure.addSuppressed(closeFailure);
+                }
+                throw failure;
+            }
         }
 
         CompletableFuture<Void> abort(TxnID txnID, Position markerPosition) {
