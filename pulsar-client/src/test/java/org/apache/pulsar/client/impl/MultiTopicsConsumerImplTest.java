@@ -49,6 +49,7 @@ import io.netty.util.Timeout;
 import io.netty.util.Timer;
 import io.netty.util.TimerTask;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -63,9 +64,12 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
+import java.util.stream.Stream;
 import lombok.Cleanup;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
@@ -234,6 +238,9 @@ public class MultiTopicsConsumerImplTest {
         CompletableFuture<Consumer<byte[]>> subscription = new CompletableFuture<>();
         MultiTopicsConsumerImpl<byte[]> parent = MultiTopicsConsumerImpl.createPartitionedConsumer(
                 client, conf, executorProvider, subscription, 2, schema, null);
+        // Child creation is deferred to the pinned executor: wait for publication
+        // before reading the child, or the map lookup returns null.
+        parent.internalPinnedExecutor.submit(() -> { }).get(5, TimeUnit.SECONDS);
         Timeout timeout = parent.getPartitionsAutoUpdateTimeout();
         ConsumerImpl<byte[]> failedChild = parent.consumers.get(failedPartition);
         assertTrue(failedChild.subscribeFuture().isCompletedExceptionally());
@@ -369,6 +376,9 @@ public class MultiTopicsConsumerImplTest {
         verify(clientMock, times(1)).getPartitionsForTopic(topic, false);
         assertEquals(scheduled.size(), 3);
         healthyLookup.complete(List.of(partition));
+        // The refresh admission now runs on the pinned executor (subscribeIncreasedTopicPartitions),
+        // so drain it before asserting on the update future.
+        impl.internalPinnedExecutor.submit(() -> { }).get(5, TimeUnit.SECONDS);
         assertTrue(impl.partitionsAutoUpdateFuture.isDone());
 
         // A failed child schedules one short delay, and further ticks cannot overlap it.
@@ -390,6 +400,8 @@ public class MultiTopicsConsumerImplTest {
         assertEquals(scheduled.size(), 7);
         impl.setState(HandlerState.State.Closed);
         failedLookup.complete(List.of(partition));
+        // Same async admission as above: drain the pinned executor before asserting.
+        impl.internalPinnedExecutor.submit(() -> { }).get(5, TimeUnit.SECONDS);
         assertTrue(impl.partitionsAutoUpdateFuture.isDone());
     }
 
@@ -967,6 +979,176 @@ public class MultiTopicsConsumerImplTest {
         assertFalse(impl.consumers.containsKey(topicPartition1));
         assertFalse(impl.partitionedTopics.containsKey(topicName));
         assertEquals(impl.allTopicPartitionsNumber.get(), 0);
+    }
+
+    @Test(timeOut = 30000)
+    public void testPartitionRefreshDoesNotReviveUnsubscribedTopic() throws Exception {
+        String topicName = "persistent://public/default/refresh-unsubscribe-topic";
+        String topicPartition0 = topicName + "-partition-0";
+        String topicPartition1 = topicName + "-partition-1";
+        String topicPartition2 = topicName + "-partition-2";
+
+        ConsumerConfigurationData<byte[]> consumerConfData = new ConsumerConfigurationData<>();
+        consumerConfData.setSubscriptionName("subscriptionName");
+        consumerConfData.setAutoUpdatePartitions(true);
+        consumerConfData.setAutoUpdatePartitionsIntervalSeconds(60);
+
+        ClientCnx clientCnxMock = mockClientCnx();
+        when(clientCnxMock.getRemoteEndpointProtocolVersion()).thenReturn(ProtocolVersion.v12_VALUE);
+        PulsarClientImpl clientMock = createPulsarClientMockWithMockedClientCnx(executorProvider, internalExecutor,
+                clientCnxMock);
+        when(clientMock.getPartitionedTopicMetadata(any(), anyBoolean(), anyBoolean()))
+                .thenReturn(CompletableFuture.completedFuture(new PartitionedTopicMetadata()));
+        Schema<byte[]> schema = Schema.BYTES;
+
+        MultiTopicsConsumerImpl<byte[]> impl = new MultiTopicsConsumerImpl<>(
+                clientMock, consumerConfData, executorProvider,
+                new CompletableFuture<>(), schema, null, true);
+
+        impl.partitionedTopics.put(topicName, 0);
+        impl.topicsForPartitionUpdate.add(topicName);
+        impl.allTopicPartitionsNumber.set(0);
+
+        when(clientMock.getPartitionsForTopic(topicName, false)).thenReturn(CompletableFuture.completedFuture(
+                Arrays.asList(topicPartition0, topicPartition1)));
+
+        PartitionsChangedListener listener = impl.topicsPartitionChangedListener;
+        listener.onTopicsExtended(Collections.singleton(topicName)).join();
+        assertTrue(impl.consumers.containsKey(topicPartition0));
+        assertTrue(impl.consumers.containsKey(topicPartition1));
+
+        // Hold the next lookup's metadata processing on a latch: the refresh stalls
+        // after passing its eligibility check, while the unsubscribe below runs to
+        // completion and clears its marker.
+        CompletableFuture<List<String>> lookupFuture = new CompletableFuture<>();
+        when(clientMock.getPartitionsForTopic(topicName, false)).thenReturn(lookupFuture);
+
+        CountDownLatch callbackStalled = new CountDownLatch(1);
+        CountDownLatch releaseCallback = new CountDownLatch(1);
+        AtomicBoolean firstStream = new AtomicBoolean(true);
+        List<String> blockingPartitions = new AbstractList<String>() {
+            private final List<String> delegate = List.of(topicPartition0, topicPartition1, topicPartition2);
+
+            @Override
+            public String get(int index) {
+                return delegate.get(index);
+            }
+
+            @Override
+            public int size() {
+                return delegate.size();
+            }
+
+            @Override
+            public Stream<String> stream() {
+                if (firstStream.getAndSet(false)) {
+                    callbackStalled.countDown();
+                    try {
+                        releaseCallback.await(15, TimeUnit.SECONDS);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                }
+                return delegate.stream();
+            }
+        };
+
+        CompletableFuture<Void> growth = listener.onTopicsExtended(Collections.singleton(topicName));
+        CompletableFuture.runAsync(() -> lookupFuture.complete(blockingPartitions));
+        assertTrue(callbackStalled.await(15, TimeUnit.SECONDS));
+
+        // The unsubscribe runs while the refresh is stalled: the topic leaves the
+        // maps and the marker is cleared.
+        CompletableFuture<Void> unsubscribeFuture = impl.unsubscribeAsync(topicName);
+
+        // The unsubscribe must report success BEFORE the stalled refresh resumes:
+        // only then does the refresh face a cleaned-up topic (marker cleared, maps
+        // removed). Waiting for it only after the release lets the cleanup remove
+        // the revived entry and masks the bug. On the fixed code the unsubscribe
+        // cannot complete while the refresh is stalled: the refresh admission runs
+        // on the pinned executor and the unsubscribe snapshot is queued behind it,
+        // so the wait below times out and we release the refresh, whose admission
+        // is then serialized after the unsubscribe cleanup.
+        try {
+            unsubscribeFuture.get(2, TimeUnit.SECONDS);
+        } catch (TimeoutException e) {
+            // Expected on the fixed code: the unsubscribe is queued behind the
+            // stalled refresh admission on the pinned executor.
+        }
+        // Let the stalled refresh resume: it must not recreate the topic entry or
+        // publish a child for the unsubscribed topic.
+        releaseCallback.countDown();
+        unsubscribeFuture.get(15, TimeUnit.SECONDS);
+        growth.get(15, TimeUnit.SECONDS);
+        assertFalse(impl.consumers.containsKey(topicPartition2));
+        assertFalse(impl.partitionedTopics.containsKey(topicName));
+        assertEquals(impl.allTopicPartitionsNumber.get(), 0);
+    }
+
+    @Test(timeOut = 30000)
+    public void testWholeConsumerUnsubscribeWaitsForInitialChildPublication() throws Exception {
+        String topicA = "persistent://public/default/unsubscribe-waits-topic";
+        String partitionA0 = topicA + "-partition-0";
+        String topicB = "persistent://public/default/unsubscribe-waits-new-topic";
+
+        ConsumerConfigurationData<byte[]> consumerConfData = new ConsumerConfigurationData<>();
+        consumerConfData.setSubscriptionName("subscriptionName");
+        consumerConfData.setAutoUpdatePartitions(true);
+        consumerConfData.setAutoUpdatePartitionsIntervalSeconds(60);
+
+        ClientCnx clientCnxMock = mockClientCnx();
+        when(clientCnxMock.getRemoteEndpointProtocolVersion()).thenReturn(ProtocolVersion.v12_VALUE);
+        PulsarClientImpl clientMock = createPulsarClientMockWithMockedClientCnx(executorProvider, internalExecutor,
+                clientCnxMock);
+        when(clientMock.getPartitionedTopicMetadata(any(), anyBoolean(), anyBoolean()))
+                .thenReturn(CompletableFuture.completedFuture(new PartitionedTopicMetadata()));
+        Schema<byte[]> schema = Schema.BYTES;
+
+        MultiTopicsConsumerImpl<byte[]> impl = new MultiTopicsConsumerImpl<>(
+                clientMock, consumerConfData, executorProvider,
+                new CompletableFuture<>(), schema, null, true);
+
+        impl.partitionedTopics.put(topicA, 0);
+        impl.topicsForPartitionUpdate.add(topicA);
+        impl.allTopicPartitionsNumber.set(0);
+
+        when(clientMock.getPartitionsForTopic(topicA, false)).thenReturn(CompletableFuture.completedFuture(
+                Collections.singletonList(partitionA0)));
+
+        PartitionsChangedListener listener = impl.topicsPartitionChangedListener;
+        listener.onTopicsExtended(Collections.singleton(topicA)).join();
+        assertTrue(impl.consumers.containsKey(partitionA0));
+
+        // Stall the new topic's connection: its creation task passes the pre-check
+        // and then blocks inside the child constructor, before publication.
+        CountDownLatch creationStalled = new CountDownLatch(1);
+        CountDownLatch releaseCreation = new CountDownLatch(1);
+        AtomicBoolean firstConnection = new AtomicBoolean(true);
+        when(clientMock.getConnection(eq(topicB), anyInt())).thenAnswer(invocation -> {
+            if (firstConnection.getAndSet(false)) {
+                creationStalled.countDown();
+                try {
+                    releaseCreation.await(15, TimeUnit.SECONDS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+            return CompletableFuture.completedFuture(Pair.of(clientCnxMock, false));
+        });
+
+        CompletableFuture<Void> subscribeB = impl.subscribeAsync(topicB, PartitionedTopicMetadata.NON_PARTITIONED);
+        assertTrue(creationStalled.await(15, TimeUnit.SECONDS));
+
+        // Whole-consumer unsubscribe while the new child is still being constructed:
+        // the snapshot must wait for the publication and cover the new child.
+        CompletableFuture<Void> unsubscribeFuture = impl.unsubscribeAsync(false);
+        releaseCreation.countDown();
+
+        subscribeB.get(15, TimeUnit.SECONDS);
+        unsubscribeFuture.get(15, TimeUnit.SECONDS);
+        ConsumerImpl<byte[]> newChild = impl.consumers.get(topicB);
+        assertTrue(newChild != null);
+        assertEquals(newChild.getState(), HandlerState.State.Closed);
     }
 
     @Test(timeOut = 30000)

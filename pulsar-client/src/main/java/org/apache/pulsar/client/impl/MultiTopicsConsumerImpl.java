@@ -1341,7 +1341,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 List<CompletableFuture<Consumer<T>>> subscribeList = new ArrayList<>();
                 for (int partitionIndex : partitions) {
                     String partitionName = TopicName.get(topicName).getPartition(partitionIndex).toString();
-                    subscribeList.add(addNewConsumerIfNotExists(partitionName,
+                    subscribeList.add(subscribeInitialPartition(partitionName,
                             () -> createInternalConsumer(configurationData, partitionName, partitionIndex,
                                     new CompletableFuture<>(), createIfDoesNotExist, schema)));
                 }
@@ -1352,6 +1352,18 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
             CompletableFuture<Consumer<T>> subscribeFuture = new CompletableFuture<>();
             CompletableFuture<ConsumerImpl<T>> createdFuture = new CompletableFuture<>();
+            // Register the in-flight creation as a publication, like a partition refresh:
+            // a whole-consumer close or unsubscribe waits for it before snapshotting, so
+            // the child is either in the snapshot or the creation fails. The publication
+            // completes when the creation settles; the duplicate-subscription path below
+            // leaves createdFuture uncompleted, so it completes the publication explicitly.
+            final CompletableFuture<Void> initialPublication = new CompletableFuture<>();
+            synchronized (partitionPublications) {
+                if (getState() == State.Ready) {
+                    partitionPublications.add(initialPublication);
+                }
+            }
+            createdFuture.whenComplete((r, ex) -> completePublication(initialPublication));
             // Chain on the creation task as well as the subscribe response: the start scan below must see the
             // published child, and the subscribe response can arrive before the queued creation task runs.
             subscribedToPartitions =
@@ -1409,6 +1421,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                             // Duplicate subscription: subscribeResult already failed above, and the
                             // existing child keeps its own subscribe future. Leave createdFuture
                             // uncompleted so the start scan below never runs for it.
+                            completePublication(initialPublication);
                             return;
                         }
                         if (client.isClosed() || closeChildrenSnapshotTaken || getState() == State.Closed) {
@@ -1753,78 +1766,111 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         }
 
         return client.getPartitionsForTopic(topicName, false).thenCompose(list -> {
-            if (getState() != State.Ready || !topicsForPartitionUpdate.contains(topicName)) {
-                return CompletableFuture.completedFuture(null);
-            }
-            int currentPartitionNumber = Long.valueOf(list.stream()
-                    .filter(t -> TopicName.get(t).isPartitioned()).count()).intValue();
-                log.debug().attr("topic", topicName)
-                        .attr("old", oldPartitionNumber)
-                        .attr("new", currentPartitionNumber)
-                        .log("Topic partitions changed");
-
-            if (oldPartitionNumber == currentPartitionNumber
-                    && currentPartitionNumber == PartitionedTopicMetadata.NON_PARTITIONED) {
-                return CompletableFuture.completedFuture(null);
-            } else if (currentPartitionNumber == PartitionedTopicMetadata.NON_PARTITIONED) {
-                // The topic was initially partitioned but then it was deleted. We keep it in the topics
-                partitionedTopics.put(topicName, 0);
-
-                allTopicPartitionsNumber.addAndGet(-oldPartitionNumber);
-                List<CompletableFuture<Void>> futures = new ArrayList<>();
-                for (Iterator<Map.Entry<String, ConsumerImpl<T>>> it = consumers.entrySet().iterator(); it.hasNext();) {
-                    Map.Entry<String, ConsumerImpl<T>> e = it.next();
-                    String partitionedTopicName = TopicName.get(e.getKey()).getPartitionedTopicName();
-
-                    // Remove the consumers that belong to the deleted partitioned topic
-                    if (partitionedTopicName.equals(topicName)) {
-                        futures.add(e.getValue().closeAsync());
-                        consumers.remove(e.getKey());
+            // The lookup callback runs on a lookup thread, so a per-topic unsubscribe
+            // that lands between the eligibility check above and the map update below
+            // could otherwise be undone when this callback recreates the topic entry
+            // and queues creation. Admit the metadata result on the same serialized
+            // path as the unsubscribe: re-check on internalPinnedExecutor, where the
+            // unsubscribe takes its snapshot and clears its marker.
+            CompletableFuture<Void> applied = new CompletableFuture<>();
+            try {
+                internalPinnedExecutor.execute((CleanupTask) () -> {
+                    try {
+                        if (getState() != State.Ready || !topicsForPartitionUpdate.contains(topicName)
+                                || !partitionedTopics.containsKey(topicName)
+                                || unsubscribingTopics.contains(topicName)) {
+                            applied.complete(null);
+                            return;
+                        }
+                        applyPartitionUpdate(topicName, list, oldPartitionNumber)
+                                .whenComplete((r, ex) -> {
+                                    if (ex != null) {
+                                        applied.completeExceptionally(ex);
+                                    } else {
+                                        applied.complete(null);
+                                    }
+                                });
+                    } catch (Throwable t) {
+                        applied.completeExceptionally(t);
                     }
-                }
-
-                return FutureUtil.waitForAll(futures)
-                        .thenRun(() -> removeTopicMessagesFromUnackedTracker(topicName));
-            } else if (oldPartitionNumber <= currentPartitionNumber) {
-                if (oldPartitionNumber < currentPartitionNumber) {
-                    allTopicPartitionsNumber.addAndGet(currentPartitionNumber - oldPartitionNumber);
-                    partitionedTopics.put(topicName, currentPartitionNumber);
-                }
-                // Publish all children before starting any receive loop.
-                CompletableFuture<Void> childrenPublished = new CompletableFuture<>();
-                try {
-                    // Retry failed subscriptions as well as subscribing to newly discovered partitions.
-                    List<CompletableFuture<Consumer<T>>> futureList = list
-                        .stream()
-                        .filter(partitionName -> {
-                            ConsumerImpl<T> existingConsumer = consumers.get(partitionName);
-                            return TopicName.getPartitionIndex(partitionName) >= oldPartitionNumber
-                                    || (existingConsumer != null
-                                    && existingConsumer.subscribeFuture().isCompletedExceptionally());
-                        })
-                        .map(partitionName -> subscribePartitionDuringUpdate(
-                                topicName, partitionName, childrenPublished))
-                        .collect(Collectors.toList());
-                    if (oldPartitionNumber < currentPartitionNumber) {
-                        onPartitionsChange(topicName, currentPartitionNumber);
-                    }
-                    return FutureUtil.waitForAll(futureList);
-                } finally {
-                    childrenPublished.complete(null);
-                }
-            } else {
-                log.error().attr("topic", topicName)
-                        .attr("old", oldPartitionNumber)
-                        .attr("new", currentPartitionNumber)
-                        .log("Shrinking topic partitions is not supported");
-                return FutureUtil.failedFuture(new NotSupportedException("not support shrink topic partitions"));
+                });
+            } catch (RejectedExecutionException e) {
+                applied.completeExceptionally(e);
             }
+            return applied;
         }).exceptionally(throwable -> {
             log.warn().exception(throwable)
                     .log("Failed to get partitions for topic to determine"
                             + " if new partitions are added");
             return null;
         });
+    }
+
+    private CompletableFuture<Void> applyPartitionUpdate(String topicName, List<String> list,
+                                                         int oldPartitionNumber) {
+        int currentPartitionNumber = Long.valueOf(list.stream()
+                .filter(t -> TopicName.get(t).isPartitioned()).count()).intValue();
+            log.debug().attr("topic", topicName)
+                    .attr("old", oldPartitionNumber)
+                    .attr("new", currentPartitionNumber)
+                    .log("Topic partitions changed");
+
+        if (oldPartitionNumber == currentPartitionNumber
+                && currentPartitionNumber == PartitionedTopicMetadata.NON_PARTITIONED) {
+            return CompletableFuture.completedFuture(null);
+        } else if (currentPartitionNumber == PartitionedTopicMetadata.NON_PARTITIONED) {
+            // The topic was initially partitioned but then it was deleted. We keep it in the topics
+            partitionedTopics.put(topicName, 0);
+
+            allTopicPartitionsNumber.addAndGet(-oldPartitionNumber);
+            List<CompletableFuture<Void>> futures = new ArrayList<>();
+            for (Iterator<Map.Entry<String, ConsumerImpl<T>>> it = consumers.entrySet().iterator(); it.hasNext();) {
+                Map.Entry<String, ConsumerImpl<T>> e = it.next();
+                String partitionedTopicName = TopicName.get(e.getKey()).getPartitionedTopicName();
+
+                // Remove the consumers that belong to the deleted partitioned topic
+                if (partitionedTopicName.equals(topicName)) {
+                    futures.add(e.getValue().closeAsync());
+                    consumers.remove(e.getKey());
+                }
+            }
+
+            return FutureUtil.waitForAll(futures)
+                    .thenRun(() -> removeTopicMessagesFromUnackedTracker(topicName));
+        } else if (oldPartitionNumber <= currentPartitionNumber) {
+            if (oldPartitionNumber < currentPartitionNumber) {
+                allTopicPartitionsNumber.addAndGet(currentPartitionNumber - oldPartitionNumber);
+                partitionedTopics.put(topicName, currentPartitionNumber);
+            }
+            // Publish all children before starting any receive loop.
+            CompletableFuture<Void> childrenPublished = new CompletableFuture<>();
+            try {
+                // Retry failed subscriptions as well as subscribing to newly discovered partitions.
+                List<CompletableFuture<Consumer<T>>> futureList = list
+                    .stream()
+                    .filter(partitionName -> {
+                        ConsumerImpl<T> existingConsumer = consumers.get(partitionName);
+                        return TopicName.getPartitionIndex(partitionName) >= oldPartitionNumber
+                                || (existingConsumer != null
+                                && existingConsumer.subscribeFuture().isCompletedExceptionally());
+                    })
+                    .map(partitionName -> subscribePartitionDuringUpdate(
+                            topicName, partitionName, childrenPublished))
+                    .collect(Collectors.toList());
+                if (oldPartitionNumber < currentPartitionNumber) {
+                    onPartitionsChange(topicName, currentPartitionNumber);
+                }
+                return FutureUtil.waitForAll(futureList);
+            } finally {
+                childrenPublished.complete(null);
+            }
+        } else {
+            log.error().attr("topic", topicName)
+                    .attr("old", oldPartitionNumber)
+                    .attr("new", currentPartitionNumber)
+                    .log("Shrinking topic partitions is not supported");
+            return FutureUtil.failedFuture(new NotSupportedException("not support shrink topic partitions"));
+        }
     }
 
     private CompletableFuture<Consumer<T>> subscribePartitionDuringUpdate(
@@ -1855,6 +1901,30 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             partitionPublications.remove(publication);
         }
         publication.complete(null);
+    }
+
+    // Initial partition creation, registered as a publication like a partition refresh:
+    // a whole-consumer close or unsubscribe waits for it before snapshotting, so the
+    // child is either in the snapshot or the creation fails, and cannot escape.
+    private CompletableFuture<Consumer<T>> subscribeInitialPartition(
+            String partitionName, Supplier<ConsumerImpl<T>> newConsumerSupplier) {
+        CompletableFuture<Void> publication = new CompletableFuture<>();
+        synchronized (partitionPublications) {
+            if (getState() != State.Ready) {
+                // The parent is already closing: the creation task's pre-check fails it,
+                // so there is nothing for a close to wait for.
+                return addNewConsumerIfNotExists(partitionName, newConsumerSupplier);
+            }
+            partitionPublications.add(publication);
+        }
+        try {
+            return addNewConsumerIfNotExists(partitionName, newConsumerSupplier, null, publication);
+        } catch (Throwable t) {
+            // The creation task was never queued: release the close wait instead of leaving
+            // closeAsync() hanging on a publication that will never complete.
+            completePublication(publication);
+            throw t;
+        }
     }
 
     // True when the topic of a queued child creation is no longer subscribed: either its
