@@ -36,9 +36,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import lombok.CustomLog;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
 import org.apache.pulsar.metadata.api.MetadataSerde;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.coordination.CoordinationService;
 import org.apache.pulsar.metadata.api.coordination.LeaderElection;
@@ -141,7 +143,7 @@ public class CoordinationServiceImpl implements CoordinationService {
         this.internalGetNextCounterValue(path)
                 .thenAccept(future::complete)
                 .exceptionally(ex -> {
-                    if (ex.getCause() instanceof MetadataStoreException.BadVersionException) {
+                    if (FutureUtil.unwrapCompletionException(ex) instanceof BadVersionException) {
                         log.warn().attr("path", path)
                                 .log("Failed to get next counter value because of bad version."
                                         + " Retry to get next counter value");
