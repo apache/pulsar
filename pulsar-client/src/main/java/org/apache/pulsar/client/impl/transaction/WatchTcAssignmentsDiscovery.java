@@ -26,6 +26,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.CustomLog;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
@@ -40,8 +41,9 @@ import org.apache.pulsar.common.util.Backoff;
  * {@code CommandWatchTcAssignments} watch on a service-URL connection; the broker replies with the
  * full {@code partition -> leader} snapshot and re-pushes it on every leadership change. Each
  * coordinator gets one {@link TransactionMetaStoreHandler} pointed at its elected leader broker —
- * dialled through the proxy when the watch connection is proxied, directly otherwise (no
- * per-coordinator lookup); when a snapshot moves a coordinator's leader, the handler is retargeted.
+ * dialled through the service URL when the watch connection is proxied or the client selects an
+ * advertised listener, directly otherwise (no per-coordinator lookup); when a snapshot moves a
+ * coordinator's leader, the handler is retargeted.
  * Used against brokers that advertise {@code supports_tc_metadata_discovery}.
  */
 @CustomLog
@@ -90,7 +92,7 @@ class WatchTcAssignmentsDiscovery implements TcDiscovery, ClientCnx.TcAssignment
         if (closed) {
             return;
         }
-        pulsarClient.getAnyBrokerProxyConnection()
+        pulsarClient.getTcAssignmentsWatchConnection()
                 .thenAccept(this::attach)
                 .exceptionally(ex -> {
                     onAttachFailure(ex);
@@ -102,19 +104,17 @@ class WatchTcAssignmentsDiscovery implements TcDiscovery, ClientCnx.TcAssignment
         if (closed) {
             return;
         }
-        if (!newCnx.isSupportsTcMetadataDiscovery()) {
-            // The broker we landed on doesn't support the watch. On the very first open this is a
-            // hard failure (the V5 client requires the metadata-store coordinator);
-            // after that, it's likely transient — config drift or we hit a different/old broker —
-            // so reconnect to find a supporting broker rather than freezing on the last snapshot.
-            onAttachFailure(new PulsarClientException.NotSupportedException(
-                    "Broker does not support scalable-topics transactions (metadata-store TC discovery)"));
-            return;
-        }
+        // No capability check here: getTcAssignmentsWatchConnection() fails with
+        // NotSupportedException instead of returning a connection without TC discovery, and
+        // onAttachFailure fails the initial open on that, or retries a later one.
         this.cnx = newCnx;
         // Behind a proxy the leader's advertised broker address isn't directly reachable; handlers
         // must dial it through the proxy. The watch connection tells us which mode we're in.
-        this.useProxy = newCnx.isProxied();
+        // The snapshot carries each leader's internal-listener URL, which a client that selects an
+        // advertised listener may not reach either, so that client's handlers also go through the
+        // service URL, until the snapshot can carry per-listener URLs.
+        this.useProxy = newCnx.isProxied()
+                || StringUtils.isNotBlank(pulsarClient.getConfiguration().getListenerName());
         newCnx.registerTcAssignmentsWatcher(watchId, this);
         newCnx.ctx().writeAndFlush(Commands.newWatchTcAssignments(watchId))
                 .addListener(writeFuture -> {
@@ -143,7 +143,7 @@ class WatchTcAssignmentsDiscovery implements TcDiscovery, ClientCnx.TcAssignment
                 return;
             }
             initialSnapshotFuture.completeExceptionally(
-                    PulsarClientException.wrap(ex, "Failed to open TC-assignments watch"));
+                    PulsarClientException.wrap(cause, "Failed to open TC-assignments watch"));
             return;
         }
         scheduleReconnect();

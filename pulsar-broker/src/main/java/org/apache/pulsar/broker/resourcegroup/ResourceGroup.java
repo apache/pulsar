@@ -633,21 +633,25 @@ public class ResourceGroup {
     private static final String[] resourceGroupMontoringclassRemotebrokerLabels =
                                                     {"ResourceGroup", "MonitoringClass", "RemoteBroker"};
 
+    // Nothing exports exemplars, so the counters skip the sampling that 1.x counters do by default.
     private static final Counter rgRemoteUsageReportsBytes = Counter.builder()
             .name("pulsar_resource_group_remote_usage_bytes_used")
             .help("Bytes used reported about this <RG, monitoring class> from a remote broker")
             .labelNames(resourceGroupMontoringclassRemotebrokerLabels)
+            .withoutExemplars()
             .register();
     private static final Counter rgRemoteUsageReportsMessages = Counter.builder()
             .name("pulsar_resource_group_remote_usage_messages_used")
             .help("Messages used reported about this <RG, monitoring class> from a remote broker")
             .labelNames(resourceGroupMontoringclassRemotebrokerLabels)
+            .withoutExemplars()
             .register();
 
     private static final Counter rgLocalUsageReportCount = Counter.builder()
             .name("pulsar_resource_group_local_usage_reported")
             .help("Number of times local usage was reported (vs. suppressed due to negligible change)")
             .labelNames(resourceGroupMontoringclassLabels)
+            .withoutExemplars()
             .register();
 
     // Publish rate limiter for the resource group

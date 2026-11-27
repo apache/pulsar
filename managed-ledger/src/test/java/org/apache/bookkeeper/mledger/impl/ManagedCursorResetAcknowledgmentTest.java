@@ -34,10 +34,8 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Supplier;
 import org.apache.bookkeeper.client.AsyncCallback.AddCallback;
 import org.apache.bookkeeper.client.BKException;
-import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ResetCursorCallback;
@@ -622,33 +620,6 @@ public class ManagedCursorResetAcknowledgmentTest extends MockedBookKeeperTestCa
 
     @Test(timeOut = 30000)
     public void closeWaitsForResetSubmittedAfterCursorLedgerSwitch() throws Exception {
-        CompletableFuture<Void> submittingReset = new CompletableFuture<>();
-        CompletableFuture<Void> allowResetAppend = new CompletableFuture<>();
-        factory.shutdown();
-        factory = new ManagedLedgerFactoryImpl(metadataStore, bkc) {
-            @Override
-            protected ManagedLedgerImpl createManagedLedger(BookKeeper bookKeeper, MetaStore store, String name,
-                    ManagedLedgerConfig config, Supplier<CompletableFuture<Boolean>> ownershipChecker) {
-                return new ManagedLedgerImpl(this, bookKeeper, store, config, scheduledExecutor, name,
-                        ownershipChecker) {
-                    @Override
-                    protected ManagedCursorImpl createCursor(BookKeeper cursorBookKeeper, String cursorName) {
-                        return new ManagedCursorImpl(cursorBookKeeper, this, cursorName) {
-                            @Override
-                            void persistPositionToLedger(LedgerHandle ledgerHandle, MarkDeleteEntry entry,
-                                    VoidCallback callback, boolean ignoreClosedStateAfterFailure) {
-                                if (entry.resetsCursor) {
-                                    submittingReset.complete(null);
-                                    allowResetAppend.orTimeout(10, TimeUnit.SECONDS).join();
-                                }
-                                super.persistPositionToLedger(ledgerHandle, entry, callback,
-                                        ignoreClosedStateAfterFailure);
-                            }
-                        };
-                    }
-                };
-            }
-        };
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("close-with-reset-after-ledger-switch",
                 defaultConfig());
         ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("sub");
@@ -658,34 +629,44 @@ public class ManagedCursorResetAcknowledgmentTest extends MockedBookKeeperTestCa
         ledger.addEntry(new byte[] {3});
         cursor.markDelete(priorMarkDelete);
 
+        Set<Long> existingLedgers = Set.copyOf(bkc.getLedgers());
         CompletableFuture<Void> releaseNewLedgerSeed = bkc.addEntryResponseGate();
+        CompletableFuture<Void> reset;
+        CloseFuture close = new CloseFuture();
         try {
             cursor.startCreatingNewMetadataLedger();
             await().atMost(5, TimeUnit.SECONDS).until(() -> releaseNewLedgerSeed.getNumberOfDependents() > 0);
-            CompletableFuture<Void> reset = resetCursor(cursor, seekPosition);
+            reset = resetCursor(cursor, seekPosition);
             ledger.getExecutor().submit(() -> { }).get(5, TimeUnit.SECONDS);
-            assertThat(submittingReset).isNotDone();
-
-            // The metadata switch publishes the new ledger and hands off the queued reset before its append.
-            releaseNewLedgerSeed.complete(null);
-            submittingReset.get(5, TimeUnit.SECONDS);
-            CloseFuture close = new CloseFuture();
-            cursor.asyncClose(close, null);
-            assertThat(close).isNotDone();
             assertThat(reset).isNotDone();
 
-            allowResetAppend.complete(null);
-            reset.get(5, TimeUnit.SECONDS);
-            close.get(5, TimeUnit.SECONDS);
-            ManagedCursorInfo checkpoint = readCursorInfo(ledger, cursor.getName());
-            assertThat(checkpoint.getCursorsLedgerId()).isEqualTo(-1L);
-            assertThat(PositionFactory.create(checkpoint.getMarkDeleteLedgerId(), checkpoint.getMarkDeleteEntryId()))
-                    .isEqualTo(resetMarkDelete);
-            assertRecoveredPosition(ledger, cursor.getName(), resetMarkDelete, seekPosition);
+            // Arm the reset response gate before the seed response lets the switch submit the queued reset.
+            List<Long> newLedgers = bkc.getLedgers().stream().filter(id -> !existingLedgers.contains(id)).toList();
+            assertThat(newLedgers).hasSize(1);
+            long newCursorLedger = newLedgers.getFirst();
+            CompletableFuture<Void> releaseReset = bkc.addEntryResponseGate(newCursorLedger);
+            try {
+                releaseNewLedgerSeed.complete(null);
+                await().atMost(5, TimeUnit.SECONDS).until(() -> releaseReset.getNumberOfDependents() > 0);
+                assertThat(cursor.getCursorLedger()).isEqualTo(newCursorLedger);
+                cursor.asyncClose(close, null);
+                ledger.getExecutor().submit(() -> { }).get(5, TimeUnit.SECONDS);
+                assertThat(cursor.getState()).isEqualTo(ManagedCursorImpl.State.Closing.toString());
+                assertThat(close).isNotDone();
+                assertThat(reset).isNotDone();
+            } finally {
+                releaseReset.complete(null);
+            }
         } finally {
-            allowResetAppend.complete(null);
             releaseNewLedgerSeed.complete(null);
         }
+        reset.get(5, TimeUnit.SECONDS);
+        close.get(5, TimeUnit.SECONDS);
+        ManagedCursorInfo checkpoint = readCursorInfo(ledger, cursor.getName());
+        assertThat(checkpoint.getCursorsLedgerId()).isEqualTo(-1L);
+        assertThat(PositionFactory.create(checkpoint.getMarkDeleteLedgerId(), checkpoint.getMarkDeleteEntryId()))
+                .isEqualTo(resetMarkDelete);
+        assertRecoveredPosition(ledger, cursor.getName(), resetMarkDelete, seekPosition);
     }
 
     private static void recoverCursor(ManagedCursorImpl recovered) throws Exception {
