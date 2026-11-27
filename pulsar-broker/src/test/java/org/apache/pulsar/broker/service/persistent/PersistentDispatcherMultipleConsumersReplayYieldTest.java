@@ -24,6 +24,7 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anySet;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -33,6 +34,7 @@ import static org.mockito.Mockito.verify;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -59,6 +61,7 @@ public class PersistentDispatcherMultipleConsumersReplayYieldTest extends Shared
     private ManagedCursorImpl cursor;
     private Subscription subscription;
     private ServiceConfiguration serviceConfig;
+    private Consumer consumer;
     private int originalPerConsumerLookAhead;
 
     @BeforeMethod
@@ -244,10 +247,60 @@ public class PersistentDispatcherMultipleConsumersReplayYieldTest extends Shared
     }
 
     @Test
+    public void testRestartsTheClockWhenReplaysDrainWithoutPermits() {
+        PersistentDispatcherMultipleConsumers dispatcher = newDispatcher(new PersistentDispatcherMultipleConsumers(
+                topic, cursor, subscription));
+        dispatcher.addMessageToReplay(1, 1);
+        runPassAt(dispatcher, 0);
+
+        // The replays drain while the consumers hold no permits, so the round returns before the
+        // replay selection: the postponement must still end.
+        dispatcher.redeliveryMessages.clear();
+        doReturn(0).when(consumer).getAvailablePermits();
+        doReturn(10 * MS).when(dispatcher).currentTimeNanos();
+        dispatcher.internalReadMoreEntries();
+        doReturn(100).when(consumer).getAvailablePermits();
+
+        dispatcher.addMessageToReplay(1, 1);
+        runPassAt(dispatcher, 500 * MS);
+        assertThat(dispatcher.havePendingRead).as("the next storm starts a fresh clock").isFalse();
+        assertThat(dispatcher.havePendingReplayRead).isTrue();
+
+        runPassAt(dispatcher, 650 * MS);
+        assertThat(dispatcher.havePendingRead).as("the bound elapses from the fresh clock").isTrue();
+    }
+
+    @Test
+    public void testRunsYieldedReplaysWhenTheAckStatePauseFlipsAfterTheYield() {
+        doReturn(true).when(topic).isDispatcherPauseOnAckStatePersistentEnabled();
+        doReturn(false).when(cursor).isCursorDataFullyPersistable();
+        PersistentDispatcherMultipleConsumers dispatcher = newDispatcher(new PersistentDispatcherMultipleConsumers(
+                topic, cursor, subscription));
+        dispatcher.addMessageToReplay(1, 1);
+        runPassAt(dispatcher, 0);
+
+        // The pause flag flips between the yield decision and the normal-read guards: the second
+        // guard check of the round sees the dispatcher paused on ack-state persistence.
+        AtomicInteger guardChecks = new AtomicInteger();
+        doAnswer(invocation -> {
+            if (guardChecks.incrementAndGet() == 2) {
+                dispatcher.afterAckMessages(null, null);
+            }
+            return invocation.callRealMethod();
+        }).when(dispatcher).doesntHavePendingRead();
+
+        runPassAt(dispatcher, 150 * MS);
+
+        assertThat(dispatcher.havePendingReplayRead).as("the replays the yield gave up run instead").isTrue();
+        assertThat(dispatcher.havePendingRead).isFalse();
+        verify(cursor, never()).asyncReadEntriesWithSkipOrWait(anyInt(), anyLong(), any(), any(), any(), any());
+    }
+
+    @Test
     public void testKeepsDueDelayedMessagesQueuedAcrossTheYield() {
-        // A due delayed message is moved from the tracker into the replay set by the same round
-        // that then yields: the yield only clears this round's selection, so the position stays
-        // queued for the replay that follows the normal read.
+        // getMessagesToReplayNow() moves a due delayed message into the replay set before selecting,
+        // and the yield only clears this round's selection: the position stays queued for the replay
+        // that follows the yielded normal read.
         doReturn(true).when(topic).isDelayedDeliveryEnabled();
         PersistentDispatcherMultipleConsumers dispatcher = newDispatcher(new PersistentDispatcherMultipleConsumers(
                 topic, cursor, subscription));
@@ -278,7 +331,8 @@ public class PersistentDispatcherMultipleConsumersReplayYieldTest extends Shared
         PersistentDispatcherMultipleConsumers spied = spy(dispatcher);
         doNothing().when(spied).readMoreEntriesAsync();
         spied.setMaxReplayPriorityDurationInMillisForTesting((int) boundMillis);
-        spied.addConsumer(connectableConsumer());
+        consumer = connectableConsumer();
+        spied.addConsumer(consumer);
         return spied;
     }
 

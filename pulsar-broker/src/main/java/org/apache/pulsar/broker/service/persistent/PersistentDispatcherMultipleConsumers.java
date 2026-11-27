@@ -434,6 +434,13 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
         // Count executed passes, not conflated requests, for pending-read rescheduling.
         readMoreEntriesCallCount++;
 
+        if (normalReadStarved && redeliveryMessages.isEmpty()
+                && !delayedDeliveryTracker.map(DelayedDeliveryTracker::hasMessageAvailable).orElse(false)) {
+            // Nothing left to replay, before the permit check below can skip the round: the
+            // postponement by replays has ended, and the next storm gets the full bound.
+            normalReadStarved = false;
+        }
+
         // totalAvailablePermits may be updated by other threads
         int firstAvailableConsumerPermits = getFirstAvailableConsumerPermits();
         int currentTotalAvailablePermits = Math.max(totalAvailablePermits, firstAvailableConsumerPermits);
@@ -449,6 +456,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
 
             Set<Position> messagesToReplayNow =
                     canReplayMessages() ? getMessagesToReplayNow(messagesToRead, bytesToRead) : Collections.emptySet();
+            // The replays a yield gives up, to run instead when a normal-read guard then refuses.
+            Set<Position> yieldedReplays = Collections.emptySet();
             if (!messagesToReplayNow.isEmpty() && shouldYieldToNormalRead()) {
                 // Replays have postponed the normal read for longer than the configured bound while
                 // entries are waiting: this round reads from the cursor instead (the branch below), and
@@ -456,6 +465,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                 log.debug()
                         .attr("messagesToReplay", messagesToReplayNow.size())
                         .log("Yield to the normal read postponed by replays");
+                yieldedReplays = messagesToReplayNow;
                 messagesToReplayNow = Collections.emptySet();
             } else if (messagesToReplayNow.isEmpty()) {
                 // A round without replays ends the postponement by replays, whether or not the
@@ -463,46 +473,25 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                 normalReadStarved = false;
             }
             if (!messagesToReplayNow.isEmpty()) {
-                log.debug()
-                        .attr("messagesToReplay", messagesToReplayNow.size())
-                        .attr("consumerCount", consumerList.size())
-                        .log("Schedule replay of messages for consumers");
-                markNormalReadStarved();
-                havePendingReplayRead = true;
-                Set<? extends Position> deletedMessages;
-                boolean readStarted = false;
-                try {
-                    updateMinReplayedPosition();
-                    onReadStarted(ReadType.Replay);
-                    readStarted = true;
-                    deletedMessages = topic.isDelayedDeliveryEnabled()
-                            ? asyncReplayEntriesInOrder(messagesToReplayNow)
-                            : asyncReplayEntries(messagesToReplayNow);
-                } catch (Throwable failure) {
-                    // Nothing else would ever clear the flag after this failure (issue #26454).
-                    handleReadSchedulingFailure(failure, ReadType.Replay, readStarted);
-                    return;
-                }
-                // clear already acked positions from replay bucket
-                deletedMessages.forEach(position -> redeliveryMessages.remove(position.getLedgerId(),
-                        position.getEntryId()));
-                if ((messagesToReplayNow.size() - deletedMessages.size()) == 0) {
-                    // The completion of an empty replay goes through the backoff path, because no entry
-                    // was processed; the next read is scheduled here instead, without a delay
-                    readMoreEntriesAsync();
-                }
+                scheduleReplayRead(messagesToReplayNow);
             } else if (BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.get(this) == TRUE) {
-                log.debug()
-                        .attr("totalUnackedMessages", totalUnackedMessages)
-                        .attr("maxUnackedMessagesOnSubscription", topic.getMaxUnackedMessagesOnSubscription())
-                        .log("Dispatcher read is blocked due to unackMessages reached to max");
+                if (!scheduleYieldedReplays(yieldedReplays)) {
+                    log.debug()
+                            .attr("totalUnackedMessages", totalUnackedMessages)
+                            .attr("maxUnackedMessagesOnSubscription", topic.getMaxUnackedMessagesOnSubscription())
+                            .log("Dispatcher read is blocked due to unackMessages reached to max");
+                }
             } else if (doesntHavePendingRead()) {
                 if (!isNormalReadAllowed()) {
-                    handleNormalReadNotAllowed();
+                    if (!scheduleYieldedReplays(yieldedReplays)) {
+                        handleNormalReadNotAllowed();
+                    }
                     return;
                 }
                 if (shouldPauseOnAckStatePersist(ReadType.Normal)) {
-                    log.debug("Skipping read due to blocked on ack state persistent");
+                    if (!scheduleYieldedReplays(yieldedReplays)) {
+                        log.debug("Skipping read due to blocked on ack state persistent");
+                    }
                     return;
                 }
                 log.debug()
@@ -524,12 +513,55 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                     // Nothing else would ever clear the flag after this failure (issue #26454).
                     handleReadSchedulingFailure(failure, ReadType.Normal, readStarted);
                 }
-            } else {
+            } else if (!scheduleYieldedReplays(yieldedReplays)) {
                 log.debug("Cannot schedule next read until previous one is done");
             }
         } else {
             log.debug("Consumer buffer is full, pause reading");
         }
+    }
+
+    private void scheduleReplayRead(Set<Position> messagesToReplayNow) {
+        log.debug()
+                .attr("messagesToReplay", messagesToReplayNow.size())
+                .attr("consumerCount", consumerList.size())
+                .log("Schedule replay of messages for consumers");
+        markNormalReadStarved();
+        havePendingReplayRead = true;
+        Set<? extends Position> deletedMessages;
+        boolean readStarted = false;
+        try {
+            updateMinReplayedPosition();
+            onReadStarted(ReadType.Replay);
+            readStarted = true;
+            deletedMessages = topic.isDelayedDeliveryEnabled()
+                    ? asyncReplayEntriesInOrder(messagesToReplayNow)
+                    : asyncReplayEntries(messagesToReplayNow);
+        } catch (Throwable failure) {
+            // Nothing else would ever clear the flag after this failure (issue #26454).
+            handleReadSchedulingFailure(failure, ReadType.Replay, readStarted);
+            return;
+        }
+        // clear already acked positions from replay bucket
+        deletedMessages.forEach(position -> redeliveryMessages.remove(position.getLedgerId(),
+                position.getEntryId()));
+        if ((messagesToReplayNow.size() - deletedMessages.size()) == 0) {
+            // The completion of an empty replay goes through the backoff path, because no entry
+            // was processed; the next read is scheduled here instead, without a delay
+            readMoreEntriesAsync();
+        }
+    }
+
+    /**
+     * Runs the replays a yield gave up when a normal-read guard refused after the yield decision,
+     * so the round still reads; false when there were none.
+     */
+    private boolean scheduleYieldedReplays(Set<Position> yieldedReplays) {
+        if (yieldedReplays.isEmpty()) {
+            return false;
+        }
+        scheduleReplayRead(yieldedReplays);
+        return true;
     }
 
     /**

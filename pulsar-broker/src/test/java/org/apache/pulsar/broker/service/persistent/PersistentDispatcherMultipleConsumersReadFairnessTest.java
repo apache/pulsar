@@ -155,7 +155,7 @@ public class PersistentDispatcherMultipleConsumersReadFairnessTest extends Share
             assertTrue(stormDelivered.get() > stormDeliveredBefore,
                     "replays kept being delivered throughout the check");
             assertEquals(BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.get(dispatcher), 0,
-                    "the dispatcher was never blocked on unacked messages");
+                    "the dispatcher is not blocked on unacked messages");
         } finally {
             admin.topics().delete(topicName, true);
         }
