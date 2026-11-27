@@ -285,7 +285,15 @@ public class FunctionActionerTest {
 
     @DataProvider(name = "originalFileNames")
     public Object[][] originalFileNames() {
-        return new Object[][]{{""}, {"package.jar"}};
+        return new Object[][]{
+                {"", ""},
+                {"package.jar", "package.jar"},
+                // Each original file name below is the name of the directory the other package is downloaded to.
+                // These rows pass without the fix too; they check that one package's file cannot take the
+                // directory of the other package.
+                {"transform-function-package", "transform-function.jar"},
+                {"sink.jar", "package"},
+        };
     }
 
     /**
@@ -293,7 +301,9 @@ public class FunctionActionerTest {
      * otherwise the transform function package replaces the sink package before the runtime is created.
      */
     @Test(dataProvider = "originalFileNames")
-    public void testStartSinkWithTransformFunctionPackageUrl(String originalFileName) throws Exception {
+    public void testStartSinkWithTransformFunctionPackageUrl(String sinkOriginalFileName,
+                                                             String transformFunctionOriginalFileName)
+            throws Exception {
         File downloadDirectory = Files.createTempDirectory("function-actioner-test").toFile();
         try {
             WorkerConfig workerConfig = new WorkerConfig();
@@ -341,9 +351,11 @@ public class FunctionActionerTest {
                     function.setPackageLocation().setPackagePath(sinkPackageUrl);
             PackageLocationMetaData transformFunctionPackageLocation =
                     function.setTransformFunctionPackageLocation().setPackagePath(transformFunctionPackageUrl);
-            if (!originalFileName.isEmpty()) {
-                sinkPackageLocation.setOriginalFileName(originalFileName);
-                transformFunctionPackageLocation.setOriginalFileName(originalFileName);
+            if (!sinkOriginalFileName.isEmpty()) {
+                sinkPackageLocation.setOriginalFileName(sinkOriginalFileName);
+            }
+            if (!transformFunctionOriginalFileName.isEmpty()) {
+                transformFunctionPackageLocation.setOriginalFileName(transformFunctionOriginalFileName);
             }
             Instance instance = new Instance();
             instance.setFunctionMetaData().copyFrom(function);
