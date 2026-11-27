@@ -22,7 +22,6 @@ import io.prometheus.metrics.core.metrics.GaugeWithCallback;
 import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.function.LongSupplier;
 import lombok.CustomLog;
 import org.apache.pulsar.common.stats.JvmMetrics;
@@ -44,7 +43,7 @@ public final class NettyDirectMemoryGauges implements AutoCloseable {
     // adds it. PrometheusRegistry.register() adds a new collector before it checks the name and removes it again when
     // the name is taken, so a scrape that runs meanwhile gets the name twice. That can still happen in register()
     // when code outside this class has registered one of the names.
-    private static final Map<String, GaugeWithCallback> GAUGES = newGauges();
+    private static final List<NamedGauge> GAUGES = newGauges();
 
     // The first instance to open registers the gauges, and the last one to close unregisters the ones it registered.
     // Guarded by the class lock.
@@ -66,44 +65,46 @@ public final class NettyDirectMemoryGauges implements AutoCloseable {
      */
     public static synchronized NettyDirectMemoryGauges register() {
         if (openInstances++ == 0) {
-            GAUGES.forEach((name, gauge) -> {
+            for (NamedGauge gauge : GAUGES) {
                 try {
-                    PrometheusRegistry.defaultRegistry.register(gauge);
-                    REGISTERED_GAUGES.add(gauge);
+                    PrometheusRegistry.defaultRegistry.register(gauge.gauge());
+                    REGISTERED_GAUGES.add(gauge.gauge());
                 } catch (IllegalArgumentException nameIsTaken) {
                     // Code that does not use this class has registered the name
-                    log.debug().attr("gauge", name).exceptionMessage(nameIsTaken)
+                    log.debug().attr("gauge", gauge.name()).exceptionMessage(nameIsTaken)
                             .log("Prometheus gauge is already registered");
                 }
-            });
+            }
         }
         return new NettyDirectMemoryGauges();
     }
 
     /**
      * Registers new gauges on a registry other than {@link PrometheusRegistry#defaultRegistry}, for as long as that
-     * registry exists. Use {@link #register()} for the default registry.
+     * registry exists, {@code jvm_memory_direct_bytes_used} first. Use {@link #register()} for the default registry.
      *
-     * @throws IllegalArgumentException if one of the names is registered on {@code registry} already
+     * @throws IllegalArgumentException if one of the names is registered on {@code registry} already; a gauge that
+     *     this call registered before stays registered
      */
     public static void registerOn(PrometheusRegistry registry) {
-        newGauges().values().forEach(registry::register);
+        newGauges().forEach(gauge -> registry.register(gauge.gauge()));
     }
 
-    private static Map<String, GaugeWithCallback> newGauges() {
-        return Map.of(
-                "jvm_memory_direct_bytes_used", gauge("jvm_memory_direct_bytes_used",
-                        JvmMetrics::getJvmDirectMemoryUsed),
-                "jvm_memory_direct_bytes_max", gauge("jvm_memory_direct_bytes_max",
-                        DirectMemoryUtils::jvmMaxDirectMemory));
+    private record NamedGauge(String name, GaugeWithCallback gauge) {
     }
 
-    private static GaugeWithCallback gauge(String name, LongSupplier currentValue) {
-        return GaugeWithCallback.builder()
+    private static List<NamedGauge> newGauges() {
+        return List.of(
+                gauge("jvm_memory_direct_bytes_used", JvmMetrics::getJvmDirectMemoryUsed),
+                gauge("jvm_memory_direct_bytes_max", DirectMemoryUtils::jvmMaxDirectMemory));
+    }
+
+    private static NamedGauge gauge(String name, LongSupplier currentValue) {
+        return new NamedGauge(name, GaugeWithCallback.builder()
                 .name(name)
                 .help("-")
                 .callback(callback -> callback.call(currentValue.getAsLong()))
-                .build();
+                .build());
     }
 
     @Override

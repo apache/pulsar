@@ -122,7 +122,7 @@ public class NettyDirectMemoryGaugesTest {
     public void testRegisterOnAnotherRegistryThrowsForATakenName() {
         PrometheusRegistry registry = new PrometheusRegistry();
         NettyDirectMemoryGauges.registerOn(registry);
-        assertThat(registry.scrape().stream().map(gauge -> gauge.getMetadata().getPrometheusName()).toList())
+        assertThat(gaugeNames(registry))
                 .as("gauges in a scrape of the registry that the gauges were registered on")
                 .containsExactlyInAnyOrder(USED, MAX);
         assertThatThrownBy(() -> NettyDirectMemoryGauges.registerOn(registry))
@@ -131,6 +131,44 @@ public class NettyDirectMemoryGaugesTest {
         assertThat(scrapeGauges())
                 .as("Netty direct memory gauges in a scrape of the default registry")
                 .isEmpty();
+    }
+
+    @Test
+    public void testRegisterOnRegistersUsedBeforeItThrowsForATakenMax() {
+        PrometheusRegistry registry = new PrometheusRegistry();
+        registerOtherGauge(registry, MAX);
+        assertThatThrownBy(() -> NettyDirectMemoryGauges.registerOn(registry))
+                .as("registering the gauges on a registry where other code has %s", MAX)
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining(MAX);
+        assertThat(gaugeNames(registry))
+                .as("gauges in a scrape of the registry after registering them failed on %s", MAX)
+                .containsExactlyInAnyOrder(USED, MAX);
+    }
+
+    @Test
+    public void testRegisterOnThrowsForATakenUsedBeforeItRegistersMax() {
+        PrometheusRegistry registry = new PrometheusRegistry();
+        registerOtherGauge(registry, USED);
+        assertThatThrownBy(() -> NettyDirectMemoryGauges.registerOn(registry))
+                .as("registering the gauges on a registry where other code has %s", USED)
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining(USED);
+        assertThat(gaugeNames(registry))
+                .as("gauges in a scrape of the registry after registering them failed on %s", USED)
+                .containsExactly(USED);
+    }
+
+    private static void registerOtherGauge(PrometheusRegistry registry, String name) {
+        GaugeWithCallback.builder()
+                .name(name)
+                .help("registered by other code")
+                .callback(callback -> callback.call(42))
+                .register(registry);
+    }
+
+    private static List<String> gaugeNames(PrometheusRegistry registry) {
+        return registry.scrape().stream().map(gauge -> gauge.getMetadata().getPrometheusName()).toList();
     }
 
     /**
