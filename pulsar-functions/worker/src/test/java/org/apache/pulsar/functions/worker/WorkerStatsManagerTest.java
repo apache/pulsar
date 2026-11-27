@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.worker;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
@@ -46,6 +47,8 @@ public class WorkerStatsManagerTest {
             "stop_instance_process_time_ms",
             "drain_execution_time_total_ms",
     };
+    private static final String DIRECT_MEMORY_USED = "jvm_memory_direct_bytes_used";
+    private static final String DIRECT_MEMORY_MAX = "jvm_memory_direct_bytes_max";
 
     @Test
     public void testStatsAsStringKeepsNamesLabelsAndQuantiles() throws Exception {
@@ -132,10 +135,46 @@ public class WorkerStatsManagerTest {
         }
     }
 
+    @Test
+    public void testStandaloneWorkerStatsUnregisterTheNettyDirectMemoryGaugesOnClose() {
+        WorkerConfig workerConfig = new WorkerConfig().setPulsarFunctionsCluster("test-cluster");
+        assertThat(scrapeNettyDirectMemoryGauges())
+                .as("Netty direct memory gauges in a scrape of the registry before the test")
+                .isEmpty();
+        try (WorkerStatsManager ignored = new WorkerStatsManager(workerConfig, true)) {
+            assertThat(scrapeNettyDirectMemoryGauges())
+                    .as("Netty direct memory gauges in a scrape of the registry while standalone worker stats run")
+                    .containsExactlyInAnyOrder(DIRECT_MEMORY_USED, DIRECT_MEMORY_MAX);
+        }
+        assertThat(scrapeNettyDirectMemoryGauges())
+                .as("Netty direct memory gauges in a scrape of the registry after the standalone worker stats closed")
+                .isEmpty();
+
+        try (WorkerStatsManager ignored = new WorkerStatsManager(workerConfig, true)) {
+            assertThat(scrapeNettyDirectMemoryGauges())
+                    .as("Netty direct memory gauges in a scrape of the registry while standalone worker stats run"
+                            + " that started after the first ones had closed")
+                    .containsExactlyInAnyOrder(DIRECT_MEMORY_USED, DIRECT_MEMORY_MAX);
+        }
+        assertThat(scrapeNettyDirectMemoryGauges())
+                .as("Netty direct memory gauges in a scrape of the registry after the second standalone worker stats"
+                        + " closed")
+                .isEmpty();
+    }
+
     private static double sample(String text, String name, String labels) {
         Matcher matcher = Pattern.compile("^" + Pattern.quote(name + "{" + labels + "}") + " (\\S+)$",
                 Pattern.MULTILINE).matcher(text);
         assertTrue(matcher.find(), "missing sample " + name + "{" + labels + "}\n" + text);
         return Double.parseDouble(matcher.group(1));
+    }
+
+    /** The names of the Netty direct memory gauges that a scrape of the registry gets, each as often as it gets it. */
+    private static List<String> scrapeNettyDirectMemoryGauges() {
+        return PrometheusRegistry.defaultRegistry
+                .scrape(name -> name.equals(DIRECT_MEMORY_USED) || name.equals(DIRECT_MEMORY_MAX))
+                .stream()
+                .map(gauge -> gauge.getMetadata().getPrometheusName())
+                .toList();
     }
 }
