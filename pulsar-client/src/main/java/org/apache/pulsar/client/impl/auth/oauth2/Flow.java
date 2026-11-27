@@ -38,11 +38,7 @@ interface Flow extends Serializable, AutoCloseable {
      * @return a token result including an access token and optionally a refresh token.
      * @throws PulsarClientException if authentication failed.
      */
-    default TokenResult authenticate() throws PulsarClientException {
-        return authenticate(false);
-    }
-
-    TokenResult authenticate(boolean includeFailureDetails) throws PulsarClientException;
+    TokenResult authenticate() throws PulsarClientException;
 
     /**
      * Closes the authorization flow.

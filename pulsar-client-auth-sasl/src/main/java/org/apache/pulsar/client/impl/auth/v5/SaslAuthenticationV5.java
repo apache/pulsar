@@ -34,7 +34,6 @@ import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
@@ -178,9 +177,6 @@ public class SaslAuthenticationV5 implements Authentication, BinaryAuthDataProvi
     public CompletableFuture<HttpAuthHeaders> respondToHttpChallengeAsync(HttpAuthCallContext ctx) {
         // FIX D: run the SASL negotiation (evaluateChallenge/GSSAPI) off the event loop.
         return V5AuthContexts.supplyBlocking(blockingExecutor, () -> {
-            if (V5AuthContexts.isHttpCallDone(ctx)) {
-                throw new CancellationException();
-            }
             try {
                 SaslHttpConversation conv = conversation(ctx);
                 // The server carries its prior response's SASL headers here (empty on the first round).

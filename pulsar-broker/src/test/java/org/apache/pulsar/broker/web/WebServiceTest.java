@@ -49,6 +49,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -77,9 +78,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
-import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.common.sasl.SaslConstants;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.tls.PemReader;
 import org.apache.pulsar.utils.ResourceUtils;
@@ -335,18 +334,15 @@ public class WebServiceTest {
         String topic = pulsar.getWebServiceAddress() + "/admin/v2/persistent/public/default/topic";
         try (AsyncHttpClient client = new DefaultAsyncHttpClient()) {
             // Only the first request has a permit and reaches the readiness filter.
-            Response unavailable = client.prepareGet(topic + "/subscription;v=1/sub%2F%3Bname/internalStats;v=2")
-                    .execute().get();
-            assertCursorStatsError(unavailable, 503, "Service Unavailable");
+            Response unavailable = client.prepareGet(topic + "/subscription/sub/internalStats").execute().get();
+            assertEquals(unavailable.getStatusCode(), 503);
+            assertThat(unavailable.getResponseBody()).contains("PulsarService failed to start.");
             Response throttled = client.prepareGet(topic + "/subscription/sub/partitioned-internalStats")
                     .execute().get();
-            assertCursorStatsError(throttled, 429, "Too Many Requests");
             Response legacy = client.prepareGet(topic + "/internalStats").execute().get();
+            assertEquals(throttled.getStatusCode(), 429);
             assertEquals(legacy.getStatusCode(), 429);
-            assertThat(legacy.getContentType()).doesNotStartWith("application/json");
-            Response otherPath = client.prepareGet(topic + "/subscription/sub/internalStats%3Bv=2").execute().get();
-            assertEquals(otherPath.getStatusCode(), 429);
-            assertThat(otherPath.getContentType()).doesNotStartWith("application/json");
+            assertEquals(throttled.getContentType(), legacy.getContentType());
         }
     }
 
@@ -360,22 +356,15 @@ public class WebServiceTest {
                 .build();
         pulsar = pulsarTestContext.getPulsarService();
         String topic = pulsar.getWebServiceAddress() + "/admin/v2/persistent/public/default/topic";
-        String cursorStats = topic + "/subscription/sub/internalStats";
         try (AsyncHttpClient client = new DefaultAsyncHttpClient()) {
-            Response rejected = client.prepareGet(cursorStats).execute().get();
-            assertCursorStatsError(rejected, 401, "Authentication required");
-            assertEquals(rejected.getHeader("WWW-Authenticate"), "Bearer");
-            Response legacy = client.prepareGet(topic + "/internalStats").execute().get();
-            assertEquals(legacy.getStatusCode(), 401);
-            assertEquals(legacy.getResponseBody(), "Provider detail");
-            Response otherMethod = client.preparePost(cursorStats).execute().get();
-            assertEquals(otherMethod.getStatusCode(), 401);
-            assertEquals(otherMethod.getResponseBody(), "Provider detail");
-            Response challenge = client.prepareGet(cursorStats)
-                    .setHeader(SaslConstants.SASL_HEADER_STATE, SaslConstants.SASL_STATE_NEGOTIATE).execute().get();
-            assertEquals(challenge.getStatusCode(), 401);
-            assertEquals(challenge.getHeader(SaslConstants.SASL_HEADER_STATE), SaslConstants.SASL_STATE_NEGOTIATE);
-            assertThat(challenge.getContentType()).doesNotStartWith("application/json");
+            for (String path : List.of("/internalStats", "/subscription/sub/internalStats",
+                    "/subscription/sub/partitioned-internalStats")) {
+                Response rejected = client.prepareGet(topic + path).execute().get();
+                assertEquals(rejected.getStatusCode(), 401);
+                assertEquals(rejected.getHeader("WWW-Authenticate"), "Bearer");
+                assertThat(rejected.getContentType()).startsWith("text/plain");
+                assertEquals(rejected.getResponseBody(), "Provider detail");
+            }
         }
     }
 
@@ -383,26 +372,12 @@ public class WebServiceTest {
         @Override
         public boolean authenticateHttpRequest(HttpServletRequest request, HttpServletResponse response)
                 throws IOException {
-            if (SaslConstants.SASL_STATE_NEGOTIATE.equals(request.getHeader(SaslConstants.SASL_HEADER_STATE))) {
-                response.setHeader(SaslConstants.SASL_HEADER_TYPE, SaslConstants.SASL_TYPE_VALUE);
-                response.setHeader(SaslConstants.SASL_HEADER_STATE, SaslConstants.SASL_STATE_NEGOTIATE);
-                response.sendError(401, "SASL authentication not complete");
-            } else {
-                response.setStatus(401);
-                response.setHeader("WWW-Authenticate", "Bearer");
-                response.setContentType("text/plain");
-                response.getWriter().write("Provider detail");
-            }
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setHeader("WWW-Authenticate", "Bearer");
+            response.setContentType("text/plain");
+            response.getWriter().write("Provider detail");
             return false;
         }
-    }
-
-    private static void assertCursorStatsError(Response response, int status, String reason) throws IOException {
-        assertEquals(response.getStatusCode(), status);
-        assertThat(response.getContentType()).startsWith("application/json");
-        ErrorData error = ObjectMapperFactory.getMapper().reader().readValue(
-                response.getResponseBody(), ErrorData.class);
-        assertEquals(error.reason, reason);
     }
 
     @Test

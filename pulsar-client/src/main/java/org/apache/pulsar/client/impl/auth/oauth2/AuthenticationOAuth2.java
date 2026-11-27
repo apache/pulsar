@@ -25,8 +25,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.CancellationException;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -262,24 +260,11 @@ public class AuthenticationOAuth2
     @SuppressWarnings("deprecation")
     @Override
     public synchronized AuthenticationDataProvider getAuthData() throws PulsarClientException {
-        return getAuthData(false);
-    }
-
-    /** Preserves the failure kind for broker diagnostics and skips requests that expired waiting for the token lock. */
-    public synchronized AuthenticationDataProvider getAuthDataWithFailureDetails(CompletableFuture<?> partitionRequest)
-            throws PulsarClientException {
-        if (partitionRequest.isDone()) {
-            throw new CancellationException();
-        }
-        return getAuthData(true);
-    }
-
-    private AuthenticationDataProvider getAuthData(boolean includeFailureDetails) throws PulsarClientException {
         if (isClosed) {
             throw new PulsarClientException.AlreadyClosedException("Authentication already closed.");
         }
         if (this.cachedToken == null || this.cachedToken.isExpired()) {
-            this.authenticate(includeFailureDetails);
+            this.authenticate();
         }
         return this.cachedToken.getAuthData();
     }
@@ -346,10 +331,10 @@ public class AuthenticationOAuth2
     /**
      * Retrieve the token (synchronously), and then schedule refresh runnable.
      */
-    private void authenticate(boolean includeFailureDetails) throws PulsarClientException {
-        log.debug("Attempting to retrieve OAuth2 token now.");
+    private void authenticate() throws PulsarClientException {
+            log.debug("Attempting to retrieve OAuth2 token now.");
         Instant requestedAt = this.clock.instant();
-        TokenResult tr = includeFailureDetails ? this.flow.authenticate(true) : this.flow.authenticate();
+        TokenResult tr = this.flow.authenticate();
         this.cachedToken = new CachedToken(tr, requestedAt);
         handleSuccessfulTokenRefresh();
     }
@@ -377,7 +362,7 @@ public class AuthenticationOAuth2
      */
     private void refreshToken() {
         try {
-            this.authenticate(false);
+            this.authenticate();
         } catch (PulsarClientException | RuntimeException e) {
             long delayMillis = backoff.next().toMillis();
             log.error().attr("delayMillis", delayMillis)

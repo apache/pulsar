@@ -18,6 +18,13 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.post;
+import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
+import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
@@ -28,11 +35,13 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoInteractions;
 import com.fasterxml.jackson.core.JsonParseException;
+import com.github.tomakehurst.wiremock.WireMockServer;
 import io.netty.channel.ConnectTimeoutException;
 import io.netty.handler.ssl.SslHandshakeTimeoutException;
 import jakarta.ws.rs.core.Response.Status;
 import java.io.IOException;
 import java.net.ConnectException;
+import java.net.URI;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -46,21 +55,22 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
+import lombok.Cleanup;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.PulsarAdminException.GettingAuthenticationDataException;
+import org.apache.pulsar.client.admin.internal.TopicsImpl;
 import org.apache.pulsar.client.admin.internal.http.AsyncHttpConnector.MaxRedirectException;
 import org.apache.pulsar.client.admin.internal.http.AsyncHttpConnector.RetryException;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.v5.PulsarClientException.AuthenticationException;
 import org.apache.pulsar.client.api.v5.PulsarClientException.InvalidConfigurationException;
-import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenError;
-import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenExchangeException;
-import org.apache.pulsar.client.impl.auth.v5.HttpAuthenticationDriver.ChallengeResponseException;
+import org.apache.pulsar.client.impl.auth.oauth2.AuthenticationFactoryOAuth2;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.CursorStats;
 import org.apache.pulsar.common.policies.data.PartitionedSubscriptionCursorInternalStats;
+import org.apache.pulsar.utils.TestLogAppender;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-admin")
@@ -175,17 +185,9 @@ public class PartitionedSubscriptionCursorStatsTest {
         List<Failure> failures = new ArrayList<>();
         statuses.forEach((status, code) -> failures.add(
                 new Failure(status, code, new PulsarAdminException(null, "private upstream response", status))));
-        var tokenError = new TokenError();
-        tokenError.setError("invalid_client");
-        tokenError.setErrorDescription("private credential rejection");
-        var tokenRejection = new PulsarClientException.AuthenticationException("private token failure")
-                .initCause(new TokenExchangeException(tokenError));
         failures.addAll(List.of(
-                new Failure(500, "INTERNAL_ERROR", credentialFailure(tokenRejection)),
                 new Failure(503, "UNAVAILABLE", credentialFailure(new PulsarClientException.AuthenticationException(
-                        "private token failure").initCause(new IOException("private connection failure")))),
-                new Failure(401, "AUTHORIZATION_FAILED", credentialFailure(
-                        new AuthenticationException(new ChallengeResponseException(401)))),
+                        "private token failure").initCause(new ConnectException("private connection failure")))),
                 new Failure(503, "TIMEOUT", new PulsarAdminException(new TimeoutException("private upstream timeout"))),
                 new Failure(503, "TIMEOUT", new PulsarAdminException(new RetryException("private retry",
                         new ConnectTimeoutException("private connection timeout")))),
@@ -196,7 +198,7 @@ public class PartitionedSubscriptionCursorStatsTest {
                 new Failure(500, "INTERNAL_ERROR", new PulsarAdminException(new JsonParseException(null, "private"))),
                 new Failure(500, "INTERNAL_ERROR", new IllegalStateException("private coordinator details")),
                 new Failure(500, "INTERNAL_ERROR", credentialFailure(new IllegalStateException("private plugin bug"))),
-                new Failure(503, "UNAVAILABLE", credentialFailure(new IOException("private transport failure"))),
+                new Failure(500, "INTERNAL_ERROR", credentialFailure(new IOException("private credential I/O"))),
                 new Failure(503, "TIMEOUT", credentialFailure(new TimeoutException("private credential timeout"))),
                 new Failure(503, "TIMEOUT", credentialFailure(new PulsarClientException.TimeoutException("private"))),
                 new Failure(503, "TIMEOUT", credentialFailure(
@@ -204,13 +206,10 @@ public class PartitionedSubscriptionCursorStatsTest {
                 new Failure(500, "INTERNAL_ERROR", credentialFailure(
                         new PulsarClientException.InvalidConfigurationException("private configuration"))),
                 new Failure(500, "INTERNAL_ERROR", credentialFailure(
-                        new InvalidConfigurationException("private configuration"))),
-                new Failure(429, "UNAVAILABLE", credentialFailure(
-                        new AuthenticationException(new ChallengeResponseException(429)))),
-                new Failure(504, "TIMEOUT", credentialFailure(
-                        new AuthenticationException(new ChallengeResponseException(504))))));
+                        new InvalidConfigurationException("private configuration")))));
         int count = failures.size() + 1;
-        try (var executor = Executors.newScheduledThreadPool(2)) {
+        try (var logs = TestLogAppender.create(PartitionedSubscriptionCursorStats.class);
+             var executor = Executors.newScheduledThreadPool(2)) {
             var response = PartitionedSubscriptionCursorStats.collect(TOPIC, new PartitionedTopicMetadata(count),
                     false, ignored -> CompletableFuture.completedFuture(name -> {
                         int partition = TopicName.getPartitionIndex(name);
@@ -226,12 +225,52 @@ public class PartitionedSubscriptionCursorStatsTest {
                 var failure = failures.get(i);
                 assertPartitionError(response, i + 1, failure.status(), failure.code());
             }
+            assertThat(logs.getEvents())
+                    .filteredOn(event -> failures.stream().anyMatch(failure -> failure.error() == event.getThrown()))
+                    .singleElement().satisfies(event -> assertThat(failures)
+                            .anyMatch(failure -> failure.status() == 500 && failure.error() == event.getThrown()));
         }
     }
 
     private static GettingAuthenticationDataException credentialFailure(Throwable cause) {
         // TopicsImpl wraps the error from BaseResource's credential preparation.
         return new GettingAuthenticationDataException(new PulsarClientException(cause));
+    }
+
+    @Test
+    public void testCredentialRejectionAndPartitionAuthorizationFailure() throws Exception {
+        @Cleanup("stop")
+        var server = new WireMockServer(wireMockConfig().dynamicPort());
+        server.start();
+        server.stubFor(get(urlEqualTo("/.well-known/openid-configuration")).willReturn(aResponse()
+                .withHeader("Content-Type", "application/json")
+                .withBody("{\"token_endpoint\":\"" + server.baseUrl() + "/token\"}")));
+        server.stubFor(post(urlEqualTo("/token")).willReturn(aResponse().withStatus(401)
+                .withHeader("Content-Type", "application/json").withBody("{\"error\":\"invalid_client\"}")));
+        server.stubFor(get(urlPathEqualTo("/admin/v2/persistent/public/default/cursor-stats-partition-2"
+                + "/subscription/sub/internalStats")).willReturn(aResponse().withStatus(401)));
+
+        var auth = AuthenticationFactoryOAuth2.clientCredentialsBuilder()
+                .issuerUrl(URI.create(server.baseUrl()).toURL())
+                .credentialsUrl(getClass().getResource("/authentication/token/credentials_file.json"))
+                .audience("pulsar")
+                .build();
+        try (var oauth = PulsarAdmin.builder().serviceHttpUrl(server.baseUrl()).authentication(auth).build();
+             var plain = PulsarAdmin.builder().serviceHttpUrl(server.baseUrl()).build();
+             var executor = Executors.newScheduledThreadPool(2)) {
+            var response = PartitionedSubscriptionCursorStats.collect(TOPIC, new PartitionedTopicMetadata(3), false,
+                    ignored -> CompletableFuture.completedFuture(partition -> {
+                        if (partition.equals(TOPIC.getPartition(0).toString())) {
+                            return CompletableFuture.completedFuture(new CursorStats());
+                        }
+                        var admin = partition.equals(TOPIC.getPartition(1).toString()) ? oauth : plain;
+                        return ((TopicsImpl) admin.topics()).getLocalSubscriptionCursorInternalStatsAsync(
+                                partition, "sub", false);
+                    }), executor, TIMEOUT).get(10, TimeUnit.SECONDS);
+            assertPartitionError(response, 1, 500, "INTERNAL_ERROR");
+            assertPartitionError(response, 2, 401, "AUTHORIZATION_FAILED");
+            server.verify(1, postRequestedFor(urlEqualTo("/token")));
+        }
     }
 
     @Test

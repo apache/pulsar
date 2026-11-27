@@ -31,7 +31,6 @@ import static org.apache.pulsar.common.sasl.SaslConstants.SASL_STATE_SERVER;
 import static org.apache.pulsar.common.sasl.SaslConstants.SASL_STATE_SERVER_CHECK_TOKEN;
 import static org.apache.pulsar.common.sasl.SaslConstants.SASL_TYPE_VALUE;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.net.URI;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -45,9 +44,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.v5.auth.HttpAuthHeaders;
-import org.apache.pulsar.client.impl.auth.v5.HttpAuthenticationDriver.ChallengeResponseException;
 import org.apache.pulsar.common.api.AuthData;
-import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
@@ -61,29 +58,6 @@ import org.testng.annotations.Test;
 public class SaslAuthenticationV5HttpTest {
 
     private static final URI ADMIN_URI = URI.create("https://broker.example:8443/admin/v2/tenants/x");
-    private static final HttpAuthHeaders BARE_REJECTION = HttpAuthHeaders.of("Content-Type", "application/json");
-
-    @Test
-    public void partitionReceivesTerminalUnauthorizedDuringSaslNegotiation() {
-        for (String rejectedState : List.of(SASL_STATE_CLIENT_INIT, SASL_STATE_NEGOTIATE)) {
-            var states = new ArrayList<String>();
-            var server = new FakeSaslServer(2, "rt");
-            HttpChallengeTransport transport = (uri, headers, timeout) -> {
-                String state = headers.get(SASL_HEADER_STATE).orElseThrow();
-                states.add(state);
-                return state.equals(rejectedState)
-                        ? CompletableFuture.completedFuture(new HttpChallengeTransport.Result(401, BARE_REJECTION))
-                        : server.get(uri, headers, timeout);
-            };
-            var driver = new HttpAuthenticationDriver(new SaslAuthenticationV5(new CountingFactory()), null, transport);
-            assertThatThrownBy(() -> driver.authenticateAsync(ADMIN_URI, null, Duration.ofSeconds(30),
-                    new CompletableFuture<>()).get())
-                    .rootCause().isInstanceOfSatisfying(ChallengeResponseException.class,
-                            error -> assertThat(error.getStatusCode()).isEqualTo(401));
-            assertThat(states).containsExactlyElementsOf(SASL_STATE_CLIENT_INIT.equals(rejectedState)
-                    ? List.of(SASL_STATE_CLIENT_INIT) : List.of(SASL_STATE_CLIENT_INIT, SASL_STATE_NEGOTIATE));
-        }
-    }
 
     @Test
     public void twoRoundExchangeReplaysRoleToken() throws Exception {
@@ -158,16 +132,10 @@ public class SaslAuthenticationV5HttpTest {
         assertThat(server.requests.get(0).get(SASL_AUTH_ROLE_TOKEN)).hasValue("role-token-abc");
     }
 
-    @DataProvider
-    public Object[][] cachedTokenRejections() {
-        var expired = HttpAuthHeaders.of(Map.of(SASL_HEADER_TYPE, SASL_TYPE_VALUE,
-                SASL_HEADER_STATE, SASL_AUTH_ROLE_TOKEN_EXPIRED));
-        return new Object[][] {{false, expired}, {false, BARE_REJECTION}, {true, expired}, {true, BARE_REJECTION}};
-    }
-
-    @Test(dataProvider = "cachedTokenRejections")
-    public void expiredCachedRoleTokenTriggersFreshNegotiation(boolean partitionRequest, HttpAuthHeaders rejection)
-            throws Exception {
+    @Test
+    public void expiredCachedRoleTokenTriggersFreshNegotiation() throws Exception {
+        // PIP-478 FIX C: when the server reports the replayed cached token expired (SaslAuthRoleTokenExpired),
+        // the body drops the cache and renegotiates from Init, ending with a freshly issued role token.
         CountingFactory factory = new CountingFactory();
         RoleTokenServer server = new RoleTokenServer("role-token-1");
         HttpAuthenticationDriver driver =
@@ -177,11 +145,10 @@ public class SaslAuthenticationV5HttpTest {
         driver.authenticateAsync(ADMIN_URI, null, Duration.ofSeconds(30)).get();
 
         server.reset();
-        server.rejectNextCheckThenIssue(rejection, "role-token-2");
+        server.expireNextCheckThenIssue("role-token-2");
 
-        // A refusal on ServerCheckToken lets the client renegotiate from Init.
-        HttpAuthHeaders second = driver.authenticateAsync(ADMIN_URI, null, Duration.ofSeconds(30),
-                partitionRequest ? new CompletableFuture<>() : null).get();
+        // Second request: ServerCheckToken -> server says EXPIRED -> renegotiate from Init -> role-token-2.
+        HttpAuthHeaders second = driver.authenticateAsync(ADMIN_URI, null, Duration.ofSeconds(30)).get();
         assertThat(second.get(SASL_AUTH_ROLE_TOKEN)).hasValue("role-token-2");
         assertThat(second.get(SASL_HEADER_STATE)).hasValue(SASL_STATE_COMPLETE);
         assertThat(server.requestStates).containsExactly(SASL_STATE_SERVER_CHECK_TOKEN, SASL_STATE_CLIENT_INIT);
@@ -277,13 +244,14 @@ public class SaslAuthenticationV5HttpTest {
     /**
      * A fake server that also honors the role-token replay path (State=ServerCheckToken), used to exercise
      * the FIX C cross-request cache. Init negotiation completes in one round. A ServerCheckToken is answered
-     * {@code 200} unless {@link #rejectNextCheckThenIssue} supplies the next {@code 401} response.
+     * {@code 200} (validated) unless {@link #expireNextCheckThenIssue} armed an expiry, in which case the
+     * first ServerCheckToken is answered {@code 401} EXPIRED and the following Init issues the rotated token.
      */
     private static final class RoleTokenServer implements HttpChallengeTransport {
         final List<String> requestStates = new ArrayList<>();
         final List<HttpAuthHeaders> requests = new ArrayList<>();
         private String roleToken;
-        private HttpAuthHeaders nextRejection;
+        private boolean expireNextCheck;
         private String rotatedRoleToken;
 
         RoleTokenServer(String roleToken) {
@@ -295,8 +263,8 @@ public class SaslAuthenticationV5HttpTest {
             requests.clear();
         }
 
-        void rejectNextCheckThenIssue(HttpAuthHeaders rejection, String rotatedRoleToken) {
-            nextRejection = rejection;
+        void expireNextCheckThenIssue(String rotatedRoleToken) {
+            this.expireNextCheck = true;
             this.rotatedRoleToken = rotatedRoleToken;
         }
 
@@ -306,10 +274,12 @@ public class SaslAuthenticationV5HttpTest {
             String state = requestHeaders.get(SASL_HEADER_STATE).orElse(null);
             requestStates.add(state);
             if (SASL_STATE_SERVER_CHECK_TOKEN.equalsIgnoreCase(state)) {
-                if (nextRejection != null) {
-                    var rejected = new Result(401, nextRejection);
-                    nextRejection = null;
-                    return CompletableFuture.completedFuture(rejected);
+                if (expireNextCheck) {
+                    expireNextCheck = false;
+                    Map<String, String> headers = new LinkedHashMap<>();
+                    headers.put(SASL_HEADER_TYPE, SASL_TYPE_VALUE);
+                    headers.put(SASL_HEADER_STATE, SASL_AUTH_ROLE_TOKEN_EXPIRED);
+                    return CompletableFuture.completedFuture(new Result(401, HttpAuthHeaders.of(headers)));
                 }
                 return complete(roleToken);
             }

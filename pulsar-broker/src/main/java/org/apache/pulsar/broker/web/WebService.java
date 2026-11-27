@@ -336,11 +336,6 @@ public class WebService implements AutoCloseable {
         }
 
         public void addFilters(ServletContextHandler context, boolean requiresAuthentication) {
-            if ("/admin/v2".equals(context.getContextPath())) {
-                // Rate limiting and readiness checks can reject a request before authentication or Jersey sees it.
-                context.addFilter(new FilterHolder(new SubscriptionCursorStatsErrorFilter()), "/persistent/*",
-                        EnumSet.of(DispatcherType.REQUEST));
-            }
             for (FilterHolder filterHolder : filterHolders) {
                 if (requiresAuthentication || filterHolder != authenticationFilterHolder) {
                     context.addFilter(filterHolder,

@@ -256,14 +256,6 @@ abstract class FlowBase implements Flow {
         return DefaultMetadataResolver.fromIssuerUrl(issuerUrl, getHttpClient(), wellKnownMetadataPath);
     }
 
-    static PulsarClientException authenticationFailure(String message, Exception cause, boolean includeFailureDetails) {
-        var failure = new PulsarClientException.AuthenticationException(message);
-        if (includeFailureDetails) {
-            failure.initCause(cause);
-        }
-        return failure;
-    }
-
     static String parseParameterString(Map<String, String> params, String name) {
         String s = params.get(name);
         if (StringUtils.isEmpty(s)) {

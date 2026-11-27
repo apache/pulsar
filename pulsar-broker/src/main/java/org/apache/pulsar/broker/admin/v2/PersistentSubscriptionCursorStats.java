@@ -44,6 +44,7 @@ import java.util.function.Function;
 import org.apache.pulsar.broker.admin.impl.PersistentTopicsBase;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.naming.TopicDomain;
+import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 import org.apache.pulsar.common.policies.data.PartitionedSubscriptionCursorInternalStats;
 import org.apache.pulsar.common.util.Codec;
@@ -56,6 +57,9 @@ import org.apache.pulsar.common.util.FutureUtil;
 @Produces(MediaType.APPLICATION_JSON)
 @Tag(name = "persistent topic", description = "Persistent topic admin apis")
 public class PersistentSubscriptionCursorStats extends PersistentTopicsBase {
+    private static final String ERROR_RESPONSES = "The resource returns errors as JSON with a reason field. "
+            + "Requests rejected before reaching the resource use the standard admin HTTP response "
+            + "from the authentication provider, rate limiter, or readiness check.";
 
     @Override
     protected String domain() {
@@ -64,19 +68,24 @@ public class PersistentSubscriptionCursorStats extends PersistentTopicsBase {
 
     @GET
     @Path("/{tenant}/{namespace}/{topic}/subscription/{subName}/internalStats")
-    @Operation(summary = "Get the internal cursor stats for a subscription on a physical persistent topic.")
+    @Operation(summary = "Get the internal cursor stats for a subscription on a physical persistent topic.",
+            description = ERROR_RESPONSES)
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "The subscription's internal cursor stats",
                     content = @Content(schema =
                             @Schema(implementation = ManagedLedgerInternalStats.CursorStats.class))),
             @ApiResponse(responseCode = "307", description = "Redirect to the owning broker"),
             @ApiResponse(responseCode = "401", description = "Authentication or GET_STATS authorization failed"),
-            @ApiResponse(responseCode = "404", description = "Namespace, topic or subscription not found"),
+            @ApiResponse(responseCode = "404", description = "Namespace, topic or subscription not found",
+                    content = @Content(schema = @Schema(implementation = ErrorData.class))),
             @ApiResponse(responseCode = "412", description = "Invalid name, topic kind or ownership precondition, "
-                    + "or the storage cursor requires includeIndividualDeletedMessages=true"),
+                    + "or the storage cursor requires includeIndividualDeletedMessages=true",
+                    content = @Content(schema = @Schema(implementation = ErrorData.class))),
             @ApiResponse(responseCode = "429", description = "Broker HTTP request rate limit exceeded"),
-            @ApiResponse(responseCode = "500", description = "Unexpected snapshot failure"),
-            @ApiResponse(responseCode = "503", description = "Topic metadata or ownership unavailable") })
+            @ApiResponse(responseCode = "500", description = "Unexpected snapshot failure",
+                    content = @Content(schema = @Schema(implementation = ErrorData.class))),
+            @ApiResponse(responseCode = "503", description = "Broker not ready, or topic metadata or ownership "
+                    + "unavailable") })
     public void getSubscriptionCursorInternalStats(
             @Suspended AsyncResponse asyncResponse,
             @PathParam("tenant") String tenant,
@@ -96,18 +105,23 @@ public class PersistentSubscriptionCursorStats extends PersistentTopicsBase {
 
     @GET
     @Path("/{tenant}/{namespace}/{topic}/subscription/{subName}/partitioned-internalStats")
-    @Operation(summary = "Get per-partition internal cursor stats for a subscription on a partitioned base topic.")
+    @Operation(summary = "Get per-partition internal cursor stats for a subscription on a partitioned base topic.",
+            description = ERROR_RESPONSES)
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Complete or partial per-partition cursor stats",
                     content = @Content(schema =
                             @Schema(implementation = PartitionedSubscriptionCursorInternalStats.class))),
             @ApiResponse(responseCode = "307", description = "Redirect for global namespace routing"),
             @ApiResponse(responseCode = "401", description = "Authentication or GET_STATS authorization failed"),
-            @ApiResponse(responseCode = "404", description = "Partition metadata or all partition cursors not found"),
-            @ApiResponse(responseCode = "412", description = "Invalid name, topic kind or routing precondition"),
+            @ApiResponse(responseCode = "404", description = "Partition metadata or all partition cursors not found",
+                    content = @Content(schema = @Schema(implementation = ErrorData.class))),
+            @ApiResponse(responseCode = "412", description = "Invalid name, topic kind or routing precondition",
+                    content = @Content(schema = @Schema(implementation = ErrorData.class))),
             @ApiResponse(responseCode = "429", description = "Broker HTTP request rate limit exceeded"),
-            @ApiResponse(responseCode = "500", description = "Unexpected coordinator failure"),
-            @ApiResponse(responseCode = "503", description = "Metadata unavailable or all partition requests failed") })
+            @ApiResponse(responseCode = "500", description = "Unexpected coordinator failure",
+                    content = @Content(schema = @Schema(implementation = ErrorData.class))),
+            @ApiResponse(responseCode = "503", description = "Broker not ready, metadata unavailable, "
+                    + "or no partition cursor stats could be retrieved") })
     public void getPartitionedSubscriptionCursorInternalStats(
             @Suspended AsyncResponse asyncResponse,
             @PathParam("tenant") String tenant,

@@ -2196,6 +2196,10 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             if (error == null) {
                 initialization.complete(client);
             } else {
+                if (isRunning()) {
+                    log.warn().exception(FutureUtil.unwrapCompletionException(error))
+                            .log("Failed to initialize the broker admin client");
+                }
                 initialization.completeExceptionally(error);
             }
         });
