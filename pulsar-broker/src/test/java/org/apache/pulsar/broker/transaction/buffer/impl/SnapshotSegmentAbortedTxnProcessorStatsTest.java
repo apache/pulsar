@@ -23,14 +23,18 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 import com.google.common.util.concurrent.ListeningScheduledExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadInfo;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -42,7 +46,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -74,22 +77,38 @@ import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.policies.data.SegmentStats;
 import org.apache.pulsar.common.policies.data.TransactionBufferStats;
 import org.apache.pulsar.common.protocol.Commands;
+import org.awaitility.Awaitility;
+import org.mockito.MockedStatic;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class SnapshotSegmentAbortedTxnProcessorStatsTest {
 
-    private static final int SEGMENTS = 1_000;
-    private static final int MID_SEGMENT = SEGMENTS / 2;
-    private static final int POLLS_PER_SEGMENT_READ = 8;
+    private static final int SEGMENTS = 3;
     private static final long ABORTED_MARKER_LEDGER_ID = 10;
     private static final long SEGMENT_LEDGER_ID = 20;
 
     @Test(timeOut = 30_000)
     @SuppressWarnings("unchecked")
-    public void testSegmentStatsDuringRecovery() throws Exception {
+    public void testSegmentStatsWhileRecoveryAddsSegment() throws Exception {
+        // Recovery uses this position as the key of the first segment, so a stats call can be paused while it lists
+        // that segment.
+        PausingPosition firstMarker = new PausingPosition(ABORTED_MARKER_LEDGER_ID, 0);
+        AtomicReference<Thread> recoveryThread = new AtomicReference<>();
         ListeningScheduledExecutorService recoveryExecutor =
-                MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor());
+                MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor(runnable -> {
+                    Thread thread = new Thread(() -> {
+                        // A static mock applies to the thread that opens it, so only recovery gets the position.
+                        try (MockedStatic<PositionFactory> positions =
+                                     mockStatic(PositionFactory.class, CALLS_REAL_METHODS)) {
+                            positions.when(() -> PositionFactory.create(ABORTED_MARKER_LEDGER_ID, 0))
+                                    .thenReturn(firstMarker);
+                            runnable.run();
+                        }
+                    }, "test-snapshot-recovery");
+                    recoveryThread.set(thread);
+                    return thread;
+                }));
         ExecutorService statsExecutor = Executors.newSingleThreadExecutor();
         SnapshotSegmentAbortedTxnProcessorImpl processor = null;
         try {
@@ -168,24 +187,14 @@ public class SnapshotSegmentAbortedTxnProcessorStatsTest {
                 return null;
             }).when(managedLedgerFactory).asyncOpenReadOnlyManagedLedger(anyString(), any(), any(), isNull());
 
-            // Recovery reads the first segment only once the stats thread is polling. At the middle segment it waits
-            // until a stats call has been made, so that one call certainly runs while recovery is half done.
-            CountDownLatch statsPollingStarted = new CountDownLatch(1);
-            CountDownLatch polledAtMidSegment = new CountDownLatch(1);
-            AtomicBoolean pollingStartedBeforeFirstRead = new AtomicBoolean();
-            AtomicBoolean recoveryAtMidSegment = new AtomicBoolean();
-            AtomicInteger segmentReads = new AtomicInteger();
+            // Recovery gets the last segment only once the stats call is paused while it lists the first one.
+            CountDownLatch recoveryAtLastSegment = new CountDownLatch(1);
+            AtomicBoolean statsPausedBeforeLastSegment = new AtomicBoolean();
             doAnswer(invocation -> {
                 Position position = invocation.getArgument(0);
-                if (position.getEntryId() == 0) {
-                    pollingStartedBeforeFirstRead.set(statsPollingStarted.await(5, TimeUnit.SECONDS));
-                }
-                if (position.getEntryId() == MID_SEGMENT) {
-                    recoveryAtMidSegment.set(true);
-                }
-                segmentReads.incrementAndGet();
-                if (position.getEntryId() == MID_SEGMENT) {
-                    polledAtMidSegment.await(5, TimeUnit.SECONDS);
+                if (position.getEntryId() == SEGMENTS - 1) {
+                    recoveryAtLastSegment.countDown();
+                    statsPausedBeforeLastSegment.set(firstMarker.awaitPaused());
                 }
                 AsyncCallbacks.ReadEntryCallback callback = invocation.getArgument(1);
                 callback.readEntryComplete(EntryImpl.create(position.getLedgerId(), position.getEntryId(),
@@ -196,51 +205,34 @@ public class SnapshotSegmentAbortedTxnProcessorStatsTest {
             SnapshotSegmentAbortedTxnProcessorImpl recoveringProcessor =
                     new SnapshotSegmentAbortedTxnProcessorImpl(topic);
             processor = recoveringProcessor;
-            AtomicBoolean recoveryFinished = new AtomicBoolean();
-            AtomicReference<TransactionBufferStats> statsAtMidSegment = new AtomicReference<>();
-            // The first exception ends the polling and fails this future.
-            Future<?> statsPolling = statsExecutor.submit(() -> {
-                try {
-                    while (!recoveryFinished.get()) {
-                        int readsBefore = segmentReads.get();
-                        for (int polls = 0; polls < POLLS_PER_SEGMENT_READ && segmentReads.get() == readsBefore
-                                && !recoveryFinished.get(); polls++) {
-                            boolean recoveryWaits = recoveryAtMidSegment.get();
-                            TransactionBufferStats stats = recoveringProcessor.generateSnapshotStats(true);
-                            statsPollingStarted.countDown();
-                            if (recoveryWaits && statsAtMidSegment.compareAndSet(null, stats)) {
-                                polledAtMidSegment.countDown();
-                            }
-                        }
-                        // Monitors are not fair, so polling without a pause could keep a waiting recovery thread
-                        // from its lock. Poll again only after recovery has read another segment.
-                        while (segmentReads.get() == readsBefore && !recoveryFinished.get()) {
-                            Thread.onSpinWait();
-                        }
-                    }
-                } finally {
-                    // Do not hold recovery back at the middle segment when the polling ended early.
-                    polledAtMidSegment.countDown();
-                }
-            });
+            Thread statsThread = statsExecutor.submit(Thread::currentThread).get(5, TimeUnit.SECONDS);
+            CompletableFuture<Position> recovery = recoveringProcessor.recoverFromSnapshot();
+            assertThat(recoveryAtLastSegment.await(10, TimeUnit.SECONDS))
+                    .as("recovery reached the last segment")
+                    .isTrue();
+
+            firstMarker.pauseNextToString();
+            Future<TransactionBufferStats> statsDuringRecovery =
+                    statsExecutor.submit(() -> recoveringProcessor.generateSnapshotStats(true));
             try {
-                recoveringProcessor.recoverFromSnapshot().get(10, TimeUnit.SECONDS);
+                // Recovery either adds the last segment and finishes, or it waits for the lock the stats call holds.
+                Awaitility.await().atMost(10, TimeUnit.SECONDS)
+                        .until(() -> recovery.isDone() || isBlockedBy(recoveryThread.get(), statsThread));
             } finally {
-                recoveryFinished.set(true);
+                firstMarker.resume();
             }
 
-            assertThatCode(() -> statsPolling.get(5, TimeUnit.SECONDS))
-                    .as("generateSnapshotStats calls while snapshot recovery runs")
+            assertThatCode(() -> statsDuringRecovery.get(5, TimeUnit.SECONDS))
+                    .as("generateSnapshotStats while recovery adds a segment")
                     .doesNotThrowAnyException();
-            assertThat(pollingStartedBeforeFirstRead)
-                    .as("stats polling started before recovery read the first segment")
+            assertThat(statsPausedBeforeLastSegment)
+                    .as("the stats call was listing the segments when recovery got the last segment")
                     .isTrue();
-            assertThat(statsAtMidSegment.get())
-                    .as("stats returned while recovery waited at the middle segment")
-                    .isNotNull();
-            assertThat(statsAtMidSegment.get().segmentsStats.segmentStats)
-                    .as("segments listed while recovery waited at the middle segment")
-                    .hasSize(MID_SEGMENT);
+            assertThat(statsDuringRecovery.get(5, TimeUnit.SECONDS).segmentsStats.segmentStats)
+                    .as("segments recovered before the stats call")
+                    .hasSize(SEGMENTS - 1);
+
+            recovery.get(10, TimeUnit.SECONDS);
             TransactionBufferStats stats = recoveringProcessor.generateSnapshotStats(true);
             assertThat(stats.segmentsStats.segmentsSize).as("recovered segment indexes").isEqualTo(SEGMENTS);
             assertThat(stats.totalAbortedTransactions).as("recovered aborted transactions").isEqualTo(SEGMENTS);
@@ -252,6 +244,7 @@ public class SnapshotSegmentAbortedTxnProcessorStatsTest {
                     .as("last aborted transactions of the recovered segments")
                     .containsExactlyElementsOf(expectedLastTxnIds);
         } finally {
+            firstMarker.resume();
             statsExecutor.shutdownNow();
             try {
                 if (processor != null) {
@@ -264,6 +257,12 @@ public class SnapshotSegmentAbortedTxnProcessorStatsTest {
             assertThat(recoveryExecutor.awaitTermination(5, TimeUnit.SECONDS))
                     .as("recovery executor stopped").isTrue();
         }
+    }
+
+    private static boolean isBlockedBy(Thread thread, Thread lockOwner) {
+        ThreadInfo info = ManagementFactory.getThreadMXBean().getThreadInfo(thread.threadId());
+        return info != null && info.getThreadState() == Thread.State.BLOCKED
+                && info.getLockOwnerId() == lockOwner.threadId();
     }
 
     private static byte[] encodeSegment(Schema<TransactionBufferSnapshotSegment> schema, String topicName,
@@ -279,6 +278,68 @@ public class SnapshotSegmentAbortedTxnProcessorStatsTest {
         } finally {
             data.release();
             payload.release();
+        }
+    }
+
+    /** A position whose {@code toString} can be held, to pause the thread that formats it. */
+    private static final class PausingPosition implements Position {
+        private final long ledgerId;
+        private final long entryId;
+        private final AtomicBoolean pauseNext = new AtomicBoolean();
+        private final CountDownLatch paused = new CountDownLatch(1);
+        private final CountDownLatch resumed = new CountDownLatch(1);
+
+        private PausingPosition(long ledgerId, long entryId) {
+            this.ledgerId = ledgerId;
+            this.entryId = entryId;
+        }
+
+        void pauseNextToString() {
+            pauseNext.set(true);
+        }
+
+        boolean awaitPaused() throws InterruptedException {
+            return paused.await(10, TimeUnit.SECONDS);
+        }
+
+        void resume() {
+            resumed.countDown();
+        }
+
+        @Override
+        public long getLedgerId() {
+            return ledgerId;
+        }
+
+        @Override
+        public long getEntryId() {
+            return entryId;
+        }
+
+        @Override
+        public String toString() {
+            if (pauseNext.compareAndSet(true, false)) {
+                paused.countDown();
+                try {
+                    if (!resumed.await(10, TimeUnit.SECONDS)) {
+                        throw new IllegalStateException("The paused toString was not resumed");
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new IllegalStateException(e);
+                }
+            }
+            return ledgerId + ":" + entryId;
+        }
+
+        @Override
+        public int hashCode() {
+            return hashCodeForPosition();
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            return obj instanceof Position && compareTo((Position) obj) == 0;
         }
     }
 }
