@@ -1937,9 +1937,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         synchronized (this) {
             if (state.isFenced()) {
                 result = CompletableFuture.failedFuture(new ManagedLedgerFencedException());
-            } else if (state == State.Closed) {
-                result = CompletableFuture.failedFuture(
-                        new ManagedLedgerAlreadyClosedException("Managed ledger is already closed"));
             } else if (state == State.Terminated && terminationFuture == null) {
                 // The terminated position was recovered from metadata, so no persistence is in flight.
                 result = CompletableFuture.completedFuture(lastConfirmedEntry);
