@@ -30,6 +30,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.mledger.PositionFactory;
@@ -41,8 +42,10 @@ import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.TransportCnx;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.KeySharedMode;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.policies.data.HierarchyTopicPolicies;
 import org.apache.pulsar.common.policies.data.PolicyHierarchyValue;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -183,10 +186,98 @@ public class PersistentDispatcherMultipleConsumersReplayYieldTest extends Shared
         assertThat(dispatcher.havePendingReplayRead).isTrue();
     }
 
+    @Test
+    public void testKeepsStrictPriorityWhileTheBoundIsDisabled() {
+        PersistentDispatcherMultipleConsumers dispatcher = newDispatcher(
+                new PersistentDispatcherMultipleConsumers(topic, cursor, subscription), 0);
+        dispatcher.addMessageToReplay(1, 1);
+
+        runPassAt(dispatcher, 0);
+        runPassAt(dispatcher, TimeUnit.DAYS.toNanos(1));
+
+        assertThat(dispatcher.havePendingReplayRead).as("replays keep priority indefinitely").isTrue();
+        assertThat(dispatcher.havePendingRead).isFalse();
+        verify(cursor, never()).asyncReadEntriesWithSkipOrWait(anyInt(), anyLong(), any(), any(), any(), any());
+    }
+
+    @Test
+    public void testRestartsTheClockWhenReplaysDrainWithoutANormalRead() {
+        PersistentDispatcherMultipleConsumers dispatcher = newDispatcher(new PersistentDispatcherMultipleConsumers(
+                topic, cursor, subscription));
+        dispatcher.addMessageToReplay(1, 1);
+        runPassAt(dispatcher, 0);
+
+        // The replays drain while the normal read cannot be scheduled (a read is pending): the
+        // postponement by replays still ends, so the next storm gets the full bound again.
+        dispatcher.redeliveryMessages.clear();
+        dispatcher.havePendingRead = true;
+        dispatcher.havePendingReplayRead = false;
+        doReturn(10 * MS).when(dispatcher).currentTimeNanos();
+        dispatcher.internalReadMoreEntries();
+
+        dispatcher.addMessageToReplay(1, 1);
+        runPassAt(dispatcher, 500 * MS);
+        assertThat(dispatcher.havePendingRead).as("the next storm starts a fresh clock").isFalse();
+        assertThat(dispatcher.havePendingReplayRead).isTrue();
+
+        runPassAt(dispatcher, 650 * MS);
+        assertThat(dispatcher.havePendingRead).as("the bound elapses from the fresh clock").isTrue();
+    }
+
+    @Test
+    public void testReplaysGetPriorityAgainAfterAYieldedNormalRead() {
+        PersistentDispatcherMultipleConsumers dispatcher = newDispatcher(new PersistentDispatcherMultipleConsumers(
+                topic, cursor, subscription));
+        dispatcher.addMessageToReplay(1, 1);
+        runPassAt(dispatcher, 0);
+        runPassAt(dispatcher, 150 * MS);
+        assertThat(dispatcher.havePendingRead).isTrue();
+
+        // Scheduling the normal read ended the postponement; the replays that stayed queued get
+        // priority again for a full bound once it completes.
+        runPassAt(dispatcher, 200 * MS);
+        assertThat(dispatcher.havePendingReplayRead).as("replays get priority again").isTrue();
+        runPassAt(dispatcher, 260 * MS);
+        assertThat(dispatcher.havePendingRead).as("for a full bound, not the remainder of the old clock").isFalse();
+        runPassAt(dispatcher, 350 * MS);
+        assertThat(dispatcher.havePendingRead).isTrue();
+    }
+
+    @Test
+    public void testKeepsDueDelayedMessagesQueuedAcrossTheYield() {
+        // A due delayed message is moved from the tracker into the replay set by the same round
+        // that then yields: the yield only clears this round's selection, so the position stays
+        // queued for the replay that follows the normal read.
+        doReturn(true).when(topic).isDelayedDeliveryEnabled();
+        PersistentDispatcherMultipleConsumers dispatcher = newDispatcher(new PersistentDispatcherMultipleConsumers(
+                topic, cursor, subscription));
+        assertThat(dispatcher.trackDelayedDelivery(2, 1,
+                new MessageMetadata().setDeliverAtTime(System.currentTimeMillis()))).isTrue();
+
+        // Drive passes until the tracker hands the due message to the replay set; that pass starts
+        // the clock at 0.
+        Awaitility.await("the due delayed message reaches the replay set").atMost(Duration.ofSeconds(10))
+                .untilAsserted(() -> {
+                    runPassAt(dispatcher, 0);
+                    assertThat(dispatcher.redeliveryMessages.size()).isEqualTo(1);
+                    assertThat(dispatcher.havePendingReplayRead).isTrue();
+                });
+
+        runPassAt(dispatcher, 150 * MS);
+
+        assertThat(dispatcher.havePendingRead).as("the bound yields to the normal read").isTrue();
+        assertThat(dispatcher.redeliveryMessages.size()).as("the due delayed message stays queued").isEqualTo(1);
+    }
+
     private PersistentDispatcherMultipleConsumers newDispatcher(PersistentDispatcherMultipleConsumers dispatcher) {
+        return newDispatcher(dispatcher, BOUND_MILLIS);
+    }
+
+    private PersistentDispatcherMultipleConsumers newDispatcher(PersistentDispatcherMultipleConsumers dispatcher,
+                                                               long boundMillis) {
         PersistentDispatcherMultipleConsumers spied = spy(dispatcher);
         doNothing().when(spied).readMoreEntriesAsync();
-        spied.setMaxReplayPriorityDurationInMillisForTesting((int) BOUND_MILLIS);
+        spied.setMaxReplayPriorityDurationInMillisForTesting((int) boundMillis);
         spied.addConsumer(connectableConsumer());
         return spied;
     }

@@ -46,11 +46,12 @@ import org.testng.annotations.Test;
  * Replays (redeliveries, due delayed messages) go before normal reads; a redelivery storm must not
  * starve the entries waiting to be read for longer than {@code dispatcherMaxReplayPriorityDurationInMillis}.
  *
- * <p>This runs the real broker, producer and consumer. The consumer does not acknowledge the first
- * messages; the test re-adds their positions through the dispatcher, the broker-side effect of a
- * client that redelivers every message, so the replay queue stays busy through the real dispatch
- * path. With the bound disabled (0), strict replay priority is kept and the normal messages are not
- * dispatched; with a positive bound, they are dispatched while the storm goes on.
+ * <p>This runs the real broker, producer and consumer with the bound enabled. The consumer nacks
+ * every storm delivery right away, the real redelivery path, so the replay queue stays busy through
+ * the real dispatch path, and the normal messages must be dispatched while the storm goes on.
+ * Whether the bound yields, and the strict priority of the disabled bound, are covered
+ * deterministically at the dispatcher level in
+ * {@link PersistentDispatcherMultipleConsumersReplayYieldTest}.
  */
 @Test(groups = "broker-api")
 public class PersistentDispatcherMultipleConsumersReadFairnessTest extends SharedPulsarBaseTest {
@@ -106,13 +107,8 @@ public class PersistentDispatcherMultipleConsumersReadFairnessTest extends Share
                          }
                      })
                      .subscribe()) {
-            for (int i = 0; i < STORM_COUNT; i++) {
-                producer.newMessage().key(STORM_KEY).value("storm-" + i).send();
-            }
-            Awaitility.await("the consumer receives the storm")
-                    .atMost(Duration.ofSeconds(10))
-                    .untilAsserted(() -> assertEquals(stormPositions.size(), STORM_COUNT));
-
+            // Enable the bound before the storm starts: the nacked replays of the first storm
+            // messages would otherwise starve the normal read that delivers the remaining ones.
             PersistentTopic topic = (PersistentTopic) getTopic(topicName, false).get(5, TimeUnit.SECONDS)
                     .orElseThrow();
             PersistentSubscription subscription = (PersistentSubscription) topic.getSubscription(SUBSCRIPTION);
@@ -120,6 +116,13 @@ public class PersistentDispatcherMultipleConsumersReadFairnessTest extends Share
                     (PersistentDispatcherMultipleConsumers) subscription.getDispatcher();
             dispatcher.setMaxReplayPriorityDurationInMillisForTesting(BOUND_MILLIS);
             org.apache.pulsar.broker.service.Consumer brokerConsumer = subscription.getConsumers().get(0);
+
+            for (int i = 0; i < STORM_COUNT; i++) {
+                producer.newMessage().key(STORM_KEY).value("storm-" + i).send();
+            }
+            Awaitility.await("the consumer receives the storm")
+                    .atMost(Duration.ofSeconds(20))
+                    .untilAsserted(() -> assertEquals(stormPositions.size(), STORM_COUNT));
 
             Awaitility.await("the replay queue is busy with the nack storm")
                     .atMost(Duration.ofSeconds(10))

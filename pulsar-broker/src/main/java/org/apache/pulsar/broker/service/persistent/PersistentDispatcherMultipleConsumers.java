@@ -457,6 +457,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                         .attr("messagesToReplay", messagesToReplayNow.size())
                         .log("Yield to the normal read postponed by replays");
                 messagesToReplayNow = Collections.emptySet();
+            } else if (messagesToReplayNow.isEmpty()) {
+                // A round without replays ends the postponement by replays, whether or not the
+                // normal read can be scheduled now: the next storm gets the full bound again.
+                normalReadStarved = false;
             }
             if (!messagesToReplayNow.isEmpty()) {
                 log.debug()
