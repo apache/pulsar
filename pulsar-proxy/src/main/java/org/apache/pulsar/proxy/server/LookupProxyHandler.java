@@ -199,14 +199,13 @@ public class LookupProxyHandler {
                     }).<CompletableFuture<Void>>handle((result, error) -> {
                         releaseLookupConnection(connectionPool, clientCnx, clientRequestId);
                         if (error != null) {
-                            Throwable cause = FutureUtil.unwrapCompletionException(error);
                             log.warn()
                                     .attr("clientAddress", clientAddress)
                                     .attr("topic", topic)
-                                    .exceptionMessage(cause)
+                                    .exceptionMessage(error)
                                     .log("Failed to lookup topic");
                             writeAndFlush(Commands.newLookupErrorResponse(
-                                    getServerError(cause), cause.getMessage(), clientRequestId));
+                                    getServerError(error), error.getMessage(), clientRequestId));
                             return CompletableFuture.completedFuture(null);
                         }
                         return handleLookupResult(clientRequestId, topic, addr, result, numberOfRetries);

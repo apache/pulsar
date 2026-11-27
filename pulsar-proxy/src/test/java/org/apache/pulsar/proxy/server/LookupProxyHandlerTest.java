@@ -21,6 +21,7 @@ package org.apache.pulsar.proxy.server;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
+import static org.mockito.AdditionalAnswers.delegatesTo;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
@@ -407,7 +408,10 @@ public class LookupProxyHandlerTest {
     public void testGetTopicsOfNamespaceHoldsPermitUntilResponse() throws Exception {
         long heapMemoryLimit = 1024;
         long directMemoryLimit = 1024;
-        configureTopicListLimits(heapMemoryLimit, directMemoryLimit).updateSize(1);
+        TopicListSizeResultCache.ResultHolder size = configureTopicListLimits(heapMemoryLimit, directMemoryLimit);
+        // Another listing is already measuring the size for this namespace.
+        assertThat(size.getSizeAsync()).as("Initial estimate for the first listing")
+                .isCompletedWithValue(heapMemoryLimit);
         CompletableFuture<GetTopicsResult> topicsFuture = stubGetTopicsOfNamespace();
 
         AsyncDualMemoryLimiterPermit blockingDirectPermit =
@@ -426,6 +430,10 @@ public class LookupProxyHandlerTest {
             verify(otherConnection, never()).getConnectionPool();
 
             connectionFuture.complete(clientCnx);
+            verify(clientCnx, never()).newGetTopicsOfNamespace(any(ByteBuf.class), eq(BROKER_REQUEST_ID));
+            assertThat(lookupRequestSemaphore.availablePermits())
+                    .as("Permits while awaiting the size estimate").isZero();
+            size.updateSize(1);
             verify(clientCnx).newGetTopicsOfNamespace(any(ByteBuf.class), eq(BROKER_REQUEST_ID));
             assertThat(lookupRequestSemaphore.availablePermits()).as("Permits while awaiting the topic list").isZero();
             // An earlier heap waiter can proceed once the request queues its resize and releases its estimate.
@@ -511,6 +519,9 @@ public class LookupProxyHandlerTest {
     public void testGetTopicsOfNamespaceReleasesPermitOnInitialHeapCancellation() throws Exception {
         long heapLimit = 1024;
         configureTopicListLimits(heapLimit, 1024);
+        ChannelHandlerContext context = mock(ChannelHandlerContext.class,
+                delegatesTo(channel.pipeline().firstContext()));
+        when(proxyConnection.ctx()).thenReturn(context);
         AsyncDualMemoryLimiterPermit blockingPermit =
                 topicListLimiter.acquire(heapLimit, LimitType.HEAP_MEMORY, () -> false).get(10, SECONDS);
         try {
@@ -528,7 +539,8 @@ public class LookupProxyHandlerTest {
                 .as("Permits after cancellation").isOne());
         verify(clientCnx, never()).newGetTopicsOfNamespace(any(ByteBuf.class), eq(BROKER_REQUEST_ID));
         verify(connectionPool).releaseConnection(clientCnx);
-        assertThat(channel.outboundMessages()).as("Responses for cancelled listing").isEmpty();
+        verify(context, never()).writeAndFlush(any());
+        verify(context, never()).writeAndFlush(any(), any(ChannelPromise.class));
     }
 
     @DataProvider
@@ -759,14 +771,24 @@ public class LookupProxyHandlerTest {
         assertThat(lookupRequestSemaphore.availablePermits()).as("Permits after connection failure").isOne();
     }
 
-    @Test
-    public void testLookupBrokerAuthenticationFailure() {
+    @DataProvider
+    public Object[][] brokerAuthenticationFailures() {
+        var failure = new PulsarClientException.AuthenticationException("Lookup failed");
+        return new Object[][] {
+                {failure, ServerError.AuthenticationError, "Lookup failed"},
+                {new CompletionException(failure), ServerError.ServiceNotReady, failure.toString()}
+        };
+    }
+
+    @Test(dataProvider = "brokerAuthenticationFailures")
+    public void testLookupBrokerAuthenticationFailure(Throwable failure, ServerError expectedError,
+                                                      String expectedMessage) {
         handler.handleLookup(newLookupRequest());
         connectionFuture.complete(clientCnx);
         assertThat(lookupRequestSemaphore.availablePermits()).as("Permits while awaiting the lookup").isZero();
-        metadataFuture.completeExceptionally(new PulsarClientException.AuthenticationException("Lookup failed"));
+        metadataFuture.completeExceptionally(failure);
 
-        assertThat(readLookupErrorResponse(ServerError.AuthenticationError).getMessage()).isEqualTo("Lookup failed");
+        assertThat(readLookupErrorResponse(expectedError).getMessage()).isEqualTo(expectedMessage);
         verify(connectionPool).releaseConnection(clientCnx);
         assertThat(lookupRequestSemaphore.availablePermits()).as("Permits after lookup failure").isOne();
     }
