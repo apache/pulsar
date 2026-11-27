@@ -73,7 +73,9 @@ public class BrokerPendingRequestGaugesTest {
             }
         });
 
-        // Producers on new topics make the brokers run lookups and topic loads while they are scraped
+        // Creating producers on new topics makes the brokers run lookups and topic loads. The brokers are scraped
+        // once the creation has started, until the producers are created. A scrape does not have to overlap a
+        // pending lookup or topic load.
         @Cleanup
         var client = PulsarClient.builder().serviceUrl(pulsarCluster.getPlainTextServiceUrl()).build();
         List<CompletableFuture<Producer<byte[]>>> producers = new ArrayList<>();
@@ -88,8 +90,8 @@ public class BrokerPendingRequestGaugesTest {
                 var metrics = scrape(broker);
                 for (String gauge : PENDING_REQUEST_GAUGES) {
                     assertThat(metrics.getNameToDataPoints().get(gauge))
-                            .as("samples of %s in the metrics of the broker %s while producers are created", gauge,
-                                    broker.getHostname())
+                            .as("samples of %s in the metrics of the broker %s after the creation of the producers"
+                                    + " has started", gauge, broker.getHostname())
                             .singleElement()
                             .extracting(sample -> sample.value, InstanceOfAssertFactories.DOUBLE)
                             .isNotNegative();
