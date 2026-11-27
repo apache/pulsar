@@ -1825,4 +1825,30 @@ public class ConsumerImplTest {
                 .hasCauseInstanceOf(PulsarClientException.AlreadyClosedException.class);
     }
 
+    @Test(timeOut = 5000)
+    public void testCloseFailsPendingLookupAfterExternalExecutorShutdown() throws Exception {
+        ScheduledExecutorProvider provider = mock(ScheduledExecutorProvider.class);
+        ScheduledExecutorService scheduledExecutorService = mock(ScheduledExecutorService.class);
+        when(provider.getExecutor()).thenReturn(scheduledExecutorService);
+        when(consumer.getClient().getScheduledExecutorProvider()).thenReturn(provider);
+
+        when(scheduledExecutorService.schedule(any(Runnable.class), anyLong(), any(TimeUnit.class)))
+                .thenAnswer(inv -> mock(ScheduledFuture.class));
+
+        CompletableFuture<?> future = consumer.internalGetLastMessageIdAsync();
+        assertThat(future).isNotDone();
+
+        executorProvider.shutdownNow();
+        executorProvider = null;
+        internalExecutor.shutdownNow();
+        internalExecutor = null;
+
+        consumer.closeAsync();
+
+        Awaitility.await().untilAsserted(() -> assertTrue(future.isCompletedExceptionally()));
+        assertThatThrownBy(future::join)
+                .isInstanceOf(CompletionException.class)
+                .hasCauseInstanceOf(PulsarClientException.AlreadyClosedException.class);
+    }
+
 }

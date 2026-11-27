@@ -1476,8 +1476,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         PulsarClientException.AlreadyClosedException ex = new PulsarClientException.AlreadyClosedException(
             String.format("The consumer %s is closing: subscription %s of topic %s",
                     consumerName, subscription, topicName.toString()));
-        pendingGetLastMessageIdFutures.forEach(f ->
-            externalPinnedExecutor.get().execute(() -> f.completeExceptionally(ex)));
+        pendingGetLastMessageIdFutures.forEach(f -> {
+            if (!f.isDone()) {
+                CompletableFuture.runAsync(() -> f.completeExceptionally(ex));
+            }
+        });
     }
 
     void activeConsumerChanged(boolean isActive) {
