@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.stats.prometheus;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import io.prometheus.metrics.core.metrics.GaugeWithCallback;
 import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import io.prometheus.metrics.model.snapshots.GaugeSnapshot;
@@ -118,7 +119,27 @@ public class NettyDirectMemoryGaugesTest {
     }
 
     @Test
-    public void testScrapesGetEachGaugeOnceWhileMoreRegistrationsOpenAndClose() throws Exception {
+    public void testRegisterOnAnotherRegistryThrowsForATakenName() {
+        PrometheusRegistry registry = new PrometheusRegistry();
+        NettyDirectMemoryGauges.registerOn(registry);
+        assertThat(registry.scrape().stream().map(gauge -> gauge.getMetadata().getPrometheusName()).toList())
+                .as("gauges in a scrape of the registry that the gauges were registered on")
+                .containsExactlyInAnyOrder(USED, MAX);
+        assertThatThrownBy(() -> NettyDirectMemoryGauges.registerOn(registry))
+                .as("registering the gauges a second time on the same registry")
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThat(scrapeGauges())
+                .as("Netty direct memory gauges in a scrape of the default registry")
+                .isEmpty();
+    }
+
+    /**
+     * The first registration stays open the whole time, so the registrations that open and close meanwhile only
+     * change the count, as when the proxy registers while a broker in the JVM has the gauges. Registering the gauges
+     * after the last registration has closed is not covered here.
+     */
+    @Test
+    public void testRegistrationsThatOpenAndCloseWhileAnotherIsOpenNeverShowAGaugeTwice() throws Exception {
         AtomicBoolean registrationsOpenAndClose = new AtomicBoolean(true);
         AtomicLong scrapeCount = new AtomicLong();
         @Cleanup("shutdownNow")
@@ -151,11 +172,12 @@ public class NettyDirectMemoryGaugesTest {
 
             assertThat(scrapes.get(1, TimeUnit.MINUTES))
                     .as("Netty direct memory gauges in the scrapes of the registry while more registrations opened"
-                            + " and closed")
+                            + " and closed and the first one stayed open")
                     .allSatisfy(names -> assertThat(names).as("gauges in one scrape").doesNotHaveDuplicates());
         }
         assertThat(scrapesWhileRegistrationsOpenAndClose)
-                .as("scrapes of the registry that finished while more registrations opened and closed")
+                .as("scrapes of the registry that finished while more registrations opened and closed and the first"
+                        + " one stayed open")
                 .isGreaterThanOrEqualTo(1_000);
     }
 

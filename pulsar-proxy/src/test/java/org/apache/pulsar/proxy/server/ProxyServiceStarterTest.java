@@ -143,8 +143,9 @@ public class ProxyServiceStarterTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testMetricsEndpointExposesEachNettyDirectMemoryGaugeOnce() {
-        // A broker in this JVM registers the same two gauges on the same registry first, so the proxy does not
-        // register its own. A proxy that registered them on another registry would show each of them twice.
+        // A broker in this JVM and the proxy both register the two gauges on the same registry through
+        // NettyDirectMemoryGauges, which puts each of them there once. A proxy that registered them on another
+        // registry would show each of them twice.
         @Cleanup
         Client httpClient = ClientBuilder.newClient();
         @Cleanup

@@ -32,13 +32,19 @@ public class MetricsExports {
     public static synchronized void initialize() {
         if (!initialized) {
             JvmMetrics.builder().register();
-            NettyDirectMemoryGauges.register();
             register(PrometheusRegistry.defaultRegistry);
             initialized = true;
         }
     }
 
     public static void register(PrometheusRegistry registry) {
+        if (registry == PrometheusRegistry.defaultRegistry) {
+            // The broker exports the gauges for the life of the JVM, so what register() returns is never closed
+            NettyDirectMemoryGauges.register();
+        } else {
+            NettyDirectMemoryGauges.registerOn(registry);
+        }
+
         // metric to export pulsar version info. Nothing exports exemplars, so the gauge skips the sampling that
         // 1.x gauges do by default.
         Gauge.builder()

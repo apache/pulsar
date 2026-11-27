@@ -19,17 +19,22 @@
 package org.apache.pulsar.functions.worker;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Answers.RETURNS_DEFAULTS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
+import io.opentelemetry.api.metrics.Meter;
 import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import io.prometheus.metrics.model.snapshots.MetricSnapshot;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.apache.pulsar.functions.proto.FunctionMetaData;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 import org.testng.annotations.Test;
 
 /**
@@ -160,6 +165,39 @@ public class WorkerStatsManagerTest {
                 .as("Netty direct memory gauges in a scrape of the registry after the second standalone worker stats"
                         + " closed")
                 .isEmpty();
+    }
+
+    @Test
+    public void testStandaloneWorkerStatsUnregisterTheNettyDirectMemoryGaugesWhenTheOpenTelemetryStatsFailToClose() {
+        WorkerConfig workerConfig = new WorkerConfig().setPulsarFunctionsCluster("test-cluster");
+        assertThat(scrapeNettyDirectMemoryGauges())
+                .as("Netty direct memory gauges in a scrape of the registry before the test")
+                .isEmpty();
+        WorkerStatsManager statsManager =
+                new WorkerStatsManager(workerConfig, true, mock(Meter.class, new CloseFails()));
+        assertThat(scrapeNettyDirectMemoryGauges())
+                .as("Netty direct memory gauges in a scrape of the registry while standalone worker stats run")
+                .containsExactlyInAnyOrder(DIRECT_MEMORY_USED, DIRECT_MEMORY_MAX);
+
+        assertThatThrownBy(statsManager::close)
+                .as("closing standalone worker stats whose OpenTelemetry gauges fail to close")
+                .isInstanceOf(IllegalStateException.class);
+        assertThat(scrapeNettyDirectMemoryGauges())
+                .as("Netty direct memory gauges in a scrape of the registry after closing the standalone worker stats"
+                        + " failed")
+                .isEmpty();
+    }
+
+    /** Mocks every interface that a call returns with the same answer, and fails every {@code close()}. */
+    private static final class CloseFails implements Answer<Object> {
+        @Override
+        public Object answer(InvocationOnMock invocation) throws Throwable {
+            if (invocation.getMethod().getName().equals("close")) {
+                throw new IllegalStateException("close failed");
+            }
+            Class<?> returnType = invocation.getMethod().getReturnType();
+            return returnType.isInterface() ? mock(returnType, this) : RETURNS_DEFAULTS.answer(invocation);
+        }
     }
 
     private static double sample(String text, String name, String labels) {

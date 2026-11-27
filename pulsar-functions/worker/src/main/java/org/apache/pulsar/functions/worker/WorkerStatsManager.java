@@ -311,9 +311,12 @@ public class WorkerStatsManager implements AutoCloseable {
 
   @Override
   public void close() {
-    openTelemetryWorkerStats.close();
-    if (directMemoryGauges != null) {
-      directMemoryGauges.close();
+    try {
+      openTelemetryWorkerStats.close();
+    } finally {
+      if (directMemoryGauges != null) {
+        directMemoryGauges.close();
+      }
     }
   }
 
