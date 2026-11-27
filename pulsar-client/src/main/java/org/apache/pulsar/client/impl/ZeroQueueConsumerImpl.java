@@ -252,6 +252,7 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
                                              MessageIdImpl messageId, Schema<T> schema,
                                              int redeliveryCount, List<Long> ackSet, long consumerEpoch) {
         if (this.isBatch(messageMetadata)) {
+            byteBuf.release();
             rejectBatchMessageByClosingConsumer(messageId);
         } else {
             super.processPayloadByProcessor(brokerEntryMetadata, messageMetadata, byteBuf, messageId, schema,
