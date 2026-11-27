@@ -63,6 +63,7 @@ import org.apache.pulsar.client.impl.auth.v5.HttpAuthenticationDriver;
 import org.apache.pulsar.client.impl.auth.v5.HttpChallengeTransport;
 import org.apache.pulsar.client.impl.auth.v5.V5AuthContexts;
 import org.apache.pulsar.common.policies.data.ErrorData;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 /**
@@ -190,9 +191,16 @@ public abstract class BaseResource {
         });
     }
 
+    /**
+     * The auth-stage counterpart of {@link #mapInvocationFailure(Throwable)}: an admin exception that
+     * {@link #requestAsync(WebTarget)} already raised is kept, and anything else becomes the subtype the
+     * blocking {@link #request(WebTarget)} used to throw, so a caller's {@code catch} still matches.
+     */
     private static PulsarAdminException authenticationFailure(Throwable ex) {
-        Throwable cause = unwrapCompletion(ex);
-        return (cause instanceof PulsarAdminException pae) ? pae : new GettingAuthenticationDataException(cause);
+        Throwable cause = FutureUtil.unwrapCompletionException(ex);
+        return cause instanceof PulsarAdminException adminException
+                ? adminException
+                : new GettingAuthenticationDataException(cause);
     }
 
     // do the authentication stage, and once authentication completed return a Builder
