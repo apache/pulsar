@@ -38,22 +38,31 @@ public class MetricsExports {
     }
 
     public static void register(PrometheusRegistry registry) {
+        NettyDirectMemoryGauges directMemoryGauges = null;
         if (registry == PrometheusRegistry.defaultRegistry) {
-            // The broker exports the gauges for the life of the JVM, so what register() returns is never closed
-            NettyDirectMemoryGauges.register();
+            // The broker exports the gauges for the life of the JVM, so this registration is closed only if this
+            // call fails
+            directMemoryGauges = NettyDirectMemoryGauges.register();
         } else {
             NettyDirectMemoryGauges.registerOn(registry);
         }
 
-        // metric to export pulsar version info. Nothing exports exemplars, so the gauge skips the sampling that
-        // 1.x gauges do by default.
-        Gauge.builder()
-                .name("pulsar_version_info")
-                .help("-")
-                .labelNames("version", "commit")
-                .withoutExemplars()
-                .register(registry)
-                .labelValues(PulsarVersion.getVersion(), PulsarVersion.getGitSha())
-                .set(1);
+        try {
+            // metric to export pulsar version info. Nothing exports exemplars, so the gauge skips the sampling that
+            // 1.x gauges do by default.
+            Gauge.builder()
+                    .name("pulsar_version_info")
+                    .help("-")
+                    .labelNames("version", "commit")
+                    .withoutExemplars()
+                    .register(registry)
+                    .labelValues(PulsarVersion.getVersion(), PulsarVersion.getGitSha())
+                    .set(1);
+        } catch (RuntimeException e) {
+            if (directMemoryGauges != null) {
+                directMemoryGauges.close();
+            }
+            throw e;
+        }
     }
 }
