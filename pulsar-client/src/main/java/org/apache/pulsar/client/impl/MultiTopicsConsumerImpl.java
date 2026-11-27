@@ -1081,25 +1081,11 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     private void removeExpiredMessagesFromQueue(Set<MessageId> messageIds) {
-        Message<T> peek = incomingMessages.peek();
-        if (peek != null) {
-            if (!messageIds.contains(peek.getMessageId())) {
-                // first message is not expired, then no message is expired in queue.
-                return;
-            }
-
-            // try not to remove elements that are added while we remove
-            Message<T> message = incomingMessages.poll();
+        // Only remove expired messages at the head of the queue, so that the messages behind them keep their order
+        Message<T> message;
+        while ((message = incomingMessages.pollIf(msg -> messageIds.contains(msg.getMessageId()))) != null) {
             checkState(message instanceof TopicMessageImpl);
-            while (message != null) {
-                MessageId messageId = message.getMessageId();
-                discardIncomingMessage(message);
-                if (!messageIds.contains(messageId)) {
-                    messageIds.add(messageId);
-                    break;
-                }
-                message = incomingMessages.poll();
-            }
+            discardIncomingMessage(message);
         }
     }
 
