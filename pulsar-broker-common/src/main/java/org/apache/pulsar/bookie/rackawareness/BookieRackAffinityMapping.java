@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.bookie.rackawareness;
 
-import static org.apache.pulsar.metadata.bookkeeper.AbstractMetadataDriver.METADATA_STORE_SCHEME;
 import java.lang.reflect.Field;
 import java.net.InetAddress;
 import java.util.ArrayList;
@@ -53,6 +52,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.bookkeeper.AbstractMetadataDriver;
 
 /**
  * It provides the mapping of bookies to its rack from zookeeper.
@@ -71,6 +71,9 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
      */
     public static final String METADATA_STORE_LISTENER_CLEANUP = "METADATA_STORE_LISTENER_CLEANUP";
 
+    // BookKeeper's AbstractConfiguration#getZkTimeout default.
+    private static final int DEFAULT_ZK_TIMEOUT_MILLIS = 10_000;
+
     private MetadataCache<BookiesRackConfiguration> bookieMappingCache = null;
     private volatile ITopologyAwareEnsemblePlacementPolicy<BookieNode> rackawarePolicy = null;
     private List<BookieId> bookieAddressListLastTime = new ArrayList<>();
@@ -88,15 +91,14 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
             }
             store = (MetadataStore) storeProperty;
         } else {
-            String url;
             String metadataServiceUri = ConfigurationStringUtil.castToString(conf.getProperty("metadataServiceUri"));
             if (StringUtils.isNotBlank(metadataServiceUri)) {
-                try {
-                    url = metadataServiceUri.replaceFirst(METADATA_STORE_SCHEME + ":", "")
-                            .replace(";", ",");
-                } catch (Exception e) {
-                    throw new MetadataException(Code.METADATA_SERVICE_ERROR, e);
-                }
+                // A configuration may set only the URI, with sessionTimeoutMillis in its query string; BookKeeper's
+                // own default applies then.
+                int zkTimeout = conf.getInt("zkTimeout", DEFAULT_ZK_TIMEOUT_MILLIS);
+                // Parsed as the BookKeeper metadata drivers parse it, so that MetadataStoreConfig parameters in the
+                // query string, such as configFilePath, configure the store rather than end up in its URL.
+                store = AbstractMetadataDriver.createMetadataStore(metadataServiceUri, zkTimeout);
             } else {
                 String zkServers = ConfigurationStringUtil.castToString(conf.getProperty("zkServers"));
                 if (StringUtils.isBlank(zkServers)) {
@@ -104,17 +106,16 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
                             + "metadataServiceUri/zkServers set in bk server configuration", METADATA_STORE_INSTANCE);
                     throw new RuntimeException(errorMsg);
                 }
-                url = zkServers;
-            }
-            try {
-                int zkTimeout = Integer.parseInt((String) conf.getProperty("zkTimeout"));
-                store = MetadataStoreExtended.create(url,
-                        MetadataStoreConfig.builder()
-                                .metadataStoreName(MetadataStoreConfig.METADATA_STORE)
-                                .sessionTimeoutMillis(zkTimeout)
-                                .build());
-            } catch (MetadataStoreException e) {
-                throw new MetadataException(Code.METADATA_SERVICE_ERROR, e);
+                try {
+                    int zkTimeout = Integer.parseInt((String) conf.getProperty("zkTimeout"));
+                    store = MetadataStoreExtended.create(zkServers,
+                            MetadataStoreConfig.builder()
+                                    .metadataStoreName(MetadataStoreConfig.METADATA_STORE)
+                                    .sessionTimeoutMillis(zkTimeout)
+                                    .build());
+                } catch (MetadataStoreException e) {
+                    throw new MetadataException(Code.METADATA_SERVICE_ERROR, e);
+                }
             }
         }
         return store;
@@ -128,7 +129,7 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
         try {
             store = getMetadataStore(conf);
         } catch (MetadataException e) {
-            throw new RuntimeException(METADATA_STORE_INSTANCE + " failed to init BookieId list");
+            throw new RuntimeException(METADATA_STORE_INSTANCE + " failed to init BookieId list: " + e.getMessage(), e);
         }
 
         bookieMappingCache = store.getMetadataCache(BookiesRackConfiguration.class);

@@ -122,7 +122,7 @@ hdrHistogram = "2.2.2"
 perfmark = "0.27.0"
 # Auth
 jsonwebtoken = "0.13.0"
-athenz = "1.12.45"
+athenz = "1.12.52"
 jose4j = "0.9.6"
 nimbus-jose-jwt = "9.37.4"
 auth0-java-jwt = "4.6.2"
@@ -137,7 +137,7 @@ audience-annotations = "0.12.0"
 curator = "5.9.0"
 reflections = "0.10.2"
 # OpenAPI 3 annotations (io.swagger.core.v3, jakarta variant) used for REST API and config docs annotations
-swagger = "2.2.55"
+swagger = "2.2.56"
 typetools = "0.6.3"
 jna = "5.19.1"
 java-semver = "0.10.2"
@@ -345,7 +345,6 @@ simpleclient = { module = "io.prometheus:simpleclient", version.ref = "prometheu
 simpleclient-httpserver = { module = "io.prometheus:simpleclient_httpserver", version.ref = "prometheus" }
 simpleclient-servlet = { module = "io.prometheus:simpleclient_servlet", version.ref = "prometheus" }
 simpleclient-common = { module = "io.prometheus:simpleclient_common", version.ref = "prometheus" }
-simpleclient-log4j2 = { module = "io.prometheus:simpleclient_log4j2", version.ref = "prometheus" }
 prometheus-jmx-collector = { module = "io.prometheus.jmx:collector", version.ref = "prometheus-jmx" }
 # Prometheus Java client 1.x
 prometheus-metrics-annotations = { module = "io.prometheus:prometheus-metrics-annotations", version.ref = "prometheus-client-java" }

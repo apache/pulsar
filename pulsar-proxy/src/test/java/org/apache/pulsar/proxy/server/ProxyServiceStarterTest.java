@@ -22,6 +22,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import com.google.common.collect.Multimap;
+import jakarta.ws.rs.client.Client;
+import jakarta.ws.rs.client.ClientBuilder;
+import jakarta.ws.rs.core.Response;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -45,6 +49,7 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.common.util.DirectMemoryUtils;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ProducerMessage;
 import org.eclipse.jetty.client.HttpClient;
@@ -134,6 +139,30 @@ public class ProxyServiceStarterTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testKeepAliveIntervalSecondsIsConfigured() throws Exception {
         assertEquals(serviceStarter.getConfig().getKeepAliveIntervalSeconds(), 25);
+    }
+
+    @Test
+    public void testMetricsEndpointExposesEachNettyDirectMemoryGaugeOnce() {
+        // A broker in this JVM registers the same two gauges on the same registry first, so the proxy does not
+        // register its own. A proxy that registered them on another registry would show each of them twice.
+        @Cleanup
+        Client httpClient = ClientBuilder.newClient();
+        @Cleanup
+        Response response = httpClient.target(serviceStarter.getServer().getServiceUri()).path("/metrics")
+                .request().get();
+        assertThat(response.getStatus()).as("status of the proxy /metrics").isEqualTo(200);
+        Multimap<String, ProxyPrometheusMetricsTest.Metric> metrics =
+                ProxyPrometheusMetricsTest.parseMetrics(response.readEntity(String.class).trim());
+
+        assertThat(metrics.get("jvm_memory_direct_bytes_max"))
+                .as("jvm_memory_direct_bytes_max samples in the proxy /metrics")
+                .singleElement()
+                .satisfies(max -> assertThat(max.value).isEqualTo(DirectMemoryUtils.jvmMaxDirectMemory()));
+        assertThat(metrics.get("jvm_memory_direct_bytes_used"))
+                .as("jvm_memory_direct_bytes_used samples in the proxy /metrics")
+                .singleElement()
+                .satisfies(used -> assertThat(used.value).as("-1 means the JVM cannot estimate it")
+                        .isGreaterThanOrEqualTo(-1));
     }
 
     @Test

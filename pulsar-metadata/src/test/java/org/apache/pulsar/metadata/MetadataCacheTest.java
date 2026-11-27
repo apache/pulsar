@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.metadata;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.spy;
@@ -36,15 +37,19 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import lombok.AllArgsConstructor;
@@ -64,6 +69,7 @@ import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyExistsException;
+import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.ContentDeserializationException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
@@ -72,6 +78,10 @@ import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.impl.DualMetadataCache;
 import org.apache.pulsar.metadata.impl.LocalMemoryMetadataStore;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
+import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.ZooDefs;
+import org.apache.zookeeper.data.ACL;
 import org.awaitility.Awaitility;
 import org.mockito.stubbing.Answer;
 import org.testng.annotations.Test;
@@ -287,6 +297,30 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         assertEquals(objCache.get(key1).join(), Optional.empty());
     }
 
+    @Test
+    public void createPreservesPermissionFailure() throws Exception {
+        try (ZKMetadataStore store = new ZKMetadataStore(zks.getConnectionString(),
+                MetadataStoreConfig.builder().build(), false)) {
+            String parent = newKey();
+            String path = parent + "/child";
+            store.put(parent, new byte[0], Optional.of(-1L)).get(5, TimeUnit.SECONDS);
+            try (MetadataCache<MyClass> cache = store.getMetadataCache(MyClass.class)) {
+                store.getZkClient().setACL(parent, Collections.singletonList(
+                        new ACL(ZooDefs.Perms.READ | ZooDefs.Perms.ADMIN, ZooDefs.Ids.ANYONE_ID_UNSAFE)), -1);
+
+                assertThat(cache.create(path, new MyClass("a", 1)))
+                        .failsWithin(Duration.ofSeconds(5))
+                        .withThrowableOfType(ExecutionException.class)
+                        .havingCause().isInstanceOf(MetadataStoreException.class)
+                        .havingCause().isInstanceOf(KeeperException.NoAuthException.class);
+                assertThat(cache.get(path).get(5, TimeUnit.SECONDS)).isEmpty();
+            } finally {
+                store.getZkClient().setACL(parent, ZooDefs.Ids.OPEN_ACL_UNSAFE, -1);
+                store.deleteRecursive(parent).get(5, TimeUnit.SECONDS);
+            }
+        }
+    }
+
     @Test(dataProvider = "impl")
     public void insertionWithInvalidation(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
@@ -475,12 +509,40 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         assertEquals(newValue1.get().b, 2);
 
         // Should fail if the key does not exist
-        try {
-            objCache.readModifyUpdate(newKey(), v -> {
-                return new MyClass(v.a, v.b + 1);
-            }).join();
-        } catch (CompletionException e) {
-            assertEquals(e.getCause().getClass(), NotFoundException.class);
+        assertThat(objCache.readModifyUpdate(newKey(), v -> new MyClass(v.a, v.b + 1)))
+                .as("updating a missing key reports NotFoundException")
+                .failsWithin(Duration.ofSeconds(5))
+                .withThrowableOfType(ExecutionException.class)
+                .havingCause().isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    public void readModifyUpdateWithoutRetryPreservesVersionConflict() throws Exception {
+        String url = "memory:" + UUID.randomUUID();
+        try (var store = new LocalMemoryMetadataStore(url, MetadataStoreConfig.builder().build());
+                var writer = new LocalMemoryMetadataStore(url, MetadataStoreConfig.builder().build());
+                MetadataCache<MyClass> cache = store.getMetadataCache(MyClass.class, MetadataCacheConfig.builder()
+                        .retryBackoff(MetadataCacheConfig.NO_RETRY_BACKOFF_BUILDER).build())) {
+            String key = newKey();
+            cache.create(key, new MyClass("initial", 1)).get(5, TimeUnit.SECONDS);
+            MyClass competingValue = new MyClass("writer", 2);
+            byte[] competingData = ObjectMapperFactory.getMapper().writer().writeValueAsBytes(competingValue);
+            AtomicInteger modifications = new AtomicInteger();
+            AtomicReference<CompletableFuture<Stat>> competingWrite = new AtomicReference<>();
+
+            CompletableFuture<MyClass> update = cache.readModifyUpdate(key, current -> {
+                modifications.incrementAndGet();
+                // The memory store writes inline, after the cache read and before its versioned put.
+                competingWrite.set(writer.put(key, competingData, Optional.empty()));
+                return new MyClass("cache", 3);
+            });
+
+            assertThat(update).failsWithin(Duration.ofSeconds(5))
+                    .withThrowableOfType(ExecutionException.class)
+                    .havingCause().isInstanceOf(BadVersionException.class);
+            assertThat(competingWrite.get()).succeedsWithin(Duration.ofSeconds(5)).isNotNull();
+            assertThat(modifications.get()).as("a disabled retry must not invoke the modifier again").isEqualTo(1);
+            assertThat(cache.get(key).get(5, TimeUnit.SECONDS)).contains(competingValue);
         }
     }
 

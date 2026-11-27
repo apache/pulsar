@@ -140,11 +140,14 @@ public final class TransactionBufferClientStatsImpl implements TransactionBuffer
             String[] labelNames = exposeTopicLevelMetrics
                     ? new String[]{"namespace", "topic"} : new String[]{"namespace"};
 
+            // Nothing exports exemplars, so the metrics skip the sampling that 1.x metrics do by default.
             this.abortFailed = Counter.builder().name("pulsar_txn_tb_client_abort_failed").help("-")
                     .labelNames(labelNames)
+                    .withoutExemplars()
                     .register();
             this.commitFailed = Counter.builder().name("pulsar_txn_tb_client_commit_failed").help("-")
                     .labelNames(labelNames)
+                    .withoutExemplars()
                     .register();
             this.abortLatency =
                     this.buildSummary("pulsar_txn_tb_client_abort_latency", "-", labelNames);
@@ -161,6 +164,7 @@ public final class TransactionBufferClientStatsImpl implements TransactionBuffer
         private Summary buildSummary(String name, String help, String[] labelNames) {
             Summary.Builder builder = Summary.builder().name(name).help(help)
                     .labelNames(labelNames)
+                    .withoutExemplars()
                     .maxAgeSeconds(QUANTILE_WINDOW_SECONDS);
             for (double quantile : QUANTILES) {
                 builder.quantile(quantile, 0.01D);

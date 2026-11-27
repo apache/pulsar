@@ -112,6 +112,15 @@ public class ConnectionHandler {
         grabCnx(Optional.of(hostURI));
     }
 
+    /**
+     * Change whether later connections to the explicit host set by {@link #grabCnx(URI, boolean)}
+     * go through the proxy, without connecting now. Used when the v5 transaction coordinator
+     * discovery retargets a connected handler, which reconnects once its current connection closes.
+     */
+    void setUseProxy(boolean useProxy) {
+        this.useProxy = useProxy;
+    }
+
     protected void grabCnx(Optional<URI> hostURI) {
         if (!duringConnect.compareAndSet(false, true)) {
             log.info().log("Skip grabbing the connection since there is a pending connection");
