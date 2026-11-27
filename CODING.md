@@ -114,9 +114,12 @@ Pulsar relies heavily on `CompletableFuture`; prefer it over `ListenableFuture` 
   async wrappers while keeping the business exception and its cause. Do not assume `getCause()`
   returns the business exception.
 
-- **Forward failures directly.** Pass the original error, including an existing
-  `CompletionException`, to `completeExceptionally(error)` or
-  `CompletableFuture.failedFuture(error)`. Do not wrap the error before forwarding it.
+- **Log the original error.** When logging an async failure, use `.exception(error)` to preserve
+  the stack trace of any async wrapper along with the underlying failure.
+
+- **Forward the original error.** When forwarding a failure to another future, pass the original
+  `error` to `completeExceptionally(error)` or `CompletableFuture.failedFuture(error)`, even if
+  you unwrapped it to check its type.
 
   ```java
   // Avoid: extra wrapping can break callers' exception type checks
