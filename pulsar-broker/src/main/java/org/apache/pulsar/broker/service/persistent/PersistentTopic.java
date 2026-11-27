@@ -2677,18 +2677,47 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     @VisibleForTesting
     void checkMessageExpiryWithoutSharedPosition(int messageTtlInSeconds) {
-        subscriptions.forEach((__, sub) -> {
+        subscriptions.forEach((subscriptionName, sub) -> {
             // TTL must not advance non-durable reader cursors past unread retained messages.
             if (sub.getCursor().isDurable() && !isCompactionSubscription(sub.getName())
                     && (additionalSystemCursorNames.isEmpty()
                     || !additionalSystemCursorNames.contains(sub.getName()))) {
-                sub.expireMessagesAsync(messageTtlInSeconds);
+                FutureUtil.supplySafely(() -> sub.expireMessagesAsync(messageTtlInSeconds))
+                        .whenComplete((ignored, error) -> {
+                            if (error != null) {
+                                log.warn()
+                                        .attr("subscription", subscriptionName)
+                                        .attr("messageTTLInSeconds", messageTtlInSeconds)
+                                        .exception(error)
+                                        .log("Failed to start message expiry check");
+                            }
+                        });
             }
         });
-        replicators.forEach((__, replicator)
-                -> ((PersistentReplicator) replicator).expireMessagesAsync(messageTtlInSeconds));
-        shadowReplicators.forEach((__, replicator)
-                -> ((PersistentReplicator) replicator).expireMessagesAsync(messageTtlInSeconds));
+        replicators.forEach((remoteCluster, replicator)
+                -> FutureUtil.supplySafely(
+                        () -> ((PersistentReplicator) replicator).expireMessagesAsync(messageTtlInSeconds))
+                        .whenComplete((ignored, error) -> {
+                            if (error != null) {
+                                log.warn()
+                                        .attr("remoteCluster", remoteCluster)
+                                        .attr("messageTTLInSeconds", messageTtlInSeconds)
+                                        .exception(error)
+                                        .log("Failed to start message expiry check");
+                            }
+                        }));
+        shadowReplicators.forEach((shadowTopic, replicator)
+                -> FutureUtil.supplySafely(
+                        () -> ((PersistentReplicator) replicator).expireMessagesAsync(messageTtlInSeconds))
+                        .whenComplete((ignored, error) -> {
+                            if (error != null) {
+                                log.warn()
+                                        .attr("shadowTopic", shadowTopic)
+                                        .attr("messageTTLInSeconds", messageTtlInSeconds)
+                                        .exception(error)
+                                        .log("Failed to start message expiry check");
+                            }
+                        }));
     }
 
     private void checkMessageExpiryWithSharedPosition(ManagedLedgerImpl ml, int messageTtlInSeconds) {
