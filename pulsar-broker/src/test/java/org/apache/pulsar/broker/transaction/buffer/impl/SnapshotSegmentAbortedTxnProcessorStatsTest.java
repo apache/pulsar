@@ -80,19 +80,16 @@ import org.testng.annotations.Test;
 public class SnapshotSegmentAbortedTxnProcessorStatsTest {
 
     private static final int SEGMENTS = 1_000;
+    private static final int MID_SEGMENT = SEGMENTS / 2;
+    private static final int POLLS_PER_SEGMENT_READ = 8;
     private static final long ABORTED_MARKER_LEDGER_ID = 10;
     private static final long SEGMENT_LEDGER_ID = 20;
 
     @Test(timeOut = 30_000)
     @SuppressWarnings("unchecked")
     public void testSegmentStatsDuringRecovery() throws Exception {
-        AtomicReference<Thread> recoveryThread = new AtomicReference<>();
         ListeningScheduledExecutorService recoveryExecutor =
-                MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor(runnable -> {
-                    Thread thread = new Thread(runnable, "test-snapshot-recovery");
-                    recoveryThread.set(thread);
-                    return thread;
-                }));
+                MoreExecutors.listeningDecorator(Executors.newSingleThreadScheduledExecutor());
         ExecutorService statsExecutor = Executors.newSingleThreadExecutor();
         SnapshotSegmentAbortedTxnProcessorImpl processor = null;
         try {
@@ -171,16 +168,25 @@ public class SnapshotSegmentAbortedTxnProcessorStatsTest {
                 return null;
             }).when(managedLedgerFactory).asyncOpenReadOnlyManagedLedger(anyString(), any(), any(), isNull());
 
-            // Recovery reads the first segment only once the stats thread is polling.
+            // Recovery reads the first segment only once the stats thread is polling. At the middle segment it waits
+            // until a stats call has been made, so that one call certainly runs while recovery is half done.
             CountDownLatch statsPollingStarted = new CountDownLatch(1);
+            CountDownLatch polledAtMidSegment = new CountDownLatch(1);
             AtomicBoolean pollingStartedBeforeFirstRead = new AtomicBoolean();
+            AtomicBoolean recoveryAtMidSegment = new AtomicBoolean();
             AtomicInteger segmentReads = new AtomicInteger();
             doAnswer(invocation -> {
                 Position position = invocation.getArgument(0);
                 if (position.getEntryId() == 0) {
                     pollingStartedBeforeFirstRead.set(statsPollingStarted.await(5, TimeUnit.SECONDS));
                 }
+                if (position.getEntryId() == MID_SEGMENT) {
+                    recoveryAtMidSegment.set(true);
+                }
                 segmentReads.incrementAndGet();
+                if (position.getEntryId() == MID_SEGMENT) {
+                    polledAtMidSegment.await(5, TimeUnit.SECONDS);
+                }
                 AsyncCallbacks.ReadEntryCallback callback = invocation.getArgument(1);
                 callback.readEntryComplete(EntryImpl.create(position.getLedgerId(), position.getEntryId(),
                         segmentEntries.get((int) position.getEntryId())), invocation.getArgument(2));
@@ -191,23 +197,30 @@ public class SnapshotSegmentAbortedTxnProcessorStatsTest {
                     new SnapshotSegmentAbortedTxnProcessorImpl(topic);
             processor = recoveringProcessor;
             AtomicBoolean recoveryFinished = new AtomicBoolean();
-            AtomicInteger callsDuringSegmentReads = new AtomicInteger();
+            AtomicReference<TransactionBufferStats> statsAtMidSegment = new AtomicReference<>();
             // The first exception ends the polling and fails this future.
             Future<?> statsPolling = statsExecutor.submit(() -> {
-                while (!recoveryFinished.get()) {
-                    int readsBefore = segmentReads.get();
-                    recoveringProcessor.generateSnapshotStats(true);
-                    statsPollingStarted.countDown();
-                    if (readsBefore > 0 && segmentReads.get() < SEGMENTS) {
-                        callsDuringSegmentReads.incrementAndGet();
+                try {
+                    while (!recoveryFinished.get()) {
+                        int readsBefore = segmentReads.get();
+                        for (int polls = 0; polls < POLLS_PER_SEGMENT_READ && segmentReads.get() == readsBefore
+                                && !recoveryFinished.get(); polls++) {
+                            boolean recoveryWaits = recoveryAtMidSegment.get();
+                            TransactionBufferStats stats = recoveringProcessor.generateSnapshotStats(true);
+                            statsPollingStarted.countDown();
+                            if (recoveryWaits && statsAtMidSegment.compareAndSet(null, stats)) {
+                                polledAtMidSegment.countDown();
+                            }
+                        }
+                        // Monitors are not fair, so polling without a pause could keep a waiting recovery thread
+                        // from its lock. Poll again only after recovery has read another segment.
+                        while (segmentReads.get() == readsBefore && !recoveryFinished.get()) {
+                            Thread.onSpinWait();
+                        }
                     }
-                    // Back-to-back polls could starve a recovery thread that waits for a lock, so let it in first.
-                    Thread recovery = recoveryThread.get();
-                    while (recovery != null && !recoveryFinished.get()
-                            && (recovery.getState() == Thread.State.BLOCKED
-                            || recovery.getState() == Thread.State.WAITING)) {
-                        Thread.onSpinWait();
-                    }
+                } finally {
+                    // Do not hold recovery back at the middle segment when the polling ended early.
+                    polledAtMidSegment.countDown();
                 }
             });
             try {
@@ -222,9 +235,12 @@ public class SnapshotSegmentAbortedTxnProcessorStatsTest {
             assertThat(pollingStartedBeforeFirstRead)
                     .as("stats polling started before recovery read the first segment")
                     .isTrue();
-            assertThat(callsDuringSegmentReads.get())
-                    .as("generateSnapshotStats calls made between the first and the last segment read")
-                    .isPositive();
+            assertThat(statsAtMidSegment.get())
+                    .as("stats returned while recovery waited at the middle segment")
+                    .isNotNull();
+            assertThat(statsAtMidSegment.get().segmentsStats.segmentStats)
+                    .as("segments listed while recovery waited at the middle segment")
+                    .hasSize(MID_SEGMENT);
             TransactionBufferStats stats = recoveringProcessor.generateSnapshotStats(true);
             assertThat(stats.segmentsStats.segmentsSize).as("recovered segment indexes").isEqualTo(SEGMENTS);
             assertThat(stats.totalAbortedTransactions).as("recovered aborted transactions").isEqualTo(SEGMENTS);
@@ -237,10 +253,13 @@ public class SnapshotSegmentAbortedTxnProcessorStatsTest {
                     .containsExactlyElementsOf(expectedLastTxnIds);
         } finally {
             statsExecutor.shutdownNow();
-            if (processor != null) {
-                processor.closeAsync().get(5, TimeUnit.SECONDS);
+            try {
+                if (processor != null) {
+                    processor.closeAsync().get(5, TimeUnit.SECONDS);
+                }
+            } finally {
+                recoveryExecutor.shutdownNow();
             }
-            recoveryExecutor.shutdownNow();
             assertThat(statsExecutor.awaitTermination(5, TimeUnit.SECONDS)).as("stats executor stopped").isTrue();
             assertThat(recoveryExecutor.awaitTermination(5, TimeUnit.SECONDS))
                     .as("recovery executor stopped").isTrue();
