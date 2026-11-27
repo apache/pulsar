@@ -80,16 +80,21 @@ public class TopicTransactionBufferStatsTest {
             context.abort(new TxnID(1, 1), firstMarker).get(5, TimeUnit.SECONDS);
             context.abort(new TxnID(1, 2), PositionFactory.create(LEDGER_ID, 2)).get(5, TimeUnit.SECONDS);
 
-            // Pause the stats call while it lists the first of the two sealed segments.
-            firstMarker.pauseNextToString();
-            Future<TransactionBufferStats> stats =
-                    context.statsExecutor.submit(() -> context.buffer.getStats(false, true));
-            assertThat(firstMarker.awaitPaused()).as("the stats call must list the segments").isTrue();
+            Future<TransactionBufferStats> stats;
+            CompletableFuture<Void> abort;
+            try {
+                // Pause the stats call while it lists the first of the two sealed segments.
+                firstMarker.pauseNextToString();
+                stats = context.statsExecutor.submit(() -> context.buffer.getStats(false, true));
+                assertThat(firstMarker.awaitPaused()).as("the stats call must list the segments").isTrue();
 
-            CompletableFuture<Void> abort = context.abortAsync(new TxnID(1, 3), PositionFactory.create(LEDGER_ID, 3));
-            Awaitility.await().atMost(10, TimeUnit.SECONDS)
-                    .until(() -> abort.isDone() || context.isAbortBlockedOnBuffer());
-            firstMarker.resume();
+                abort = context.abortAsync(new TxnID(1, 3), PositionFactory.create(LEDGER_ID, 3));
+                Awaitility.await().atMost(10, TimeUnit.SECONDS)
+                        .until(() -> abort.isDone() || context.isAbortBlockedOnBuffer());
+            } finally {
+                // Closing the buffer needs the monitor that the paused stats call holds, so resume it first.
+                firstMarker.resume();
+            }
 
             assertThatCode(() -> stats.get(5, TimeUnit.SECONDS))
                     .as("getStats must not fail while an abort seals a snapshot segment")
@@ -98,9 +103,9 @@ public class TopicTransactionBufferStatsTest {
                     .as("the stats must show the segments from before the concurrent abort")
                     .hasSize(2);
             abort.get(5, TimeUnit.SECONDS);
-            assertThat(context.buffer.getStats(false, true).segmentsStats.segmentStats).hasSize(3);
-        } finally {
-            firstMarker.resume();
+            assertThat(context.buffer.getStats(false, true).segmentsStats.segmentStats)
+                    .as("the stats must show the third segment after the abort finished")
+                    .hasSize(3);
         }
     }
 
@@ -252,7 +257,9 @@ public class TopicTransactionBufferStatsTest {
                 for (ExecutorService executor : List.of(transactionExecutor, recoveryExecutor, abortExecutor,
                         statsExecutor)) {
                     executor.shutdownNow();
-                    assertThat(executor.awaitTermination(5, TimeUnit.SECONDS)).isTrue();
+                    assertThat(executor.awaitTermination(5, TimeUnit.SECONDS))
+                            .as("the test's executors must stop")
+                            .isTrue();
                 }
             }
         }
