@@ -79,6 +79,14 @@ public class BrokerServicePendingRequestGaugesTest {
                         .as("pending request gauges in a scrape of the registry after the other brokers have closed")
                         .containsExactlyInAnyOrder(PENDING_LOOKUPS_GAUGE, PENDING_TOPIC_LOADS_GAUGE);
             }
+            // A broker that starts after the first one has closed gets the gauges, unless a broker of another test
+            // has them: the names are free again once the broker that had them has closed
+            try (PulsarTestContext next = PulsarTestContext.builder().build()) {
+                assertThat(scrapeRegisteredPendingRequestGauges())
+                        .as("pending request gauges in a scrape of the registry while a broker runs that started"
+                                + " after the first broker had closed")
+                        .containsExactlyInAnyOrder(PENDING_LOOKUPS_GAUGE, PENDING_TOPIC_LOADS_GAUGE);
+            }
         } finally {
             brokersStartAndClose.set(false);
         }
