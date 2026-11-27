@@ -165,7 +165,11 @@ public class TransactionMetaStoreHandler extends HandlerState
     @Override
     public boolean connectionFailed(PulsarClientException exception) {
         boolean nonRetriableError = !PulsarClientException.isRetriableError(exception);
-        boolean timeout = System.currentTimeMillis() > lookupDeadline;
+        // A metadata-discovery client is ready once its assignment watch opens, before every
+        // partition handler has connected. Keep a transiently unavailable partition reconnectable
+        // for that watch's lifetime; each queued operation still has its own bounded timeout.
+        // Legacy discovery waits for this connect future, so retain its initial lookup deadline.
+        boolean timeout = !scalable && System.currentTimeMillis() > lookupDeadline;
         if (nonRetriableError || timeout) {
             exception.setPreviousExceptionCount(previousExceptionCount);
             if (connectFuture.completeExceptionally(exception)) {
@@ -229,6 +233,7 @@ public class TransactionMetaStoreHandler extends HandlerState
                                 || e.getCause() instanceof PulsarClientException.NotAllowedException) {
                             setState(State.Closed);
                             cnx.channel().close();
+                            connectFuture.completeExceptionally(e.getCause());
                             future.complete(null);
                         } else {
                             future.completeExceptionally(e.getCause());
@@ -280,10 +285,9 @@ public class TransactionMetaStoreHandler extends HandlerState
         pendingRequests.forEach((k, op) -> {
             // Release the op even if its caller already completed or cancelled the future.
             if (op != null) {
-                op.callback.completeExceptionally(new PulsarClientException.AlreadyClosedException(
+                failRequestOnClose(op, new PulsarClientException.AlreadyClosedException(
                         "Could not get response from transaction meta store when "
                                 + "the transaction meta store has already close."));
-                onResponse(op);
             }
         });
         this.pendingRequests.clear();
@@ -724,6 +728,17 @@ public class TransactionMetaStoreHandler extends HandlerState
         semaphore.release();
     }
 
+    private void failRequestOnClose(OpBase<?> op, Throwable cause) {
+        CompletableFuture<?> callback = op.callback;
+        onResponse(op);
+        // Completing a future can invoke user callbacks inline, including one waiting for client shutdown.
+        // Release the op on its owner thread first, and keep those callbacks off the shutdown thread.
+        // The client's own executors may already have stopped, so use the default async executor.
+        if (!callback.isDone()) {
+            CompletableFuture.runAsync(() -> callback.completeExceptionally(cause));
+        }
+    }
+
     private boolean canSendRequest(CompletableFuture<?> callback) {
         try {
             if (blockIfReachMaxPendingOps) {
@@ -756,9 +771,8 @@ public class TransactionMetaStoreHandler extends HandlerState
                 }
             });
         } catch (RejectedExecutionException e) {
-            op.callback.completeExceptionally(new PulsarClientException.AlreadyClosedException(
+            failRequestOnClose(op, new PulsarClientException.AlreadyClosedException(
                     "Could not send the request to the transaction meta store: the client is already closed."));
-            onResponse(op);
         }
     }
 
@@ -786,12 +800,11 @@ public class TransactionMetaStoreHandler extends HandlerState
                 return true;
             case Closing:
             case Closed:
-                op.callback.completeExceptionally(
+                failRequestOnClose(op,
                         new TransactionCoordinatorClientException.MetaStoreHandlerNotReadyException(
                                 "Transaction meta store handler for tcId "
                                         + transactionCoordinatorId
                                         + " is closing or closed."));
-                onResponse(op);
                 return false;
             case Failed:
                 op.callback.completeExceptionally(
@@ -874,7 +887,9 @@ public class TransactionMetaStoreHandler extends HandlerState
         this.useProxy = newUseProxy;
         ClientCnx current = cnx();
         if (current != null) {
-            // Drop the current connection; connectionClosed re-grabs against the new leader.
+            // Drop the current connection; connectionClosed re-grabs against the new leader. That
+            // reconnect uses the connection handler's proxy mode, so update it first.
+            connectionHandler.setUseProxy(newUseProxy);
             current.channel().close();
         } else {
             connectionHandler.grabCnx(newLeaderUri, newUseProxy);

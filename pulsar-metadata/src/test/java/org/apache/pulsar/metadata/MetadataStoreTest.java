@@ -40,13 +40,13 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
@@ -89,6 +89,22 @@ import org.testng.annotations.Test;
 
 @CustomLog
 public class MetadataStoreTest extends BaseMetadataStoreTest {
+
+    @Test(dataProvider = "impl")
+    public void testDeleteIfExistsPreservesVersionConflict(String provider, Supplier<String> urlSupplier)
+            throws Exception {
+        try (MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().fsyncEnable(false).build())) {
+            String path = newKey();
+            Stat stat = store.put(path, new byte[0], Optional.of(-1L)).get(5, TimeUnit.SECONDS);
+
+            assertThat(store.deleteIfExists(path, Optional.of(stat.getVersion() + 1)))
+                    .as("a version conflict preserves the metadata exception type")
+                    .failsWithin(Duration.ofSeconds(5))
+                    .withThrowableOfType(ExecutionException.class)
+                    .havingCause().isInstanceOf(BadVersionException.class);
+        }
+    }
 
     @Test(dataProvider = "impl")
     public void emptyStoreTest(String provider, Supplier<String> urlSupplier) throws Exception {
@@ -769,20 +785,15 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(),
                 MetadataStoreConfig.builder().fsyncEnable(false).build());
 
-        store.put("/a/a-1", "value1".getBytes(StandardCharsets.UTF_8), Optional.empty()).join();
-        store.put("/a/a-2", "value1".getBytes(StandardCharsets.UTF_8), Optional.empty()).join();
-        store.put("/b/c/b/1", "value1".getBytes(StandardCharsets.UTF_8), Optional.empty()).join();
+        String prefix = newKey();
+        store.put(prefix + "/a/a-1", "value1".getBytes(StandardCharsets.UTF_8), Optional.empty()).join();
+        store.put(prefix + "/a/a-2", "value1".getBytes(StandardCharsets.UTF_8), Optional.empty()).join();
+        store.put(prefix + "/b/c/b/1", "value1".getBytes(StandardCharsets.UTF_8), Optional.empty()).join();
 
-        List<String> subPaths = new ArrayList<>(store.getChildren("/").get());
-        subPaths.remove("zookeeper"); // ignored
-        subPaths.remove("pulsar"); // ignored
-        assertThat(subPaths).containsExactlyInAnyOrderElementsOf(Set.of("a", "b"));
-
-        List<String> subPaths2 = store.getChildren("/a").get();
-        assertThat(subPaths2).containsExactlyInAnyOrderElementsOf(Set.of("a-1", "a-2"));
-
-        List<String> subPaths3 = store.getChildren("/b").get();
-        assertThat(subPaths3).containsExactlyInAnyOrderElementsOf(Set.of("c"));
+        assertThat(store.getChildren("/").get()).contains(prefix.substring(1));
+        assertThat(store.getChildren(prefix).get()).containsExactlyInAnyOrder("a", "b");
+        assertThat(store.getChildren(prefix + "/a").get()).containsExactlyInAnyOrder("a-1", "a-2");
+        assertThat(store.getChildren(prefix + "/b").get()).containsExactly("c");
     }
 
     @Test(dataProvider = "impl")

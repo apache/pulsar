@@ -22,20 +22,23 @@ import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.LongCounter;
-import io.prometheus.client.Counter;
+import io.prometheus.metrics.core.metrics.Counter;
 
 public class AuthenticationMetrics {
+    // Nothing exports exemplars, so the counters skip the sampling that 1.x counters do by default.
     @Deprecated
-    private static final Counter authSuccessMetrics = Counter.build()
-            .name("pulsar_authentication_success_total")
+    private static final Counter authSuccessMetrics = Counter.builder()
+            .name("pulsar_authentication_success")
             .help("Pulsar authentication success")
             .labelNames("provider_name", "auth_method")
+            .withoutExemplars()
             .register();
     @Deprecated
-    private static final Counter authFailuresMetrics = Counter.build()
-            .name("pulsar_authentication_failures_total")
+    private static final Counter authFailuresMetrics = Counter.builder()
+            .name("pulsar_authentication_failures")
             .help("Pulsar authentication failures")
             .labelNames("provider_name", "auth_method", "reason")
+            .withoutExemplars()
             .register();
 
     public static final String INSTRUMENTATION_SCOPE_NAME = "org.apache.pulsar.authentication";
@@ -52,7 +55,7 @@ public class AuthenticationMetrics {
      */
     @Deprecated
     public static void authenticateFailure(String providerName, String authMethod, String reason) {
-        authFailuresMetrics.labels(providerName, authMethod, reason).inc();
+        authFailuresMetrics.labelValues(providerName, authMethod, reason).inc();
     }
 
     /**
@@ -63,7 +66,7 @@ public class AuthenticationMetrics {
      */
     @Deprecated
     public static void authenticateFailure(String providerName, String authMethod, Enum<?> errorCode) {
-        authFailuresMetrics.labels(providerName, authMethod, errorCode.name()).inc();
+        authFailuresMetrics.labelValues(providerName, authMethod, errorCode.name()).inc();
     }
 
     public static final String AUTHENTICATION_COUNTER_METRIC_NAME = "pulsar.authentication.operation.count";
@@ -92,7 +95,7 @@ public class AuthenticationMetrics {
     }
 
     public void recordSuccess() {
-        authSuccessMetrics.labels(providerName, authMethod).inc();
+        authSuccessMetrics.labelValues(providerName, authMethod).inc();
         var attributes = Attributes.of(PROVIDER_KEY, providerName,
                 AUTH_METHOD_KEY, authMethod,
                 AUTH_RESULT_KEY, AuthenticationResult.SUCCESS.name().toLowerCase());

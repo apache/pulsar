@@ -24,10 +24,14 @@ plugins {
 dependencies {
     implementation(libs.slog)
     implementation(libs.zookeeper)
-    implementation(libs.simpleclient)
-    implementation(libs.simpleclient.hotspot)
-    implementation(libs.simpleclient.servlet)
-    implementation(libs.simpleclient.common)
+    // Prometheus Java client 1.x: the registry and snapshot model, the metric implementations,
+    // the JVM instrumentation and the text exposition format writer.
+    implementation(libs.prometheus.metrics.model)
+    implementation(libs.prometheus.metrics.core)
+    implementation(libs.prometheus.metrics.instrumentation.jvm)
+    implementation(libs.prometheus.metrics.exposition.textformats)
     implementation(libs.jetty.server)
+    // javax.servlet and Jetty ee8 are still what the patched ZooKeeper AdminServer uses here;
+    // the javax.servlet API is provided transitively by jetty-ee8-servlet.
     implementation(libs.jetty.ee8.servlet)
 }

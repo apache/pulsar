@@ -104,11 +104,24 @@ final class V5ReceiveQueue<T> {
      *     below the low watermark (backpressure).
      */
     CompletableFuture<Void> offer(Message<T> msg) {
+        return enqueueToBuffer(msg) ? afterEnqueue() : READY;
+    }
+
+    /**
+     * Enqueue without scheduling or completing any future, so callers can atomically bind a handoff to their
+     * reader generation. A successful caller must invoke {@link #afterEnqueue()} outside its lifecycle lock.
+     * The caller retains ownership of the message when this returns false.
+     */
+    boolean enqueueToBuffer(Message<T> msg) {
         if (closed) {
-            // Dropped, like a message arriving on an already-closed v4 consumer.
-            return READY;
+            return false;
         }
         buffer.put(msg);
+        return true;
+    }
+
+    /** Wake asynchronous receivers and apply backpressure after a successful buffer handoff. */
+    CompletableFuture<Void> afterEnqueue() {
         if (hasPendingReceives) {
             // A receiver registering concurrently re-checks the buffer after publishing the
             // flag, and we read the flag after appending, so one side always sees the other.

@@ -235,7 +235,7 @@ public class AuthenticationProviderListTest {
         HttpServletRequest requestAA = mock(HttpServletRequest.class);
         when(requestAA.getRemoteAddr()).thenReturn("127.0.0.1");
         when(requestAA.getRemotePort()).thenReturn(8080);
-        when(requestAA.getHeader("Authorization")).thenReturn("Bearer " + expiringTokenAA);
+        when(requestAA.getHeader("Authorization")).thenReturn("Bearer " + tokenAA);
         boolean doFilterAA = authProvider.authenticateHttpRequest(requestAA, null);
         assertTrue(doFilterAA);
         verify(requestAA).setAttribute(eq(AuthenticatedRoleAttributeName), eq(SUBJECT_A));
@@ -244,7 +244,7 @@ public class AuthenticationProviderListTest {
         HttpServletRequest requestAB = mock(HttpServletRequest.class);
         when(requestAB.getRemoteAddr()).thenReturn("127.0.0.1");
         when(requestAB.getRemotePort()).thenReturn(8080);
-        when(requestAB.getHeader("Authorization")).thenReturn("Bearer " + expiringTokenAB);
+        when(requestAB.getHeader("Authorization")).thenReturn("Bearer " + tokenAB);
         boolean doFilterAB = authProvider.authenticateHttpRequest(requestAB, null);
         assertTrue(doFilterAB);
         verify(requestAB).setAttribute(eq(AuthenticatedRoleAttributeName), eq(SUBJECT_B));
@@ -253,7 +253,7 @@ public class AuthenticationProviderListTest {
         HttpServletRequest requestBA = mock(HttpServletRequest.class);
         when(requestBA.getRemoteAddr()).thenReturn("127.0.0.1");
         when(requestBA.getRemotePort()).thenReturn(8080);
-        when(requestBA.getHeader("Authorization")).thenReturn("Bearer " + expiringTokenBA);
+        when(requestBA.getHeader("Authorization")).thenReturn("Bearer " + tokenBA);
         boolean doFilterBA = authProvider.authenticateHttpRequest(requestBA, null);
         assertTrue(doFilterBA);
         verify(requestBA).setAttribute(eq(AuthenticatedRoleAttributeName), eq(SUBJECT_A));
@@ -262,7 +262,7 @@ public class AuthenticationProviderListTest {
         HttpServletRequest requestBB = mock(HttpServletRequest.class);
         when(requestBB.getRemoteAddr()).thenReturn("127.0.0.1");
         when(requestBB.getRemotePort()).thenReturn(8080);
-        when(requestBB.getHeader("Authorization")).thenReturn("Bearer " + expiringTokenBB);
+        when(requestBB.getHeader("Authorization")).thenReturn("Bearer " + tokenBB);
         boolean doFilterBB = authProvider.authenticateHttpRequest(requestBB, null);
         assertTrue(doFilterBB);
         verify(requestBB).setAttribute(eq(AuthenticatedRoleAttributeName), eq(SUBJECT_B));

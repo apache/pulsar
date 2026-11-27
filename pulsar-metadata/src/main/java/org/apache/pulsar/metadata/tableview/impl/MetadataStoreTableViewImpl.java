@@ -176,6 +176,7 @@ public class MetadataStoreTableViewImpl<T> implements MetadataStoreTableView<T> 
     public void close() {
         cancelListener.run();
         cancelSessionListener.run();
+        cache.close();
     }
 
     public void start() throws MetadataStoreException {

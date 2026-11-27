@@ -38,6 +38,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -47,6 +48,7 @@ import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.pulsar.common.stats.CacheMetricsCollector;
 import org.apache.pulsar.common.util.Backoff;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.CacheGetResult;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataCacheConfig;
@@ -66,10 +68,14 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
     @Getter
     private final MetadataStore store;
     private final MetadataStoreExtended storeExtended;
+    // Keep the registration owner even when a wrapper replaces the I/O store.
+    private final AbstractMetadataStore cacheOwner;
     private final MetadataSerde<T> serde;
     private final OrderedExecutor executor;
     private final ScheduledExecutorService schedulerExecutor;
     private final MetadataCacheConfig<T> cacheConfig;
+    private final String cacheName;
+    private final AtomicBoolean closed = new AtomicBoolean();
 
     private final AsyncLoadingCache<String, Optional<CacheGetResult<T>>> objCache;
 
@@ -88,6 +94,8 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                              MetadataCacheConfig<T> cacheConfig, OrderedExecutor executor,
                              ScheduledExecutorService schedulerExecutor) {
         this.store = store;
+        this.cacheOwner = store instanceof AbstractMetadataStore metadataStore ? metadataStore : null;
+        this.cacheName = cacheName;
         if (store instanceof MetadataStoreExtended) {
             this.storeExtended = (MetadataStoreExtended) store;
         } else {
@@ -165,7 +173,7 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
             }
         }, executor.chooseThread(path)).whenComplete((result, e) -> {
             if (e != null) {
-                future.completeExceptionally(e.getCause());
+                future.completeExceptionally(FutureUtil.unwrapCompletionException(e));
             } else {
                 future.complete(result);
             }
@@ -314,11 +322,14 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
             .whenComplete((__, ex) -> {
                 if (ex == null) {
                     future.complete(null);
-                } else if (ex.getCause() instanceof BadVersionException) {
-                    // Use already exists exception to provide more self-explanatory error message
-                    future.completeExceptionally(new AlreadyExistsException(ex.getCause()));
                 } else {
-                    future.completeExceptionally(ex.getCause());
+                    Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                    if (cause instanceof BadVersionException) {
+                        // Use already exists exception to provide more self-explanatory error message
+                        future.completeExceptionally(new AlreadyExistsException(cause));
+                    } else {
+                        future.completeExceptionally(cause);
+                    }
                 }
             });
         return future;
@@ -368,6 +379,9 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
 
     @Override
     public void refresh(String path) {
+        if (closed.get()) {
+            return;
+        }
         // Refresh object of path if only it is cached before.
         objCache.asMap().computeIfPresent(path, (oldKey, oldValue) -> readValueFromStore(path));
     }
@@ -375,6 +389,21 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
     @VisibleForTesting
     public void invalidateAll() {
         objCache.synchronous().invalidateAll();
+    }
+
+    @Override
+    public void close() {
+        if (closed.compareAndSet(false, true)) {
+            if (cacheOwner != null) {
+                cacheOwner.unregisterMetadataCache(this);
+            }
+            invalidateAll();
+            unregisterMetrics();
+        }
+    }
+
+    public void unregisterMetrics() {
+        CacheMetricsCollector.removeCache(cacheName, objCache);
     }
 
     @Override
@@ -398,14 +427,15 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
 
     private void execute(Supplier<CompletableFuture<T>> op, String key, CompletableFuture<T> result, Backoff backoff) {
         op.get().thenAccept(result::complete).exceptionally((ex) -> {
-            if (ex.getCause() instanceof BadVersionException) {
+            Throwable cause = FutureUtil.unwrapCompletionException(ex);
+            if (cause instanceof BadVersionException) {
                 // if resource is updated by other than metadata-cache then metadata-cache will get bad-version
                 // exception. so, try to invalidate the cache and try one more time.
                 objCache.synchronous().invalidate(key);
                 long elapsed = Duration.between(backoff.getFirstBackoffTime(), Instant.now()).toMillis();
                 if (backoff.isMandatoryStopMade()) {
                     if (Instant.EPOCH.equals(backoff.getFirstBackoffTime())) {
-                        result.completeExceptionally(ex.getCause());
+                        result.completeExceptionally(cause);
                     } else {
                         result.completeExceptionally(new TimeoutException(
                                 String.format("Timeout to update key %s. Elapsed time: %d ms", key, elapsed)));
@@ -419,7 +449,7 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                 schedulerExecutor.schedule(() -> execute(op, key, result, backoff), nextMs, TimeUnit.MILLISECONDS);
                 return null;
             }
-            result.completeExceptionally(ex.getCause());
+            result.completeExceptionally(cause);
             return null;
         });
     }

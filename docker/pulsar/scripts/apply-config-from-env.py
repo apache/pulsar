@@ -25,7 +25,7 @@
 ## ./apply-config-from-env file.conf
 ##
 
-import os, sys, argparse
+import os, re, sys, argparse
 
 parser = argparse.ArgumentParser(description='Pulsar configuration file customizer based on environment variables')
 parser.add_argument('--prefix', default='PULSAR_PREFIX_', help='Prefix for environment variables, default is PULSAR_PREFIX_')
@@ -40,11 +40,17 @@ conf_files = args.conf_files
 
 PF_ENV_DEBUG = (os.environ.get('PF_ENV_DEBUG','0') == '1')
 
-# List of keys where the value should not be displayed in logs
-sensitive_keys = ["brokerClientAuthenticationParameters", "bookkeeperClientAuthenticationParameters", "tokenSecretKey"]
+# Keys whose value may hold a secret (passwords, tokens, keys, credentials, authentication / TLS factory
+# parameters or basic authentication password hashes) and must not be displayed in logs. Case-insensitive
+# substring match, which also covers prefixed pass-through keys such as brokerClient_authParams. Keep in sync
+# with PulsarConfigurationLoader.SENSITIVE_KEY_PATTERN.
+SENSITIVE_KEY_PATTERN = re.compile(
+    'password|passwd|secret|token|credential|accesskey|privatekey|authparam|authenticationparam|factoryconfig'
+    '|basicauth',
+    re.IGNORECASE)
 
 def sanitize_display_value(k, v):
-    if "password" in k.lower() or k in sensitive_keys or (k == "tokenSecretKey" and v.startswith("data:")):
+    if v and SENSITIVE_KEY_PATTERN.search(k):
         return "********"
     return v
 

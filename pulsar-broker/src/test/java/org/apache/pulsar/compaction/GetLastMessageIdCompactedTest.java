@@ -450,6 +450,7 @@ public class GetLastMessageIdCompactedTest extends SharedPulsarBaseTest {
     public void testReaderStuckWithCompaction(boolean enabledBatch) throws Exception {
         String topicName = newTopicName();
         String subName = "sub";
+        @Cleanup
         Producer<String> producer = createProducer(enabledBatch, topicName);
         producer.newMessage().key("k0").value("v0").sendAsync();
         producer.newMessage().key("k0").value("v1").sendAsync();
@@ -459,6 +460,7 @@ public class GetLastMessageIdCompactedTest extends SharedPulsarBaseTest {
         triggerLedgerSwitch(topicName);
         clearAllTheLedgersOutdated(topicName);
 
+        @Cleanup
         var reader = pulsarClient.newReader(Schema.STRING)
                 .topic(topicName)
                 .subscriptionName(subName)

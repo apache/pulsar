@@ -20,7 +20,7 @@ package org.apache.pulsar.client.api.v5;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertTrue;
-import io.prometheus.client.CollectorRegistry;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -28,6 +28,7 @@ import java.net.http.HttpResponse.BodyHandlers;
 import java.time.Duration;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.resources.ScalableTopicResources;
+import org.apache.pulsar.broker.service.scalable.PrometheusSamples;
 import org.apache.pulsar.client.api.v5.schema.Schema;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.scalable.SegmentTopicName;
@@ -148,7 +149,7 @@ public class V5SegmentLoadReporterTest extends V5ClientBaseTest {
     }
 
     private double loadReports(String result) {
-        Double sample = CollectorRegistry.defaultRegistry.getSampleValue(
+        Double sample = PrometheusSamples.getSampleValue(PrometheusRegistry.defaultRegistry,
                 "pulsar_scalable_topic_segment_load_report_total",
                 new String[]{"cluster", "load_report_result"}, new String[]{getConfig().getClusterName(), result});
         assertThat(sample).as("registered segment load-report counter %s", result).isNotNull();
@@ -156,7 +157,8 @@ public class V5SegmentLoadReporterTest extends V5ClientBaseTest {
     }
 
     private double ownerGauge(String suffix) {
-        Double sample = CollectorRegistry.defaultRegistry.getSampleValue("pulsar_scalable_topic_" + suffix,
+        Double sample = PrometheusSamples.getSampleValue(PrometheusRegistry.defaultRegistry,
+                "pulsar_scalable_topic_" + suffix,
                 new String[]{"cluster"}, new String[]{getConfig().getClusterName()});
         assertThat(sample).as("registered segment-owner gauge %s", suffix).isNotNull();
         return sample;

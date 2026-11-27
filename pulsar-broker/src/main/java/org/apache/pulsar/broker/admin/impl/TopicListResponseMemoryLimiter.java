@@ -130,6 +130,9 @@ public final class TopicListResponseMemoryLimiter {
         }
         return sizeFuture
                 .thenCompose(initialSize -> {
+                    if (permits.isCancelled()) {
+                        return CompletableFuture.failedFuture(ResponsePermits.cancelled());
+                    }
                     if (initialSize > sizeCache.getSizeLimit()) {
                         // the permits can't be granted, skip collecting
                         return permits.acquire(initialSize).thenCompose(__ -> topicsSupplier.apply(null));

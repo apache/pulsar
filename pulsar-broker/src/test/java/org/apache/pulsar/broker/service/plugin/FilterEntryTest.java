@@ -32,6 +32,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertNotNull;
+import static org.testng.AssertJUnit.assertNull;
 import io.netty.buffer.ByteBuf;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -257,20 +258,16 @@ public class FilterEntryTest extends BrokerTestBase {
 
         verifyBacklog(topic, subName, 10, 10, 0, 10, 10, 0, 0, 0, 0);
 
-        int counter = 0;
-        while (true) {
-            Message<String> message = consumer.receive(5, TimeUnit.SECONDS);
-            if (message != null) {
-                counter++;
-                consumer.acknowledge(message);
-            } else {
-                break;
-            }
-        }
         // All normal messages can be received
-        assertEquals(10, counter);
+        for (int i = 0; i < 10; i++) {
+            Message<String> message = consumer.receive(5, TimeUnit.SECONDS);
+            assertNotNull(message);
+            consumer.acknowledge(message);
+        }
 
+        // the acknowledgments are confirmed, so there is nothing left to deliver
         verifyBacklog(topic, subName, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+        assertNull(consumer.receive(200, TimeUnit.MILLISECONDS));
 
         // stop the consumer
         consumer.close();
@@ -291,24 +288,8 @@ public class FilterEntryTest extends BrokerTestBase {
                 .subscriptionName(subName)
                 .subscribe();
 
-        counter = 0;
-        while (true) {
-            Message<String> message = consumer.receive(5, TimeUnit.SECONDS);
-            if (message != null) {
-                counter++;
-                consumer.acknowledge(message);
-            } else {
-                break;
-            }
-        }
-        // REJECT messages are filtered out
-        assertEquals(0, counter);
-
-        // now the Filter acknoledged the messages on behalf of the Consumer
-        // backlog is now zero again
-        verifyBacklog(topic, subName, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-
-        // All messages should be acked, check the MarkDeletedPosition
+        // REJECT messages are filtered out: the Filter acknowledges them on behalf of the Consumer.
+        // Once all messages are acked (check the MarkDeletedPosition), nothing is left to deliver
         assertNotNull(lastMsgId);
         MessageIdImpl finalLastMsgId = lastMsgId;
         Awaitility.await().untilAsserted(() -> {
@@ -316,6 +297,10 @@ public class FilterEntryTest extends BrokerTestBase {
             assertEquals(position.getLedgerId(), finalLastMsgId.getLedgerId());
             assertEquals(position.getEntryId(), finalLastMsgId.getEntryId());
         });
+        assertNull(consumer.receive(200, TimeUnit.MILLISECONDS));
+
+        // backlog is now zero again
+        verifyBacklog(topic, subName, 0, 0, 0, 0, 0, 0, 0, 0, 0);
         consumer.close();
 
         consumer = pulsarClient.newConsumer(Schema.STRING).topic(topic).subscriptionProperties(map)
@@ -323,17 +308,15 @@ public class FilterEntryTest extends BrokerTestBase {
         for (int i = 0; i < 10; i++) {
             producer.newMessage().property(String.valueOf(i), String.valueOf(i)).value("1").send();
         }
-        counter = 0;
-        while (true) {
+        // the filters accept 2 of the messages, and reject (acknowledge) the other 8
+        for (int i = 0; i < 2; i++) {
             Message<String> message = consumer.receive(5, TimeUnit.SECONDS);
-            if (message != null) {
-                counter++;
-                consumer.acknowledge(message);
-            } else {
-                break;
-            }
+            assertNotNull(message);
+            consumer.acknowledge(message);
         }
-        assertEquals(2, counter);
+        // once all of them are acknowledged, nothing is left to deliver
+        Awaitility.await().untilAsserted(() -> assertEquals(0, subscription.getNumberOfEntriesInBacklog(true)));
+        assertNull(consumer.receive(200, TimeUnit.MILLISECONDS));
 
         producer.close();
         consumer.close();
@@ -391,20 +374,17 @@ public class FilterEntryTest extends BrokerTestBase {
                 assertNotNull(producer.newMessage().property("REJECT", "").value("1").send());
             }
 
-            int counter = 0;
-            while (true) {
+            for (int i = 0; i < 10; i++) {
                 Message<String> message = consumer.receive(10, TimeUnit.SECONDS);
-                if (message != null) {
-                    counter++;
-                    assertEquals(message.getValue(), "test");
-                    consumer.acknowledge(message);
-                } else {
-                    break;
-                }
+                assertNotNull(message);
+                assertEquals(message.getValue(), "test");
+                consumer.acknowledge(message);
             }
 
-            assertEquals(10, counter);
+            // once the filter has rejected the other 10 messages, nothing more comes
             AbstractTopic abstractTopic = (AbstractTopic) subscription.getTopic();
+            Awaitility.await().untilAsserted(() -> assertEquals(10, abstractTopic.getFilteredEntriesCount()));
+            assertNull(consumer.receive(200, TimeUnit.MILLISECONDS));
             long filtered = abstractTopic.getFilteredEntriesCount();
             assertEquals(filtered, 10);
         }

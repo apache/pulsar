@@ -412,7 +412,7 @@ public abstract class BaseResource {
 
                     @Override
                     public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
+                        future.completeExceptionally(mapInvocationFailure(throwable));
                     }
                 });
         return future;
@@ -441,6 +441,17 @@ public abstract class BaseResource {
 
     public <T> void asyncDeleteRequest(final WebTarget target, InvocationCallback<T> callback) {
         withAuthentication(target, callback, builder -> builder.async().delete(callback));
+    }
+
+    static PulsarAdminException mapInvocationFailure(Throwable failure) {
+        // Preserve admin exceptions raised during request preparation, such as GettingAuthenticationDataException.
+        // For HTTP 403, Jersey wraps ForbiddenException in ResponseProcessingException.
+        // Mapping the cause gives callers the expected NotAuthorizedException.
+        if (failure instanceof PulsarAdminException adminException) {
+            return adminException;
+        }
+        Throwable cause = failure.getCause();
+        return getApiException(cause != null ? cause : failure);
     }
 
     public static PulsarAdminException getApiException(Throwable e) {
@@ -574,7 +585,7 @@ public abstract class BaseResource {
 
         @Override
         public void failed(Throwable throwable) {
-            future.completeExceptionally(getApiException(throwable.getCause()));
+            future.completeExceptionally(mapInvocationFailure(throwable));
         }
 
         public CompletableFuture<T> future() {

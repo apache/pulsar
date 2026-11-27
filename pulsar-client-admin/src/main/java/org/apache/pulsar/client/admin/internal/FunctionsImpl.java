@@ -637,7 +637,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
 
                     @Override
                     public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
+                        future.completeExceptionally(mapInvocationFailure(throwable));
                     }
                 });
         return future;

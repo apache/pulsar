@@ -22,18 +22,20 @@ import com.google.common.annotations.VisibleForTesting;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.metrics.DoubleHistogram;
 import io.opentelemetry.api.metrics.LongCounter;
-import io.prometheus.client.Counter;
-import io.prometheus.client.Histogram;
+import io.prometheus.metrics.core.metrics.Counter;
+import io.prometheus.metrics.core.metrics.Histogram;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.common.stats.MetricsUtil;
 
 public class AuthenticationMetricsToken extends AuthenticationMetrics {
 
+    // Nothing exports exemplars, so the metrics skip the sampling that 1.x metrics do by default.
     @Deprecated
-    private static final Counter expiredTokenMetrics = Counter.build()
-            .name("pulsar_expired_token_total")
+    private static final Counter expiredTokenMetrics = Counter.builder()
+            .name("pulsar_expired_token")
             .help("Pulsar expired token")
+            .withoutExemplars()
             .register();
     public static final String EXPIRED_TOKEN_COUNTER_METRIC_NAME = "pulsar.authentication.token.expired.count";
     private LongCounter expiredTokensCounter;
@@ -53,13 +55,15 @@ public class AuthenticationMetricsToken extends AuthenticationMetrics {
             TimeUnit.DAYS.toSeconds(365));
 
     @Deprecated
-    private static final Histogram expiringTokenMinutesMetrics = Histogram.build()
+    private static final Histogram expiringTokenMinutesMetrics = Histogram.builder()
             .name("pulsar_expiring_token_minutes")
             .help("The remaining time of expiring token in minutes")
-            .buckets(TOKEN_DURATION_BUCKET_BOUNDARIES_SECONDS.stream()
+            .classicOnly()
+            .classicUpperBounds(TOKEN_DURATION_BUCKET_BOUNDARIES_SECONDS.stream()
                     .map(TimeUnit.SECONDS::toMinutes)
                     .mapToDouble(Double::valueOf)
                     .toArray())
+            .withoutExemplars()
             .register();
     public static final String EXPIRING_TOKEN_HISTOGRAM_METRIC_NAME = "pulsar.authentication.token.expiry.duration";
     private DoubleHistogram expiringTokenSeconds;

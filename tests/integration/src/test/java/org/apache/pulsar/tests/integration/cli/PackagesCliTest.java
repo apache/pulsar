@@ -22,50 +22,13 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import java.util.HashMap;
-import java.util.Map;
 import org.apache.commons.lang3.RandomStringUtils;
-import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
-import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-public class PackagesCliTest extends TestRetrySupport {
-
-    private static final String clusterNamePrefix = "packages-service";
-    private PulsarCluster pulsarCluster;
-
-    @SuppressWarnings("deprecation")
-    @BeforeClass(alwaysRun = true)
-    public final void setup() throws Exception {
-        incrementSetupNumber();
-        PulsarClusterSpec spec = PulsarClusterSpec.builder()
-                .clusterName(String.format("%s-%s", clusterNamePrefix, RandomStringUtils.randomAlphabetic(6)))
-                .brokerEnvs(getPackagesManagementServiceEnvs())
-                .build();
-        pulsarCluster = PulsarCluster.forSpec(spec);
-        pulsarCluster.start();
-    }
-
-    @AfterClass(alwaysRun = true)
-    public final void cleanup() {
-        markCurrentSetupNumberCleaned();
-        if (pulsarCluster != null) {
-            pulsarCluster.stop();
-            pulsarCluster = null;
-        }
-    }
-
-    private Map<String, String> getPackagesManagementServiceEnvs() {
-        Map<String, String> envs = new HashMap<>();
-        envs.put("enablePackagesManagement", "true");
-        envs.put("packagesManagementLedgerRootPath", "/ledgers");
-        return envs;
-    }
+public class PackagesCliTest extends CombinedSettingsTestSuite {
 
     @Test(timeOut = 60000 * 5)
     public void testPackagesOperationsWithoutUploadingPackages() throws Exception {

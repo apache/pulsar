@@ -56,6 +56,9 @@ import org.testng.annotations.Test;
 @CustomLog
 public class MetadataStoreTableViewTest extends BaseMetadataStoreTest {
 
+    private final JSONMetadataSerdeSimpleType<Integer> serde = new JSONMetadataSerdeSimpleType<>(
+            TypeFactory.defaultInstance().constructSimpleType(Integer.class, null));
+
     LinkedBlockingDeque<Pair<String, Integer>> tails;
     LinkedBlockingDeque<Pair<String, Integer>> existings;
 
@@ -94,6 +97,18 @@ public class MetadataStoreTableViewTest extends BaseMetadataStoreTest {
                 .build();
         tv.start();
         return tv;
+    }
+
+    /**
+     * Checks that no other tail item is pending, without waiting for a timeout. The marker is written through the
+     * store, so its tail item comes from the store notification: the store hands notifications to its listeners in
+     * order on one thread, and the table view answers each one from its cache right there or with a store read,
+     * which completes in order. A tail item caused by an earlier change is therefore queued before the marker's.
+     */
+    private void assertNextTailItemIsMarker(MetadataStore store, String prefix, String marker) throws Exception {
+        String path = prefix + "/" + marker;
+        store.put(path, serde.serialize(path, 0), Optional.empty()).join();
+        assertEquals(tails.poll(10, TimeUnit.SECONDS), Pair.of(marker, 0));
     }
 
     private void assertGet(MetadataStoreTableViewImpl<Integer> tv, String path, Integer expected) {
@@ -263,32 +278,28 @@ public class MetadataStoreTableViewTest extends BaseMetadataStoreTest {
         tv.put(childKey, val0).join();
         kv = tails.poll(3, TimeUnit.SECONDS);
         assertEquals(kv, Pair.of(childKey, val0));
-        kv = tails.poll(3, TimeUnit.SECONDS);
-        assertNull(kv);
+        assertNextTailItemIsMarker(store, prefix, keyPrefix + "/my-marker-1");
         assertEquals(tv.get(key1), val2);
         assertEquals(tv.get(childKey), val0);
 
         tv.put(childKey, val1).join();
         kv = tails.poll(3, TimeUnit.SECONDS);
         assertEquals(kv, Pair.of(childKey, val1));
-        kv = tails.poll(3, TimeUnit.SECONDS);
-        assertNull(kv);
+        assertNextTailItemIsMarker(store, prefix, keyPrefix + "/my-marker-2");
         assertEquals(tv.get(key1), val2);
         assertEquals(tv.get(childKey), val1);
 
         tv.delete(childKey).join();
         kv = tails.poll(3, TimeUnit.SECONDS);
         assertEquals(kv, Pair.of(childKey, null));
-        kv = tails.poll(3, TimeUnit.SECONDS);
-        assertNull(kv);
+        assertNextTailItemIsMarker(store, prefix, keyPrefix + "/my-marker-3");
         assertEquals(tv.get(key1), val2);
         assertNull(tv.get(childKey));
 
         // No listen on the filtered key
         String noListenKey = keyPrefix + "/to-be-filtered";
         tv.put(noListenKey, val0).join();
-        kv = tails.poll(3, TimeUnit.SECONDS);
-        assertNull(kv);
+        assertNextTailItemIsMarker(store, prefix, keyPrefix + "/my-marker-4");
         assertEquals(tv.get(key1), val2);
         assertNull(tv.get(noListenKey));
 
@@ -333,6 +344,9 @@ public class MetadataStoreTableViewTest extends BaseMetadataStoreTest {
                                 .attr("success", !putResult.isCompletedExceptionally())
                                 .log("Put value result");
                     } else {
+                        // Hand the last value on to the other workers, so they stop now instead of after an idle
+                        // poll timeout.
+                        tails.addFirst(kv);
                         break;
                     }
                 }
@@ -459,8 +473,6 @@ public class MetadataStoreTableViewTest extends BaseMetadataStoreTest {
 
         assertFalse(btv.exists(k1));
 
-        var serde = new JSONMetadataSerdeSimpleType<>(
-                TypeFactory.defaultInstance().constructSimpleType(Integer.class, null));
         store.put(prefix + "/" + k1, serde.serialize(prefix + "/" + k1, 0), Optional.empty()).join();
         store.put(prefix + "/" + k2, serde.serialize(prefix + "/" + k2, 1), Optional.empty()).join();
         store.put(prefix + "/" + k3, serde.serialize(prefix + "/" + k3, 2), Optional.empty()).join();
@@ -474,8 +486,11 @@ public class MetadataStoreTableViewTest extends BaseMetadataStoreTest {
             var kv = tails.poll(3, TimeUnit.SECONDS);
             assertTrue(tailExpected.remove(kv));
         }
-        assertNull(tails.poll(3, TimeUnit.SECONDS));
+        // k5 is filtered out. Remove the marker again so that the table view below doesn't load it.
+        String marker = "tenant-1/ns-1/my-marker";
+        assertNextTailItemIsMarker(store, prefix, marker);
         assertTrue(tailExpected.isEmpty());
+        store.delete(prefix + "/" + marker, Optional.empty()).join();
 
         @Cleanup
         MetadataStore store2 = MetadataStoreFactoryImpl.create(urlSupplier.get(),
@@ -490,7 +505,8 @@ public class MetadataStoreTableViewTest extends BaseMetadataStoreTest {
             var kv = existings.poll(3, TimeUnit.SECONDS);
             assertTrue(existingExpected.remove(kv));
         }
-        assertNull(existings.poll(3, TimeUnit.SECONDS));
+        // start() returns after the fill has called the existing-item listeners for every loaded item.
+        assertNull(existings.poll());
         assertTrue(existingExpected.isEmpty());
 
         assertEquals(tv.get(k1), 0);
