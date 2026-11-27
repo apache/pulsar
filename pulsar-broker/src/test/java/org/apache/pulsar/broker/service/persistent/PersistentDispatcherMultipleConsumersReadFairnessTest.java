@@ -18,9 +18,8 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers.BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -29,7 +28,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
@@ -62,22 +61,23 @@ public class PersistentDispatcherMultipleConsumersReadFairnessTest extends Share
     private static final int STORM_COUNT = 1000;
     private static final int BOUND_MILLIS = 10;
 
-    @DataProvider(name = "subscriptionTypesAndBounds")
-    public static Object[][] subscriptionTypesAndBounds() {
-        return new Object[][]{
-                {SubscriptionType.Shared, 0}, {SubscriptionType.Shared, BOUND_MILLIS},
-                {SubscriptionType.Key_Shared, 0}, {SubscriptionType.Key_Shared, BOUND_MILLIS}};
+    @DataProvider(name = "subscriptionTypes")
+    public static Object[][] subscriptionTypes() {
+        return new Object[][]{{SubscriptionType.Shared}, {SubscriptionType.Key_Shared}};
     }
 
-    @Test(dataProvider = "subscriptionTypesAndBounds", timeOut = 60000)
-    public void testNormalReadsAreNotStarvedByRedeliveryStorm(SubscriptionType subscriptionType, int boundMillis)
-            throws Exception {
+    // Whether the bound really yields is covered deterministically at the dispatcher level, where a pass can be
+    // driven with a controlled clock (PersistentDispatcherMultipleConsumersReplayYieldTest). A live storm cannot
+    // keep the replay queue continuously non-empty, so the strict priority of the disabled bound cannot be asserted
+    // end to end; this test checks that a bounded dispatcher keeps delivering through a real nack storm.
+    @Test(dataProvider = "subscriptionTypes", timeOut = 60000)
+    public void testNormalReadsAreNotStarvedByRedeliveryStorm(SubscriptionType subscriptionType) throws Exception {
         String topicName = newTopicName();
         admin.topics().createNonPartitionedTopic(topicName);
         Set<String> received = ConcurrentHashMap.newKeySet();
         List<String> normalReceived = new CopyOnWriteArrayList<>();
         Set<Position> stormPositions = ConcurrentHashMap.newKeySet();
-        AtomicBoolean stormActive = new AtomicBoolean(true);
+        AtomicLong stormDelivered = new AtomicLong();
 
         try (Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
                 .topic(topicName)
@@ -89,9 +89,15 @@ public class PersistentDispatcherMultipleConsumersReadFairnessTest extends Share
                      .subscriptionType(subscriptionType)
                      .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                      .receiverQueueSize(10)
-                     .messageListener((ignored, msg) -> {
+                     // A consumer that nacks every storm delivery right away: the real redelivery path
+                     // removes the pending ack and decrements the unacked count, unlike a direct refill
+                     // of the replay queue.
+                     .negativeAckRedeliveryDelay(0, TimeUnit.MILLISECONDS)
+                     .messageListener((c, msg) -> {
                          received.add(msg.getValue());
                          if (msg.getValue().startsWith("storm")) {
+                             stormDelivered.incrementAndGet();
+                             c.negativeAcknowledge(msg);
                              MessageIdImpl messageId = (MessageIdImpl) msg.getMessageId();
                              stormPositions.add(PositionFactory.create(
                                      messageId.getLedgerId(), messageId.getEntryId()));
@@ -103,7 +109,7 @@ public class PersistentDispatcherMultipleConsumersReadFairnessTest extends Share
             for (int i = 0; i < STORM_COUNT; i++) {
                 producer.newMessage().key(STORM_KEY).value("storm-" + i).send();
             }
-            Awaitility.await("the consumer receives the unacknowledged storm")
+            Awaitility.await("the consumer receives the storm")
                     .atMost(Duration.ofSeconds(10))
                     .untilAsserted(() -> assertEquals(stormPositions.size(), STORM_COUNT));
 
@@ -112,77 +118,41 @@ public class PersistentDispatcherMultipleConsumersReadFairnessTest extends Share
             PersistentSubscription subscription = (PersistentSubscription) topic.getSubscription(SUBSCRIPTION);
             PersistentDispatcherMultipleConsumers dispatcher =
                     (PersistentDispatcherMultipleConsumers) subscription.getDispatcher();
-            dispatcher.setMaxReplayPriorityDurationInMillisForTesting(boundMillis);
-            int stormStickyKeyHash = subscriptionType == SubscriptionType.Key_Shared
-                    ? ((PersistentStickyKeyDispatcherMultipleConsumers) dispatcher).getSelector()
-                            .makeStickyKeyHash(STORM_KEY.getBytes(UTF_8))
-                    : -1;
+            dispatcher.setMaxReplayPriorityDurationInMillisForTesting(BOUND_MILLIS);
             org.apache.pulsar.broker.service.Consumer brokerConsumer = subscription.getConsumers().get(0);
 
-            Thread storm = new Thread(() -> {
-                while (stormActive.get()) {
-                    for (Position position : stormPositions) {
-                        if (stormStickyKeyHash == -1) {
-                            dispatcher.addMessageToReplay(position.getLedgerId(), position.getEntryId());
-                        } else {
-                            dispatcher.addMessageToReplay(position.getLedgerId(), position.getEntryId(),
-                                    stormStickyKeyHash);
-                        }
-                    }
-                    Thread.onSpinWait();
-                }
-            }, "replay-storm");
-            storm.start();
-            try {
-                // Refill the replay set directly so the storm cannot drain while the refill waits for the dispatcher
-                // monitor. The real consumer still receives every replayed duplicate through the normal send path.
-                Awaitility.await("the replay queue is busy")
-                        .atMost(Duration.ofSeconds(5))
-                        .untilAsserted(() -> assertTrue(dispatcher.getNumberOfMessagesInReplay() > 0));
-                dispatcher.readMoreEntriesAsync();
+            Awaitility.await("the replay queue is busy with the nack storm")
+                    .atMost(Duration.ofSeconds(10))
+                    .untilAsserted(() -> assertTrue(dispatcher.getNumberOfMessagesInReplay() > 0));
+            long stormDeliveredBefore = stormDelivered.get();
 
-                List<Position> normalPositions = new ArrayList<>();
-                for (String value : List.of("normal-1", "normal-2", "normal-3")) {
-                    MessageIdImpl messageId = (MessageIdImpl) producer.newMessage()
-                            .key(NORMAL_KEY).value(value).send();
-                    normalPositions.add(PositionFactory.create(
-                            messageId.getLedgerId(), messageId.getEntryId()));
-                }
-
-                if (boundMillis == 0) {
-                    Awaitility.await("replays keep the strict priority when the bound is disabled")
-                            .during(Duration.ofSeconds(1))
-                            .atMost(Duration.ofSeconds(3))
-                            .untilAsserted(() -> {
-                                for (Position position : normalPositions) {
-                                    assertFalse(brokerConsumer.getPendingAcks().contains(
-                                            position.getLedgerId(), position.getEntryId()));
-                                }
-                                assertFalse(received.contains("normal-1"));
-                                assertFalse(received.contains("normal-2"));
-                                assertFalse(received.contains("normal-3"));
-                            });
-                } else {
-                    Awaitility.await("the normal read gets through the replay storm")
-                            .atMost(Duration.ofSeconds(5))
-                            .untilAsserted(() -> {
-                                for (Position position : normalPositions) {
-                                    assertTrue(brokerConsumer.getPendingAcks().contains(
-                                            position.getLedgerId(), position.getEntryId()));
-                                }
-                                assertTrue(received.contains("normal-1"));
-                                assertTrue(received.contains("normal-2"));
-                                assertTrue(received.contains("normal-3"));
-                                assertEquals(normalReceived, List.of("normal-1", "normal-2", "normal-3"),
-                                        "the normal messages arrive in order");
-                            });
-                }
-                assertTrue(dispatcher.getNumberOfMessagesInReplay() > 0,
-                        "the replay storm is still active after the normal read");
-            } finally {
-                stormActive.set(false);
-                storm.join(TimeUnit.SECONDS.toMillis(5));
+            List<Position> normalPositions = new ArrayList<>();
+            for (String value : List.of("normal-1", "normal-2", "normal-3")) {
+                MessageIdImpl messageId = (MessageIdImpl) producer.newMessage()
+                        .key(NORMAL_KEY).value(value).send();
+                normalPositions.add(PositionFactory.create(
+                        messageId.getLedgerId(), messageId.getEntryId()));
             }
+
+            Awaitility.await("the normal read gets through the replay storm")
+                    .atMost(Duration.ofSeconds(5))
+                    .untilAsserted(() -> {
+                        for (Position position : normalPositions) {
+                            assertTrue(brokerConsumer.getPendingAcks().contains(
+                                    position.getLedgerId(), position.getEntryId()));
+                        }
+                        assertTrue(received.contains("normal-1"));
+                        assertTrue(received.contains("normal-2"));
+                        assertTrue(received.contains("normal-3"));
+                        assertEquals(normalReceived, List.of("normal-1", "normal-2", "normal-3"),
+                                "the normal messages arrive in order");
+                    });
+            // The queue is momentarily empty between a delivery and its scheduled redelivery, so
+            // liveness is shown by deliveries still increasing, not by the queue's size.
+            assertTrue(stormDelivered.get() > stormDeliveredBefore,
+                    "replays kept being delivered throughout the check");
+            assertEquals(BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.get(dispatcher), 0,
+                    "the dispatcher was never blocked on unacked messages");
         } finally {
             admin.topics().delete(topicName, true);
         }

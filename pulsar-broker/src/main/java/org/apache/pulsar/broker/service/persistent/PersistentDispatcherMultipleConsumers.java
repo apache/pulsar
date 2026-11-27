@@ -623,24 +623,44 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
 
     /**
      * Whether replays have postponed the normal read for longer than
-     * {@code dispatcherMaxReplayPriorityDurationInMillis} while entries are waiting to be read. The
-     * postponement is only counted while the cursor has entries to read: a normal read issued
-     * without any entry would only park a waiting read.
+     * {@code dispatcherMaxReplayPriorityDurationInMillis} while readable entries are waiting. The
+     * postponement is only counted while a normal read would deliver entries: a read issued
+     * without any would only park a waiting read.
      */
     private boolean shouldYieldToNormalRead() {
-        if (maxReplayPriorityDurationNanos == 0 || !normalReadStarved || !cursor.hasMoreEntries()) {
+        if (maxReplayPriorityDurationNanos == 0 || !normalReadStarved) {
             return false;
         }
-        if (BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.get(this) == TRUE) {
-            // A blocked dispatcher reads nothing: yielding here would skip the replay round as well.
+        if (!hasReadableEntries()) {
+            // The postponement ended at the tail: the next entry starts a fresh clock.
+            normalReadStarved = false;
+            return false;
+        }
+        // Yield only to a normal read that will really be scheduled. Otherwise the replays must
+        // keep running: for Key_Shared they are what brings the look-ahead queue back under its
+        // limit, and a pending normal read lets replays run alongside it.
+        if (!canScheduleNormalReadNow()) {
             return false;
         }
         return currentTimeNanos() - normalReadStarvedSinceNanos >= maxReplayPriorityDurationNanos;
     }
 
+    private boolean canScheduleNormalReadNow() {
+        return BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.get(this) != TRUE
+                && doesntHavePendingRead()
+                && isNormalReadAllowed()
+                && !shouldPauseOnAckStatePersist(ReadType.Normal);
+    }
+
+    private boolean hasReadableEntries() {
+        // hasMoreEntries() ignores the transaction max read position, which can hold the entries
+        // behind the cursor back from a normal read.
+        return cursor.hasMoreEntries() && cursor.getReadPosition().compareTo(topic.getMaxReadPosition()) <= 0;
+    }
+
     /** Starts the clock of the normal read's postponement, on the first replay round that postpones it. */
     private void markNormalReadStarved() {
-        if (maxReplayPriorityDurationNanos == 0 || normalReadStarved || !cursor.hasMoreEntries()) {
+        if (maxReplayPriorityDurationNanos == 0 || normalReadStarved || !hasReadableEntries()) {
             return;
         }
         normalReadStarved = true;

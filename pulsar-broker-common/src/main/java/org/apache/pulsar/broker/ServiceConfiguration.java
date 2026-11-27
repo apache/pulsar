@@ -1675,6 +1675,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_SERVER,
+            minValue = 0,
             doc = "The maximum duration, in milliseconds, for which replay reads (redeliveries and due delayed"
                     + " messages) retain priority over normal reads. When this duration elapses while entries are"
                     + " waiting to be read, the dispatcher yields one scheduling round to a normal read and restarts"
