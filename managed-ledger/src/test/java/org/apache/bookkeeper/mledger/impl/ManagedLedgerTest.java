@@ -179,7 +179,7 @@ import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
-import org.apache.pulsar.metadata.api.MetadataStoreExtended;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
@@ -1317,22 +1317,25 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     public void asyncOpenCursorFailsWhenLedgerClosedDuringInitialize() throws Exception {
-        openCursorRacingKill(false);
+        openCursorRacingKill(false, 1);
     }
 
     @Test(timeOut = 20000)
     public void asyncOpenCursorFailsWhenLedgerFencedDuringInitialize() throws Exception {
-        openCursorRacingKill(true);
+        openCursorRacingKill(true, 1);
     }
 
-    /**
-     * Opens a cursor while holding its create in the metadata store, kills the ledger, and only then lets
-     * the create complete: the open must fail and the cursor must never be registered on the dead instance.
-     */
-    private void openCursorRacingKill(boolean fence) throws Exception {
+    @Test(timeOut = 20000)
+    public void asyncOpenCursorFailsBothOpenersWhenLedgerFencedDuringInitialize() throws Exception {
+        openCursorRacingKill(true, 2);
+    }
+
+    @Test(timeOut = 20000)
+    public void asyncOpenCursorFailsWhenLedgerDeletedDuringInitialize() throws Exception {
         @Cleanup("shutdown")
         ManagedLedgerFactoryImpl blockingFactory = new BlockingCursorOpenFactory(metadataStore, bkc);
-        ManagedLedger ledger = blockingFactory.open("my_test_ledger", initManagedLedgerConfig(defaultConfig()));
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) blockingFactory.open("my_test_ledger_delete",
+                initManagedLedgerConfig(defaultConfig()));
         BlockingCursorMetaStore blockingStore = ((BlockingCursorOpenLedger) ledger).blockingStore();
 
         final CountDownLatch openDone = new CountDownLatch(1);
@@ -1353,8 +1356,74 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         }, null);
 
         assertTrue(blockingStore.awaitIntercepted(5, TimeUnit.SECONDS));
+
+        // Delete while the cursor create is still held: trimming defers until the pending open
+        // resolves, so the late cursor must be registered first and then cleaned up with it.
+        final CountDownLatch deleteDone = new CountDownLatch(1);
+        final AtomicReference<ManagedLedgerException> deleteFailure = new AtomicReference<>();
+        ledger.asyncDelete(new DeleteLedgerCallback() {
+            @Override
+            public void deleteLedgerComplete(Object ctx) {
+                deleteDone.countDown();
+            }
+
+            @Override
+            public void deleteLedgerFailed(ManagedLedgerException exception, Object ctx) {
+                deleteFailure.set(exception);
+                deleteDone.countDown();
+            }
+        }, null);
+        assertEquals(ledger.getState(), ManagedLedgerImpl.State.FencedForDeletion);
+
+        blockingStore.release();
+        assertTrue(openDone.await(5, TimeUnit.SECONDS));
+        assertNull(openedCursor.get());
+        assertTrue(openFailure.get() instanceof ManagedLedgerFencedException,
+                "Expected a fenced failure but got " + openFailure.get());
+        assertTrue(deleteDone.await(5, TimeUnit.SECONDS));
+        assertNull(deleteFailure.get(), "Delete failed with " + deleteFailure.get());
+        assertFalse(metadataStore.exists("/managed-ledgers/my_test_ledger_delete/test-cursor")
+                .get(5, TimeUnit.SECONDS));
+    }
+
+    /**
+     * Opens a cursor while holding its create in the metadata store, kills the ledger, and only then lets
+     * the create complete: every opener must fail and the cursor must never be registered on the dead
+     * instance. With {@code openers} set to 2, a second concurrent open for the same name shares the
+     * pending open and must fail the same way.
+     */
+    private void openCursorRacingKill(boolean fence, int openers) throws Exception {
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl blockingFactory = new BlockingCursorOpenFactory(metadataStore, bkc);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) blockingFactory.open("my_test_ledger",
+                initManagedLedgerConfig(defaultConfig()));
+        BlockingCursorMetaStore blockingStore = ((BlockingCursorOpenLedger) ledger).blockingStore();
+
+        final CountDownLatch openDone = new CountDownLatch(openers);
+        final AtomicReference<ManagedCursor> openedCursor = new AtomicReference<>();
+        final AtomicInteger openFailures = new AtomicInteger();
+        final AtomicReference<ManagedLedgerException> openFailure = new AtomicReference<>();
+        OpenCursorCallback openCallback = new OpenCursorCallback() {
+            @Override
+            public void openCursorComplete(ManagedCursor cursor, Object ctx) {
+                openedCursor.set(cursor);
+                openDone.countDown();
+            }
+
+            @Override
+            public void openCursorFailed(ManagedLedgerException exception, Object ctx) {
+                openFailure.compareAndSet(null, exception);
+                openFailures.incrementAndGet();
+                openDone.countDown();
+            }
+        };
+        for (int i = 0; i < openers; i++) {
+            ledger.asyncOpenCursor("test-cursor", openCallback, null);
+        }
+
+        assertTrue(blockingStore.awaitIntercepted(5, TimeUnit.SECONDS));
         if (fence) {
-            ((ManagedLedgerImpl) ledger).setFenced();
+            ledger.setFenced();
         } else {
             ledger.close();
         }
@@ -1362,6 +1431,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertTrue(openDone.await(5, TimeUnit.SECONDS));
 
         assertNull(openedCursor.get());
+        assertEquals(openFailures.get(), openers, "Not every concurrent opener failed");
         if (fence) {
             assertTrue(openFailure.get() instanceof ManagedLedgerFencedException,
                     "Expected a fenced failure but got " + openFailure.get());
@@ -1376,11 +1446,20 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             } catch (ManagedLedgerException e) {
                 // A fenced ledger refuses a normal close; the factory shutdown still releases it.
             }
+        } else {
+            // The persisted record is left behind, so the next owner recovers the cursor.
+            ManagedLedger reopened = factory.open("my_test_ledger", initManagedLedgerConfig(defaultConfig()));
+            try {
+                assertNotNull(((ManagedLedgerImpl) reopened).getCursors().get("test-cursor"),
+                        "Next owner should recover the cursor left behind by the failed open");
+            } finally {
+                reopened.close();
+            }
         }
     }
 
     private static final class BlockingCursorOpenFactory extends ManagedLedgerFactoryImpl {
-        BlockingCursorOpenFactory(MetadataStoreExtended metadataStore, BookKeeper bookKeeper) {
+        BlockingCursorOpenFactory(MetadataStoreExtended metadataStore, BookKeeper bookKeeper) throws Exception {
             super(metadataStore, bookKeeper);
         }
 

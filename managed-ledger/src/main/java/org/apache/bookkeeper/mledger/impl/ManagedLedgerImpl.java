@@ -1363,7 +1363,16 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         return;
                     }
                     initializationCallbackEntered.set(true);
-                    if (state == State.Closed || state.isFenced()) {
+                    if (state == State.FencedForDeletion) {
+                        // The ledger is being deleted while the cursor was being persisted: register
+                        // the late cursor so the racing delete sees it and cleans up its persisted
+                        // record, but still fail the open — the ledger is gone either way.
+                        addCursor(cursor);
+                        if (!uninitializedCursors.remove(cursorName, cursorFuture)) {
+                            return;
+                        }
+                        openFailure = new ManagedLedgerFencedException();
+                    } else if (state == State.Closed || state.isFenced()) {
                         // The ledger was closed or fenced while the cursor was being persisted: do not
                         // activate or register the cursor on the dead instance. The persisted record is
                         // left behind so a later open can recover the cursor.
@@ -1387,7 +1396,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     }
                 }
                 if (openFailure != null) {
-                    cursor.closeReadOnlyCursorLedger();
                     cursorFuture.completeExceptionally(openFailure);
                     callback.openCursorFailed(openFailure, ctx);
                     return;
