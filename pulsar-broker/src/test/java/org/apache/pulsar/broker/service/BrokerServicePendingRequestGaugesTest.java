@@ -35,8 +35,9 @@ import org.testng.annotations.Test;
 
 /**
  * The pending lookup and topic load gauges are per broker, but the Prometheus registry is per JVM, so only one broker
- * of a JVM has them registered. Which broker that is depends on the other tests of the JVM, so this test checks only
- * that the gauges of a broker that starts or closes never show up next to the ones that are registered.
+ * of a JVM has them registered. Which broker that is depends on the other tests of the JVM, so this test does not
+ * check whose gauges a scrape gets: only that it gets each gauge once while a broker runs, and never twice while
+ * other brokers start and close.
  */
 @Test(groups = "broker")
 public class BrokerServicePendingRequestGaugesTest {
@@ -45,7 +46,7 @@ public class BrokerServicePendingRequestGaugesTest {
     private static final String PENDING_TOPIC_LOADS_GAUGE = "pulsar_broker_topic_load_pending_requests";
 
     @Test
-    public void testScrapesGetEachPendingRequestGaugeAtMostOnceWhileBrokersStartAndClose() throws Exception {
+    public void testPendingRequestGaugesAreScrapedOnceWhileBrokersStartAndClose() throws Exception {
         AtomicBoolean brokersStartAndClose = new AtomicBoolean(true);
         AtomicLong scrapeCount = new AtomicLong();
         @Cleanup("shutdownNow")
@@ -63,6 +64,9 @@ public class BrokerServicePendingRequestGaugesTest {
             // The first broker has the gauges unless a broker of another test has them already, so the brokers
             // that start next find their names taken
             try (PulsarTestContext first = PulsarTestContext.builder().build()) {
+                assertThat(scrapeRegisteredPendingRequestGauges())
+                        .as("pending request gauges in a scrape of the registry while a broker runs")
+                        .containsExactlyInAnyOrder(PENDING_LOOKUPS_GAUGE, PENDING_TOPIC_LOADS_GAUGE);
                 // A broker that registered a taken name would show its gauge for an instant only, hence several
                 for (int i = 0; i < 3; i++) {
                     long scrapesBefore = scrapeCount.get();
@@ -71,6 +75,9 @@ public class BrokerServicePendingRequestGaugesTest {
                                 Math.min(fewestScrapesWhileABrokerStarts, scrapeCount.get() - scrapesBefore);
                     }
                 }
+                assertThat(scrapeRegisteredPendingRequestGauges())
+                        .as("pending request gauges in a scrape of the registry after the other brokers have closed")
+                        .containsExactlyInAnyOrder(PENDING_LOOKUPS_GAUGE, PENDING_TOPIC_LOADS_GAUGE);
             }
         } finally {
             brokersStartAndClose.set(false);
