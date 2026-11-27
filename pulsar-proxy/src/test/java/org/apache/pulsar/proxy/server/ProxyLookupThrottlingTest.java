@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.proxy.server;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.doReturn;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -32,12 +34,14 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException.TooManyRequestsException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.LookupService;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.mockito.Mockito;
 import org.testng.Assert;
@@ -108,6 +112,7 @@ public class ProxyLookupThrottlingTest extends MockedPulsarServiceBaseTest {
         Producer<byte[]> producer1 = client.newProducer(Schema.BYTES)
                 .topic("persistent://public/default/producer-topic").create();
         assertTrue(proxyService.getLookupRequestSemaphore().tryAcquire());
+        double rejectedBefore = LookupProxyHandler.REJECTED_PARTITIONS_METADATA_REQUESTS.get();
         try {
             @Cleanup
             Producer<byte[]> producer2 = client.newProducer(Schema.BYTES)
@@ -116,7 +121,7 @@ public class ProxyLookupThrottlingTest extends MockedPulsarServiceBaseTest {
         } catch (Exception ex) {
             // Ignore
         }
-        Assert.assertEquals(LookupProxyHandler.REJECTED_PARTITIONS_METADATA_REQUESTS.get(), 5.0d);
+        Assert.assertEquals(LookupProxyHandler.REJECTED_PARTITIONS_METADATA_REQUESTS.get() - rejectedBefore, 5.0d);
         proxyService.getLookupRequestSemaphore().release();
         try {
             @Cleanup
@@ -126,7 +131,7 @@ public class ProxyLookupThrottlingTest extends MockedPulsarServiceBaseTest {
             Assert.fail("Should not have failed since can acquire LookupRequestSemaphore");
         }
 
-        Assert.assertEquals(LookupProxyHandler.REJECTED_PARTITIONS_METADATA_REQUESTS.get(), 5.0d);
+        Assert.assertEquals(LookupProxyHandler.REJECTED_PARTITIONS_METADATA_REQUESTS.get() - rejectedBefore, 5.0d);
     }
 
     @Test
@@ -155,5 +160,32 @@ public class ProxyLookupThrottlingTest extends MockedPulsarServiceBaseTest {
         // cleanup.
         lookupSemaphore.release(availablePermits);
         client.close();
+    }
+
+    @Test
+    public void testPartitionMetadataThrottlingKeepsConnectionOpen() throws Exception {
+        String topic = BrokerTestUtil.newUniqueName("persistent://public/default/partitioned");
+        admin.topics().createPartitionedTopic(topic, 2);
+        @Cleanup
+        PulsarClientImpl client = (PulsarClientImpl) PulsarClient.builder()
+                .serviceUrl(proxyService.getServiceUrl()).build();
+        ClientCnx connection = client.getCnxPool().getConnection(client.getLookup().resolveHost())
+                .get(10, TimeUnit.SECONDS);
+        Semaphore lookupSemaphore = proxyService.getLookupRequestSemaphore();
+        int permits = lookupSemaphore.drainPermits();
+        try {
+            long requestId = client.newRequestId();
+            assertThatThrownBy(() -> connection.newLookup(Commands.newPartitionMetadataRequest(topic, requestId, true),
+                    requestId).get(10, TimeUnit.SECONDS)).hasCauseInstanceOf(TooManyRequestsException.class);
+            assertThat(connection.ctx().channel().isActive()).as("Connection after partition metadata rejection")
+                    .isTrue();
+        } finally {
+            lookupSemaphore.release(permits);
+        }
+
+        long requestId = client.newRequestId();
+        assertThat(connection.newLookup(Commands.newPartitionMetadataRequest(topic, requestId, true), requestId)
+                .get(10, TimeUnit.SECONDS).partitions)
+                .as("Partitions returned on the original connection").isEqualTo(2);
     }
 }

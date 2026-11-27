@@ -31,6 +31,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiConsumer;
@@ -42,7 +43,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.topiclistlimit.TopicListMemoryLimiter;
 import org.apache.pulsar.broker.topiclistlimit.TopicListSizeResultCache;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.impl.BinaryProtoLookupService;
+import org.apache.pulsar.client.impl.BinaryProtoLookupService.LookupDataResult;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.common.api.proto.BaseCommand;
@@ -138,7 +139,7 @@ public class LookupProxyHandler {
                 .log("Received Lookup from");
         long clientRequestId = lookup.getRequestId();
         if (lookupRequestSemaphore.tryAcquire()) {
-            runWithLookupPermit(() -> {
+            runWithLookupPermit(BaseCommand.Type.LOOKUP, clientRequestId, () -> {
                 LOOKUP_REQUESTS.inc();
                 String serviceUrl = getBrokerServiceUrl(lookupErrorResponse(clientRequestId));
                 if (serviceUrl == null) {
@@ -178,46 +179,60 @@ public class LookupProxyHandler {
                 .log("Getting connection for topic lookup");
         ConnectionPool connectionPool = proxyConnection.getConnectionPool();
         return FutureUtil.supplySafely(() -> connectionPool.getConnection(addr))
-                .thenCompose(clientCnx -> FutureUtil.supplySafely(() -> {
-                    long requestId = proxyConnection.newRequestId();
-                    return clientCnx.newLookup(Commands.newLookup(topic, authoritative, requestId), requestId);
-                }).whenComplete((result, error) -> {
-                    connectionPool.releaseConnection(clientCnx);
-                    if (error != null) {
-                        log.warn()
-                                .attr("clientAddress", clientAddress)
-                                .attr("topic", topic)
-                                .exceptionMessage(error)
-                                .log("Failed to lookup topic");
-                    }
-                }))
-                .<CompletableFuture<Void>>handle((result, error) -> {
-                    if (error != null) {
-                        Throwable cause = FutureUtil.unwrapCompletionException(error);
-                        writeAndFlush(Commands.newLookupErrorResponse(
-                                getServerError(cause), cause.getMessage(), clientRequestId));
+                .<CompletableFuture<Void>>handle((clientCnx, connectionError) -> {
+                    if (connectionError != null) {
+                        log.debug()
+                                .attr("addr", addr)
+                                .attr("clientRequestId", clientRequestId)
+                                .exceptionMessage(connectionError)
+                                .log("Failed to connect for topic lookup");
+                        // A dependent stage previously wrapped connection failures before reporting their message.
+                        String message = connectionError instanceof CompletionException
+                                ? connectionError.getMessage() : connectionError.toString();
+                        writeAndFlush(Commands.newLookupErrorResponse(ServerError.ServiceNotReady,
+                                message, clientRequestId));
                         return CompletableFuture.completedFuture(null);
                     }
-                    String brokerUrl = resolveBrokerUrlFromLookupDataResult(result);
-                    if (result.redirect) {
-                        return performLookup(clientRequestId, topic, brokerUrl, result.authoritative,
-                                numberOfRetries - 1);
-                    }
-                    // Advertise the same broker URL for both frontend transports, since the proxy's backend
-                    // transport is configured independently of the client's transport.
-                    log.debug()
-                            .attr("addr", addr)
-                            .attr("topic", topic)
-                            .attr("clientRequestId", clientRequestId)
-                            .attr("brokerUrl", brokerUrl)
-                            .log("Successfully performed lookup");
-                    writeAndFlush(Commands.newLookupResponse(brokerUrl, brokerUrl, true,
-                            LookupType.Connect, clientRequestId, true /* this is coming from proxy */));
-                    return CompletableFuture.completedFuture(null);
+                    return FutureUtil.supplySafely(() -> {
+                        long requestId = proxyConnection.newRequestId();
+                        return clientCnx.newLookup(Commands.newLookup(topic, authoritative, requestId), requestId);
+                    }).<CompletableFuture<Void>>handle((result, error) -> {
+                        releaseLookupConnection(connectionPool, clientCnx, clientRequestId);
+                        if (error != null) {
+                            Throwable cause = FutureUtil.unwrapCompletionException(error);
+                            log.warn()
+                                    .attr("clientAddress", clientAddress)
+                                    .attr("topic", topic)
+                                    .exceptionMessage(cause)
+                                    .log("Failed to lookup topic");
+                            writeAndFlush(Commands.newLookupErrorResponse(
+                                    getServerError(cause), cause.getMessage(), clientRequestId));
+                            return CompletableFuture.completedFuture(null);
+                        }
+                        return handleLookupResult(clientRequestId, topic, addr, result, numberOfRetries);
+                    }).thenCompose(Function.identity());
                 }).thenCompose(Function.identity());
     }
 
-    protected String resolveBrokerUrlFromLookupDataResult(BinaryProtoLookupService.LookupDataResult r) {
+    private CompletableFuture<Void> handleLookupResult(long clientRequestId, String topic, InetSocketAddress addr,
+                                                       LookupDataResult result, int numberOfRetries) {
+        String brokerUrl = resolveBrokerUrlFromLookupDataResult(result);
+        if (result.redirect) {
+            return performLookup(clientRequestId, topic, brokerUrl, result.authoritative, numberOfRetries - 1);
+        }
+        // The backend transport is independent of the client's transport, so advertise the same URL for both.
+        log.debug()
+                .attr("addr", addr)
+                .attr("topic", topic)
+                .attr("clientRequestId", clientRequestId)
+                .attr("brokerUrl", brokerUrl)
+                .log("Successfully performed lookup");
+        writeAndFlush(Commands.newLookupResponse(brokerUrl, brokerUrl, true,
+                LookupType.Connect, clientRequestId, true /* this is coming from proxy */));
+        return CompletableFuture.completedFuture(null);
+    }
+
+    protected String resolveBrokerUrlFromLookupDataResult(LookupDataResult r) {
         return connectWithTLS ? r.brokerUrlTls : r.brokerUrl;
     }
 
@@ -228,7 +243,7 @@ public class LookupProxyHandler {
                 .log("Received PartitionMetadataLookup");
         final long clientRequestId = partitionMetadata.getRequestId();
         if (lookupRequestSemaphore.tryAcquire()) {
-            runWithLookupPermit(() -> {
+            runWithLookupPermit(BaseCommand.Type.PARTITIONED_METADATA, clientRequestId, () -> {
                 String topicName = TopicName.toFullTopicName(partitionMetadata.getTopic());
                 return performPartitionMetadataLookup(topicName, partitionMetadata.isMetadataAutoCreationEnabled(),
                         clientRequestId);
@@ -240,7 +255,7 @@ public class LookupProxyHandler {
                     .attr("clientAddress", clientAddress)
                     .attr("throttlingErrorMessage", throttlingErrorMessage)
                     .log("PartitionMetaData Request ID rejected");
-            writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.ServiceNotReady,
+            writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.TooManyRequests,
                     throttlingErrorMessage, clientRequestId));
         }
     }
@@ -277,20 +292,17 @@ public class LookupProxyHandler {
                         ByteBuf command = Commands.newPartitionMetadataRequest(topicName, requestId,
                                 metadataAutoCreationEnabled);
                         return clientCnx.newLookup(command, requestId);
-                    }).whenComplete((result, error) -> connectionPool.releaseConnection(clientCnx))
-                            .handle((result, error) -> {
-                                if (error != null) {
-                                    log.warn()
-                                            .attr("topic", topicName)
-                                            .exception(error)
-                                            .log("failed to get Partitioned");
-                                    writePartitionMetadataError(error, clientRequestId, ServerError.UnknownError);
-                                } else {
-                                    writeAndFlush(Commands.newPartitionMetadataResponse(
-                                            result.partitions, clientRequestId));
-                                }
-                                return null;
-                            });
+                    }).handle((result, error) -> {
+                        releaseLookupConnection(connectionPool, clientCnx, clientRequestId);
+                        if (error != null) {
+                            log.warn().attr("topic", topicName).exception(error)
+                                    .log("Failed to look up partition metadata");
+                            writePartitionMetadataError(error, clientRequestId, ServerError.UnknownError);
+                        } else {
+                            writeAndFlush(Commands.newPartitionMetadataResponse(result.partitions, clientRequestId));
+                        }
+                        return null;
+                    });
                 }).thenCompose(Function.identity());
     }
 
@@ -328,7 +340,8 @@ public class LookupProxyHandler {
         final long requestId = commandGetTopicsOfNamespace.getRequestId();
 
         if (lookupRequestSemaphore.tryAcquire()) {
-            runWithLookupPermit(() -> getTopicsOfNamespace(commandGetTopicsOfNamespace, requestId));
+            runWithLookupPermit(BaseCommand.Type.GET_TOPICS_OF_NAMESPACE, requestId,
+                    () -> getTopicsOfNamespace(commandGetTopicsOfNamespace, requestId));
         } else {
             REJECTED_GET_TOPICS_OF_NAMESPACE_REQUESTS.inc();
             log.debug()
@@ -336,18 +349,34 @@ public class LookupProxyHandler {
                     .attr("clientAddress", clientAddress)
                     .attr("throttlingErrorMessage", throttlingErrorMessage)
                     .log("GetTopicsOfNamespace Request ID rejected");
-            writeAndFlush(Commands.newError(
-                requestId, ServerError.ServiceNotReady, throttlingErrorMessage
-            ));
+            writeAndFlush(Commands.newError(requestId, ServerError.TooManyRequests, throttlingErrorMessage));
         }
     }
 
-    private void runWithLookupPermit(Supplier<CompletableFuture<Void>> request) {
+    private void runWithLookupPermit(BaseCommand.Type requestType, long clientRequestId,
+                                     Supplier<CompletableFuture<Void>> request) {
         try {
-            request.get().whenComplete((ignored, error) -> lookupRequestSemaphore.release());
+            // A backend lookup queued in ClientCnx must also complete or fail on disconnect to return this permit.
+            request.get().whenComplete((ignored, error) -> {
+                lookupRequestSemaphore.release();
+                if (error != null) {
+                    log.warn().attr("requestType", requestType).attr("clientRequestId", clientRequestId)
+                            .attr("clientAddress", clientAddress).exception(FutureUtil.unwrapCompletionException(error))
+                            .log("Unexpected failure handling proxy lookup request");
+                }
+            });
         } catch (Throwable t) {
             lookupRequestSemaphore.release();
             throw t;
+        }
+    }
+
+    private void releaseLookupConnection(ConnectionPool connectionPool, ClientCnx clientCnx, long clientRequestId) {
+        try {
+            connectionPool.releaseConnection(clientCnx);
+        } catch (RuntimeException e) {
+            // Cleanup can close an unpooled connection. The broker's response is still valid if cleanup fails.
+            log.warn().attr("clientRequestId", clientRequestId).exception(e).log("Failed to release lookup connection");
         }
     }
 
@@ -391,7 +420,8 @@ public class LookupProxyHandler {
                 .thenCompose(clientCnx -> FutureUtil.supplySafely(() ->
                         internalPerformGetTopicsOfNamespace(clientRequestId, namespaceName, mode, properties, clientCnx,
                                 topicsPattern, topicsHash))
-                        .whenComplete((result, error) -> connectionPool.releaseConnection(clientCnx)))
+                        .whenComplete((result, error) ->
+                                releaseLookupConnection(connectionPool, clientCnx, clientRequestId)))
                 .exceptionally(ex -> {
                     writeAndFlush(Commands.newError(clientRequestId, getServerError(ex), ex.getMessage()));
                     return null;

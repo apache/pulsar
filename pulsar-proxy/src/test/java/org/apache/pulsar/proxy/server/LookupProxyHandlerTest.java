@@ -24,6 +24,7 @@ import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.timeout;
@@ -69,6 +70,7 @@ import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter.AsyncDualMemory
 import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter.LimitType;
 import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiterImpl;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
+import org.apache.pulsar.utils.TestLogAppender;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
@@ -375,20 +377,26 @@ public class LookupProxyHandlerTest {
     }
 
     @Test
-    public void testPartitionMetadataReleasesConnectionOnResponseWriteFailure() {
+    public void testPartitionMetadataReleasesConnectionOnResponseWriteFailure() throws Exception {
         ChannelHandlerContext context = mock(ChannelHandlerContext.class);
         ChannelPromise promise = mock(ChannelPromise.class);
         when(context.voidPromise()).thenReturn(promise);
+        IllegalStateException writeFailure = new IllegalStateException("Response write failed");
         doAnswer(invocation -> {
             ByteBuf response = invocation.getArgument(0);
             response.release();
-            throw new IllegalStateException("Response write failed");
+            throw writeFailure;
         }).when(context).writeAndFlush(any(ByteBuf.class), eq(promise));
         when(proxyConnection.ctx()).thenReturn(context);
         handler.handlePartitionMetadataResponse(newRequest());
         connectionFuture.complete(clientCnx);
         assertForwardedRequest(false);
-        metadataFuture.complete(new LookupDataResult(4));
+        try (TestLogAppender appender = TestLogAppender.create(LookupProxyHandler.class)) {
+            metadataFuture.complete(new LookupDataResult(4));
+            await().untilAsserted(() -> assertThat(appender.getEvents())
+                    .filteredOn(event -> event.getThrown() == writeFailure)
+                    .as("Unexpected response write failures logged").hasSize(1));
+        }
 
         verify(context).writeAndFlush(any(ByteBuf.class), eq(promise));
         verify(connectionPool).releaseConnection(clientCnx);
@@ -399,26 +407,13 @@ public class LookupProxyHandlerTest {
     public void testGetTopicsOfNamespaceHoldsPermitUntilResponse() throws Exception {
         long heapMemoryLimit = 1024;
         long directMemoryLimit = 1024;
-        topicListLimiter = new AsyncDualMemoryLimiterImpl(heapMemoryLimit, 100, 30_000,
-                directMemoryLimit, 100, 30_000);
-        TopicListSizeResultCache sizeCache = new TopicListSizeResultCache();
-        sizeCache.getTopicListSize(NAMESPACE, CommandGetTopicsOfNamespace.Mode.PERSISTENT).updateSize(1);
-        when(proxyService.getMaxTopicListInFlightLimiter()).thenReturn(topicListLimiter);
-        when(proxyService.getTopicListSizeResultCache()).thenReturn(sizeCache);
-        handler = new LookupProxyHandler(proxyService, proxyConnection);
-        CompletableFuture<GetTopicsResult> topicsFuture = new CompletableFuture<>();
-        doAnswer(invocation -> {
-            ByteBuf request = invocation.getArgument(0);
-            request.release();
-            return topicsFuture;
-        }).when(clientCnx).newGetTopicsOfNamespace(any(ByteBuf.class), eq(BROKER_REQUEST_ID));
+        configureTopicListLimits(heapMemoryLimit, directMemoryLimit).updateSize(1);
+        CompletableFuture<GetTopicsResult> topicsFuture = stubGetTopicsOfNamespace();
 
         AsyncDualMemoryLimiterPermit blockingDirectPermit =
                 topicListLimiter.acquire(directMemoryLimit, LimitType.DIRECT_MEMORY, () -> false).get(10, SECONDS);
         try {
-            handler.handleGetTopicsOfNamespace(new CommandGetTopicsOfNamespace()
-                    .setNamespace(NAMESPACE).setRequestId(CLIENT_REQUEST_ID)
-                    .setMode(CommandGetTopicsOfNamespace.Mode.PERSISTENT));
+            handler.handleGetTopicsOfNamespace(newGetTopicsOfNamespaceRequest());
             assertThat(lookupRequestSemaphore.availablePermits()).as("Permits while connecting").isZero();
             ProxyConnection otherConnection = mock(ProxyConnection.class);
             when(otherConnection.ctx()).thenReturn(channel.pipeline().firstContext());
@@ -426,6 +421,8 @@ public class LookupProxyHandlerTest {
             LookupProxyHandler otherHandler = new LookupProxyHandler(proxyService, otherConnection);
             otherHandler.handleLookup(newLookupRequest());
             readLookupErrorResponse(ServerError.TooManyRequests);
+            otherHandler.handleGetTopicsOfNamespace(newGetTopicsOfNamespaceRequest());
+            assertCommandError(ServerError.TooManyRequests);
             verify(otherConnection, never()).getConnectionPool();
 
             connectionFuture.complete(clientCnx);
@@ -465,6 +462,119 @@ public class LookupProxyHandlerTest {
         } finally {
             buffer.release();
         }
+    }
+
+    @Test
+    public void testGetTopicsOfNamespaceReleasesPermitOnConnectionFailure() {
+        handler.handleGetTopicsOfNamespace(newGetTopicsOfNamespaceRequest());
+        assertThat(lookupRequestSemaphore.availablePermits()).as("Permits while connecting").isZero();
+        connectionFuture.completeExceptionally(new PulsarClientException.ConnectException("Disconnected"));
+
+        assertCommandError(ServerError.ServiceNotReady);
+        verify(clientCnx, never()).newGetTopicsOfNamespace(any(ByteBuf.class), eq(BROKER_REQUEST_ID));
+        assertThat(lookupRequestSemaphore.availablePermits()).as("Permits after connection failure").isOne();
+    }
+
+    @Test
+    public void testGetTopicsOfNamespaceReleasesPermitOnBrokerFailure() {
+        TopicListSizeResultCache.ResultHolder size = configureTopicListLimits(1024, 1024);
+        CompletableFuture<GetTopicsResult> topicsFuture = stubGetTopicsOfNamespace();
+        handler.handleGetTopicsOfNamespace(newGetTopicsOfNamespaceRequest());
+        connectionFuture.complete(clientCnx);
+        CompletableFuture<Long> waitingEstimate = size.getSizeAsync();
+        assertThat(waitingEstimate).as("Size estimate while the first listing is pending").isNotDone();
+        assertThat(lookupRequestSemaphore.availablePermits()).as("Permits while awaiting the topic list").isZero();
+
+        topicsFuture.completeExceptionally(new PulsarClientException.NotAllowedException("Listing rejected"));
+
+        assertCommandError(ServerError.NotAllowedError);
+        assertThat(waitingEstimate).as("Size estimate after the first listing failed").isCompletedWithValue(1024L);
+        verify(connectionPool).releaseConnection(clientCnx);
+        assertThat(lookupRequestSemaphore.availablePermits()).as("Permits after broker failure").isOne();
+    }
+
+    @Test
+    public void testGetTopicsOfNamespaceReleasesPermitOnInitialHeapRejection() {
+        TopicListSizeResultCache.ResultHolder size = configureTopicListLimits(1024, 1024);
+        size.updateSize(1025);
+        handler.handleGetTopicsOfNamespace(newGetTopicsOfNamespaceRequest());
+        assertThat(lookupRequestSemaphore.availablePermits()).as("Permits while connecting").isZero();
+        connectionFuture.complete(clientCnx);
+
+        assertThat(assertCommandError(ServerError.NotAllowedError)).as("Rejected memory limit").contains("heap");
+        verify(clientCnx, never()).newGetTopicsOfNamespace(any(ByteBuf.class), eq(BROKER_REQUEST_ID));
+        verify(connectionPool).releaseConnection(clientCnx);
+        assertThat(lookupRequestSemaphore.availablePermits()).as("Permits after initial heap rejection").isOne();
+    }
+
+    @Test
+    public void testGetTopicsOfNamespaceReleasesPermitOnInitialHeapCancellation() throws Exception {
+        long heapLimit = 1024;
+        configureTopicListLimits(heapLimit, 1024);
+        AsyncDualMemoryLimiterPermit blockingPermit =
+                topicListLimiter.acquire(heapLimit, LimitType.HEAP_MEMORY, () -> false).get(10, SECONDS);
+        try {
+            handler.handleGetTopicsOfNamespace(newGetTopicsOfNamespaceRequest());
+            connectionFuture.complete(clientCnx);
+            assertThat(topicListLimiter.getLimiter(LimitType.HEAP_MEMORY).getQueueSize())
+                    .as("Listings waiting for initial heap memory").isOne();
+            assertThat(lookupRequestSemaphore.availablePermits()).as("Permits while awaiting heap memory").isZero();
+            channel.close().syncUninterruptibly();
+        } finally {
+            topicListLimiter.release(blockingPermit);
+        }
+
+        await().untilAsserted(() -> assertThat(lookupRequestSemaphore.availablePermits())
+                .as("Permits after cancellation").isOne());
+        verify(clientCnx, never()).newGetTopicsOfNamespace(any(ByteBuf.class), eq(BROKER_REQUEST_ID));
+        verify(connectionPool).releaseConnection(clientCnx);
+        assertThat(channel.outboundMessages()).as("Responses for cancelled listing").isEmpty();
+    }
+
+    @DataProvider
+    public Object[][] topicListResponseMemoryLimits() {
+        return new Object[][] {{1L, 1024L, "heap"}, {1024L, 1L, "direct"}};
+    }
+
+    @Test(dataProvider = "topicListResponseMemoryLimits")
+    public void testGetTopicsOfNamespaceReleasesPermitOnResponseMemoryRejection(
+            long heapLimit, long directLimit, String rejectedLimit) {
+        configureTopicListLimits(heapLimit, directLimit);
+        CompletableFuture<GetTopicsResult> topicsFuture = stubGetTopicsOfNamespace();
+        handler.handleGetTopicsOfNamespace(newGetTopicsOfNamespaceRequest());
+        connectionFuture.complete(clientCnx);
+        assertThat(lookupRequestSemaphore.availablePermits()).as("Permits while awaiting the topic list").isZero();
+        verify(clientCnx).newGetTopicsOfNamespace(any(ByteBuf.class), eq(BROKER_REQUEST_ID));
+        topicsFuture.complete(new GetTopicsResult(List.of(TOPIC), null, false, true));
+
+        assertThat(assertCommandError(ServerError.NotAllowedError)).as("Rejected memory limit").contains(rejectedLimit);
+        verify(connectionPool).releaseConnection(clientCnx);
+        assertThat(lookupRequestSemaphore.availablePermits()).as("Permits after response memory rejection").isOne();
+    }
+
+    private TopicListSizeResultCache.ResultHolder configureTopicListLimits(long heapLimit, long directLimit) {
+        topicListLimiter = new AsyncDualMemoryLimiterImpl(heapLimit, 100, 30_000, directLimit, 100, 30_000);
+        TopicListSizeResultCache sizeCache = new TopicListSizeResultCache(heapLimit,
+                () -> topicListLimiter.getLimiter(LimitType.HEAP_MEMORY).getAcquiredPermits() == 0);
+        when(proxyService.getMaxTopicListInFlightLimiter()).thenReturn(topicListLimiter);
+        when(proxyService.getTopicListSizeResultCache()).thenReturn(sizeCache);
+        handler = new LookupProxyHandler(proxyService, proxyConnection);
+        return sizeCache.getTopicListSize(NAMESPACE, CommandGetTopicsOfNamespace.Mode.PERSISTENT);
+    }
+
+    private CompletableFuture<GetTopicsResult> stubGetTopicsOfNamespace() {
+        CompletableFuture<GetTopicsResult> topicsFuture = new CompletableFuture<>();
+        doAnswer(invocation -> {
+            ByteBuf request = invocation.getArgument(0);
+            request.release();
+            return topicsFuture;
+        }).when(clientCnx).newGetTopicsOfNamespace(any(ByteBuf.class), eq(BROKER_REQUEST_ID));
+        return topicsFuture;
+    }
+
+    private CommandGetTopicsOfNamespace newGetTopicsOfNamespaceRequest() {
+        return new CommandGetTopicsOfNamespace().setNamespace(NAMESPACE).setRequestId(CLIENT_REQUEST_ID)
+                .setMode(CommandGetTopicsOfNamespace.Mode.PERSISTENT);
     }
 
     @Test
@@ -602,6 +712,65 @@ public class LookupProxyHandlerTest {
         assertThat(lookupRequestSemaphore.availablePermits()).as("Permits after invalid broker URL").isOne();
     }
 
+    @DataProvider
+    public Object[][] connectionReleaseFailures() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    @Test(dataProvider = "connectionReleaseFailures")
+    public void testLookupHoldsPermitUntilSuccessfulResponse(boolean releaseFails) {
+        String brokerUrl = "pulsar://owner:6650";
+        if (releaseFails) {
+            doThrow(new IllegalStateException("Release failed")).when(connectionPool).releaseConnection(clientCnx);
+        }
+        handler.handleLookup(newLookupRequest());
+        assertThat(lookupRequestSemaphore.availablePermits()).as("Permits while connecting").isZero();
+
+        connectionFuture.complete(clientCnx);
+        assertThat(lookupRequestSemaphore.availablePermits()).as("Permits while awaiting the lookup").isZero();
+        metadataFuture.complete(new LookupDataResult(new CommandLookupTopicResponse()
+                .setRequestId(BROKER_REQUEST_ID)
+                .setResponse(CommandLookupTopicResponse.LookupType.Connect)
+                .setBrokerServiceUrl(brokerUrl)));
+
+        CommandLookupTopicResponse response = readLookupResponse();
+        assertThat(response.getResponse()).isEqualTo(CommandLookupTopicResponse.LookupType.Connect);
+        assertThat(response.getBrokerServiceUrl()).isEqualTo(brokerUrl);
+        assertThat(response.isProxyThroughServiceUrl()).isTrue();
+        verify(connectionPool).releaseConnection(clientCnx);
+        assertThat(lookupRequestSemaphore.availablePermits()).as("Permits after lookup success").isOne();
+    }
+
+    @DataProvider
+    public Object[][] connectionAuthenticationFailures() {
+        var failure = new PulsarClientException.AuthenticationException("Handshake failed");
+        return new Object[][] {{failure, failure.toString()}, {new CompletionException(failure), failure.toString()}};
+    }
+
+    @Test(dataProvider = "connectionAuthenticationFailures")
+    public void testLookupConnectionAuthenticationFailure(Throwable failure, String expectedMessage) {
+        handler.handleLookup(newLookupRequest());
+        assertThat(lookupRequestSemaphore.availablePermits()).as("Permits while connecting").isZero();
+        connectionFuture.completeExceptionally(failure);
+
+        assertThat(readLookupErrorResponse(ServerError.ServiceNotReady).getMessage()).isEqualTo(expectedMessage);
+        verifyNoBackendLookup();
+        verify(connectionPool, never()).releaseConnection(any(ClientCnx.class));
+        assertThat(lookupRequestSemaphore.availablePermits()).as("Permits after connection failure").isOne();
+    }
+
+    @Test
+    public void testLookupBrokerAuthenticationFailure() {
+        handler.handleLookup(newLookupRequest());
+        connectionFuture.complete(clientCnx);
+        assertThat(lookupRequestSemaphore.availablePermits()).as("Permits while awaiting the lookup").isZero();
+        metadataFuture.completeExceptionally(new PulsarClientException.AuthenticationException("Lookup failed"));
+
+        assertThat(readLookupErrorResponse(ServerError.AuthenticationError).getMessage()).isEqualTo("Lookup failed");
+        verify(connectionPool).releaseConnection(clientCnx);
+        assertThat(lookupRequestSemaphore.availablePermits()).as("Permits after lookup failure").isOne();
+    }
+
     @Test
     public void testLookupHoldsPermitAcrossRedirect() {
         InetSocketAddress redirectedAddress = InetSocketAddress.createUnresolved("broker2", 6650);
@@ -665,6 +834,14 @@ public class LookupProxyHandlerTest {
     }
 
     private CommandLookupTopicResponse readLookupErrorResponse(ServerError expectedError) {
+        CommandLookupTopicResponse response = readLookupResponse();
+        assertThat(response.getResponse()).as("Lookup result").isEqualTo(CommandLookupTopicResponse.LookupType.Failed);
+        assertThat(response.getError()).as("Lookup error code").isEqualTo(expectedError);
+        assertThat(response.getMessage()).as("Lookup error message").isNotBlank();
+        return response;
+    }
+
+    private CommandLookupTopicResponse readLookupResponse() {
         ByteBuf buffer = channel.readOutbound();
         assertThat(buffer).as("Lookup response").isNotNull();
         try {
@@ -673,10 +850,6 @@ public class LookupProxyHandlerTest {
                     .isEqualTo(BaseCommand.Type.LOOKUP_RESPONSE);
             CommandLookupTopicResponse response = command.getLookupTopicResponse();
             assertThat(response.getRequestId()).as("Client request ID").isEqualTo(CLIENT_REQUEST_ID);
-            assertThat(response.getResponse()).as("Lookup result")
-                    .isEqualTo(CommandLookupTopicResponse.LookupType.Failed);
-            assertThat(response.getError()).as("Lookup error code").isEqualTo(expectedError);
-            assertThat(response.getMessage()).as("Lookup error message").isNotBlank();
             assertThat(channel.outboundMessages()).as("Additional responses").isEmpty();
             return new CommandLookupTopicResponse().copyFrom(response);
         } finally {
@@ -685,19 +858,24 @@ public class LookupProxyHandlerTest {
     }
 
     private void assertGenericErrorResponse(ServerError expectedError) {
+        assertCommandError(expectedError);
+        verify(connectionPool, never()).getConnection(any(InetSocketAddress.class));
+        verifyNoBackendLookup();
+    }
+
+    private String assertCommandError(ServerError expectedError) {
         ByteBuf buffer = channel.readOutbound();
-        assertThat(buffer).as("Schema error response").isNotNull();
+        assertThat(buffer).as("Error response").isNotNull();
         try {
             BaseCommand command = decodeCommand(buffer);
             assertThat(command.getType()).as("Response command type").isEqualTo(BaseCommand.Type.ERROR);
             assertThat(command.getError().getRequestId()).as("Client request ID").isEqualTo(CLIENT_REQUEST_ID);
             assertThat(command.getError().getError()).as("Error code").isEqualTo(expectedError);
             assertThat(channel.outboundMessages()).as("Additional responses").isEmpty();
+            return command.getError().getMessage();
         } finally {
             buffer.release();
         }
-        verify(connectionPool, never()).getConnection(any(InetSocketAddress.class));
-        verifyNoBackendLookup();
     }
 
     private CommandPartitionedTopicMetadata newRequest() {
