@@ -4429,6 +4429,56 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
                 .untilAsserted(() -> assertThat(bkc.getLedgers()).doesNotContain(cursorLedgerId));
     }
 
+    @Test(timeOut = 30000)
+    public void testDeleteCleansUpOffloadedLedgersWhenLazyCursorRecoveryFinishesLate() throws Exception {
+        OffloadPrefixTest.MockLedgerOffloader offloader = new OffloadPrefixTest.MockLedgerOffloader();
+        ManagedLedgerConfig config = initManagedLedgerConfig(defaultConfig()).setMaxEntriesPerLedger(2);
+        config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
+        config = config.setRetentionTime(10, TimeUnit.MINUTES)
+                .setRetentionSizeInMB(10)
+                .setLedgerOffloader(offloader);
+        ManagedLedger ledger = factory.open(
+                "testDeleteCleansUpOffloadedLedgersWhenLazyCursorRecoveryFinishesLate", config);
+        ledger.openCursor("slow-cursor");
+        for (int i = 0; i < 5; i++) {
+            ledger.addEntry(("entry-" + i).getBytes());
+        }
+        ledger.offloadPrefix(ledger.getLastConfirmedEntry());
+        List<Long> offloadedIds = new ArrayList<>(offloader.offloadedLedgers());
+        assertEquals(offloadedIds.size(), 2, "Expected the two closed ledgers to be offloaded");
+        ledger.close();
+
+        Map<String, CompletableFuture<Void>> recoveryGates = new ConcurrentHashMap<>();
+        recoveryGates.put("slow-cursor", new CompletableFuture<>());
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory2 = createFactoryWithGatedCursorRecovery(recoveryGates);
+        ManagedLedgerConfig reopenConfig = initManagedLedgerConfig(defaultConfig()).setMaxEntriesPerLedger(2);
+        reopenConfig.setMinimumRolloverTime(0, TimeUnit.SECONDS);
+        ManagedLedgerImpl reopened = (ManagedLedgerImpl) factory2.open(ledger.getName(),
+                reopenConfig.setRetentionTime(10, TimeUnit.MINUTES)
+                        .setRetentionSizeInMB(10)
+                        .setLedgerOffloader(offloader)
+                        .setLazyCursorRecovery(true));
+
+        // Start the delete while the cursor is still recovering: trimming defers until the
+        // recovery finishes, then the late cursor registers with its stale mark-delete position.
+        DeleteLedgerCallback deletion = mock(DeleteLedgerCallback.class);
+        factory2.asyncDelete(ledger.getName(), deletion, null);
+        Awaitility.await().atMost(5, TimeUnit.SECONDS)
+                .untilAsserted(() -> assertThat(reopened.getState())
+                        .isEqualTo(ManagedLedgerImpl.State.FencedForDeletion));
+        recoveryGates.get("slow-cursor").complete(null);
+        verify(deletion, timeout(5000)).deleteLedgerComplete(null);
+
+        // The delete must clean up the offloaded copies, not just the BookKeeper ledgers:
+        // without the fix the stale cursor pins the trim and both offloads are orphaned.
+        Awaitility.await().atMost(5, TimeUnit.SECONDS)
+                .untilAsserted(() -> assertThat(offloader.offloadedLedgers()).isEmpty());
+        assertThat(offloader.deletedOffloads()).containsExactlyInAnyOrderElementsOf(offloadedIds);
+        assertThat(metadataStore.exists("/managed-ledgers/" + ledger.getName() + "/slow-cursor")
+                .get(5, TimeUnit.SECONDS)).isFalse();
+    }
+
     @Test
     public void testFailedLazyCursorRecoveryBlocksTrimmingUntilRecovered() throws Exception {
         ManagedLedgerConfig config = initManagedLedgerConfig(defaultConfig()).setMaxEntriesPerLedger(2);
