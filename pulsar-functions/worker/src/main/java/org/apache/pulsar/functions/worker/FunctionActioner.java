@@ -186,6 +186,12 @@ public class FunctionActioner {
         } else {
             File pkgDir = new File(new File(workerConfig.getDownloadDirectory(),
                     getDownloadPackagePath(functionMetaData, instanceId)), downloadDirectoryName);
+            if (pkgDir.isFile()) {
+                // Older versions downloaded packages directly into the instance directory.
+                log.warn().attr("pkgFile", pkgDir).log("Stale function package exists at the download directory, "
+                        + "deleting it");
+                pkgDir.delete();
+            }
             pkgDir.mkdirs();
             File pkgFile = new File(
                     pkgDir,
